@@ -180,23 +180,23 @@ MVP-11 Android compatibility validation
 ## MVP-05: Bots, Replay Records, And Scenario Suite
 
 **Owner:** Simulation QA agent
-**Status:** [ ] Not started
+**Status:** [x] Complete - local bot replay scenarios pass
 **Dependencies:** MVP-02, MVP-03, MVP-04
 
 ### Deliverables
 
-- [ ] Implement greedy, balanced, and defensive bot decision profiles.
-- [ ] Make bots issue normal commands through the command validator.
-- [ ] Implement replay records containing seed, content version, map ID, player configuration, and accepted commands.
-- [ ] Implement replay execution and final-state comparison.
-- [ ] Add scenario tests for a complete three-player simulated match.
-- [ ] Add a stress scenario for heavy sends and repeated placement validation.
+- [x] Implement greedy, balanced, and defensive bot decision profiles.
+- [x] Make bots issue normal commands through the command validator.
+- [x] Implement replay records containing seed, content version, map ID, player configuration, and accepted commands.
+- [x] Implement replay execution and final-state comparison.
+- [x] Add scenario tests for a complete three-player simulated match.
+- [x] Add a stress scenario for heavy sends and repeated placement validation.
 
 ### Acceptance Checks
 
-- [ ] Three bots can complete a match without invalid state or unhandled exceptions.
-- [ ] Replaying a saved match produces the same final state or state hash.
-- [ ] Bot profiles demonstrably produce different income-versus-defense behavior.
+- [x] Three bots can complete a match without invalid state or unhandled exceptions.
+- [x] Replaying a saved match produces the same final state or state hash.
+- [x] Bot profiles demonstrably produce different income-versus-defense behavior.
 
 ## MVP-06: Unity Bridge And Local Vertical Slice
 
