@@ -93,24 +93,24 @@ MVP-11 Android compatibility validation
 ## MVP-01: Simulation Contracts And Content Model
 
 **Owner:** Simulation agent
-**Status:** [ ] Not started
+**Status:** [ ] In progress - contracts implemented; review before MVP-02 pending
 **Dependencies:** MVP-00
 
 ### Deliverables
 
-- [ ] Define value types for player ID, lane ID, grid position, entity ID, tick, gold, income, and lives.
-- [ ] Define immutable command contracts: `PlaceTower`, `SellTower`, `QueueSend`, `BuyTech`, and `PauseSimulation`.
-- [ ] Define command result and rejection-reason contracts.
-- [ ] Define simulation events required by presentation and results.
-- [ ] Define state snapshots that Unity can read without mutating simulation state.
-- [ ] Define versioned content contracts for towers, creeps, tech, maps, and bot profiles.
-- [ ] Implement a seeded random-source interface.
-- [ ] Add validation for duplicate IDs, missing references, invalid costs, and invalid map data.
+- [x] Define value types for player ID, lane ID, grid position, entity ID, tick, gold, income, and lives.
+- [x] Define immutable command contracts: `PlaceTower`, `SellTower`, `QueueSend`, `BuyTech`, and `PauseSimulation`.
+- [x] Define command result and rejection-reason contracts.
+- [x] Define simulation events required by presentation and results.
+- [x] Define state snapshots that Unity can read without mutating simulation state.
+- [x] Define versioned content contracts for towers, creeps, tech, maps, and bot profiles.
+- [x] Implement a seeded random-source interface.
+- [x] Add validation for duplicate IDs, missing references, invalid costs, and invalid map data.
 
 ### Acceptance Checks
 
-- [ ] A test can load valid sample content and reject malformed content.
-- [ ] Commands can be created and validated without launching Unity.
+- [x] A test can load valid sample content and reject malformed content.
+- [x] Commands can be created and validated without launching Unity.
 - [ ] The public contracts are reviewed before MVP-02 through MVP-08 begin.
 
 ## MVP-02: Grid, Occupancy, And Path Validation

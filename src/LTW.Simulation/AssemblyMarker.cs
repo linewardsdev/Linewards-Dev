@@ -1,9 +1,5 @@
-namespace LTW.Simulation
+namespace LTW.Simulation;
+
+public static class AssemblyMarker
 {
-    /// <summary>
-    /// Identifies the engine-independent simulation assembly for adapters and tests.
-    /// </summary>
-    public static class AssemblyMarker
-    {
-    }
 }
