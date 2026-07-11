@@ -2,9 +2,9 @@
 
 ## Goal
 
-Build a mobile-first Line Tower Wars prototype that proves the core loop before committing to multiplayer infrastructure. The first playable version runs a complete three-player carousel match on one device with one human player and two simulated opponents.
+Build a mobile-first Line Tower Wars prototype in Unity and C# that proves the core loop before committing to multiplayer infrastructure. The first playable version runs a complete three-player carousel match on one device with one human player and two simulated opponents.
 
-The design must keep game rules, simulation, presentation, and future network services separate. Online multiplayer is a later replacement for the source of player commands, not a rewrite of combat or pathing.
+The design must keep game rules, simulation, presentation, and future network services separate. `LTW.Simulation` is a pure .NET/C# library with no Unity dependencies. Online multiplayer is a later replacement for the source of player commands, not a rewrite of combat or pathing.
 
 ## Architecture Principles
 
@@ -45,6 +45,17 @@ Future online services replace local command sources and host the same
 simulation for competitive matches.
 ```
 
+## Solution Boundaries
+
+```text
+LTW.Simulation      Pure .NET/C# match rules, commands, state, and replay support
+LTW.UnityClient     Unity mobile presentation, touch input, local bots, and local saves
+LTW.MatchServer     Headless .NET service that runs authoritative match instances
+LTW.Tests           Unit, scenario, replay, and balance tests for LTW.Simulation
+```
+
+`LTW.UnityClient` references `LTW.Simulation`; `LTW.MatchServer` also references `LTW.Simulation`. Neither simulation tests nor the match server may depend on Unity assemblies.
+
 ## Mobile Client Modules
 
 ### Presentation
@@ -76,7 +87,7 @@ Initial command types:
 
 ### Match Simulation
 
-The match simulation runs all three lanes, including AI-controlled players. It is pure gameplay logic with no scene-object references, network calls, file writes, or UI dependencies.
+`LTW.Simulation` runs all three lanes, including AI-controlled players. It is pure gameplay logic with no Unity scene-object references, network calls, file writes, or UI dependencies.
 
 Responsibilities:
 
@@ -181,7 +192,7 @@ No persistent game server, database, matchmaking queue, login provider, or cloud
 
 ## Future Online Architecture
 
-When the local prototype proves fun, the online version should be server-authoritative:
+When the local prototype proves fun, the online version should be server-authoritative. `LTW.MatchServer` should begin as a headless .NET service in one regional container, using WebSockets for client connections. This is appropriate for discrete build, sell, and send commands; transport can be revisited only if measurements show a need for lower-level networking.
 
 ```text
 Mobile clients
@@ -193,7 +204,7 @@ Matchmaking service --> authoritative match instance --> match results service
 Account/profile store     replay/telemetry store     ranking and cosmetics
 ```
 
-Clients submit commands. The authoritative match instance validates them and broadcasts state updates or a compact event stream. The server owns random seeds, economy, path validation, combat, leaks, and final results.
+Clients submit commands. The authoritative match instance validates them and broadcasts state updates or a compact event stream. The server owns random seeds, economy, path validation, combat, leaks, and final results. It consumes the same `LTW.Simulation` library used for local matches and test replays.
 
 Candidate service boundaries:
 
@@ -229,8 +240,7 @@ For online play:
 
 ## Decisions To Make Before Implementation
 
-1. Select the client engine: Unity or Godot.
-2. Select the simulation language and determine whether it can run headlessly on a future server.
-3. Define first-device performance targets and the actual devices used for validation.
-4. Define the first map grid dimensions and pathing algorithm prototype.
-5. Define the initial balance-data format and validation rules.
+1. Create the Unity project, `LTW.Simulation`, `LTW.MatchServer`, and `LTW.Tests` solution structure.
+2. Define first-device performance targets and the actual devices used for validation.
+3. Define the first map grid dimensions and pathing algorithm prototype.
+4. Define the initial balance-data format and validation rules.

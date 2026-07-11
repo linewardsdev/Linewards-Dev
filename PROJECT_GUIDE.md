@@ -264,6 +264,18 @@ These should be tuned carefully. Anti-stalemate mechanics should end games witho
 
 ## Technical Direction
 
+### Platform And Shared Code
+
+The client will use Unity and C#. Core match rules should live in a pure .NET/C# simulation library with no Unity scene, rendering, input, or networking dependencies.
+
+That shared library is used by:
+
+- The Unity mobile client for local matches and simulated opponents.
+- Automated tests for rules, replays, and balance scenarios.
+- A future headless .NET match server for authoritative online play.
+
+This keeps offline and online rules aligned and prevents a separate backend implementation from drifting away from the client game.
+
 ### Visual Style
 
 Use low-fi visuals with strong readability:
@@ -287,7 +299,9 @@ Pool sizes should be treated as prototype targets, not guarantees. Numbers like 
 
 ### Simulation
 
-The game should investigate deterministic simulation for multiplayer, but the networking model should be chosen after prototype testing.
+The first prototype runs a fixed-tick local simulation with one human player and simulated opponents. The game should aim for reproducible simulation through seeded randomness, command logs, and deterministic rule tests, while treating exact cross-device lockstep as a future validation question rather than a launch requirement.
+
+When online play is introduced, the preferred model is a server-authoritative headless .NET match process. Mobile clients submit player commands and render received state; the server validates commands and owns economy, pathing, combat, leaks, and results. The first online spike can use a single regional container and WebSocket connections because LTW actions are discrete build, sell, and send commands rather than continuous twitch movement.
 
 Rendering and primary UI should stay on the main thread. Expensive pathfinding, collision checks, validation passes, and wave simulation should be evaluated for worker/background execution where the target engine supports it.
 
@@ -370,10 +384,11 @@ Defer:
 
 ## Next Design Decisions
 
-1. Choose 2D or low-poly 3D for the prototype.
-2. Define the first tower set.
-3. Define the first creep set.
-4. Decide initial income tick timing.
-5. Decide initial lane grid dimensions.
-6. Prototype path validation and draw mode.
-7. Test whether 3-player carousel pressure is fun before expanding to 4-8 players.
+1. Create the Unity project and shared .NET solution structure.
+2. Choose 2D or low-poly 3D for the prototype.
+3. Define the first tower set.
+4. Define the first creep set.
+5. Decide initial income tick timing.
+6. Decide initial lane grid dimensions.
+7. Prototype path validation and draw mode.
+8. Test whether 3-player carousel pressure is fun before expanding to 4-8 players.
