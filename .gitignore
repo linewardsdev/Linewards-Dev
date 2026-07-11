@@ -18,6 +18,8 @@
 [Uu]ser[Ss]ettings/
 [Mm]emoryCaptures/
 Recordings/
+unity/LTW.UnityClient/Assets/Plugins/LTW.Simulation.dll
+unity/LTW.UnityClient/Assets/Plugins/LTW.Simulation.dll.meta
 
 # Unity-generated IDE files
 *.csproj

@@ -7,7 +7,9 @@ namespace LTW.UnityClient.Simulation
         [SerializeField]
         private UnitySimulationDriver simulationDriver = null!;
 
-        private void OnGUI()
+        public string LatestText { get; private set; } = string.Empty;
+
+        private void Update()
         {
             var snapshot = simulationDriver.LatestSnapshot;
             if (snapshot is null)
@@ -15,13 +17,13 @@ namespace LTW.UnityClient.Simulation
                 return;
             }
 
-            GUILayout.Label($"Tick: {snapshot.Tick.Value}");
+            var text = $"Tick: {snapshot.Tick.Value}";
             foreach (var player in snapshot.Players.Players)
             {
-                GUILayout.Label($"P{player.PlayerId.Value} Gold:{player.Gold.Amount} Income:{player.Income.Amount} Lives:{player.Lives.Amount}");
+                text += $"\nP{player.PlayerId.Value} Gold:{player.Gold.Amount} Income:{player.Income.Amount} Lives:{player.Lives.Amount}";
             }
 
-            GUILayout.Label($"Towers: {snapshot.Towers.Count} Creeps: {snapshot.Creeps.Count}");
+            LatestText = $"{text}\nTowers: {snapshot.Towers.Count} Creeps: {snapshot.Creeps.Count}";
         }
     }
 }

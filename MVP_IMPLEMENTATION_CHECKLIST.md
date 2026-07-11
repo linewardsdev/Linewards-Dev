@@ -88,7 +88,7 @@ MVP-11 Android compatibility validation
 - [x] A locked restore, format check, and `dotnet test` pass from the repository checkout.
 - [x] `LTW.Simulation` has no Unity references, enforced by an architecture test.
 - [ ] CI passes on a pull request containing only a trivial simulation test.
-- [ ] Unity opens the project shell with the pinned editor version.
+- [x] Unity opens the project shell with the pinned editor version.
 
 ## MVP-01: Simulation Contracts And Content Model
 
@@ -201,7 +201,7 @@ MVP-11 Android compatibility validation
 ## MVP-06: Unity Bridge And Local Vertical Slice
 
 **Owner:** Unity integration agent
-**Status:** [ ] In progress - bridge source and .NET vertical slice checks pass; Unity editor run pending
+**Status:** [ ] In progress - bridge source, .NET vertical slice checks, and Unity batch compile pass; Play Mode run pending
 **Dependencies:** MVP-02, MVP-03, MVP-04
 
 ### Deliverables

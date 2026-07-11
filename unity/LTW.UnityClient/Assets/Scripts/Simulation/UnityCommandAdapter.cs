@@ -6,7 +6,7 @@ namespace LTW.UnityClient.Simulation
 {
     public sealed class UnityCommandAdapter : MonoBehaviour
     {
-        private LocalVerticalSlice? simulation;
+        private LocalVerticalSlice simulation;
 
         public void Initialize(LocalVerticalSlice localSimulation)
         {

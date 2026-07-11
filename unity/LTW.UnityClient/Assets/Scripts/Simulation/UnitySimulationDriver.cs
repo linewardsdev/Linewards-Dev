@@ -10,10 +10,10 @@ namespace LTW.UnityClient.Simulation
         [SerializeField]
         private float ticksPerSecond = 10f;
 
-        private LocalVerticalSlice? simulation;
+        private LocalVerticalSlice simulation;
         private float accumulator;
 
-        public VerticalSliceSnapshot? LatestSnapshot { get; private set; }
+        public VerticalSliceSnapshot LatestSnapshot { get; private set; }
 
         public IReadOnlyList<ISimulationEvent> LatestEvents { get; private set; } = new List<ISimulationEvent>();
 
@@ -45,7 +45,10 @@ namespace LTW.UnityClient.Simulation
         public void ResetMatch()
         {
             simulation?.Reset();
-            LatestSnapshot = simulation?.GetSnapshot();
+            if (simulation is not null)
+            {
+                LatestSnapshot = simulation.GetSnapshot();
+            }
         }
     }
 }
