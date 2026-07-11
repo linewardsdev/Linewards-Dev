@@ -25,7 +25,7 @@ The target experience is a fast, readable, skill-based free-for-all tower wars g
 
 4. Scale through efficient systems.
    - Use low-fi visuals, object pooling, simple animation, and careful simulation design.
-   - Performance targets must be validated on real low- and mid-range devices.
+   - Performance targets must be validated on real iOS devices first, then on representative Android hardware before wider distribution.
 
 ## Match Format
 

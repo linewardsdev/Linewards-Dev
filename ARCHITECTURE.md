@@ -164,7 +164,7 @@ Pathing is the principal technical risk, so it should be isolated behind a `Path
 - Creep movement should use cached paths until the grid changes.
 - Unit and projectile pools are owned by presentation, while simulation entities remain lightweight IDs and numeric state.
 
-The first benchmark should simulate three lanes under a heavy send scenario on representative low- and mid-range Android hardware. Record tick duration, active creeps, path recalculation time, memory usage, and dropped render frames.
+The first benchmark should simulate three lanes under a heavy send scenario across the available iOS test devices. Record tick duration, active creeps, path recalculation time, memory usage, and dropped render frames. Validate on representative Android hardware before broadening content scope or distribution.
 
 ## Testing Strategy
 
@@ -184,7 +184,7 @@ The initial infrastructure can be intentionally small:
 
 - Source repository and protected `main` branch.
 - Automated checks for simulation tests and formatting on every pull request.
-- Build pipeline for Android internal distribution and iOS TestFlight when a playable client exists.
+- Build pipeline for iOS TestFlight when a playable client exists, followed by Android internal distribution for cross-platform validation.
 - Crash reporting and product telemetry SDK, configured to keep personal data minimal.
 - A small shared balance-data workflow, initially committed to source control.
 
@@ -234,7 +234,7 @@ For online play:
 1. **Local vertical slice:** one lane, one player, fixed waves, placement, basic combat, and profiling.
 2. **Simulated three-player match:** carousel routing, bots, income, elimination, and match results.
 3. **Repeatability:** command logs, deterministic seed verification, automated simulation tests, and balance scenarios.
-4. **Device validation:** Android and iOS internal builds, crash reporting, telemetry, and performance budgets.
+4. **Device validation:** iOS TestFlight builds across the available test-device matrix, followed by Android internal builds, crash reporting, telemetry, and performance budgets.
 5. **Online spike:** headless authoritative simulation, command transport, and a small private match test.
 6. **Production multiplayer:** accounts, matchmaking, ranking, cosmetics, and scalable match hosting.
 

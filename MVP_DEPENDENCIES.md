@@ -25,12 +25,12 @@ The MVP is offline. It does not require login, cloud saves, matchmaking, a persi
 | Dependency | Required For | MVP Decision |
 | --- | --- | --- |
 | Unity LTS editor | iOS/Android client, touch UI, rendering, device builds | Required. Use a currently supported LTS release and commit the Unity project version metadata. |
-| Unity Android build support | Android internal builds and device profiling | Required early. Android is the first performance-validation platform. |
-| Unity iOS build support | iOS TestFlight builds | Required before iOS validation, not before the first Android vertical slice. |
+| Unity iOS build support | iOS TestFlight builds and device profiling | Required early. iOS is the first performance-validation platform. |
+| Unity Android build support | Android internal builds and cross-platform device profiling | Required before broader distribution, after the iOS-first vertical slice. |
 | Supported .NET SDK | `LTW.Simulation`, server-ready code, and automated tests | Required. Pin the SDK with `global.json` after choosing the Unity-compatible C# target. |
 | Git | Source control and reviewable change history | Required. |
 | IDE with Unity and .NET support | Development and debugging | Required. Visual Studio or Rider are both suitable. |
-| Physical test devices | Real performance and touch-control validation | Required. At least one representative Android device before content scale-up. |
+| Physical test devices | Real performance and touch-control validation | Required. Use the available iOS devices as the first test matrix; add a representative Android device before broadening content scope. |
 
 ## Solution And Code Dependencies
 
@@ -136,8 +136,8 @@ Initial acceptance tests:
 | `.editorconfig` and formatting rules | Consistent C# formatting and fewer review-only changes | Required when the solution is created. |
 | `global.json` and dependency lock files | Reproducible SDK and NuGet resolution | Required when the solution is created. |
 | CI workflow | Run `dotnet test`, validate formatting, and report failures on pull requests | Required with the first simulation code. |
-| Android internal distribution | Installable builds for real-device tests | Required after the first playable loop. |
-| iOS TestFlight distribution | iOS device testing | Required after Android performance and controls are stable. |
+| iOS TestFlight distribution | Installable builds for iOS device testing | Required after the first playable loop. |
+| Android internal distribution | Installable builds for cross-platform validation | Required after the iOS baseline is stable and before broader distribution. |
 | Signed release pipeline | Store submission and production releases | Deferred. |
 | Secrets store | Protect API keys, signing material, and service credentials | Deferred until a build service or external SDK needs a secret. |
 
@@ -154,7 +154,7 @@ Required measurements:
 - Battery and thermal behavior during an extended session.
 - Touch-to-command latency for placement and send actions.
 
-The first test matrix should include the primary development device and one lower-spec Android device. Add iOS devices before iOS distribution, not after feature scope has grown.
+The first test matrix should use the available iOS devices, including the oldest supported device as the initial baseline. Add a representative Android device before broader content scope or distribution.
 
 ## Deferred Online Dependencies
 
@@ -180,8 +180,9 @@ Do not introduce these into the simulated MVP:
 4. Add the Unity adapter, touch placement, basic rendering, and object pooling only when spawning repeats.
 5. Add carousel sends, two bots, leaks, life, elimination, and results.
 6. Add replay records, deterministic scenarios, and heavy-send benchmarks.
-7. Produce an Android internal build and validate on real devices.
-8. Add content breadth only after the complete loop meets performance and usability targets.
+7. Produce an iOS TestFlight build and validate across the available iOS devices.
+8. Produce an Android internal build for cross-platform validation.
+9. Add content breadth only after the complete loop meets performance and usability targets on both platforms.
 
 ## Completion Gate For The MVP Foundation
 
@@ -191,5 +192,6 @@ The foundational dependency work is complete when:
 - Unity runs a three-player match by referencing `LTW.Simulation`.
 - Two bots use the same command and validation path as the player.
 - A replay can reproduce a known match result with the same seed and content version.
-- An Android build completes a stress scenario on the selected baseline device.
+- An iOS TestFlight build completes a stress scenario across the selected iOS baseline devices.
+- An Android internal build completes the same stress scenario on the selected Android baseline device.
 - The project has no runtime dependency on cloud infrastructure or a live backend.
