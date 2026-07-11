@@ -45,6 +45,18 @@ public sealed class VerticalSliceBridgeTests
     }
 
     [Fact]
+    public void Bridge_reports_occupied_cells_for_touch_feedback()
+    {
+        var simulation = new LocalVerticalSlice(SampleVerticalSliceContent.Create());
+        Assert.True(simulation.PlaceTower(new PlayerId(1), new LaneId(1), SampleVerticalSliceContent.TowerId, new GridPosition(1, 0)).Accepted);
+
+        var occupied = simulation.PlaceTower(new PlayerId(1), new LaneId(1), SampleVerticalSliceContent.TowerId, new GridPosition(1, 0));
+
+        Assert.False(occupied.Accepted);
+        Assert.Equal(CommandRejectionReason.CellOccupied, occupied.RejectionReason);
+    }
+
+    [Fact]
     public void Bridge_reset_restores_development_slice_state()
     {
         var simulation = new LocalVerticalSlice(SampleVerticalSliceContent.Create());
@@ -58,5 +70,19 @@ public sealed class VerticalSliceBridgeTests
         Assert.Equal(100, snapshot.Players.Get(new PlayerId(1)).Gold.Amount);
         Assert.Empty(snapshot.Creeps);
         Assert.Empty(snapshot.Towers);
+    }
+
+    [Fact]
+    public void Bridge_sells_last_tower_and_refunds_gold()
+    {
+        var simulation = new LocalVerticalSlice(SampleVerticalSliceContent.Create());
+        Assert.True(simulation.PlaceTower(new PlayerId(1), new LaneId(1), SampleVerticalSliceContent.TowerId, new GridPosition(1, 0)).Accepted);
+
+        var sell = simulation.SellLastTower(new PlayerId(1));
+        var snapshot = simulation.GetSnapshot();
+
+        Assert.True(sell.Accepted);
+        Assert.Empty(snapshot.Towers);
+        Assert.Equal(87, snapshot.Players.Get(new PlayerId(1)).Gold.Amount);
     }
 }

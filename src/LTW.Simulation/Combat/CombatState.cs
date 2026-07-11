@@ -26,6 +26,9 @@ public sealed class CombatState
     public CombatState RemoveCreep(EntityId creepEntityId) =>
         new CombatState(Creeps.Where(creep => !creep.EntityId.Equals(creepEntityId)), Towers);
 
+    public CombatState RemoveTower(EntityId towerEntityId) =>
+        new CombatState(Creeps, Towers.Where(tower => !tower.EntityId.Equals(towerEntityId)));
+
     private static IReadOnlyList<T> Replace<T>(IReadOnlyList<T> values, T replacement, Func<T, bool> predicate)
     {
         var next = values.ToArray();

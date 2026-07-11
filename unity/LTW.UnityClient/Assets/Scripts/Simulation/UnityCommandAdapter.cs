@@ -26,5 +26,17 @@ namespace LTW.UnityClient.Simulation
                 ? VerticalSliceCommandResult.Reject(LTW.Simulation.Commands.CommandRejectionReason.MatchPaused)
                 : simulation.QueueSend(new PlayerId(1), SampleVerticalSliceContent.CreepId);
         }
+
+        public VerticalSliceCommandResult SellLastSampleTower()
+        {
+            return simulation is null
+                ? VerticalSliceCommandResult.Reject(LTW.Simulation.Commands.CommandRejectionReason.MatchPaused)
+                : simulation.SellLastTower(new PlayerId(1));
+        }
+
+        public void ResetMatch()
+        {
+            simulation?.Reset();
+        }
     }
 }

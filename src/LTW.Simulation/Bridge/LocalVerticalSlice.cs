@@ -73,7 +73,7 @@ public sealed class LocalVerticalSlice
         var placement = pathService.ValidatePlacement(grid, position);
         if (!placement.IsValid)
         {
-            return VerticalSliceCommandResult.Reject(CommandRejectionReason.PathBlocked);
+            return VerticalSliceCommandResult.Reject(ToCommandRejection(placement.RejectionReason));
         }
 
         var tower = content.Towers.First(definition => definition.Id.Equals(towerId));
@@ -121,6 +121,28 @@ public sealed class LocalVerticalSlice
         return VerticalSliceCommandResult.Accept();
     }
 
+    public VerticalSliceCommandResult SellLastTower(PlayerId playerId)
+    {
+        var tower = combatState.Towers
+            .Where(candidate => candidate.OwnerId.Equals(playerId))
+            .OrderByDescending(candidate => candidate.EntityId.Value)
+            .FirstOrDefault();
+        if (tower is null)
+        {
+            return VerticalSliceCommandResult.Reject(CommandRejectionReason.NotOwner);
+        }
+
+        var towerDefinition = content.Towers.First(definition => definition.Id.Equals(tower.TowerId));
+        var refund = economy.CalculateSellRefund(towerDefinition);
+        var player = players.Get(playerId);
+        players = players.Replace(player.WithGold(new Gold(player.Gold.Amount + refund.Amount)));
+        combatState = combatState.RemoveTower(tower.EntityId);
+        grids[tower.LaneId] = grids[tower.LaneId].WithoutOccupied(tower.Position);
+        routes[tower.LaneId] = pathService.FindRoute(grids[tower.LaneId]).Route;
+        pendingEvents.Add(new TowerSoldEvent(tick, playerId, tower.LaneId, tower.EntityId, refund));
+        return VerticalSliceCommandResult.Accept();
+    }
+
     public void AdvanceOneTick()
     {
         tick = new SimulationTick(tick.Value + 1);
@@ -158,4 +180,15 @@ public sealed class LocalVerticalSlice
     }
 
     private EntityId NextEntityId() => new EntityId(nextEntityId++);
+
+    private static CommandRejectionReason ToCommandRejection(PlacementRejectionReason reason)
+    {
+        return reason switch
+        {
+            PlacementRejectionReason.OutsideGrid => CommandRejectionReason.InvalidLane,
+            PlacementRejectionReason.AlreadyOccupied => CommandRejectionReason.CellOccupied,
+            PlacementRejectionReason.PathBlocked => CommandRejectionReason.PathBlocked,
+            _ => CommandRejectionReason.PathBlocked
+        };
+    }
 }

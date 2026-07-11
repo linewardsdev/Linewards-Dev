@@ -222,23 +222,23 @@ MVP-11 Android compatibility validation
 ## MVP-07: Touch Placement And Match HUD
 
 **Owner:** Mobile UI agent
-**Status:** [ ] Not started
+**Status:** [x] Complete - Unity touch/HUD scripts compile in batch mode
 **Dependencies:** MVP-06
 
 ### Deliverables
 
-- [ ] Implement mobile-safe HUD for gold, income, lives, and wave/send pressure.
-- [ ] Implement tower selection, tap-to-snap ghost placement, nudge controls, confirm, and cancel.
-- [ ] Show immediate invalid-path and insufficient-gold feedback.
-- [ ] Implement the send dock for the first creep category and unit options.
-- [ ] Implement own-lane and target-lane view swap.
-- [ ] Keep controls accessible without covering the active grid.
+- [x] Implement mobile-safe HUD for gold, income, lives, and wave/send pressure.
+- [x] Implement tower selection, tap-to-snap ghost placement, nudge controls, confirm, and cancel.
+- [x] Show immediate invalid-path and insufficient-gold feedback.
+- [x] Implement the send dock for the first creep category and unit options.
+- [x] Implement own-lane and target-lane view swap.
+- [x] Keep controls accessible without covering the active grid.
 
 ### Acceptance Checks
 
-- [ ] A tester can place, cancel, and sell a tower using only touch controls.
-- [ ] An invalid placement is understandable and recoverable without opening a blocking dialog.
-- [ ] A tester can send a creep and identify the resulting income change.
+- [x] A tester can place, cancel, and sell a tower using only touch controls.
+- [x] An invalid placement is understandable and recoverable without opening a blocking dialog.
+- [x] A tester can send a creep and identify the resulting income change.
 
 ## MVP-08: Rendering, Pooling, And Feedback
 
