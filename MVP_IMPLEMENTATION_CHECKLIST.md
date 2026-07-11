@@ -201,23 +201,23 @@ MVP-11 Android compatibility validation
 ## MVP-06: Unity Bridge And Local Vertical Slice
 
 **Owner:** Unity integration agent
-**Status:** [ ] Not started
+**Status:** [ ] In progress - bridge source and .NET vertical slice checks pass; Unity editor run pending
 **Dependencies:** MVP-02, MVP-03, MVP-04
 
 ### Deliverables
 
-- [ ] Create a Unity match bootstrapper that loads content and starts `LTW.Simulation`.
-- [ ] Advance simulation with a fixed-step accumulator while rendering independently.
-- [ ] Translate Unity input requests into simulation commands.
-- [ ] Read state snapshots and events without direct simulation mutation.
-- [ ] Display one lane, one tower, one creep, gold, income, and lives.
-- [ ] Provide a development-only match reset and diagnostic overlay.
+- [x] Create a Unity match bootstrapper that loads content and starts `LTW.Simulation`.
+- [x] Advance simulation with a fixed-step accumulator while rendering independently.
+- [x] Translate Unity input requests into simulation commands.
+- [x] Read state snapshots and events without direct simulation mutation.
+- [x] Display one lane, one tower, one creep, gold, income, and lives.
+- [x] Provide a development-only match reset and diagnostic overlay.
 
 ### Acceptance Checks
 
 - [ ] A player can run one lane locally, place a tower, send a creep, and see it resolve.
 - [ ] Unity runs the same command sequence to the expected simulation result.
-- [ ] The bridge contains no duplicate combat, economy, or pathing rules.
+- [x] The bridge contains no duplicate combat, economy, or pathing rules.
 
 ## MVP-07: Touch Placement And Match HUD
 
