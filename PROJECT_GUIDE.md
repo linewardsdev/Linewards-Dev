@@ -112,6 +112,10 @@ Life stealing should be reserved for rare boss units or special modes if used at
 
 ## Mobile Interface
 
+### Builder Model
+
+The baseline mobile design should not require controlling a physical worker unit during live matches. Classic LTW builder identity can remain as a cosmetic theme, but tower placement should happen directly through the lane grid. This avoids virtual joystick micro and keeps the player's attention on defense, sending, and timing.
+
 ### View Model
 
 Picture-in-picture should be avoided for the baseline mobile design because it consumes too much screen space.
@@ -121,6 +125,8 @@ Instead, use full-screen view swapping:
 - Default view: the player's own lane.
 - Single tap view-swap: briefly or fully switch to the carousel target's lane.
 - Hold view-swap: show a compact overview of all lanes, lives, and major wave pressure, then return to the player's lane on release.
+
+The main action controls should respect mobile thumb zones. View swapping belongs near one edge of the screen, while contextual build, sell, and placement controls should stay reachable from the opposite side without covering the active maze.
 
 ### Spawning Dock
 
@@ -138,6 +144,8 @@ Sub-menu:
 - Holding a unit option auto-queues sends while gold is available.
 
 This keeps the screen clean while preserving fast economic play.
+
+Tech upgrades should be reachable without becoming a large blocking menu. The first prototype can treat tech as a compact contextual panel near the spawning dock or build controls, then validate whether players can access it quickly during pressure.
 
 ## Tower Placement
 
@@ -174,6 +182,7 @@ Players should be able to save maze templates to their profile.
 Recommended constraints:
 
 - Templates are created outside live matches in a sandbox editor.
+- The first design target is up to 3 saved templates per relevant tower family, element tree, or builder cosmetic archetype. This number is tunable.
 - Templates appear in-match as faint overlays.
 - Templates do not auto-win placement decisions.
 - Players still need gold and timing to build the layout.
@@ -280,6 +289,8 @@ Pool sizes should be treated as prototype targets, not guarantees. Numbers like 
 
 The game should investigate deterministic simulation for multiplayer, but the networking model should be chosen after prototype testing.
 
+Rendering and primary UI should stay on the main thread. Expensive pathfinding, collision checks, validation passes, and wave simulation should be evaluated for worker/background execution where the target engine supports it.
+
 Open questions:
 
 - Can pathfinding remain deterministic across supported devices?
@@ -299,6 +310,7 @@ Allowed:
 - Builder cosmetics.
 - Player badges.
 - Emotes.
+- Mass-send emote badges or cosmetic alerts shown to the carousel target.
 - Profile banners.
 - Seasonal cosmetic passes.
 
@@ -365,4 +377,3 @@ Defer:
 5. Decide initial lane grid dimensions.
 6. Prototype path validation and draw mode.
 7. Test whether 3-player carousel pressure is fun before expanding to 4-8 players.
-
