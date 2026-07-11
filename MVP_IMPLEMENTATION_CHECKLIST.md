@@ -93,7 +93,7 @@ MVP-11 Android compatibility validation
 ## MVP-01: Simulation Contracts And Content Model
 
 **Owner:** Simulation agent
-**Status:** [ ] In progress - contracts implemented; review before MVP-02 pending
+**Status:** [x] Complete - contracts implemented and review fixes accepted
 **Dependencies:** MVP-00
 
 ### Deliverables
@@ -111,29 +111,29 @@ MVP-11 Android compatibility validation
 
 - [x] A test can load valid sample content and reject malformed content.
 - [x] Commands can be created and validated without launching Unity.
-- [ ] The public contracts are reviewed before MVP-02 through MVP-08 begin.
+- [x] The public contracts are reviewed before MVP-02 through MVP-08 begin.
 
 ## MVP-02: Grid, Occupancy, And Path Validation
 
 **Owner:** Pathing agent
-**Status:** [ ] Not started
+**Status:** [x] Complete - local path validation checks pass
 **Dependencies:** MVP-01
 
 ### Deliverables
 
-- [ ] Implement lane grid, spawn, exit, walkable cells, and occupied cells.
-- [ ] Implement a deterministic path search for a grid lane.
-- [ ] Implement temporary-grid validation for a proposed tower placement.
-- [ ] Reject a placement that removes every valid spawn-to-exit route.
-- [ ] Cache or invalidate paths only for lanes changed by a placement or sale.
-- [ ] Expose legal-placement and rejection information for Unity ghost placement.
+- [x] Implement lane grid, spawn, exit, walkable cells, and occupied cells.
+- [x] Implement a deterministic path search for a grid lane.
+- [x] Implement temporary-grid validation for a proposed tower placement.
+- [x] Reject a placement that removes every valid spawn-to-exit route.
+- [x] Cache or invalidate paths only for lanes changed by a placement or sale.
+- [x] Expose legal-placement and rejection information for Unity ghost placement.
 
 ### Acceptance Checks
 
-- [ ] A legal placement produces a valid route.
-- [ ] A blocking placement is rejected before gold is spent.
-- [ ] The same map and placement sequence produces the same path result.
-- [ ] A heavy placement scenario has a recorded benchmark result.
+- [x] A legal placement produces a valid route.
+- [x] A blocking placement is rejected before gold is spent.
+- [x] The same map and placement sequence produces the same path result.
+- [x] A heavy placement scenario has a recorded benchmark result.
 
 ## MVP-03: Economy, Carousel, Lives, And Results
 
