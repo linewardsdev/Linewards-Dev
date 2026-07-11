@@ -159,23 +159,23 @@ MVP-11 Android compatibility validation
 ## MVP-04: Creep Movement, Tower Combat, And Events
 
 **Owner:** Combat agent
-**Status:** [ ] Not started
+**Status:** [x] Complete - local combat and event checks pass
 **Dependencies:** MVP-01
 
 ### Deliverables
 
-- [ ] Implement creep spawning, health, speed, path following, and exit detection.
-- [ ] Implement one initial tower type with range, target selection, attack timing, and damage.
-- [ ] Implement creep death, kill bounty intent, and leak events.
-- [ ] Provide lightweight entity snapshots for Unity rendering.
-- [ ] Keep projectiles visual-only unless projectile travel is needed for gameplay timing.
+- [x] Implement creep spawning, health, speed, path following, and exit detection.
+- [x] Implement one initial tower type with range, target selection, attack timing, and damage.
+- [x] Implement creep death, kill bounty intent, and leak events.
+- [x] Provide lightweight entity snapshots for Unity rendering.
+- [x] Keep projectiles visual-only unless projectile travel is needed for gameplay timing.
 
 ### Acceptance Checks
 
-- [ ] A tower damages and kills a creep within expected ticks.
-- [ ] A creep that reaches the exit emits one leak event only.
-- [ ] Movement and combat results reproduce for a fixed seed and command sequence.
-- [ ] The simulation remains independent of Unity objects and time APIs.
+- [x] A tower damages and kills a creep within expected ticks.
+- [x] A creep that reaches the exit emits one leak event only.
+- [x] Movement and combat results reproduce for a fixed seed and command sequence.
+- [x] The simulation remains independent of Unity objects and time APIs.
 
 ## MVP-05: Bots, Replay Records, And Scenario Suite
 
