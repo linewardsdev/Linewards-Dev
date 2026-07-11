@@ -22,9 +22,14 @@ namespace LTW.UnityClient.Simulation
 
         public VerticalSliceCommandResult SendSampleCreep()
         {
+            return SendSampleCreep(1);
+        }
+
+        public VerticalSliceCommandResult SendSampleCreep(int quantity)
+        {
             return simulation is null
                 ? VerticalSliceCommandResult.Reject(LTW.Simulation.Commands.CommandRejectionReason.MatchPaused)
-                : simulation.QueueSend(new PlayerId(1), SampleVerticalSliceContent.CreepId);
+                : simulation.QueueSend(new PlayerId(1), SampleVerticalSliceContent.CreepId, quantity);
         }
 
         public VerticalSliceCommandResult SellLastSampleTower()

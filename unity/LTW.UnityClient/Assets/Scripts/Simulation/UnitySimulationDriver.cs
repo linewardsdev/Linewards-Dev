@@ -1,6 +1,8 @@
 using System.Collections.Generic;
 using LTW.Simulation.Bridge;
 using LTW.Simulation.Events;
+using LTW.Simulation.Economy;
+using LTW.Simulation.Replay;
 using UnityEngine;
 
 namespace LTW.UnityClient.Simulation
@@ -17,10 +19,16 @@ namespace LTW.UnityClient.Simulation
 
         public IReadOnlyList<ISimulationEvent> LatestEvents { get; private set; } = new List<ISimulationEvent>();
 
+        public MatchSummary? LatestMatchSummary { get; private set; }
+
+        public ReplayRecord? LatestReplay { get; private set; }
+
         public void Initialize(LocalVerticalSlice localSimulation)
         {
             simulation = localSimulation;
             LatestSnapshot = simulation.GetSnapshot();
+            LatestMatchSummary = simulation.MatchSummary;
+            LatestReplay = simulation.GetReplayRecord();
         }
 
         private void Update()
@@ -40,6 +48,8 @@ namespace LTW.UnityClient.Simulation
 
             LatestSnapshot = simulation.GetSnapshot();
             LatestEvents = simulation.DrainEvents();
+            LatestMatchSummary = simulation.MatchSummary;
+            LatestReplay = simulation.GetReplayRecord();
         }
 
         public void ResetMatch()
@@ -48,6 +58,8 @@ namespace LTW.UnityClient.Simulation
             if (simulation is not null)
             {
                 LatestSnapshot = simulation.GetSnapshot();
+                LatestMatchSummary = simulation.MatchSummary;
+                LatestReplay = simulation.GetReplayRecord();
             }
         }
     }

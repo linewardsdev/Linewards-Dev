@@ -243,16 +243,16 @@ MVP-11 Android compatibility validation
 ## MVP-08: Rendering, Pooling, And Feedback
 
 **Owner:** Presentation agent
-**Status:** [ ] Not started
+**Status:** [ ] In progress - presentation source and Unity batch compile pass; Play Mode visual acceptance pending
 **Dependencies:** MVP-06
 
 ### Deliverables
 
-- [ ] Render towers, creeps, lane cells, spawn, exit, and ownership clearly.
-- [ ] Add pooled presentation objects for creeps, projectiles if used, hit effects, and floating text.
-- [ ] Render key simulation events: tower built, creep spawned, creep killed, leak, elimination, and income tick.
-- [ ] Add readable low-cost feedback: basic sound, optional haptics, and restrained effects.
-- [ ] Add settings for reduced effects and basic text-size support.
+- [x] Render towers, creeps, lane cells, spawn, exit, and ownership clearly.
+- [x] Add pooled presentation objects for creeps, projectiles if used, hit effects, and floating text.
+- [x] Render key simulation events: tower built, creep spawned, creep killed, leak, elimination, and income tick.
+- [x] Add readable low-cost feedback: basic sound, optional haptics, and restrained effects.
+- [x] Add settings for reduced effects and basic text-size support.
 
 ### Acceptance Checks
 
@@ -263,16 +263,16 @@ MVP-11 Android compatibility validation
 ## MVP-09: Full Local Three-Player Integration And Tuning
 
 **Owner:** Integration agent
-**Status:** [ ] Not started
+**Status:** [ ] In progress - integration, tuning, replay export, and automated local-match evidence complete; Unity/device acceptance pending
 **Dependencies:** MVP-05, MVP-07, MVP-08
 
 ### Deliverables
 
-- [ ] Combine one human player and two bots into a complete carousel match.
-- [ ] Add basic post-match summary and replay export for diagnostics.
-- [ ] Tune initial tower, creep, income, bounty, and life values to reach the target match window.
-- [ ] Run a heavy-send stress scenario during a full match.
-- [ ] Document known balance and usability issues for the next iteration.
+- [x] Combine one human player and two bots into a complete carousel match.
+- [x] Add basic post-match summary and replay export for diagnostics.
+- [x] Tune initial tower, creep, income, bounty, and life values to reach the target match window.
+- [x] Run a heavy-send stress scenario during a full match.
+- [x] Document known balance and usability issues for the next iteration.
 
 ### Acceptance Checks
 
@@ -284,7 +284,7 @@ MVP-11 Android compatibility validation
 ## MVP-10: iOS TestFlight And Device Validation
 
 **Owner:** Mobile QA agent
-**Status:** [ ] Not started
+**Status:** [ ] In progress - local iOS validation instrumentation and device matrix prepared; signing, TestFlight build, and device runs pending
 **Dependencies:** MVP-09
 
 ### Deliverables

@@ -48,6 +48,7 @@ public sealed class CombatService
                 creep.EntityId,
                 creep.CreepId,
                 creep.SenderId,
+                creep.LaneId,
                 ResolvePosition(creep, routes),
                 creep.Health))
             .ToArray();

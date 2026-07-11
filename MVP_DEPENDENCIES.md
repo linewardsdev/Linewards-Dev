@@ -89,6 +89,7 @@ These are code dependencies, not optional design notes. The MVP cannot prove its
 | Unity Input System | Touch, taps, holds, drag/draw placement, and device input abstraction | Required. |
 | Unity Test Framework | Unity-side smoke tests and play-mode checks | Required, but core rules stay in `LTW.Tests`. |
 | Unity UI system | HUD, spawning dock, placement controls, results, and settings | Required. Choose one UI approach and keep it consistent. |
+| Unity Audio module | Small local feedback cues for build, kill, and leak events | Required for MVP-08. Built-in package `com.unity.modules.audio` version `1.0.0`; no external audio SDK or content dependency. |
 | Unity profiler and memory tools | Frame-time, memory, and object-count validation on real devices | Required. |
 | Object-pool implementation | Reuse presentation objects for creeps, projectiles, effects, and floating text | Required once repeated spawning begins. Start simple and profile before adding complexity. |
 | Unity Addressables | Remote or modular asset delivery | Deferred. The MVP can ship content in the app build. |

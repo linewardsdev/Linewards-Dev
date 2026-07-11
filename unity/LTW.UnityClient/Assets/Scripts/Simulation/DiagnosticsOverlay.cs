@@ -24,6 +24,10 @@ namespace LTW.UnityClient.Simulation
             }
 
             LatestText = $"{text}\nTowers: {snapshot.Towers.Count} Creeps: {snapshot.Creeps.Count}";
+            if (simulationDriver.LatestMatchSummary is { } summary)
+            {
+                LatestText += $"\nWinner: P{summary.WinnerId.Value} at tick {summary.CompletedAtTick.Value}";
+            }
         }
     }
 }
