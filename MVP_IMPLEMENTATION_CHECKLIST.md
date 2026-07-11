@@ -138,23 +138,23 @@ MVP-11 Android compatibility validation
 ## MVP-03: Economy, Carousel, Lives, And Results
 
 **Owner:** Economy agent
-**Status:** [ ] Not started
+**Status:** [x] Complete - local economy and results checks pass
 **Dependencies:** MVP-01
 
 ### Deliverables
 
-- [ ] Implement fixed-tick clock and income-tick schedule.
-- [ ] Implement gold, income, send cost, income gain, cooldown, kill bounty, leak bounty, and sell refund rules.
-- [ ] Implement three-player carousel routing.
-- [ ] Implement life loss, elimination, and winner selection.
-- [ ] Define a compact match summary with placements and key economy statistics.
+- [x] Implement fixed-tick clock and income-tick schedule.
+- [x] Implement gold, income, send cost, income gain, cooldown, kill bounty, leak bounty, and sell refund rules.
+- [x] Implement three-player carousel routing.
+- [x] Implement life loss, elimination, and winner selection.
+- [x] Define a compact match summary with placements and key economy statistics.
 
 ### Acceptance Checks
 
-- [ ] A send targets the next carousel lane and changes income exactly once.
-- [ ] Insufficient-gold and cooldown violations reject without changing state.
-- [ ] A leak affects the defender and credits the sender according to the configured rules.
-- [ ] A completed elimination sequence produces one unambiguous winner.
+- [x] A send targets the next carousel lane and changes income exactly once.
+- [x] Insufficient-gold and cooldown violations reject without changing state.
+- [x] A leak affects the defender and credits the sender according to the configured rules.
+- [x] A completed elimination sequence produces one unambiguous winner.
 
 ## MVP-04: Creep Movement, Tower Combat, And Events
 
