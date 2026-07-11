@@ -107,6 +107,17 @@ These are code dependencies, not optional design notes. The MVP cannot prove its
 | Benchmark harness | Measure simulation tick, path validation, and heavy-send scenarios | Recommended after the vertical slice works. |
 | Code coverage tooling | Track coverage trends | Deferred. Useful once the test suite is stable; not a substitute for scenario tests. |
 
+### Pinned MVP-00 Development Dependencies
+
+| Dependency | Version | Scope |
+| --- | --- | --- |
+| .NET SDK | `10.0.301` | Solution restore, build, formatting, and tests. |
+| Microsoft.NET.Test.Sdk | `17.14.1` | .NET test execution. |
+| xUnit | `2.9.3` | Simulation unit and scenario tests. |
+| xunit.runner.visualstudio | `3.1.4` | Test discovery in IDE and CI environments. |
+
+These are development and test dependencies only. `LTW.Simulation` has no third-party runtime package dependency.
+
 Initial acceptance tests:
 
 1. A legal tower placement keeps every route open and spends the expected gold.

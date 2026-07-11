@@ -70,24 +70,25 @@ MVP-11 Android compatibility validation
 ## MVP-00: Solution Foundation And CI
 
 **Owner:** Foundation agent
-**Status:** [ ] Not started
+**Status:** [ ] In progress - local foundation complete; Unity and hosted CI verification pending
 **Dependencies:** None
 
 ### Deliverables
 
-- [ ] Unity project created with version metadata committed.
-- [ ] .NET solution created with `LTW.Simulation` and `LTW.Tests`.
-- [ ] `LTW.UnityClient` created or mapped to the Unity project boundary.
-- [ ] `LTW.MatchServer` represented as a deferred placeholder only; no server runtime required.
-- [ ] `global.json`, `.editorconfig`, and dependency lock strategy added.
-- [ ] Baseline CI runs formatting checks and `dotnet test`.
-- [ ] Repository README links to the architecture, dependencies, and this checklist.
+- [x] Unity project shell created with pinned version metadata.
+- [x] .NET solution created with `LTW.Simulation` and `LTW.Tests`.
+- [x] `LTW.UnityClient` created or mapped to the Unity project boundary.
+- [x] `LTW.MatchServer` represented as a deferred placeholder only; no server runtime required.
+- [x] `global.json`, `.editorconfig`, and dependency lock strategy added.
+- [x] Baseline CI configured to run formatting checks and `dotnet test`.
+- [x] Repository README links to the architecture, dependencies, and this checklist.
 
 ### Acceptance Checks
 
-- [ ] A clean clone can restore dependencies and run `dotnet test`.
-- [ ] `LTW.Simulation` has no Unity references.
+- [x] A locked restore, format check, and `dotnet test` pass from the repository checkout.
+- [x] `LTW.Simulation` has no Unity references, enforced by an architecture test.
 - [ ] CI passes on a pull request containing only a trivial simulation test.
+- [ ] Unity opens the project shell with the pinned editor version.
 
 ## MVP-01: Simulation Contracts And Content Model
 

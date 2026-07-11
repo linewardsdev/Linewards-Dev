@@ -1,0 +1,35 @@
+name: .NET foundation
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+          cache: true
+          cache-dependency-path: tests/LTW.Tests/packages.lock.json
+
+      - name: Restore locked dependencies
+        run: dotnet restore LTW.sln --locked-mode
+
+      - name: Verify formatting
+        run: dotnet format LTW.sln --no-restore --verify-no-changes
+
+      - name: Run tests
+        run: dotnet test LTW.sln --no-restore --configuration Release
