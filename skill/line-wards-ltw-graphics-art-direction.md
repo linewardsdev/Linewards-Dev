@@ -1,6 +1,6 @@
 ---
 name: line-wards-ltw-graphics-art-direction
-description: Use for Line Wards graphics and art direction: LTW-inspired mobile board readability, lane/grid visuals, tower and creep silhouette language, tech/upgraded-tower visual families, HUD lives/gold/income/timer presentation, combat/economy feedback, visual polish, and concept-art prompts. Scan-level rule: preserve Line Tower Wars pressure readability and send-for-income fantasy, use original ward-tech visuals, support readable boss/fast/swarm/flying/invisible/attacker-style pressure, and never copy Warcraft III names, assets, UI chrome, factions, silhouettes, icons, sounds, or screenshots.
+description: Use for Line Wards graphics and art direction: LTW-inspired mobile board readability, long skinny north-south lane/grid visuals, tower and creep silhouette language, tech/upgraded-tower visual families, HUD lives/gold/income/timer presentation, combat/economy feedback, visual polish, and concept-art prompts. Scan-level rule: preserve Line Tower Wars pressure readability, portrait-first long-lane maze flow, and send-for-income fantasy; use original ward-tech visuals; support readable boss/fast/swarm/flying/invisible/attacker-style pressure; and never copy Warcraft III names, assets, UI chrome, factions, silhouettes, icons, sounds, or screenshots.
 ---
 
 # Line Wards LTW Graphics Art Direction
@@ -34,7 +34,7 @@ Research sources reviewed for this direction include:
 Important observed traits from the source material:
 
 - LTW is a player-versus-player tower defense format where players defend their own lanes while sending creeps to steal lives from others.
-- Classic LTW variants are built around open-lane mazing, visible towers, hordes of small creeps, income pressure, lives, and last-player-alive victory.
+- Classic LTW variants are built around long, skinny defensive lanes, open-lane mazing, visible towers, hordes of small creeps, income pressure, lives, and last-player-alive victory.
 - The Warcraft III versions use dense RTS HUDs, command panels, scoreboards, minimaps, shrines, builder units, tech/research menus, and strong player-color coding.
 - Many variants use grass, stone, cityscape, cliffs, lanes, flags, shrines, and elemental/medieval fantasy motifs.
 - Reforged-era variants add more persistent competitive UI, leaderboards, seasons, player cosmetics, bots, technologies, and extensive customization.
@@ -69,7 +69,7 @@ The art direction is:
 - **Readable fantasy strategy**, not realistic battle simulation.
 - **Original ward-tech fantasy**, not Warcraft medieval imitation.
 - **Low-fi but intentional**, with strong silhouettes and restrained effects.
-- **Board-first**, where lane shape, path state, creep flow, and tower intent remain the dominant visual information.
+- **Board-first**, where the long north-south lane shape, path state, creep flow, and tower intent remain the dominant visual information.
 - **Competitive and clever**, matching the brand voice in `BRANDING_GUIDE.md`.
 
 The player should be able to glance at the screen and answer:
@@ -98,8 +98,9 @@ Classic LTW works because the battlefield is understandable even when many creep
 
 The active lane is the main screen. It should never feel like a background behind UI.
 
-- Frame the lane as a clear tactical board.
-- Show spawn and exit as unmistakable board landmarks.
+- Frame the lane as a long, skinny north-south defensive line, not a squat arena.
+- In portrait mobile play, creeps should visually travel along the phone's vertical axis.
+- Show spawn and exit as unmistakable landmarks at opposite vertical ends of the lane.
 - Make open path, blocked cells, tower cells, and invalid placement states legible.
 - Do not let menus cover the current placement area during normal play.
 - Avoid decorative terrain clutter inside the playable grid.
@@ -140,13 +141,14 @@ Warcraft III LTW had a dense command UI because it lived inside an RTS shell. Li
 
 ### Board Shape
 
-The MVP uses three 12x9 lanes. Treat each lane as a compact arena board.
+The MVP should move toward three long, skinny north-south lanes. Treat each lane as a mobile portrait defensive line, with a working vertical-slice target around 7x18 or 8x20 cells rather than a squat 12x9 arena.
 
 Recommended board language:
 
 - Slightly raised grid tiles on a dark field.
 - Subtle lane border with player-color accent.
-- Spawn and exit landmarks at opposite ends.
+- Spawn and exit landmarks at the south and north ends of the lane.
+- Creep flow cues that read vertically at a glance.
 - Optional path preview line when placement mode is active.
 - Soft under-tile glow for valid placement and sharper warning treatment for invalid placement.
 
@@ -173,6 +175,7 @@ Avoid:
 The camera should favor board comprehension.
 
 - Use a fixed or lightly eased top-down/isometric view.
+- Favor portrait framing where the player's lane runs bottom-to-top.
 - Keep cell shapes consistent enough for accurate placement.
 - Avoid dramatic perspective that makes grid selection ambiguous.
 - During view swap, communicate whose lane is shown with a clear label and accent color.
@@ -314,7 +317,7 @@ For generated concept art:
 
 A graphics change is not done until it passes these checks:
 
-- At normal phone size, the active lane, spawn, exit, towers, creeps, and leaks are identifiable without zooming.
+- At normal phone size, the active long north-south lane, spawn, exit, towers, creeps, and leaks are identifiable without zooming.
 - A first-time tester can tell which tower role is selected from shape and UI label.
 - A first-time tester can tell which creep type is incoming from size, motion, and silhouette.
 - Combat effects do not hide placement cells or leak events.
@@ -326,7 +329,7 @@ A graphics change is not done until it passes these checks:
 
 Use this order while the project is in GD-00 through GD-08:
 
-1. Establish a clean board skin for the 12x9 lane with spawn, exit, player accent, and placement states.
+1. Establish a clean long-lane board skin, targeting a skinny north-south 7x18 or 8x20 lane with spawn, exit, player accent, and placement states.
 2. Create placeholder-but-distinct silhouettes for three tower roles.
 3. Create placeholder-but-distinct silhouettes for runner, brute, and swarm creeps.
 4. Improve projectile, hit, kill, leak, send, and income feedback with reduced-effects support.
@@ -340,7 +343,7 @@ Use this order while the project is in GD-00 through GD-08:
 Do:
 
 - Preserve LTW's pressure, lane, income, and survival readability.
-- Design from the active lane outward.
+- Design from the active long north-south lane outward.
 - Make towers and creeps readable by silhouette and motion.
 - Keep UI fast, compact, and mobile-native.
 - Use the Line Wards palette and ward-tech fantasy language.
