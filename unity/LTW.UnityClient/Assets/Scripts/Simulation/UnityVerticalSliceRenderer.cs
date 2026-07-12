@@ -23,8 +23,12 @@ namespace LTW.UnityClient.Simulation
 
         private AudioSource feedbackAudioSource = null!;
         private AudioClip towerBuiltClip = null!;
+        private AudioClip towerHitClip = null!;
+        private AudioClip sendClip = null!;
         private AudioClip creepKilledClip = null!;
+        private AudioClip incomeClip = null!;
         private AudioClip leakClip = null!;
+        private AudioClip eliminationClip = null!;
 
         private readonly Dictionary<string, GameObject> activeTowers = new Dictionary<string, GameObject>();
         private readonly Dictionary<string, GameObject> activeCreeps = new Dictionary<string, GameObject>();
@@ -57,8 +61,12 @@ namespace LTW.UnityClient.Simulation
             feedbackAudioSource.playOnAwake = false;
             feedbackAudioSource.spatialBlend = 0f;
             towerBuiltClip = CreateTone("TowerBuiltCue", 660f, 0.07f);
+            towerHitClip = CreateTone("TowerHitCue", 720f, 0.035f);
+            sendClip = CreateTone("SendCue", 440f, 0.06f);
             creepKilledClip = CreateTone("CreepKilledCue", 880f, 0.05f);
+            incomeClip = CreateTone("IncomeCue", 1040f, 0.045f);
             leakClip = CreateTone("LeakCue", 180f, 0.14f);
+            eliminationClip = CreateTone("EliminationCue", 120f, 0.22f);
         }
 
         public void SetPresentationDetail(PresentationDetail detail)
@@ -178,6 +186,17 @@ namespace LTW.UnityClient.Simulation
                         SpawnEffect(SpawnPosition(spawned.DefenderId.Value), CreepRoleColor(spawned.CreepId.Value, spawned.SenderId.Value), 0.52f, 0.28f);
                         SpawnFloatingText(SpawnPosition(spawned.DefenderId.Value), SpawnLabel(spawned.CreepId.Value), CreepRoleColor(spawned.CreepId.Value, spawned.SenderId.Value), 0.48f);
                         break;
+                    case CreepDamagedEvent damaged:
+                        var hitPosition = PositionFor(damaged.CreepEntityId.Value.ToString());
+                        SpawnBeam(GridToWorld(damaged.TowerPosition, damaged.LaneId) + Vector3.up * 0.35f, hitPosition + Vector3.up * 0.12f, MintSignal, 0.16f);
+                        SpawnEffect(hitPosition, new Color(1f, 0.88f, 0.44f), 0.24f, 0.12f);
+                        if (damaged.DamageDealt.Amount >= 10)
+                        {
+                            SpawnFloatingText(hitPosition + Vector3.left * 0.32f, damaged.DamageDealt.Amount.ToString(), new Color(1f, 0.88f, 0.44f), 0.32f);
+                        }
+
+                        PlaySound(towerHitClip);
+                        break;
                     case CreepKilledEvent creepKilled:
                         var killPosition = PositionFor(creepKilled.CreepEntityId.Value.ToString());
                         SpawnEffect(killPosition, SignalGold, 0.42f, 0.2f);
@@ -199,13 +218,16 @@ namespace LTW.UnityClient.Simulation
                     case IncomeTickEvent incomeTick:
                         SpawnEffect(IncomePosition(incomeTick.PlayerId.Value), SignalGold, 0.46f, 0.22f);
                         SpawnFloatingText(IncomePosition(incomeTick.PlayerId.Value), $"+{incomeTick.GoldAwarded.Amount} income", SignalGold, 0.58f);
+                        PlaySound(incomeClip);
                         break;
                     case PlayerEliminatedEvent eliminated:
                         SpawnEffect(new Vector3(CenterColumn, 0.55f, LaneOffset(eliminated.PlayerId.Value) + LaneLength * 0.5f), new Color(1f, 0.18f, 0.24f), 1.15f, 0.55f);
                         SpawnFloatingText(new Vector3(CenterColumn, 1.55f, LaneOffset(eliminated.PlayerId.Value) + LaneLength * 0.5f), $"PLAYER {eliminated.PlayerId.Value} OUT", new Color(1f, 0.35f, 0.35f), 0.8f);
+                        PlaySound(eliminationClip);
                         break;
                     case MatchEndedEvent ended:
                         SpawnFloatingText(new Vector3(CenterColumn, 2.2f, LaneOffset(ended.WinnerId.Value) + LaneLength * 0.5f), $"PLAYER {ended.WinnerId.Value} WINS", SignalGold, 1f);
+                        PlaySound(eliminationClip);
                         break;
                 }
             }
@@ -225,6 +247,23 @@ namespace LTW.UnityClient.Simulation
             effect.transform.localScale = Vector3.one * scale;
             SetColor(effect, color);
             timedPresentations.Add(new TimedPresentation(effect, Time.time + duration, effectPool));
+        }
+
+        private void SpawnBeam(Vector3 start, Vector3 end, Color color, float duration)
+        {
+            if (PresentationPreferences.ReducedEffects)
+            {
+                return;
+            }
+
+            var beam = GetPooled(effectPool, "TowerBeam", PrimitiveType.Cube);
+            var midpoint = Vector3.Lerp(start, end, 0.5f);
+            var distance = Vector3.Distance(start, end);
+            beam.transform.position = midpoint;
+            beam.transform.LookAt(end);
+            beam.transform.localScale = new Vector3(0.045f, 0.045f, Mathf.Max(0.1f, distance));
+            SetColor(beam, color);
+            timedPresentations.Add(new TimedPresentation(beam, Time.time + duration, effectPool));
         }
 
         private void SpawnFloatingText(Vector3 position, string text, Color color) => SpawnFloatingText(position, text, color, 0.7f);
@@ -263,9 +302,9 @@ namespace LTW.UnityClient.Simulation
 
         private void PlaySound(AudioClip clip)
         {
-            if (!PresentationPreferences.ReducedEffects && feedbackAudioSource != null)
+            if (!PresentationPreferences.AudioMuted && feedbackAudioSource != null && PresentationPreferences.FeedbackVolume > 0f)
             {
-                feedbackAudioSource.PlayOneShot(clip, 0.25f);
+                feedbackAudioSource.PlayOneShot(clip, PresentationPreferences.FeedbackVolume);
             }
         }
 
@@ -277,6 +316,7 @@ namespace LTW.UnityClient.Simulation
             SpawnEffect(senderPosition, color, 0.44f, 0.24f);
             SpawnEffect(defenderPosition, color, 0.54f, 0.3f);
             SpawnFloatingText(defenderPosition, $"{queued.Quantity}x {SpawnLabel(queued.CreepId.Value)}", color, 0.56f);
+            PlaySound(sendClip);
         }
 
         private static Vector3 SpawnPosition(int laneId) => new Vector3(CenterColumn, 0.35f, LaneOffset(laneId));
