@@ -56,6 +56,20 @@ public sealed class VerticalSliceBridgeTests
         Assert.Equal(CommandRejectionReason.CellOccupied, occupied.RejectionReason);
     }
 
+
+    [Fact]
+    public void Sample_content_exposes_placeholder_visual_roles()
+    {
+        var content = SampleVerticalSliceContent.Create();
+
+        Assert.Contains(content.Towers, tower => tower.Id.Equals(SampleVerticalSliceContent.TowerId));
+        Assert.Contains(content.Towers, tower => tower.Id.Equals(SampleVerticalSliceContent.ControlTowerId));
+        Assert.Contains(content.Towers, tower => tower.Id.Equals(SampleVerticalSliceContent.UtilityTowerId));
+        Assert.Contains(content.Creeps, creep => creep.Id.Equals(SampleVerticalSliceContent.CreepId));
+        Assert.Contains(content.Creeps, creep => creep.Id.Equals(SampleVerticalSliceContent.BruteCreepId));
+        Assert.Contains(content.Creeps, creep => creep.Id.Equals(SampleVerticalSliceContent.SwarmCreepId));
+    }
+
     [Fact]
     public void Bridge_reset_restores_development_slice_state()
     {
