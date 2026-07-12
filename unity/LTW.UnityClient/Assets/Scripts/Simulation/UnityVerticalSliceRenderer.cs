@@ -190,9 +190,9 @@ namespace LTW.UnityClient.Simulation
                         var hitPosition = PositionFor(damaged.CreepEntityId.Value.ToString());
                         SpawnBeam(GridToWorld(damaged.TowerPosition, damaged.LaneId) + Vector3.up * 0.35f, hitPosition + Vector3.up * 0.12f, MintSignal, 0.16f);
                         SpawnEffect(hitPosition, new Color(1f, 0.88f, 0.44f), 0.24f, 0.12f);
-                        if (damaged.DamageDealt.Amount >= 10)
+                        if (damaged.DamageDealt >= 5)
                         {
-                            SpawnFloatingText(hitPosition + Vector3.left * 0.32f, damaged.DamageDealt.Amount.ToString(), new Color(1f, 0.88f, 0.44f), 0.32f);
+                            SpawnFloatingText(hitPosition + Vector3.left * 0.32f, damaged.DamageDealt.ToString(), new Color(1f, 0.88f, 0.44f), 0.32f);
                         }
 
                         PlaySound(towerHitClip);
