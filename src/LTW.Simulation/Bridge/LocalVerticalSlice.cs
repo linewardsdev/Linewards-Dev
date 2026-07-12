@@ -217,9 +217,13 @@ public sealed class LocalVerticalSlice
                 }
 
                 var nextLaneId = NextLaneId(leakedCreep.LaneId);
-                var transferred = combat.SpawnCreep(NextEntityId(), creep, leakedCreep.SenderId, nextLaneId);
-                combatState = new CombatState(combatState.Creeps.Concat(new[] { transferred }), combatState.Towers);
-                pendingEvents.Add(new CreepSpawnedEvent(tick, transferred.EntityId, transferred.CreepId, transferred.SenderId, new PlayerId(nextLaneId.Value)));
+                var nextDefenderId = combatContent.GetLaneOwner(nextLaneId);
+                if (!nextDefenderId.Equals(leakedCreep.SenderId))
+                {
+                    var transferred = combat.SpawnCreep(NextEntityId(), creep, leakedCreep.SenderId, nextLaneId);
+                    combatState = new CombatState(combatState.Creeps.Concat(new[] { transferred }), combatState.Towers);
+                    pendingEvents.Add(new CreepSpawnedEvent(tick, transferred.EntityId, transferred.CreepId, transferred.SenderId, nextDefenderId));
+                }
             }
 
             pendingEvents.Add(simulationEvent);

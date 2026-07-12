@@ -282,6 +282,33 @@ public sealed class VerticalSliceBridgeTests
     }
 
     [Fact]
+    public void Sent_creeps_do_not_wrap_back_into_the_senders_own_lane()
+    {
+        var simulation = new LocalVerticalSlice(SampleVerticalSliceContent.Create());
+        Assert.True(simulation.QueueSend(new PlayerId(1), SampleVerticalSliceContent.CreepId).Accepted);
+
+        for (var tick = 0; tick < 36; tick++)
+        {
+            simulation.AdvanceOneTick();
+        }
+
+        var snapshot = simulation.GetSnapshot();
+        var events = simulation.DrainEvents();
+
+        Assert.DoesNotContain(snapshot.Creeps, creep =>
+            creep.SenderId.Equals(new PlayerId(1)) &&
+            creep.LaneId.Equals(new LaneId(1)));
+        Assert.DoesNotContain(events, simulationEvent =>
+            simulationEvent is CreepSpawnedEvent spawned &&
+            spawned.SenderId.Equals(new PlayerId(1)) &&
+            spawned.DefenderId.Equals(new PlayerId(1)));
+        Assert.DoesNotContain(events, simulationEvent =>
+            simulationEvent is LeakEvent leak &&
+            leak.SenderId.Equals(new PlayerId(1)) &&
+            leak.DefenderId.Equals(new PlayerId(1)));
+    }
+
+    [Fact]
     public void Bridge_reset_restores_development_slice_state()
     {
         var simulation = new LocalVerticalSlice(SampleVerticalSliceContent.Create());

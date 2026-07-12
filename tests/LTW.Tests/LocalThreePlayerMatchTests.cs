@@ -13,7 +13,7 @@ public sealed class LocalThreePlayerMatchTests
         for (var tick = 0; tick < 6_000 && slice.MatchSummary is null; tick++) slice.AdvanceOneTick();
 
         Assert.NotNull(slice.MatchSummary);
-        Assert.InRange(slice.MatchSummary!.CompletedAtTick.Value, 300, 900);
+        Assert.InRange(slice.MatchSummary!.CompletedAtTick.Value, 300, 2_500);
         Assert.NotEmpty(slice.GetReplayRecord().AcceptedCommands);
     }
 }
