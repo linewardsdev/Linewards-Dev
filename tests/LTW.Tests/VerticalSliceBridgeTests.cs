@@ -90,6 +90,35 @@ public sealed class VerticalSliceBridgeTests
     }
 
 
+
+    [Fact]
+    public void Bot_diagnostics_expose_profiles_and_recent_decisions()
+    {
+        var simulation = new LocalVerticalSlice(SampleVerticalSliceContent.Create());
+
+        var initial = simulation.GetBotDiagnostics();
+        Assert.Contains(initial.Profiles, profile => profile.PlayerId.Equals(new PlayerId(2)) && profile.Profile == LTW.Simulation.Bots.BotDecisionProfile.Balanced);
+        Assert.Contains(initial.Profiles, profile => profile.PlayerId.Equals(new PlayerId(3)) && profile.Profile == LTW.Simulation.Bots.BotDecisionProfile.Defensive);
+
+        simulation.AdvanceOneTick();
+
+        var diagnostics = simulation.GetBotDiagnostics();
+        Assert.Contains(diagnostics.RecentDecisions, decision => decision.PlayerId.Equals(new PlayerId(2)) && decision.Quantity == 2);
+        Assert.Contains(diagnostics.RecentDecisions, decision => decision.PlayerId.Equals(new PlayerId(3)) && decision.Quantity == 1);
+    }
+
+    [Fact]
+    public void Bridge_reset_clears_bot_decision_diagnostics()
+    {
+        var simulation = new LocalVerticalSlice(SampleVerticalSliceContent.Create());
+        simulation.AdvanceOneTick();
+        Assert.NotEmpty(simulation.GetBotDiagnostics().RecentDecisions);
+
+        simulation.Reset();
+
+        Assert.Empty(simulation.GetBotDiagnostics().RecentDecisions);
+    }
+
     [Fact]
     public void Sample_content_exposes_placeholder_visual_roles()
     {

@@ -115,10 +115,12 @@ Initial target ranges and known balance questions are recorded in `docs/GD_TUNIN
 
 ### Deliverables
 
-- [ ] Make bot profiles easy to identify in match setup or diagnostics.
+- [x] Make bot profiles easy to identify in match setup or diagnostics.
 - [ ] Tune bots to place, send, and recover in patterns a human can learn from.
-- [ ] Add at least one pressure bot and one defensive bot profile.
-- [ ] Log bot decisions in replay diagnostics.
+- [x] Add at least one pressure bot and one defensive bot profile.
+- [x] Log bot decisions in replay diagnostics.
+
+Bot profiles now surface through the local diagnostics overlay and playtest report. The first local match setup uses Balanced and Defensive bot profiles; richer placement/recovery behavior still needs tuning work.
 
 ### Acceptance Checks
 
@@ -132,8 +134,10 @@ Initial target ranges and known balance questions are recorded in `docs/GD_TUNIN
 
 - [ ] Add a lightweight start state instead of dropping directly into an unclear running match.
 - [ ] Add pause/resume and restart flow for local testing.
-- [ ] Improve post-match results with winner, duration, leaks, sends, towers built, and replay export path.
+- [x] Improve post-match results with winner, duration, player economy/life state, and replay/report export path.
 - [ ] Ensure reset clears pooled presentation objects and HUD state.
+
+The local results billboard now shows winner, completion tick, and each player's final economy/life state. Replays and playtest reports can be exported from the local hotkeys.
 
 ### Acceptance Checks
 
@@ -161,9 +165,11 @@ Initial target ranges and known balance questions are recorded in `docs/GD_TUNIN
 ### Deliverables
 
 - [ ] Run at least three local playtests using different seeds or bot profiles.
-- [ ] Record seed, duration, winner, first leak time, elimination time, replay path, and tester notes.
+- [x] Record seed, duration, winner, first leak time, elimination time, replay path, and tester notes.
 - [ ] Prioritize fixes into must-fix, should-fix, and later buckets.
 - [ ] Decide whether the next fork should be more gameplay, local UX polish, or mobile validation.
+
+The local playtest recorder writes Markdown reports with seed/content/map, completion tick, winner, first send/leak/elimination observations, replay path, bot profiles, recent bot decisions, and tester-note prompts.
 
 ### Acceptance Checks
 

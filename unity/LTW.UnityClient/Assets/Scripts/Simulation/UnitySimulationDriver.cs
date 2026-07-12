@@ -23,12 +23,15 @@ namespace LTW.UnityClient.Simulation
 
         public ReplayRecord? LatestReplay { get; private set; }
 
+        public BotDiagnosticsSnapshot? LatestBotDiagnostics { get; private set; }
+
         public void Initialize(LocalVerticalSlice localSimulation)
         {
             simulation = localSimulation;
             LatestSnapshot = simulation.GetSnapshot();
             LatestMatchSummary = simulation.MatchSummary;
             LatestReplay = simulation.GetReplayRecord();
+            LatestBotDiagnostics = simulation.GetBotDiagnostics();
         }
 
         private void Update()
@@ -50,6 +53,7 @@ namespace LTW.UnityClient.Simulation
             LatestEvents = simulation.DrainEvents();
             LatestMatchSummary = simulation.MatchSummary;
             LatestReplay = simulation.GetReplayRecord();
+            LatestBotDiagnostics = simulation.GetBotDiagnostics();
         }
 
         public void ResetMatch()
@@ -60,6 +64,7 @@ namespace LTW.UnityClient.Simulation
                 LatestSnapshot = simulation.GetSnapshot();
                 LatestMatchSummary = simulation.MatchSummary;
                 LatestReplay = simulation.GetReplayRecord();
+                LatestBotDiagnostics = simulation.GetBotDiagnostics();
             }
         }
     }

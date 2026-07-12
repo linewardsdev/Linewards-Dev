@@ -9,8 +9,9 @@ MVP-06 adds source adapters under `Assets/Scripts/Simulation`:
 - `UnityMatchBootstrapper` creates the local sample vertical slice.
 - `UnitySimulationDriver` advances simulation with a fixed-step accumulator and exposes snapshots/events.
 - `UnityCommandAdapter` converts Unity-facing actions into simulation commands.
-- `UnityVerticalSliceRenderer` displays the three sample 12x9 lanes, towers, and creeps with simple primitives.
-- `DiagnosticsOverlay` provides a development-only text overlay and reset path support.
+- `UnityVerticalSliceRenderer` displays the three long 7x18 north-south lanes, towers, and creeps with simple primitives.
+- `DiagnosticsOverlay` provides a development-only text overlay, including bot profiles and recent sends.
+- `LocalPlaytestRecorder` exports Markdown playtest reports and replay paths for tuning review.
 
 ## Local Visual Test Controls
 
@@ -24,6 +25,9 @@ When the local vertical slice scene is running, development hotkeys can exercise
 - `W`: send a swarm group.
 - `X`: sell the last sample tower.
 - `R`: reset the match.
+- `E`: export the current replay JSON.
+- `P`: export a Markdown playtest report.
+- `H`: run the heavy-send stress harness.
 - `1`, `2`, `3`: switch full, simplified, and disabled presentation modes.
 
 Unity must reference the built `LTW.Simulation` assembly before these scripts compile in-editor. Build `LTW.Simulation` from the repository root and place/reference the resulting `LTW.Simulation.dll` under `Assets/Plugins` or configure an equivalent Unity assembly reference. Do not copy simulation rules into Unity scripts.

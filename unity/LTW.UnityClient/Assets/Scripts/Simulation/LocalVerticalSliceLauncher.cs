@@ -23,6 +23,7 @@ namespace LTW.UnityClient.Simulation
             var bootstrapper = matchObject.AddComponent<UnityMatchBootstrapper>();
             var renderer = matchObject.AddComponent<UnityVerticalSliceRenderer>();
             var replayExporter = matchObject.AddComponent<LocalReplayExporter>();
+            var playtestRecorder = matchObject.AddComponent<LocalPlaytestRecorder>();
             var performanceSampler = matchObject.AddComponent<DevicePerformanceSampler>();
             var stressHarness = matchObject.AddComponent<HeavySendStressHarness>();
             var results = new GameObject("Match Results").AddComponent<MatchResultsBillboard>();
@@ -33,10 +34,11 @@ namespace LTW.UnityClient.Simulation
 
             renderer.Initialize(driver);
             replayExporter.Initialize(driver);
+            playtestRecorder.Initialize(driver, replayExporter);
             performanceSampler.Initialize(driver, renderer);
             stressHarness.Initialize(commands, performanceSampler);
             results.Initialize(driver);
-            controls.Initialize(commands, driver, renderer, replayExporter, stressHarness, placement);
+            controls.Initialize(commands, driver, renderer, replayExporter, playtestRecorder, stressHarness, placement);
             bootstrapper.Initialize(driver, commands);
             var camera = CreateCamera();
             CreateRuntimeHud(matchObject, camera, commands, feedback, sendDock, placement);
@@ -94,6 +96,7 @@ namespace LTW.UnityClient.Simulation
         private UnitySimulationDriver driver = null!;
         private UnityVerticalSliceRenderer renderer = null!;
         private LocalReplayExporter replayExporter = null!;
+        private LocalPlaytestRecorder playtestRecorder = null!;
         private HeavySendStressHarness stressHarness = null!;
         private TouchPlacementController placement = null!;
 
@@ -102,6 +105,7 @@ namespace LTW.UnityClient.Simulation
             UnitySimulationDriver simulationDriver,
             UnityVerticalSliceRenderer presentationRenderer,
             LocalReplayExporter exporter,
+            LocalPlaytestRecorder recorder,
             HeavySendStressHarness harness,
             TouchPlacementController placementController)
         {
@@ -109,6 +113,7 @@ namespace LTW.UnityClient.Simulation
             driver = simulationDriver;
             renderer = presentationRenderer;
             replayExporter = exporter;
+            playtestRecorder = recorder;
             stressHarness = harness;
             placement = placementController;
         }
@@ -133,8 +138,13 @@ namespace LTW.UnityClient.Simulation
             if (Input.GetKeyDown(KeyCode.V)) commands.SendBruteCreep();
             if (Input.GetKeyDown(KeyCode.W)) commands.SendSwarmCreep();
             if (Input.GetKeyDown(KeyCode.X)) commands.SellLastSampleTower();
-            if (Input.GetKeyDown(KeyCode.R)) driver.ResetMatch();
+            if (Input.GetKeyDown(KeyCode.R))
+            {
+                driver.ResetMatch();
+                playtestRecorder.ResetRecorder();
+            }
             if (Input.GetKeyDown(KeyCode.E)) replayExporter.ExportCurrentReplay();
+            if (Input.GetKeyDown(KeyCode.P)) playtestRecorder.ExportNow();
             if (Input.GetKeyDown(KeyCode.H)) stressHarness.StartRun();
             if (Input.GetKeyDown(KeyCode.Alpha1)) renderer.SetPresentationDetail(PresentationDetail.Full);
             if (Input.GetKeyDown(KeyCode.Alpha2)) renderer.SetPresentationDetail(PresentationDetail.Simplified);
