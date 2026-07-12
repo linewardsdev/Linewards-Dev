@@ -11,17 +11,17 @@ namespace LTW.UnityClient.UI
         [SerializeField]
         private PlacementFeedbackView feedbackView = null!;
 
-        public void SendRunner() => Send(commandAdapter.SendSampleCreep());
+        public void SendRunner() => Send(commandAdapter.SendSampleCreep(), "Runner sent");
 
-        public void SendBrute() => Send(commandAdapter.SendBruteCreep());
+        public void SendBrute() => Send(commandAdapter.SendBruteCreep(), "Brute sent");
 
-        public void SendSwarm() => Send(commandAdapter.SendSwarmCreep());
+        public void SendSwarm() => Send(commandAdapter.SendSwarmCreep(), "Swarm sent");
 
-        private void Send(LTW.Simulation.Bridge.VerticalSliceCommandResult result)
+        private void Send(LTW.Simulation.Bridge.VerticalSliceCommandResult result, string successMessage)
         {
             if (result.Accepted)
             {
-                feedbackView.Clear();
+                feedbackView.ShowEconomy(successMessage);
                 return;
             }
 
