@@ -23,8 +23,9 @@ When the local vertical slice scene is running, development hotkeys can exercise
 - `S`: send a runner creep.
 - `V`: send a brute creep.
 - `W`: send a swarm group.
-- `X`: sell the last sample tower.
-- `R`: reset the match.
+- `X`: sell the selected tower, or the last sample tower if none is selected.
+- `Space`: start, pause, or resume the local match.
+- `R`: reset the match to the ready state.
 - `E`: export the current replay JSON.
 - `P`: export a Markdown playtest report.
 - `H`: run the heavy-send stress harness.
