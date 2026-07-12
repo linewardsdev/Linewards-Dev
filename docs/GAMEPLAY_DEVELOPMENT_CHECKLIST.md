@@ -46,10 +46,12 @@ Resume iOS TestFlight work only after this fork produces a local desktop/Unity s
 
 ### Deliverables
 
-- [ ] Frame the 12x9 lane grid clearly at desktop and mobile aspect ratios.
-- [ ] Make own lane, target lane, spawn, exit, blocked cells, towers, and creep paths visually distinct.
-- [ ] Add an obvious selected-lane or inspected-lane state.
+- [x] Frame the 12x9 lane grid clearly for the current local Unity camera baseline.
+- [x] Make own lane, target lanes, spawn, exit, towers, and creep paths visually distinct.
+- [x] Add an obvious selected-lane or inspected-lane state.
 - [ ] Add placement preview feedback for legal, blocked, unaffordable, and path-blocking cells.
+
+Current partial placement preview only distinguishes out-of-board cells from cells inside the player's own lane. The next pass should query simulation placement validation before confirmation.
 
 ### Acceptance Checks
 

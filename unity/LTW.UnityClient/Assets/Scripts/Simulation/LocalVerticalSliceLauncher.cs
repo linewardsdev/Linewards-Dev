@@ -47,7 +47,11 @@ namespace LTW.UnityClient.Simulation
             var cameraObject = new GameObject("Local Match Camera");
             cameraObject.tag = "MainCamera";
             var camera = cameraObject.AddComponent<Camera>();
-            camera.transform.position = new Vector3(5.5f, 32f, -10f);
+            camera.orthographic = true;
+            camera.orthographicSize = 16.8f;
+            camera.nearClipPlane = 0.1f;
+            camera.farClipPlane = 80f;
+            camera.transform.position = new Vector3(5.5f, 30f, -11.5f);
             camera.transform.LookAt(new Vector3(5.5f, 0f, 14f));
             camera.backgroundColor = new Color(0.06f, 0.08f, 0.12f);
             camera.clearFlags = CameraClearFlags.SolidColor;

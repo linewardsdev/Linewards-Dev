@@ -12,6 +12,7 @@ namespace LTW.UnityClient.UI
         private static readonly Color WardViolet = new(0.608f, 0.424f, 1f, 1f);
         private static readonly Color SignalGold = new(1f, 0.784f, 0.29f, 1f);
         private static readonly Color Cloud = new(0.957f, 0.969f, 1f, 1f);
+        private static readonly Color Danger = new(1f, 0.32f, 0.24f, 1f);
 
         private static GUIStyle? panelStyle;
         private static GUIStyle? titleStyle;
@@ -35,6 +36,7 @@ namespace LTW.UnityClient.UI
         private bool isPlacing;
         private int selectedTowerRole;
         private Vector2Int selectedCell;
+        private bool selectedCellIsOnBoard;
 
         public void BeginTowerPlacement() => BeginTowerPlacement(0);
 
@@ -46,7 +48,8 @@ namespace LTW.UnityClient.UI
         {
             isPlacing = true;
             selectedTowerRole = towerRole;
-            selectedCell = Vector2Int.zero;
+            selectedCell = new Vector2Int(1, 3);
+            selectedCellIsOnBoard = true;
             ghost.SetActive(true);
             MoveGhost();
             feedbackView.Clear();
@@ -93,6 +96,7 @@ namespace LTW.UnityClient.UI
             }
 
             feedbackView.ShowRejected(result.RejectionReason);
+            UpdateGhostColor();
         }
 
         public void SellLastTower()
@@ -150,8 +154,8 @@ namespace LTW.UnityClient.UI
             bodyStyle.normal.textColor = Cloud;
 
             GUI.Label(new Rect(rect.x + 12f * scale, rect.y + 9f * scale, rect.width - 24f * scale, 24f * scale), SelectedTowerName().ToUpperInvariant(), titleStyle);
-            GUI.Label(new Rect(rect.x + 12f * scale, rect.y + 35f * scale, rect.width - 24f * scale, 20f * scale), $"CELL {selectedCell.x}, {selectedCell.y}", bodyStyle);
-            GUI.Label(new Rect(rect.x + 12f * scale, rect.y + 55f * scale, rect.width - 24f * scale, 20f * scale), "Tap board or nudge, then confirm", bodyStyle);
+            GUI.Label(new Rect(rect.x + 12f * scale, rect.y + 35f * scale, rect.width - 24f * scale, 20f * scale), selectedCellIsOnBoard ? $"CELL {selectedCell.x}, {selectedCell.y}" : "OUTSIDE YOUR LINE", bodyStyle);
+            GUI.Label(new Rect(rect.x + 12f * scale, rect.y + 55f * scale, rect.width - 24f * scale, 20f * scale), selectedCellIsOnBoard ? "Tap board or nudge, then confirm" : "Tap inside the highlighted lane", bodyStyle);
         }
 
         private void Nudge(Vector2Int delta)
@@ -162,6 +166,8 @@ namespace LTW.UnityClient.UI
             }
 
             selectedCell += delta;
+            selectedCell.x = Mathf.Clamp(selectedCell.x, 0, 11);
+            selectedCell.y = Mathf.Clamp(selectedCell.y, 0, 8);
             MoveGhost();
         }
 
@@ -174,6 +180,26 @@ namespace LTW.UnityClient.UI
                 2 => new Vector3(0.52f, 0.52f, 0.52f),
                 _ => new Vector3(0.62f, 0.78f, 0.62f)
             };
+            selectedCellIsOnBoard = IsOwnLaneCell(selectedCell);
+            UpdateGhostColor();
+        }
+
+        private void UpdateGhostColor()
+        {
+            var renderer = ghost.GetComponent<Renderer>();
+            if (renderer == null)
+            {
+                return;
+            }
+
+            var color = selectedCellIsOnBoard ? SelectedTowerAccent() : Danger;
+            color.a = 0.72f;
+            renderer.material.color = color;
+        }
+
+        private static bool IsOwnLaneCell(Vector2Int cell)
+        {
+            return cell.x >= 0 && cell.x < 12 && cell.y >= 0 && cell.y < 9;
         }
 
         private string SelectedTowerName()

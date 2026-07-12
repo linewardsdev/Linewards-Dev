@@ -18,12 +18,15 @@ dotnet format LTW.sln --no-restore --verify-no-changes
 dotnet test LTW.sln --no-restore --configuration Release
 ```
 
-Latest local result: 38 tests passed.
+Latest local result: 39 tests passed.
 
 Unity compile smoke also passes locally when `LTW.Simulation.dll` is built and copied to
 `unity/LTW.UnityClient/Assets/Plugins`. The latest MCP-assisted Play Mode startup loaded
 `Assets/Scenes/LocalVerticalSlice.unity`, created the local match runtime objects, and reported
 no current Unity console errors.
+
+The Unity editor pin is now `6000.5.3f1`. The latest GD-01 batch compile also succeeds under
+that editor after the mobile HUD treatment merge.
 
 ## MVP-08 Rendering, Pooling, And Feedback
 
@@ -81,8 +84,24 @@ Remaining acceptance evidence:
 
 ## Next Work Order
 
-1. Start GD-00 from `GAMEPLAY_DEVELOPMENT_CHECKLIST.md`: prove a reproducible local Unity play loop without Xcode.
+1. Manually run the GD-00 Play Mode pass with the merged mobile HUD and GD-01 board readability work.
 2. Close MVP-06, MVP-08, and MVP-09 acceptance evidence as part of that local play loop.
-3. Work GD-01 through GD-07 to improve board readability, controls, content variety, pacing, bots, session flow, and feedback.
-4. Run GD-08 local playtests and prioritize fixes from real gameplay notes.
-5. Resume MVP-10 TestFlight/device validation only after local play is coherent enough to benefit from mobile testing.
+3. Continue GD-01 with manual camera/readability notes, then move into GD-02 placement and tower controls.
+4. Work GD-03 through GD-07 to improve content variety, pacing, bots, session flow, and feedback.
+5. Run GD-08 local playtests and prioritize fixes from real gameplay notes.
+6. Resume MVP-10 TestFlight/device validation only after local play is coherent enough to benefit from mobile testing.
+
+## GD-01 Board Readability And Camera
+
+Current code evidence:
+
+- The local camera is orthographic and framed around the full three-lane board stack.
+- Lanes now have darker backplates, stronger player-lane rails, flow arrows along the route, spawn/exit labels, and clearer lane labels.
+- The own lane is labeled as the defensive lane, while other lanes are labeled as send targets.
+- The placement ghost now changes to a danger color when the selected cell is outside the playable own-lane grid.
+
+Remaining acceptance evidence:
+
+- Manually confirm the full 12x9 lane stack is framed well across desktop and mobile aspect ratios.
+- Confirm the new path, spawn, exit, and lane labels remain readable during active creeps and combat feedback.
+- Extend placement preview beyond out-of-board feedback to distinguish blocked cells, unaffordable placements, and path-blocking placements before confirmation.

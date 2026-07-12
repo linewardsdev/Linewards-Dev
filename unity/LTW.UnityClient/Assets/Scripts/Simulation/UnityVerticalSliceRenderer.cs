@@ -16,6 +16,7 @@ namespace LTW.UnityClient.Simulation
         private const int LaneDepth = 9;
         private const int LaneSpacing = 10;
         private const int CenterRow = 4;
+        private const float BoardCenterX = (LaneLength - 1) * 0.5f;
 
         [SerializeField] private UnitySimulationDriver simulationDriver = null!;
         [SerializeField] private PresentationDetail presentationDetail = PresentationDetail.Full;
@@ -100,7 +101,9 @@ namespace LTW.UnityClient.Simulation
 
             for (var lane = 1; lane <= 3; lane++)
             {
+                CreateLaneBackplate(lane);
                 CreateLaneFrame(lane);
+                CreateLaneFlowCues(lane);
                 for (var x = 0; x < LaneLength; x++)
                 {
                     for (var y = 0; y < LaneDepth; y++)
@@ -115,6 +118,8 @@ namespace LTW.UnityClient.Simulation
 
                 CreateLaneLandmark(lane, 0, CenterRow, "Spawn", MintSignal, 0.42f);
                 CreateLaneLandmark(lane, LaneLength - 1, CenterRow, "Exit", SignalGold, 0.5f);
+                CreateLaneEndpointLabel(lane, 0, CenterRow, "SPAWN", MintSignal);
+                CreateLaneEndpointLabel(lane, LaneLength - 1, CenterRow, "EXIT", SignalGold);
                 CreateLaneLabel(lane);
             }
 
@@ -435,10 +440,55 @@ namespace LTW.UnityClient.Simulation
         {
             var offset = LaneOffset(laneId);
             var accent = OwnerAccent(laneId);
-            CreateBoardRail($"Lane{laneId}NorthRail", new Vector3((LaneLength - 1) * 0.5f, -0.06f, offset - 0.62f), new Vector3(LaneLength + 0.35f, 0.16f, 0.12f), accent);
-            CreateBoardRail($"Lane{laneId}SouthRail", new Vector3((LaneLength - 1) * 0.5f, -0.06f, offset + LaneDepth - 0.38f), new Vector3(LaneLength + 0.35f, 0.16f, 0.12f), accent);
-            CreateBoardRail($"Lane{laneId}WestRail", new Vector3(-0.62f, -0.06f, offset + (LaneDepth - 1) * 0.5f), new Vector3(0.12f, 0.16f, LaneDepth + 0.35f), accent);
-            CreateBoardRail($"Lane{laneId}EastRail", new Vector3(LaneLength - 0.38f, -0.06f, offset + (LaneDepth - 1) * 0.5f), new Vector3(0.12f, 0.16f, LaneDepth + 0.35f), accent);
+            var railHeight = laneId == 1 ? 0.22f : 0.14f;
+            var longRailWidth = laneId == 1 ? 0.18f : 0.1f;
+            var endRailWidth = laneId == 1 ? 0.18f : 0.1f;
+            CreateBoardRail($"Lane{laneId}NorthRail", new Vector3(BoardCenterX, -0.06f, offset - 0.62f), new Vector3(LaneLength + 0.35f, railHeight, longRailWidth), accent);
+            CreateBoardRail($"Lane{laneId}SouthRail", new Vector3(BoardCenterX, -0.06f, offset + LaneDepth - 0.38f), new Vector3(LaneLength + 0.35f, railHeight, longRailWidth), accent);
+            CreateBoardRail($"Lane{laneId}WestRail", new Vector3(-0.62f, -0.06f, offset + (LaneDepth - 1) * 0.5f), new Vector3(endRailWidth, railHeight, LaneDepth + 0.35f), accent);
+            CreateBoardRail($"Lane{laneId}EastRail", new Vector3(LaneLength - 0.38f, -0.06f, offset + (LaneDepth - 1) * 0.5f), new Vector3(endRailWidth, railHeight, LaneDepth + 0.35f), accent);
+        }
+
+        private void CreateLaneBackplate(int laneId)
+        {
+            var backplate = CreatePrimitive($"Lane{laneId}Backplate", PrimitiveType.Cube);
+            backplate.transform.position = new Vector3(BoardCenterX, -0.28f, LaneOffset(laneId) + (LaneDepth - 1) * 0.5f);
+            backplate.transform.localScale = new Vector3(LaneLength + 1.35f, 0.08f, LaneDepth + 1.35f);
+            SetColor(backplate, laneId == 1 ? new Color(0.055f, 0.12f, 0.22f) : new Color(0.045f, 0.065f, 0.12f));
+            laneDecorations.Add(backplate);
+        }
+
+        private void CreateLaneFlowCues(int laneId)
+        {
+            for (var x = 1; x < LaneLength - 1; x += 2)
+            {
+                CreateFlowArrow(laneId, x);
+            }
+        }
+
+        private void CreateFlowArrow(int laneId, int x)
+        {
+            var offset = LaneOffset(laneId);
+            var color = laneId == 1 ? new Color(0.42f, 0.76f, 1f) : new Color(0.24f, 0.4f, 0.68f);
+            var shaft = CreatePrimitive($"Lane{laneId}Flow_{x}_Shaft", PrimitiveType.Cube);
+            shaft.transform.position = new Vector3(x, 0.02f, offset + CenterRow);
+            shaft.transform.localScale = new Vector3(0.48f, 0.05f, 0.07f);
+            SetColor(shaft, color);
+            laneDecorations.Add(shaft);
+
+            var northHead = CreatePrimitive($"Lane{laneId}Flow_{x}_HeadA", PrimitiveType.Cube);
+            northHead.transform.position = new Vector3(x + 0.27f, 0.025f, offset + CenterRow + 0.12f);
+            northHead.transform.rotation = Quaternion.Euler(0f, 35f, 0f);
+            northHead.transform.localScale = new Vector3(0.24f, 0.05f, 0.06f);
+            SetColor(northHead, color);
+            laneDecorations.Add(northHead);
+
+            var southHead = CreatePrimitive($"Lane{laneId}Flow_{x}_HeadB", PrimitiveType.Cube);
+            southHead.transform.position = new Vector3(x + 0.27f, 0.025f, offset + CenterRow - 0.12f);
+            southHead.transform.rotation = Quaternion.Euler(0f, -35f, 0f);
+            southHead.transform.localScale = new Vector3(0.24f, 0.05f, 0.06f);
+            SetColor(southHead, color);
+            laneDecorations.Add(southHead);
         }
 
         private void CreateBoardRail(string name, Vector3 position, Vector3 scale, Color color)
@@ -453,24 +503,40 @@ namespace LTW.UnityClient.Simulation
         private void CreateLaneLandmark(int laneId, int x, int y, string landmarkName, Color color, float scale)
         {
             var marker = CreatePrimitive($"Lane{laneId}{landmarkName}Beacon", PrimitiveType.Cylinder);
-            marker.transform.position = new Vector3(x, 0.08f, LaneOffset(laneId) + y);
-            marker.transform.localScale = new Vector3(scale, 0.16f, scale);
+            marker.transform.position = new Vector3(x, 0.12f, LaneOffset(laneId) + y);
+            marker.transform.localScale = new Vector3(scale, 0.22f, scale);
             SetColor(marker, color);
             laneDecorations.Add(marker);
+        }
+
+        private void CreateLaneEndpointLabel(int laneId, int x, int y, string labelText, Color color)
+        {
+            var labelObject = new GameObject($"Lane{laneId}{labelText}Label");
+            labelObject.transform.position = new Vector3(x, 0.18f, LaneOffset(laneId) + y + (labelText == "SPAWN" ? -0.72f : 0.72f));
+            labelObject.transform.rotation = Quaternion.Euler(90f, 0f, 0f);
+            labelObject.transform.localScale = Vector3.one * 0.022f;
+            var label = labelObject.AddComponent<TextMesh>();
+            label.anchor = TextAnchor.MiddleCenter;
+            label.alignment = TextAlignment.Center;
+            label.fontSize = 42;
+            label.characterSize = 0.16f;
+            label.text = labelText;
+            label.color = color;
+            laneDecorations.Add(labelObject);
         }
 
         private void CreateLaneLabel(int laneId)
         {
             var labelObject = new GameObject($"Lane{laneId}Label");
-            labelObject.transform.position = new Vector3(2.2f, 0.08f, LaneOffset(laneId) - 1.08f);
+            labelObject.transform.position = new Vector3(1.2f, 0.1f, LaneOffset(laneId) - 1.08f);
             labelObject.transform.rotation = Quaternion.Euler(90f, 0f, 0f);
-            labelObject.transform.localScale = Vector3.one * 0.035f;
+            labelObject.transform.localScale = Vector3.one * (laneId == 1 ? 0.04f : 0.032f);
             var label = labelObject.AddComponent<TextMesh>();
             label.anchor = TextAnchor.MiddleLeft;
             label.alignment = TextAlignment.Left;
             label.fontSize = 44;
             label.characterSize = 0.18f;
-            label.text = laneId == 1 ? "YOUR LINE" : $"OPPONENT {laneId}";
+            label.text = laneId == 1 ? "YOUR LINE - DEFEND" : $"OPPONENT {laneId} - SEND TARGET";
             label.color = OwnerAccent(laneId);
             laneDecorations.Add(labelObject);
         }
