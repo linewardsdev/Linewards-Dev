@@ -99,8 +99,8 @@ namespace LTW.UnityClient.UI
             panelStyle = new GUIStyle(GUI.skin.box)
             {
                 border = new RectOffset(6, 6, 6, 6),
-                margin = RectOffset.zero,
-                padding = RectOffset.zero
+                margin = ZeroOffset(),
+                padding = ZeroOffset()
             };
 
             messageStyle = new GUIStyle(GUI.skin.label)
@@ -126,5 +126,7 @@ namespace LTW.UnityClient.UI
             GUI.DrawTexture(rect, Texture2D.whiteTexture);
             GUI.color = previousColor;
         }
+
+        private static RectOffset ZeroOffset() => new RectOffset(0, 0, 0, 0);
     }
 }

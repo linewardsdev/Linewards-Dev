@@ -95,8 +95,8 @@ namespace LTW.UnityClient.UI
             pillStyle = new GUIStyle(GUI.skin.box)
             {
                 border = new RectOffset(6, 6, 6, 6),
-                margin = RectOffset.zero,
-                padding = RectOffset.zero
+                margin = ZeroOffset(),
+                padding = ZeroOffset()
             };
 
             labelStyle = new GUIStyle(GUI.skin.label)
@@ -192,5 +192,7 @@ namespace LTW.UnityClient.UI
                 PanelInk.b + accent.b * amount,
                 PanelInk.a);
         }
+
+        private static RectOffset ZeroOffset() => new RectOffset(0, 0, 0, 0);
     }
 }

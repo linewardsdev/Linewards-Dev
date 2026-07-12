@@ -118,8 +118,8 @@ namespace LTW.UnityClient.UI
             panelStyle = new GUIStyle(GUI.skin.box)
             {
                 border = new RectOffset(6, 6, 6, 6),
-                margin = RectOffset.zero,
-                padding = RectOffset.zero
+                margin = ZeroOffset(),
+                padding = ZeroOffset()
             };
 
             titleStyle = new GUIStyle(GUI.skin.label)
@@ -133,8 +133,8 @@ namespace LTW.UnityClient.UI
             {
                 alignment = TextAnchor.MiddleCenter,
                 fontStyle = FontStyle.Bold,
-                margin = RectOffset.zero,
-                padding = RectOffset.zero,
+                margin = ZeroOffset(),
+                padding = ZeroOffset(),
                 normal = { textColor = Cloud },
                 hover = { textColor = Cloud },
                 active = { textColor = Cloud }
@@ -172,5 +172,7 @@ namespace LTW.UnityClient.UI
                 PanelInk.b + accent.b * amount,
                 PanelInk.a);
         }
+
+        private static RectOffset ZeroOffset() => new RectOffset(0, 0, 0, 0);
     }
 }
