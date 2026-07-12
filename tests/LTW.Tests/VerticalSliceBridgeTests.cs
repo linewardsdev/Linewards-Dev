@@ -1,3 +1,4 @@
+using System.Linq;
 using LTW.Simulation.Bridge;
 using LTW.Simulation.Commands;
 using LTW.Simulation.Events;
@@ -12,7 +13,7 @@ public sealed class VerticalSliceBridgeTests
     {
         var simulation = new LocalVerticalSlice(SampleVerticalSliceContent.Create());
 
-        var place = simulation.PlaceTower(new PlayerId(1), new LaneId(1), SampleVerticalSliceContent.TowerId, new GridPosition(1, 0));
+        var place = simulation.PlaceTower(new PlayerId(1), new LaneId(1), SampleVerticalSliceContent.TowerId, new GridPosition(1, 1));
         var send = simulation.QueueSend(new PlayerId(1), SampleVerticalSliceContent.CreepId);
         for (var index = 0; index < 3; index++)
         {
@@ -37,7 +38,7 @@ public sealed class VerticalSliceBridgeTests
     {
         var simulation = new LocalVerticalSlice(SampleVerticalSliceContent.Create());
 
-        var blocking = simulation.PlaceTower(new PlayerId(1), new LaneId(1), SampleVerticalSliceContent.TowerId, new GridPosition(0, 4));
+        var blocking = simulation.PlaceTower(new PlayerId(1), new LaneId(1), SampleVerticalSliceContent.TowerId, new GridPosition(3, 0));
 
         Assert.False(blocking.Accepted);
         Assert.Equal(CommandRejectionReason.PathBlocked, blocking.RejectionReason);
@@ -48,12 +49,44 @@ public sealed class VerticalSliceBridgeTests
     public void Bridge_reports_occupied_cells_for_touch_feedback()
     {
         var simulation = new LocalVerticalSlice(SampleVerticalSliceContent.Create());
-        Assert.True(simulation.PlaceTower(new PlayerId(1), new LaneId(1), SampleVerticalSliceContent.TowerId, new GridPosition(1, 0)).Accepted);
+        Assert.True(simulation.PlaceTower(new PlayerId(1), new LaneId(1), SampleVerticalSliceContent.TowerId, new GridPosition(1, 1)).Accepted);
 
-        var occupied = simulation.PlaceTower(new PlayerId(1), new LaneId(1), SampleVerticalSliceContent.TowerId, new GridPosition(1, 0));
+        var occupied = simulation.PlaceTower(new PlayerId(1), new LaneId(1), SampleVerticalSliceContent.TowerId, new GridPosition(1, 1));
 
         Assert.False(occupied.Accepted);
         Assert.Equal(CommandRejectionReason.CellOccupied, occupied.RejectionReason);
+    }
+
+    [Fact]
+    public void Placement_preview_reports_rules_without_mutating_match_state()
+    {
+        var simulation = new LocalVerticalSlice(SampleVerticalSliceContent.Create());
+
+        var ready = simulation.PreviewPlaceTower(new PlayerId(1), new LaneId(1), SampleVerticalSliceContent.TowerId, new GridPosition(1, 1));
+        var blocked = simulation.PreviewPlaceTower(new PlayerId(1), new LaneId(1), SampleVerticalSliceContent.TowerId, new GridPosition(3, 0));
+        var snapshot = simulation.GetSnapshot();
+
+        Assert.True(ready.Accepted);
+        Assert.False(blocked.Accepted);
+        Assert.Equal(CommandRejectionReason.PathBlocked, blocked.RejectionReason);
+        Assert.Empty(snapshot.Towers);
+        Assert.Equal(100, snapshot.Players.Get(new PlayerId(1)).Gold.Amount);
+    }
+
+    [Fact]
+    public void Preview_reports_affordability_and_occupancy_for_tower_palette()
+    {
+        var simulation = new LocalVerticalSlice(SampleVerticalSliceContent.Create());
+        Assert.True(simulation.PlaceTower(new PlayerId(1), new LaneId(1), SampleVerticalSliceContent.UtilityTowerId, new GridPosition(1, 1)).Accepted);
+        Assert.True(simulation.PlaceTower(new PlayerId(1), new LaneId(1), SampleVerticalSliceContent.UtilityTowerId, new GridPosition(2, 1)).Accepted);
+
+        var occupied = simulation.PreviewPlaceTower(new PlayerId(1), new LaneId(1), SampleVerticalSliceContent.TowerId, new GridPosition(1, 1));
+        var unaffordable = simulation.PreviewPlaceTower(new PlayerId(1), new LaneId(1), SampleVerticalSliceContent.UtilityTowerId, new GridPosition(4, 1));
+
+        Assert.False(occupied.Accepted);
+        Assert.Equal(CommandRejectionReason.CellOccupied, occupied.RejectionReason);
+        Assert.False(unaffordable.Accepted);
+        Assert.Equal(CommandRejectionReason.InsufficientGold, unaffordable.RejectionReason);
     }
 
 
@@ -68,6 +101,63 @@ public sealed class VerticalSliceBridgeTests
         Assert.Contains(content.Creeps, creep => creep.Id.Equals(SampleVerticalSliceContent.CreepId));
         Assert.Contains(content.Creeps, creep => creep.Id.Equals(SampleVerticalSliceContent.BruteCreepId));
         Assert.Contains(content.Creeps, creep => creep.Id.Equals(SampleVerticalSliceContent.SwarmCreepId));
+    }
+
+    [Fact]
+    public void Sample_content_has_distinct_tower_and_send_pressure_profiles()
+    {
+        var content = SampleVerticalSliceContent.Create();
+
+        var arrow = content.Towers.Single(tower => tower.Id.Equals(SampleVerticalSliceContent.TowerId));
+        var control = content.Towers.Single(tower => tower.Id.Equals(SampleVerticalSliceContent.ControlTowerId));
+        var relay = content.Towers.Single(tower => tower.Id.Equals(SampleVerticalSliceContent.UtilityTowerId));
+        var runner = content.Creeps.Single(creep => creep.Id.Equals(SampleVerticalSliceContent.CreepId));
+        var brute = content.Creeps.Single(creep => creep.Id.Equals(SampleVerticalSliceContent.BruteCreepId));
+        var swarm = content.Creeps.Single(creep => creep.Id.Equals(SampleVerticalSliceContent.SwarmCreepId));
+
+        Assert.True(arrow.Damage > control.Damage);
+        Assert.True(control.AttackCooldownTicks > arrow.AttackCooldownTicks);
+        Assert.True(relay.Cost.Amount > arrow.Cost.Amount);
+        Assert.True(brute.MaxHealth > runner.MaxHealth);
+        Assert.True(swarm.SpeedPerSecond > runner.SpeedPerSecond);
+        Assert.True(brute.IncomeGain.Amount > runner.IncomeGain.Amount);
+    }
+
+    [Fact]
+    public void Send_cooldown_creates_a_repeat_pressure_window()
+    {
+        var simulation = new LocalVerticalSlice(SampleVerticalSliceContent.Create());
+
+        var first = simulation.QueueSend(new PlayerId(1), SampleVerticalSliceContent.CreepId);
+        var immediate = simulation.QueueSend(new PlayerId(1), SampleVerticalSliceContent.CreepId);
+        for (var tick = 0; tick < 30; tick++)
+        {
+            simulation.AdvanceOneTick();
+        }
+
+        var afterCooldown = simulation.QueueSend(new PlayerId(1), SampleVerticalSliceContent.CreepId);
+
+        Assert.True(first.Accepted);
+        Assert.False(immediate.Accepted);
+        Assert.Equal(CommandRejectionReason.CooldownActive, immediate.RejectionReason);
+        Assert.True(afterCooldown.Accepted);
+    }
+
+    [Fact]
+    public void Early_pressure_window_keeps_match_alive_before_first_income_tick()
+    {
+        var simulation = new LocalVerticalSlice(SampleVerticalSliceContent.Create());
+        Assert.True(simulation.QueueSend(new PlayerId(1), SampleVerticalSliceContent.CreepId).Accepted);
+
+        for (var tick = 0; tick < 49; tick++)
+        {
+            simulation.AdvanceOneTick();
+        }
+
+        var snapshot = simulation.GetSnapshot();
+        Assert.Equal(new SimulationTick(49), snapshot.Tick);
+        Assert.True(snapshot.Players.Get(new PlayerId(1)).Lives.Amount > 0);
+        Assert.True(snapshot.Players.Get(new PlayerId(1)).Income.Amount >= 11);
     }
 
     [Fact]
@@ -90,7 +180,7 @@ public sealed class VerticalSliceBridgeTests
     public void Bridge_sells_last_tower_and_refunds_gold()
     {
         var simulation = new LocalVerticalSlice(SampleVerticalSliceContent.Create());
-        Assert.True(simulation.PlaceTower(new PlayerId(1), new LaneId(1), SampleVerticalSliceContent.TowerId, new GridPosition(1, 0)).Accepted);
+        Assert.True(simulation.PlaceTower(new PlayerId(1), new LaneId(1), SampleVerticalSliceContent.TowerId, new GridPosition(1, 1)).Accepted);
 
         var sell = simulation.SellLastTower(new PlayerId(1));
         var snapshot = simulation.GetSnapshot();
