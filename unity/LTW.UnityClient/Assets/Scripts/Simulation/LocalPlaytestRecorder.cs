@@ -13,6 +13,7 @@ namespace LTW.UnityClient.Simulation
         private long? firstLeakTick;
         private long? firstEliminationTick;
         private bool hasAutoExported;
+        private long? autoExportedTick;
 
         public string? LatestReportPath { get; private set; }
 
@@ -47,10 +48,12 @@ namespace LTW.UnityClient.Simulation
                 }
             }
 
-            if (!hasAutoExported && simulationDriver.LatestMatchSummary is not null)
+            var replay = simulationDriver.LatestReplay;
+            if (!hasAutoExported && replay is not null && simulationDriver.LatestMatchSummary is not null)
             {
                 ExportNow();
                 hasAutoExported = true;
+                autoExportedTick = replay.CompletedAtTick.Value;
             }
         }
 
@@ -77,6 +80,7 @@ namespace LTW.UnityClient.Simulation
             firstLeakTick = null;
             firstEliminationTick = null;
             hasAutoExported = false;
+            autoExportedTick = null;
             LatestReportPath = null;
         }
 

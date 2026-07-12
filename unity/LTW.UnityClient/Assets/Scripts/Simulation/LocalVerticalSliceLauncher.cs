@@ -38,7 +38,7 @@ namespace LTW.UnityClient.Simulation
             performanceSampler.Initialize(driver, renderer);
             stressHarness.Initialize(commands, performanceSampler);
             results.Initialize(driver);
-            controls.Initialize(commands, driver, renderer, replayExporter, playtestRecorder, stressHarness, placement);
+            controls.Initialize(commands, driver, renderer, replayExporter, playtestRecorder, stressHarness, placement, feedback);
             bootstrapper.Initialize(driver, commands);
             var camera = CreateCamera();
             CreateRuntimeHud(matchObject, camera, commands, feedback, sendDock, placement);
@@ -99,6 +99,7 @@ namespace LTW.UnityClient.Simulation
         private LocalPlaytestRecorder playtestRecorder = null!;
         private HeavySendStressHarness stressHarness = null!;
         private TouchPlacementController placement = null!;
+        private PlacementFeedbackView feedback = null!;
 
         public void Initialize(
             UnityCommandAdapter commandAdapter,
@@ -107,7 +108,8 @@ namespace LTW.UnityClient.Simulation
             LocalReplayExporter exporter,
             LocalPlaytestRecorder recorder,
             HeavySendStressHarness harness,
-            TouchPlacementController placementController)
+            TouchPlacementController placementController,
+            PlacementFeedbackView feedbackView)
         {
             commands = commandAdapter;
             driver = simulationDriver;
@@ -116,6 +118,7 @@ namespace LTW.UnityClient.Simulation
             playtestRecorder = recorder;
             stressHarness = harness;
             placement = placementController;
+            feedback = feedbackView;
         }
 
         private void Update()
@@ -144,7 +147,11 @@ namespace LTW.UnityClient.Simulation
                 playtestRecorder.ResetRecorder();
             }
             if (Input.GetKeyDown(KeyCode.E)) replayExporter.ExportCurrentReplay();
-            if (Input.GetKeyDown(KeyCode.P)) playtestRecorder.ExportNow();
+            if (Input.GetKeyDown(KeyCode.P))
+            {
+                var reportPath = playtestRecorder.ExportNow();
+                feedback.ShowEconomy(reportPath is null ? "Finish match first" : $"Saved {System.IO.Path.GetFileName(reportPath)}");
+            }
             if (Input.GetKeyDown(KeyCode.H)) stressHarness.StartRun();
             if (Input.GetKeyDown(KeyCode.M)) PresentationPreferences.ToggleAudioMuted();
             if (Input.GetKeyDown(KeyCode.Minus) || Input.GetKeyDown(KeyCode.KeypadMinus)) PresentationPreferences.AdjustFeedbackVolume(-0.1f);
