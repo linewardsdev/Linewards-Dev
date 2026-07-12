@@ -72,32 +72,23 @@ public sealed class LocalVerticalSlice
         tick = new SimulationTick(0);
     }
 
+    public VerticalSliceCommandResult PreviewPlaceTower(PlayerId playerId, LaneId laneId, ContentId towerId, GridPosition position)
+    {
+        return ValidateTowerPlacement(playerId, laneId, towerId, position).Result;
+    }
+
     public VerticalSliceCommandResult PlaceTower(PlayerId playerId, LaneId laneId, ContentId towerId, GridPosition position)
     {
-        var command = new PlaceTowerCommand(playerId, tick, laneId, towerId, position);
-        var contentResult = commandValidator.Validate(command, content);
-        if (!contentResult.Accepted)
+        var validation = ValidateTowerPlacement(playerId, laneId, towerId, position);
+        if (!validation.Result.Accepted)
         {
-            return VerticalSliceCommandResult.Reject(contentResult.RejectionReason);
+            return validation.Result;
         }
 
-        if (!grids.TryGetValue(laneId, out var grid))
-        {
-            return VerticalSliceCommandResult.Reject(CommandRejectionReason.InvalidLane);
-        }
-
-        var placement = pathService.ValidatePlacement(grid, position);
-        if (!placement.IsValid)
-        {
-            return VerticalSliceCommandResult.Reject(ToCommandRejection(placement.RejectionReason));
-        }
-
-        var tower = content.Towers.First(definition => definition.Id.Equals(towerId));
-        var player = players.Get(playerId);
-        if (player.Gold.Amount < tower.Cost.Amount)
-        {
-            return VerticalSliceCommandResult.Reject(CommandRejectionReason.InsufficientGold);
-        }
+        var grid = validation.Grid!;
+        var placement = validation.Placement!;
+        var tower = validation.Tower!;
+        var player = validation.Player!;
 
         var towerEntityId = NextEntityId();
         grids[laneId] = grid.WithOccupied(position);
@@ -219,6 +210,36 @@ public sealed class LocalVerticalSlice
         acceptedCommands.Clear();
     }
 
+    private TowerPlacementValidation ValidateTowerPlacement(PlayerId playerId, LaneId laneId, ContentId towerId, GridPosition position)
+    {
+        var command = new PlaceTowerCommand(playerId, tick, laneId, towerId, position);
+        var contentResult = commandValidator.Validate(command, content);
+        if (!contentResult.Accepted)
+        {
+            return TowerPlacementValidation.Reject(contentResult.RejectionReason);
+        }
+
+        if (!grids.TryGetValue(laneId, out var grid))
+        {
+            return TowerPlacementValidation.Reject(CommandRejectionReason.InvalidLane);
+        }
+
+        var placement = pathService.ValidatePlacement(grid, position);
+        if (!placement.IsValid)
+        {
+            return TowerPlacementValidation.Reject(ToCommandRejection(placement.RejectionReason));
+        }
+
+        var tower = content.Towers.First(definition => definition.Id.Equals(towerId));
+        var player = players.Get(playerId);
+        if (player.Gold.Amount < tower.Cost.Amount)
+        {
+            return TowerPlacementValidation.Reject(CommandRejectionReason.InsufficientGold);
+        }
+
+        return TowerPlacementValidation.Accept(grid, placement, tower, player);
+    }
+
     private EntityId NextEntityId() => new EntityId(nextEntityId++);
 
     private static CommandRejectionReason ToCommandRejection(PlacementRejectionReason reason)
@@ -230,5 +251,38 @@ public sealed class LocalVerticalSlice
             PlacementRejectionReason.PathBlocked => CommandRejectionReason.PathBlocked,
             _ => CommandRejectionReason.PathBlocked
         };
+    }
+
+    private sealed class TowerPlacementValidation
+    {
+        private TowerPlacementValidation(
+            VerticalSliceCommandResult result,
+            LaneGrid? grid,
+            PlacementValidationResult? placement,
+            TowerDefinition? tower,
+            PlayerEconomyState? player)
+        {
+            Result = result;
+            Grid = grid;
+            Placement = placement;
+            Tower = tower;
+            Player = player;
+        }
+
+        public VerticalSliceCommandResult Result { get; }
+
+        public LaneGrid? Grid { get; }
+
+        public PlacementValidationResult? Placement { get; }
+
+        public TowerDefinition? Tower { get; }
+
+        public PlayerEconomyState? Player { get; }
+
+        public static TowerPlacementValidation Accept(LaneGrid grid, PlacementValidationResult placement, TowerDefinition tower, PlayerEconomyState player) =>
+            new TowerPlacementValidation(VerticalSliceCommandResult.Accept(), grid, placement, tower, player);
+
+        public static TowerPlacementValidation Reject(CommandRejectionReason reason) =>
+            new TowerPlacementValidation(VerticalSliceCommandResult.Reject(reason), null, null, null, null);
     }
 }
