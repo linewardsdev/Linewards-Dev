@@ -35,7 +35,7 @@ namespace LTW.UnityClient.Simulation
             performanceSampler.Initialize(driver, renderer);
             stressHarness.Initialize(commands, performanceSampler);
             results.Initialize(driver);
-            sessionOverlay.Initialize(driver);
+            sessionOverlay.Initialize(driver, playtestRecorder);
             controls.Initialize(commands, driver, renderer, replayExporter, playtestRecorder, stressHarness);
             bootstrapper.Initialize(driver, commands);
             CreateCamera();
