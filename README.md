@@ -35,4 +35,4 @@ dotnet format LTW.sln --no-restore --verify-no-changes
 dotnet test LTW.sln --no-restore --configuration Release
 ```
 
-Unity editor verification requires Unity `6000.3.12f1`. Open `unity/LTW.UnityClient` through Unity Hub.
+Unity editor verification requires Unity `6000.5.3f1`. Open `unity/LTW.UnityClient` through Unity Hub.
