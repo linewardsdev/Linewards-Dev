@@ -15,7 +15,6 @@ namespace LTW.UnityClient.UI
         private static readonly Color Cloud = new(0.957f, 0.969f, 1f, 1f);
         private static readonly Color Danger = new(1f, 0.32f, 0.24f, 1f);
 
-        private static GUIStyle? stripStyle;
         private static GUIStyle? pillStyle;
         private static GUIStyle? labelStyle;
         private static GUIStyle? valueStyle;
@@ -23,6 +22,8 @@ namespace LTW.UnityClient.UI
 
         [SerializeField]
         private bool showRuntimeHud = true;
+
+        private long incomeTicksRemaining = IncomeIntervalTicks;
 
         public string GoldText { get; private set; } = "0";
 
@@ -45,9 +46,9 @@ namespace LTW.UnityClient.UI
             IncomeText = player.Income.Amount.ToString();
             LivesText = player.Lives.Amount.ToString();
             PressureText = snapshot.Creeps.Count.ToString();
-            var ticksUntilIncome = IncomeIntervalTicks - snapshot.Tick.Value % IncomeIntervalTicks;
-            IncomeTimerText = ticksUntilIncome.ToString();
-            IncomeTickSoon = ticksUntilIncome <= 5;
+            incomeTicksRemaining = IncomeIntervalTicks - snapshot.Tick.Value % IncomeIntervalTicks;
+            IncomeTimerText = incomeTicksRemaining.ToString();
+            IncomeTickSoon = incomeTicksRemaining <= 5;
             LaneText = "Your Line";
         }
 
@@ -86,17 +87,10 @@ namespace LTW.UnityClient.UI
 
         private static void EnsureStyles()
         {
-            if (stripStyle is not null)
+            if (pillStyle is not null)
             {
                 return;
             }
-
-            stripStyle = new GUIStyle(GUI.skin.box)
-            {
-                border = new RectOffset(8, 8, 8, 8),
-                margin = RectOffset.zero,
-                padding = RectOffset.zero
-            };
 
             pillStyle = new GUIStyle(GUI.skin.box)
             {
@@ -169,7 +163,7 @@ namespace LTW.UnityClient.UI
             var barBack = new Rect(rect.x + 10f * scale, rect.yMax - 11f * scale, rect.width - 20f * scale, 4f * scale);
             DrawAccent(barBack, new Color(Cloud.r, Cloud.g, Cloud.b, 0.16f));
 
-            var fill = 1f - Mathf.Clamp01((float)long.Parse(IncomeTimerText) / IncomeIntervalTicks);
+            var fill = 1f - Mathf.Clamp01((float)incomeTicksRemaining / IncomeIntervalTicks);
             DrawAccent(new Rect(barBack.x, barBack.y, barBack.width * fill, barBack.height), accent);
             return rect.xMax;
         }
