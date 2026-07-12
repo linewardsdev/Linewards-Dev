@@ -111,8 +111,6 @@ namespace LTW.UnityClient.Simulation
             {
                 CreateLaneBackplate(lane);
                 CreateLaneBuildZones(lane);
-                CreateLaneFrame(lane);
-                CreateLaneFlowCues(lane);
                 for (var x = 0; x < LaneWidth; x++)
                 {
                     for (var y = 0; y < LaneLength; y++)
@@ -125,6 +123,8 @@ namespace LTW.UnityClient.Simulation
                     }
                 }
 
+                CreateLaneFrame(lane);
+                CreateLaneFlowCues(lane);
                 CreateLaneLandmark(lane, CenterColumn, 0, "Spawn", MintSignal, 0.42f);
                 CreateLaneLandmark(lane, CenterColumn, LaneLength - 1, "Exit", SignalGold, 0.5f);
                 CreateLaneGate(lane, 0, MintSignal, "ENTRY");
@@ -509,20 +509,20 @@ namespace LTW.UnityClient.Simulation
             var offset = LaneOffset(laneId);
             var tint = OwnerAccent(laneId);
             var leftZone = CreatePrimitive($"Lane{laneId}LeftBuildBand", PrimitiveType.Cube);
-            leftZone.transform.position = new Vector3(1f, -0.12f, offset + (LaneLength - 1) * 0.5f);
-            leftZone.transform.localScale = new Vector3(1.88f, 0.045f, LaneLength - 1.2f);
+            leftZone.transform.position = new Vector3(1f, -0.255f, offset + (LaneLength - 1) * 0.5f);
+            leftZone.transform.localScale = new Vector3(1.88f, 0.035f, LaneLength - 1.2f);
             SetColor(leftZone, BuildZoneColor(tint, laneId == 1));
             laneDecorations.Add(leftZone);
 
             var rightZone = CreatePrimitive($"Lane{laneId}RightBuildBand", PrimitiveType.Cube);
-            rightZone.transform.position = new Vector3(5f, -0.12f, offset + (LaneLength - 1) * 0.5f);
-            rightZone.transform.localScale = new Vector3(1.88f, 0.045f, LaneLength - 1.2f);
+            rightZone.transform.position = new Vector3(5f, -0.255f, offset + (LaneLength - 1) * 0.5f);
+            rightZone.transform.localScale = new Vector3(1.88f, 0.035f, LaneLength - 1.2f);
             SetColor(rightZone, BuildZoneColor(tint, laneId == 1));
             laneDecorations.Add(rightZone);
 
             var pathRibbon = CreatePrimitive($"Lane{laneId}PathRibbon", PrimitiveType.Cube);
-            pathRibbon.transform.position = new Vector3(CenterColumn, -0.105f, offset + (LaneLength - 1) * 0.5f);
-            pathRibbon.transform.localScale = new Vector3(1.02f, 0.052f, LaneLength - 0.6f);
+            pathRibbon.transform.position = new Vector3(CenterColumn, -0.248f, offset + (LaneLength - 1) * 0.5f);
+            pathRibbon.transform.localScale = new Vector3(1.02f, 0.038f, LaneLength - 0.6f);
             SetColor(pathRibbon, laneId == 1 ? new Color(0.11f, 0.34f, 0.52f) : new Color(0.08f, 0.19f, 0.32f));
             laneDecorations.Add(pathRibbon);
         }
