@@ -51,7 +51,7 @@ Resume iOS TestFlight work only after this fork produces a local desktop/Unity s
 - [x] Add an obvious selected-lane or inspected-lane state.
 - [x] Add placement preview feedback for legal, blocked, unaffordable, and path-blocking cells.
 
-Placement preview now queries the simulation bridge before confirmation, so legal, occupied, unaffordable, invalid-lane, and path-blocking outcomes use the same rules as actual placement.
+Placement preview now queries the simulation bridge before confirmation, so legal, occupied, unaffordable, invalid-lane, and path-blocking outcomes use the same rules as actual placement. The graphics pass adds distinct build bands, a brighter center route, spawn/leak gates, and lane ownership tinting for the long north-south board.
 
 ### Acceptance Checks
 
@@ -153,7 +153,7 @@ The local session now starts in a ready state with a runtime start/pause/restart
 - [x] Add simple audio mix controls or global mute for desktop testing.
 - [x] Review text scale and contrast in the HUD.
 
-Tower attacks now emit damage events so Unity can show lane beams and hit cues before kills. Reduced-effects mode keeps text/readability cues while skipping burst effects and beams, desktop hotkeys cover reduced effects/mute/volume, and HUD panels use compact high-contrast runtime styling.
+Tower attacks now emit damage events so Unity can show lane beams and hit cues before kills. Reduced-effects mode keeps text/readability cues while skipping burst effects and beams, desktop hotkeys cover reduced effects/mute/volume, and HUD panels use compact high-contrast runtime styling. Tower and creep silhouettes now carry role-specific bases, halos, shadows, and markers so Arrow, Control, Relay, Runner, Brute, and Swarm remain distinguishable without transient effects.
 
 ### Acceptance Checks
 
