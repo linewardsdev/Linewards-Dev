@@ -17,6 +17,10 @@ public sealed class BotController
         this.creepId = creepId;
     }
 
+    public BotDecisionProfile Profile => profile;
+
+    public ContentId PrimaryCreepId => creepId;
+
     public BotDecision Decide(PlayerEconomyState player, ContentCatalog content, SimulationTick tick)
     {
         var creep = content.Creeps.First(creep => creep.Id.Equals(creepId));
