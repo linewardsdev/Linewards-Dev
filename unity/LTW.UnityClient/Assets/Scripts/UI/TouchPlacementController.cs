@@ -1,4 +1,5 @@
 using LTW.Simulation.Bridge;
+using LTW.Simulation.Commands;
 using LTW.UnityClient.Simulation;
 using UnityEngine;
 
@@ -17,6 +18,8 @@ namespace LTW.UnityClient.UI
         private static GUIStyle? panelStyle;
         private static GUIStyle? titleStyle;
         private static GUIStyle? bodyStyle;
+        private static GUIStyle? buttonStyle;
+        private static GUIStyle? metaStyle;
 
         [SerializeField]
         private Camera inputCamera = null!;
@@ -36,7 +39,7 @@ namespace LTW.UnityClient.UI
         private bool isPlacing;
         private int selectedTowerRole;
         private Vector2Int selectedCell;
-        private bool selectedCellIsOnBoard;
+        private VerticalSliceCommandResult placementPreview = VerticalSliceCommandResult.Reject(CommandRejectionReason.InvalidLane);
 
         public void BeginTowerPlacement() => BeginTowerPlacement(0);
 
@@ -48,8 +51,7 @@ namespace LTW.UnityClient.UI
         {
             isPlacing = true;
             selectedTowerRole = towerRole;
-            selectedCell = new Vector2Int(1, 3);
-            selectedCellIsOnBoard = true;
+            selectedCell = new Vector2Int(2, 2);
             ghost.SetActive(true);
             MoveGhost();
             feedbackView.Clear();
@@ -96,7 +98,7 @@ namespace LTW.UnityClient.UI
             }
 
             feedbackView.ShowRejected(result.RejectionReason);
-            UpdateGhostColor();
+            RefreshPlacementPreview();
         }
 
         public void SellLastTower()
@@ -132,7 +134,7 @@ namespace LTW.UnityClient.UI
 
         private void OnGUI()
         {
-            if (!showPlacementReadout || !isPlacing)
+            if (!showPlacementReadout)
             {
                 return;
             }
@@ -140,6 +142,13 @@ namespace LTW.UnityClient.UI
             EnsureStyles();
 
             var scale = Mathf.Clamp(Screen.width / 1080f, 0.72f, 1.15f);
+            DrawTowerPalette(scale);
+
+            if (!isPlacing)
+            {
+                return;
+            }
+
             var width = Mathf.Min(Screen.width - 32f * scale, 330f * scale);
             var height = 86f * scale;
             var rect = new Rect(12f * scale, Screen.height - height - 18f * scale, width, height);
@@ -154,8 +163,9 @@ namespace LTW.UnityClient.UI
             bodyStyle.normal.textColor = Cloud;
 
             GUI.Label(new Rect(rect.x + 12f * scale, rect.y + 9f * scale, rect.width - 24f * scale, 24f * scale), SelectedTowerName().ToUpperInvariant(), titleStyle);
-            GUI.Label(new Rect(rect.x + 12f * scale, rect.y + 35f * scale, rect.width - 24f * scale, 20f * scale), selectedCellIsOnBoard ? $"CELL {selectedCell.x}, {selectedCell.y}" : "OUTSIDE YOUR LINE", bodyStyle);
-            GUI.Label(new Rect(rect.x + 12f * scale, rect.y + 55f * scale, rect.width - 24f * scale, 20f * scale), selectedCellIsOnBoard ? "Tap board or nudge, then confirm" : "Tap inside the highlighted lane", bodyStyle);
+            var placementLine = placementPreview.Accepted ? $"CELL {selectedCell.x}, {selectedCell.y} READY" : PlacementPreviewText();
+            GUI.Label(new Rect(rect.x + 12f * scale, rect.y + 35f * scale, rect.width - 24f * scale, 20f * scale), placementLine, bodyStyle);
+            GUI.Label(new Rect(rect.x + 12f * scale, rect.y + 55f * scale, rect.width - 24f * scale, 20f * scale), placementPreview.Accepted ? "Tap board or nudge, then confirm" : PlacementRecoveryText(), bodyStyle);
         }
 
         private void Nudge(Vector2Int delta)
@@ -166,8 +176,8 @@ namespace LTW.UnityClient.UI
             }
 
             selectedCell += delta;
-            selectedCell.x = Mathf.Clamp(selectedCell.x, 0, 11);
-            selectedCell.y = Mathf.Clamp(selectedCell.y, 0, 8);
+            selectedCell.x = Mathf.Clamp(selectedCell.x, 0, 6);
+            selectedCell.y = Mathf.Clamp(selectedCell.y, 0, 17);
             MoveGhost();
         }
 
@@ -180,7 +190,18 @@ namespace LTW.UnityClient.UI
                 2 => new Vector3(0.52f, 0.52f, 0.52f),
                 _ => new Vector3(0.62f, 0.78f, 0.62f)
             };
-            selectedCellIsOnBoard = IsOwnLaneCell(selectedCell);
+            RefreshPlacementPreview();
+        }
+
+        private void RefreshPlacementPreview()
+        {
+            placementPreview = selectedTowerRole switch
+            {
+                1 => commandAdapter.PreviewControlTower(selectedCell.x, selectedCell.y),
+                2 => commandAdapter.PreviewUtilityTower(selectedCell.x, selectedCell.y),
+                _ => commandAdapter.PreviewSampleTower(selectedCell.x, selectedCell.y)
+            };
+
             UpdateGhostColor();
         }
 
@@ -192,14 +213,9 @@ namespace LTW.UnityClient.UI
                 return;
             }
 
-            var color = selectedCellIsOnBoard ? SelectedTowerAccent() : Danger;
+            var color = placementPreview.Accepted ? SelectedTowerAccent() : Danger;
             color.a = 0.72f;
             renderer.material.color = color;
-        }
-
-        private static bool IsOwnLaneCell(Vector2Int cell)
-        {
-            return cell.x >= 0 && cell.x < 12 && cell.y >= 0 && cell.y < 9;
         }
 
         private string SelectedTowerName()
@@ -219,6 +235,98 @@ namespace LTW.UnityClient.UI
                 1 => WardViolet,
                 2 => SignalGold,
                 _ => ArcaneBlue
+            };
+        }
+
+        private void DrawTowerPalette(float scale)
+        {
+            if (isPlacing)
+            {
+                return;
+            }
+
+            var width = Mathf.Min(Screen.width - 32f * scale, 390f * scale);
+            var height = 142f * scale;
+            var rect = new Rect(12f * scale, Screen.height - height - 18f * scale, width, height);
+
+            DrawPanel(rect, PanelInk);
+            DrawAccent(new Rect(rect.x, rect.yMax - 4f * scale, rect.width, 4f * scale), MintSignal);
+
+            titleStyle!.fontSize = Mathf.RoundToInt(14f * scale);
+            titleStyle.normal.textColor = MintSignal;
+            GUI.Label(new Rect(rect.x + 12f * scale, rect.y + 8f * scale, rect.width - 24f * scale, 22f * scale), "WARD PALETTE", titleStyle);
+
+            var buttonY = rect.y + 38f * scale;
+            var buttonHeight = 74f * scale;
+            var gap = 8f * scale;
+            var buttonWidth = (rect.width - 24f * scale - gap * 3f) / 4f;
+            var x = rect.x + 12f * scale;
+
+            if (DrawPaletteButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "ARROW", "25g", ArcaneBlue, scale))
+            {
+                BeginTowerPlacement();
+            }
+
+            x += buttonWidth + gap;
+            if (DrawPaletteButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "CONTROL", "35g", WardViolet, scale))
+            {
+                BeginControlTowerPlacement();
+            }
+
+            x += buttonWidth + gap;
+            if (DrawPaletteButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "RELAY", "40g", SignalGold, scale))
+            {
+                BeginUtilityTowerPlacement();
+            }
+
+            x += buttonWidth + gap;
+            if (DrawPaletteButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "SELL", "refund", Danger, scale))
+            {
+                SellLastTower();
+            }
+        }
+
+        private static bool DrawPaletteButton(Rect rect, string label, string meta, Color accent, float scale)
+        {
+            var previousColor = GUI.color;
+            GUI.color = new Color(PanelInk.r + accent.r * 0.06f, PanelInk.g + accent.g * 0.06f, PanelInk.b + accent.b * 0.06f, PanelInk.a);
+            var style = buttonStyle ?? GUI.skin.button;
+            var pressed = GUI.Button(rect, GUIContent.none, style);
+            GUI.color = previousColor;
+
+            DrawAccent(new Rect(rect.x, rect.yMax - 4f * scale, rect.width, 4f * scale), accent);
+
+            buttonStyle!.fontSize = Mathf.RoundToInt(12f * scale);
+            buttonStyle.normal.textColor = Cloud;
+            GUI.Label(new Rect(rect.x, rect.y + 12f * scale, rect.width, 24f * scale), label, style);
+
+            metaStyle!.fontSize = Mathf.RoundToInt(10f * scale);
+            metaStyle.normal.textColor = accent;
+            GUI.Label(new Rect(rect.x, rect.y + 39f * scale, rect.width, 18f * scale), meta, metaStyle);
+            return pressed;
+        }
+
+        private string PlacementPreviewText()
+        {
+            return placementPreview.RejectionReason switch
+            {
+                CommandRejectionReason.InsufficientGold => "NEED GOLD",
+                CommandRejectionReason.CellOccupied => "CELL OCCUPIED",
+                CommandRejectionReason.PathBlocked => "PATH BLOCKED",
+                CommandRejectionReason.InvalidLane => "OUTSIDE YOUR LINE",
+                _ => "CANNOT PLACE"
+            };
+        }
+
+        private string PlacementRecoveryText()
+        {
+            return placementPreview.RejectionReason switch
+            {
+                CommandRejectionReason.InsufficientGold => "Send less or wait for income",
+                CommandRejectionReason.CellOccupied => "Pick an empty grid cell",
+                CommandRejectionReason.PathBlocked => "Leave a route from spawn to exit",
+                CommandRejectionReason.InvalidLane => "Tap inside the highlighted lane",
+                _ => "Try a different cell"
             };
         }
 
@@ -246,6 +354,24 @@ namespace LTW.UnityClient.UI
             bodyStyle = new GUIStyle(GUI.skin.label)
             {
                 alignment = TextAnchor.MiddleLeft,
+                normal = { textColor = Cloud }
+            };
+
+            buttonStyle = new GUIStyle(GUI.skin.button)
+            {
+                alignment = TextAnchor.MiddleCenter,
+                fontStyle = FontStyle.Bold,
+                margin = ZeroOffset(),
+                padding = ZeroOffset(),
+                normal = { textColor = Cloud },
+                hover = { textColor = Cloud },
+                active = { textColor = Cloud }
+            };
+
+            metaStyle = new GUIStyle(GUI.skin.label)
+            {
+                alignment = TextAnchor.MiddleCenter,
+                fontStyle = FontStyle.Bold,
                 normal = { textColor = Cloud }
             };
         }
