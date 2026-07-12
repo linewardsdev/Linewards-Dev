@@ -26,6 +26,7 @@ namespace LTW.UnityClient.Simulation
             var performanceSampler = matchObject.AddComponent<DevicePerformanceSampler>();
             var stressHarness = matchObject.AddComponent<HeavySendStressHarness>();
             var results = new GameObject("Match Results").AddComponent<MatchResultsBillboard>();
+            var sessionOverlay = matchObject.AddComponent<LocalSessionFlowOverlay>();
             var controls = matchObject.AddComponent<LocalVerticalSliceDevelopmentControls>();
 
             renderer.Initialize(driver);
@@ -34,6 +35,7 @@ namespace LTW.UnityClient.Simulation
             performanceSampler.Initialize(driver, renderer);
             stressHarness.Initialize(commands, performanceSampler);
             results.Initialize(driver);
+            sessionOverlay.Initialize(driver);
             controls.Initialize(commands, driver, renderer, replayExporter, playtestRecorder, stressHarness);
             bootstrapper.Initialize(driver, commands);
             CreateCamera();
@@ -98,6 +100,7 @@ namespace LTW.UnityClient.Simulation
             if (Input.GetKeyDown(KeyCode.V)) commands.SendBruteCreep();
             if (Input.GetKeyDown(KeyCode.W)) commands.SendSwarmCreep();
             if (Input.GetKeyDown(KeyCode.X)) commands.SellLastSampleTower();
+            if (Input.GetKeyDown(KeyCode.Space)) driver.TogglePause();
             if (Input.GetKeyDown(KeyCode.R))
             {
                 driver.ResetMatch();
