@@ -12,6 +12,20 @@ MVP-06 adds source adapters under `Assets/Scripts/Simulation`:
 - `UnityVerticalSliceRenderer` displays the three sample 12x9 lanes, towers, and creeps with simple primitives.
 - `DiagnosticsOverlay` provides a development-only text overlay and reset path support.
 
+## Local Visual Test Controls
+
+When the local vertical slice scene is running, development hotkeys can exercise the current graphics placeholders:
+
+- `B`: place the default single-target ward.
+- `C`: place the control ward placeholder.
+- `U`: place the utility/economy ward placeholder.
+- `S`: send a runner creep.
+- `V`: send a brute creep.
+- `W`: send a swarm group.
+- `X`: sell the last sample tower.
+- `R`: reset the match.
+- `1`, `2`, `3`: switch full, simplified, and disabled presentation modes.
+
 Unity must reference the built `LTW.Simulation` assembly before these scripts compile in-editor. Build `LTW.Simulation` from the repository root and place/reference the resulting `LTW.Simulation.dll` under `Assets/Plugins` or configure an equivalent Unity assembly reference. Do not copy simulation rules into Unity scripts.
 
 ```powershell
