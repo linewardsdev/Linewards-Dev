@@ -25,6 +25,7 @@ public sealed class LocalVerticalSlice
     private readonly List<ISimulationEvent> pendingEvents = new();
     private readonly Dictionary<PlayerId, BotController> bots;
     private readonly List<AcceptedCommandRecord> acceptedCommands = new();
+    private readonly List<BotDecisionRecord> botDecisionRecords = new();
 
     private EconomyPlayerSet players;
     private CombatState combatState;
@@ -35,6 +36,18 @@ public sealed class LocalVerticalSlice
     public MatchSummary? MatchSummary { get; private set; }
 
     public ReplayRecord GetReplayRecord() => new ReplayRecord(1, content.Version, content.Maps[0].Id, players.Players.Select(player => player.PlayerId).ToArray(), tick, acceptedCommands);
+
+    public BotDiagnosticsSnapshot GetBotDiagnostics()
+    {
+        var profiles = bots
+            .Select(bot => new BotProfileSnapshot(bot.Key, bot.Value.Profile, bot.Value.PrimaryCreepId))
+            .OrderBy(profile => profile.PlayerId.Value)
+            .ToArray();
+        var recentDecisions = botDecisionRecords
+            .Skip(System.Math.Max(0, botDecisionRecords.Count - 12))
+            .ToArray();
+        return new BotDiagnosticsSnapshot(profiles, recentDecisions);
+    }
 
     public LocalVerticalSlice(ContentCatalog content)
     {
@@ -156,7 +169,14 @@ public sealed class LocalVerticalSlice
         foreach (var bot in bots)
         {
             var decision = bot.Value.Decide(players.Get(bot.Key), content, tick);
-            if (decision.Command is QueueSendCommand send) QueueSend(send.PlayerId, send.CreepId, send.Quantity);
+            if (decision.Command is QueueSendCommand send)
+            {
+                var result = QueueSend(send.PlayerId, send.CreepId, send.Quantity);
+                if (result.Accepted)
+                {
+                    botDecisionRecords.Add(new BotDecisionRecord(tick, send.PlayerId, bot.Value.Profile, send.CreepId, send.Quantity));
+                }
+            }
         }
 
         tick = new SimulationTick(tick.Value + 1);
@@ -208,6 +228,7 @@ public sealed class LocalVerticalSlice
         matchEnded = false;
         MatchSummary = null;
         acceptedCommands.Clear();
+        botDecisionRecords.Clear();
     }
 
     private TowerPlacementValidation ValidateTowerPlacement(PlayerId playerId, LaneId laneId, ContentId towerId, GridPosition position)
