@@ -2,7 +2,7 @@
 
 ## Goal
 
-Deliver an offline Unity MVP with one human player, two simulated opponents, a three-player carousel, touch placement, sends, economy, combat, leaks, elimination, replayable results, and iOS device validation.
+Deliver an offline Unity MVP with one human player, two simulated opponents, a three-player carousel, touch placement, sends, economy, combat, leaks, elimination, replayable results, a coherent local gameplay loop, and later iOS device validation.
 
 This is a work plan for parallel agents. Every initiative has one owner, an explicit dependency set, and a completion check. An initiative is complete only when its acceptance checks pass, not when code merely exists.
 
@@ -44,6 +44,9 @@ Touch UI       Presentation and pooling
 MVP-09 Full local three-player MVP integration
           |
           v
+GD-00 through GD-08 gameplay development fork
+          |
+          v
 MVP-10 iOS TestFlight and device validation
           |
           v
@@ -64,7 +67,8 @@ MVP-11 Android compatibility validation
 | MVP-07 | Touch placement and match HUD | Mobile UI agent | MVP-06 | MVP-08 |
 | MVP-08 | Rendering, pooling, and feedback | Presentation agent | MVP-06 | MVP-07 |
 | MVP-09 | Three-player MVP integration and tuning | Integration agent | MVP-05, MVP-07, MVP-08 | None |
-| MVP-10 | iOS distribution, profiling, and acceptance | Mobile QA agent | MVP-09 | Documentation only |
+| GD-00 through GD-08 | Gameplay maturation before device validation | Gameplay agents | MVP-09 | Documentation, tuning, presentation |
+| MVP-10 | iOS distribution, profiling, and acceptance | Mobile QA agent | GD-08 | Documentation only |
 | MVP-11 | Android compatibility validation | Mobile QA agent | MVP-10 | Documentation only |
 
 ## MVP-00: Solution Foundation And CI
@@ -284,11 +288,12 @@ MVP-11 Android compatibility validation
 ## MVP-10: iOS TestFlight And Device Validation
 
 **Owner:** Mobile QA agent
-**Status:** [ ] In progress - local iOS validation instrumentation and device matrix prepared; signing, TestFlight build, and device runs pending
-**Dependencies:** MVP-09
+**Status:** [ ] Deferred - resume after the gameplay fork proves a coherent local play loop
+**Dependencies:** GD-08 gameplay playtest evidence
 
 ### Deliverables
 
+- [ ] Confirm the local gameplay fork has produced a playable session worth validating on device.
 - [ ] Configure iOS signing and a TestFlight-capable build process.
 - [ ] Define the iOS test matrix from the available devices, including the oldest supported device as the baseline.
 - [ ] Capture tick time, frame time, memory, active entity count, and thermal observations during normal and stress matches.
@@ -322,7 +327,9 @@ MVP-11 Android compatibility validation
 
 ## MVP Release Gate
 
-- [ ] MVP-00 through MVP-10 are complete.
+- [ ] MVP-00 through MVP-09 are complete.
+- [ ] GD-00 through GD-08 in `GAMEPLAY_DEVELOPMENT_CHECKLIST.md` are complete enough to justify mobile validation.
+- [ ] MVP-10 is complete after the local gameplay loop is coherent.
 - [ ] MVP-11 is complete before broad external distribution.
 - [ ] The local match loop is fun enough to justify an online multiplayer spike.
 - [ ] Replays, diagnostics, and device evidence are available for every release candidate.

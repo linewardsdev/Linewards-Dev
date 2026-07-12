@@ -66,8 +66,14 @@ Current code/documentation evidence:
 - `DevicePerformanceSampler` captures average frame time, managed memory, active creeps, towers, and presentation objects.
 - `HeavySendStressHarness` writes a 60-second heavy-send diagnostic report.
 
+Status:
+
+- Deferred until the gameplay development fork in `GAMEPLAY_DEVELOPMENT_CHECKLIST.md` proves a coherent local Unity play loop.
+- Xcode, signing, provisioning, and TestFlight are no longer the immediate blocker for the next phase.
+
 Remaining acceptance evidence:
 
+- Complete enough GD-00 through GD-08 evidence to justify testing on a mobile device.
 - Configure iOS signing, bundle identifier, provisioning, and TestFlight-capable export.
 - Fill in the actual iOS device matrix.
 - Run normal and stress matches on the selected devices.
@@ -75,8 +81,8 @@ Remaining acceptance evidence:
 
 ## Next Work Order
 
-1. Close MVP-06 Play Mode acceptance because MVP-08 and MVP-09 depend on proven Unity execution.
-2. Close MVP-08 visual and pooling acceptance in Play Mode.
-3. Close MVP-09 full-match results and reset acceptance in Unity.
-4. Configure signing and perform MVP-10 TestFlight/device validation.
-5. Start MVP-11 only after MVP-10 has real device evidence.
+1. Start GD-00 from `GAMEPLAY_DEVELOPMENT_CHECKLIST.md`: prove a reproducible local Unity play loop without Xcode.
+2. Close MVP-06, MVP-08, and MVP-09 acceptance evidence as part of that local play loop.
+3. Work GD-01 through GD-07 to improve board readability, controls, content variety, pacing, bots, session flow, and feedback.
+4. Run GD-08 local playtests and prioritize fixes from real gameplay notes.
+5. Resume MVP-10 TestFlight/device validation only after local play is coherent enough to benefit from mobile testing.
