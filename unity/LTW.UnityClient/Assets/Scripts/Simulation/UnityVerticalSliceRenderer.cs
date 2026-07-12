@@ -28,6 +28,7 @@ namespace LTW.UnityClient.Simulation
         private readonly Dictionary<string, GameObject> activeCreeps = new Dictionary<string, GameObject>();
         private readonly Dictionary<string, Vector3> lastKnownPositions = new Dictionary<string, Vector3>();
         private readonly List<GameObject> laneCells = new List<GameObject>();
+        private readonly List<GameObject> laneDecorations = new List<GameObject>();
         private readonly HashSet<string> visibleKeys = new HashSet<string>();
         private readonly Queue<GameObject> towerPool = new Queue<GameObject>();
         private readonly Queue<GameObject> creepPool = new Queue<GameObject>();
@@ -98,17 +99,22 @@ namespace LTW.UnityClient.Simulation
 
             for (var lane = 1; lane <= 3; lane++)
             {
+                CreateLaneFrame(lane);
                 for (var x = 0; x < LaneLength; x++)
                 {
                     for (var y = 0; y < LaneDepth; y++)
                     {
-                        var cell = CreatePrimitive("LaneCell", PrimitiveType.Cube);
+                        var cell = CreatePrimitive($"Lane{lane}Cell_{x}_{y}", PrimitiveType.Cube);
                         cell.transform.position = new Vector3(x, -0.18f, LaneOffset(lane) + y);
                         cell.transform.localScale = new Vector3(0.96f, 0.12f, 0.96f);
-                        SetColor(cell, CellColor(x, y));
+                        SetColor(cell, CellColor(lane, x, y));
                         laneCells.Add(cell);
                     }
                 }
+
+                CreateLaneLandmark(lane, 0, CenterRow, "Spawn", MintSignal, 0.42f);
+                CreateLaneLandmark(lane, LaneLength - 1, CenterRow, "Exit", SignalGold, 0.5f);
+                CreateLaneLabel(lane);
             }
 
             laneCreated = true;
@@ -121,9 +127,9 @@ namespace LTW.UnityClient.Simulation
             {
                 var key = tower.EntityId.Value.ToString();
                 visibleKeys.Add(key);
-                var towerObject = GetOrCreate(activeTowers, towerPool, key, "Tower", PrimitiveType.Cylinder);
-                SetTransform(towerObject, tower.Position, tower.LaneId, 0.68f);
-                SetColor(towerObject, new Color(0.2f, 0.55f, 1f));
+                var towerObject = GetOrCreate(activeTowers, towerPool, key, "WardTower", PrimitiveType.Cylinder);
+                SetTowerTransform(towerObject, tower.Position, tower.LaneId);
+                SetColor(towerObject, OwnerAccent(tower.OwnerId.Value));
                 lastKnownPositions[key] = towerObject.transform.position;
             }
 
@@ -133,8 +139,8 @@ namespace LTW.UnityClient.Simulation
             {
                 var key = creep.EntityId.Value.ToString();
                 visibleKeys.Add(key);
-                var creepObject = GetOrCreate(activeCreeps, creepPool, key, "Creep", PrimitiveType.Sphere);
-                SetTransform(creepObject, creep.Position, creep.LaneId, 0.4f);
+                var creepObject = GetOrCreate(activeCreeps, creepPool, key, "PressureCreep", PrimitiveType.Sphere);
+                SetCreepTransform(creepObject, creep.Position, creep.LaneId);
                 SetColor(creepObject, SenderColor(creep.SenderId.Value));
                 lastKnownPositions[key] = creepObject.transform.position;
             }
@@ -332,28 +338,103 @@ namespace LTW.UnityClient.Simulation
             instance.transform.localScale = Vector3.one * scale;
         }
 
+        private static void SetTowerTransform(GameObject instance, GridPosition position, LaneId laneId)
+        {
+            instance.transform.position = GridToWorld(position, laneId) + Vector3.up * 0.12f;
+            instance.transform.localScale = new Vector3(0.62f, 0.72f, 0.62f);
+        }
+
+        private static void SetCreepTransform(GameObject instance, GridPosition position, LaneId laneId)
+        {
+            instance.transform.position = GridToWorld(position, laneId) + Vector3.up * 0.02f;
+            instance.transform.localScale = new Vector3(0.36f, 0.28f, 0.36f);
+        }
+
         private static Vector3 GridToWorld(GridPosition position, LaneId laneId) => new Vector3(position.X, 0.35f, position.Y + LaneOffset(laneId.Value));
 
         private static float LaneOffset(int laneId) => (laneId - 1) * LaneSpacing;
 
         private Vector3 PositionFor(string entityId) => lastKnownPositions.TryGetValue(entityId, out var position) ? position : new Vector3(LaneLength - 1, 0.35f, CenterRow);
 
-        private static Color CellColor(int x, int y)
+        private void CreateLaneFrame(int laneId)
+        {
+            var offset = LaneOffset(laneId);
+            var accent = OwnerAccent(laneId);
+            CreateBoardRail($"Lane{laneId}NorthRail", new Vector3((LaneLength - 1) * 0.5f, -0.06f, offset - 0.62f), new Vector3(LaneLength + 0.35f, 0.16f, 0.12f), accent);
+            CreateBoardRail($"Lane{laneId}SouthRail", new Vector3((LaneLength - 1) * 0.5f, -0.06f, offset + LaneDepth - 0.38f), new Vector3(LaneLength + 0.35f, 0.16f, 0.12f), accent);
+            CreateBoardRail($"Lane{laneId}WestRail", new Vector3(-0.62f, -0.06f, offset + (LaneDepth - 1) * 0.5f), new Vector3(0.12f, 0.16f, LaneDepth + 0.35f), accent);
+            CreateBoardRail($"Lane{laneId}EastRail", new Vector3(LaneLength - 0.38f, -0.06f, offset + (LaneDepth - 1) * 0.5f), new Vector3(0.12f, 0.16f, LaneDepth + 0.35f), accent);
+        }
+
+        private void CreateBoardRail(string name, Vector3 position, Vector3 scale, Color color)
+        {
+            var rail = CreatePrimitive(name, PrimitiveType.Cube);
+            rail.transform.position = position;
+            rail.transform.localScale = scale;
+            SetColor(rail, color);
+            laneDecorations.Add(rail);
+        }
+
+        private void CreateLaneLandmark(int laneId, int x, int y, string landmarkName, Color color, float scale)
+        {
+            var marker = CreatePrimitive($"Lane{laneId}{landmarkName}Beacon", PrimitiveType.Cylinder);
+            marker.transform.position = new Vector3(x, 0.08f, LaneOffset(laneId) + y);
+            marker.transform.localScale = new Vector3(scale, 0.16f, scale);
+            SetColor(marker, color);
+            laneDecorations.Add(marker);
+        }
+
+        private void CreateLaneLabel(int laneId)
+        {
+            var labelObject = new GameObject($"Lane{laneId}Label");
+            labelObject.transform.position = new Vector3(2.2f, 0.08f, LaneOffset(laneId) - 1.08f);
+            labelObject.transform.rotation = Quaternion.Euler(90f, 0f, 0f);
+            labelObject.transform.localScale = Vector3.one * 0.035f;
+            var label = labelObject.AddComponent<TextMesh>();
+            label.anchor = TextAnchor.MiddleLeft;
+            label.alignment = TextAlignment.Left;
+            label.fontSize = 44;
+            label.characterSize = 0.18f;
+            label.text = laneId == 1 ? "YOUR LINE" : $"OPPONENT {laneId}";
+            label.color = OwnerAccent(laneId);
+            laneDecorations.Add(labelObject);
+        }
+
+        private static Color CellColor(int laneId, int x, int y)
         {
             if (x == 0 && y == CenterRow)
             {
-                return new Color(0.2f, 0.8f, 0.35f);
+                return MintSignal;
             }
 
             if (x == LaneLength - 1 && y == CenterRow)
             {
-                return new Color(0.95f, 0.55f, 0.15f);
+                return SignalGold;
             }
 
-            return y == CenterRow ? new Color(0.26f, 0.32f, 0.38f) : new Color(0.16f, 0.2f, 0.24f);
+            if (y == CenterRow)
+            {
+                return new Color(0.12f, 0.28f, 0.42f);
+            }
+
+            var checker = (x + y + laneId) % 2 == 0 ? 0.02f : 0f;
+            return new Color(0.07f + checker, 0.1f + checker, 0.17f + checker);
         }
 
-        private static Color SenderColor(int playerId) => playerId % 3 == 0 ? new Color(0.95f, 0.3f, 0.3f) : playerId % 3 == 1 ? new Color(0.95f, 0.75f, 0.25f) : new Color(0.75f, 0.35f, 1f);
+        private static Color SenderColor(int playerId) => playerId % 3 == 0 ? new Color(0.95f, 0.42f, 0.5f) : playerId % 3 == 1 ? SignalGold : WardViolet;
+
+        private static Color OwnerAccent(int playerId) => playerId switch
+        {
+            1 => ArcaneBlue,
+            2 => WardViolet,
+            _ => SignalGold
+        };
+
+        private static readonly Color NightInk = new Color(0.063f, 0.094f, 0.184f);
+        private static readonly Color ArcaneBlue = new Color(0.302f, 0.639f, 1f);
+        private static readonly Color WardViolet = new Color(0.608f, 0.424f, 1f);
+        private static readonly Color SignalGold = new Color(1f, 0.784f, 0.29f);
+        private static readonly Color MintSignal = new Color(0.349f, 0.882f, 0.714f);
 
         private static void SetColor(GameObject instance, Color color)
         {
