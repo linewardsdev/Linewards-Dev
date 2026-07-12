@@ -12,11 +12,11 @@ namespace LTW.UnityClient.Simulation
     /// </summary>
     public sealed class UnityVerticalSliceRenderer : MonoBehaviour
     {
-        private const int LaneLength = 12;
-        private const int LaneDepth = 9;
-        private const int LaneSpacing = 10;
-        private const int CenterRow = 4;
-        private const float BoardCenterX = (LaneLength - 1) * 0.5f;
+        private const int LaneWidth = 7;
+        private const int LaneLength = 18;
+        private const int LaneSpacing = 20;
+        private const int CenterColumn = 3;
+        private const float BoardCenterX = (LaneWidth - 1) * 0.5f;
 
         [SerializeField] private UnitySimulationDriver simulationDriver = null!;
         [SerializeField] private PresentationDetail presentationDetail = PresentationDetail.Full;
@@ -104,9 +104,9 @@ namespace LTW.UnityClient.Simulation
                 CreateLaneBackplate(lane);
                 CreateLaneFrame(lane);
                 CreateLaneFlowCues(lane);
-                for (var x = 0; x < LaneLength; x++)
+                for (var x = 0; x < LaneWidth; x++)
                 {
-                    for (var y = 0; y < LaneDepth; y++)
+                    for (var y = 0; y < LaneLength; y++)
                     {
                         var cell = CreatePrimitive($"Lane{lane}Cell_{x}_{y}", PrimitiveType.Cube);
                         cell.transform.position = new Vector3(x, -0.18f, LaneOffset(lane) + y);
@@ -116,10 +116,10 @@ namespace LTW.UnityClient.Simulation
                     }
                 }
 
-                CreateLaneLandmark(lane, 0, CenterRow, "Spawn", MintSignal, 0.42f);
-                CreateLaneLandmark(lane, LaneLength - 1, CenterRow, "Exit", SignalGold, 0.5f);
-                CreateLaneEndpointLabel(lane, 0, CenterRow, "SPAWN", MintSignal);
-                CreateLaneEndpointLabel(lane, LaneLength - 1, CenterRow, "EXIT", SignalGold);
+                CreateLaneLandmark(lane, CenterColumn, 0, "Spawn", MintSignal, 0.42f);
+                CreateLaneLandmark(lane, CenterColumn, LaneLength - 1, "Exit", SignalGold, 0.5f);
+                CreateLaneEndpointLabel(lane, CenterColumn, 0, "SPAWN", MintSignal);
+                CreateLaneEndpointLabel(lane, CenterColumn, LaneLength - 1, "EXIT", SignalGold);
                 CreateLaneLabel(lane);
             }
 
@@ -201,11 +201,11 @@ namespace LTW.UnityClient.Simulation
                         SpawnFloatingText(IncomePosition(incomeTick.PlayerId.Value), $"+{incomeTick.GoldAwarded.Amount} income", SignalGold, 0.58f);
                         break;
                     case PlayerEliminatedEvent eliminated:
-                        SpawnEffect(new Vector3(2.5f, 0.55f, LaneOffset(eliminated.PlayerId.Value) + CenterRow), new Color(1f, 0.18f, 0.24f), 1.15f, 0.55f);
-                        SpawnFloatingText(new Vector3(2.5f, 1.55f, LaneOffset(eliminated.PlayerId.Value) + CenterRow), $"PLAYER {eliminated.PlayerId.Value} OUT", new Color(1f, 0.35f, 0.35f), 0.8f);
+                        SpawnEffect(new Vector3(CenterColumn, 0.55f, LaneOffset(eliminated.PlayerId.Value) + LaneLength * 0.5f), new Color(1f, 0.18f, 0.24f), 1.15f, 0.55f);
+                        SpawnFloatingText(new Vector3(CenterColumn, 1.55f, LaneOffset(eliminated.PlayerId.Value) + LaneLength * 0.5f), $"PLAYER {eliminated.PlayerId.Value} OUT", new Color(1f, 0.35f, 0.35f), 0.8f);
                         break;
                     case MatchEndedEvent ended:
-                        SpawnFloatingText(new Vector3(4.4f, 2.2f, LaneOffset(ended.WinnerId.Value) + CenterRow), $"PLAYER {ended.WinnerId.Value} WINS", SignalGold, 1f);
+                        SpawnFloatingText(new Vector3(CenterColumn, 2.2f, LaneOffset(ended.WinnerId.Value) + LaneLength * 0.5f), $"PLAYER {ended.WinnerId.Value} WINS", SignalGold, 1f);
                         break;
                 }
             }
@@ -271,7 +271,7 @@ namespace LTW.UnityClient.Simulation
 
         private void SpawnSendCue(CreepQueuedEvent queued)
         {
-            var senderPosition = new Vector3(LaneLength - 1.3f, 0.55f, LaneOffset(queued.SenderId.Value) + CenterRow);
+            var senderPosition = new Vector3(CenterColumn, 0.55f, LaneOffset(queued.SenderId.Value) + LaneLength - 1.3f);
             var defenderPosition = SpawnPosition(queued.DefenderId.Value);
             var color = CreepRoleColor(queued.CreepId.Value, queued.SenderId.Value);
             SpawnEffect(senderPosition, color, 0.44f, 0.24f);
@@ -279,7 +279,7 @@ namespace LTW.UnityClient.Simulation
             SpawnFloatingText(defenderPosition, $"{queued.Quantity}x {SpawnLabel(queued.CreepId.Value)}", color, 0.56f);
         }
 
-        private static Vector3 SpawnPosition(int laneId) => new Vector3(0f, 0.35f, LaneOffset(laneId) + CenterRow);
+        private static Vector3 SpawnPosition(int laneId) => new Vector3(CenterColumn, 0.35f, LaneOffset(laneId));
 
         private static Vector3 IncomePosition(int playerId) => new Vector3(1.2f, 1.25f, LaneOffset(playerId) + 1.1f);
 
@@ -437,7 +437,7 @@ namespace LTW.UnityClient.Simulation
 
         private static float LaneOffset(int laneId) => (laneId - 1) * LaneSpacing;
 
-        private Vector3 PositionFor(string entityId) => lastKnownPositions.TryGetValue(entityId, out var position) ? position : new Vector3(LaneLength - 1, 0.35f, CenterRow);
+        private Vector3 PositionFor(string entityId) => lastKnownPositions.TryGetValue(entityId, out var position) ? position : new Vector3(CenterColumn, 0.35f, LaneLength - 1);
 
         private void CreateLaneFrame(int laneId)
         {
@@ -446,52 +446,52 @@ namespace LTW.UnityClient.Simulation
             var railHeight = laneId == 1 ? 0.22f : 0.14f;
             var longRailWidth = laneId == 1 ? 0.18f : 0.1f;
             var endRailWidth = laneId == 1 ? 0.18f : 0.1f;
-            CreateBoardRail($"Lane{laneId}NorthRail", new Vector3(BoardCenterX, -0.06f, offset - 0.62f), new Vector3(LaneLength + 0.35f, railHeight, longRailWidth), accent);
-            CreateBoardRail($"Lane{laneId}SouthRail", new Vector3(BoardCenterX, -0.06f, offset + LaneDepth - 0.38f), new Vector3(LaneLength + 0.35f, railHeight, longRailWidth), accent);
-            CreateBoardRail($"Lane{laneId}WestRail", new Vector3(-0.62f, -0.06f, offset + (LaneDepth - 1) * 0.5f), new Vector3(endRailWidth, railHeight, LaneDepth + 0.35f), accent);
-            CreateBoardRail($"Lane{laneId}EastRail", new Vector3(LaneLength - 0.38f, -0.06f, offset + (LaneDepth - 1) * 0.5f), new Vector3(endRailWidth, railHeight, LaneDepth + 0.35f), accent);
+            CreateBoardRail($"Lane{laneId}NorthRail", new Vector3(BoardCenterX, -0.06f, offset - 0.62f), new Vector3(LaneWidth + 0.35f, railHeight, longRailWidth), accent);
+            CreateBoardRail($"Lane{laneId}SouthRail", new Vector3(BoardCenterX, -0.06f, offset + LaneLength - 0.38f), new Vector3(LaneWidth + 0.35f, railHeight, longRailWidth), accent);
+            CreateBoardRail($"Lane{laneId}WestRail", new Vector3(-0.62f, -0.06f, offset + (LaneLength - 1) * 0.5f), new Vector3(endRailWidth, railHeight, LaneLength + 0.35f), accent);
+            CreateBoardRail($"Lane{laneId}EastRail", new Vector3(LaneWidth - 0.38f, -0.06f, offset + (LaneLength - 1) * 0.5f), new Vector3(endRailWidth, railHeight, LaneLength + 0.35f), accent);
         }
 
         private void CreateLaneBackplate(int laneId)
         {
             var backplate = CreatePrimitive($"Lane{laneId}Backplate", PrimitiveType.Cube);
-            backplate.transform.position = new Vector3(BoardCenterX, -0.28f, LaneOffset(laneId) + (LaneDepth - 1) * 0.5f);
-            backplate.transform.localScale = new Vector3(LaneLength + 1.35f, 0.08f, LaneDepth + 1.35f);
+            backplate.transform.position = new Vector3(BoardCenterX, -0.28f, LaneOffset(laneId) + (LaneLength - 1) * 0.5f);
+            backplate.transform.localScale = new Vector3(LaneWidth + 1.35f, 0.08f, LaneLength + 1.35f);
             SetColor(backplate, laneId == 1 ? new Color(0.055f, 0.12f, 0.22f) : new Color(0.045f, 0.065f, 0.12f));
             laneDecorations.Add(backplate);
         }
 
         private void CreateLaneFlowCues(int laneId)
         {
-            for (var x = 1; x < LaneLength - 1; x += 2)
+            for (var y = 2; y < LaneLength - 1; y += 3)
             {
-                CreateFlowArrow(laneId, x);
+                CreateFlowArrow(laneId, y);
             }
         }
 
-        private void CreateFlowArrow(int laneId, int x)
+        private void CreateFlowArrow(int laneId, int y)
         {
             var offset = LaneOffset(laneId);
             var color = laneId == 1 ? new Color(0.42f, 0.76f, 1f) : new Color(0.24f, 0.4f, 0.68f);
-            var shaft = CreatePrimitive($"Lane{laneId}Flow_{x}_Shaft", PrimitiveType.Cube);
-            shaft.transform.position = new Vector3(x, 0.02f, offset + CenterRow);
-            shaft.transform.localScale = new Vector3(0.48f, 0.05f, 0.07f);
+            var shaft = CreatePrimitive($"Lane{laneId}Flow_{y}_Shaft", PrimitiveType.Cube);
+            shaft.transform.position = new Vector3(CenterColumn, 0.02f, offset + y);
+            shaft.transform.localScale = new Vector3(0.07f, 0.05f, 0.48f);
             SetColor(shaft, color);
             laneDecorations.Add(shaft);
 
-            var northHead = CreatePrimitive($"Lane{laneId}Flow_{x}_HeadA", PrimitiveType.Cube);
-            northHead.transform.position = new Vector3(x + 0.27f, 0.025f, offset + CenterRow + 0.12f);
-            northHead.transform.rotation = Quaternion.Euler(0f, 35f, 0f);
-            northHead.transform.localScale = new Vector3(0.24f, 0.05f, 0.06f);
-            SetColor(northHead, color);
-            laneDecorations.Add(northHead);
+            var eastHead = CreatePrimitive($"Lane{laneId}Flow_{y}_HeadA", PrimitiveType.Cube);
+            eastHead.transform.position = new Vector3(CenterColumn + 0.12f, 0.025f, offset + y + 0.27f);
+            eastHead.transform.rotation = Quaternion.Euler(0f, -35f, 0f);
+            eastHead.transform.localScale = new Vector3(0.06f, 0.05f, 0.24f);
+            SetColor(eastHead, color);
+            laneDecorations.Add(eastHead);
 
-            var southHead = CreatePrimitive($"Lane{laneId}Flow_{x}_HeadB", PrimitiveType.Cube);
-            southHead.transform.position = new Vector3(x + 0.27f, 0.025f, offset + CenterRow - 0.12f);
-            southHead.transform.rotation = Quaternion.Euler(0f, -35f, 0f);
-            southHead.transform.localScale = new Vector3(0.24f, 0.05f, 0.06f);
-            SetColor(southHead, color);
-            laneDecorations.Add(southHead);
+            var westHead = CreatePrimitive($"Lane{laneId}Flow_{y}_HeadB", PrimitiveType.Cube);
+            westHead.transform.position = new Vector3(CenterColumn - 0.12f, 0.025f, offset + y + 0.27f);
+            westHead.transform.rotation = Quaternion.Euler(0f, 35f, 0f);
+            westHead.transform.localScale = new Vector3(0.06f, 0.05f, 0.24f);
+            SetColor(westHead, color);
+            laneDecorations.Add(westHead);
         }
 
         private void CreateBoardRail(string name, Vector3 position, Vector3 scale, Color color)
@@ -546,17 +546,17 @@ namespace LTW.UnityClient.Simulation
 
         private static Color CellColor(int laneId, int x, int y)
         {
-            if (x == 0 && y == CenterRow)
+            if (x == CenterColumn && y == 0)
             {
                 return MintSignal;
             }
 
-            if (x == LaneLength - 1 && y == CenterRow)
+            if (x == CenterColumn && y == LaneLength - 1)
             {
                 return SignalGold;
             }
 
-            if (y == CenterRow)
+            if (x == CenterColumn)
             {
                 return new Color(0.12f, 0.28f, 0.42f);
             }
