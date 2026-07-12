@@ -157,35 +157,57 @@ namespace LTW.UnityClient.Simulation
                 switch (simulationEvent)
                 {
                     case TowerPlacedEvent towerPlaced:
-                        SpawnEffect(GridToWorld(towerPlaced.Position, towerPlaced.LaneId), new Color(0.3f, 0.8f, 1f));
+                        SpawnEffect(GridToWorld(towerPlaced.Position, towerPlaced.LaneId), MintSignal, 0.68f, 0.34f);
+                        SpawnFloatingText(GridToWorld(towerPlaced.Position, towerPlaced.LaneId), "WARD", MintSignal, 0.62f);
                         PlaySound(towerBuiltClip);
                         break;
+                    case TowerSoldEvent towerSold:
+                        SpawnEffect(PositionFor(towerSold.TowerEntityId.Value.ToString()), SignalGold, 0.42f, 0.24f);
+                        SpawnFloatingText(PositionFor(towerSold.TowerEntityId.Value.ToString()), $"+{towerSold.Refund.Amount}", SignalGold, 0.58f);
+                        break;
+                    case CreepQueuedEvent queued:
+                        SpawnSendCue(queued);
+                        break;
                     case CreepSpawnedEvent spawned:
-                        SpawnEffect(new Vector3(0f, 0.35f, LaneOffset(spawned.DefenderId.Value) + CenterRow), new Color(0.35f, 1f, 0.5f));
+                        SpawnEffect(SpawnPosition(spawned.DefenderId.Value), CreepRoleColor(spawned.CreepId.Value, spawned.SenderId.Value), 0.52f, 0.28f);
+                        SpawnFloatingText(SpawnPosition(spawned.DefenderId.Value), SpawnLabel(spawned.CreepId.Value), CreepRoleColor(spawned.CreepId.Value, spawned.SenderId.Value), 0.48f);
                         break;
                     case CreepKilledEvent creepKilled:
-                        SpawnEffect(PositionFor(creepKilled.CreepEntityId.Value.ToString()), new Color(1f, 0.9f, 0.25f));
-                        SpawnFloatingText(PositionFor(creepKilled.CreepEntityId.Value.ToString()), $"+{creepKilled.BountyAwarded.Amount}", Color.yellow);
+                        var killPosition = PositionFor(creepKilled.CreepEntityId.Value.ToString());
+                        SpawnEffect(killPosition, SignalGold, 0.42f, 0.2f);
+                        SpawnFloatingText(killPosition, $"+{creepKilled.BountyAwarded.Amount}", SignalGold, 0.56f);
                         PlaySound(creepKilledClip);
                         break;
                     case LeakEvent leak:
                         var position = PositionFor(leak.CreepEntityId.Value.ToString());
-                        SpawnEffect(position, new Color(1f, 0.2f, 0.2f));
-                        SpawnFloatingText(position, $"-{leak.LivesLost.Amount} life", new Color(1f, 0.35f, 0.35f));
+                        SpawnEffect(position, new Color(1f, 0.22f, 0.28f), 0.86f, 0.42f);
+                        SpawnFloatingText(position, $"-{leak.LivesLost.Amount} LIFE", new Color(1f, 0.35f, 0.35f), 0.72f);
+                        if (leak.BountyAwarded.Amount > 0)
+                        {
+                            SpawnFloatingText(position + Vector3.right * 0.55f, $"+{leak.BountyAwarded.Amount}", SignalGold, 0.52f);
+                        }
+
                         PlaySound(leakClip);
                         TriggerHapticFeedback();
                         break;
                     case IncomeTickEvent incomeTick:
-                        SpawnFloatingText(new Vector3(0f, 1.35f, 1f), $"+{incomeTick.GoldAwarded.Amount} income", new Color(0.35f, 1f, 0.5f));
+                        SpawnEffect(IncomePosition(incomeTick.PlayerId.Value), SignalGold, 0.46f, 0.22f);
+                        SpawnFloatingText(IncomePosition(incomeTick.PlayerId.Value), $"+{incomeTick.GoldAwarded.Amount} income", SignalGold, 0.58f);
                         break;
                     case PlayerEliminatedEvent eliminated:
-                        SpawnFloatingText(new Vector3(2.5f, 1.55f, 1f), $"Player {eliminated.PlayerId.Value} eliminated", Color.red);
+                        SpawnEffect(new Vector3(2.5f, 0.55f, LaneOffset(eliminated.PlayerId.Value) + CenterRow), new Color(1f, 0.18f, 0.24f), 1.15f, 0.55f);
+                        SpawnFloatingText(new Vector3(2.5f, 1.55f, LaneOffset(eliminated.PlayerId.Value) + CenterRow), $"PLAYER {eliminated.PlayerId.Value} OUT", new Color(1f, 0.35f, 0.35f), 0.8f);
+                        break;
+                    case MatchEndedEvent ended:
+                        SpawnFloatingText(new Vector3(4.4f, 2.2f, LaneOffset(ended.WinnerId.Value) + CenterRow), $"PLAYER {ended.WinnerId.Value} WINS", SignalGold, 1f);
                         break;
                 }
             }
         }
 
-        private void SpawnEffect(Vector3 position, Color color)
+        private void SpawnEffect(Vector3 position, Color color) => SpawnEffect(position, color, 0.62f, 0.3f);
+
+        private void SpawnEffect(Vector3 position, Color color, float scale, float duration)
         {
             if (PresentationPreferences.ReducedEffects)
             {
@@ -194,12 +216,14 @@ namespace LTW.UnityClient.Simulation
 
             var effect = GetPooled(effectPool, "ImpactEffect", PrimitiveType.Sphere);
             effect.transform.position = position;
-            effect.transform.localScale = Vector3.one * 0.62f;
+            effect.transform.localScale = Vector3.one * scale;
             SetColor(effect, color);
-            timedPresentations.Add(new TimedPresentation(effect, Time.time + 0.3f, effectPool));
+            timedPresentations.Add(new TimedPresentation(effect, Time.time + duration, effectPool));
         }
 
-        private void SpawnFloatingText(Vector3 position, string text, Color color)
+        private void SpawnFloatingText(Vector3 position, string text, Color color) => SpawnFloatingText(position, text, color, 0.7f);
+
+        private void SpawnFloatingText(Vector3 position, string text, Color color, float duration)
         {
             var textObject = GetTextObject();
             textObject.transform.position = position + Vector3.up * 0.55f;
@@ -218,7 +242,7 @@ namespace LTW.UnityClient.Simulation
             mesh.text = text;
             mesh.color = color;
             mesh.characterSize = 0.16f * PresentationPreferences.TextScale;
-            timedPresentations.Add(new TimedPresentation(textObject, Time.time + 0.7f, textPool));
+            timedPresentations.Add(new TimedPresentation(textObject, Time.time + duration, textPool));
         }
 
         private static void TriggerHapticFeedback()
@@ -237,6 +261,55 @@ namespace LTW.UnityClient.Simulation
             {
                 feedbackAudioSource.PlayOneShot(clip, 0.25f);
             }
+        }
+
+        private void SpawnSendCue(CreepQueuedEvent queued)
+        {
+            var senderPosition = new Vector3(LaneLength - 1.3f, 0.55f, LaneOffset(queued.SenderId.Value) + CenterRow);
+            var defenderPosition = SpawnPosition(queued.DefenderId.Value);
+            var color = CreepRoleColor(queued.CreepId.Value, queued.SenderId.Value);
+            SpawnEffect(senderPosition, color, 0.44f, 0.24f);
+            SpawnEffect(defenderPosition, color, 0.54f, 0.3f);
+            SpawnFloatingText(defenderPosition, $"{queued.Quantity}x {SpawnLabel(queued.CreepId.Value)}", color, 0.56f);
+        }
+
+        private static Vector3 SpawnPosition(int laneId) => new Vector3(0f, 0.35f, LaneOffset(laneId) + CenterRow);
+
+        private static Vector3 IncomePosition(int playerId) => new Vector3(1.2f, 1.25f, LaneOffset(playerId) + 1.1f);
+
+        private static string SpawnLabel(string creepId)
+        {
+            if (ContainsRole(creepId, "brute") || ContainsRole(creepId, "tank"))
+            {
+                return "BRUTE";
+            }
+
+            if (ContainsRole(creepId, "swarm"))
+            {
+                return "SWARM";
+            }
+
+            if (ContainsRole(creepId, "boss"))
+            {
+                return "BOSS";
+            }
+
+            if (ContainsRole(creepId, "flying") || ContainsRole(creepId, "air"))
+            {
+                return "AIR";
+            }
+
+            if (ContainsRole(creepId, "invisible") || ContainsRole(creepId, "stealth"))
+            {
+                return "STEALTH";
+            }
+
+            if (ContainsRole(creepId, "attacker") || ContainsRole(creepId, "siege"))
+            {
+                return "SIEGE";
+            }
+
+            return "RUNNER";
         }
 
         private static AudioClip CreateTone(string name, float frequency, float duration)
