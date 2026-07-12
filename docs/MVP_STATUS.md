@@ -23,7 +23,9 @@ Latest local result: 39 tests passed.
 Unity compile smoke also passes locally when `LTW.Simulation.dll` is built and copied to
 `unity/LTW.UnityClient/Assets/Plugins`. The latest MCP-assisted Play Mode startup loaded
 `Assets/Scenes/LocalVerticalSlice.unity`, created the local match runtime objects, and reported
-no current Unity console errors.
+no current Unity console errors. The generated local match camera now adds an `AudioListener`
+when the scene does not already provide one, clearing the Play Mode audio-listener warning found
+during the GD-00 smoke pass.
 
 The Unity editor pin is now `6000.5.3f1`. The latest GD-01 batch compile also succeeds under
 that editor after the mobile HUD treatment merge.

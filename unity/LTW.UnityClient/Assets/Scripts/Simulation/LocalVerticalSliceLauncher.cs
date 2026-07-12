@@ -11,7 +11,7 @@ namespace LTW.UnityClient.Simulation
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void Launch()
         {
-            if (Object.FindFirstObjectByType<UnitySimulationDriver>() != null)
+            if (Object.FindAnyObjectByType<UnitySimulationDriver>() != null)
             {
                 return;
             }
@@ -55,6 +55,11 @@ namespace LTW.UnityClient.Simulation
             camera.transform.LookAt(new Vector3(5.5f, 0f, 14f));
             camera.backgroundColor = new Color(0.06f, 0.08f, 0.12f);
             camera.clearFlags = CameraClearFlags.SolidColor;
+
+            if (Object.FindAnyObjectByType<AudioListener>() == null)
+            {
+                cameraObject.AddComponent<AudioListener>();
+            }
         }
     }
 
