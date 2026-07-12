@@ -64,6 +64,13 @@ namespace LTW.UnityClient.Simulation
                 : simulation.SellLastTower(new PlayerId(1));
         }
 
+        public VerticalSliceCommandResult SellTowerAt(int x, int y)
+        {
+            return simulation is null
+                ? VerticalSliceCommandResult.Reject(LTW.Simulation.Commands.CommandRejectionReason.MatchPaused)
+                : simulation.SellTowerAt(new PlayerId(1), new LaneId(1), new GridPosition(x, y));
+        }
+
         public void ResetMatch()
         {
             simulation?.Reset();

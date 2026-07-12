@@ -26,7 +26,10 @@ public sealed class VerticalSliceBridgeTests
         Assert.True(place.Accepted);
         Assert.True(send.Accepted);
         Assert.Equal(new SimulationTick(3), snapshot.Tick);
-        Assert.Single(snapshot.Towers);
+        Assert.Contains(snapshot.Towers, tower =>
+            tower.OwnerId.Equals(new PlayerId(1)) &&
+            tower.LaneId.Equals(new LaneId(1)) &&
+            tower.Position.Equals(new GridPosition(1, 1)));
         Assert.Equal(65, snapshot.Players.Get(new PlayerId(1)).Gold.Amount);
         Assert.Equal(11, snapshot.Players.Get(new PlayerId(1)).Income.Amount);
         Assert.Contains(events, simulationEvent => simulationEvent is TowerPlacedEvent);
@@ -91,6 +94,34 @@ public sealed class VerticalSliceBridgeTests
 
 
 
+
+    [Fact]
+    public void Bots_place_profile_towers_before_creating_send_pressure()
+    {
+        var simulation = new LocalVerticalSlice(SampleVerticalSliceContent.Create());
+
+        simulation.AdvanceOneTick();
+
+        var snapshot = simulation.GetSnapshot();
+        Assert.Contains(snapshot.Towers, tower => tower.OwnerId.Equals(new PlayerId(2)) && tower.TowerId.Equals(SampleVerticalSliceContent.TowerId));
+        Assert.Contains(snapshot.Towers, tower => tower.OwnerId.Equals(new PlayerId(3)) && tower.TowerId.Equals(SampleVerticalSliceContent.ControlTowerId));
+    }
+
+    [Fact]
+    public void Bridge_sells_selected_tower_position()
+    {
+        var simulation = new LocalVerticalSlice(SampleVerticalSliceContent.Create());
+        Assert.True(simulation.PlaceTower(new PlayerId(1), new LaneId(1), SampleVerticalSliceContent.TowerId, new GridPosition(1, 1)).Accepted);
+        Assert.True(simulation.PlaceTower(new PlayerId(1), new LaneId(1), SampleVerticalSliceContent.ControlTowerId, new GridPosition(5, 1)).Accepted);
+
+        var sell = simulation.SellTowerAt(new PlayerId(1), new LaneId(1), new GridPosition(1, 1));
+        var snapshot = simulation.GetSnapshot();
+
+        Assert.True(sell.Accepted);
+        Assert.DoesNotContain(snapshot.Towers, tower => tower.Position.Equals(new GridPosition(1, 1)));
+        Assert.Contains(snapshot.Towers, tower => tower.Position.Equals(new GridPosition(5, 1)));
+    }
+
     [Fact]
     public void Bot_diagnostics_expose_profiles_and_recent_decisions()
     {
@@ -100,7 +131,10 @@ public sealed class VerticalSliceBridgeTests
         Assert.Contains(initial.Profiles, profile => profile.PlayerId.Equals(new PlayerId(2)) && profile.Profile == LTW.Simulation.Bots.BotDecisionProfile.Balanced);
         Assert.Contains(initial.Profiles, profile => profile.PlayerId.Equals(new PlayerId(3)) && profile.Profile == LTW.Simulation.Bots.BotDecisionProfile.Defensive);
 
-        simulation.AdvanceOneTick();
+        for (var tick = 0; tick < 7; tick++)
+        {
+            simulation.AdvanceOneTick();
+        }
 
         var diagnostics = simulation.GetBotDiagnostics();
         Assert.Contains(diagnostics.RecentDecisions, decision => decision.PlayerId.Equals(new PlayerId(2)) && decision.Quantity == 2);

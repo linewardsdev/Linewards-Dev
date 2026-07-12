@@ -27,6 +27,7 @@ namespace LTW.UnityClient.Simulation
             var performanceSampler = matchObject.AddComponent<DevicePerformanceSampler>();
             var stressHarness = matchObject.AddComponent<HeavySendStressHarness>();
             var results = new GameObject("Match Results").AddComponent<MatchResultsBillboard>();
+            var sessionOverlay = matchObject.AddComponent<LocalSessionFlowOverlay>();
             var controls = matchObject.AddComponent<LocalVerticalSliceDevelopmentControls>();
             var feedback = matchObject.AddComponent<PlacementFeedbackView>();
             var hud = matchObject.AddComponent<HudView>();
@@ -40,6 +41,7 @@ namespace LTW.UnityClient.Simulation
             performanceSampler.Initialize(driver, renderer);
             stressHarness.Initialize(commands, performanceSampler);
             results.Initialize(driver);
+            sessionOverlay.Initialize(driver, playtestRecorder);
             controls.Initialize(commands, driver, renderer, replayExporter, playtestRecorder, stressHarness, placement, feedback);
             bootstrapper.Initialize(driver, commands);
             var camera = CreateCamera();
@@ -133,7 +135,18 @@ namespace LTW.UnityClient.Simulation
             if (Input.GetKeyDown(KeyCode.B)) placement.BeginTowerPlacement();
             if (Input.GetKeyDown(KeyCode.C)) placement.BeginControlTowerPlacement();
             if (Input.GetKeyDown(KeyCode.U)) placement.BeginUtilityTowerPlacement();
-            if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.Space)) placement.ConfirmPlacement();
+            if (Input.GetKeyDown(KeyCode.Return)) placement.ConfirmPlacement();
+            if (Input.GetKeyDown(KeyCode.Space))
+            {
+                if (placement.IsPlacing)
+                {
+                    placement.ConfirmPlacement();
+                }
+                else
+                {
+                    driver.TogglePause();
+                }
+            }
             if (Input.GetKeyDown(KeyCode.Escape)) placement.CancelPlacement();
             if (Input.GetKeyDown(KeyCode.UpArrow)) placement.NudgeUp();
             if (Input.GetKeyDown(KeyCode.DownArrow)) placement.NudgeDown();

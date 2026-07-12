@@ -148,11 +148,20 @@ public sealed class LocalVerticalSlice
             .Where(candidate => candidate.OwnerId.Equals(playerId))
             .OrderByDescending(candidate => candidate.EntityId.Value)
             .FirstOrDefault();
-        if (tower is null)
-        {
-            return VerticalSliceCommandResult.Reject(CommandRejectionReason.NotOwner);
-        }
+        return tower is null ? VerticalSliceCommandResult.Reject(CommandRejectionReason.NotOwner) : SellTower(playerId, tower);
+    }
 
+    public VerticalSliceCommandResult SellTowerAt(PlayerId playerId, LaneId laneId, GridPosition position)
+    {
+        var tower = combatState.Towers
+            .Where(candidate => candidate.OwnerId.Equals(playerId) && candidate.LaneId.Equals(laneId) && candidate.Position.Equals(position))
+            .OrderByDescending(candidate => candidate.EntityId.Value)
+            .FirstOrDefault();
+        return tower is null ? VerticalSliceCommandResult.Reject(CommandRejectionReason.NotOwner) : SellTower(playerId, tower);
+    }
+
+    private VerticalSliceCommandResult SellTower(PlayerId playerId, TowerCombatState tower)
+    {
         var towerDefinition = content.Towers.First(definition => definition.Id.Equals(tower.TowerId));
         var refund = economy.CalculateSellRefund(towerDefinition);
         var player = players.Get(playerId);
@@ -168,6 +177,7 @@ public sealed class LocalVerticalSlice
     {
         foreach (var bot in bots)
         {
+            TryPlaceBotTower(bot.Key, bot.Value);
             var decision = bot.Value.Decide(players.Get(bot.Key), content, tick);
             if (decision.Command is QueueSendCommand send)
             {
@@ -251,6 +261,30 @@ public sealed class LocalVerticalSlice
         MatchSummary = null;
         acceptedCommands.Clear();
         botDecisionRecords.Clear();
+    }
+
+    private void TryPlaceBotTower(PlayerId playerId, BotController bot)
+    {
+        if (combatState.Towers.Any(tower => tower.OwnerId.Equals(playerId)))
+        {
+            return;
+        }
+
+        var towerId = bot.Profile == BotDecisionProfile.Defensive
+            ? SampleVerticalSliceContent.ControlTowerId
+            : SampleVerticalSliceContent.TowerId;
+        var laneId = new LaneId(playerId.Value);
+        var candidates = bot.Profile == BotDecisionProfile.Defensive
+            ? new[] { new GridPosition(1, 3), new GridPosition(5, 5), new GridPosition(1, 7) }
+            : new[] { new GridPosition(5, 3), new GridPosition(1, 5), new GridPosition(5, 7) };
+
+        foreach (var position in candidates)
+        {
+            if (PlaceTower(playerId, laneId, towerId, position).Accepted)
+            {
+                return;
+            }
+        }
     }
 
     private TowerPlacementValidation ValidateTowerPlacement(PlayerId playerId, LaneId laneId, ContentId towerId, GridPosition position)
