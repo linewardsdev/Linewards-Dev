@@ -1,6 +1,6 @@
 ---
 name: line-wards-ltw-graphics-art-direction
-description: Use for Line Wards graphics and art direction: LTW-inspired mobile board readability, lane/grid visuals, tower and creep silhouette language, HUD/status presentation, combat/economy feedback, visual polish, and concept-art prompts. Scan-level rule: preserve Line Tower Wars pressure readability and send-for-income fantasy, use original ward-tech visuals, and never copy Warcraft III names, assets, UI chrome, factions, silhouettes, icons, sounds, or screenshots.
+description: Use for Line Wards graphics and art direction: LTW-inspired mobile board readability, lane/grid visuals, tower and creep silhouette language, tech/upgraded-tower visual families, HUD lives/gold/income/timer presentation, combat/economy feedback, visual polish, and concept-art prompts. Scan-level rule: preserve Line Tower Wars pressure readability and send-for-income fantasy, use original ward-tech visuals, support readable boss/fast/swarm/flying/invisible/attacker-style pressure, and never copy Warcraft III names, assets, UI chrome, factions, silhouettes, icons, sounds, or screenshots.
 ---
 
 # Line Wards LTW Graphics Art Direction
@@ -27,6 +27,8 @@ Research sources reviewed for this direction include:
 - Historical Line Tower Wars map listings and version notes: https://maps.w3reforged.com/maps/categories/tower-wars/line-tower-wars
 - Line Tower Wars v18.5.01 on Hive Workshop: https://www.hiveworkshop.com/threads/line-tower-wars-v18-5-01.250346/
 - Line Tower Wars AI overview and screenshots: https://gaming-tools.com/warcraft-3/line-tower-wars-ai/
+- Classic Line Tower Wars design notes on The Helper: https://www.thehelper.net/threads/line-tower-wars.51602/
+- Line Tower Wars 45 map/version notes: https://maps.w3reforged.com/maps/categories/tower-wars/line-tower-wars
 - Existing project docs: `PROJECT_GUIDE.md`, `ARCHITECTURE.md`, `BRANDING_GUIDE.md`, `MVP_STATUS.md`, and `GAMEPLAY_DEVELOPMENT_CHECKLIST.md`.
 
 Important observed traits from the source material:
@@ -36,6 +38,8 @@ Important observed traits from the source material:
 - The Warcraft III versions use dense RTS HUDs, command panels, scoreboards, minimaps, shrines, builder units, tech/research menus, and strong player-color coding.
 - Many variants use grass, stone, cityscape, cliffs, lanes, flags, shrines, and elemental/medieval fantasy motifs.
 - Reforged-era variants add more persistent competitive UI, leaderboards, seasons, player cosmetics, bots, technologies, and extensive customization.
+- Mature LTW variants support many tower upgrades, advanced or combined technologies, boss units, high-health monsters, and specialized creep pressures such as fast, flying, invisible, attacking, aura/spell, and anti-maze units.
+- The income timer is not decorative. It is a pressure clock that shapes send timing, greed, panic building, and the player's sense of tempo.
 
 ## Non-Negotiable Legal And Brand Boundary
 
@@ -74,8 +78,9 @@ The player should be able to glance at the screen and answer:
 2. Which lane am I looking at?
 3. Which towers are mine and what are they doing?
 4. What pressure is incoming?
-5. Can I afford a defensive answer or an offensive send?
-6. Am I winning the economy race or falling behind?
+5. Is the next income tick close enough to change my decision?
+6. Can I afford a defensive answer or an offensive send?
+7. Am I winning the economy race or falling behind?
 
 ## Core Visual Pillars
 
@@ -106,6 +111,7 @@ LTW tension comes from the dual economy: defending while deciding whether to sen
 - Incoming creep count, type, and danger should be visible before leaks happen.
 - Send actions should create a visible outgoing or target-lane feedback moment.
 - Income gains should feel rewarding but not obscure combat.
+- The income timer should be persistent, glanceable, and more prominent near zero.
 - Leaks should be unmistakable: direction, life loss, sender reward, and emotional beat.
 
 ### 4. Original Ward-Tech Fantasy
@@ -173,7 +179,7 @@ The camera should favor board comprehension.
 
 ## Tower Direction
 
-Towers need strong silhouettes and clear roles.
+Towers need strong silhouettes and clear roles. LTW history rewards tower teching and upgrade recognition, so upgraded towers should read as stronger descendants of their base role rather than unrelated objects.
 
 Initial role language:
 
@@ -187,7 +193,8 @@ Tower rules:
 
 - Footprint must match occupied grid cells exactly.
 - Base shape should distinguish tower ownership and placement state.
-- Upgrade state can add height, glow, rotating elements, or small attachments.
+- Upgrade state can add height, glow, rotating elements, stronger cores, ring count, or small attachments.
+- Tech family should be readable through secondary shape language: flame/plasma bloom, frost/crystal facets, lightning prongs, holy/solar halos, void/negative-space cores, water/prism flow, earth/plate mass, or other original non-Warcraft motifs.
 - Do not rely only on color to distinguish role.
 - Do not over-animate idle towers; moving creeps and active attacks need visual priority.
 
@@ -199,10 +206,13 @@ Initial role language:
 
 | Role | Shape | Movement | Threat Read |
 | --- | --- | --- | --- |
-| Runner | Small, sharp, low profile | Fast, darting | Speed pressure. |
-| Brute | Large, rounded or armored | Slow, heavy | Health pressure. |
+| Runner/Fast | Small, sharp, low profile | Fast, darting | Speed pressure. |
+| Brute/High HP | Large, rounded or armored | Slow, heavy | Health pressure. |
 | Swarm | Tiny repeated units | Clustered flow | Volume pressure. |
 | Boss | Oversized, distinct core or crest | Slow, ceremonial | Event pressure. |
+| Flying/Air | Elevated shadow, hover bob, wing/float cue | Ignores maze path visually | Anti-ground-defense pressure. |
+| Invisible/Stealth | Shimmer outline, intermittent reveal | Subtle, readable when detected | Detection pressure. |
+| Attacker/Siege | Weaponized silhouette, impact windup | Stops or pulses near towers | Tower-damage pressure. |
 | Aura/support | Clear ring, banner, or trailing field | Mid-speed | Modifier pressure. |
 
 Creep rules:
@@ -210,6 +220,9 @@ Creep rules:
 - Creep silhouettes must remain visible against the board and tower bases.
 - Group identity should be clear from size and motion before reading labels.
 - Bosses can be dramatic but should not hide the path, exit, or tower targets.
+- Flying or maze-ignoring units must be visually distinct from path-following creeps before they leak.
+- Invisible/stealth units must never become literally unreadable; use shimmer, reveal pings, or detector-linked outlines.
+- Attacker/siege units need a clear warning before damaging or disabling towers.
 - Damage states can use flash, cracks, reduced glow, or small hit reactions; avoid gore.
 
 ## Effects And Feedback
@@ -245,10 +258,11 @@ Persistent information:
 - Player lives.
 - Gold.
 - Income.
-- Income tick timer.
+- Income tick timer, with a clear near-tick pulse.
 - Current lane owner / viewed lane.
 - Incoming pressure indicator.
 - Send/cooldown state.
+- Current tech family or upgrade tier when it affects available choices.
 
 Mobile UI principles:
 
@@ -317,8 +331,9 @@ Use this order while the project is in GD-00 through GD-08:
 3. Create placeholder-but-distinct silhouettes for runner, brute, and swarm creeps.
 4. Improve projectile, hit, kill, leak, send, and income feedback with reduced-effects support.
 5. Create a compact mobile HUD treatment for lives, gold, income, tick timer, and lane identity.
-6. Verify readability in Play Mode before making polished assets.
-7. Run at least three local playtests and capture screenshots or short clips for design review.
+6. Add visual placeholders for tech family or upgrade tier when those systems become visible.
+7. Verify readability in Play Mode before making polished assets.
+8. Run at least three local playtests and capture screenshots or short clips for design review.
 
 ## Do And Do Not Summary
 
