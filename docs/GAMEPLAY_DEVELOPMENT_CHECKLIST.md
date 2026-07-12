@@ -137,7 +137,7 @@ Bot profiles now surface through the local diagnostics overlay and playtest repo
 - [x] Improve post-match results with winner, duration, player economy/life state, and replay/report export path.
 - [ ] Ensure reset clears pooled presentation objects and HUD state.
 
-The local results billboard now shows winner, completion tick, and each player's final economy/life state. Replays and playtest reports can be exported from the local hotkeys.
+The local results billboard now shows winner, completion tick, and each player's final economy/life state. Replays and playtest reports can be exported from the local hotkeys. Pressing `P` shows a runtime toast when a Markdown playtest report is saved, and explains that the match must finish first if no completed replay exists yet.
 
 ### Acceptance Checks
 
@@ -171,7 +171,7 @@ Tower attacks now emit damage events so Unity can show lane beams and hit cues b
 - [ ] Prioritize fixes into must-fix, should-fix, and later buckets.
 - [ ] Decide whether the next fork should be more gameplay, local UX polish, or mobile validation.
 
-The local playtest recorder writes Markdown reports with seed/content/map, completion tick, winner, first send/leak/elimination observations, replay path, bot profiles, recent bot decisions, and tester-note prompts.
+The local playtest recorder writes Markdown reports with seed/content/map, completion tick, winner, first send/leak/elimination observations, replay path, bot profiles, recent bot decisions, and tester-note prompts. Reports are saved under Unity's persistent data path; on the current Windows editor setup this is `C:\Users\engch\AppData\LocalLow\DefaultCompany\LTW_UnityClient\Playtests`.
 
 ### Acceptance Checks
 

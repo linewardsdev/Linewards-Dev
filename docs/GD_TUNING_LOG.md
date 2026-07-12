@@ -53,9 +53,11 @@ This log records the first gameplay pacing targets for the local vertical slice.
 | 2 | TBD | TBD | TBD | TBD | TBD | TBD | TBD |
 | 3 | TBD | TBD | TBD | TBD | TBD | TBD | TBD |
 
+Use the local `P` hotkey after a completed Unity Play Mode match to write the Markdown playtest report. The runtime toast should show `Saved playtest-###.md`; reports are written under Unity's persistent data path, currently `C:\Users\engch\AppData\LocalLow\DefaultCompany\LTW_UnityClient\Playtests` on the Windows editor setup.
+
 ## Next Tuning Actions
 
 1. Run one local desktop Play Mode match with the tower palette and preview feedback enabled.
-2. Record first leak and match completion timing from replay or manual observation.
+2. Press `P` after match completion and copy first send, first leak, first elimination, winner, and completion timing from the generated report.
 3. Decide whether to tune lives, send cooldown, or creep stats first.
 4. Promote any repeated confusion into GD-01/GD-02 usability fixes before changing numbers heavily.

@@ -18,7 +18,7 @@ dotnet format LTW.sln --no-restore --verify-no-changes
 dotnet test LTW.sln --no-restore --configuration Release
 ```
 
-Latest local result: 39 tests passed.
+Latest local result: 49 tests passed.
 
 Unity compile smoke also passes locally when `LTW.Simulation.dll` is built and copied to
 `unity/LTW.UnityClient/Assets/Plugins`. The latest MCP-assisted Play Mode startup loaded
@@ -37,7 +37,7 @@ Current code evidence:
 - `UnityVerticalSliceRenderer` renders side-by-side lane cells, towers, creeps, ownership colors, spawn boxes, and life-loss boxes.
 - The current vertical-slice lane layout uses three side-by-side 7x18 long north-south lanes, with spawn at `(3, 0)` and life loss at `(3, 17)`.
 - Presentation pools exist for towers, creeps, effects, and floating text.
-- Simulation events create visual feedback for tower placement, creep spawn, creep kill, leak, income tick, and elimination.
+- Simulation events create visual feedback for tower placement, tower damage, creep spawn, creep kill, leak, income tick, and elimination.
 - Basic generated audio cues, mobile vibration hooks, reduced-effects preference, text scale, and disabled/simplified presentation modes exist.
 
 Remaining acceptance evidence:
@@ -56,6 +56,7 @@ Current code evidence:
 - `LocalThreePlayerMatchTests` verifies a deterministic local bot match completes in the current faster 300-900 tick carousel target window.
 - Creeps that leak through a lane now continue into the next lane's spawn, preserving carousel pressure instead of disappearing after one life-loss event.
 - `LocalReplayExporter` writes diagnostic replay JSON.
+- `LocalPlaytestRecorder` writes Markdown playtest reports and now confirms manual `P` exports with a runtime toast.
 - `HeavySendStressHarness` can run a local stress pass and write diagnostics.
 
 Remaining acceptance evidence:
@@ -87,11 +88,11 @@ Remaining acceptance evidence:
 
 ## Next Work Order
 
-1. Re-run the GD-00 Play Mode pass after the side-by-side lane layout, top-to-bottom creep flow, runtime HUD, placement ghost, camera zoom, slower Unity tick rate, and creep carousel handoff fixes.
+1. Re-run the GD-00 Play Mode pass after the side-by-side lane layout, top-to-bottom creep flow, runtime HUD, placement ghost, camera zoom, slower Unity tick rate, creep carousel handoff, feedback polish, and playtest export confirmation fixes.
 2. Close MVP-06, MVP-08, and MVP-09 acceptance evidence as part of that local play loop.
 3. Continue GD-02 with manual placement correction, sell, and reset notes.
 4. Work GD-03 through GD-07 to improve content variety, pacing, bots, session flow, and feedback.
-5. Run GD-08 local playtests and prioritize fixes from real gameplay notes.
+5. Run GD-08 local playtests, use the saved Markdown reports under Unity's persistent data path, and prioritize fixes from real gameplay notes.
 6. Resume MVP-10 TestFlight/device validation only after local play is coherent enough to benefit from mobile testing.
 
 ## GD-01 Board Readability And Camera

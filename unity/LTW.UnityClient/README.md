@@ -26,7 +26,7 @@ When the local vertical slice scene is running, development hotkeys can exercise
 - `X`: sell the last sample tower.
 - `R`: reset the match.
 - `E`: export the current replay JSON.
-- `P`: export a Markdown playtest report.
+- `P`: export a Markdown playtest report. The runtime toast shows `Saved playtest-###.md` when the report is written, or `Finish match first` if no completed replay exists yet.
 - `H`: run the heavy-send stress harness.
 - `F`: toggle reduced-effects mode.
 - `M`: mute or unmute feedback audio.
@@ -34,6 +34,8 @@ When the local vertical slice scene is running, development hotkeys can exercise
 - `1`, `2`, `3`: switch full, simplified, and disabled presentation modes.
 
 Unity must reference the built `LTW.Simulation` assembly before these scripts compile in-editor. Build `LTW.Simulation` from the repository root and place/reference the resulting `LTW.Simulation.dll` under `Assets/Plugins` or configure an equivalent Unity assembly reference. Do not copy simulation rules into Unity scripts.
+
+Playtest reports are written under Unity's persistent data path. On the current Windows editor setup, that resolves to `C:\Users\engch\AppData\LocalLow\DefaultCompany\LTW_UnityClient\Playtests`.
 
 ```powershell
 dotnet build src\LTW.Simulation\LTW.Simulation.csproj --configuration Release
