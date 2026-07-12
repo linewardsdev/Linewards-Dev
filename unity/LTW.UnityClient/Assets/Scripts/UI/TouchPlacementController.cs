@@ -6,6 +6,17 @@ namespace LTW.UnityClient.UI
 {
     public sealed class TouchPlacementController : MonoBehaviour
     {
+        private static readonly Color PanelInk = new(0.08f, 0.12f, 0.22f, 0.92f);
+        private static readonly Color ArcaneBlue = new(0.302f, 0.639f, 1f, 1f);
+        private static readonly Color MintSignal = new(0.349f, 0.882f, 0.714f, 1f);
+        private static readonly Color WardViolet = new(0.608f, 0.424f, 1f, 1f);
+        private static readonly Color SignalGold = new(1f, 0.784f, 0.29f, 1f);
+        private static readonly Color Cloud = new(0.957f, 0.969f, 1f, 1f);
+
+        private static GUIStyle? panelStyle;
+        private static GUIStyle? titleStyle;
+        private static GUIStyle? bodyStyle;
+
         [SerializeField]
         private Camera inputCamera = null!;
 
@@ -17,6 +28,9 @@ namespace LTW.UnityClient.UI
 
         [SerializeField]
         private GameObject ghost = null!;
+
+        [SerializeField]
+        private bool showPlacementReadout = true;
 
         private bool isPlacing;
         private int selectedTowerRole;
@@ -112,6 +126,34 @@ namespace LTW.UnityClient.UI
             MoveGhost();
         }
 
+        private void OnGUI()
+        {
+            if (!showPlacementReadout || !isPlacing)
+            {
+                return;
+            }
+
+            EnsureStyles();
+
+            var scale = Mathf.Clamp(Screen.width / 1080f, 0.72f, 1.15f);
+            var width = Mathf.Min(Screen.width - 32f * scale, 330f * scale);
+            var height = 86f * scale;
+            var rect = new Rect(12f * scale, Screen.height - height - 18f * scale, width, height);
+            var accent = SelectedTowerAccent();
+
+            DrawPanel(rect, PanelInk);
+            DrawAccent(new Rect(rect.x, rect.yMax - 4f * scale, rect.width, 4f * scale), accent);
+
+            titleStyle!.fontSize = Mathf.RoundToInt(17f * scale);
+            titleStyle.normal.textColor = accent;
+            bodyStyle!.fontSize = Mathf.RoundToInt(12f * scale);
+            bodyStyle.normal.textColor = Cloud;
+
+            GUI.Label(new Rect(rect.x + 12f * scale, rect.y + 9f * scale, rect.width - 24f * scale, 24f * scale), SelectedTowerName().ToUpperInvariant(), titleStyle);
+            GUI.Label(new Rect(rect.x + 12f * scale, rect.y + 35f * scale, rect.width - 24f * scale, 20f * scale), $"CELL {selectedCell.x}, {selectedCell.y}", bodyStyle);
+            GUI.Label(new Rect(rect.x + 12f * scale, rect.y + 55f * scale, rect.width - 24f * scale, 20f * scale), "Tap board or nudge, then confirm", bodyStyle);
+        }
+
         private void Nudge(Vector2Int delta)
         {
             if (!isPlacing)
@@ -142,6 +184,60 @@ namespace LTW.UnityClient.UI
                 2 => "Relay ward",
                 _ => "Arrow ward"
             };
+        }
+
+        private Color SelectedTowerAccent()
+        {
+            return selectedTowerRole switch
+            {
+                1 => WardViolet,
+                2 => SignalGold,
+                _ => ArcaneBlue
+            };
+        }
+
+        private static void EnsureStyles()
+        {
+            if (panelStyle is not null)
+            {
+                return;
+            }
+
+            panelStyle = new GUIStyle(GUI.skin.box)
+            {
+                border = new RectOffset(6, 6, 6, 6),
+                margin = RectOffset.zero,
+                padding = RectOffset.zero
+            };
+
+            titleStyle = new GUIStyle(GUI.skin.label)
+            {
+                alignment = TextAnchor.MiddleLeft,
+                fontStyle = FontStyle.Bold,
+                normal = { textColor = MintSignal }
+            };
+
+            bodyStyle = new GUIStyle(GUI.skin.label)
+            {
+                alignment = TextAnchor.MiddleLeft,
+                normal = { textColor = Cloud }
+            };
+        }
+
+        private static void DrawPanel(Rect rect, Color color)
+        {
+            var previousColor = GUI.color;
+            GUI.color = color;
+            GUI.Box(rect, GUIContent.none, panelStyle ?? GUI.skin.box);
+            GUI.color = previousColor;
+        }
+
+        private static void DrawAccent(Rect rect, Color color)
+        {
+            var previousColor = GUI.color;
+            GUI.color = color;
+            GUI.DrawTexture(rect, Texture2D.whiteTexture);
+            GUI.color = previousColor;
         }
     }
 }
