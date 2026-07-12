@@ -1,0 +1,61 @@
+# GD-04 Tuning Log
+
+## Purpose
+
+This log records the first gameplay pacing targets for the local vertical slice. It is intentionally lightweight: the goal is to make early/mid/closing pressure measurable before mobile-device validation resumes.
+
+## Current Baseline
+
+- Three lanes: one human lane and two bot lanes.
+- Starting economy: 100 gold, 10 income, 140 lives.
+- Income interval: 50 simulation ticks.
+- Global send cooldown: 30 simulation ticks.
+- Sell refund: 50% of tower cost.
+- Leak life loss: 1 life per leaked creep.
+- Starter towers: Arrow Tower, Slow Control Ward, Economy Relay Ward.
+- Starter sends: Runner, Brute, Swarm.
+
+## First Target Ranges
+
+| Moment | Target Range | Reason |
+| --- | --- | --- |
+| First send | 0-30 ticks | Players should understand offense immediately. |
+| First income tick | 50 ticks | The income clock should be felt early and often. |
+| First meaningful defense correction | 30-120 ticks | The player should need to react before the match drifts. |
+| First leak | 90-240 ticks | Leaks should arrive after some decisions, not instantly. |
+| First elimination | 450-900 ticks | A local match needs escalation without immediate collapse. |
+| Match completion | 900-1800 ticks | Long enough for economy tension, short enough for repeated tests. |
+
+## Starter Content Intent
+
+| Content | Role | Current Intent | Tuning Risk |
+| --- | --- | --- | --- |
+| Arrow Tower | Reliable single-target | Cheap baseline damage. | May become the only rational defense if control/relay are too weak. |
+| Slow Control Ward | Area/control placeholder | Lower damage, slower cadence, visually wider role. | Needs real slow/control behavior before final balance. |
+| Economy Relay Ward | Utility/economy placeholder | Expensive support-looking tower with minimal damage. | Needs a gameplay payoff or disabled-state framing. |
+| Runner | Basic speed pressure | Cheap opener with modest income. | Could feel bland without speed/readability tuning. |
+| Brute | Health pressure | More health and income, higher cost. | Could be too efficient if tower damage is low. |
+| Swarm | Volume pressure | Cheap fast group send. | Can clutter the board if quantity and speed are too high. |
+
+## Known Balance Questions
+
+- Does the global 30-tick send cooldown create enough breathing room once bots and humans send together?
+- Does 140 lives make leaks too forgiving for local playtests?
+- Should Economy Relay Ward remain placeable before it has an economy/support effect?
+- Should Swarm quantity stay at 3, or should the unit be cheaper with a lower income reward?
+- Are kill bounties large enough to make defense feel rewarding without defeating send-for-income pressure?
+
+## Playtest Capture Template
+
+| Run | Seed/Profile | Duration Ticks | Winner | First Send | First Leak | First Elimination | Notes |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 | TBD | TBD | TBD | TBD | TBD | TBD | TBD |
+| 2 | TBD | TBD | TBD | TBD | TBD | TBD | TBD |
+| 3 | TBD | TBD | TBD | TBD | TBD | TBD | TBD |
+
+## Next Tuning Actions
+
+1. Run one local desktop Play Mode match with the tower palette and preview feedback enabled.
+2. Record first leak and match completion timing from replay or manual observation.
+3. Decide whether to tune lives, send cooldown, or creep stats first.
+4. Promote any repeated confusion into GD-01/GD-02 usability fixes before changing numbers heavily.
