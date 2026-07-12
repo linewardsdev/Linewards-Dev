@@ -1,0 +1,336 @@
+# LTW MVP Implementation Checklist
+
+## Goal
+
+Deliver an offline Unity MVP with one human player, two simulated opponents, a three-player carousel, touch placement, sends, economy, combat, leaks, elimination, replayable results, a coherent local gameplay loop, and later iOS device validation.
+
+This is a work plan for parallel agents. Every initiative has one owner, an explicit dependency set, and a completion check. An initiative is complete only when its acceptance checks pass, not when code merely exists.
+
+## Working Rules
+
+- `LTW.Simulation` is the shared source of truth. It has no Unity dependency.
+- Each initiative gets one owner agent. Other agents may contribute only through a reviewed contract or a separate branch.
+- The foundation owner approves changes to shared simulation contracts: state, commands, events, content definitions, and public interfaces.
+- The integration owner is the only agent that combines changes across work streams after the foundation is stable.
+- Do not add a third-party package, cloud service, or persistent backend without recording it in `MVP_DEPENDENCIES.md`.
+- Keep commits scoped to one checklist item wherever practical.
+- Every simulation feature needs a test. Every Unity feature needs a usable manual verification path.
+
+## Dependency Map
+
+```text
+MVP-00 Solution foundation
+        |
+        v
+MVP-01 Simulation contracts and content model
+   |          |          |
+   v          v          v
+MVP-02     MVP-03     MVP-04
+Pathing    Economy     Creep and tower combat
+   |          |          |
+   +-----+----+----------+
+         v
+MVP-05 Bots, replay, and match results
+         |
+         v
+MVP-06 Unity simulation bridge and vertical slice
+   |             |
+   v             v
+MVP-07        MVP-08
+Touch UI       Presentation and pooling
+   |             |
+   +------+------+
+          v
+MVP-09 Full local three-player MVP integration
+          |
+          v
+GD-00 through GD-08 gameplay development fork
+          |
+          v
+MVP-10 iOS TestFlight and device validation
+          |
+          v
+MVP-11 Android compatibility validation
+```
+
+## Initiative Board
+
+| ID | Initiative | Suggested Owner | Depends On | Parallel With |
+| --- | --- | --- | --- | --- |
+| MVP-00 | Solution foundation and CI | Foundation agent | None | None |
+| MVP-01 | Simulation contracts and content model | Simulation agent | MVP-00 | None |
+| MVP-02 | Grid, occupancy, and path validation | Pathing agent | MVP-01 | MVP-03, MVP-04 |
+| MVP-03 | Economy, carousel, lives, and results rules | Economy agent | MVP-01 | MVP-02, MVP-04 |
+| MVP-04 | Creep movement, tower combat, and events | Combat agent | MVP-01 | MVP-02, MVP-03 |
+| MVP-05 | Bots, replay records, and scenario suite | Simulation QA agent | MVP-02, MVP-03, MVP-04 | None |
+| MVP-06 | Unity bridge and local vertical slice | Unity integration agent | MVP-02, MVP-03, MVP-04 | None |
+| MVP-07 | Touch placement and match HUD | Mobile UI agent | MVP-06 | MVP-08 |
+| MVP-08 | Rendering, pooling, and feedback | Presentation agent | MVP-06 | MVP-07 |
+| MVP-09 | Three-player MVP integration and tuning | Integration agent | MVP-05, MVP-07, MVP-08 | None |
+| GD-00 through GD-08 | Gameplay maturation before device validation | Gameplay agents | MVP-09 | Documentation, tuning, presentation |
+| MVP-10 | iOS distribution, profiling, and acceptance | Mobile QA agent | GD-08 | Documentation only |
+| MVP-11 | Android compatibility validation | Mobile QA agent | MVP-10 | Documentation only |
+
+## MVP-00: Solution Foundation And CI
+
+**Owner:** Foundation agent
+**Status:** [ ] In progress - local foundation complete; Unity and hosted CI verification pending
+**Dependencies:** None
+
+### Deliverables
+
+- [x] Unity project shell created with pinned version metadata.
+- [x] .NET solution created with `LTW.Simulation` and `LTW.Tests`.
+- [x] `LTW.UnityClient` created or mapped to the Unity project boundary.
+- [x] `LTW.MatchServer` represented as a deferred placeholder only; no server runtime required.
+- [x] `global.json`, `.editorconfig`, and dependency lock strategy added.
+- [x] Baseline CI configured to run formatting checks and `dotnet test`.
+- [x] Repository README links to the architecture, dependencies, and this checklist.
+
+### Acceptance Checks
+
+- [x] A locked restore, format check, and `dotnet test` pass from the repository checkout.
+- [x] `LTW.Simulation` has no Unity references, enforced by an architecture test.
+- [ ] CI passes on a pull request containing only a trivial simulation test.
+- [x] Unity opens the project shell with the pinned editor version.
+
+## MVP-01: Simulation Contracts And Content Model
+
+**Owner:** Simulation agent
+**Status:** [x] Complete - contracts implemented and review fixes accepted
+**Dependencies:** MVP-00
+
+### Deliverables
+
+- [x] Define value types for player ID, lane ID, grid position, entity ID, tick, gold, income, and lives.
+- [x] Define immutable command contracts: `PlaceTower`, `SellTower`, `QueueSend`, `BuyTech`, and `PauseSimulation`.
+- [x] Define command result and rejection-reason contracts.
+- [x] Define simulation events required by presentation and results.
+- [x] Define state snapshots that Unity can read without mutating simulation state.
+- [x] Define versioned content contracts for towers, creeps, tech, maps, and bot profiles.
+- [x] Implement a seeded random-source interface.
+- [x] Add validation for duplicate IDs, missing references, invalid costs, and invalid map data.
+
+### Acceptance Checks
+
+- [x] A test can load valid sample content and reject malformed content.
+- [x] Commands can be created and validated without launching Unity.
+- [x] The public contracts are reviewed before MVP-02 through MVP-08 begin.
+
+## MVP-02: Grid, Occupancy, And Path Validation
+
+**Owner:** Pathing agent
+**Status:** [x] Complete - local path validation checks pass
+**Dependencies:** MVP-01
+
+### Deliverables
+
+- [x] Implement lane grid, spawn, exit, walkable cells, and occupied cells.
+- [x] Implement a deterministic path search for a grid lane.
+- [x] Implement temporary-grid validation for a proposed tower placement.
+- [x] Reject a placement that removes every valid spawn-to-exit route.
+- [x] Cache or invalidate paths only for lanes changed by a placement or sale.
+- [x] Expose legal-placement and rejection information for Unity ghost placement.
+
+### Acceptance Checks
+
+- [x] A legal placement produces a valid route.
+- [x] A blocking placement is rejected before gold is spent.
+- [x] The same map and placement sequence produces the same path result.
+- [x] A heavy placement scenario has a recorded benchmark result.
+
+## MVP-03: Economy, Carousel, Lives, And Results
+
+**Owner:** Economy agent
+**Status:** [x] Complete - local economy and results checks pass
+**Dependencies:** MVP-01
+
+### Deliverables
+
+- [x] Implement fixed-tick clock and income-tick schedule.
+- [x] Implement gold, income, send cost, income gain, cooldown, kill bounty, leak bounty, and sell refund rules.
+- [x] Implement three-player carousel routing.
+- [x] Implement life loss, elimination, and winner selection.
+- [x] Define a compact match summary with placements and key economy statistics.
+
+### Acceptance Checks
+
+- [x] A send targets the next carousel lane and changes income exactly once.
+- [x] Insufficient-gold and cooldown violations reject without changing state.
+- [x] A leak affects the defender and credits the sender according to the configured rules.
+- [x] A completed elimination sequence produces one unambiguous winner.
+
+## MVP-04: Creep Movement, Tower Combat, And Events
+
+**Owner:** Combat agent
+**Status:** [x] Complete - local combat and event checks pass
+**Dependencies:** MVP-01
+
+### Deliverables
+
+- [x] Implement creep spawning, health, speed, path following, and exit detection.
+- [x] Implement one initial tower type with range, target selection, attack timing, and damage.
+- [x] Implement creep death, kill bounty intent, and leak events.
+- [x] Provide lightweight entity snapshots for Unity rendering.
+- [x] Keep projectiles visual-only unless projectile travel is needed for gameplay timing.
+
+### Acceptance Checks
+
+- [x] A tower damages and kills a creep within expected ticks.
+- [x] A creep that reaches the exit emits one leak event only.
+- [x] Movement and combat results reproduce for a fixed seed and command sequence.
+- [x] The simulation remains independent of Unity objects and time APIs.
+
+## MVP-05: Bots, Replay Records, And Scenario Suite
+
+**Owner:** Simulation QA agent
+**Status:** [x] Complete - local bot replay scenarios pass
+**Dependencies:** MVP-02, MVP-03, MVP-04
+
+### Deliverables
+
+- [x] Implement greedy, balanced, and defensive bot decision profiles.
+- [x] Make bots issue normal commands through the command validator.
+- [x] Implement replay records containing seed, content version, map ID, player configuration, and accepted commands.
+- [x] Implement replay execution and final-state comparison.
+- [x] Add scenario tests for a complete three-player simulated match.
+- [x] Add a stress scenario for heavy sends and repeated placement validation.
+
+### Acceptance Checks
+
+- [x] Three bots can complete a match without invalid state or unhandled exceptions.
+- [x] Replaying a saved match produces the same final state or state hash.
+- [x] Bot profiles demonstrably produce different income-versus-defense behavior.
+
+## MVP-06: Unity Bridge And Local Vertical Slice
+
+**Owner:** Unity integration agent
+**Status:** [ ] In progress - bridge source, .NET vertical slice checks, and Unity batch compile pass; Play Mode run pending
+**Dependencies:** MVP-02, MVP-03, MVP-04
+
+### Deliverables
+
+- [x] Create a Unity match bootstrapper that loads content and starts `LTW.Simulation`.
+- [x] Advance simulation with a fixed-step accumulator while rendering independently.
+- [x] Translate Unity input requests into simulation commands.
+- [x] Read state snapshots and events without direct simulation mutation.
+- [x] Display one lane, one tower, one creep, gold, income, and lives.
+- [x] Provide a development-only match reset and diagnostic overlay.
+
+### Acceptance Checks
+
+- [ ] A player can run one lane locally, place a tower, send a creep, and see it resolve.
+- [ ] Unity runs the same command sequence to the expected simulation result.
+- [x] The bridge contains no duplicate combat, economy, or pathing rules.
+
+## MVP-07: Touch Placement And Match HUD
+
+**Owner:** Mobile UI agent
+**Status:** [x] Complete - Unity touch/HUD scripts compile in batch mode
+**Dependencies:** MVP-06
+
+### Deliverables
+
+- [x] Implement mobile-safe HUD for gold, income, lives, and wave/send pressure.
+- [x] Implement tower selection, tap-to-snap ghost placement, nudge controls, confirm, and cancel.
+- [x] Show immediate invalid-path and insufficient-gold feedback.
+- [x] Implement the send dock for the first creep category and unit options.
+- [x] Implement own-lane and target-lane view swap.
+- [x] Keep controls accessible without covering the active grid.
+
+### Acceptance Checks
+
+- [x] A tester can place, cancel, and sell a tower using only touch controls.
+- [x] An invalid placement is understandable and recoverable without opening a blocking dialog.
+- [x] A tester can send a creep and identify the resulting income change.
+
+## MVP-08: Rendering, Pooling, And Feedback
+
+**Owner:** Presentation agent
+**Status:** [ ] In progress - presentation source and Unity batch compile pass; Play Mode visual acceptance pending
+**Dependencies:** MVP-06
+
+### Deliverables
+
+- [x] Render towers, creeps, lane cells, spawn, exit, and ownership clearly.
+- [x] Add pooled presentation objects for creeps, projectiles if used, hit effects, and floating text.
+- [x] Render key simulation events: tower built, creep spawned, creep killed, leak, elimination, and income tick.
+- [x] Add readable low-cost feedback: basic sound, optional haptics, and restrained effects.
+- [x] Add settings for reduced effects and basic text-size support.
+
+### Acceptance Checks
+
+- [ ] Repeated creep waves do not create unbounded presentation objects.
+- [ ] The player can distinguish owned towers, incoming creeps, leaks, and sends at a glance.
+- [ ] The visual layer can be disabled or simplified without changing simulation outcomes.
+
+## MVP-09: Full Local Three-Player Integration And Tuning
+
+**Owner:** Integration agent
+**Status:** [ ] In progress - integration, tuning, replay export, and automated local-match evidence complete; Unity/device acceptance pending
+**Dependencies:** MVP-05, MVP-07, MVP-08
+
+### Deliverables
+
+- [x] Combine one human player and two bots into a complete carousel match.
+- [x] Add basic post-match summary and replay export for diagnostics.
+- [x] Tune initial tower, creep, income, bounty, and life values to reach the target match window.
+- [x] Run a heavy-send stress scenario during a full match.
+- [x] Document known balance and usability issues for the next iteration.
+
+### Acceptance Checks
+
+- [ ] A complete match starts, resolves, and returns to a usable post-match state.
+- [ ] The match reaches a winner without manual intervention.
+- [ ] Typical simulated matches fall in the intended early target range, or the deviation is documented with data.
+- [ ] No known critical command, pathing, or state-replay failures remain.
+
+## MVP-10: iOS TestFlight And Device Validation
+
+**Owner:** Mobile QA agent
+**Status:** [ ] Deferred - resume after the gameplay fork proves a coherent local play loop
+**Dependencies:** GD-08 gameplay playtest evidence
+
+### Deliverables
+
+- [ ] Confirm the local gameplay fork has produced a playable session worth validating on device.
+- [ ] Configure iOS signing and a TestFlight-capable build process.
+- [ ] Define the iOS test matrix from the available devices, including the oldest supported device as the baseline.
+- [ ] Capture tick time, frame time, memory, active entity count, and thermal observations during normal and stress matches.
+- [ ] Run touch placement, send dock, view swap, and results-flow usability checks.
+- [ ] File and prioritize reproducible defects with device, build, seed, and replay details.
+
+### Acceptance Checks
+
+- [ ] TestFlight build installs and runs on every selected iOS test device.
+- [ ] The stress scenario completes on the baseline iOS device without crash, unrecoverable hitching, or corrupted match state.
+- [ ] Performance results and known limitations are recorded in the repository.
+
+## MVP-11: Android Compatibility Validation
+
+**Owner:** Mobile QA agent
+**Status:** [ ] Not started
+**Dependencies:** MVP-10
+
+### Deliverables
+
+- [ ] Produce an Android internal build.
+- [ ] Validate the same core interaction and stress scenarios on a representative Android device.
+- [ ] Record platform-specific performance or input differences.
+- [ ] Create remediation items for any material cross-platform gaps.
+
+### Acceptance Checks
+
+- [ ] The complete local three-player match works on the selected Android device.
+- [ ] The stress scenario completes without corrupted state or a blocker-level performance failure.
+- [ ] Cross-platform behavior differences are either resolved or explicitly accepted for the MVP.
+
+## MVP Release Gate
+
+- [ ] MVP-00 through MVP-09 are complete.
+- [ ] GD-00 through GD-08 in `GAMEPLAY_DEVELOPMENT_CHECKLIST.md` are complete enough to justify mobile validation.
+- [ ] MVP-10 is complete after the local gameplay loop is coherent.
+- [ ] MVP-11 is complete before broad external distribution.
+- [ ] The local match loop is fun enough to justify an online multiplayer spike.
+- [ ] Replays, diagnostics, and device evidence are available for every release candidate.
+- [ ] No cloud backend is required to play the MVP.
