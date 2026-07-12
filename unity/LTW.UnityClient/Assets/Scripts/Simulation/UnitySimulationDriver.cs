@@ -15,6 +15,10 @@ namespace LTW.UnityClient.Simulation
         private LocalVerticalSlice simulation;
         private float accumulator;
 
+        public bool HasStarted { get; private set; }
+
+        public bool IsPaused { get; private set; } = true;
+
         public VerticalSliceSnapshot LatestSnapshot { get; private set; }
 
         public IReadOnlyList<ISimulationEvent> LatestEvents { get; private set; } = new List<ISimulationEvent>();
@@ -41,12 +45,15 @@ namespace LTW.UnityClient.Simulation
                 return;
             }
 
-            accumulator += Time.deltaTime;
-            var tickDuration = 1f / ticksPerSecond;
-            while (accumulator >= tickDuration)
+            if (HasStarted && !IsPaused && LatestMatchSummary is null)
             {
-                simulation.AdvanceOneTick();
-                accumulator -= tickDuration;
+                accumulator += Time.deltaTime;
+                var tickDuration = 1f / ticksPerSecond;
+                while (accumulator >= tickDuration)
+                {
+                    simulation.AdvanceOneTick();
+                    accumulator -= tickDuration;
+                }
             }
 
             LatestSnapshot = simulation.GetSnapshot();
@@ -56,9 +63,37 @@ namespace LTW.UnityClient.Simulation
             LatestBotDiagnostics = simulation.GetBotDiagnostics();
         }
 
+        public void StartMatch()
+        {
+            HasStarted = true;
+            IsPaused = false;
+        }
+
+        public void PauseMatch()
+        {
+            if (HasStarted)
+            {
+                IsPaused = true;
+            }
+        }
+
+        public void TogglePause()
+        {
+            if (!HasStarted)
+            {
+                StartMatch();
+                return;
+            }
+
+            IsPaused = !IsPaused;
+        }
+
         public void ResetMatch()
         {
             simulation?.Reset();
+            accumulator = 0f;
+            HasStarted = false;
+            IsPaused = true;
             if (simulation is not null)
             {
                 LatestSnapshot = simulation.GetSnapshot();
