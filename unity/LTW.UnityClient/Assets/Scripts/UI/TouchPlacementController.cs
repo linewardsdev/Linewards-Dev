@@ -1,5 +1,6 @@
 using LTW.Simulation.Bridge;
 using LTW.Simulation.Commands;
+using LTW.Simulation.Combat;
 using LTW.UnityClient.Simulation;
 using UnityEngine;
 
@@ -28,6 +29,9 @@ namespace LTW.UnityClient.UI
         private UnityCommandAdapter commandAdapter = null!;
 
         [SerializeField]
+        private UnitySimulationDriver simulationDriver = null!;
+
+        [SerializeField]
         private PlacementFeedbackView feedbackView = null!;
 
         [SerializeField]
@@ -39,6 +43,7 @@ namespace LTW.UnityClient.UI
         private bool isPlacing;
         private int selectedTowerRole;
         private Vector2Int selectedCell;
+        private TowerCombatState? selectedTower;
         private VerticalSliceCommandResult placementPreview = VerticalSliceCommandResult.Reject(CommandRejectionReason.InvalidLane);
 
         public void BeginTowerPlacement() => BeginTowerPlacement(0);
@@ -54,6 +59,7 @@ namespace LTW.UnityClient.UI
             selectedCell = new Vector2Int(2, 2);
             ghost.SetActive(true);
             MoveGhost();
+            selectedTower = null;
             feedbackView.Clear();
         }
 
@@ -103,9 +109,12 @@ namespace LTW.UnityClient.UI
 
         public void SellLastTower()
         {
-            var result = commandAdapter.SellLastSampleTower();
+            var result = selectedTower is not null
+                ? commandAdapter.SellTowerAt(selectedTower.Position.X, selectedTower.Position.Y)
+                : commandAdapter.SellLastSampleTower();
             if (result.Accepted)
             {
+                selectedTower = null;
                 feedbackView.ShowEconomy("Tower sold");
                 return;
             }
@@ -115,9 +124,14 @@ namespace LTW.UnityClient.UI
 
         private void Update()
         {
-            if (!isPlacing || !Input.GetMouseButtonDown(0))
+            if (!Input.GetMouseButtonDown(0))
             {
                 return;
+            }
+
+            if (inputCamera == null)
+            {
+                inputCamera = Camera.main!;
             }
 
             var ray = inputCamera.ScreenPointToRay(Input.mousePosition);
@@ -129,7 +143,13 @@ namespace LTW.UnityClient.UI
 
             var hit = ray.GetPoint(distance);
             selectedCell = new Vector2Int(Mathf.RoundToInt(hit.x), Mathf.RoundToInt(hit.z));
-            MoveGhost();
+            if (isPlacing)
+            {
+                MoveGhost();
+                return;
+            }
+
+            SelectTowerAt(selectedCell);
         }
 
         private void OnGUI()
@@ -143,6 +163,7 @@ namespace LTW.UnityClient.UI
 
             var scale = Mathf.Clamp(Screen.width / 1080f, 0.72f, 1.15f);
             DrawTowerPalette(scale);
+            DrawSelectedTowerPanel(scale);
 
             if (!isPlacing)
             {
@@ -166,6 +187,60 @@ namespace LTW.UnityClient.UI
             var placementLine = placementPreview.Accepted ? $"CELL {selectedCell.x}, {selectedCell.y} READY" : PlacementPreviewText();
             GUI.Label(new Rect(rect.x + 12f * scale, rect.y + 35f * scale, rect.width - 24f * scale, 20f * scale), placementLine, bodyStyle);
             GUI.Label(new Rect(rect.x + 12f * scale, rect.y + 55f * scale, rect.width - 24f * scale, 20f * scale), placementPreview.Accepted ? "Tap board or nudge, then confirm" : PlacementRecoveryText(), bodyStyle);
+        }
+
+        private void SelectTowerAt(Vector2Int cell)
+        {
+            if (simulationDriver == null)
+            {
+                simulationDriver = Object.FindAnyObjectByType<UnitySimulationDriver>();
+            }
+
+            selectedTower = null;
+            var snapshot = simulationDriver?.LatestSnapshot;
+            if (snapshot is null)
+            {
+                return;
+            }
+
+            foreach (var tower in snapshot.Towers)
+            {
+                if (tower.OwnerId.Value == 1 && tower.LaneId.Value == 1 && tower.Position.X == cell.x && tower.Position.Y == cell.y)
+                {
+                    selectedTower = tower;
+                    feedbackView.ShowAccepted(TowerRoleName(tower.TowerId.Value) + " selected");
+                    return;
+                }
+            }
+        }
+
+        private void DrawSelectedTowerPanel(float scale)
+        {
+            if (isPlacing || selectedTower is null)
+            {
+                return;
+            }
+
+            var width = Mathf.Min(Screen.width - 32f * scale, 330f * scale);
+            var height = 96f * scale;
+            var rect = new Rect(12f * scale, Screen.height - height - 178f * scale, width, height);
+            var accent = TowerAccent(selectedTower.TowerId.Value);
+            DrawPanel(rect, PanelInk);
+            DrawAccent(new Rect(rect.x, rect.yMax - 4f * scale, rect.width, 4f * scale), accent);
+
+            titleStyle!.fontSize = Mathf.RoundToInt(16f * scale);
+            titleStyle.normal.textColor = accent;
+            bodyStyle!.fontSize = Mathf.RoundToInt(12f * scale);
+            bodyStyle.normal.textColor = Cloud;
+
+            GUI.Label(new Rect(rect.x + 12f * scale, rect.y + 8f * scale, rect.width - 24f * scale, 22f * scale), TowerRoleName(selectedTower.TowerId.Value).ToUpperInvariant(), titleStyle);
+            GUI.Label(new Rect(rect.x + 12f * scale, rect.y + 32f * scale, rect.width - 24f * scale, 18f * scale), $"CELL {selectedTower.Position.X}, {selectedTower.Position.Y}  OWNER P{selectedTower.OwnerId.Value}", bodyStyle);
+            GUI.Label(new Rect(rect.x + 12f * scale, rect.y + 51f * scale, rect.width - 24f * scale, 18f * scale), "Sell selected or tap another tower", bodyStyle);
+
+            if (GUI.Button(new Rect(rect.x + rect.width - 86f * scale, rect.y + 28f * scale, 70f * scale, 36f * scale), "SELL", buttonStyle ?? GUI.skin.button))
+            {
+                SellLastTower();
+            }
         }
 
         private void Nudge(Vector2Int delta)
@@ -228,6 +303,20 @@ namespace LTW.UnityClient.UI
             };
         }
 
+        private static string TowerRoleName(string towerId)
+        {
+            if (towerId.Contains("control")) return "Control ward";
+            if (towerId.Contains("relay") || towerId.Contains("economy")) return "Relay ward";
+            return "Arrow ward";
+        }
+
+        private static Color TowerAccent(string towerId)
+        {
+            if (towerId.Contains("control")) return WardViolet;
+            if (towerId.Contains("relay") || towerId.Contains("economy")) return SignalGold;
+            return ArcaneBlue;
+        }
+
         private Color SelectedTowerAccent()
         {
             return selectedTowerRole switch
@@ -264,18 +353,21 @@ namespace LTW.UnityClient.UI
 
             if (DrawPaletteButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "ARROW", "25g", ArcaneBlue, scale))
             {
+                selectedTower = null;
                 BeginTowerPlacement();
             }
 
             x += buttonWidth + gap;
             if (DrawPaletteButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "CONTROL", "35g", WardViolet, scale))
             {
+                selectedTower = null;
                 BeginControlTowerPlacement();
             }
 
             x += buttonWidth + gap;
             if (DrawPaletteButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "RELAY", "40g", SignalGold, scale))
             {
+                selectedTower = null;
                 BeginUtilityTowerPlacement();
             }
 
