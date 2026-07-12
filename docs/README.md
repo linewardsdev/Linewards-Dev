@@ -23,6 +23,6 @@ This folder contains the durable project documentation for Line Wards, the mobil
 
 ## Related Context
 
-- [Line Wards graphics skill](../skill/SKILL.md)
-- [Line Wards graphics context](../skill/context.md)
+- [Line Wards LTW graphics art-direction skill](../skill/SKILL.md)
+- [Line Tower Wars graphics art-direction reference](../skill/line-tower-wars-graphics-art-direction.md)
 
