@@ -148,10 +148,12 @@ The local results billboard now shows winner, completion tick, and each player's
 
 ### Deliverables
 
-- [ ] Add distinct feedback for tower build, tower shot, creep hit, creep death, leak, send, income tick, and elimination.
-- [ ] Keep effects readable under reduced-effects mode.
-- [ ] Add simple audio mix controls or global mute for desktop testing.
+- [x] Add distinct feedback for tower build, tower shot, creep hit, creep death, leak, send, income tick, and elimination.
+- [x] Keep effects readable under reduced-effects mode.
+- [x] Add simple audio mix controls or global mute for desktop testing.
 - [ ] Review text scale and contrast in the HUD.
+
+Tower attacks now emit damage events so Unity can show lane beams and hit cues before kills. Reduced-effects mode keeps text/readability cues while skipping burst effects and beams, and desktop hotkeys cover reduced effects, mute, and volume.
 
 ### Acceptance Checks
 
