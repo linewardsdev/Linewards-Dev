@@ -19,11 +19,19 @@ namespace LTW.UnityClient.UI
         private GameObject ghost = null!;
 
         private bool isPlacing;
+        private int selectedTowerRole;
         private Vector2Int selectedCell;
 
-        public void BeginTowerPlacement()
+        public void BeginTowerPlacement() => BeginTowerPlacement(0);
+
+        public void BeginControlTowerPlacement() => BeginTowerPlacement(1);
+
+        public void BeginUtilityTowerPlacement() => BeginTowerPlacement(2);
+
+        private void BeginTowerPlacement(int towerRole)
         {
             isPlacing = true;
+            selectedTowerRole = towerRole;
             selectedCell = Vector2Int.zero;
             ghost.SetActive(true);
             MoveGhost();
@@ -52,7 +60,12 @@ namespace LTW.UnityClient.UI
                 return;
             }
 
-            var result = commandAdapter.PlaceSampleTower(selectedCell.x, selectedCell.y);
+            var result = selectedTowerRole switch
+            {
+                1 => commandAdapter.PlaceControlTower(selectedCell.x, selectedCell.y),
+                2 => commandAdapter.PlaceUtilityTower(selectedCell.x, selectedCell.y),
+                _ => commandAdapter.PlaceSampleTower(selectedCell.x, selectedCell.y)
+            };
             if (result.Accepted)
             {
                 feedbackView.ShowAccepted();
@@ -108,6 +121,12 @@ namespace LTW.UnityClient.UI
         private void MoveGhost()
         {
             ghost.transform.position = new Vector3(selectedCell.x, 0.6f, selectedCell.y);
+            ghost.transform.localScale = selectedTowerRole switch
+            {
+                1 => new Vector3(0.82f, 0.46f, 0.82f),
+                2 => new Vector3(0.52f, 0.52f, 0.52f),
+                _ => new Vector3(0.62f, 0.78f, 0.62f)
+            };
         }
     }
 }
