@@ -9,7 +9,7 @@ Resume iOS TestFlight work only after this fork produces a local desktop/Unity s
 ## Current Baseline
 
 - The local Unity scene loads `Assets/Scenes/LocalVerticalSlice.unity` without current console errors.
-- The simulation supports three 12x9 lanes, one human player, two bots, placement, sends, selling, replay export, and match summaries.
+- The simulation supports three 7x18 long north-south lanes, one human player, two bots, placement, sends, selling, replay export, and match summaries.
 - Automated .NET tests pass, including deterministic local-match coverage.
 - Presentation systems exist for lane cells, towers, creeps, events, pooled objects, audio cues, vibration hooks, and presentation modes.
 
@@ -46,7 +46,7 @@ Resume iOS TestFlight work only after this fork produces a local desktop/Unity s
 
 ### Deliverables
 
-- [x] Frame the 12x9 lane grid clearly for the current local Unity camera baseline.
+- [x] Frame the 7x18 long north-south lane grid clearly for the current local Unity camera baseline.
 - [x] Make own lane, target lanes, spawn, exit, towers, and creep paths visually distinct.
 - [x] Add an obvious selected-lane or inspected-lane state.
 - [x] Add placement preview feedback for legal, blocked, unaffordable, and path-blocking cells.
