@@ -53,11 +53,11 @@ namespace LTW.UnityClient.Simulation
             cameraObject.tag = "MainCamera";
             var camera = cameraObject.AddComponent<Camera>();
             camera.orthographic = true;
-            camera.orthographicSize = 12f;
+            camera.orthographicSize = 15.5f;
             camera.nearClipPlane = 0.1f;
             camera.farClipPlane = 80f;
-            camera.transform.position = new Vector3(3f, 24f, -8f);
-            camera.transform.LookAt(new Vector3(3f, 0f, 8.5f));
+            camera.transform.position = new Vector3(12f, 28f, -10f);
+            camera.transform.LookAt(new Vector3(12f, 0f, 8.5f));
             camera.backgroundColor = new Color(0.06f, 0.08f, 0.12f);
             camera.clearFlags = CameraClearFlags.SolidColor;
 

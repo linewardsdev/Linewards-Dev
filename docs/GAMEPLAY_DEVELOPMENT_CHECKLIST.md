@@ -9,7 +9,7 @@ Resume iOS TestFlight work only after this fork produces a local desktop/Unity s
 ## Current Baseline
 
 - The local Unity scene loads `Assets/Scenes/LocalVerticalSlice.unity` without current console errors.
-- The simulation supports three 7x18 long north-south lanes, one human player, two bots, placement, sends, selling, replay export, and match summaries.
+- The simulation supports three side-by-side 7x18 long north-south lanes, one human player, two bots, placement, sends, selling, replay export, carousel creep handoff, and match summaries.
 - Automated .NET tests pass, including deterministic local-match coverage.
 - Presentation systems exist for lane cells, towers, creeps, events, pooled objects, audio cues, vibration hooks, and presentation modes.
 
@@ -18,7 +18,7 @@ Resume iOS TestFlight work only after this fork produces a local desktop/Unity s
 | ID | Initiative | Owner | Depends On | Exit Signal |
 | --- | --- | --- | --- | --- |
 | GD-00 | Playable-loop baseline | Integration | MVP-06, MVP-08, MVP-09 | A local Unity session can be started, restarted, and observed end to end. |
-| GD-01 | Board readability and camera | Presentation | GD-00 | A tester understands lanes, paths, spawn, exit, ownership, and pressure without explanation. |
+| GD-01 | Board readability and camera | Presentation | GD-00 | A tester understands lanes, paths, spawn, life loss, ownership, and pressure without explanation. |
 | GD-02 | Placement and tower controls | Gameplay UI | GD-00 | Placing, canceling, selling, and selecting towers feels deliberate and recoverable. |
 | GD-03 | Tower, creep, and send content | Simulation | GD-00 | The game has at least three distinct tower choices and three distinct creep/send pressures. |
 | GD-04 | Economy, pacing, and match length | Gameplay tuning | GD-03 | A match has early, middle, and closing pressure instead of a flat simulation run. |
@@ -46,13 +46,13 @@ Resume iOS TestFlight work only after this fork produces a local desktop/Unity s
 
 ### Deliverables
 
-- [x] Frame the 7x18 long north-south lane grid clearly for the current local Unity camera baseline.
+- [x] Frame the side-by-side 7x18 long north-south lane grid clearly for the current local Unity camera baseline.
 - [x] Make own lane, target lanes, spawn, exit, towers, and creep paths visually distinct.
 - [x] Add an obvious selected-lane or inspected-lane state.
 - [x] Add placement preview feedback for legal, blocked, unaffordable, and path-blocking cells.
 
 Placement preview now queries the simulation bridge before confirmation, so legal, occupied, unaffordable, invalid-lane, and path-blocking outcomes use the same rules as actual placement.
-The empty local scene now creates the runtime tower palette, send dock, placement ghost, and feedback toast during bootstrap. The default camera is closer to the owned lane, and Unity-side creep rendering uses larger markers, slower local ticks, and interpolation so movement is easier to read.
+The empty local scene now creates the runtime tower palette, send dock, placement ghost, and feedback toast during bootstrap. The lanes render side by side with top spawn boxes and bottom life-loss boxes. Unity-side creep rendering uses larger markers, slower local ticks, top-to-bottom projection, and interpolation so movement is easier to read.
 
 ### Acceptance Checks
 

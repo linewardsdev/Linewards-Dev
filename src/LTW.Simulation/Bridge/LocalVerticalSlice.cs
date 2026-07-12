@@ -169,7 +169,16 @@ public sealed class LocalVerticalSlice
             if (simulationEvent is CreepKilledEvent killed && creepsBeforeCombat.TryGetValue(killed.CreepEntityId, out var killedCreep))
                 players = economy.ApplyKillBounty(players, killed.DefenderId, content.Creeps.First(creep => creep.Id.Equals(killedCreep.CreepId))).Players;
             if (simulationEvent is LeakEvent leak && creepsBeforeCombat.TryGetValue(leak.CreepEntityId, out var leakedCreep))
-                players = economy.ApplyLeak(players, leak.SenderId, leak.DefenderId, content.Creeps.First(creep => creep.Id.Equals(leakedCreep.CreepId))).Players;
+            {
+                var creep = content.Creeps.First(definition => definition.Id.Equals(leakedCreep.CreepId));
+                players = economy.ApplyLeak(players, leak.SenderId, leak.DefenderId, creep).Players;
+
+                var nextLaneId = NextLaneId(leakedCreep.LaneId);
+                var transferred = combat.SpawnCreep(NextEntityId(), creep, leakedCreep.SenderId, nextLaneId);
+                combatState = new CombatState(combatState.Creeps.Concat(new[] { transferred }), combatState.Towers);
+                pendingEvents.Add(new CreepSpawnedEvent(tick, transferred.EntityId, transferred.CreepId, transferred.SenderId, new PlayerId(nextLaneId.Value)));
+            }
+
             pendingEvents.Add(simulationEvent);
         }
 
@@ -241,6 +250,8 @@ public sealed class LocalVerticalSlice
     }
 
     private EntityId NextEntityId() => new EntityId(nextEntityId++);
+
+    private static LaneId NextLaneId(LaneId laneId) => new(laneId.Value % 3 + 1);
 
     private static CommandRejectionReason ToCommandRejection(PlacementRejectionReason reason)
     {

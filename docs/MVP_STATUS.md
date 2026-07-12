@@ -34,8 +34,8 @@ that editor after the mobile HUD treatment merge.
 
 Current code evidence:
 
-- `UnityVerticalSliceRenderer` renders lane cells, towers, creeps, ownership colors, spawn and exit cells.
-- The current vertical-slice lane layout uses three 7x18 long north-south lanes, with spawn at `(3, 0)` and exit at `(3, 17)`.
+- `UnityVerticalSliceRenderer` renders side-by-side lane cells, towers, creeps, ownership colors, spawn boxes, and life-loss boxes.
+- The current vertical-slice lane layout uses three side-by-side 7x18 long north-south lanes, with spawn at `(3, 0)` and life loss at `(3, 17)`.
 - Presentation pools exist for towers, creeps, effects, and floating text.
 - Simulation events create visual feedback for tower placement, creep spawn, creep kill, leak, income tick, and elimination.
 - Basic generated audio cues, mobile vibration hooks, reduced-effects preference, text scale, and disabled/simplified presentation modes exist.
@@ -53,7 +53,8 @@ Current code evidence:
 - `LocalVerticalSlice` runs a three-player carousel with Player 1 as the human lane and two bot players.
 - The local sample map uses three 7x18 lanes.
 - The bridge supports placement, sends, selling, reset, match summary, and replay records.
-- `LocalThreePlayerMatchTests` verifies a deterministic local bot match completes in the 3,000-6,000 tick target window.
+- `LocalThreePlayerMatchTests` verifies a deterministic local bot match completes in the current faster 300-900 tick carousel target window.
+- Creeps that leak through a lane now continue into the next lane's spawn, preserving carousel pressure instead of disappearing after one life-loss event.
 - `LocalReplayExporter` writes diagnostic replay JSON.
 - `HeavySendStressHarness` can run a local stress pass and write diagnostics.
 
@@ -86,7 +87,7 @@ Remaining acceptance evidence:
 
 ## Next Work Order
 
-1. Re-run the GD-00 Play Mode pass after the runtime HUD, placement ghost, camera zoom, slower Unity tick rate, and creep readability fixes.
+1. Re-run the GD-00 Play Mode pass after the side-by-side lane layout, top-to-bottom creep flow, runtime HUD, placement ghost, camera zoom, slower Unity tick rate, and creep carousel handoff fixes.
 2. Close MVP-06, MVP-08, and MVP-09 acceptance evidence as part of that local play loop.
 3. Continue GD-02 with manual placement correction, sell, and reset notes.
 4. Work GD-03 through GD-07 to improve content variety, pacing, bots, session flow, and feedback.
@@ -97,15 +98,15 @@ Remaining acceptance evidence:
 
 Current code evidence:
 
-- The local camera is orthographic and now defaults to a closer playable-lane view instead of shrinking the full three-lane stack.
-- Lanes now have darker backplates, stronger player-lane rails, flow arrows along the route, spawn/exit labels, and clearer lane labels.
+- The local camera is orthographic and now frames the three side-by-side lanes without the old top-to-bottom stack.
+- Lanes now have darker backplates, stronger player-lane rails, top-to-bottom flow arrows, spawn/life-loss boxes, and clearer lane labels.
 - The own lane is labeled as the defensive lane, while other lanes are labeled as send targets.
 - The runtime HUD now creates the send dock, tower palette, placement ghost, and placement feedback when the empty local scene boots.
 - The placement ghost now queries the simulation bridge before confirmation, distinguishing legal, occupied, unaffordable, invalid-lane, and path-blocking cells.
-- Unity-side creep presentation now uses slower local ticks, larger creep markers, and render interpolation so movement is easier to see.
+- Unity-side creep presentation now uses slower local ticks, larger creep markers, render interpolation, and a flipped vertical projection so creeps spawn at the top and move down.
 
 Remaining acceptance evidence:
 
-- Manually confirm the 7x18 own-lane view is framed well across desktop and mobile aspect ratios.
-- Confirm the new path, spawn, exit, and lane labels remain readable during active creeps and combat feedback.
+- Manually confirm the side-by-side 7x18 lane view is framed well across desktop and mobile aspect ratios.
+- Confirm the new path, spawn, life-loss, and lane labels remain readable during active creeps and combat feedback.
 - Confirm runtime HUD controls do not cover the active placement area during real Play Mode placement.

@@ -65,9 +65,9 @@ namespace LTW.UnityClient.UI
             feedbackView.Clear();
         }
 
-        public void NudgeUp() => Nudge(Vector2Int.up);
+        public void NudgeUp() => Nudge(Vector2Int.down);
 
-        public void NudgeDown() => Nudge(Vector2Int.down);
+        public void NudgeDown() => Nudge(Vector2Int.up);
 
         public void NudgeLeft() => Nudge(Vector2Int.left);
 
@@ -136,7 +136,7 @@ namespace LTW.UnityClient.UI
             }
 
             var hit = ray.GetPoint(distance);
-            selectedCell = new Vector2Int(Mathf.RoundToInt(hit.x), Mathf.RoundToInt(hit.z));
+            selectedCell = new Vector2Int(Mathf.RoundToInt(hit.x), 17 - Mathf.RoundToInt(hit.z));
             MoveGhost();
         }
 
@@ -191,7 +191,7 @@ namespace LTW.UnityClient.UI
 
         private void MoveGhost()
         {
-            ghost.transform.position = new Vector3(selectedCell.x, 0.6f, selectedCell.y);
+            ghost.transform.position = new Vector3(selectedCell.x, 0.6f, 17 - selectedCell.y);
             ghost.transform.localScale = selectedTowerRole switch
             {
                 1 => new Vector3(0.82f, 0.46f, 0.82f),
