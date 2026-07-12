@@ -49,9 +49,9 @@ Resume iOS TestFlight work only after this fork produces a local desktop/Unity s
 - [x] Frame the 12x9 lane grid clearly for the current local Unity camera baseline.
 - [x] Make own lane, target lanes, spawn, exit, towers, and creep paths visually distinct.
 - [x] Add an obvious selected-lane or inspected-lane state.
-- [ ] Add placement preview feedback for legal, blocked, unaffordable, and path-blocking cells.
+- [x] Add placement preview feedback for legal, blocked, unaffordable, and path-blocking cells.
 
-Current partial placement preview only distinguishes out-of-board cells from cells inside the player's own lane. The next pass should query simulation placement validation before confirmation.
+Placement preview now queries the simulation bridge before confirmation, so legal, occupied, unaffordable, invalid-lane, and path-blocking outcomes use the same rules as actual placement.
 
 ### Acceptance Checks
 
@@ -63,10 +63,12 @@ Current partial placement preview only distinguishes out-of-board cells from cel
 
 ### Deliverables
 
-- [ ] Support a tower palette with at least three tower slots, even if some content is still placeholder.
+- [x] Support a tower palette with at least three tower slots, even if some content is still placeholder.
 - [ ] Add inspect/select behavior for existing towers.
 - [ ] Add sell and upgrade hooks or disabled states with clear affordance.
-- [ ] Make confirm/cancel, invalid feedback, and recovery fast enough for repeated play.
+- [x] Make confirm/cancel, invalid feedback, and recovery fast enough for repeated play.
+
+Current tower palette exposes Arrow, Control, Relay, and Sell controls for the local vertical slice. Upgrade hooks and existing-tower inspect/select remain open.
 
 ### Acceptance Checks
 
@@ -78,10 +80,12 @@ Current partial placement preview only distinguishes out-of-board cells from cel
 
 ### Deliverables
 
-- [ ] Add first-pass content for three tower roles: reliable single-target, area/control, and economy or utility.
-- [ ] Add first-pass content for three creep/send roles: runner, brute, and swarm.
+- [x] Add first-pass content for three tower roles: reliable single-target, area/control, and economy or utility.
+- [x] Add first-pass content for three creep/send roles: runner, brute, and swarm.
 - [ ] Give each creep/send a different cost, income gain, cooldown, and pressure profile.
-- [ ] Extend tests so new content validates through the existing simulation contracts.
+- [x] Extend tests so new content validates through the existing simulation contracts.
+
+Current sends have distinct cost, income, speed/health, and quantity pressure. Cooldown remains global through economy rules, so per-send cooldown differentiation remains open.
 
 ### Acceptance Checks
 
@@ -93,10 +97,12 @@ Current partial placement preview only distinguishes out-of-board cells from cel
 
 ### Deliverables
 
-- [ ] Define target ranges for first send, first leak, first elimination, and match completion.
+- [x] Define target ranges for first send, first leak, first elimination, and match completion.
 - [ ] Tune starting gold, income interval, send rewards, bounties, lives, and cooldowns around those ranges.
 - [ ] Add scenario tests for low-pressure, normal-pressure, and heavy-pressure matches.
-- [ ] Record current known balance problems in a tuning log.
+- [x] Record current known balance problems in a tuning log.
+
+Initial target ranges and known balance questions are recorded in `docs/GD_TUNING_LOG.md`. Scenario coverage has started with send cooldown and early-pressure tests, but the full low/normal/heavy suite remains open.
 
 ### Acceptance Checks
 
