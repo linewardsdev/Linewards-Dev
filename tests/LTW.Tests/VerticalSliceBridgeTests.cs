@@ -190,6 +190,22 @@ public sealed class VerticalSliceBridgeTests
     }
 
 
+
+    [Fact]
+    public void Income_tick_emits_feedback_event()
+    {
+        var simulation = new LocalVerticalSlice(SampleVerticalSliceContent.Create());
+
+        for (var tick = 0; tick < 50; tick++)
+        {
+            simulation.AdvanceOneTick();
+        }
+
+        var events = simulation.DrainEvents();
+
+        Assert.Contains(events, simulationEvent => simulationEvent is IncomeTickEvent income && income.PlayerId.Equals(new PlayerId(1)) && income.GoldAwarded.Amount == 10);
+    }
+
     [Fact]
     public void Tower_attacks_emit_damage_feedback_events()
     {
