@@ -119,6 +119,7 @@ public sealed class CombatService
             var damaged = target.WithHealth(Math.Max(0, target.Health - towerDefinition.Damage));
             next = next.ReplaceCreep(damaged);
             next = next.ReplaceTower(tower.WithNextAttackTick(new SimulationTick(tick.Value + towerDefinition.AttackCooldownTicks)));
+            events.Add(new CreepDamagedEvent(tick, tower.OwnerId, tower.LaneId, tower.EntityId, tower.Position, damaged.EntityId, towerDefinition.Damage));
 
             if (damaged.IsDead)
             {

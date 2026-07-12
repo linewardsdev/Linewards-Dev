@@ -180,6 +180,14 @@ public sealed class LocalVerticalSlice
         }
 
         tick = new SimulationTick(tick.Value + 1);
+        if (economy.IsIncomeTick(tick))
+        {
+            foreach (var player in players.Players.Where(player => !player.IsEliminated))
+            {
+                pendingEvents.Add(new IncomeTickEvent(tick, player.PlayerId, new Gold(player.Income.Amount)));
+            }
+        }
+
         players = economy.ApplyIncomeTick(players, tick);
         var creepsBeforeCombat = combatState.Creeps.ToDictionary(creep => creep.EntityId, creep => creep);
         var result = combat.Advance(combatState, combatContent, routes, tick);
@@ -191,7 +199,12 @@ public sealed class LocalVerticalSlice
             if (simulationEvent is LeakEvent leak && creepsBeforeCombat.TryGetValue(leak.CreepEntityId, out var leakedCreep))
             {
                 var creep = content.Creeps.First(definition => definition.Id.Equals(leakedCreep.CreepId));
+                var defenderLivesBefore = players.Get(leak.DefenderId).Lives.Amount;
                 players = economy.ApplyLeak(players, leak.SenderId, leak.DefenderId, creep).Players;
+                if (defenderLivesBefore > 0 && players.Get(leak.DefenderId).Lives.Amount == 0)
+                {
+                    pendingEvents.Add(new PlayerEliminatedEvent(tick, leak.DefenderId));
+                }
 
                 var nextLaneId = NextLaneId(leakedCreep.LaneId);
                 var transferred = combat.SpawnCreep(NextEntityId(), creep, leakedCreep.SenderId, nextLaneId);

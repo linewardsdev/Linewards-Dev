@@ -146,6 +146,10 @@ namespace LTW.UnityClient.Simulation
             if (Input.GetKeyDown(KeyCode.E)) replayExporter.ExportCurrentReplay();
             if (Input.GetKeyDown(KeyCode.P)) playtestRecorder.ExportNow();
             if (Input.GetKeyDown(KeyCode.H)) stressHarness.StartRun();
+            if (Input.GetKeyDown(KeyCode.M)) PresentationPreferences.ToggleAudioMuted();
+            if (Input.GetKeyDown(KeyCode.Minus) || Input.GetKeyDown(KeyCode.KeypadMinus)) PresentationPreferences.AdjustFeedbackVolume(-0.1f);
+            if (Input.GetKeyDown(KeyCode.Equals) || Input.GetKeyDown(KeyCode.KeypadPlus)) PresentationPreferences.AdjustFeedbackVolume(0.1f);
+            if (Input.GetKeyDown(KeyCode.F)) PresentationPreferences.ReducedEffects = !PresentationPreferences.ReducedEffects;
             if (Input.GetKeyDown(KeyCode.Alpha1)) renderer.SetPresentationDetail(PresentationDetail.Full);
             if (Input.GetKeyDown(KeyCode.Alpha2)) renderer.SetPresentationDetail(PresentationDetail.Simplified);
             if (Input.GetKeyDown(KeyCode.Alpha3)) renderer.SetPresentationDetail(PresentationDetail.Disabled);

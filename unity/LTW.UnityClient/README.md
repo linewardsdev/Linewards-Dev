@@ -28,6 +28,9 @@ When the local vertical slice scene is running, development hotkeys can exercise
 - `E`: export the current replay JSON.
 - `P`: export a Markdown playtest report.
 - `H`: run the heavy-send stress harness.
+- `F`: toggle reduced-effects mode.
+- `M`: mute or unmute feedback audio.
+- `-`, `+`: lower or raise feedback audio volume.
 - `1`, `2`, `3`: switch full, simplified, and disabled presentation modes.
 
 Unity must reference the built `LTW.Simulation` assembly before these scripts compile in-editor. Build `LTW.Simulation` from the repository root and place/reference the resulting `LTW.Simulation.dll` under `Assets/Plugins` or configure an equivalent Unity assembly reference. Do not copy simulation rules into Unity scripts.

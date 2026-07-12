@@ -34,7 +34,9 @@ namespace LTW.UnityClient.Simulation
             }
 
             builder.Append("\nTowers: ").Append(snapshot.Towers.Count)
-                .Append(" Creeps: ").Append(snapshot.Creeps.Count);
+                .Append(" Creeps: ").Append(snapshot.Creeps.Count)
+                .Append("\nFX: ").Append(PresentationPreferences.ReducedEffects ? "reduced" : "full")
+                .Append(" Audio: ").Append(PresentationPreferences.AudioMuted ? "muted" : Mathf.RoundToInt(PresentationPreferences.FeedbackVolume * 100f) + "%");
 
             if (simulationDriver.LatestBotDiagnostics is { } diagnostics)
             {

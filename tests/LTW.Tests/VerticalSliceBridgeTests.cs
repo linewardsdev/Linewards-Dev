@@ -189,6 +189,40 @@ public sealed class VerticalSliceBridgeTests
         Assert.True(snapshot.Players.Get(new PlayerId(1)).Income.Amount >= 11);
     }
 
+
+
+    [Fact]
+    public void Income_tick_emits_feedback_event()
+    {
+        var simulation = new LocalVerticalSlice(SampleVerticalSliceContent.Create());
+
+        for (var tick = 0; tick < 50; tick++)
+        {
+            simulation.AdvanceOneTick();
+        }
+
+        var events = simulation.DrainEvents();
+
+        Assert.Contains(events, simulationEvent => simulationEvent is IncomeTickEvent income && income.PlayerId.Equals(new PlayerId(1)) && income.GoldAwarded.Amount == 10);
+    }
+
+    [Fact]
+    public void Tower_attacks_emit_damage_feedback_events()
+    {
+        var simulation = new LocalVerticalSlice(SampleVerticalSliceContent.Create());
+        Assert.True(simulation.PlaceTower(new PlayerId(1), new LaneId(1), SampleVerticalSliceContent.TowerId, new GridPosition(2, 1)).Accepted);
+        Assert.True(simulation.QueueSend(new PlayerId(3), SampleVerticalSliceContent.CreepId).Accepted);
+
+        for (var tick = 0; tick < 4; tick++)
+        {
+            simulation.AdvanceOneTick();
+        }
+
+        var events = simulation.DrainEvents();
+
+        Assert.Contains(events, simulationEvent => simulationEvent is CreepDamagedEvent);
+    }
+
     [Fact]
     public void Leaked_creeps_continue_into_the_next_lane()
     {
