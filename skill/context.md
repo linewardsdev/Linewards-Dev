@@ -1,4 +1,4 @@
-# Graphics Design Context
+# Line Wards Graphics Context
 
 ## Purpose
 
