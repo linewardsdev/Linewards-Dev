@@ -4,15 +4,17 @@ LTW is a Unity and C# mobile adaptation of Line Tower Wars. The current mileston
 
 ## Project Documentation
 
-- [Project guide](PROJECT_GUIDE.md)
-- [Architecture](ARCHITECTURE.md)
-- [MVP dependencies](MVP_DEPENDENCIES.md)
-- [MVP implementation checklist](MVP_IMPLEMENTATION_CHECKLIST.md)
-- [Gameplay development checklist](GAMEPLAY_DEVELOPMENT_CHECKLIST.md)
-- [MVP status snapshot](MVP_STATUS.md)
-- [Monetization and payments](MONETIZATION_AND_PAYMENTS.md)
-- [Branding guide](BRANDING_GUIDE.md)
-- [Agent and contributor guidance](AGENTS.md)
+See [docs/README.md](docs/README.md) for the organized documentation index.
+
+- [Project guide](docs/PROJECT_GUIDE.md)
+- [Architecture](docs/ARCHITECTURE.md)
+- [MVP dependencies](docs/MVP_DEPENDENCIES.md)
+- [MVP implementation checklist](docs/MVP_IMPLEMENTATION_CHECKLIST.md)
+- [Gameplay development checklist](docs/GAMEPLAY_DEVELOPMENT_CHECKLIST.md)
+- [MVP status snapshot](docs/MVP_STATUS.md)
+- [Monetization and payments](docs/MONETIZATION_AND_PAYMENTS.md)
+- [Branding guide](docs/BRANDING_GUIDE.md)
+- [Agent and contributor guidance](docs/AGENTS.md)
 
 ## Repository Layout
 
