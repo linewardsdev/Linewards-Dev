@@ -79,7 +79,11 @@ namespace LTW.UnityClient.Simulation
             }
 
             if (Input.GetKeyDown(KeyCode.B)) commands.PlaceSampleTower(2, 1);
+            if (Input.GetKeyDown(KeyCode.C)) commands.PlaceControlTower(3, 1);
+            if (Input.GetKeyDown(KeyCode.U)) commands.PlaceUtilityTower(4, 1);
             if (Input.GetKeyDown(KeyCode.S)) commands.SendSampleCreep();
+            if (Input.GetKeyDown(KeyCode.V)) commands.SendBruteCreep();
+            if (Input.GetKeyDown(KeyCode.W)) commands.SendSwarmCreep();
             if (Input.GetKeyDown(KeyCode.X)) commands.SellLastSampleTower();
             if (Input.GetKeyDown(KeyCode.R)) driver.ResetMatch();
             if (Input.GetKeyDown(KeyCode.E)) replayExporter.ExportCurrentReplay();
