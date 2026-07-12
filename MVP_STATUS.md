@@ -20,11 +20,17 @@ dotnet test LTW.sln --no-restore --configuration Release
 
 Latest local result: 38 tests passed.
 
+Unity compile smoke also passes locally when `LTW.Simulation.dll` is built and copied to
+`unity/LTW.UnityClient/Assets/Plugins`. The latest MCP-assisted Play Mode startup loaded
+`Assets/Scenes/LocalVerticalSlice.unity`, created the local match runtime objects, and reported
+no current Unity console errors.
+
 ## MVP-08 Rendering, Pooling, And Feedback
 
 Current code evidence:
 
 - `UnityVerticalSliceRenderer` renders lane cells, towers, creeps, ownership colors, spawn and exit cells.
+- The current vertical-slice lane layout is 12 columns by 9 rows, with spawn at `(0, 4)` and exit at `(11, 4)`.
 - Presentation pools exist for towers, creeps, effects, and floating text.
 - Simulation events create visual feedback for tower placement, creep spawn, creep kill, leak, income tick, and elimination.
 - Basic generated audio cues, mobile vibration hooks, reduced-effects preference, text scale, and disabled/simplified presentation modes exist.
@@ -40,6 +46,7 @@ Remaining acceptance evidence:
 Current code evidence:
 
 - `LocalVerticalSlice` runs a three-player carousel with Player 1 as the human lane and two bot players.
+- The local sample map uses three 12x9 lanes.
 - The bridge supports placement, sends, selling, reset, match summary, and replay records.
 - `LocalThreePlayerMatchTests` verifies a deterministic local bot match completes in the 3,000-6,000 tick target window.
 - `LocalReplayExporter` writes diagnostic replay JSON.

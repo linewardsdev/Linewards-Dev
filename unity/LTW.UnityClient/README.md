@@ -9,7 +9,12 @@ MVP-06 adds source adapters under `Assets/Scripts/Simulation`:
 - `UnityMatchBootstrapper` creates the local sample vertical slice.
 - `UnitySimulationDriver` advances simulation with a fixed-step accumulator and exposes snapshots/events.
 - `UnityCommandAdapter` converts Unity-facing actions into simulation commands.
-- `UnityVerticalSliceRenderer` displays the sample lane, towers, and creeps with simple primitives.
+- `UnityVerticalSliceRenderer` displays the three sample 12x9 lanes, towers, and creeps with simple primitives.
 - `DiagnosticsOverlay` provides a development-only text overlay and reset path support.
 
 Unity must reference the built `LTW.Simulation` assembly before these scripts compile in-editor. Build `LTW.Simulation` from the repository root and place/reference the resulting `LTW.Simulation.dll` under `Assets/Plugins` or configure an equivalent Unity assembly reference. Do not copy simulation rules into Unity scripts.
+
+```powershell
+dotnet build src\LTW.Simulation\LTW.Simulation.csproj --configuration Release
+Copy-Item src\LTW.Simulation\bin\Release\netstandard2.1\LTW.Simulation.dll unity\LTW.UnityClient\Assets\Plugins\LTW.Simulation.dll -Force
+```
