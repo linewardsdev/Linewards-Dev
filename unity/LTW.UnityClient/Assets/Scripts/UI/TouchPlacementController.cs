@@ -46,11 +46,16 @@ namespace LTW.UnityClient.UI
 
         public void NudgeRight() => Nudge(Vector2Int.right);
 
-        public void CancelPlacement()
+        public void CancelPlacement() => CancelPlacement(true);
+
+        private void CancelPlacement(bool clearFeedback)
         {
             isPlacing = false;
             ghost.SetActive(false);
-            feedbackView.Clear();
+            if (clearFeedback)
+            {
+                feedbackView.Clear();
+            }
         }
 
         public void ConfirmPlacement()
@@ -68,8 +73,8 @@ namespace LTW.UnityClient.UI
             };
             if (result.Accepted)
             {
-                feedbackView.ShowAccepted();
-                CancelPlacement();
+                feedbackView.ShowAccepted(SelectedTowerName() + " placed");
+                CancelPlacement(false);
                 return;
             }
 
@@ -81,7 +86,7 @@ namespace LTW.UnityClient.UI
             var result = commandAdapter.SellLastSampleTower();
             if (result.Accepted)
             {
-                feedbackView.Clear();
+                feedbackView.ShowEconomy("Tower sold");
                 return;
             }
 
@@ -126,6 +131,16 @@ namespace LTW.UnityClient.UI
                 1 => new Vector3(0.82f, 0.46f, 0.82f),
                 2 => new Vector3(0.52f, 0.52f, 0.52f),
                 _ => new Vector3(0.62f, 0.78f, 0.62f)
+            };
+        }
+
+        private string SelectedTowerName()
+        {
+            return selectedTowerRole switch
+            {
+                1 => "Control ward",
+                2 => "Relay ward",
+                _ => "Arrow ward"
             };
         }
     }
