@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using LTW.Simulation.Events;
 using LTW.Simulation.Primitives;
@@ -128,8 +129,9 @@ namespace LTW.UnityClient.Simulation
                 var key = tower.EntityId.Value.ToString();
                 visibleKeys.Add(key);
                 var towerObject = GetOrCreate(activeTowers, towerPool, key, "WardTower", PrimitiveType.Cylinder);
-                SetTowerTransform(towerObject, tower.Position, tower.LaneId);
-                SetColor(towerObject, OwnerAccent(tower.OwnerId.Value));
+                SetTowerTransform(towerObject, tower.Position, tower.LaneId, tower.TowerId.Value);
+                SetColor(towerObject, TowerRoleColor(tower.TowerId.Value, tower.OwnerId.Value));
+                ConfigureTowerRoleMarker(towerObject, tower.TowerId.Value);
                 lastKnownPositions[key] = towerObject.transform.position;
             }
 
@@ -140,8 +142,8 @@ namespace LTW.UnityClient.Simulation
                 var key = creep.EntityId.Value.ToString();
                 visibleKeys.Add(key);
                 var creepObject = GetOrCreate(activeCreeps, creepPool, key, "PressureCreep", PrimitiveType.Sphere);
-                SetCreepTransform(creepObject, creep.Position, creep.LaneId);
-                SetColor(creepObject, SenderColor(creep.SenderId.Value));
+                SetCreepTransform(creepObject, creep.Position, creep.LaneId, creep.CreepId.Value);
+                SetColor(creepObject, CreepRoleColor(creep.CreepId.Value, creep.SenderId.Value));
                 lastKnownPositions[key] = creepObject.transform.position;
             }
 
@@ -338,16 +340,16 @@ namespace LTW.UnityClient.Simulation
             instance.transform.localScale = Vector3.one * scale;
         }
 
-        private static void SetTowerTransform(GameObject instance, GridPosition position, LaneId laneId)
+        private static void SetTowerTransform(GameObject instance, GridPosition position, LaneId laneId, string towerId)
         {
             instance.transform.position = GridToWorld(position, laneId) + Vector3.up * 0.12f;
-            instance.transform.localScale = new Vector3(0.62f, 0.72f, 0.62f);
+            instance.transform.localScale = TowerRoleScale(towerId);
         }
 
-        private static void SetCreepTransform(GameObject instance, GridPosition position, LaneId laneId)
+        private static void SetCreepTransform(GameObject instance, GridPosition position, LaneId laneId, string creepId)
         {
-            instance.transform.position = GridToWorld(position, laneId) + Vector3.up * 0.02f;
-            instance.transform.localScale = new Vector3(0.36f, 0.28f, 0.36f);
+            instance.transform.position = GridToWorld(position, laneId) + CreepRoleOffset(creepId);
+            instance.transform.localScale = CreepRoleScale(creepId);
         }
 
         private static Vector3 GridToWorld(GridPosition position, LaneId laneId) => new Vector3(position.X, 0.35f, position.Y + LaneOffset(laneId.Value));
@@ -420,6 +422,168 @@ namespace LTW.UnityClient.Simulation
             var checker = (x + y + laneId) % 2 == 0 ? 0.02f : 0f;
             return new Color(0.07f + checker, 0.1f + checker, 0.17f + checker);
         }
+
+        private static Vector3 TowerRoleScale(string towerId)
+        {
+            if (ContainsRole(towerId, "slow") || ContainsRole(towerId, "splash") || ContainsRole(towerId, "control"))
+            {
+                return new Vector3(0.82f, 0.46f, 0.82f);
+            }
+
+            if (ContainsRole(towerId, "economy") || ContainsRole(towerId, "utility") || ContainsRole(towerId, "relay"))
+            {
+                return new Vector3(0.52f, 0.52f, 0.52f);
+            }
+
+            return new Vector3(0.62f, 0.78f, 0.62f);
+        }
+
+        private static Vector3 CreepRoleScale(string creepId)
+        {
+            if (ContainsRole(creepId, "swarm"))
+            {
+                return new Vector3(0.28f, 0.18f, 0.28f);
+            }
+
+            if (ContainsRole(creepId, "brute") || ContainsRole(creepId, "tank"))
+            {
+                return new Vector3(0.52f, 0.42f, 0.52f);
+            }
+
+            if (ContainsRole(creepId, "boss"))
+            {
+                return new Vector3(0.82f, 0.72f, 0.82f);
+            }
+
+            if (ContainsRole(creepId, "flying") || ContainsRole(creepId, "air"))
+            {
+                return new Vector3(0.42f, 0.18f, 0.42f);
+            }
+
+            if (ContainsRole(creepId, "attacker") || ContainsRole(creepId, "siege"))
+            {
+                return new Vector3(0.46f, 0.3f, 0.34f);
+            }
+
+            return new Vector3(0.36f, 0.24f, 0.36f);
+        }
+
+        private static Vector3 CreepRoleOffset(string creepId)
+        {
+            if (ContainsRole(creepId, "flying") || ContainsRole(creepId, "air"))
+            {
+                return Vector3.up * 0.32f;
+            }
+
+            if (ContainsRole(creepId, "boss"))
+            {
+                return Vector3.up * 0.16f;
+            }
+
+            return Vector3.up * 0.02f;
+        }
+
+        private static Color TowerRoleColor(string towerId, int ownerId)
+        {
+            if (ContainsRole(towerId, "slow") || ContainsRole(towerId, "ice") || ContainsRole(towerId, "control"))
+            {
+                return new Color(0.56f, 0.86f, 1f);
+            }
+
+            if (ContainsRole(towerId, "splash") || ContainsRole(towerId, "fire") || ContainsRole(towerId, "area"))
+            {
+                return new Color(1f, 0.58f, 0.22f);
+            }
+
+            if (ContainsRole(towerId, "economy") || ContainsRole(towerId, "utility") || ContainsRole(towerId, "relay"))
+            {
+                return SignalGold;
+            }
+
+            return OwnerAccent(ownerId);
+        }
+
+        private static Color CreepRoleColor(string creepId, int senderId)
+        {
+            if (ContainsRole(creepId, "brute") || ContainsRole(creepId, "tank") || ContainsRole(creepId, "boss"))
+            {
+                return new Color(1f, 0.55f, 0.35f);
+            }
+
+            if (ContainsRole(creepId, "swarm"))
+            {
+                return new Color(0.75f, 0.95f, 1f);
+            }
+
+            if (ContainsRole(creepId, "flying") || ContainsRole(creepId, "air"))
+            {
+                return new Color(0.82f, 0.72f, 1f);
+            }
+
+            if (ContainsRole(creepId, "invisible") || ContainsRole(creepId, "stealth"))
+            {
+                return new Color(0.72f, 0.84f, 0.9f, 0.62f);
+            }
+
+            if (ContainsRole(creepId, "attacker") || ContainsRole(creepId, "siege"))
+            {
+                return new Color(1f, 0.38f, 0.44f);
+            }
+
+            return SenderColor(senderId);
+        }
+
+        private static void ConfigureTowerRoleMarker(GameObject towerObject, string towerId)
+        {
+            var marker = towerObject.transform.Find("RoleMarker")?.gameObject;
+            if (marker == null)
+            {
+                marker = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+                marker.name = "RoleMarker";
+                marker.transform.SetParent(towerObject.transform, false);
+            }
+
+            marker.transform.localPosition = Vector3.up * 0.72f;
+            marker.transform.localScale = TowerMarkerScale(towerId);
+            SetColor(marker, TowerMarkerColor(towerId));
+        }
+
+        private static Vector3 TowerMarkerScale(string towerId)
+        {
+            if (ContainsRole(towerId, "slow") || ContainsRole(towerId, "splash") || ContainsRole(towerId, "control") || ContainsRole(towerId, "area"))
+            {
+                return new Vector3(0.8f, 0.08f, 0.8f);
+            }
+
+            if (ContainsRole(towerId, "economy") || ContainsRole(towerId, "utility") || ContainsRole(towerId, "relay"))
+            {
+                return new Vector3(0.34f, 0.34f, 0.34f);
+            }
+
+            return new Vector3(0.22f, 0.22f, 0.22f);
+        }
+
+        private static Color TowerMarkerColor(string towerId)
+        {
+            if (ContainsRole(towerId, "slow") || ContainsRole(towerId, "ice") || ContainsRole(towerId, "control"))
+            {
+                return new Color(0.72f, 0.94f, 1f);
+            }
+
+            if (ContainsRole(towerId, "splash") || ContainsRole(towerId, "fire") || ContainsRole(towerId, "area"))
+            {
+                return new Color(1f, 0.7f, 0.28f);
+            }
+
+            if (ContainsRole(towerId, "economy") || ContainsRole(towerId, "utility") || ContainsRole(towerId, "relay"))
+            {
+                return SignalGold;
+            }
+
+            return MintSignal;
+        }
+
+        private static bool ContainsRole(string contentId, string role) => contentId.IndexOf(role, StringComparison.OrdinalIgnoreCase) >= 0;
 
         private static Color SenderColor(int playerId) => playerId % 3 == 0 ? new Color(0.95f, 0.42f, 0.5f) : playerId % 3 == 1 ? SignalGold : WardViolet;
 
