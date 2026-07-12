@@ -12,6 +12,7 @@ MVP-06 adds source adapters under `Assets/Scripts/Simulation`:
 - `UnityVerticalSliceRenderer` displays the three long 7x18 north-south lanes, towers, and creeps with simple primitives.
 - `DiagnosticsOverlay` provides a development-only text overlay, including bot profiles and recent sends.
 - `LocalPlaytestRecorder` exports Markdown playtest reports and replay paths for tuning review.
+- `HudView` shows the local playtest counters for lives, gold, income, match tick, kills, leaks, income timing, and active pressure.
 
 ## Local Visual Test Controls
 

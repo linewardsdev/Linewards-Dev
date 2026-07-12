@@ -29,10 +29,12 @@ namespace LTW.UnityClient.Simulation
             var results = new GameObject("Match Results").AddComponent<MatchResultsBillboard>();
             var controls = matchObject.AddComponent<LocalVerticalSliceDevelopmentControls>();
             var feedback = matchObject.AddComponent<PlacementFeedbackView>();
+            var hud = matchObject.AddComponent<HudView>();
             var sendDock = matchObject.AddComponent<SendDockController>();
             var placement = matchObject.AddComponent<TouchPlacementController>();
 
             renderer.Initialize(driver);
+            hud.Initialize(driver);
             replayExporter.Initialize(driver);
             playtestRecorder.Initialize(driver, replayExporter);
             performanceSampler.Initialize(driver, renderer);

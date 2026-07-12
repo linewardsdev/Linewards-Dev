@@ -1,5 +1,7 @@
 using LTW.Simulation.Bridge;
+using LTW.Simulation.Events;
 using LTW.Simulation.Primitives;
+using LTW.UnityClient.Simulation;
 using UnityEngine;
 
 namespace LTW.UnityClient.UI
@@ -24,6 +26,10 @@ namespace LTW.UnityClient.UI
         private bool showRuntimeHud = true;
 
         private long incomeTicksRemaining = IncomeIntervalTicks;
+        private UnitySimulationDriver simulationDriver = null!;
+        private long lastObservedTick = -1;
+        private int kills;
+        private int leaks;
 
         public string GoldText { get; private set; } = "0";
 
@@ -35,17 +41,65 @@ namespace LTW.UnityClient.UI
 
         public string IncomeTimerText { get; private set; } = "50";
 
+        public string MatchTimeText { get; private set; } = "0";
+
+        public string KillsText { get; private set; } = "0";
+
+        public string LeaksText { get; private set; } = "0";
+
         public string LaneText { get; private set; } = "Your Line";
 
         public bool IncomeTickSoon { get; private set; }
 
-        public void Render(VerticalSliceSnapshot snapshot)
+        public void Initialize(UnitySimulationDriver driver)
         {
+            simulationDriver = driver;
+        }
+
+        private void Update()
+        {
+            if (simulationDriver == null || simulationDriver.LatestSnapshot == null)
+            {
+                return;
+            }
+
+            Render(simulationDriver.LatestSnapshot, simulationDriver.LatestEvents);
+        }
+
+        public void Render(VerticalSliceSnapshot snapshot, System.Collections.Generic.IReadOnlyList<ISimulationEvent> events)
+        {
+            if (snapshot.Tick.Value < lastObservedTick)
+            {
+                kills = 0;
+                leaks = 0;
+            }
+
+            foreach (var simulationEvent in events)
+            {
+                if (simulationEvent.Tick.Value <= lastObservedTick)
+                {
+                    continue;
+                }
+
+                if (simulationEvent is CreepKilledEvent killed && killed.DefenderId.Value == 1)
+                {
+                    kills++;
+                }
+                else if (simulationEvent is LeakEvent leak && leak.DefenderId.Value == 1)
+                {
+                    leaks += leak.LivesLost.Amount;
+                }
+            }
+
+            lastObservedTick = snapshot.Tick.Value;
             var player = snapshot.Players.Get(new PlayerId(1));
             GoldText = player.Gold.Amount.ToString();
             IncomeText = player.Income.Amount.ToString();
             LivesText = player.Lives.Amount.ToString();
             PressureText = snapshot.Creeps.Count.ToString();
+            MatchTimeText = snapshot.Tick.Value.ToString();
+            KillsText = kills.ToString();
+            LeaksText = leaks.ToString();
             incomeTicksRemaining = IncomeIntervalTicks - snapshot.Tick.Value % IncomeIntervalTicks;
             IncomeTimerText = incomeTicksRemaining.ToString();
             IncomeTickSoon = incomeTicksRemaining <= 5;
@@ -72,17 +126,23 @@ namespace LTW.UnityClient.UI
             var pillHeight = strip.height - 16f * scale;
             var gap = 8f * scale;
 
-            x = DrawLanePill(x, y, 128f * scale, pillHeight, scale);
+            x = DrawLanePill(x, y, 122f * scale, pillHeight, scale);
             x += gap;
-            x = DrawStatPill(x, y, 88f * scale, pillHeight, "LIVES", LivesText, Danger, scale);
+            x = DrawStatPill(x, y, 82f * scale, pillHeight, "LIVES", LivesText, Danger, scale);
             x += gap;
-            x = DrawStatPill(x, y, 94f * scale, pillHeight, "GOLD", GoldText, SignalGold, scale);
+            x = DrawStatPill(x, y, 88f * scale, pillHeight, "GOLD", GoldText, SignalGold, scale);
             x += gap;
-            x = DrawStatPill(x, y, 108f * scale, pillHeight, "INCOME", $"+{IncomeText}", MintSignal, scale);
+            x = DrawStatPill(x, y, 96f * scale, pillHeight, "INCOME", $"+{IncomeText}", MintSignal, scale);
             x += gap;
-            x = DrawTimerPill(x, y, 120f * scale, pillHeight, scale);
+            x = DrawStatPill(x, y, 82f * scale, pillHeight, "TIME", MatchTimeText, Cloud, scale);
             x += gap;
-            DrawStatPill(x, y, 114f * scale, pillHeight, "PRESSURE", PressureText, PressureText == "0" ? ArcaneBlue : Danger, scale);
+            x = DrawStatPill(x, y, 78f * scale, pillHeight, "KILLS", KillsText, MintSignal, scale);
+            x += gap;
+            x = DrawStatPill(x, y, 76f * scale, pillHeight, "LEAKS", LeaksText, LeaksText == "0" ? ArcaneBlue : Danger, scale);
+            x += gap;
+            x = DrawTimerPill(x, y, 96f * scale, pillHeight, scale);
+            x += gap;
+            DrawStatPill(x, y, 104f * scale, pillHeight, "PRESSURE", PressureText, PressureText == "0" ? ArcaneBlue : Danger, scale);
         }
 
         private static void EnsureStyles()
