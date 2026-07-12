@@ -134,7 +134,7 @@ public sealed class CreepSpawnedEvent : ISimulationEvent
 
 public sealed class CreepDamagedEvent : ISimulationEvent
 {
-    public CreepDamagedEvent(SimulationTick tick, PlayerId defenderId, LaneId laneId, EntityId towerEntityId, GridPosition towerPosition, EntityId creepEntityId, Gold damageDealt)
+    public CreepDamagedEvent(SimulationTick tick, PlayerId defenderId, LaneId laneId, EntityId towerEntityId, GridPosition towerPosition, EntityId creepEntityId, int damageDealt)
     {
         Tick = tick;
         DefenderId = defenderId;
@@ -157,7 +157,7 @@ public sealed class CreepDamagedEvent : ISimulationEvent
 
     public EntityId CreepEntityId { get; }
 
-    public Gold DamageDealt { get; }
+    public int DamageDealt { get; }
 }
 
 public sealed class CreepKilledEvent : ISimulationEvent
