@@ -64,11 +64,11 @@ Placement preview now queries the simulation bridge before confirmation, so lega
 ### Deliverables
 
 - [x] Support a tower palette with at least three tower slots, even if some content is still placeholder.
-- [ ] Add inspect/select behavior for existing towers.
-- [ ] Add sell and upgrade hooks or disabled states with clear affordance.
+- [x] Add inspect/select behavior for existing towers.
+- [x] Add sell and upgrade hooks or disabled states with clear affordance.
 - [x] Make confirm/cancel, invalid feedback, and recovery fast enough for repeated play.
 
-Current tower palette exposes Arrow, Control, Relay, and Sell controls for the local vertical slice. Upgrade hooks and existing-tower inspect/select remain open.
+Current tower palette exposes Arrow, Control, Relay, selected-tower inspect, and selected/last-tower selling for the local vertical slice. Upgrade remains intentionally out of scope until tower progression exists.
 
 ### Acceptance Checks
 
@@ -115,11 +115,11 @@ Initial target ranges and known balance questions are recorded in `docs/GD_TUNIN
 ### Deliverables
 
 - [x] Make bot profiles easy to identify in match setup or diagnostics.
-- [ ] Tune bots to place, send, and recover in patterns a human can learn from.
+- [x] Tune bots to place, send, and recover in patterns a human can learn from.
 - [x] Add at least one pressure bot and one defensive bot profile.
 - [x] Log bot decisions in replay diagnostics.
 
-Bot profiles now surface through the local diagnostics overlay and playtest report. The first local match setup uses Balanced and Defensive bot profiles; richer placement/recovery behavior still needs tuning work.
+Bot profiles now surface through the local diagnostics overlay and playtest report. Balanced and Defensive bots now place first-pass defensive towers before creating send pressure, giving playtests visible opponent behavior without hidden advantages.
 
 ### Acceptance Checks
 
@@ -131,12 +131,12 @@ Bot profiles now surface through the local diagnostics overlay and playtest repo
 
 ### Deliverables
 
-- [ ] Add a lightweight start state instead of dropping directly into an unclear running match.
-- [ ] Add pause/resume and restart flow for local testing.
+- [x] Add a lightweight start state instead of dropping directly into an unclear running match.
+- [x] Add pause/resume and restart flow for local testing.
 - [x] Improve post-match results with winner, duration, player economy/life state, and replay/report export path.
 - [ ] Ensure reset clears pooled presentation objects and HUD state.
 
-The local results billboard now shows winner, completion tick, and each player's final economy/life state. Replays and playtest reports can be exported from the local hotkeys.
+The local session now starts in a ready state with a runtime start/pause/restart overlay. The results billboard shows winner, completion tick, and each player's final economy/life state. Replays and playtest reports can be exported from the local hotkeys.
 
 ### Acceptance Checks
 
@@ -151,9 +151,9 @@ The local results billboard now shows winner, completion tick, and each player's
 - [x] Add distinct feedback for tower build, tower shot, creep hit, creep death, leak, send, income tick, and elimination.
 - [x] Keep effects readable under reduced-effects mode.
 - [x] Add simple audio mix controls or global mute for desktop testing.
-- [ ] Review text scale and contrast in the HUD.
+- [x] Review text scale and contrast in the HUD.
 
-Tower attacks now emit damage events so Unity can show lane beams and hit cues before kills. Reduced-effects mode keeps text/readability cues while skipping burst effects and beams, and desktop hotkeys cover reduced effects, mute, and volume.
+Tower attacks now emit damage events so Unity can show lane beams and hit cues before kills. Reduced-effects mode keeps text/readability cues while skipping burst effects and beams, desktop hotkeys cover reduced effects/mute/volume, and HUD panels use compact high-contrast runtime styling.
 
 ### Acceptance Checks
 
