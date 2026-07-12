@@ -10,13 +10,15 @@ namespace LTW.UnityClient.Simulation
         private static readonly Color Cloud = new Color(0.957f, 0.969f, 1f, 1f);
 
         private UnitySimulationDriver simulationDriver = null!;
+        private LocalPlaytestRecorder? playtestRecorder;
         private GUIStyle? titleStyle;
         private GUIStyle? bodyStyle;
         private GUIStyle? buttonStyle;
 
-        public void Initialize(UnitySimulationDriver driver)
+        public void Initialize(UnitySimulationDriver driver, LocalPlaytestRecorder recorder)
         {
             simulationDriver = driver;
+            playtestRecorder = recorder;
         }
 
         private void OnGUI()
@@ -64,6 +66,7 @@ namespace LTW.UnityClient.Simulation
             if (GUI.Button(new Rect(rect.x + 24f * scale + buttonWidth, buttonY, buttonWidth, 34f * scale), "RESTART", buttonStyle))
             {
                 simulationDriver.ResetMatch();
+                playtestRecorder?.ResetRecorder();
             }
         }
 
