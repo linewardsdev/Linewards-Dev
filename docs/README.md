@@ -23,5 +23,6 @@ This folder contains the durable project documentation for Line Wards, the mobil
 
 ## Related Context
 
-- [Graphics design context](../skill/context.md)
+- [Line Wards graphics skill](../skill/SKILL.md)
+- [Line Wards graphics context](../skill/context.md)
 
