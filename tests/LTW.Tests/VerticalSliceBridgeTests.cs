@@ -128,7 +128,10 @@ public sealed class VerticalSliceBridgeTests
         Assert.Contains(initial.Profiles, profile => profile.PlayerId.Equals(new PlayerId(2)) && profile.Profile == LTW.Simulation.Bots.BotDecisionProfile.Balanced);
         Assert.Contains(initial.Profiles, profile => profile.PlayerId.Equals(new PlayerId(3)) && profile.Profile == LTW.Simulation.Bots.BotDecisionProfile.Defensive);
 
-        simulation.AdvanceOneTick();
+        for (var tick = 0; tick < 7; tick++)
+        {
+            simulation.AdvanceOneTick();
+        }
 
         var diagnostics = simulation.GetBotDiagnostics();
         Assert.Contains(diagnostics.RecentDecisions, decision => decision.PlayerId.Equals(new PlayerId(2)) && decision.Quantity == 2);
