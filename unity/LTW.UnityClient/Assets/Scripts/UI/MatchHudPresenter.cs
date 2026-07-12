@@ -19,7 +19,7 @@ namespace LTW.UnityClient.UI
                 return;
             }
 
-            hudView.Render(snapshot);
+            hudView.Render(snapshot, simulationDriver.LatestEvents);
         }
     }
 }
