@@ -25,6 +25,12 @@ namespace LTW.UnityClient.UI
         [SerializeField]
         private bool showRuntimeDock = true;
 
+        public void Initialize(UnityCommandAdapter adapter, PlacementFeedbackView feedback)
+        {
+            commandAdapter = adapter;
+            feedbackView = feedback;
+        }
+
         public void SendRunner() => Send(commandAdapter.SendSampleCreep(), "Runner sent");
 
         public void SendBrute() => Send(commandAdapter.SendBruteCreep(), "Brute sent");

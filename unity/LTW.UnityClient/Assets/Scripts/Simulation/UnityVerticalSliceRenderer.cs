@@ -146,8 +146,9 @@ namespace LTW.UnityClient.Simulation
             {
                 var key = creep.EntityId.Value.ToString();
                 visibleKeys.Add(key);
+                var isNewCreep = !activeCreeps.ContainsKey(key);
                 var creepObject = GetOrCreate(activeCreeps, creepPool, key, "PressureCreep", PrimitiveType.Sphere);
-                SetCreepTransform(creepObject, creep.Position, creep.LaneId, creep.CreepId.Value);
+                SetCreepTransform(creepObject, creep.Position, creep.LaneId, creep.CreepId.Value, isNewCreep);
                 SetColor(creepObject, CreepRoleColor(creep.CreepId.Value, creep.SenderId.Value));
                 ConfigureCreepRoleMarker(creepObject, creep.CreepId.Value, creep.SenderId.Value);
                 lastKnownPositions[key] = creepObject.transform.position;
@@ -425,10 +426,13 @@ namespace LTW.UnityClient.Simulation
             instance.transform.localScale = TowerRoleScale(towerId);
         }
 
-        private static void SetCreepTransform(GameObject instance, GridPosition position, LaneId laneId, string creepId)
+        private static void SetCreepTransform(GameObject instance, GridPosition position, LaneId laneId, string creepId, bool snapToTarget)
         {
             var roleMotion = CreepRoleMotion(creepId);
-            instance.transform.position = GridToWorld(position, laneId) + CreepRoleOffset(creepId) + roleMotion.PositionOffset;
+            var targetPosition = GridToWorld(position, laneId) + CreepRoleOffset(creepId) + roleMotion.PositionOffset;
+            instance.transform.position = snapToTarget || Vector3.Distance(instance.transform.position, targetPosition) > 2.5f
+                ? targetPosition
+                : Vector3.Lerp(instance.transform.position, targetPosition, Mathf.Clamp01(Time.deltaTime * 8f));
             instance.transform.localScale = CreepRoleScale(creepId);
             instance.transform.rotation = roleMotion.Rotation;
         }
@@ -584,12 +588,12 @@ namespace LTW.UnityClient.Simulation
         {
             if (ContainsRole(creepId, "swarm"))
             {
-                return new Vector3(0.28f, 0.18f, 0.28f);
+                return new Vector3(0.46f, 0.28f, 0.46f);
             }
 
             if (ContainsRole(creepId, "brute") || ContainsRole(creepId, "tank"))
             {
-                return new Vector3(0.52f, 0.42f, 0.52f);
+                return new Vector3(0.74f, 0.56f, 0.74f);
             }
 
             if (ContainsRole(creepId, "boss"))
@@ -607,7 +611,7 @@ namespace LTW.UnityClient.Simulation
                 return new Vector3(0.46f, 0.3f, 0.34f);
             }
 
-            return new Vector3(0.36f, 0.24f, 0.36f);
+            return new Vector3(0.56f, 0.34f, 0.56f);
         }
 
         private static Vector3 CreepRoleOffset(string creepId)

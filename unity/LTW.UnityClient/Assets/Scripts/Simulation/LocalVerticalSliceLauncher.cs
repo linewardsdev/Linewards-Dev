@@ -1,4 +1,5 @@
 using UnityEngine;
+using LTW.UnityClient.UI;
 
 namespace LTW.UnityClient.Simulation
 {
@@ -26,33 +27,37 @@ namespace LTW.UnityClient.Simulation
             var stressHarness = matchObject.AddComponent<HeavySendStressHarness>();
             var results = new GameObject("Match Results").AddComponent<MatchResultsBillboard>();
             var controls = matchObject.AddComponent<LocalVerticalSliceDevelopmentControls>();
+            var feedback = matchObject.AddComponent<PlacementFeedbackView>();
+            var sendDock = matchObject.AddComponent<SendDockController>();
+            var placement = matchObject.AddComponent<TouchPlacementController>();
 
             renderer.Initialize(driver);
             replayExporter.Initialize(driver);
             performanceSampler.Initialize(driver, renderer);
             stressHarness.Initialize(commands, performanceSampler);
             results.Initialize(driver);
-            controls.Initialize(commands, driver, renderer, replayExporter, stressHarness);
+            controls.Initialize(commands, driver, renderer, replayExporter, stressHarness, placement);
             bootstrapper.Initialize(driver, commands);
-            CreateCamera();
+            var camera = CreateCamera();
+            CreateRuntimeHud(matchObject, camera, commands, feedback, sendDock, placement);
         }
 
-        private static void CreateCamera()
+        private static Camera CreateCamera()
         {
             if (Camera.main != null)
             {
-                return;
+                return Camera.main;
             }
 
             var cameraObject = new GameObject("Local Match Camera");
             cameraObject.tag = "MainCamera";
             var camera = cameraObject.AddComponent<Camera>();
             camera.orthographic = true;
-            camera.orthographicSize = 29f;
+            camera.orthographicSize = 12f;
             camera.nearClipPlane = 0.1f;
             camera.farClipPlane = 80f;
-            camera.transform.position = new Vector3(3f, 42f, -8f);
-            camera.transform.LookAt(new Vector3(3f, 0f, 28f));
+            camera.transform.position = new Vector3(3f, 24f, -8f);
+            camera.transform.LookAt(new Vector3(3f, 0f, 8.5f));
             camera.backgroundColor = new Color(0.06f, 0.08f, 0.12f);
             camera.clearFlags = CameraClearFlags.SolidColor;
 
@@ -60,6 +65,26 @@ namespace LTW.UnityClient.Simulation
             {
                 cameraObject.AddComponent<AudioListener>();
             }
+
+            return camera;
+        }
+
+        private static void CreateRuntimeHud(
+            GameObject matchObject,
+            Camera camera,
+            UnityCommandAdapter commands,
+            PlacementFeedbackView feedback,
+            SendDockController sendDock,
+            TouchPlacementController placement)
+        {
+            var ghost = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            ghost.name = "Placement Ghost";
+            ghost.transform.SetParent(matchObject.transform, false);
+            ghost.transform.localScale = new Vector3(0.62f, 0.78f, 0.62f);
+            ghost.SetActive(false);
+
+            placement.Initialize(camera, commands, feedback, ghost);
+            sendDock.Initialize(commands, feedback);
         }
     }
 
@@ -70,14 +95,22 @@ namespace LTW.UnityClient.Simulation
         private UnityVerticalSliceRenderer renderer = null!;
         private LocalReplayExporter replayExporter = null!;
         private HeavySendStressHarness stressHarness = null!;
+        private TouchPlacementController placement = null!;
 
-        public void Initialize(UnityCommandAdapter commandAdapter, UnitySimulationDriver simulationDriver, UnityVerticalSliceRenderer presentationRenderer, LocalReplayExporter exporter, HeavySendStressHarness harness)
+        public void Initialize(
+            UnityCommandAdapter commandAdapter,
+            UnitySimulationDriver simulationDriver,
+            UnityVerticalSliceRenderer presentationRenderer,
+            LocalReplayExporter exporter,
+            HeavySendStressHarness harness,
+            TouchPlacementController placementController)
         {
             commands = commandAdapter;
             driver = simulationDriver;
             renderer = presentationRenderer;
             replayExporter = exporter;
             stressHarness = harness;
+            placement = placementController;
         }
 
         private void Update()
@@ -87,9 +120,15 @@ namespace LTW.UnityClient.Simulation
                 return;
             }
 
-            if (Input.GetKeyDown(KeyCode.B)) commands.PlaceSampleTower(2, 2);
-            if (Input.GetKeyDown(KeyCode.C)) commands.PlaceControlTower(3, 2);
-            if (Input.GetKeyDown(KeyCode.U)) commands.PlaceUtilityTower(4, 2);
+            if (Input.GetKeyDown(KeyCode.B)) placement.BeginTowerPlacement();
+            if (Input.GetKeyDown(KeyCode.C)) placement.BeginControlTowerPlacement();
+            if (Input.GetKeyDown(KeyCode.U)) placement.BeginUtilityTowerPlacement();
+            if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.Space)) placement.ConfirmPlacement();
+            if (Input.GetKeyDown(KeyCode.Escape)) placement.CancelPlacement();
+            if (Input.GetKeyDown(KeyCode.UpArrow)) placement.NudgeUp();
+            if (Input.GetKeyDown(KeyCode.DownArrow)) placement.NudgeDown();
+            if (Input.GetKeyDown(KeyCode.LeftArrow)) placement.NudgeLeft();
+            if (Input.GetKeyDown(KeyCode.RightArrow)) placement.NudgeRight();
             if (Input.GetKeyDown(KeyCode.S)) commands.SendSampleCreep();
             if (Input.GetKeyDown(KeyCode.V)) commands.SendBruteCreep();
             if (Input.GetKeyDown(KeyCode.W)) commands.SendSwarmCreep();

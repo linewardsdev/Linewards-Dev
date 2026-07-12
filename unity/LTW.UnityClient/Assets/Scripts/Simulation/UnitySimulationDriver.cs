@@ -10,7 +10,7 @@ namespace LTW.UnityClient.Simulation
     public sealed class UnitySimulationDriver : MonoBehaviour
     {
         [SerializeField]
-        private float ticksPerSecond = 10f;
+        private float ticksPerSecond = 4f;
 
         private LocalVerticalSlice simulation;
         private float accumulator;

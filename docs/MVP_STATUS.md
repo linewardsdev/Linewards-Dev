@@ -35,7 +35,7 @@ that editor after the mobile HUD treatment merge.
 Current code evidence:
 
 - `UnityVerticalSliceRenderer` renders lane cells, towers, creeps, ownership colors, spawn and exit cells.
-- The current vertical-slice lane layout is 12 columns by 9 rows, with spawn at `(0, 4)` and exit at `(11, 4)`.
+- The current vertical-slice lane layout uses three 7x18 long north-south lanes, with spawn at `(3, 0)` and exit at `(3, 17)`.
 - Presentation pools exist for towers, creeps, effects, and floating text.
 - Simulation events create visual feedback for tower placement, creep spawn, creep kill, leak, income tick, and elimination.
 - Basic generated audio cues, mobile vibration hooks, reduced-effects preference, text scale, and disabled/simplified presentation modes exist.
@@ -51,7 +51,7 @@ Remaining acceptance evidence:
 Current code evidence:
 
 - `LocalVerticalSlice` runs a three-player carousel with Player 1 as the human lane and two bot players.
-- The local sample map uses three 12x9 lanes.
+- The local sample map uses three 7x18 lanes.
 - The bridge supports placement, sends, selling, reset, match summary, and replay records.
 - `LocalThreePlayerMatchTests` verifies a deterministic local bot match completes in the 3,000-6,000 tick target window.
 - `LocalReplayExporter` writes diagnostic replay JSON.
@@ -86,9 +86,9 @@ Remaining acceptance evidence:
 
 ## Next Work Order
 
-1. Manually run the GD-00 Play Mode pass with the merged mobile HUD and GD-01 board readability work.
+1. Re-run the GD-00 Play Mode pass after the runtime HUD, placement ghost, camera zoom, slower Unity tick rate, and creep readability fixes.
 2. Close MVP-06, MVP-08, and MVP-09 acceptance evidence as part of that local play loop.
-3. Continue GD-01 with manual camera/readability notes, then move into GD-02 placement and tower controls.
+3. Continue GD-02 with manual placement correction, sell, and reset notes.
 4. Work GD-03 through GD-07 to improve content variety, pacing, bots, session flow, and feedback.
 5. Run GD-08 local playtests and prioritize fixes from real gameplay notes.
 6. Resume MVP-10 TestFlight/device validation only after local play is coherent enough to benefit from mobile testing.
@@ -97,13 +97,15 @@ Remaining acceptance evidence:
 
 Current code evidence:
 
-- The local camera is orthographic and framed around the full three-lane board stack.
+- The local camera is orthographic and now defaults to a closer playable-lane view instead of shrinking the full three-lane stack.
 - Lanes now have darker backplates, stronger player-lane rails, flow arrows along the route, spawn/exit labels, and clearer lane labels.
 - The own lane is labeled as the defensive lane, while other lanes are labeled as send targets.
-- The placement ghost now changes to a danger color when the selected cell is outside the playable own-lane grid.
+- The runtime HUD now creates the send dock, tower palette, placement ghost, and placement feedback when the empty local scene boots.
+- The placement ghost now queries the simulation bridge before confirmation, distinguishing legal, occupied, unaffordable, invalid-lane, and path-blocking cells.
+- Unity-side creep presentation now uses slower local ticks, larger creep markers, and render interpolation so movement is easier to see.
 
 Remaining acceptance evidence:
 
-- Manually confirm the full 12x9 lane stack is framed well across desktop and mobile aspect ratios.
+- Manually confirm the 7x18 own-lane view is framed well across desktop and mobile aspect ratios.
 - Confirm the new path, spawn, exit, and lane labels remain readable during active creeps and combat feedback.
-- Extend placement preview beyond out-of-board feedback to distinguish blocked cells, unaffordable placements, and path-blocking placements before confirmation.
+- Confirm runtime HUD controls do not cover the active placement area during real Play Mode placement.

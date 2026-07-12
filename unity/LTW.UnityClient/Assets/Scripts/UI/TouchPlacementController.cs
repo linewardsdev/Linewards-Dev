@@ -41,6 +41,14 @@ namespace LTW.UnityClient.UI
         private Vector2Int selectedCell;
         private VerticalSliceCommandResult placementPreview = VerticalSliceCommandResult.Reject(CommandRejectionReason.InvalidLane);
 
+        public void Initialize(Camera camera, UnityCommandAdapter adapter, PlacementFeedbackView feedback, GameObject placementGhost)
+        {
+            inputCamera = camera;
+            commandAdapter = adapter;
+            feedbackView = feedback;
+            ghost = placementGhost;
+        }
+
         public void BeginTowerPlacement() => BeginTowerPlacement(0);
 
         public void BeginControlTowerPlacement() => BeginTowerPlacement(1);
