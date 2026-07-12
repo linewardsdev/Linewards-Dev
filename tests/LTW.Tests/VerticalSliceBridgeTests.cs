@@ -195,7 +195,7 @@ public sealed class VerticalSliceBridgeTests
     {
         var simulation = new LocalVerticalSlice(SampleVerticalSliceContent.Create());
         Assert.True(simulation.PlaceTower(new PlayerId(1), new LaneId(1), SampleVerticalSliceContent.TowerId, new GridPosition(2, 1)).Accepted);
-        Assert.True(simulation.QueueSend(new PlayerId(2), SampleVerticalSliceContent.CreepId).Accepted);
+        Assert.True(simulation.QueueSend(new PlayerId(3), SampleVerticalSliceContent.CreepId).Accepted);
 
         for (var tick = 0; tick < 4; tick++)
         {
