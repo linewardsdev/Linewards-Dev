@@ -11,7 +11,10 @@ namespace LTW.UnityClient.Simulation
     /// </summary>
     public sealed class UnityVerticalSliceRenderer : MonoBehaviour
     {
-        private const int LaneLength = 6;
+        private const int LaneLength = 12;
+        private const int LaneDepth = 9;
+        private const int LaneSpacing = 10;
+        private const int CenterRow = 4;
 
         [SerializeField] private UnitySimulationDriver simulationDriver = null!;
         [SerializeField] private PresentationDetail presentationDetail = PresentationDetail.Full;
@@ -97,11 +100,14 @@ namespace LTW.UnityClient.Simulation
             {
                 for (var x = 0; x < LaneLength; x++)
                 {
-                    var cell = CreatePrimitive("LaneCell", PrimitiveType.Cube);
-                    cell.transform.position = new Vector3(x, -0.18f, LaneOffset(lane) + 1f);
-                    cell.transform.localScale = new Vector3(0.96f, 0.12f, 0.96f);
-                    SetColor(cell, x == 0 ? new Color(0.2f, 0.8f, 0.35f) : x == LaneLength - 1 ? new Color(0.95f, 0.55f, 0.15f) : new Color(0.2f, 0.25f, 0.3f));
-                    laneCells.Add(cell);
+                    for (var y = 0; y < LaneDepth; y++)
+                    {
+                        var cell = CreatePrimitive("LaneCell", PrimitiveType.Cube);
+                        cell.transform.position = new Vector3(x, -0.18f, LaneOffset(lane) + y);
+                        cell.transform.localScale = new Vector3(0.96f, 0.12f, 0.96f);
+                        SetColor(cell, CellColor(x, y));
+                        laneCells.Add(cell);
+                    }
                 }
             }
 
@@ -147,7 +153,7 @@ namespace LTW.UnityClient.Simulation
                         PlaySound(towerBuiltClip);
                         break;
                     case CreepSpawnedEvent spawned:
-                        SpawnEffect(new Vector3(0f, 0.35f, LaneOffset(spawned.DefenderId.Value) + 1f), new Color(0.35f, 1f, 0.5f));
+                        SpawnEffect(new Vector3(0f, 0.35f, LaneOffset(spawned.DefenderId.Value) + CenterRow), new Color(0.35f, 1f, 0.5f));
                         break;
                     case CreepKilledEvent creepKilled:
                         SpawnEffect(PositionFor(creepKilled.CreepEntityId.Value.ToString()), new Color(1f, 0.9f, 0.25f));
@@ -328,9 +334,24 @@ namespace LTW.UnityClient.Simulation
 
         private static Vector3 GridToWorld(GridPosition position, LaneId laneId) => new Vector3(position.X, 0.35f, position.Y + LaneOffset(laneId.Value));
 
-        private static float LaneOffset(int laneId) => (laneId - 1) * 3f;
+        private static float LaneOffset(int laneId) => (laneId - 1) * LaneSpacing;
 
-        private Vector3 PositionFor(string entityId) => lastKnownPositions.TryGetValue(entityId, out var position) ? position : new Vector3(LaneLength - 1, 0.35f, 1f);
+        private Vector3 PositionFor(string entityId) => lastKnownPositions.TryGetValue(entityId, out var position) ? position : new Vector3(LaneLength - 1, 0.35f, CenterRow);
+
+        private static Color CellColor(int x, int y)
+        {
+            if (x == 0 && y == CenterRow)
+            {
+                return new Color(0.2f, 0.8f, 0.35f);
+            }
+
+            if (x == LaneLength - 1 && y == CenterRow)
+            {
+                return new Color(0.95f, 0.55f, 0.15f);
+            }
+
+            return y == CenterRow ? new Color(0.26f, 0.32f, 0.38f) : new Color(0.16f, 0.2f, 0.24f);
+        }
 
         private static Color SenderColor(int playerId) => playerId % 3 == 0 ? new Color(0.95f, 0.3f, 0.3f) : playerId % 3 == 1 ? new Color(0.95f, 0.75f, 0.25f) : new Color(0.75f, 0.35f, 1f);
 

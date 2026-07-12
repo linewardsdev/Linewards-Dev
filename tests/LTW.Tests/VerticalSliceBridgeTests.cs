@@ -37,7 +37,7 @@ public sealed class VerticalSliceBridgeTests
     {
         var simulation = new LocalVerticalSlice(SampleVerticalSliceContent.Create());
 
-        var blocking = simulation.PlaceTower(new PlayerId(1), new LaneId(1), SampleVerticalSliceContent.TowerId, new GridPosition(0, 1));
+        var blocking = simulation.PlaceTower(new PlayerId(1), new LaneId(1), SampleVerticalSliceContent.TowerId, new GridPosition(0, 4));
 
         Assert.False(blocking.Accepted);
         Assert.Equal(CommandRejectionReason.PathBlocked, blocking.RejectionReason);
