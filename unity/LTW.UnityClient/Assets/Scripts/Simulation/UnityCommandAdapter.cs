@@ -1,4 +1,5 @@
 using LTW.Simulation.Bridge;
+using LTW.Simulation.Commands;
 using LTW.Simulation.Primitives;
 using UnityEngine;
 
@@ -6,6 +7,9 @@ namespace LTW.UnityClient.Simulation
 {
     public sealed class UnityCommandAdapter : MonoBehaviour
     {
+        private const int LaneWidth = 7;
+        private const int LaneLength = 18;
+
         private LocalVerticalSlice simulation;
         private UnitySimulationDriver simulationDriver;
 
@@ -23,8 +27,13 @@ namespace LTW.UnityClient.Simulation
 
         private VerticalSliceCommandResult PreviewTower(LTW.Simulation.Content.ContentId towerId, int x, int y)
         {
+            if (!IsValidCell(x, y))
+            {
+                return VerticalSliceCommandResult.Reject(CommandRejectionReason.InvalidLane);
+            }
+
             return simulation is null
-                ? VerticalSliceCommandResult.Reject(LTW.Simulation.Commands.CommandRejectionReason.MatchPaused)
+                ? VerticalSliceCommandResult.Reject(CommandRejectionReason.MatchPaused)
                 : simulation.PreviewPlaceTower(new PlayerId(1), new LaneId(1), towerId, new GridPosition(x, y));
         }
 
@@ -36,8 +45,13 @@ namespace LTW.UnityClient.Simulation
 
         private VerticalSliceCommandResult PlaceTower(LTW.Simulation.Content.ContentId towerId, int x, int y)
         {
+            if (!IsValidCell(x, y))
+            {
+                return VerticalSliceCommandResult.Reject(CommandRejectionReason.InvalidLane);
+            }
+
             return simulation is null
-                ? VerticalSliceCommandResult.Reject(LTW.Simulation.Commands.CommandRejectionReason.MatchPaused)
+                ? VerticalSliceCommandResult.Reject(CommandRejectionReason.MatchPaused)
                 : simulation.PlaceTower(new PlayerId(1), new LaneId(1), towerId, new GridPosition(x, y));
         }
 
@@ -56,25 +70,30 @@ namespace LTW.UnityClient.Simulation
         {
             if (simulationDriver == null || !simulationDriver.HasStarted || simulationDriver.IsPaused)
             {
-                return VerticalSliceCommandResult.Reject(LTW.Simulation.Commands.CommandRejectionReason.MatchPaused);
+                return VerticalSliceCommandResult.Reject(CommandRejectionReason.MatchPaused);
             }
 
             return simulation is null
-                ? VerticalSliceCommandResult.Reject(LTW.Simulation.Commands.CommandRejectionReason.MatchPaused)
+                ? VerticalSliceCommandResult.Reject(CommandRejectionReason.MatchPaused)
                 : simulation.QueueSend(new PlayerId(1), creepId, quantity);
         }
 
         public VerticalSliceCommandResult SellLastSampleTower()
         {
             return simulation is null
-                ? VerticalSliceCommandResult.Reject(LTW.Simulation.Commands.CommandRejectionReason.MatchPaused)
+                ? VerticalSliceCommandResult.Reject(CommandRejectionReason.MatchPaused)
                 : simulation.SellLastTower(new PlayerId(1));
         }
 
         public VerticalSliceCommandResult SellTowerAt(int x, int y)
         {
+            if (!IsValidCell(x, y))
+            {
+                return VerticalSliceCommandResult.Reject(CommandRejectionReason.InvalidLane);
+            }
+
             return simulation is null
-                ? VerticalSliceCommandResult.Reject(LTW.Simulation.Commands.CommandRejectionReason.MatchPaused)
+                ? VerticalSliceCommandResult.Reject(CommandRejectionReason.MatchPaused)
                 : simulation.SellTowerAt(new PlayerId(1), new LaneId(1), new GridPosition(x, y));
         }
 
@@ -82,5 +101,7 @@ namespace LTW.UnityClient.Simulation
         {
             simulation?.Reset();
         }
+
+        private static bool IsValidCell(int x, int y) => x >= 0 && x < LaneWidth && y >= 0 && y < LaneLength;
     }
 }

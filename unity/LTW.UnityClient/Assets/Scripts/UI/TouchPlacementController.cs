@@ -8,6 +8,9 @@ namespace LTW.UnityClient.UI
 {
     public sealed class TouchPlacementController : MonoBehaviour
     {
+        private const int LaneWidth = 7;
+        private const int LaneLength = 18;
+
         private static readonly Color PanelInk = new(0.08f, 0.12f, 0.22f, 0.92f);
         private static readonly Color ArcaneBlue = new(0.302f, 0.639f, 1f, 1f);
         private static readonly Color MintSignal = new(0.349f, 0.882f, 0.714f, 1f);
@@ -97,6 +100,14 @@ namespace LTW.UnityClient.UI
         {
             if (!isPlacing)
             {
+                return;
+            }
+
+            if (!IsSelectedCellInBounds())
+            {
+                feedbackView.ShowRejected(CommandRejectionReason.InvalidLane);
+                placementPreview = VerticalSliceCommandResult.Reject(CommandRejectionReason.InvalidLane);
+                UpdateGhostColor();
                 return;
             }
 
@@ -261,8 +272,8 @@ namespace LTW.UnityClient.UI
             }
 
             selectedCell += delta;
-            selectedCell.x = Mathf.Clamp(selectedCell.x, 0, 6);
-            selectedCell.y = Mathf.Clamp(selectedCell.y, 0, 17);
+            selectedCell.x = Mathf.Clamp(selectedCell.x, 0, LaneWidth - 1);
+            selectedCell.y = Mathf.Clamp(selectedCell.y, 0, LaneLength - 1);
             MoveGhost();
         }
 
@@ -280,6 +291,13 @@ namespace LTW.UnityClient.UI
 
         private void RefreshPlacementPreview()
         {
+            if (!IsSelectedCellInBounds())
+            {
+                placementPreview = VerticalSliceCommandResult.Reject(CommandRejectionReason.InvalidLane);
+                UpdateGhostColor();
+                return;
+            }
+
             placementPreview = selectedTowerRole switch
             {
                 1 => commandAdapter.PreviewControlTower(selectedCell.x, selectedCell.y),
@@ -495,5 +513,8 @@ namespace LTW.UnityClient.UI
         }
 
         private static RectOffset ZeroOffset() => new RectOffset(0, 0, 0, 0);
+
+        private bool IsSelectedCellInBounds() =>
+            selectedCell.x >= 0 && selectedCell.x < LaneWidth && selectedCell.y >= 0 && selectedCell.y < LaneLength;
     }
 }
