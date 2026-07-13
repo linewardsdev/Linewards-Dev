@@ -9,6 +9,8 @@ namespace LTW.UnityClient.Simulation
     {
         [SerializeField] private CreepVisualProfile[] profiles = Array.Empty<CreepVisualProfile>();
 
+        public IReadOnlyList<CreepVisualProfile> Profiles => profiles ?? Array.Empty<CreepVisualProfile>();
+
         public CreepVisualProfile FindProfile(string creepId)
         {
             if (string.IsNullOrWhiteSpace(creepId))
@@ -16,9 +18,10 @@ namespace LTW.UnityClient.Simulation
                 return null;
             }
 
-            for (var index = 0; index < profiles.Length; index++)
+            var availableProfiles = Profiles;
+            for (var index = 0; index < availableProfiles.Count; index++)
             {
-                var profile = profiles[index];
+                var profile = availableProfiles[index];
                 if (profile != null && profile.Matches(creepId))
                 {
                     return profile;
@@ -40,6 +43,7 @@ namespace LTW.UnityClient.Simulation
         [SerializeField] private string bodyRendererPath = string.Empty;
         [SerializeField] private string[] senderAccentRendererPaths = Array.Empty<string>();
         [SerializeField] private string[] damageRendererPaths = Array.Empty<string>();
+        [SerializeField] private CreepDeathCueStyle deathCueStyle = CreepDeathCueStyle.Auto;
 
         public string CreepId => creepId;
 
@@ -58,6 +62,8 @@ namespace LTW.UnityClient.Simulation
         public IReadOnlyList<string> SenderAccentRendererPaths => senderAccentRendererPaths ?? Array.Empty<string>();
 
         public IReadOnlyList<string> DamageRendererPaths => damageRendererPaths ?? Array.Empty<string>();
+
+        public CreepDeathCueStyle DeathCueStyle => deathCueStyle;
 
         public bool Matches(string contentId) =>
             string.Equals(creepId, contentId, StringComparison.OrdinalIgnoreCase);
@@ -85,5 +91,14 @@ namespace LTW.UnityClient.Simulation
         Shimmer,
         SiegeWindup,
         AuraPulse
+    }
+
+    public enum CreepDeathCueStyle
+    {
+        Auto,
+        SparkBurst,
+        HeavyShatter,
+        ShardScatter,
+        SoftDissolve
     }
 }

@@ -42,6 +42,7 @@ namespace LTW.UnityClient.Simulation
         private readonly Dictionary<string, GameObject> activeCreeps = new Dictionary<string, GameObject>();
         private readonly Dictionary<string, string> activeCreepPoolKeys = new Dictionary<string, string>();
         private readonly Dictionary<string, Vector3> lastKnownPositions = new Dictionary<string, Vector3>();
+        private readonly Dictionary<string, string> lastKnownCreepIds = new Dictionary<string, string>();
         private readonly Dictionary<string, string> towerRolesByCell = new Dictionary<string, string>();
         private readonly Dictionary<string, int> lastCreepHealth = new Dictionary<string, int>();
         private readonly Dictionary<string, float> creepHitFlashUntil = new Dictionary<string, float>();
@@ -263,6 +264,7 @@ namespace LTW.UnityClient.Simulation
                 }
 
                 lastKnownPositions[key] = creepObject.transform.position;
+                lastKnownCreepIds[key] = creep.CreepId.Value;
                 lastCreepHealth[key] = creep.Health;
                 if (creep.LaneId.Value >= 1 && creep.LaneId.Value < pressureByLane.Length)
                 {
@@ -394,8 +396,11 @@ namespace LTW.UnityClient.Simulation
                         PlaySound(towerHitClip);
                         break;
                     case CreepKilledEvent creepKilled:
-                        var killPosition = PositionFor(creepKilled.CreepEntityId.Value.ToString());
-                        SpawnCreepDeathCue(killPosition, SignalGold);
+                        var killedCreepKey = creepKilled.CreepEntityId.Value.ToString();
+                        var killPosition = PositionFor(killedCreepKey);
+                        var killedCreepId = CreepIdFor(killedCreepKey);
+                        var deathProfile = creepVisualLibrary != null ? creepVisualLibrary.FindProfile(killedCreepId) : null;
+                        SpawnCreepDeathCue(killPosition, SignalGold, killedCreepId, deathProfile);
                         SpawnEffect(killPosition, SignalGold, 0.42f, 0.2f);
                         SpawnFloatingText(killPosition, $"+{creepKilled.BountyAwarded.Amount}", SignalGold, 0.56f);
                         SpawnReducedEffectCue(killPosition, "KILL", SignalGold);
@@ -566,8 +571,33 @@ namespace LTW.UnityClient.Simulation
             SpawnBeam(position + new Vector3(0f, 0.2f, -scale), position + new Vector3(0f, 0.2f, scale), color, 0.1f);
         }
 
-        private void SpawnCreepDeathCue(Vector3 position, Color color)
+        private void SpawnCreepDeathCue(Vector3 position, Color color, string creepId, CreepVisualProfile visualProfile)
         {
+            var deathCueStyle = CreepDeathCueStyleFor(creepId, visualProfile);
+            if (deathCueStyle == CreepDeathCueStyle.HeavyShatter)
+            {
+                SpawnBeam(position + new Vector3(-0.48f, 0.14f, -0.12f), position + new Vector3(0.48f, 0.14f, 0.12f), color, 0.18f);
+                SpawnBeam(position + new Vector3(-0.2f, 0.3f, -0.44f), position + new Vector3(0.2f, 0.3f, 0.44f), color, 0.18f);
+                SpawnBeam(position + new Vector3(-0.34f, 0.34f, 0.34f), position + new Vector3(0.34f, 0.08f, -0.34f), color, 0.18f);
+                return;
+            }
+
+            if (deathCueStyle == CreepDeathCueStyle.ShardScatter)
+            {
+                SpawnBeam(position + new Vector3(-0.46f, 0.12f, 0f), position + new Vector3(-0.12f, 0.24f, 0.36f), color, 0.12f);
+                SpawnBeam(position + new Vector3(0.42f, 0.12f, 0.04f), position + new Vector3(0.1f, 0.24f, -0.38f), color, 0.12f);
+                SpawnBeam(position + new Vector3(0f, 0.12f, -0.48f), position + new Vector3(0.34f, 0.24f, -0.12f), color, 0.12f);
+                SpawnBeam(position + new Vector3(0f, 0.12f, 0.48f), position + new Vector3(-0.34f, 0.24f, 0.12f), color, 0.12f);
+                return;
+            }
+
+            if (deathCueStyle == CreepDeathCueStyle.SoftDissolve)
+            {
+                SpawnBeam(position + new Vector3(-0.3f, 0.2f, -0.3f), position + new Vector3(0.3f, 0.2f, 0.3f), color, 0.2f);
+                SpawnBeam(position + new Vector3(-0.3f, 0.2f, 0.3f), position + new Vector3(0.3f, 0.2f, -0.3f), color, 0.2f);
+                return;
+            }
+
             SpawnBeam(position + new Vector3(-0.38f, 0.16f, 0f), position + new Vector3(0.38f, 0.16f, 0f), color, 0.14f);
             SpawnBeam(position + new Vector3(0f, 0.16f, -0.38f), position + new Vector3(0f, 0.16f, 0.38f), color, 0.14f);
             SpawnBeam(position + new Vector3(-0.24f, 0.22f, -0.24f), position + new Vector3(0.24f, 0.22f, 0.24f), color, 0.14f);
@@ -746,6 +776,7 @@ namespace LTW.UnityClient.Simulation
             activeTowers.Clear();
             activeCreeps.Clear();
             activeCreepPoolKeys.Clear();
+            lastKnownCreepIds.Clear();
             lastCreepHealth.Clear();
             creepHitFlashUntil.Clear();
             foreach (var presentation in timedPresentations) ReleaseToPool(presentation.Object, presentation.Pool);
@@ -948,7 +979,16 @@ namespace LTW.UnityClient.Simulation
 
             if (target != null)
             {
-                SetColor(target, color);
+                SetColorInChildren(target, color);
+            }
+        }
+
+        private static void SetColorInChildren(GameObject instance, Color color)
+        {
+            var renderers = instance.GetComponentsInChildren<Renderer>(true);
+            for (var index = 0; index < renderers.Length; index++)
+            {
+                renderers[index].material.color = color;
             }
         }
 
@@ -961,6 +1001,8 @@ namespace LTW.UnityClient.Simulation
         private static Vector3 LaneCenter(int laneId) => new Vector3(LaneOffset(laneId) + BoardCenterX, 0.35f, BoardCenterZ);
 
         private Vector3 PositionFor(string entityId) => lastKnownPositions.TryGetValue(entityId, out var position) ? position : GridToWorld(new GridPosition(CenterColumn, LaneLength - 1), new LaneId(1));
+
+        private string CreepIdFor(string entityId) => lastKnownCreepIds.TryGetValue(entityId, out var creepId) ? creepId : string.Empty;
 
         private void CreateLaneFrame(int laneId)
         {
@@ -1325,6 +1367,32 @@ namespace LTW.UnityClient.Simulation
 
             var dart = Mathf.Sin(time * 13f) * 0.07f;
             return new CreepMotion(Vector3.right * dart, Quaternion.Euler(7f, 0f, -Mathf.Sin(time * 13f) * 4f));
+        }
+
+        private static CreepDeathCueStyle CreepDeathCueStyleFor(string creepId, CreepVisualProfile visualProfile)
+        {
+            var deathCueStyle = visualProfile != null ? visualProfile.DeathCueStyle : CreepDeathCueStyle.Auto;
+            if (deathCueStyle != CreepDeathCueStyle.Auto)
+            {
+                return deathCueStyle;
+            }
+
+            if (ContainsRole(creepId, "brute") || ContainsRole(creepId, "tank") || ContainsRole(creepId, "boss"))
+            {
+                return CreepDeathCueStyle.HeavyShatter;
+            }
+
+            if (ContainsRole(creepId, "swarm"))
+            {
+                return CreepDeathCueStyle.ShardScatter;
+            }
+
+            if (ContainsRole(creepId, "invisible") || ContainsRole(creepId, "stealth") || ContainsRole(creepId, "aura") || ContainsRole(creepId, "support"))
+            {
+                return CreepDeathCueStyle.SoftDissolve;
+            }
+
+            return CreepDeathCueStyle.SparkBurst;
         }
 
         private static Color TowerRoleColor(string towerId, int ownerId)

@@ -33,14 +33,21 @@ Started asset pipeline scaffolding:
 - Wired `UnityVerticalSliceRenderer` to optionally use profile scale and motion style overrides while keeping primitive fallback rendering.
 - Added profile-backed creep prefab instantiation and pooling in `UnityVerticalSliceRenderer`.
 - Added profile renderer-path tinting for body, sender accent, and damage material slots.
+- Profile renderer paths can target a parent transform; all renderers beneath that transform receive the configured tint.
 - Added a default `Assets/Resources/CreepVisualLibrary.asset` with runner, brute, and swarm profiles.
 - Added renderer auto-loading for the default creep visual library when no scene-assigned library is present.
+- Added an editor-only placeholder prefab generator at `Assets/Editor/CreepVisualPrefabGenerator.cs`.
+- Added an editor-only creep visual library validator for missing prefab references and invalid renderer paths.
+- Placeholder generation writes `Assets/Art/Creeps/GeneratedPlaceholderReport.md` with prefab/material paths and review steps.
+- Placeholder generation creates procedural low-poly mesh assets under `Assets/Art/Creeps/GeneratedMeshes/`.
+- Added original low-poly OBJ source meshes for runner, brute, and swarm under their role source-art folders.
+- Added a creep material palette/spec under `Assets/Art/Creeps/Materials/`.
+- Added profile-driven death cue styles and role-specific kill cues for runner, brute, and swarm.
 
 Not started yet:
 
-- Low-poly mesh creation.
-- Texture/material creation.
-- `Creep_Runner.prefab`, `Creep_Brute.prefab`, and `Creep_Swarm.prefab`.
+- Replacing generated placeholder meshes/materials with final polished art.
+- Running the Unity editor generator to create `Creep_Runner.prefab`, `Creep_Brute.prefab`, and `Creep_Swarm.prefab` is blocked in this local environment by the installed macOS Unity editor requiring Rosetta 2.
 
 ## Polished Asset Direction
 
@@ -85,6 +92,7 @@ Suggested repo paths:
 unity/LTW.UnityClient/Assets/Art/Creeps/Runner/
 unity/LTW.UnityClient/Assets/Art/Creeps/Brute/
 unity/LTW.UnityClient/Assets/Art/Creeps/Swarm/
+unity/LTW.UnityClient/Assets/Art/Creeps/Materials/
 unity/LTW.UnityClient/Assets/Prefabs/Creeps/
 ```
 
@@ -108,7 +116,13 @@ creep id -> prefab, scale, bob style, accent slots, death cue style
 
 This can be a `CreepVisualProfile` ScriptableObject or a serialized config referenced by `UnityVerticalSliceRenderer`.
 
-Current implementation note: `CreepVisualLibrary` exists and can be assigned to `UnityVerticalSliceRenderer`. The local runtime path also auto-loads `Assets/Resources/CreepVisualLibrary.asset` when no scene-assigned library is present. The renderer consumes profile scale and motion style overrides, can instantiate profile prefabs, keeps prefab instances in per-profile pools, and applies profile renderer-path tinting for body, sender accents, and damage elements. If no profile or prefab is assigned, the primitive fallback remains active.
+Current implementation note: `CreepVisualLibrary` exists and can be assigned to `UnityVerticalSliceRenderer`. The local runtime path also auto-loads `Assets/Resources/CreepVisualLibrary.asset` when no scene-assigned library is present. The renderer consumes profile scale, motion style, and death cue style overrides, can instantiate profile prefabs, keeps prefab instances in per-profile pools, and applies profile renderer-path tinting for body, sender accents, and damage elements. If no profile or prefab is assigned, the primitive fallback remains active.
+
+Placeholder prefab generation note: run `Line Wards > Art > Generate Placeholder Creep Prefabs` in the Unity editor to generate editable runner, brute, and swarm placeholder prefabs, procedural low-poly mesh assets, generated materials, and matching `CreepVisualLibrary` prefab/path references.
+
+After generation, run `Line Wards > Art > Validate Creep Visual Library` to check that each configured prefab path resolves to at least one renderer.
+
+The generator also writes `Assets/Art/Creeps/GeneratedPlaceholderReport.md` as a review checklist for the generated placeholders.
 
 Rules:
 
@@ -153,4 +167,32 @@ Suggested checks:
 Current local environment notes:
 
 - `dotnet` was not available on PATH during the creep visual pass.
-- Unity was installed, but batch mode reported Rosetta 2 was required for the available macOS editor.
+- Unity `6000.3.12f1` is installed at `/Applications/Unity/Hub/Editor/6000.3.12f1/Unity.app`.
+- Batch mode command attempted:
+
+```text
+/Applications/Unity/Hub/Editor/6000.3.12f1/Unity.app/Contents/MacOS/Unity -batchmode -quit -projectPath /Users/admin/LTW/unity/LTW.UnityClient -executeMethod LTW.UnityClient.Editor.CreepVisualPrefabGenerator.GeneratePlaceholderCreepPrefabs -logFile /Users/admin/LTW/unity-generator.log
+```
+
+- Batch mode reported Rosetta 2 was required for the available macOS editor, so prefab/material/generated-mesh asset creation still needs to be run in a Unity-capable environment.
+
+## Current Completion Summary
+
+Completed repo-side work:
+
+- Presentation fallback differentiates runner, brute, and swarm.
+- Profile-driven prefab, scale, motion, tint, and death cue hooks exist.
+- Default `CreepVisualLibrary.asset` has runner, brute, and swarm profile defaults.
+- Editor menu can generate placeholder prefabs, procedural generated meshes, generated materials, library references, and a generated review report.
+- Editor menu can validate library prefab/path wiring.
+- Original low-poly OBJ source meshes exist for runner, brute, and swarm.
+- Material palette/spec exists for body, sender accent, damage, and shadow slots.
+
+Remaining Unity/art-side work:
+
+Prerequisite: install/use a Unity environment that can run the editor.
+
+- [ ] Run `Line Wards > Art > Generate Placeholder Creep Prefabs`.
+- [ ] Run `Line Wards > Art > Validate Creep Visual Library`.
+- [ ] Run the local vertical slice and capture phone-size/heavy-send screenshots.
+- [ ] Replace generated placeholder meshes/materials with final polished art only after silhouette readability is approved.

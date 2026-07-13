@@ -10,3 +10,7 @@ Read target:
 - Can show low-health damage through cracked/dim armor elements.
 
 Avoid protected faction silhouettes, bulky medieval creature styling, or medieval armor styling.
+
+## Source Asset
+
+- `Brute_ArmoredCore_Source.obj` provides an original low-poly pressure-core source mesh for the first production-placeholder pass.

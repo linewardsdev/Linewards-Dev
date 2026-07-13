@@ -10,3 +10,7 @@ Read target:
 - Keeps the body narrow enough that multiple runners do not hide the route.
 
 Avoid protected unit silhouettes, medieval creature styling, or detailed character anatomy.
+
+## Source Asset
+
+- `Runner_Dart_Source.obj` provides an original low-poly dart construct source mesh for the first production-placeholder pass.
