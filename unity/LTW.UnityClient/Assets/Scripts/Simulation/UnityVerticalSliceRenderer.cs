@@ -197,13 +197,17 @@ namespace LTW.UnityClient.Simulation
                 switch (simulationEvent)
                 {
                     case TowerPlacedEvent towerPlaced:
-                        SpawnEffect(GridToWorld(towerPlaced.Position, towerPlaced.LaneId), MintSignal, 0.68f, 0.34f);
-                        SpawnFloatingText(GridToWorld(towerPlaced.Position, towerPlaced.LaneId), "WARD", MintSignal, 0.62f);
+                        var buildPosition = GridToWorld(towerPlaced.Position, towerPlaced.LaneId);
+                        SpawnCellFrameCue(buildPosition, MintSignal, 0.28f);
+                        SpawnEffect(buildPosition, MintSignal, 0.68f, 0.34f);
+                        SpawnFloatingText(buildPosition, "WARD", MintSignal, 0.62f);
                         PlaySound(towerBuiltClip);
                         break;
                     case TowerSoldEvent towerSold:
-                        SpawnEffect(PositionFor(towerSold.TowerEntityId.Value.ToString()), SignalGold, 0.42f, 0.24f);
-                        SpawnFloatingText(PositionFor(towerSold.TowerEntityId.Value.ToString()), $"+{towerSold.Refund.Amount}", SignalGold, 0.58f);
+                        var sellPosition = PositionFor(towerSold.TowerEntityId.Value.ToString());
+                        SpawnCellFrameCue(sellPosition, SignalGold, 0.24f);
+                        SpawnEffect(sellPosition, SignalGold, 0.42f, 0.24f);
+                        SpawnFloatingText(sellPosition, $"+{towerSold.Refund.Amount}", SignalGold, 0.58f);
                         break;
                     case CreepQueuedEvent queued:
                         SpawnSendCue(queued);
@@ -336,6 +340,18 @@ namespace LTW.UnityClient.Simulation
             {
                 feedbackAudioSource.PlayOneShot(clip, PresentationPreferences.FeedbackVolume);
             }
+        }
+
+        private void SpawnCellFrameCue(Vector3 center, Color color, float duration)
+        {
+            var northWest = center + new Vector3(-0.48f, 0.18f, 0.48f);
+            var northEast = center + new Vector3(0.48f, 0.18f, 0.48f);
+            var southWest = center + new Vector3(-0.48f, 0.18f, -0.48f);
+            var southEast = center + new Vector3(0.48f, 0.18f, -0.48f);
+            SpawnBeam(northWest, northEast, color, duration);
+            SpawnBeam(southWest, southEast, color, duration);
+            SpawnBeam(northWest, southWest, color, duration);
+            SpawnBeam(northEast, southEast, color, duration);
         }
 
         private void SpawnLeakGateCue(int laneId)
