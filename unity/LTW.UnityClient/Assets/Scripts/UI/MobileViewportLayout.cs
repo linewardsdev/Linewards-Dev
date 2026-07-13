@@ -32,7 +32,7 @@ namespace LTW.UnityClient.UI
 
         public static float TopMargin(float scale) => Mathf.Max(8f * scale, Screen.height * 0.012f);
 
-        public static float BottomDockHeight(float scale) => 176f * scale + BottomMargin(scale);
+        public static float BottomDockHeight(float scale) => 144f * scale + BottomMargin(scale);
 
         public static Rect TopHudRect(float scale, float height)
         {
@@ -44,15 +44,15 @@ namespace LTW.UnityClient.UI
         public static Rect RightRailRect(float scale, float orderFromBottom)
         {
             var frame = ScreenRect();
-            var width = 72f * scale;
-            var height = 40f * scale;
+            var width = 48f * scale;
+            var height = 72f * scale;
             return new Rect(
-                frame.xMax - width - EdgeMargin(scale),
-                frame.yMax - BottomDockHeight(scale) - height - orderFromBottom * (height + 8f * scale),
+                frame.xMax - width - EdgeMargin(scale) * 0.25f,
+                frame.y + 188f * scale + orderFromBottom * (height + 8f * scale),
                 width,
                 height);
         }
 
-        public static float BottomMargin(float scale) => Mathf.Max(18f * scale, Screen.height * 0.025f);
+        public static float BottomMargin(float scale) => Mathf.Max(30f * scale, Screen.height * 0.035f);
     }
 }

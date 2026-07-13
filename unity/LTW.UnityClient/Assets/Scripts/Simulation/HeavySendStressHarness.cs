@@ -12,6 +12,7 @@ namespace LTW.UnityClient.Simulation
         private float nextBurst;
         private int peakCreeps;
         private int peakPresentationObjects;
+        private int burstIndex;
         private float worstFrameMilliseconds;
 
         public void Initialize(UnityCommandAdapter commandAdapter, DevicePerformanceSampler performanceSampler)
@@ -25,13 +26,18 @@ namespace LTW.UnityClient.Simulation
             running = true;
             elapsed = nextBurst = worstFrameMilliseconds = 0f;
             peakCreeps = peakPresentationObjects = 0;
+            burstIndex = 0;
         }
 
         private void Update()
         {
             if (!running) return;
             elapsed += Time.unscaledDeltaTime;
-            if (elapsed >= nextBurst) { commands.SendSampleCreep(8); nextBurst += 3f; }
+            if (elapsed >= nextBurst)
+            {
+                commands.SendStressReviewWave(burstIndex++);
+                nextBurst += 1.25f;
+            }
             peakCreeps = Mathf.Max(peakCreeps, sampler.ActiveCreepCount);
             peakPresentationObjects = Mathf.Max(peakPresentationObjects, sampler.ActivePresentationObjectCount);
             worstFrameMilliseconds = Mathf.Max(worstFrameMilliseconds, sampler.AverageFrameMilliseconds);

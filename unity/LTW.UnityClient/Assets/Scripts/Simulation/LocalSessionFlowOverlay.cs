@@ -34,18 +34,23 @@ namespace LTW.UnityClient.Simulation
             EnsureStyles();
             var scale = MobileViewportLayout.UiScale();
             var frame = MobileViewportLayout.ScreenRect();
-            var width = Mathf.Min(frame.width - 16f * scale, 360f * scale);
-            var height = 112f * scale;
-            var rect = new Rect(frame.x + (frame.width - width) * 0.5f, frame.y + 112f * scale, width, height);
+            var running = simulationDriver.HasStarted && !simulationDriver.IsPaused && simulationDriver.LatestMatchSummary is null;
+            var width = Mathf.Min(frame.width - 18f * scale, running ? 226f * scale : 322f * scale);
+            var height = running ? 38f * scale : 72f * scale;
+            var rect = new Rect(
+                frame.x + (frame.width - width) * 0.5f,
+                frame.yMax - MobileViewportLayout.BottomMargin(scale) - 62f * scale - height - 8f * scale,
+                width,
+                height);
 
             var previousColor = GUI.color;
             GUI.color = PanelInk;
             GUI.Box(rect, GUIContent.none);
             GUI.color = previousColor;
 
-            titleStyle!.fontSize = Mathf.RoundToInt(16f * scale);
-            bodyStyle!.fontSize = Mathf.RoundToInt(12f * scale);
-            buttonStyle!.fontSize = Mathf.RoundToInt(13f * scale);
+            titleStyle!.fontSize = Mathf.RoundToInt((running ? 12f : 15f) * scale);
+            bodyStyle!.fontSize = Mathf.RoundToInt(11f * scale);
+            buttonStyle!.fontSize = Mathf.RoundToInt(12f * scale);
 
             var stateText = simulationDriver.LatestMatchSummary is not null
                 ? "MATCH COMPLETE"
@@ -53,21 +58,40 @@ namespace LTW.UnityClient.Simulation
                     ? "READY"
                     : simulationDriver.IsPaused ? "PAUSED" : "RUNNING";
             titleStyle.normal.textColor = simulationDriver.LatestMatchSummary is not null ? SignalGold : MintSignal;
-            GUI.Label(new Rect(rect.x + 12f * scale, rect.y + 8f * scale, rect.width - 24f * scale, 22f * scale), stateText, titleStyle);
+
+            if (running)
+            {
+                GUI.Label(new Rect(rect.x + 10f * scale, rect.y, 72f * scale, rect.height), stateText, titleStyle);
+                var compactButtonWidth = 62f * scale;
+                if (GUI.Button(new Rect(rect.xMax - compactButtonWidth * 2f - 14f * scale, rect.y + 5f * scale, compactButtonWidth, 28f * scale), "PAUSE", buttonStyle))
+                {
+                    simulationDriver.TogglePause();
+                }
+
+                if (GUI.Button(new Rect(rect.xMax - compactButtonWidth - 8f * scale, rect.y + 5f * scale, compactButtonWidth, 28f * scale), "RESET", buttonStyle))
+                {
+                    simulationDriver.ResetMatch();
+                    playtestRecorder?.ResetRecorder();
+                }
+
+                return;
+            }
+
+            GUI.Label(new Rect(rect.x + 12f * scale, rect.y + 6f * scale, rect.width - 24f * scale, 20f * scale), stateText, titleStyle);
 
             var help = !simulationDriver.HasStarted
                 ? "Review the board, place towers, then start."
                 : simulationDriver.IsPaused ? "Paused. Adjust placement or resume." : "Space pauses. R restarts.";
-            GUI.Label(new Rect(rect.x + 12f * scale, rect.y + 33f * scale, rect.width - 24f * scale, 20f * scale), help, bodyStyle);
+            GUI.Label(new Rect(rect.x + 12f * scale, rect.y + 27f * scale, rect.width - 24f * scale, 18f * scale), help, bodyStyle);
 
-            var buttonY = rect.y + 64f * scale;
+            var buttonY = rect.y + 45f * scale;
             var buttonWidth = (rect.width - 36f * scale) / 2f;
-            if (GUI.Button(new Rect(rect.x + 12f * scale, buttonY, buttonWidth, 34f * scale), simulationDriver.HasStarted && !simulationDriver.IsPaused ? "PAUSE" : "START", buttonStyle))
+            if (GUI.Button(new Rect(rect.x + 12f * scale, buttonY, buttonWidth, 22f * scale), simulationDriver.HasStarted && !simulationDriver.IsPaused ? "PAUSE" : "START", buttonStyle))
             {
                 simulationDriver.TogglePause();
             }
 
-            if (GUI.Button(new Rect(rect.x + 24f * scale + buttonWidth, buttonY, buttonWidth, 34f * scale), "RESTART", buttonStyle))
+            if (GUI.Button(new Rect(rect.x + 24f * scale + buttonWidth, buttonY, buttonWidth, 22f * scale), "RESTART", buttonStyle))
             {
                 simulationDriver.ResetMatch();
                 playtestRecorder?.ResetRecorder();

@@ -127,6 +127,21 @@ public sealed class LocalVerticalSlice
 
     public VerticalSliceCommandResult QueueSend(PlayerId playerId, ContentId creepId) => QueueSend(playerId, creepId, 1);
 
+    /// <summary>
+    /// Local editor/playtest helper for stress and screenshot scenarios. This deliberately sits on the
+    /// vertical-slice bridge rather than in EconomyService so production economy rules stay unchanged.
+    /// </summary>
+    public void GrantLocalPlaytestGold(PlayerId playerId, Gold amount)
+    {
+        if (amount.Amount <= 0)
+        {
+            return;
+        }
+
+        var player = players.Get(playerId);
+        players = players.Replace(player.WithGold(new Gold(player.Gold.Amount + amount.Amount)));
+    }
+
     public VerticalSliceCommandResult QueueSend(PlayerId playerId, ContentId creepId, int quantity)
     {
         var command = new QueueSendCommand(playerId, tick, creepId, quantity);

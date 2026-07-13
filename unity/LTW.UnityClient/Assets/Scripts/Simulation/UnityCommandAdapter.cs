@@ -1,5 +1,6 @@
 using LTW.Simulation.Bridge;
 using LTW.Simulation.Commands;
+using LTW.Simulation.Economy;
 using LTW.Simulation.Primitives;
 using UnityEngine;
 
@@ -65,6 +66,28 @@ namespace LTW.UnityClient.Simulation
         public VerticalSliceCommandResult SendBruteCreep() => SendCreep(SampleVerticalSliceContent.BruteCreepId, 1);
 
         public VerticalSliceCommandResult SendSwarmCreep() => SendCreep(SampleVerticalSliceContent.SwarmCreepId, 3);
+
+        public VerticalSliceCommandResult SendStressReviewWave(int burstIndex)
+        {
+            if (simulationDriver == null || !simulationDriver.HasStarted || simulationDriver.IsPaused)
+            {
+                return VerticalSliceCommandResult.Reject(CommandRejectionReason.MatchPaused);
+            }
+
+            if (simulation is null)
+            {
+                return VerticalSliceCommandResult.Reject(CommandRejectionReason.MatchPaused);
+            }
+
+            var stressSender = new PlayerId(3);
+            simulation.GrantLocalPlaytestGold(stressSender, new Gold(5000));
+            return (burstIndex % 3) switch
+            {
+                1 => simulation.QueueSend(stressSender, SampleVerticalSliceContent.BruteCreepId, 10),
+                2 => simulation.QueueSend(stressSender, SampleVerticalSliceContent.SwarmCreepId, 30),
+                _ => simulation.QueueSend(stressSender, SampleVerticalSliceContent.CreepId, 24)
+            };
+        }
 
         private VerticalSliceCommandResult SendCreep(LTW.Simulation.Content.ContentId creepId, int quantity)
         {

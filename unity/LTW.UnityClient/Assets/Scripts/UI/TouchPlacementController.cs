@@ -499,7 +499,7 @@ namespace LTW.UnityClient.UI
             }
 
             var buttonY = rect.y + 42f * scale;
-            var buttonHeight = 92f * scale;
+            var buttonHeight = 72f * scale;
             var gap = 8f * scale;
             var buttonWidth = (rect.width - 24f * scale - gap * 3f) / 4f;
             var x = rect.x + 12f * scale;
@@ -547,13 +547,13 @@ namespace LTW.UnityClient.UI
 
             buttonStyle!.fontSize = Mathf.RoundToInt(12f * scale);
             buttonStyle.normal.textColor = enabled ? Cloud : new Color(Cloud.r, Cloud.g, Cloud.b, 0.5f);
-            GUI.Label(new Rect(rect.x, rect.y + 10f * scale, rect.width, 22f * scale), label, style);
+            GUI.Label(new Rect(rect.x, rect.y + 8f * scale, rect.width, 20f * scale), label, style);
 
             metaStyle!.fontSize = Mathf.RoundToInt(10f * scale);
             metaStyle.normal.textColor = enabled ? accent : new Color(accent.r, accent.g, accent.b, 0.48f);
-            GUI.Label(new Rect(rect.x, rect.y + 36f * scale, rect.width, 18f * scale), meta, metaStyle);
-            GUI.Label(new Rect(rect.x, rect.y + 55f * scale, rect.width, 18f * scale), enabled ? purpose : "need gold", metaStyle);
-            DrawAccent(new Rect(rect.x + rect.width * 0.28f, rect.y + 76f * scale, rect.width * 0.44f, 3f * scale), enabled ? accent : new Color(accent.r, accent.g, accent.b, 0.35f));
+            GUI.Label(new Rect(rect.x, rect.y + 30f * scale, rect.width, 16f * scale), meta, metaStyle);
+            GUI.Label(new Rect(rect.x, rect.y + 47f * scale, rect.width, 15f * scale), enabled ? purpose : "need gold", metaStyle);
+            DrawAccent(new Rect(rect.x + rect.width * 0.28f, rect.y + 63f * scale, rect.width * 0.44f, 3f * scale), enabled ? accent : new Color(accent.r, accent.g, accent.b, 0.35f));
             return enabled && pressed;
         }
 
@@ -741,14 +741,14 @@ namespace LTW.UnityClient.UI
 
         private static Rect TowerPaletteLauncherRect(float scale, Rect frame)
         {
-            var launcherSize = 64f * scale;
-            return new Rect(frame.x + 8f * scale, frame.yMax - launcherSize - MobileViewportLayout.BottomMargin(scale), launcherSize, launcherSize);
+            var launcherSize = 56f * scale;
+            return new Rect(frame.x + 12f * scale, frame.yMax - launcherSize - MobileViewportLayout.BottomMargin(scale), launcherSize, launcherSize);
         }
 
         private static Rect TowerPalettePanelRect(float scale, Rect frame)
         {
             var width = Mathf.Min(frame.width - 16f * scale, 430f * scale);
-            var height = 166f * scale;
+            var height = 136f * scale;
             return new Rect(frame.x + 8f * scale, frame.yMax - height - MobileViewportLayout.BottomMargin(scale), width, height);
         }
 

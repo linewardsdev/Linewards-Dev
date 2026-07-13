@@ -57,8 +57,8 @@ namespace LTW.UnityClient.UI
 
             var scale = MobileViewportLayout.UiScale();
             var frame = MobileViewportLayout.ScreenRect();
-            var launcherSize = 64f * scale;
-            var launcherRect = new Rect(frame.xMax - launcherSize - 8f * scale, frame.yMax - launcherSize - MobileViewportLayout.BottomMargin(scale), launcherSize, launcherSize);
+            var launcherSize = 56f * scale;
+            var launcherRect = new Rect(frame.xMax - launcherSize - 12f * scale, frame.yMax - launcherSize - MobileViewportLayout.BottomMargin(scale), launcherSize, launcherSize);
             if (!isExpanded)
             {
                 if (DrawLauncherButton(launcherRect, "SEND", SignalGold, scale))
@@ -70,7 +70,7 @@ namespace LTW.UnityClient.UI
             }
 
             var width = Mathf.Min(frame.width - 16f * scale, 430f * scale);
-            var height = 176f * scale;
+            var height = 146f * scale;
             var rect = new Rect(frame.xMax - width - 8f * scale, frame.yMax - height - MobileViewportLayout.BottomMargin(scale), width, height);
 
             DrawPanel(rect, PanelInk);
@@ -96,8 +96,8 @@ namespace LTW.UnityClient.UI
             metaStyle.normal.textColor = cooldown == 0 ? MintSignal : SignalGold;
             GUI.Label(new Rect(rect.x + 12f * scale, rect.y + 37f * scale, rect.width - 24f * scale, 18f * scale), cooldown == 0 ? "READY TO SEND" : $"COOLDOWN {cooldown} TICKS", metaStyle);
 
-            var buttonY = rect.y + 62f * scale;
-            var buttonHeight = 90f * scale;
+            var buttonY = rect.y + 54f * scale;
+            var buttonHeight = 72f * scale;
             var gap = 8f * scale;
             var buttonWidth = (rect.width - 24f * scale - gap * 2f) / 3f;
             var x = rect.x + 12f * scale;
@@ -149,12 +149,12 @@ namespace LTW.UnityClient.UI
             buttonStyle.normal.textColor = enabled ? Cloud : new Color(Cloud.r, Cloud.g, Cloud.b, 0.5f);
             buttonStyle.hover.textColor = buttonStyle.normal.textColor;
             buttonStyle.active.textColor = buttonStyle.normal.textColor;
-            GUI.Label(new Rect(rect.x, rect.y + 13f * scale, rect.width, 24f * scale), label, buttonStyle);
+            GUI.Label(new Rect(rect.x, rect.y + 9f * scale, rect.width, 21f * scale), label, buttonStyle);
 
             metaStyle!.fontSize = Mathf.RoundToInt(10f * scale);
             metaStyle.normal.textColor = enabled ? accent : new Color(accent.r, accent.g, accent.b, 0.48f);
-            GUI.Label(new Rect(rect.x, rect.y + 42f * scale, rect.width, 20f * scale), meta, metaStyle);
-            GUI.Label(new Rect(rect.x, rect.y + 63f * scale, rect.width, 18f * scale), enabled ? purpose : "wait", metaStyle);
+            GUI.Label(new Rect(rect.x, rect.y + 34f * scale, rect.width, 17f * scale), meta, metaStyle);
+            GUI.Label(new Rect(rect.x, rect.y + 52f * scale, rect.width, 16f * scale), enabled ? purpose : "wait", metaStyle);
             return enabled && pressed;
         }
 
