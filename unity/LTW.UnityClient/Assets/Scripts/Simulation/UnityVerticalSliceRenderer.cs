@@ -127,6 +127,7 @@ namespace LTW.UnityClient.Simulation
             for (var lane = 1; lane <= 3; lane++)
             {
                 CreateLaneBackplate(lane);
+                CreateLaneEnvironmentTrim(lane);
                 CreateLaneSurfaceBands(lane);
                 for (var x = 0; x < LaneWidth; x++)
                 {
@@ -151,6 +152,7 @@ namespace LTW.UnityClient.Simulation
                 CreateLaneEndpointLabel(lane, CenterColumn, 0, "SPAWN", MintSignal);
                 CreateLaneEndpointLabel(lane, CenterColumn, LaneLength - 1, "LIFE LOSS", LeakRed);
                 CreateLaneLabel(lane);
+                CreateLaneOwnershipBadge(lane);
             }
 
             laneCreated = true;
@@ -535,6 +537,33 @@ namespace LTW.UnityClient.Simulation
             laneDecorations.Add(backplate);
         }
 
+        private void CreateLaneEnvironmentTrim(int laneId)
+        {
+            var offset = LaneOffset(laneId);
+            var accent = OwnerAccent(laneId);
+            var gutterColor = LaneGutterColor(laneId);
+            var focusScale = laneId == 1 ? 1.18f : 0.92f;
+
+            CreateSurfaceBand($"Lane{laneId}WestGutter", new Vector3(offset - 0.62f, -0.245f, BoardCenterZ), new Vector3(0.34f, 0.05f, LaneLength + 0.9f), gutterColor);
+            CreateSurfaceBand($"Lane{laneId}EastGutter", new Vector3(offset + LaneWidth - 0.38f, -0.245f, BoardCenterZ), new Vector3(0.34f, 0.05f, LaneLength + 0.9f), gutterColor);
+            CreateSurfaceBand($"Lane{laneId}NorthAnchor", new Vector3(offset + BoardCenterX, -0.238f, LaneLength + 0.32f), new Vector3(LaneWidth * 0.62f, 0.055f, 0.24f), LaneAnchorColor(accent, laneId == 1));
+            CreateSurfaceBand($"Lane{laneId}SouthAnchor", new Vector3(offset + BoardCenterX, -0.238f, -0.32f), new Vector3(LaneWidth * 0.62f, 0.055f, 0.24f), LaneAnchorColor(accent, laneId == 1));
+
+            CreateCornerPylon(laneId, "NorthWest", new Vector3(offset - 0.64f, -0.08f, LaneLength + 0.25f), accent, focusScale);
+            CreateCornerPylon(laneId, "NorthEast", new Vector3(offset + LaneWidth - 0.36f, -0.08f, LaneLength + 0.25f), accent, focusScale);
+            CreateCornerPylon(laneId, "SouthWest", new Vector3(offset - 0.64f, -0.08f, -0.25f), accent, focusScale);
+            CreateCornerPylon(laneId, "SouthEast", new Vector3(offset + LaneWidth - 0.36f, -0.08f, -0.25f), accent, focusScale);
+        }
+
+        private void CreateCornerPylon(int laneId, string name, Vector3 position, Color color, float focusScale)
+        {
+            var pylon = CreatePrimitive($"Lane{laneId}{name}Pylon", PrimitiveType.Cube);
+            pylon.transform.position = position;
+            pylon.transform.localScale = new Vector3(0.22f * focusScale, 0.38f * focusScale, 0.22f * focusScale);
+            SetColor(pylon, color);
+            laneDecorations.Add(pylon);
+        }
+
         private void CreateLaneSurfaceBands(int laneId)
         {
             var offset = LaneOffset(laneId);
@@ -645,6 +674,24 @@ namespace LTW.UnityClient.Simulation
             label.text = labelText;
             label.color = color;
             laneDecorations.Add(labelObject);
+        }
+
+        private void CreateLaneOwnershipBadge(int laneId)
+        {
+            var badgeObject = new GameObject($"Lane{laneId}OwnershipBadge");
+            badgeObject.transform.position = new Vector3(LaneOffset(laneId) - 0.85f, 0.08f, BoardCenterZ);
+            badgeObject.transform.rotation = Quaternion.Euler(90f, 0f, 90f);
+            badgeObject.transform.localScale = Vector3.one * (laneId == 1 ? 0.042f : 0.034f);
+            var badge = badgeObject.AddComponent<TextMesh>();
+            badge.anchor = TextAnchor.MiddleCenter;
+            badge.alignment = TextAlignment.Center;
+            badge.fontSize = 44;
+            badge.characterSize = 0.18f;
+            badge.text = laneId == 1 ? "YOUR LINE" : $"TARGET {laneId}";
+            badge.color = OwnerAccent(laneId);
+            laneDecorations.Add(badgeObject);
+
+            CreateSurfaceBand($"Lane{laneId}OwnershipBadgeRail", new Vector3(LaneOffset(laneId) - 0.88f, -0.18f, BoardCenterZ), new Vector3(0.1f, 0.08f, LaneLength * 0.45f), LaneAnchorColor(OwnerAccent(laneId), laneId == 1));
         }
 
         private void CreateLaneLabel(int laneId)
@@ -1034,6 +1081,14 @@ namespace LTW.UnityClient.Simulation
         private static Color LaneBackplateColor(int laneId)
         {
             return laneId == 1 ? new Color(0.045f, 0.105f, 0.19f) : new Color(0.038f, 0.052f, 0.095f);
+        }
+
+        private static Color LaneGutterColor(int laneId) => laneId == 1 ? new Color(0.032f, 0.078f, 0.14f) : new Color(0.026f, 0.036f, 0.07f);
+
+        private static Color LaneAnchorColor(Color accent, bool isPlayerLane)
+        {
+            var strength = isPlayerLane ? 0.34f : 0.18f;
+            return new Color(accent.r * strength, accent.g * strength, accent.b * strength);
         }
 
         private static Color BuildZoneColor(Color tint, bool isPlayerLane)

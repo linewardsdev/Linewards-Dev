@@ -53,7 +53,7 @@ Resume iOS TestFlight work only after this fork produces a local desktop/Unity s
 
 Placement preview now queries the simulation bridge before confirmation, so legal, occupied, unaffordable, invalid-lane, and path-blocking outcomes use the same rules as actual placement.
 The empty local scene now creates the runtime tower palette, send dock, placement ghost, and feedback toast during bootstrap. The lanes render side by side with top spawn boxes, bottom life-loss boxes, distinct build bands, a brighter center route, spawn/leak gates, and lane ownership tinting. Unity-side creep rendering uses larger markers, slower local ticks, top-to-bottom projection, and interpolation so movement is easier to read.
-The first art-upgrade pass also aligns board material bands, endpoint halos, gate trim, and the default orthographic camera to the side-by-side north-south lane layout so the LTW-style vertical flow stays readable.
+The first art-upgrade pass also aligns board material bands, endpoint halos, gate trim, and the default orthographic camera, outside-lane gutters, corner anchors, and gutter ownership badges to the side-by-side north-south lane layout so the LTW-style vertical flow stays readable.
 
 ### Acceptance Checks
 
