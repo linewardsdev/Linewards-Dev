@@ -52,7 +52,8 @@ Resume iOS TestFlight work only after this fork produces a local desktop/Unity s
 - [x] Add placement preview feedback for legal, blocked, unaffordable, and path-blocking cells.
 
 Placement preview now queries the simulation bridge before confirmation, so legal, occupied, unaffordable, invalid-lane, and path-blocking outcomes use the same rules as actual placement.
-The empty local scene now creates the runtime tower palette, send dock, placement ghost, and feedback toast during bootstrap. The lanes render side by side with top spawn boxes and bottom life-loss boxes. Unity-side creep rendering uses larger markers, slower local ticks, top-to-bottom projection, and interpolation so movement is easier to read. The first art-upgrade pass adds board material bands, clearer center-route ribbons, endpoint washes, and spawn/life-loss gates.
+The empty local scene now creates the runtime tower palette, send dock, placement ghost, and feedback toast during bootstrap. The lanes render side by side with top spawn boxes, bottom life-loss boxes, distinct build bands, a brighter center route, spawn/leak gates, and lane ownership tinting. Unity-side creep rendering uses larger markers, slower local ticks, top-to-bottom projection, and interpolation so movement is easier to read.
+The first art-upgrade pass also aligns board material bands, endpoint halos, and gate trim to the side-by-side north-south lane layout so the LTW-style vertical flow stays readable.
 
 ### Acceptance Checks
 
@@ -154,7 +155,7 @@ The local session now starts in a ready state with a runtime start/pause/restart
 - [x] Add simple audio mix controls or global mute for desktop testing.
 - [x] Review text scale and contrast in the HUD.
 
-Tower attacks now emit damage events so Unity can show lane beams and hit cues before kills. Reduced-effects mode keeps text/readability cues while skipping burst effects and beams, desktop hotkeys cover reduced effects/mute/volume, and HUD panels use compact high-contrast runtime styling.
+Tower attacks now emit damage events so Unity can show lane beams and hit cues before kills. Reduced-effects mode keeps text/readability cues while skipping burst effects and beams, desktop hotkeys cover reduced effects/mute/volume, and HUD panels use compact high-contrast runtime styling. Tower and creep silhouettes now carry role-specific bases, halos, shadows, and markers so Arrow, Control, Relay, Runner, Brute, and Swarm remain distinguishable without transient effects.
 
 ### Acceptance Checks
 
