@@ -504,57 +504,54 @@ namespace LTW.UnityClient.UI
             var buttonWidth = (rect.width - 24f * scale - gap * 3f) / 4f;
             var x = rect.x + 12f * scale;
 
-            if (DrawPaletteButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "ARROW", "25g", "focus", ArcaneBlue, PlayerGold() >= 25, scale))
+            if (DrawPaletteButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "ARROW", "25g", "focus", ArcaneBlue, scale))
             {
                 selectedTower = null;
                 BeginTowerPlacement();
             }
 
             x += buttonWidth + gap;
-            if (DrawPaletteButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "CONTROL", "35g", "area", WardViolet, PlayerGold() >= 35, scale))
+            if (DrawPaletteButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "CONTROL", "35g", "area", WardViolet, scale))
             {
                 selectedTower = null;
                 BeginControlTowerPlacement();
             }
 
             x += buttonWidth + gap;
-            if (DrawPaletteButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "RELAY", "40g", "utility", SignalGold, PlayerGold() >= 40, scale))
+            if (DrawPaletteButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "RELAY", "40g", "utility", SignalGold, scale))
             {
                 selectedTower = null;
                 BeginUtilityTowerPlacement();
             }
 
             x += buttonWidth + gap;
-            if (DrawPaletteButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "SELL", "refund", "selected", Danger, true, scale))
+            if (DrawPaletteButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "SELL", "refund", "selected", Danger, scale))
             {
                 SellLastTower();
                 isPaletteExpanded = false;
             }
         }
 
-        private static bool DrawPaletteButton(Rect rect, string label, string meta, string purpose, Color accent, bool enabled, float scale)
+        private static bool DrawPaletteButton(Rect rect, string label, string meta, string purpose, Color accent, float scale)
         {
             var previousColor = GUI.color;
-            var tint = enabled ? 0.08f : 0.025f;
-            GUI.color = new Color(PanelInk.r + accent.r * tint, PanelInk.g + accent.g * tint, PanelInk.b + accent.b * tint, enabled ? PanelInk.a : 0.62f);
+            GUI.color = new Color(PanelInk.r + accent.r * 0.08f, PanelInk.g + accent.g * 0.08f, PanelInk.b + accent.b * 0.08f, PanelInk.a);
             var style = buttonStyle ?? GUI.skin.button;
-            GUI.enabled = enabled;
             var pressed = GUI.Button(rect, GUIContent.none, style);
-            GUI.enabled = true;
             GUI.color = previousColor;
 
-            DrawAccent(new Rect(rect.x, rect.yMax - 4f * scale, rect.width, 4f * scale), enabled ? accent : new Color(accent.r, accent.g, accent.b, 0.38f));
+            DrawAccent(new Rect(rect.x, rect.yMax - 4f * scale, rect.width, 4f * scale), accent);
 
             buttonStyle!.fontSize = Mathf.RoundToInt(12f * scale);
-            buttonStyle.normal.textColor = enabled ? Cloud : new Color(Cloud.r, Cloud.g, Cloud.b, 0.5f);
+            buttonStyle.normal.textColor = Cloud;
             GUI.Label(new Rect(rect.x, rect.y + 8f * scale, rect.width, 20f * scale), label, style);
 
             metaStyle!.fontSize = Mathf.RoundToInt(10f * scale);
-            metaStyle.normal.textColor = enabled ? accent : new Color(accent.r, accent.g, accent.b, 0.48f);
+            metaStyle.normal.textColor = accent;
             GUI.Label(new Rect(rect.x, rect.y + 30f * scale, rect.width, 16f * scale), meta, metaStyle);
-            GUI.Label(new Rect(rect.x, rect.y + 47f * scale, rect.width, 15f * scale), enabled ? purpose : "need gold", metaStyle);
-            DrawAccent(new Rect(rect.x + rect.width * 0.28f, rect.y + 63f * scale, rect.width * 0.44f, 3f * scale), enabled ? accent : new Color(accent.r, accent.g, accent.b, 0.35f));
-            return enabled && pressed;
+            GUI.Label(new Rect(rect.x, rect.y + 47f * scale, rect.width, 15f * scale), purpose, metaStyle);
+            DrawAccent(new Rect(rect.x + rect.width * 0.28f, rect.y + 63f * scale, rect.width * 0.44f, 3f * scale), accent);
+            return pressed;
         }
 
         private static bool DrawLauncherButton(Rect rect, string label, Color accent, float scale)
@@ -656,17 +653,6 @@ namespace LTW.UnityClient.UI
             GUI.color = color;
             GUI.DrawTexture(rect, Texture2D.whiteTexture);
             GUI.color = previousColor;
-        }
-
-        private int PlayerGold()
-        {
-            if (simulationDriver == null)
-            {
-                simulationDriver = Object.FindAnyObjectByType<UnitySimulationDriver>();
-            }
-
-            var snapshot = simulationDriver?.LatestSnapshot;
-            return snapshot?.Players.Get(new LTW.Simulation.Primitives.PlayerId(1)).Gold.Amount ?? 0;
         }
 
         private int SelectedTowerCost()

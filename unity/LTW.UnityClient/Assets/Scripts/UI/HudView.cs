@@ -117,6 +117,10 @@ namespace LTW.UnityClient.UI
             }
 
             EnsureStyles();
+            if (simulationDriver != null && simulationDriver.LatestSnapshot != null)
+            {
+                Render(simulationDriver.LatestSnapshot, simulationDriver.LatestEvents);
+            }
 
             var scale = MobileViewportLayout.UiScale();
             var gap = 4f * scale;
