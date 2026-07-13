@@ -36,6 +36,8 @@ namespace LTW.UnityClient.Simulation
         private readonly Dictionary<string, GameObject> activeTowers = new Dictionary<string, GameObject>();
         private readonly Dictionary<string, GameObject> activeCreeps = new Dictionary<string, GameObject>();
         private readonly Dictionary<string, Vector3> lastKnownPositions = new Dictionary<string, Vector3>();
+        private readonly Dictionary<int, GameObject> lanePressureMeters = new Dictionary<int, GameObject>();
+        private readonly Dictionary<int, TextMesh> lanePressureLabels = new Dictionary<int, TextMesh>();
         private readonly List<GameObject> laneCells = new List<GameObject>();
         private readonly List<GameObject> laneDecorations = new List<GameObject>();
         private readonly HashSet<string> visibleKeys = new HashSet<string>();
@@ -180,6 +182,7 @@ namespace LTW.UnityClient.Simulation
 
             ReleaseMissing(activeTowers, towerPool);
             visibleKeys.Clear();
+            var pressureByLane = new int[4];
             foreach (var creep in snapshot.Creeps)
             {
                 var key = creep.EntityId.Value.ToString();
@@ -190,9 +193,67 @@ namespace LTW.UnityClient.Simulation
                 SetColor(creepObject, CreepRoleColor(creep.CreepId.Value, creep.SenderId.Value));
                 ConfigureCreepRoleMarker(creepObject, creep.CreepId.Value, creep.SenderId.Value);
                 lastKnownPositions[key] = creepObject.transform.position;
+                if (creep.LaneId.Value >= 1 && creep.LaneId.Value < pressureByLane.Length)
+                {
+                    pressureByLane[creep.LaneId.Value]++;
+                }
             }
 
             ReleaseMissing(activeCreeps, creepPool);
+            UpdateLanePressureIndicators(pressureByLane);
+        }
+
+        private void UpdateLanePressureIndicators(IReadOnlyList<int> pressureByLane)
+        {
+            for (var laneId = 1; laneId <= 3; laneId++)
+            {
+                var pressure = pressureByLane[laneId];
+                var meter = GetLanePressureMeter(laneId);
+                var color = PressureColor(pressure);
+                var fill = Mathf.Clamp(pressure, 0, 12) / 12f;
+                var length = Mathf.Lerp(0.28f, LaneLength * 0.54f, fill);
+                meter.transform.localScale = new Vector3(0.16f, 0.12f, length);
+                meter.transform.position = new Vector3(LaneOffset(laneId) + LaneWidth + 0.18f, -0.08f, 0.35f + length * 0.5f);
+                SetColor(meter, color);
+
+                var label = GetLanePressureLabel(laneId);
+                label.text = pressure == 0 ? "CALM" : $"PRESS {pressure}";
+                label.color = color;
+            }
+        }
+
+        private GameObject GetLanePressureMeter(int laneId)
+        {
+            if (lanePressureMeters.TryGetValue(laneId, out var meter))
+            {
+                return meter;
+            }
+
+            meter = CreatePrimitive($"Lane{laneId}PressureMeter", PrimitiveType.Cube);
+            lanePressureMeters[laneId] = meter;
+            laneDecorations.Add(meter);
+            return meter;
+        }
+
+        private TextMesh GetLanePressureLabel(int laneId)
+        {
+            if (lanePressureLabels.TryGetValue(laneId, out var label))
+            {
+                return label;
+            }
+
+            var labelObject = new GameObject($"Lane{laneId}PressureLabel");
+            labelObject.transform.position = new Vector3(LaneOffset(laneId) + LaneWidth + 0.34f, 0.08f, LaneLength * 0.58f);
+            labelObject.transform.rotation = Quaternion.Euler(90f, 0f, 90f);
+            labelObject.transform.localScale = Vector3.one * 0.03f;
+            label = labelObject.AddComponent<TextMesh>();
+            label.anchor = TextAnchor.MiddleCenter;
+            label.alignment = TextAlignment.Center;
+            label.fontSize = 40;
+            label.characterSize = 0.16f;
+            lanePressureLabels[laneId] = label;
+            laneDecorations.Add(labelObject);
+            return label;
         }
 
         private void RenderEvents(IReadOnlyList<ISimulationEvent> events)
@@ -1291,6 +1352,21 @@ namespace LTW.UnityClient.Simulation
         {
             var strength = isPlayerLane ? 0.5f : 0.26f;
             return new Color(accent.r * strength, accent.g * strength, accent.b * strength);
+        }
+
+        private static Color PressureColor(int pressure)
+        {
+            if (pressure >= 8)
+            {
+                return LeakRed;
+            }
+
+            if (pressure >= 4)
+            {
+                return SignalGold;
+            }
+
+            return MintSignal;
         }
 
         private static Color BuildZoneColor(Color tint, bool isPlayerLane)
