@@ -155,7 +155,7 @@ namespace LTW.UnityClient.UI
             style.normal.textColor = previousTextColor;
 
             var currentEvent = Event.current;
-            if (currentEvent.type != EventType.MouseDown || !rect.Contains(currentEvent.mousePosition))
+            if (currentEvent.type != EventType.MouseUp || !rect.Contains(currentEvent.mousePosition))
             {
                 return false;
             }
