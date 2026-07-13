@@ -68,6 +68,7 @@ namespace LTW.UnityClient.Simulation
             incomeClip = CreateTone("IncomeCue", 1040f, 0.045f);
             leakClip = CreateTone("LeakCue", 180f, 0.14f);
             eliminationClip = CreateTone("EliminationCue", 120f, 0.22f);
+            ConfigureDefaultCamera();
         }
 
         public void SetPresentationDetail(PresentationDetail detail)
@@ -77,6 +78,21 @@ namespace LTW.UnityClient.Simulation
             {
                 ReleaseAllActiveObjects();
             }
+        }
+
+        private static void ConfigureDefaultCamera()
+        {
+            var camera = Camera.main;
+            if (camera == null)
+            {
+                return;
+            }
+
+            var boardCenter = new Vector3(LaneOffset(2) + BoardCenterX, 0f, BoardCenterZ);
+            camera.orthographic = true;
+            camera.orthographicSize = 11.4f;
+            camera.transform.position = boardCenter + new Vector3(0f, 17.5f, -7.4f);
+            camera.transform.LookAt(boardCenter);
         }
 
         private void Update()
