@@ -11,6 +11,7 @@ namespace LTW.UnityClient.Simulation
     /// Projects simulation snapshots and events into pooled Unity objects. This class never
     /// changes simulation state; it is safe to disable it for low-spec or diagnostic runs.
     /// </summary>
+    [DefaultExecutionOrder(10000)]
     public sealed class UnityVerticalSliceRenderer : MonoBehaviour
     {
         private const int LaneWidth = 7;
@@ -148,6 +149,11 @@ namespace LTW.UnityClient.Simulation
         }
 
         private void LateUpdate()
+        {
+            ConfigureDefaultCamera();
+        }
+
+        private void OnPreCull()
         {
             ConfigureDefaultCamera();
         }

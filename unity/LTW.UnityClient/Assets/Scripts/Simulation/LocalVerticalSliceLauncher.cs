@@ -54,12 +54,13 @@ namespace LTW.UnityClient.Simulation
 
         private static Camera CreateCamera()
         {
-            if (Camera.main != null)
+            var existingCameras = Camera.allCameras;
+            for (var index = 0; index < existingCameras.Length; index++)
             {
-                return Camera.main;
+                existingCameras[index].enabled = false;
             }
 
-            var cameraObject = new GameObject("Local Match Camera");
+            var cameraObject = new GameObject("LTW Presentation Camera");
             cameraObject.tag = "MainCamera";
             var camera = cameraObject.AddComponent<Camera>();
             camera.orthographic = true;
@@ -70,6 +71,7 @@ namespace LTW.UnityClient.Simulation
             camera.transform.LookAt(new Vector3(12f, 0f, 8.5f));
             camera.backgroundColor = new Color(0.06f, 0.08f, 0.12f);
             camera.clearFlags = CameraClearFlags.SolidColor;
+            camera.enabled = true;
 
             if (Object.FindAnyObjectByType<AudioListener>() == null)
             {

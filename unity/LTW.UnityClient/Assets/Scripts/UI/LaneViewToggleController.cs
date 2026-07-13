@@ -13,35 +13,35 @@ namespace LTW.UnityClient.UI
         [SerializeField]
         private bool showRuntimeToggle;
 
-        private bool showingMap;
+        public bool IsShowingMap => renderer != null && renderer.CameraFraming == LaneCameraFraming.AllLanes;
 
-        public bool IsShowingMap => showingMap;
-
-        public string NextViewLabel => showingMap ? "LANE" : "MAP";
+        public string NextViewLabel => IsShowingMap ? "LANE" : "MAP";
 
         public void Initialize(UnityVerticalSliceRenderer presentationRenderer)
         {
             renderer = presentationRenderer;
-            showingMap = false;
-            ApplyCurrentView();
+            ShowLaneView();
         }
 
         public void ToggleView()
         {
-            showingMap = !showingMap;
-            ApplyCurrentView();
+            if (IsShowingMap)
+            {
+                ShowLaneView();
+                return;
+            }
+
+            ShowMapView();
         }
 
         public void ShowLaneView()
         {
-            showingMap = false;
-            ApplyCurrentView();
+            renderer?.SetCameraFraming(LaneCameraFraming.ActiveLane);
         }
 
         public void ShowMapView()
         {
-            showingMap = true;
-            ApplyCurrentView();
+            renderer?.SetCameraFraming(LaneCameraFraming.AllLanes);
         }
 
         private void OnGUI()
@@ -52,14 +52,5 @@ namespace LTW.UnityClient.UI
             }
         }
 
-        private void ApplyCurrentView()
-        {
-            if (renderer == null)
-            {
-                return;
-            }
-
-            renderer.SetCameraFraming(showingMap ? LaneCameraFraming.AllLanes : LaneCameraFraming.ActiveLane);
-        }
     }
 }
