@@ -247,11 +247,13 @@ namespace LTW.UnityClient.Simulation
                         PlaySound(incomeClip);
                         break;
                     case PlayerEliminatedEvent eliminated:
-                        SpawnEffect(LaneCenter(eliminated.PlayerId.Value) + Vector3.up * 0.2f, new Color(1f, 0.18f, 0.24f), 1.15f, 0.55f);
-                        SpawnFloatingText(LaneCenter(eliminated.PlayerId.Value) + Vector3.up * 1.2f, $"PLAYER {eliminated.PlayerId.Value} OUT", new Color(1f, 0.35f, 0.35f), 0.8f);
+                        SpawnLaneShutdownCue(eliminated.PlayerId.Value);
+                        SpawnEffect(LaneCenter(eliminated.PlayerId.Value) + Vector3.up * 0.2f, LeakRed, 1.15f, 0.55f);
+                        SpawnFloatingText(LaneCenter(eliminated.PlayerId.Value) + Vector3.up * 1.2f, $"PLAYER {eliminated.PlayerId.Value} OUT", LeakRed, 0.8f);
                         PlaySound(eliminationClip);
                         break;
                     case MatchEndedEvent ended:
+                        SpawnVictoryLaneCue(ended.WinnerId.Value);
                         SpawnFloatingText(LaneCenter(ended.WinnerId.Value) + Vector3.up * 1.85f, $"PLAYER {ended.WinnerId.Value} WINS", SignalGold, 1f);
                         PlaySound(eliminationClip);
                         break;
@@ -332,6 +334,26 @@ namespace LTW.UnityClient.Simulation
             {
                 feedbackAudioSource.PlayOneShot(clip, PresentationPreferences.FeedbackVolume);
             }
+        }
+
+        private void SpawnLaneShutdownCue(int laneId)
+        {
+            var offset = LaneOffset(laneId);
+            var southwest = new Vector3(offset + 0.55f, 0.52f, 0.45f);
+            var northeast = new Vector3(offset + LaneWidth - 1.55f, 0.52f, LaneLength - 0.45f);
+            var northwest = new Vector3(offset + 0.55f, 0.52f, LaneLength - 0.45f);
+            var southeast = new Vector3(offset + LaneWidth - 1.55f, 0.52f, 0.45f);
+            SpawnBeam(southwest, northeast, LeakRed, 0.48f);
+            SpawnBeam(northwest, southeast, LeakRed, 0.48f);
+        }
+
+        private void SpawnVictoryLaneCue(int laneId)
+        {
+            var center = LaneCenter(laneId);
+            var offset = LaneOffset(laneId);
+            SpawnEffect(center + Vector3.up * 0.38f, SignalGold, 1.05f, 0.45f);
+            SpawnBeam(new Vector3(offset + 0.65f, 0.5f, BoardCenterZ), new Vector3(offset + LaneWidth - 1.65f, 0.5f, BoardCenterZ), SignalGold, 0.42f);
+            SpawnBeam(new Vector3(offset + BoardCenterX, 0.5f, 0.65f), new Vector3(offset + BoardCenterX, 0.5f, LaneLength - 0.65f), SignalGold, 0.42f);
         }
 
         private void SpawnSendCue(CreepQueuedEvent queued)
