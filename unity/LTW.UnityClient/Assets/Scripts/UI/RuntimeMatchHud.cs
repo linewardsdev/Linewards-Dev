@@ -29,6 +29,11 @@ namespace LTW.UnityClient.UI
         [SerializeField]
         private bool showRuntimeHud = true;
 
+        public void Initialize(UnitySimulationDriver driver)
+        {
+            simulationDriver = driver;
+        }
+
         private void OnGUI()
         {
             if (!showRuntimeHud)
