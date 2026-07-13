@@ -212,18 +212,19 @@ namespace LTW.UnityClient.UI
 
             var gap = 5f * scale;
             var leftWidth = Mathf.Min(104f * scale, header.width * 0.27f);
-            var rightWidth = Mathf.Min(84f * scale, header.width * 0.22f);
-            var centerWidth = Mathf.Max(92f * scale, header.width - leftWidth - rightWidth - gap * 2f);
+            var centerWidth = Mathf.Max(92f * scale, header.width - leftWidth - gap - 6f * scale);
 
             var left = new Rect(header.x + 6f * scale, header.y + 4f * scale, leftWidth, header.height - 8f * scale);
             var center = new Rect(left.xMax + gap, left.y, centerWidth, left.height);
-            var right = new Rect(center.xMax + gap, left.y, rightWidth - 6f * scale, left.height);
 
             DrawPanel(left, TintPanel(ArcaneBlue, 0.08f));
             DrawAccent(new Rect(left.x, left.yMax - 3f * scale, left.width, 3f * scale), ArcaneBlue);
-            laneStyle!.fontSize = Mathf.RoundToInt(10f * scale);
-            laneStyle.normal.textColor = Cloud;
-            GUI.Label(new Rect(left.x + 4f * scale, left.y, left.width - 8f * scale, left.height), "YOUR\nLINE", laneStyle);
+            buttonStyle!.fontSize = Mathf.RoundToInt(10f * scale);
+            buttonStyle.normal.textColor = ArcaneBlue;
+            if (GUI.Button(left, statsExpanded ? "HIDE\nSTATS" : "STATS\n▼", buttonStyle))
+            {
+                statsExpanded = !statsExpanded;
+            }
 
             DrawPanel(center, TintPanel(SignalGold, 0.055f));
             DrawAccent(new Rect(center.x, center.yMax - 3f * scale, center.width, 3f * scale), SignalGold);
@@ -231,19 +232,6 @@ namespace LTW.UnityClient.UI
             valueStyle.normal.textColor = Cloud;
             var summary = $"{LivesText}♥  {GoldText}G  +{IncomeText}  P{PressureText}";
             GUI.Label(new Rect(center.x + 8f * scale, center.y, center.width - 16f * scale, center.height), summary, valueStyle);
-
-            var reducedEffects = PresentationPreferences.ReducedEffects;
-            var matchState = reducedEffects ? "RED\nFX" : LeaksText == "0" ? "OK" : $"LEAK\n{LeaksText}";
-            var rightAccent = reducedEffects ? SignalGold : LeaksText == "0" ? MintSignal : Danger;
-            DrawPanel(right, TintPanel(rightAccent, 0.065f));
-            DrawAccent(new Rect(right.x, right.yMax - 3f * scale, right.width, 3f * scale), rightAccent);
-            buttonStyle!.fontSize = Mathf.RoundToInt(10f * scale);
-            buttonStyle.normal.textColor = rightAccent;
-            var label = statsExpanded ? "HIDE" : matchState;
-            if (GUI.Button(right, label, buttonStyle))
-            {
-                statsExpanded = !statsExpanded;
-            }
         }
 
         private float DrawLanePill(float x, float y, float width, float height, float scale)
