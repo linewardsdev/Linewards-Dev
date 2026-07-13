@@ -36,14 +36,14 @@ namespace LTW.UnityClient.UI
         {
             var message = reason switch
             {
-                CommandRejectionReason.InsufficientGold => "Need gold",
-                CommandRejectionReason.CooldownActive => "Send cooling down",
-                CommandRejectionReason.MatchPaused => "Press Space to start",
-                CommandRejectionReason.CellOccupied => "Occupied",
-                CommandRejectionReason.PathBlocked => "Path blocked",
-                CommandRejectionReason.InvalidLane => "Invalid cell",
-                CommandRejectionReason.PlayerEliminated => "Player eliminated",
-                _ => "Action blocked"
+                CommandRejectionReason.InsufficientGold => "Need more gold",
+                CommandRejectionReason.CooldownActive => "Send is cooling down",
+                CommandRejectionReason.MatchPaused => "Start or resume match",
+                CommandRejectionReason.CellOccupied => "Cell already has a tower",
+                CommandRejectionReason.PathBlocked => "Keep a path open",
+                CommandRejectionReason.InvalidLane => "Choose your lane",
+                CommandRejectionReason.PlayerEliminated => "Player is eliminated",
+                _ => "Action unavailable"
             };
             Show(message, Danger);
         }
@@ -81,10 +81,10 @@ namespace LTW.UnityClient.UI
 
             EnsureStyles();
 
-            var scale = Mathf.Clamp(Screen.width / 1080f, 0.72f, 1.15f);
-            var width = Mathf.Min(Screen.width - 32f * scale, 360f * scale);
-            var height = 46f * scale;
-            var rect = new Rect((Screen.width - width) * 0.5f, Screen.height - height - 92f * scale, width, height);
+            var scale = Mathf.Clamp(Mathf.Min(Screen.width / 1080f, Screen.height / 720f), 0.74f, 1.12f);
+            var width = Mathf.Min(Screen.width - 32f * scale, 390f * scale);
+            var height = 48f * scale;
+            var rect = new Rect((Screen.width - width) * 0.5f, Screen.height - height - 206f * scale, width, height);
 
             DrawPanel(rect, PanelInk);
             DrawAccent(new Rect(rect.x, rect.yMax - 4f * scale, rect.width, 4f * scale), accent);
