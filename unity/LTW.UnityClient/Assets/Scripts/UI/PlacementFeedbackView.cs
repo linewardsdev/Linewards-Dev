@@ -37,7 +37,7 @@ namespace LTW.UnityClient.UI
             var message = reason switch
             {
                 CommandRejectionReason.InsufficientGold => "Need more gold",
-                CommandRejectionReason.CooldownActive => "Need more gold",
+                CommandRejectionReason.CooldownActive => "Action unavailable",
                 CommandRejectionReason.MatchPaused => "Start or resume match",
                 CommandRejectionReason.CellOccupied => "Cell already has a tower",
                 CommandRejectionReason.PathBlocked => "Keep a path open",
@@ -46,6 +46,17 @@ namespace LTW.UnityClient.UI
                 _ => "Action unavailable"
             };
             Show(message, Danger);
+        }
+
+        public void ShowRejected(CommandRejectionReason reason, int requiredGold, int currentGold)
+        {
+            if (reason == CommandRejectionReason.InsufficientGold)
+            {
+                Show($"Need {requiredGold}G (have {currentGold}G)", Danger);
+                return;
+            }
+
+            ShowRejected(reason);
         }
 
         public void ShowEconomy(string message)

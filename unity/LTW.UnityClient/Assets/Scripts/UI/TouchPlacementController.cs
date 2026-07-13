@@ -132,7 +132,14 @@ namespace LTW.UnityClient.UI
                 return;
             }
 
-            feedbackView.ShowRejected(result.RejectionReason);
+            if (result.RejectionReason == CommandRejectionReason.InsufficientGold)
+            {
+                feedbackView.ShowRejected(result.RejectionReason, SelectedTowerCost(), CurrentPlayerGold());
+            }
+            else
+            {
+                feedbackView.ShowRejected(result.RejectionReason);
+            }
             RefreshPlacementPreview();
         }
 
@@ -663,6 +670,16 @@ namespace LTW.UnityClient.UI
                 2 => 40,
                 _ => 25
             };
+        }
+
+        private int CurrentPlayerGold()
+        {
+            if (commandAdapter == null)
+            {
+                commandAdapter = Object.FindAnyObjectByType<UnityCommandAdapter>();
+            }
+
+            return commandAdapter?.CurrentPlayerGold() ?? 0;
         }
 
         private static string TowerPurpose(string towerId)

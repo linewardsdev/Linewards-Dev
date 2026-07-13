@@ -20,6 +20,15 @@ namespace LTW.UnityClient.Simulation
             simulationDriver = driver;
         }
 
+        /// <summary>
+        /// Reads economy state directly from the simulation command source. UI code should use this
+        /// for immediate affordability/readback after a command instead of relying on a rendered snapshot.
+        /// </summary>
+        public int CurrentPlayerGold()
+        {
+            return simulation is null ? 0 : simulation.GetSnapshot().Players.Get(new PlayerId(1)).Gold.Amount;
+        }
+
         public VerticalSliceCommandResult PreviewSampleTower(int x, int y) => PreviewTower(SampleVerticalSliceContent.TowerId, x, y);
 
         public VerticalSliceCommandResult PreviewControlTower(int x, int y) => PreviewTower(SampleVerticalSliceContent.ControlTowerId, x, y);

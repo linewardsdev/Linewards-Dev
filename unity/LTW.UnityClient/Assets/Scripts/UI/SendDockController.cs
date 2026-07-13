@@ -40,11 +40,11 @@ namespace LTW.UnityClient.UI
             feedbackView = feedback;
         }
 
-        public void SendRunner() => Send(commandAdapter.SendSampleCreep(), "Runner sent");
+        public void SendRunner() => Send(commandAdapter.SendSampleCreep(), "Runner sent", 10);
 
-        public void SendBrute() => Send(commandAdapter.SendBruteCreep(), "Brute sent");
+        public void SendBrute() => Send(commandAdapter.SendBruteCreep(), "Brute sent", 18);
 
-        public void SendSwarm() => Send(commandAdapter.SendSwarmCreep(), "Swarm sent");
+        public void SendSwarm() => Send(commandAdapter.SendSwarmCreep(), "Swarm sent", 18);
 
         private void OnGUI()
         {
@@ -90,7 +90,7 @@ namespace LTW.UnityClient.UI
                 return;
             }
 
-            var gold = PlayerGold();
+            var gold = CurrentPlayerGold();
             metaStyle!.fontSize = Mathf.RoundToInt(10f * scale);
             metaStyle.normal.textColor = MintSignal;
             GUI.Label(new Rect(rect.x + 12f * scale, rect.y + 37f * scale, rect.width - 24f * scale, 18f * scale), $"GOLD {gold} - SENDS LIMITED BY COST", metaStyle);
@@ -119,7 +119,7 @@ namespace LTW.UnityClient.UI
             }
         }
 
-        private void Send(LTW.Simulation.Bridge.VerticalSliceCommandResult result, string successMessage)
+        private void Send(LTW.Simulation.Bridge.VerticalSliceCommandResult result, string successMessage, int cost)
         {
             if (result.Accepted)
             {
@@ -127,7 +127,14 @@ namespace LTW.UnityClient.UI
                 return;
             }
 
-            feedbackView.ShowRejected(result.RejectionReason);
+            if (result.RejectionReason == LTW.Simulation.Commands.CommandRejectionReason.InsufficientGold)
+            {
+                feedbackView.ShowRejected(result.RejectionReason, cost, CurrentPlayerGold());
+            }
+            else
+            {
+                feedbackView.ShowRejected(result.RejectionReason);
+            }
         }
 
         private static bool DrawSendButton(Rect rect, string label, string meta, string purpose, Color accent, float scale)
@@ -222,11 +229,14 @@ namespace LTW.UnityClient.UI
             GUI.color = previousColor;
         }
 
-        private int PlayerGold()
+        private int CurrentPlayerGold()
         {
-            EnsureDriver();
-            var snapshot = simulationDriver?.LatestSnapshot;
-            return snapshot?.Players.Get(new PlayerId(1)).Gold.Amount ?? 0;
+            if (commandAdapter == null)
+            {
+                commandAdapter = Object.FindAnyObjectByType<UnityCommandAdapter>();
+            }
+
+            return commandAdapter?.CurrentPlayerGold() ?? 0;
         }
 
         private void EnsureDriver()
