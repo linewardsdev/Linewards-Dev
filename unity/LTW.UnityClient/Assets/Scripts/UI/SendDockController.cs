@@ -10,6 +10,7 @@ namespace LTW.UnityClient.UI
     {
         private static readonly Color PanelInk = new(0.08f, 0.12f, 0.22f, 0.92f);
         private static readonly Color ArcaneBlue = new(0.302f, 0.639f, 1f, 1f);
+        private static readonly Color MintSignal = new(0.349f, 0.882f, 0.714f, 1f);
         private static readonly Color SignalGold = new(1f, 0.784f, 0.29f, 1f);
         private static readonly Color WardViolet = new(0.608f, 0.424f, 1f, 1f);
         private static readonly Color Cloud = new(0.957f, 0.969f, 1f, 1f);
