@@ -16,6 +16,8 @@ namespace LTW.UnityClient.UI
         [SerializeField]
         private UnityVerticalSliceRenderer renderer = null!;
 
+        private UnitySimulationDriver? simulationDriver;
+
         [SerializeField]
         private bool showRuntimeToggle = true;
 
@@ -27,9 +29,10 @@ namespace LTW.UnityClient.UI
 
         public string NextViewLabel => LaneShortLabel(renderer?.ActiveLaneCameraId ?? 1);
 
-        public void Initialize(UnityVerticalSliceRenderer presentationRenderer)
+        public void Initialize(UnityVerticalSliceRenderer presentationRenderer, UnitySimulationDriver? driver = null)
         {
             renderer = presentationRenderer;
+            simulationDriver = driver;
             ShowLaneView();
         }
 
@@ -59,6 +62,12 @@ namespace LTW.UnityClient.UI
         {
             if (!showRuntimeToggle || renderer == null)
             {
+                return;
+            }
+
+            if (simulationDriver?.LatestMatchSummary is not null)
+            {
+                selectorExpanded = false;
                 return;
             }
 
