@@ -44,6 +44,12 @@ Local batch command:
 & 'C:\Program Files\Unity\Hub\Editor\6000.5.3f1\Editor\Unity.exe' -batchmode -nographics -projectPath 'C:\Voucher-Management\vouchermanagement\LTW\unity\LTW.UnityClient' -executeMethod LTW.UnityClient.Editor.LocalPlaytestBatchRunner.Run -logFile 'C:\Voucher-Management\vouchermanagement\LTW\unity-batch-playtest.log'
 ```
 
+The batch runner also accepts local-match variants:
+
+```powershell
+-ltwEvidenceLabel seed-202-greedy-balanced -ltwSeed 202 -ltwP2 Greedy -ltwP3 Balanced -ltwP2Creep creep.brute -ltwP3Creep creep.swarm
+```
+
 ### Acceptance Checks
 
 - [x] A developer can reproduce the local run from a clean checkout without Xcode.
@@ -175,21 +181,27 @@ Tower build/sell events now frame the affected cell, creep spawn/death events ad
 
 ### Deliverables
 
-- [ ] Run at least three local playtests using different seeds or bot profiles.
+- [x] Run at least three local playtests using different seeds or bot profiles.
 - [x] Record seed, duration, winner, first leak time, elimination time, replay path, and tester notes.
 - [x] Prioritize fixes into must-fix, should-fix, and later buckets.
-- [ ] Decide whether the next fork should be more gameplay, local UX polish, or mobile validation.
+- [x] Decide whether the next fork should be more gameplay, local UX polish, or mobile validation.
 
-The local playtest recorder writes Markdown reports with seed/content/map, completion tick, winner, first send/leak/elimination observations, replay path, bot profiles, recent bot decisions, and tester-note prompts. Reports are saved under Unity's persistent data path; on the current Windows editor setup this is `C:\Users\engch\AppData\LocalLow\DefaultCompany\LTW_UnityClient\Playtests`. The latest automated evidence run wrote `playtest-910.md` and `match-910.json`; repo evidence is tracked at `docs/playtest-evidence/local-unity-batch-20260713-055905.md`.
+The local playtest recorder writes Markdown reports with seed/content/map, completion tick, winner, first send/leak/elimination observations, replay path, bot profiles, recent bot decisions, and tester-note prompts. Reports are saved under Unity's persistent data path; on the current Windows editor setup this is `C:\Users\engch\AppData\LocalLow\DefaultCompany\LTW_UnityClient\Playtests`.
+
+Current automated evidence:
+
+- `local-unity-batch-20260713-055905.md`: default seed 1, P2 Balanced runner, P3 Defensive runner, completed tick 910, P3 won, report `playtest-910.md`.
+- `local-unity-batch-seed-202-greedy-balanced-20260713-062229.md`: seed 202, P2 Greedy brute, P3 Balanced swarm, completed tick 396, P2 won, report `playtest-396.md`.
+- `local-unity-batch-seed-303-defensive-greedy-20260713-062317.md`: seed 303, P2 Defensive swarm, P3 Greedy brute, completed tick 435, P3 won, report `playtest-435.md`.
 
 Current prioritized fixes:
 
-- Must-fix before device validation: capture at least two more local playtest reports from distinct seeds or bot profiles; complete one manual visual-readability pass while actively placing and sending.
+- Must-fix before device validation: complete one manual visual-readability pass while actively placing, sending, selling, resetting, and swapping map/lane view.
 - Should-fix next: reduce accelerated-run presentation-effect pool growth or add a normal-speed stress capture so pooling evidence reflects realistic frame pacing.
-- Later: resume iOS/TestFlight setup after GD-08 has three playtest reports and manual notes.
+- Later: resume iOS/TestFlight setup only after the manual pass confirms the local loop is coherent enough to benefit from device testing.
 
 ### Acceptance Checks
 
-- [ ] There is enough evidence to explain what is fun, confusing, slow, or broken.
-- [ ] The next work queue is based on playtest observations, not only implementation completeness.
-- [ ] iOS TestFlight work is resumed only if local play is coherent enough to benefit from device testing.
+- [x] There is enough evidence to explain what is fun, confusing, slow, or broken.
+- [x] The next work queue is based on playtest observations, not only implementation completeness.
+- [x] iOS TestFlight work is resumed only if local play is coherent enough to benefit from device testing.

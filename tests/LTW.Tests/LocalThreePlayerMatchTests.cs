@@ -1,4 +1,5 @@
 using System.Linq;
+using LTW.Simulation.Bots;
 using LTW.Simulation.Bridge;
 using Xunit;
 
@@ -48,5 +49,30 @@ public sealed class LocalThreePlayerMatchTests
         Assert.Equal(completedAt, slice.MatchSummary.CompletedAtTick);
         Assert.Equal(snapshot.Tick, slice.GetSnapshot().Tick);
         Assert.Equal(replayCommandCount, slice.GetReplayRecord().AcceptedCommands.Count);
+    }
+
+    [Fact]
+    public void Local_match_options_control_replay_seed_and_bot_profiles()
+    {
+        var options = new LocalMatchOptions(
+            seed: 202,
+            player2Profile: BotDecisionProfile.Greedy,
+            player3Profile: BotDecisionProfile.Balanced,
+            player2PrimaryCreepId: SampleVerticalSliceContent.BruteCreepId,
+            player3PrimaryCreepId: SampleVerticalSliceContent.SwarmCreepId);
+        var slice = new LocalVerticalSlice(SampleVerticalSliceContent.Create(), options);
+
+        var replay = slice.GetReplayRecord();
+        var diagnostics = slice.GetBotDiagnostics();
+
+        Assert.Equal(202, replay.Seed);
+        Assert.Contains(diagnostics.Profiles, profile =>
+            profile.PlayerId.Value == 2 &&
+            profile.Profile == BotDecisionProfile.Greedy &&
+            profile.PrimaryCreepId.Equals(SampleVerticalSliceContent.BruteCreepId));
+        Assert.Contains(diagnostics.Profiles, profile =>
+            profile.PlayerId.Value == 3 &&
+            profile.Profile == BotDecisionProfile.Balanced &&
+            profile.PrimaryCreepId.Equals(SampleVerticalSliceContent.SwarmCreepId));
     }
 }

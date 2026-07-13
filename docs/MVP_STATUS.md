@@ -62,7 +62,6 @@ Current code evidence:
 
 Remaining acceptance evidence:
 
-- Capture at least two more local playtest reports using different seeds or bot profiles before GD-08 is considered complete.
 - Record manual balance/usability notes from a human Play Mode run, not only automated batch evidence.
 
 ## MVP-10 iOS TestFlight And Device Validation
@@ -88,11 +87,10 @@ Remaining acceptance evidence:
 
 ## Next Work Order
 
-1. Run two more GD-08 local playtests with different seeds or bot profiles and save the generated Markdown reports.
-2. Complete a manual Play Mode pass focused on visual readability, placement correction, send readability, and presentation detail modes.
-3. Add a realistic pacing stress capture for presentation pooling; the accelerated batch pass proves reset cleanup but grows the effect pool aggressively.
-4. Continue GD-03 through GD-07 tuning only from observed playtest notes.
-5. Resume MVP-10 TestFlight/device validation only after GD-08 has three reports plus manual usability notes.
+1. Complete a manual Play Mode pass focused on visual readability, placement correction, send readability, and presentation detail modes.
+2. Add a realistic pacing stress capture for presentation pooling; the accelerated batch pass proves reset cleanup but grows the effect pool aggressively.
+3. Continue GD-03 through GD-07 tuning only from observed playtest notes.
+4. Resume MVP-10 TestFlight/device validation only after manual usability notes confirm the local loop is coherent enough for device testing.
 
 ## GD-01 Board Readability And Camera
 

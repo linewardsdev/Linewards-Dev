@@ -24,6 +24,7 @@ public sealed class LocalVerticalSlice
     private readonly Dictionary<LaneId, LaneGrid> grids;
     private readonly Dictionary<LaneId, IReadOnlyList<GridPosition>> routes;
     private readonly CombatContent combatContent;
+    private readonly LocalMatchOptions options;
     private readonly List<ISimulationEvent> pendingEvents = new();
     private readonly Dictionary<PlayerId, BotController> bots;
     private readonly List<AcceptedCommandRecord> acceptedCommands = new();
@@ -37,7 +38,7 @@ public sealed class LocalVerticalSlice
 
     public MatchSummary? MatchSummary { get; private set; }
 
-    public ReplayRecord GetReplayRecord() => new ReplayRecord(1, content.Version, content.Maps[0].Id, players.Players.Select(player => player.PlayerId).ToArray(), tick, acceptedCommands);
+    public ReplayRecord GetReplayRecord() => new ReplayRecord(options.Seed, content.Version, content.Maps[0].Id, players.Players.Select(player => player.PlayerId).ToArray(), tick, acceptedCommands);
 
     public BotDiagnosticsSnapshot GetBotDiagnostics()
     {
@@ -52,8 +53,14 @@ public sealed class LocalVerticalSlice
     }
 
     public LocalVerticalSlice(ContentCatalog content, bool enableBots = true)
+        : this(content, LocalMatchOptions.Default, enableBots)
+    {
+    }
+
+    public LocalVerticalSlice(ContentCatalog content, LocalMatchOptions options, bool enableBots = true)
     {
         this.content = content;
+        this.options = options;
         economy = new EconomyService(new EconomyRules(incomeIntervalTicks: 50, sendCooldownTicks: 30, sellRefundPercent: 50, leakLifeLoss: 1));
         pathService = new GridPathService();
         combat = new CombatService();
@@ -82,8 +89,8 @@ public sealed class LocalVerticalSlice
         bots = enableBots
             ? new Dictionary<PlayerId, BotController>
             {
-                [new PlayerId(2)] = new BotController(BotDecisionProfile.Balanced, content.Creeps[0].Id),
-                [new PlayerId(3)] = new BotController(BotDecisionProfile.Defensive, content.Creeps[0].Id)
+                [new PlayerId(2)] = new BotController(options.Player2Profile, options.Player2PrimaryCreepId ?? content.Creeps[0].Id),
+                [new PlayerId(3)] = new BotController(options.Player3Profile, options.Player3PrimaryCreepId ?? content.Creeps[0].Id)
             }
             : new Dictionary<PlayerId, BotController>();
         tick = new SimulationTick(0);

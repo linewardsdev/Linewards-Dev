@@ -4,6 +4,9 @@ using System;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using LTW.Simulation.Bots;
+using LTW.Simulation.Bridge;
+using LTW.Simulation.Content;
 using LTW.UnityClient.Simulation;
 using UnityEditor;
 using UnityEditor.SceneManagement;
@@ -36,6 +39,8 @@ namespace LTW.UnityClient.Editor
         private static int acceptedReplayCommands;
         private static string? exportedPlaytestReport;
         private static string[] finalPlayerLines = Array.Empty<string>();
+        private static LocalMatchOptions matchOptions = LocalMatchOptions.Default;
+        private static string evidenceLabel = "default";
 
         public static void Run()
         {
@@ -55,6 +60,9 @@ namespace LTW.UnityClient.Editor
             acceptedReplayCommands = 0;
             exportedPlaytestReport = null;
             finalPlayerLines = Array.Empty<string>();
+            matchOptions = ReadOptionsFromCommandLine();
+            evidenceLabel = ReadStringArgument("-ltwEvidenceLabel") ?? $"seed-{matchOptions.Seed}";
+            LocalMatchRuntimeOptions.PendingOptions = matchOptions;
 
             EditorSceneManager.OpenScene(ScenePath);
             EditorApplication.update += Update;
@@ -169,7 +177,7 @@ namespace LTW.UnityClient.Editor
             var root = Path.GetFullPath(Path.Combine(Application.dataPath, "..", "..", ".."));
             var directory = Path.Combine(root, "docs", "playtest-evidence");
             Directory.CreateDirectory(directory);
-            var path = Path.Combine(directory, $"local-unity-batch-{DateTime.Now:yyyyMMdd-HHmmss}.md");
+            var path = Path.Combine(directory, $"local-unity-batch-{SafeFilePart(evidenceLabel)}-{DateTime.Now:yyyyMMdd-HHmmss}.md");
 
             using var writer = new StreamWriter(path);
             writer.WriteLine("# Local Unity Batch Playtest Evidence");
@@ -177,6 +185,12 @@ namespace LTW.UnityClient.Editor
             writer.WriteLine($"- Date: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
             writer.WriteLine($"- Scene: `{ScenePath}`");
             writer.WriteLine($"- Unity Version: `{Application.unityVersion}`");
+            writer.WriteLine($"- Evidence Label: `{evidenceLabel}`");
+            writer.WriteLine($"- Configured Seed: {matchOptions.Seed}");
+            writer.WriteLine($"- P2 Profile: {matchOptions.Player2Profile}");
+            writer.WriteLine($"- P3 Profile: {matchOptions.Player3Profile}");
+            writer.WriteLine($"- P2 Primary Creep: `{matchOptions.Player2PrimaryCreepId?.Value ?? "default"}`");
+            writer.WriteLine($"- P3 Primary Creep: `{matchOptions.Player3PrimaryCreepId?.Value ?? "default"}`");
             writer.WriteLine($"- Result: {(failure is null && resetClean ? "pass" : "fail")}");
             writer.WriteLine($"- Wall Time Seconds: {(completedAt > 0d ? completedAt - startedAt : EditorApplication.timeSinceStartup - startedAt):F2}");
             writer.WriteLine($"- Completed Tick: {completedTick}");
@@ -207,9 +221,55 @@ namespace LTW.UnityClient.Editor
             failure = error;
             EditorApplication.update -= Update;
             Time.timeScale = 1f;
+            LocalMatchRuntimeOptions.PendingOptions = LocalMatchOptions.Default;
             EditorSettings.enterPlayModeOptionsEnabled = previousEnterPlayModeOptionsEnabled;
             EditorSettings.enterPlayModeOptions = previousEnterPlayModeOptions;
             EditorApplication.Exit(error is null ? 0 : 1);
+        }
+
+        private static LocalMatchOptions ReadOptionsFromCommandLine()
+        {
+            var seed = ReadIntArgument("-ltwSeed") ?? 1;
+            var player2Profile = ReadEnumArgument("-ltwP2", BotDecisionProfile.Balanced);
+            var player3Profile = ReadEnumArgument("-ltwP3", BotDecisionProfile.Defensive);
+            var player2Creep = ReadContentIdArgument("-ltwP2Creep");
+            var player3Creep = ReadContentIdArgument("-ltwP3Creep");
+            return new LocalMatchOptions(seed, player2Profile, player3Profile, player2Creep, player3Creep);
+        }
+
+        private static string? ReadStringArgument(string name)
+        {
+            var args = Environment.GetCommandLineArgs();
+            for (var index = 0; index < args.Length - 1; index++)
+            {
+                if (string.Equals(args[index], name, StringComparison.OrdinalIgnoreCase))
+                {
+                    return args[index + 1];
+                }
+            }
+
+            return null;
+        }
+
+        private static int? ReadIntArgument(string name) =>
+            int.TryParse(ReadStringArgument(name), out var value) ? value : null;
+
+        private static BotDecisionProfile ReadEnumArgument(string name, BotDecisionProfile fallback) =>
+            Enum.TryParse(ReadStringArgument(name), ignoreCase: true, out BotDecisionProfile value) ? value : fallback;
+
+        private static ContentId? ReadContentIdArgument(string name)
+        {
+            var value = ReadStringArgument(name);
+            return string.IsNullOrWhiteSpace(value) ? null : new ContentId(value);
+        }
+
+        private static string SafeFilePart(string value)
+        {
+            var invalid = Path.GetInvalidFileNameChars();
+            var characters = value
+                .Select(character => invalid.Contains(character) || char.IsWhiteSpace(character) ? '-' : char.ToLowerInvariant(character))
+                .ToArray();
+            return new string(characters);
         }
 
         private enum BatchState
