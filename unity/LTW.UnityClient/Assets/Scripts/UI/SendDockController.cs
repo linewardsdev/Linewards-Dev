@@ -244,13 +244,8 @@ namespace LTW.UnityClient.UI
             }
 
             var player = snapshot.Players.Get(new PlayerId(1));
-            var remaining = player.NextSendAvailableTick.Value - snapshot.Tick.Value;
-            if (remaining <= 0)
-            {
-                return 0;
-            }
-
-            return remaining > int.MaxValue ? int.MaxValue : (int)remaining;
+            var cooldownTicks = player.NextSendAvailableTick.Value - snapshot.Tick.Value;
+            return cooldownTicks <= 0 ? 0 : cooldownTicks > int.MaxValue ? int.MaxValue : (int)cooldownTicks;
         }
 
         private void EnsureDriver()

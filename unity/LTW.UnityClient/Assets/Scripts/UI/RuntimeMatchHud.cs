@@ -23,11 +23,8 @@ namespace LTW.UnityClient.UI
         private static GUIStyle? statStyle;
         private static GUIStyle? metaStyle;
 
-        [SerializeField]
-        private UnitySimulationDriver simulationDriver = null!;
-
-        [SerializeField]
-        private bool showRuntimeHud = true;
+        [SerializeField] private UnitySimulationDriver simulationDriver = null!;
+        [SerializeField] private bool showRuntimeHud = true;
 
         public void Initialize(UnitySimulationDriver driver)
         {
@@ -63,7 +60,8 @@ namespace LTW.UnityClient.UI
             DrawAccent(new Rect(rect.x, rect.yMax - 4f * scale, rect.width, 4f * scale), StateAccent());
 
             var player = snapshot.Players.Get(new PlayerId(1));
-            var cooldown = Mathf.Max(0, player.NextSendAvailableTick.Value - snapshot.Tick.Value);
+            var cooldownTicks = player.NextSendAvailableTick.Value - snapshot.Tick.Value;
+            var cooldown = cooldownTicks <= 0 ? 0 : cooldownTicks > int.MaxValue ? int.MaxValue : (int)cooldownTicks;
             DrawStat(new Rect(rect.x + 12f * scale, rect.y + 9f * scale, 118f * scale, 56f * scale), "LIVES", player.Lives.Amount.ToString(), player.Lives.Amount <= 30 ? Danger : MintSignal, scale);
             DrawStat(new Rect(rect.x + 135f * scale, rect.y + 9f * scale, 108f * scale, 56f * scale), "GOLD", player.Gold.Amount.ToString(), SignalGold, scale);
             DrawStat(new Rect(rect.x + 248f * scale, rect.y + 9f * scale, 112f * scale, 56f * scale), "INCOME", "+" + player.Income.Amount, MintSignal, scale);
@@ -73,6 +71,7 @@ namespace LTW.UnityClient.UI
             titleStyle.normal.textColor = StateAccent();
             var state = simulationDriver!.LatestMatchSummary is not null ? "RESULTS" : !simulationDriver.HasStarted ? "READY" : simulationDriver.IsPaused ? "PAUSED" : "LIVE";
             GUI.Label(new Rect(rect.xMax - 116f * scale, rect.y + 11f * scale, 100f * scale, 22f * scale), state, titleStyle);
+
             metaStyle!.fontSize = Mathf.RoundToInt(10f * scale);
             metaStyle.normal.textColor = Cloud;
             GUI.Label(new Rect(rect.xMax - 116f * scale, rect.y + 38f * scale, 100f * scale, 20f * scale), $"TICK {snapshot.Tick.Value}", metaStyle);
