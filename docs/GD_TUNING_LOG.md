@@ -49,7 +49,7 @@ This log records the first gameplay pacing targets for the local vertical slice.
 
 | Run | Seed/Profile | Duration Ticks | Winner | First Send | First Leak | First Elimination | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 1 | TBD | TBD | TBD | TBD | TBD | TBD | TBD |
+| 1 | Seed 1 / P2 Balanced, P3 Defensive | 476 | P1 | 7 | 16 | 473 | Unity Play Mode run saved as `playtest-476.md` / `match-476.json`. P1 ended untouched at 220 lives while both bots were eliminated, so local match completion is below the 900-1800 tick target and first leak is earlier than the 90-240 tick target. |
 | 2 | TBD | TBD | TBD | TBD | TBD | TBD | TBD |
 | 3 | TBD | TBD | TBD | TBD | TBD | TBD | TBD |
 
@@ -61,3 +61,5 @@ Use the local `P` hotkey after a completed Unity Play Mode match to write the Ma
 2. Press `P` after match completion and copy first send, first leak, first elimination, winner, and completion timing from the generated report.
 3. Decide whether the next tuning lever should be send cooldown, creep stats, or tower damage after observing the 900-1800 tick match gate in Play Mode.
 4. Promote any repeated confusion into GD-01/GD-02 usability fixes before changing numbers heavily.
+
+Latest objective read: the first recorded Play Mode run ended at tick 476, well before the target match-completion range. Before changing presentation again, prioritize a tuning pass that slows player-driven bot collapse without removing early offensive feedback.
