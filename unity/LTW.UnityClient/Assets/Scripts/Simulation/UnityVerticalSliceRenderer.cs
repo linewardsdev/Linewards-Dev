@@ -23,6 +23,7 @@ namespace LTW.UnityClient.Simulation
         [SerializeField] private PresentationDetail presentationDetail = PresentationDetail.Full;
         [SerializeField] private LaneCameraFraming cameraFraming = LaneCameraFraming.ActiveLane;
         [SerializeField] private int activeLaneCameraId = 1;
+        [SerializeField] private CreepVisualLibrary creepVisualLibrary = null!;
 
         private AudioSource feedbackAudioSource = null!;
         private AudioClip towerBuiltClip = null!;
@@ -37,6 +38,8 @@ namespace LTW.UnityClient.Simulation
         private readonly Dictionary<string, GameObject> activeCreeps = new Dictionary<string, GameObject>();
         private readonly Dictionary<string, Vector3> lastKnownPositions = new Dictionary<string, Vector3>();
         private readonly Dictionary<string, string> towerRolesByCell = new Dictionary<string, string>();
+        private readonly Dictionary<string, int> lastCreepHealth = new Dictionary<string, int>();
+        private readonly Dictionary<string, float> creepHitFlashUntil = new Dictionary<string, float>();
         private readonly Dictionary<int, GameObject> lanePressureMeters = new Dictionary<int, GameObject>();
         private readonly Dictionary<int, GameObject> lanePressureCaps = new Dictionary<int, GameObject>();
         private readonly Dictionary<int, TextMesh> lanePressureLabels = new Dictionary<int, TextMesh>();
@@ -211,10 +214,19 @@ namespace LTW.UnityClient.Simulation
                 visibleKeys.Add(key);
                 var isNewCreep = !activeCreeps.ContainsKey(key);
                 var creepObject = GetOrCreate(activeCreeps, creepPool, key, "PressureCreep", PrimitiveType.Sphere);
-                SetCreepTransform(creepObject, creep.Position, creep.LaneId, creep.CreepId.Value, isNewCreep);
-                SetColor(creepObject, CreepRoleColor(creep.CreepId.Value, creep.SenderId.Value));
-                ConfigureCreepRoleMarker(creepObject, creep.CreepId.Value, creep.SenderId.Value);
+                var visualProfile = creepVisualLibrary != null ? creepVisualLibrary.FindProfile(creep.CreepId.Value) : null;
+                if (!isNewCreep && lastCreepHealth.TryGetValue(key, out var previousHealth) && creep.Health < previousHealth)
+                {
+                    creepHitFlashUntil[key] = Time.time + 0.16f;
+                }
+
+                SetCreepTransform(creepObject, creep.Position, creep.LaneId, creep.CreepId.Value, visualProfile, isNewCreep);
+                var healthFraction = CreepHealthFraction(creep.CreepId.Value, creep.Health);
+                var isHitFlashing = creepHitFlashUntil.TryGetValue(key, out var flashUntil) && Time.time < flashUntil;
+                SetColor(creepObject, CreepBodyColor(creep.CreepId.Value, creep.SenderId.Value, healthFraction, isHitFlashing));
+                ConfigureCreepRoleMarker(creepObject, creep.CreepId.Value, creep.SenderId.Value, healthFraction, isHitFlashing);
                 lastKnownPositions[key] = creepObject.transform.position;
+                lastCreepHealth[key] = creep.Health;
                 if (creep.LaneId.Value >= 1 && creep.LaneId.Value < pressureByLane.Length)
                 {
                     pressureByLane[creep.LaneId.Value]++;
@@ -685,6 +697,8 @@ namespace LTW.UnityClient.Simulation
             {
                 ReleaseToPool(activeObjects[key], pool);
                 activeObjects.Remove(key);
+                lastCreepHealth.Remove(key);
+                creepHitFlashUntil.Remove(key);
             }
         }
 
@@ -694,6 +708,8 @@ namespace LTW.UnityClient.Simulation
             foreach (var pair in activeCreeps) ReleaseToPool(pair.Value, creepPool);
             activeTowers.Clear();
             activeCreeps.Clear();
+            lastCreepHealth.Clear();
+            creepHitFlashUntil.Clear();
             foreach (var presentation in timedPresentations) ReleaseToPool(presentation.Object, presentation.Pool);
             timedPresentations.Clear();
         }
@@ -747,14 +763,14 @@ namespace LTW.UnityClient.Simulation
             instance.transform.localScale = TowerRoleScale(towerId);
         }
 
-        private static void SetCreepTransform(GameObject instance, GridPosition position, LaneId laneId, string creepId, bool snapToTarget)
+        private static void SetCreepTransform(GameObject instance, GridPosition position, LaneId laneId, string creepId, CreepVisualProfile visualProfile, bool snapToTarget)
         {
-            var roleMotion = CreepRoleMotion(creepId);
+            var roleMotion = CreepRoleMotion(creepId, visualProfile);
             var targetPosition = GridToWorld(position, laneId) + CreepRoleOffset(creepId) + roleMotion.PositionOffset;
             instance.transform.position = snapToTarget || Vector3.Distance(instance.transform.position, targetPosition) > 2.5f
                 ? targetPosition
                 : Vector3.Lerp(instance.transform.position, targetPosition, Mathf.Clamp01(Time.deltaTime * 8f));
-            instance.transform.localScale = CreepRoleScale(creepId);
+            instance.transform.localScale = CreepRoleScale(creepId, visualProfile);
             instance.transform.rotation = roleMotion.Rotation;
         }
 
@@ -1034,16 +1050,21 @@ namespace LTW.UnityClient.Simulation
             return 0.12f;
         }
 
-        private static Vector3 CreepRoleScale(string creepId)
+        private static Vector3 CreepRoleScale(string creepId, CreepVisualProfile visualProfile)
         {
+            if (visualProfile != null && visualProfile.HasScale)
+            {
+                return visualProfile.Scale;
+            }
+
             if (ContainsRole(creepId, "swarm"))
             {
-                return new Vector3(0.46f, 0.28f, 0.46f);
+                return new Vector3(0.18f, 0.12f, 0.18f);
             }
 
             if (ContainsRole(creepId, "brute") || ContainsRole(creepId, "tank"))
             {
-                return new Vector3(0.74f, 0.56f, 0.74f);
+                return new Vector3(0.78f, 0.48f, 0.96f);
             }
 
             if (ContainsRole(creepId, "boss"))
@@ -1066,7 +1087,7 @@ namespace LTW.UnityClient.Simulation
                 return new Vector3(0.52f, 0.34f, 0.52f);
             }
 
-            return new Vector3(0.56f, 0.34f, 0.56f);
+            return new Vector3(0.42f, 0.24f, 0.72f);
         }
 
         private static Vector3 CreepRoleOffset(string creepId)
@@ -1084,40 +1105,48 @@ namespace LTW.UnityClient.Simulation
             return Vector3.up * 0.02f;
         }
 
-        private static CreepMotion CreepRoleMotion(string creepId)
+        private static CreepMotion CreepRoleMotion(string creepId, CreepVisualProfile visualProfile)
         {
             var time = Time.time;
-            if (ContainsRole(creepId, "swarm"))
+            var motionStyle = visualProfile != null ? visualProfile.MotionStyle : CreepVisualMotionStyle.Auto;
+            if (motionStyle == CreepVisualMotionStyle.ClusterJitter || motionStyle == CreepVisualMotionStyle.Auto && ContainsRole(creepId, "swarm"))
             {
-                var pulse = Mathf.Sin(time * 12f) * 0.025f;
-                return new CreepMotion(new Vector3(pulse, 0f, -pulse), Quaternion.identity);
+                var pulse = Mathf.Sin(time * 15f) * 0.045f;
+                return new CreepMotion(new Vector3(pulse, 0f, -pulse * 0.65f), Quaternion.Euler(0f, time * 60f, 0f));
             }
 
-            if (ContainsRole(creepId, "brute") || ContainsRole(creepId, "tank") || ContainsRole(creepId, "boss"))
+            if (motionStyle == CreepVisualMotionStyle.HeavyBob || motionStyle == CreepVisualMotionStyle.Auto && (ContainsRole(creepId, "brute") || ContainsRole(creepId, "tank") || ContainsRole(creepId, "boss")))
             {
-                var weight = Mathf.Abs(Mathf.Sin(time * 4f)) * 0.035f;
-                return new CreepMotion(Vector3.down * weight, Quaternion.identity);
+                var weight = Mathf.Abs(Mathf.Sin(time * 3.4f)) * 0.055f;
+                var sway = Mathf.Sin(time * 3.4f) * 1.5f;
+                return new CreepMotion(Vector3.down * weight, Quaternion.Euler(0f, 0f, sway));
             }
 
-            if (ContainsRole(creepId, "flying") || ContainsRole(creepId, "air"))
+            if (motionStyle == CreepVisualMotionStyle.Hover || motionStyle == CreepVisualMotionStyle.Auto && (ContainsRole(creepId, "flying") || ContainsRole(creepId, "air")))
             {
                 var hover = Mathf.Sin(time * 5f) * 0.08f;
                 return new CreepMotion(Vector3.up * hover, Quaternion.Euler(0f, time * 80f, 0f));
             }
 
-            if (ContainsRole(creepId, "invisible") || ContainsRole(creepId, "stealth"))
+            if (motionStyle == CreepVisualMotionStyle.Shimmer || motionStyle == CreepVisualMotionStyle.Auto && (ContainsRole(creepId, "invisible") || ContainsRole(creepId, "stealth")))
             {
                 return new CreepMotion(Vector3.zero, Quaternion.Euler(0f, time * 45f, 0f));
             }
 
-            if (ContainsRole(creepId, "attacker") || ContainsRole(creepId, "siege"))
+            if (motionStyle == CreepVisualMotionStyle.SiegeWindup || motionStyle == CreepVisualMotionStyle.Auto && (ContainsRole(creepId, "attacker") || ContainsRole(creepId, "siege")))
             {
                 var windup = Mathf.Sin(time * 6f) * 4f;
                 return new CreepMotion(Vector3.zero, Quaternion.Euler(0f, 0f, windup));
             }
 
-            var dart = Mathf.Sin(time * 10f) * 0.04f;
-            return new CreepMotion(Vector3.right * dart, Quaternion.identity);
+            if (motionStyle == CreepVisualMotionStyle.AuraPulse)
+            {
+                var pulse = Mathf.Abs(Mathf.Sin(time * 5f)) * 0.035f;
+                return new CreepMotion(Vector3.up * pulse, Quaternion.Euler(0f, time * 35f, 0f));
+            }
+
+            var dart = Mathf.Sin(time * 13f) * 0.07f;
+            return new CreepMotion(Vector3.right * dart, Quaternion.Euler(7f, 0f, -Mathf.Sin(time * 13f) * 4f));
         }
 
         private static Color TowerRoleColor(string towerId, int ownerId)
@@ -1173,6 +1202,51 @@ namespace LTW.UnityClient.Simulation
             }
 
             return SenderColor(senderId);
+        }
+
+        private static Color CreepBodyColor(string creepId, int senderId, float healthFraction, bool isHitFlashing)
+        {
+            if (isHitFlashing)
+            {
+                return new Color(1f, 0.94f, 0.62f);
+            }
+
+            var baseColor = CreepRoleColor(creepId, senderId);
+            if (healthFraction >= 0.45f)
+            {
+                return baseColor;
+            }
+
+            var damageTint = ContainsRole(creepId, "brute") || ContainsRole(creepId, "tank")
+                ? new Color(0.68f, 0.22f, 0.16f)
+                : new Color(0.42f, 0.48f, 0.58f);
+            var amount = Mathf.InverseLerp(0.45f, 0.05f, healthFraction) * 0.55f;
+            return Color.Lerp(baseColor, damageTint, amount);
+        }
+
+        private static float CreepHealthFraction(string creepId, int health)
+        {
+            return Mathf.Clamp01(health / (float)Mathf.Max(1, CreepMaxHealth(creepId)));
+        }
+
+        private static int CreepMaxHealth(string creepId)
+        {
+            if (ContainsRole(creepId, "swarm"))
+            {
+                return 5;
+            }
+
+            if (ContainsRole(creepId, "brute") || ContainsRole(creepId, "tank"))
+            {
+                return 24;
+            }
+
+            if (ContainsRole(creepId, "boss"))
+            {
+                return 60;
+            }
+
+            return 10;
         }
 
         private static void ConfigureTowerRoleMarker(GameObject towerObject, string towerId, int ownerId)
@@ -1330,41 +1404,11 @@ namespace LTW.UnityClient.Simulation
             return MintSignal;
         }
 
-        private static void ConfigureCreepRoleMarker(GameObject creepObject, string creepId, int senderId)
+        private static void ConfigureCreepRoleMarker(GameObject creepObject, string creepId, int senderId, float healthFraction, bool isHitFlashing)
         {
+            DeactivateKnownCreepMarkers(creepObject);
             var shadow = EnsureChild(creepObject, "GroundShadow", PrimitiveType.Cylinder);
             ConfigureChild(shadow, true, new Vector3(0f, -0.42f, 0f), CreepShadowScale(creepId), new Color(0.015f, 0.022f, 0.035f));
-
-            var nose = EnsureChild(creepObject, "RunnerNose", PrimitiveType.Cube);
-            var runnerTail = EnsureChild(creepObject, "RunnerTail", PrimitiveType.Cube);
-            var runnerLeftFin = EnsureChild(creepObject, "RunnerLeftFin", PrimitiveType.Cube);
-            var runnerRightFin = EnsureChild(creepObject, "RunnerRightFin", PrimitiveType.Cube);
-            var armor = EnsureChild(creepObject, "BruteArmor", PrimitiveType.Cube);
-            var bruteLeftPlate = EnsureChild(creepObject, "BruteLeftPlate", PrimitiveType.Cube);
-            var bruteRightPlate = EnsureChild(creepObject, "BruteRightPlate", PrimitiveType.Cube);
-            var bruteCore = EnsureChild(creepObject, "BruteCore", PrimitiveType.Sphere);
-            var bossCrown = EnsureChild(creepObject, "BossCrown", PrimitiveType.Cylinder);
-            var bossCore = EnsureChild(creepObject, "BossCore", PrimitiveType.Sphere);
-            var bossLeftHorn = EnsureChild(creepObject, "BossLeftHorn", PrimitiveType.Cube);
-            var bossRightHorn = EnsureChild(creepObject, "BossRightHorn", PrimitiveType.Cube);
-            var swarmA = EnsureChild(creepObject, "SwarmDotA", PrimitiveType.Sphere);
-            var swarmB = EnsureChild(creepObject, "SwarmDotB", PrimitiveType.Sphere);
-            var swarmC = EnsureChild(creepObject, "SwarmDotC", PrimitiveType.Sphere);
-            var swarmTrail = EnsureChild(creepObject, "SwarmTrail", PrimitiveType.Cylinder);
-            var hover = EnsureChild(creepObject, "AirHoverRing", PrimitiveType.Cylinder);
-            var airLeftWing = EnsureChild(creepObject, "AirLeftWing", PrimitiveType.Cube);
-            var airRightWing = EnsureChild(creepObject, "AirRightWing", PrimitiveType.Cube);
-            var airBeacon = EnsureChild(creepObject, "AirBeacon", PrimitiveType.Sphere);
-            var shimmer = EnsureChild(creepObject, "StealthShimmer", PrimitiveType.Cylinder);
-            var stealthEchoA = EnsureChild(creepObject, "StealthEchoA", PrimitiveType.Cylinder);
-            var stealthEchoB = EnsureChild(creepObject, "StealthEchoB", PrimitiveType.Cylinder);
-            var siegeBase = EnsureChild(creepObject, "SiegeBase", PrimitiveType.Cube);
-            var siegeBarrel = EnsureChild(creepObject, "SiegeBarrel", PrimitiveType.Cube);
-            var siegeSpike = EnsureChild(creepObject, "SiegeSpike", PrimitiveType.Cube);
-            var auraField = EnsureChild(creepObject, "AuraField", PrimitiveType.Cylinder);
-            var auraCore = EnsureChild(creepObject, "AuraCore", PrimitiveType.Sphere);
-            var auraNorthNode = EnsureChild(creepObject, "AuraNorthNode", PrimitiveType.Sphere);
-            var auraSouthNode = EnsureChild(creepObject, "AuraSouthNode", PrimitiveType.Sphere);
 
             var isSwarm = ContainsRole(creepId, "swarm");
             var isBoss = ContainsRole(creepId, "boss");
@@ -1374,44 +1418,138 @@ namespace LTW.UnityClient.Simulation
             var isSiege = ContainsRole(creepId, "attacker") || ContainsRole(creepId, "siege");
             var isAura = ContainsRole(creepId, "aura") || ContainsRole(creepId, "support");
             var isRunner = !isSwarm && !isBrute && !isAir && !isStealth && !isSiege && !isAura;
+
+            if (isRunner)
+            {
+                ConfigureRunnerMarker(creepObject, senderId, healthFraction, isHitFlashing);
+                return;
+            }
+
+            if (isBrute)
+            {
+                ConfigureBruteMarker(creepObject, isBoss, healthFraction, isHitFlashing);
+                return;
+            }
+
+            if (isSwarm)
+            {
+                ConfigureSwarmMarker(creepObject, senderId, healthFraction, isHitFlashing);
+                return;
+            }
+
+            if (isAir)
+            {
+                ConfigureAirMarker(creepObject);
+                return;
+            }
+
+            if (isStealth)
+            {
+                ConfigureStealthMarker(creepObject);
+                return;
+            }
+
+            if (isSiege)
+            {
+                ConfigureSiegeMarker(creepObject);
+                return;
+            }
+
+            if (isAura)
+            {
+                ConfigureAuraMarker(creepObject);
+            }
+        }
+
+        private static void ConfigureRunnerMarker(GameObject creepObject, int senderId, float healthFraction, bool isHitFlashing)
+        {
             var senderColor = SenderColor(senderId);
+            var accent = isHitFlashing ? new Color(1f, 0.94f, 0.62f) : MintSignal;
+            var damageScale = Mathf.Lerp(0.72f, 1f, Mathf.Clamp01(healthFraction));
 
-            ConfigureChild(nose, isRunner, new Vector3(0f, 0.02f, 0.42f), new Vector3(0.16f, 0.1f, 0.34f), MintSignal);
-            ConfigureChild(runnerTail, isRunner, new Vector3(0f, -0.02f, -0.34f), new Vector3(0.1f, 0.08f, 0.28f), senderColor);
-            ConfigureChild(runnerLeftFin, isRunner, new Vector3(-0.24f, 0f, -0.04f), new Vector3(0.08f, 0.08f, 0.26f), senderColor);
-            ConfigureChild(runnerRightFin, isRunner, new Vector3(0.24f, 0f, -0.04f), new Vector3(0.08f, 0.08f, 0.26f), senderColor);
+            ConfigureChild(EnsureChild(creepObject, "RunnerNose", PrimitiveType.Cube), true, new Vector3(0f, 0.03f, 0.48f), new Vector3(0.18f, 0.1f, 0.42f), accent);
+            ConfigureChild(EnsureChild(creepObject, "RunnerTail", PrimitiveType.Cube), true, new Vector3(0f, -0.02f, -0.38f), new Vector3(0.1f, 0.08f, 0.32f * damageScale), senderColor);
+            ConfigureChild(EnsureChild(creepObject, "RunnerLeftFin", PrimitiveType.Cube), true, new Vector3(-0.26f, 0f, -0.04f), new Vector3(0.08f, 0.08f, 0.3f), senderColor);
+            ConfigureChild(EnsureChild(creepObject, "RunnerRightFin", PrimitiveType.Cube), true, new Vector3(0.26f, 0f, -0.04f), new Vector3(0.08f, 0.08f, 0.3f), senderColor);
+            ConfigureChild(EnsureChild(creepObject, "RunnerSpeedLine", PrimitiveType.Cube), true, new Vector3(0f, -0.18f, -0.72f), new Vector3(0.055f, 0.035f, 0.52f * damageScale), senderColor);
+        }
 
-            ConfigureChild(armor, isBrute, new Vector3(0f, 0.26f, 0f), isBoss ? new Vector3(0.86f, 0.18f, 0.96f) : new Vector3(0.72f, 0.14f, 0.84f), new Color(1f, 0.72f, 0.38f));
-            ConfigureChild(bruteLeftPlate, isBrute, new Vector3(-0.38f, 0.12f, 0.04f), new Vector3(0.18f, 0.28f, 0.62f), new Color(0.74f, 0.38f, 0.22f));
-            ConfigureChild(bruteRightPlate, isBrute, new Vector3(0.38f, 0.12f, 0.04f), new Vector3(0.18f, 0.28f, 0.62f), new Color(0.74f, 0.38f, 0.22f));
-            ConfigureChild(bruteCore, isBrute && !isBoss, new Vector3(0f, 0.42f, 0.18f), new Vector3(0.22f, 0.22f, 0.22f), SignalGold);
-            ConfigureChild(bossCrown, isBoss, new Vector3(0f, 0.72f, 0f), new Vector3(0.92f, 0.055f, 0.92f), LeakRed);
-            ConfigureChild(bossCore, isBoss, new Vector3(0f, 0.54f, 0.16f), new Vector3(0.34f, 0.34f, 0.34f), SignalGold);
-            ConfigureChild(bossLeftHorn, isBoss, new Vector3(-0.44f, 0.62f, 0.16f), new Vector3(0.16f, 0.16f, 0.42f), LeakRed);
-            ConfigureChild(bossRightHorn, isBoss, new Vector3(0.44f, 0.62f, 0.16f), new Vector3(0.16f, 0.16f, 0.42f), LeakRed);
+        private static void ConfigureBruteMarker(GameObject creepObject, bool isBoss, float healthFraction, bool isHitFlashing)
+        {
+            var armorColor = isHitFlashing ? new Color(1f, 0.94f, 0.62f) : new Color(1f, 0.72f, 0.38f);
+            var plateColor = healthFraction < 0.35f ? new Color(0.68f, 0.22f, 0.16f) : new Color(0.74f, 0.38f, 0.22f);
 
-            ConfigureChild(swarmA, isSwarm, new Vector3(-0.42f, 0.05f, -0.24f), new Vector3(0.62f, 0.62f, 0.62f), senderColor);
-            ConfigureChild(swarmB, isSwarm, new Vector3(0.38f, 0.05f, 0.26f), new Vector3(0.52f, 0.52f, 0.52f), MintSignal);
-            ConfigureChild(swarmC, isSwarm, new Vector3(0.08f, 0.08f, -0.48f), new Vector3(0.44f, 0.44f, 0.44f), new Color(0.75f, 0.95f, 1f));
-            ConfigureChild(swarmTrail, isSwarm, new Vector3(0f, -0.18f, 0f), new Vector3(0.82f, 0.03f, 0.82f), senderColor);
+            ConfigureChild(EnsureChild(creepObject, "BruteArmor", PrimitiveType.Cube), true, new Vector3(0f, 0.26f, 0f), isBoss ? new Vector3(0.9f, 0.2f, 1.02f) : new Vector3(0.78f, 0.16f, 0.94f), armorColor);
+            ConfigureChild(EnsureChild(creepObject, "BruteLeftPlate", PrimitiveType.Cube), true, new Vector3(-0.4f, 0.12f, 0.04f), new Vector3(0.2f, 0.3f, 0.68f), plateColor);
+            ConfigureChild(EnsureChild(creepObject, "BruteRightPlate", PrimitiveType.Cube), true, new Vector3(0.4f, 0.12f, 0.04f), new Vector3(0.2f, 0.3f, 0.68f), plateColor);
+            ConfigureChild(EnsureChild(creepObject, "BruteCore", PrimitiveType.Sphere), !isBoss, new Vector3(0f, 0.44f, 0.18f), Vector3.one * Mathf.Lerp(0.14f, 0.24f, Mathf.Clamp01(healthFraction)), SignalGold);
 
-            ConfigureChild(hover, isAir, new Vector3(0f, -0.52f, 0f), new Vector3(0.88f, 0.04f, 0.88f), new Color(0.82f, 0.72f, 1f));
-            ConfigureChild(airLeftWing, isAir, new Vector3(-0.5f, 0.02f, 0f), new Vector3(0.42f, 0.08f, 0.18f), new Color(0.82f, 0.72f, 1f));
-            ConfigureChild(airRightWing, isAir, new Vector3(0.5f, 0.02f, 0f), new Vector3(0.42f, 0.08f, 0.18f), new Color(0.82f, 0.72f, 1f));
-            ConfigureChild(airBeacon, isAir, new Vector3(0f, 0.28f, 0f), new Vector3(0.2f, 0.2f, 0.2f), MintSignal);
+            if (!isBoss)
+            {
+                return;
+            }
 
-            ConfigureChild(shimmer, isStealth, new Vector3(0f, 0f, 0f), new Vector3(1.1f, 0.05f, 1.1f), new Color(0.86f, 0.96f, 1f));
-            ConfigureChild(stealthEchoA, isStealth, new Vector3(0f, -0.18f, 0f), new Vector3(1.34f, 0.03f, 1.34f), new Color(0.36f, 0.5f, 0.58f));
-            ConfigureChild(stealthEchoB, isStealth, new Vector3(0f, 0.2f, 0f), new Vector3(0.78f, 0.03f, 0.78f), new Color(0.72f, 0.84f, 0.9f));
+            ConfigureChild(EnsureChild(creepObject, "BossCrown", PrimitiveType.Cylinder), true, new Vector3(0f, 0.72f, 0f), new Vector3(0.92f, 0.055f, 0.92f), LeakRed);
+            ConfigureChild(EnsureChild(creepObject, "BossCore", PrimitiveType.Sphere), true, new Vector3(0f, 0.54f, 0.16f), new Vector3(0.34f, 0.34f, 0.34f), SignalGold);
+            ConfigureChild(EnsureChild(creepObject, "BossLeftHorn", PrimitiveType.Cube), true, new Vector3(-0.44f, 0.62f, 0.16f), new Vector3(0.16f, 0.16f, 0.42f), LeakRed);
+            ConfigureChild(EnsureChild(creepObject, "BossRightHorn", PrimitiveType.Cube), true, new Vector3(0.44f, 0.62f, 0.16f), new Vector3(0.16f, 0.16f, 0.42f), LeakRed);
+        }
 
-            ConfigureChild(siegeBase, isSiege, new Vector3(0f, -0.02f, -0.06f), new Vector3(0.58f, 0.22f, 0.5f), new Color(0.56f, 0.12f, 0.16f));
-            ConfigureChild(siegeBarrel, isSiege, new Vector3(0f, 0.08f, 0.42f), new Vector3(0.18f, 0.16f, 0.62f), new Color(1f, 0.38f, 0.44f));
-            ConfigureChild(siegeSpike, isSiege, new Vector3(0.28f, 0.08f, 0f), new Vector3(0.38f, 0.16f, 0.2f), new Color(1f, 0.3f, 0.36f));
+        private static void ConfigureSwarmMarker(GameObject creepObject, int senderId, float healthFraction, bool isHitFlashing)
+        {
+            var senderColor = isHitFlashing ? new Color(1f, 0.94f, 0.62f) : SenderColor(senderId);
+            var time = Time.time;
+            var jitter = Mathf.Sin(time * 18f) * 0.08f;
+            var livingDots = healthFraction > 0.66f ? 5 : healthFraction > 0.33f ? 4 : 3;
 
-            ConfigureChild(auraField, isAura, new Vector3(0f, -0.34f, 0f), new Vector3(1.42f, 0.035f, 1.42f), new Color(0.42f, 1f, 0.72f));
-            ConfigureChild(auraCore, isAura, new Vector3(0f, 0.24f, 0f), new Vector3(0.28f, 0.28f, 0.28f), MintSignal);
-            ConfigureChild(auraNorthNode, isAura, new Vector3(0f, 0.02f, 0.46f), new Vector3(0.18f, 0.18f, 0.18f), SignalGold);
-            ConfigureChild(auraSouthNode, isAura, new Vector3(0f, 0.02f, -0.46f), new Vector3(0.18f, 0.18f, 0.18f), SignalGold);
+            ConfigureChild(EnsureChild(creepObject, "SwarmDotA", PrimitiveType.Sphere), true, new Vector3(-0.42f + jitter, 0.05f, -0.24f), new Vector3(0.62f, 0.62f, 0.62f), senderColor);
+            ConfigureChild(EnsureChild(creepObject, "SwarmDotB", PrimitiveType.Sphere), true, new Vector3(0.38f - jitter, 0.05f, 0.26f), new Vector3(0.52f, 0.52f, 0.52f), MintSignal);
+            ConfigureChild(EnsureChild(creepObject, "SwarmDotC", PrimitiveType.Sphere), true, new Vector3(0.08f, 0.08f, -0.48f - jitter), new Vector3(0.44f, 0.44f, 0.44f), new Color(0.75f, 0.95f, 1f));
+            ConfigureChild(EnsureChild(creepObject, "SwarmDotD", PrimitiveType.Sphere), livingDots >= 4, new Vector3(-0.08f - jitter, 0.06f, 0.48f), new Vector3(0.38f, 0.38f, 0.38f), senderColor);
+            ConfigureChild(EnsureChild(creepObject, "SwarmDotE", PrimitiveType.Sphere), livingDots >= 5, new Vector3(0.48f, 0.05f, -0.16f + jitter), new Vector3(0.34f, 0.34f, 0.34f), MintSignal);
+            ConfigureChild(EnsureChild(creepObject, "SwarmTrail", PrimitiveType.Cylinder), true, new Vector3(0f, -0.18f, 0f), new Vector3(0.92f, 0.025f, 0.92f), senderColor);
+        }
+
+        private static void ConfigureAirMarker(GameObject creepObject)
+        {
+            ConfigureChild(EnsureChild(creepObject, "AirHoverRing", PrimitiveType.Cylinder), true, new Vector3(0f, -0.52f, 0f), new Vector3(0.88f, 0.04f, 0.88f), new Color(0.82f, 0.72f, 1f));
+            ConfigureChild(EnsureChild(creepObject, "AirLeftWing", PrimitiveType.Cube), true, new Vector3(-0.5f, 0.02f, 0f), new Vector3(0.42f, 0.08f, 0.18f), new Color(0.82f, 0.72f, 1f));
+            ConfigureChild(EnsureChild(creepObject, "AirRightWing", PrimitiveType.Cube), true, new Vector3(0.5f, 0.02f, 0f), new Vector3(0.42f, 0.08f, 0.18f), new Color(0.82f, 0.72f, 1f));
+            ConfigureChild(EnsureChild(creepObject, "AirBeacon", PrimitiveType.Sphere), true, new Vector3(0f, 0.28f, 0f), new Vector3(0.2f, 0.2f, 0.2f), MintSignal);
+        }
+
+        private static void ConfigureStealthMarker(GameObject creepObject)
+        {
+            ConfigureChild(EnsureChild(creepObject, "StealthShimmer", PrimitiveType.Cylinder), true, new Vector3(0f, 0f, 0f), new Vector3(1.1f, 0.05f, 1.1f), new Color(0.86f, 0.96f, 1f));
+            ConfigureChild(EnsureChild(creepObject, "StealthEchoA", PrimitiveType.Cylinder), true, new Vector3(0f, -0.18f, 0f), new Vector3(1.34f, 0.03f, 1.34f), new Color(0.36f, 0.5f, 0.58f));
+            ConfigureChild(EnsureChild(creepObject, "StealthEchoB", PrimitiveType.Cylinder), true, new Vector3(0f, 0.2f, 0f), new Vector3(0.78f, 0.03f, 0.78f), new Color(0.72f, 0.84f, 0.9f));
+        }
+
+        private static void ConfigureSiegeMarker(GameObject creepObject)
+        {
+            ConfigureChild(EnsureChild(creepObject, "SiegeBase", PrimitiveType.Cube), true, new Vector3(0f, -0.02f, -0.06f), new Vector3(0.58f, 0.22f, 0.5f), new Color(0.56f, 0.12f, 0.16f));
+            ConfigureChild(EnsureChild(creepObject, "SiegeBarrel", PrimitiveType.Cube), true, new Vector3(0f, 0.08f, 0.42f), new Vector3(0.18f, 0.16f, 0.62f), new Color(1f, 0.38f, 0.44f));
+            ConfigureChild(EnsureChild(creepObject, "SiegeSpike", PrimitiveType.Cube), true, new Vector3(0.28f, 0.08f, 0f), new Vector3(0.38f, 0.16f, 0.2f), new Color(1f, 0.3f, 0.36f));
+        }
+
+        private static void ConfigureAuraMarker(GameObject creepObject)
+        {
+            ConfigureChild(EnsureChild(creepObject, "AuraField", PrimitiveType.Cylinder), true, new Vector3(0f, -0.34f, 0f), new Vector3(1.42f, 0.035f, 1.42f), new Color(0.42f, 1f, 0.72f));
+            ConfigureChild(EnsureChild(creepObject, "AuraCore", PrimitiveType.Sphere), true, new Vector3(0f, 0.24f, 0f), new Vector3(0.28f, 0.28f, 0.28f), MintSignal);
+            ConfigureChild(EnsureChild(creepObject, "AuraNorthNode", PrimitiveType.Sphere), true, new Vector3(0f, 0.02f, 0.46f), new Vector3(0.18f, 0.18f, 0.18f), SignalGold);
+            ConfigureChild(EnsureChild(creepObject, "AuraSouthNode", PrimitiveType.Sphere), true, new Vector3(0f, 0.02f, -0.46f), new Vector3(0.18f, 0.18f, 0.18f), SignalGold);
+        }
+
+        private static void DeactivateKnownCreepMarkers(GameObject creepObject)
+        {
+            for (var index = 0; index < CreepMarkerNames.Length; index++)
+            {
+                var marker = creepObject.transform.Find(CreepMarkerNames[index]);
+                if (marker != null)
+                {
+                    marker.gameObject.SetActive(false);
+                }
+            }
         }
 
         private static Vector3 CreepShadowScale(string creepId)
@@ -1554,6 +1692,44 @@ namespace LTW.UnityClient.Simulation
             1 => ArcaneBlue,
             2 => WardViolet,
             _ => SignalGold
+        };
+
+        private static readonly string[] CreepMarkerNames =
+        {
+            "GroundShadow",
+            "RunnerNose",
+            "RunnerTail",
+            "RunnerLeftFin",
+            "RunnerRightFin",
+            "RunnerSpeedLine",
+            "BruteArmor",
+            "BruteLeftPlate",
+            "BruteRightPlate",
+            "BruteCore",
+            "BossCrown",
+            "BossCore",
+            "BossLeftHorn",
+            "BossRightHorn",
+            "SwarmDotA",
+            "SwarmDotB",
+            "SwarmDotC",
+            "SwarmDotD",
+            "SwarmDotE",
+            "SwarmTrail",
+            "AirHoverRing",
+            "AirLeftWing",
+            "AirRightWing",
+            "AirBeacon",
+            "StealthShimmer",
+            "StealthEchoA",
+            "StealthEchoB",
+            "SiegeBase",
+            "SiegeBarrel",
+            "SiegeSpike",
+            "AuraField",
+            "AuraCore",
+            "AuraNorthNode",
+            "AuraSouthNode"
         };
 
         private static readonly Color NightInk = new Color(0.063f, 0.094f, 0.184f);
