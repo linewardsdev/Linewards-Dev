@@ -70,7 +70,7 @@ The first art-upgrade pass also aligns board material bands, endpoint halos, gat
 - [x] Add sell and upgrade hooks or disabled states with clear affordance.
 - [x] Make confirm/cancel, invalid feedback, and recovery fast enough for repeated play.
 
-Current tower palette exposes Arrow, Control, Relay, selected-tower inspect, and selected/last-tower selling for the local vertical slice. Upgrade remains intentionally out of scope until tower progression exists.
+Current tower palette exposes Arrow, Control, Relay, selected-tower inspect, and selected/last-tower selling for the local vertical slice. The build palette and send dock now collapse into compact bottom-corner popout buttons so the board stays visible during normal play. Upgrade remains intentionally out of scope until tower progression exists.
 
 ### Acceptance Checks
 

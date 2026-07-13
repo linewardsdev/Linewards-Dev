@@ -27,6 +27,8 @@ namespace LTW.UnityClient.UI
         [SerializeField]
         private bool showRuntimeDock = true;
 
+        private bool isExpanded;
+
         public void Initialize(UnityCommandAdapter adapter, PlacementFeedbackView feedback)
         {
             commandAdapter = adapter;
@@ -49,6 +51,18 @@ namespace LTW.UnityClient.UI
             EnsureStyles();
 
             var scale = Mathf.Clamp(Screen.width / 1080f, 0.72f, 1.15f);
+            var launcherSize = 58f * scale;
+            var launcherRect = new Rect(Screen.width - launcherSize - 12f * scale, Screen.height - launcherSize - 18f * scale, launcherSize, launcherSize);
+            if (!isExpanded)
+            {
+                if (DrawLauncherButton(launcherRect, "SEND", SignalGold, scale))
+                {
+                    isExpanded = true;
+                }
+
+                return;
+            }
+
             var width = Mathf.Min(Screen.width - 32f * scale, 390f * scale);
             var height = 154f * scale;
             var rect = new Rect(Screen.width - width - 12f * scale, Screen.height - height - 18f * scale, width, height);
@@ -58,7 +72,12 @@ namespace LTW.UnityClient.UI
 
             titleStyle!.fontSize = Mathf.RoundToInt(14f * scale);
             titleStyle.normal.textColor = SignalGold;
-            GUI.Label(new Rect(rect.x + 12f * scale, rect.y + 8f * scale, rect.width - 24f * scale, 22f * scale), "SEND PRESSURE", titleStyle);
+            GUI.Label(new Rect(rect.x + 12f * scale, rect.y + 8f * scale, rect.width - 64f * scale, 22f * scale), "SEND PRESSURE", titleStyle);
+            if (GUI.Button(new Rect(rect.xMax - 44f * scale, rect.y + 8f * scale, 30f * scale, 24f * scale), "X", buttonStyle))
+            {
+                isExpanded = false;
+                return;
+            }
 
             var buttonY = rect.y + 38f * scale;
             var buttonHeight = 94f * scale;
@@ -69,18 +88,21 @@ namespace LTW.UnityClient.UI
             if (DrawSendButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "RUNNER", "10g  +1", ArcaneBlue, scale))
             {
                 SendRunner();
+                isExpanded = false;
             }
 
             x += buttonWidth + gap;
             if (DrawSendButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "BRUTE", "18g  +2", WardViolet, scale))
             {
                 SendBrute();
+                isExpanded = false;
             }
 
             x += buttonWidth + gap;
             if (DrawSendButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "SWARM", "3x 6g  +1", SignalGold, scale))
             {
                 SendSwarm();
+                isExpanded = false;
             }
         }
 
@@ -113,6 +135,20 @@ namespace LTW.UnityClient.UI
             metaStyle!.fontSize = Mathf.RoundToInt(11f * scale);
             metaStyle.normal.textColor = accent;
             GUI.Label(new Rect(rect.x, rect.y + 49f * scale, rect.width, 22f * scale), meta, metaStyle);
+            return pressed;
+        }
+
+        private static bool DrawLauncherButton(Rect rect, string label, Color accent, float scale)
+        {
+            var previousColor = GUI.color;
+            GUI.color = TintPanel(accent, 0.12f);
+            var pressed = GUI.Button(rect, GUIContent.none, buttonStyle);
+            GUI.color = previousColor;
+
+            DrawAccent(new Rect(rect.x, rect.yMax - 4f * scale, rect.width, 4f * scale), accent);
+            buttonStyle!.fontSize = Mathf.RoundToInt(12f * scale);
+            buttonStyle.normal.textColor = accent;
+            GUI.Label(rect, label, buttonStyle);
             return pressed;
         }
 

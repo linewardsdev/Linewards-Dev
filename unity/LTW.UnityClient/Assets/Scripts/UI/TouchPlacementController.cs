@@ -46,6 +46,7 @@ namespace LTW.UnityClient.UI
         private bool showPlacementReadout = true;
 
         private bool isPlacing;
+        private bool isPaletteExpanded;
         private int selectedTowerRole;
         private Vector2Int selectedCell;
         private TowerCombatState? selectedTower;
@@ -70,6 +71,7 @@ namespace LTW.UnityClient.UI
         private void BeginTowerPlacement(int towerRole)
         {
             isPlacing = true;
+            isPaletteExpanded = false;
             selectedTowerRole = towerRole;
             selectedCell = new Vector2Int(2, 2);
             ghost.SetActive(true);
@@ -364,6 +366,18 @@ namespace LTW.UnityClient.UI
                 return;
             }
 
+            var launcherSize = 58f * scale;
+            var launcherRect = new Rect(12f * scale, Screen.height - launcherSize - 18f * scale, launcherSize, launcherSize);
+            if (!isPaletteExpanded)
+            {
+                if (DrawLauncherButton(launcherRect, "BUILD", MintSignal, scale))
+                {
+                    isPaletteExpanded = true;
+                }
+
+                return;
+            }
+
             var width = Mathf.Min(Screen.width - 32f * scale, 390f * scale);
             var height = 142f * scale;
             var rect = new Rect(12f * scale, Screen.height - height - 18f * scale, width, height);
@@ -373,7 +387,12 @@ namespace LTW.UnityClient.UI
 
             titleStyle!.fontSize = Mathf.RoundToInt(14f * scale);
             titleStyle.normal.textColor = MintSignal;
-            GUI.Label(new Rect(rect.x + 12f * scale, rect.y + 8f * scale, rect.width - 24f * scale, 22f * scale), "WARD PALETTE", titleStyle);
+            GUI.Label(new Rect(rect.x + 12f * scale, rect.y + 8f * scale, rect.width - 64f * scale, 22f * scale), "WARD PALETTE", titleStyle);
+            if (GUI.Button(new Rect(rect.xMax - 44f * scale, rect.y + 8f * scale, 30f * scale, 24f * scale), "X", buttonStyle ?? GUI.skin.button))
+            {
+                isPaletteExpanded = false;
+                return;
+            }
 
             var buttonY = rect.y + 38f * scale;
             var buttonHeight = 74f * scale;
@@ -405,6 +424,7 @@ namespace LTW.UnityClient.UI
             if (DrawPaletteButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "SELL", "refund", Danger, scale))
             {
                 SellLastTower();
+                isPaletteExpanded = false;
             }
         }
 
@@ -425,6 +445,21 @@ namespace LTW.UnityClient.UI
             metaStyle!.fontSize = Mathf.RoundToInt(10f * scale);
             metaStyle.normal.textColor = accent;
             GUI.Label(new Rect(rect.x, rect.y + 39f * scale, rect.width, 18f * scale), meta, metaStyle);
+            return pressed;
+        }
+
+        private static bool DrawLauncherButton(Rect rect, string label, Color accent, float scale)
+        {
+            var previousColor = GUI.color;
+            GUI.color = new Color(PanelInk.r + accent.r * 0.12f, PanelInk.g + accent.g * 0.12f, PanelInk.b + accent.b * 0.12f, PanelInk.a);
+            var style = buttonStyle ?? GUI.skin.button;
+            var pressed = GUI.Button(rect, GUIContent.none, style);
+            GUI.color = previousColor;
+
+            DrawAccent(new Rect(rect.x, rect.yMax - 4f * scale, rect.width, 4f * scale), accent);
+            buttonStyle!.fontSize = Mathf.RoundToInt(11f * scale);
+            buttonStyle.normal.textColor = accent;
+            GUI.Label(rect, label, style);
             return pressed;
         }
 
