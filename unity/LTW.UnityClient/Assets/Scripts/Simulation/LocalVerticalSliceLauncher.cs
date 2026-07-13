@@ -44,7 +44,7 @@ namespace LTW.UnityClient.Simulation
             stressHarness.Initialize(commands, performanceSampler);
             results.Initialize(driver);
             sessionOverlay.Initialize(driver, playtestRecorder);
-            controls.Initialize(commands, driver, renderer, replayExporter, playtestRecorder, stressHarness, placement, feedback);
+            controls.Initialize(commands, driver, renderer, replayExporter, playtestRecorder, stressHarness, placement, laneViewToggle, feedback);
             bootstrapper.Initialize(driver, commands);
             var camera = CreateCamera();
             renderer.SetCameraFraming(renderer.CameraFraming);
@@ -106,6 +106,7 @@ namespace LTW.UnityClient.Simulation
         private LocalPlaytestRecorder playtestRecorder = null!;
         private HeavySendStressHarness stressHarness = null!;
         private TouchPlacementController placement = null!;
+        private LaneViewToggleController laneViewToggle = null!;
         private PlacementFeedbackView feedback = null!;
 
         public void Initialize(
@@ -116,6 +117,7 @@ namespace LTW.UnityClient.Simulation
             LocalPlaytestRecorder recorder,
             HeavySendStressHarness harness,
             TouchPlacementController placementController,
+            LaneViewToggleController viewToggleController,
             PlacementFeedbackView feedbackView)
         {
             commands = commandAdapter;
@@ -125,6 +127,7 @@ namespace LTW.UnityClient.Simulation
             playtestRecorder = recorder;
             stressHarness = harness;
             placement = placementController;
+            laneViewToggle = viewToggleController;
             feedback = feedbackView;
         }
 
@@ -177,9 +180,7 @@ namespace LTW.UnityClient.Simulation
             if (Input.GetKeyDown(KeyCode.F)) PresentationPreferences.ReducedEffects = !PresentationPreferences.ReducedEffects;
             if (Input.GetKeyDown(KeyCode.Tab))
             {
-                renderer.SetCameraFraming(renderer.CameraFraming == LaneCameraFraming.ActiveLane
-                    ? LaneCameraFraming.AllLanes
-                    : LaneCameraFraming.ActiveLane);
+                laneViewToggle.ToggleView();
             }
             if (Input.GetKeyDown(KeyCode.Alpha1)) renderer.SetPresentationDetail(PresentationDetail.Full);
             if (Input.GetKeyDown(KeyCode.Alpha2)) renderer.SetPresentationDetail(PresentationDetail.Simplified);

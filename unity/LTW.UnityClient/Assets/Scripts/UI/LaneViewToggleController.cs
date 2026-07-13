@@ -19,9 +19,19 @@ namespace LTW.UnityClient.UI
         [SerializeField]
         private bool showRuntimeToggle = true;
 
+        private bool showingMap;
+
         public void Initialize(UnityVerticalSliceRenderer presentationRenderer)
         {
             renderer = presentationRenderer;
+            showingMap = false;
+            ApplyCurrentView();
+        }
+
+        public void ToggleView()
+        {
+            showingMap = !showingMap;
+            ApplyCurrentView();
         }
 
         private void OnGUI()
@@ -37,15 +47,14 @@ namespace LTW.UnityClient.UI
             var width = 72f * scale;
             var height = 42f * scale;
             var rect = new Rect(Screen.width - width - 12f * scale, 218f * scale, width, height);
-            var isLaneView = renderer.CameraFraming == LaneCameraFraming.ActiveLane;
-            var nextView = isLaneView ? "MAP" : "LANE";
+            var nextView = showingMap ? "LANE" : "MAP";
 
             var previousColor = GUI.color;
             GUI.color = new Color(PanelInk.r + ArcaneBlue.r * 0.1f, PanelInk.g + ArcaneBlue.g * 0.1f, PanelInk.b + ArcaneBlue.b * 0.1f, PanelInk.a);
             buttonStyle!.fontSize = Mathf.RoundToInt(13f * scale);
             if (GUI.Button(rect, nextView, buttonStyle))
             {
-                renderer.SetCameraFraming(isLaneView ? LaneCameraFraming.AllLanes : LaneCameraFraming.ActiveLane);
+                ToggleView();
             }
 
             GUI.color = previousColor;
@@ -77,6 +86,16 @@ namespace LTW.UnityClient.UI
             GUI.color = color;
             GUI.DrawTexture(rect, Texture2D.whiteTexture);
             GUI.color = previousColor;
+        }
+
+        private void ApplyCurrentView()
+        {
+            if (renderer == null)
+            {
+                return;
+            }
+
+            renderer.SetCameraFraming(showingMap ? LaneCameraFraming.AllLanes : LaneCameraFraming.ActiveLane);
         }
     }
 }
