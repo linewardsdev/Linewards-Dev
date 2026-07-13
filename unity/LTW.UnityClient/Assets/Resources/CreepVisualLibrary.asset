@@ -21,6 +21,7 @@ MonoBehaviour:
     bodyRendererPath: 
     senderAccentRendererPaths: []
     damageRendererPaths: []
+    deathCueStyle: 1
   - creepId: creep.brute
     role: 1
     prefab: {fileID: 0}
@@ -29,6 +30,7 @@ MonoBehaviour:
     bodyRendererPath: 
     senderAccentRendererPaths: []
     damageRendererPaths: []
+    deathCueStyle: 2
   - creepId: creep.swarm
     role: 2
     prefab: {fileID: 0}
@@ -37,3 +39,4 @@ MonoBehaviour:
     bodyRendererPath: 
     senderAccentRendererPaths: []
     damageRendererPaths: []
+    deathCueStyle: 3
