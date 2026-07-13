@@ -479,11 +479,16 @@ namespace LTW.UnityClient.UI
 
             DrawPanel(rect, PanelInk);
             DrawAccent(new Rect(rect.x, rect.yMax - 4f * scale, rect.width, 4f * scale), MintSignal);
+            if (DrawLauncherButton(launcherRect, "CLOSE", MintSignal, scale))
+            {
+                isPaletteExpanded = false;
+                return;
+            }
 
             titleStyle!.fontSize = Mathf.RoundToInt(14f * scale);
             titleStyle.normal.textColor = MintSignal;
-            GUI.Label(new Rect(rect.x + 12f * scale, rect.y + 8f * scale, rect.width - 64f * scale, 22f * scale), "WARD PALETTE", titleStyle);
-            if (GUI.Button(new Rect(rect.xMax - 44f * scale, rect.y + 8f * scale, 30f * scale, 24f * scale), "X", buttonStyle ?? GUI.skin.button))
+            GUI.Label(new Rect(rect.x + 12f * scale, rect.y + 8f * scale, rect.width - 72f * scale, 22f * scale), "WARD PALETTE", titleStyle);
+            if (GUI.Button(new Rect(rect.xMax - 58f * scale, rect.y + 8f * scale, 44f * scale, 28f * scale), "CLOSE", buttonStyle ?? GUI.skin.button))
             {
                 isPaletteExpanded = false;
                 return;
