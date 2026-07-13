@@ -31,6 +31,11 @@ namespace LTW.UnityClient.Simulation
                 return;
             }
 
+            if (simulationDriver.LatestMatchSummary is not null)
+            {
+                return;
+            }
+
             EnsureStyle();
             var scale = MobileViewportLayout.UiScale();
             var frame = MobileViewportLayout.ScreenRect();

@@ -70,8 +70,9 @@ namespace LTW.UnityClient.UI
             }
 
             var width = Mathf.Min(frame.width - 16f * scale, 430f * scale);
-            var height = 146f * scale;
-            var rect = new Rect(frame.xMax - width - 8f * scale, frame.yMax - height - MobileViewportLayout.BottomMargin(scale), width, height);
+            var height = 122f * scale;
+            var launcherClearance = 66f * scale;
+            var rect = new Rect(frame.xMax - width - 8f * scale, frame.yMax - height - MobileViewportLayout.BottomMargin(scale) - launcherClearance, width, height);
 
             DrawPanel(rect, PanelInk);
             DrawAccent(new Rect(rect.x, rect.yMax - 4f * scale, rect.width, 4f * scale), SignalGold);
@@ -93,27 +94,27 @@ namespace LTW.UnityClient.UI
             var gold = CurrentPlayerGold();
             metaStyle!.fontSize = Mathf.RoundToInt(10f * scale);
             metaStyle.normal.textColor = MintSignal;
-            GUI.Label(new Rect(rect.x + 12f * scale, rect.y + 37f * scale, rect.width - 24f * scale, 18f * scale), $"GOLD {gold} - SENDS LIMITED BY COST", metaStyle);
+            GUI.Label(new Rect(rect.x + 12f * scale, rect.y + 37f * scale, rect.width - 24f * scale, 18f * scale), $"GOLD {gold}", metaStyle);
 
             var buttonY = rect.y + 54f * scale;
-            var buttonHeight = 72f * scale;
-            var gap = 8f * scale;
+            var buttonHeight = 52f * scale;
+            var gap = 6f * scale;
             var buttonWidth = (rect.width - 24f * scale - gap * 2f) / 3f;
             var x = rect.x + 12f * scale;
 
-            if (DrawSendButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "RUNNER", "10g  +1", "fast", ArcaneBlue, scale))
+            if (DrawSendButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "RUN", "10G", ArcaneBlue, scale))
             {
                 SendRunner();
             }
 
             x += buttonWidth + gap;
-            if (DrawSendButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "BRUTE", "18g  +2", "tank", WardViolet, scale))
+            if (DrawSendButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "BRUTE", "18G", WardViolet, scale))
             {
                 SendBrute();
             }
 
             x += buttonWidth + gap;
-            if (DrawSendButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "SWARM", "3x 6g  +1", "wide", SignalGold, scale))
+            if (DrawSendButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "SWARM", "18G", SignalGold, scale))
             {
                 SendSwarm();
             }
@@ -137,7 +138,7 @@ namespace LTW.UnityClient.UI
             }
         }
 
-        private static bool DrawSendButton(Rect rect, string label, string meta, string purpose, Color accent, float scale)
+        private static bool DrawSendButton(Rect rect, string label, string meta, Color accent, float scale)
         {
             var previousColor = GUI.color;
             GUI.color = TintPanel(accent, 0.08f);
@@ -146,16 +147,15 @@ namespace LTW.UnityClient.UI
 
             DrawAccent(new Rect(rect.x, rect.yMax - 4f * scale, rect.width, 4f * scale), accent);
 
-            buttonStyle!.fontSize = Mathf.RoundToInt(14f * scale);
+            buttonStyle!.fontSize = Mathf.RoundToInt(12f * scale);
             buttonStyle.normal.textColor = Cloud;
             buttonStyle.hover.textColor = buttonStyle.normal.textColor;
             buttonStyle.active.textColor = buttonStyle.normal.textColor;
-            GUI.Label(new Rect(rect.x, rect.y + 9f * scale, rect.width, 21f * scale), label, buttonStyle);
+            GUI.Label(new Rect(rect.x + 2f * scale, rect.y + 9f * scale, rect.width - 4f * scale, 21f * scale), label, buttonStyle);
 
-            metaStyle!.fontSize = Mathf.RoundToInt(10f * scale);
+            metaStyle!.fontSize = Mathf.RoundToInt(9f * scale);
             metaStyle.normal.textColor = accent;
-            GUI.Label(new Rect(rect.x, rect.y + 34f * scale, rect.width, 17f * scale), meta, metaStyle);
-            GUI.Label(new Rect(rect.x, rect.y + 52f * scale, rect.width, 16f * scale), purpose, metaStyle);
+            GUI.Label(new Rect(rect.x + 2f * scale, rect.y + 34f * scale, rect.width - 4f * scale, 17f * scale), meta, metaStyle);
             return pressed;
         }
 

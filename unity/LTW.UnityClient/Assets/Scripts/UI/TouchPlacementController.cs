@@ -505,41 +505,41 @@ namespace LTW.UnityClient.UI
                 return;
             }
 
-            var buttonY = rect.y + 42f * scale;
-            var buttonHeight = 72f * scale;
-            var gap = 8f * scale;
+            var buttonY = rect.y + 43f * scale;
+            var buttonHeight = 58f * scale;
+            var gap = 6f * scale;
             var buttonWidth = (rect.width - 24f * scale - gap * 3f) / 4f;
             var x = rect.x + 12f * scale;
 
-            if (DrawPaletteButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "ARROW", "25g", "focus", ArcaneBlue, scale))
+            if (DrawPaletteButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "ARROW", "25G", ArcaneBlue, scale))
             {
                 selectedTower = null;
                 BeginTowerPlacement();
             }
 
             x += buttonWidth + gap;
-            if (DrawPaletteButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "CONTROL", "35g", "area", WardViolet, scale))
+            if (DrawPaletteButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "CTRL", "35G", WardViolet, scale))
             {
                 selectedTower = null;
                 BeginControlTowerPlacement();
             }
 
             x += buttonWidth + gap;
-            if (DrawPaletteButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "RELAY", "40g", "utility", SignalGold, scale))
+            if (DrawPaletteButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "RELAY", "40G", SignalGold, scale))
             {
                 selectedTower = null;
                 BeginUtilityTowerPlacement();
             }
 
             x += buttonWidth + gap;
-            if (DrawPaletteButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "SELL", "refund", "selected", Danger, scale))
+            if (DrawPaletteButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "SELL", "REF", Danger, scale))
             {
                 SellLastTower();
                 isPaletteExpanded = false;
             }
         }
 
-        private static bool DrawPaletteButton(Rect rect, string label, string meta, string purpose, Color accent, float scale)
+        private static bool DrawPaletteButton(Rect rect, string label, string meta, Color accent, float scale)
         {
             var previousColor = GUI.color;
             GUI.color = new Color(PanelInk.r + accent.r * 0.08f, PanelInk.g + accent.g * 0.08f, PanelInk.b + accent.b * 0.08f, PanelInk.a);
@@ -549,15 +549,14 @@ namespace LTW.UnityClient.UI
 
             DrawAccent(new Rect(rect.x, rect.yMax - 4f * scale, rect.width, 4f * scale), accent);
 
-            buttonStyle!.fontSize = Mathf.RoundToInt(12f * scale);
+            buttonStyle!.fontSize = Mathf.RoundToInt(10f * scale);
             buttonStyle.normal.textColor = Cloud;
-            GUI.Label(new Rect(rect.x, rect.y + 8f * scale, rect.width, 20f * scale), label, style);
+            GUI.Label(new Rect(rect.x + 2f * scale, rect.y + 8f * scale, rect.width - 4f * scale, 20f * scale), label, style);
 
-            metaStyle!.fontSize = Mathf.RoundToInt(10f * scale);
+            metaStyle!.fontSize = Mathf.RoundToInt(9f * scale);
             metaStyle.normal.textColor = accent;
-            GUI.Label(new Rect(rect.x, rect.y + 30f * scale, rect.width, 16f * scale), meta, metaStyle);
-            GUI.Label(new Rect(rect.x, rect.y + 47f * scale, rect.width, 15f * scale), purpose, metaStyle);
-            DrawAccent(new Rect(rect.x + rect.width * 0.28f, rect.y + 63f * scale, rect.width * 0.44f, 3f * scale), accent);
+            GUI.Label(new Rect(rect.x + 2f * scale, rect.y + 31f * scale, rect.width - 4f * scale, 16f * scale), meta, metaStyle);
+            DrawAccent(new Rect(rect.x + rect.width * 0.22f, rect.y + rect.height - 10f * scale, rect.width * 0.56f, 3f * scale), accent);
             return pressed;
         }
 
@@ -751,8 +750,9 @@ namespace LTW.UnityClient.UI
         private static Rect TowerPalettePanelRect(float scale, Rect frame)
         {
             var width = Mathf.Min(frame.width - 16f * scale, 430f * scale);
-            var height = 136f * scale;
-            return new Rect(frame.x + 8f * scale, frame.yMax - height - MobileViewportLayout.BottomMargin(scale), width, height);
+            var height = 116f * scale;
+            var launcherClearance = 66f * scale;
+            return new Rect(frame.x + 8f * scale, frame.yMax - height - MobileViewportLayout.BottomMargin(scale) - launcherClearance, width, height);
         }
 
         private static Rect PlacementPanelRect(float scale, Rect frame)

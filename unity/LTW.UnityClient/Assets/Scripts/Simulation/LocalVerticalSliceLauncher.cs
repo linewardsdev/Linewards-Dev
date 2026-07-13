@@ -39,7 +39,7 @@ namespace LTW.UnityClient.Simulation
 
             renderer.Initialize(driver);
             renderer.SetPresentationCamera(camera);
-            laneViewToggle.Initialize(renderer);
+            laneViewToggle.Initialize(renderer, driver);
             hud.Initialize(driver);
             replayExporter.Initialize(driver);
             playtestRecorder.Initialize(driver, replayExporter);
