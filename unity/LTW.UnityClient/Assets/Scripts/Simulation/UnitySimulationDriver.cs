@@ -58,8 +58,22 @@ namespace LTW.UnityClient.Simulation
                 }
             }
 
+            RefreshSnapshot(drainEvents: true);
+        }
+
+        public void RefreshSnapshot(bool drainEvents = false)
+        {
+            if (simulation is null)
+            {
+                return;
+            }
+
             LatestSnapshot = simulation.GetSnapshot();
-            LatestEvents = simulation.DrainEvents();
+            if (drainEvents)
+            {
+                LatestEvents = simulation.DrainEvents();
+            }
+
             LatestMatchSummary = simulation.MatchSummary;
             LatestReplay = simulation.GetReplayRecord();
             LatestBotDiagnostics = simulation.GetBotDiagnostics();
@@ -98,10 +112,7 @@ namespace LTW.UnityClient.Simulation
             IsPaused = true;
             if (simulation is not null)
             {
-                LatestSnapshot = simulation.GetSnapshot();
-                LatestMatchSummary = simulation.MatchSummary;
-                LatestReplay = simulation.GetReplayRecord();
-                LatestBotDiagnostics = simulation.GetBotDiagnostics();
+                RefreshSnapshot();
             }
         }
     }

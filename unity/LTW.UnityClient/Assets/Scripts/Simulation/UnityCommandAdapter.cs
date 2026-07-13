@@ -51,9 +51,12 @@ namespace LTW.UnityClient.Simulation
                 return VerticalSliceCommandResult.Reject(CommandRejectionReason.InvalidLane);
             }
 
-            return simulation is null
-                ? VerticalSliceCommandResult.Reject(CommandRejectionReason.MatchPaused)
-                : simulation.PlaceTower(new PlayerId(1), new LaneId(1), towerId, new GridPosition(x, y));
+            if (simulation is null)
+            {
+                return VerticalSliceCommandResult.Reject(CommandRejectionReason.MatchPaused);
+            }
+
+            return RefreshAfterAccepted(simulation.PlaceTower(new PlayerId(1), new LaneId(1), towerId, new GridPosition(x, y)));
         }
 
         public VerticalSliceCommandResult SendSampleCreep()
@@ -96,16 +99,22 @@ namespace LTW.UnityClient.Simulation
                 return VerticalSliceCommandResult.Reject(CommandRejectionReason.MatchPaused);
             }
 
-            return simulation is null
-                ? VerticalSliceCommandResult.Reject(CommandRejectionReason.MatchPaused)
-                : simulation.QueueSend(new PlayerId(1), creepId, quantity);
+            if (simulation is null)
+            {
+                return VerticalSliceCommandResult.Reject(CommandRejectionReason.MatchPaused);
+            }
+
+            return RefreshAfterAccepted(simulation.QueueSend(new PlayerId(1), creepId, quantity));
         }
 
         public VerticalSliceCommandResult SellLastSampleTower()
         {
-            return simulation is null
-                ? VerticalSliceCommandResult.Reject(CommandRejectionReason.MatchPaused)
-                : simulation.SellLastTower(new PlayerId(1));
+            if (simulation is null)
+            {
+                return VerticalSliceCommandResult.Reject(CommandRejectionReason.MatchPaused);
+            }
+
+            return RefreshAfterAccepted(simulation.SellLastTower(new PlayerId(1)));
         }
 
         public VerticalSliceCommandResult SellTowerAt(int x, int y)
@@ -115,14 +124,28 @@ namespace LTW.UnityClient.Simulation
                 return VerticalSliceCommandResult.Reject(CommandRejectionReason.InvalidLane);
             }
 
-            return simulation is null
-                ? VerticalSliceCommandResult.Reject(CommandRejectionReason.MatchPaused)
-                : simulation.SellTowerAt(new PlayerId(1), new LaneId(1), new GridPosition(x, y));
+            if (simulation is null)
+            {
+                return VerticalSliceCommandResult.Reject(CommandRejectionReason.MatchPaused);
+            }
+
+            return RefreshAfterAccepted(simulation.SellTowerAt(new PlayerId(1), new LaneId(1), new GridPosition(x, y)));
         }
 
         public void ResetMatch()
         {
             simulation?.Reset();
+            simulationDriver?.RefreshSnapshot();
+        }
+
+        private VerticalSliceCommandResult RefreshAfterAccepted(VerticalSliceCommandResult result)
+        {
+            if (result.Accepted)
+            {
+                simulationDriver?.RefreshSnapshot();
+            }
+
+            return result;
         }
 
         private static bool IsValidCell(int x, int y) => x >= 0 && x < LaneWidth && y >= 0 && y < LaneLength;
