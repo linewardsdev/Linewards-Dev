@@ -78,7 +78,14 @@ namespace LTW.UnityClient.Simulation
             if (laneViewToggle is not null
                 && GUI.Button(new Rect(rect.x + 12f * scale, rect.y + 106f * scale, rect.width - 24f * scale, 34f * scale), laneViewToggle.NextViewLabel, buttonStyle))
             {
-                laneViewToggle.ToggleView();
+                if (laneViewToggle.IsShowingMap)
+                {
+                    laneViewToggle.ShowLaneView();
+                }
+                else
+                {
+                    laneViewToggle.ShowMapView();
+                }
             }
         }
 

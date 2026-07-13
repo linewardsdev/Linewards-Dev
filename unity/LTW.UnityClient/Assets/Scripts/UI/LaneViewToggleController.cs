@@ -15,6 +15,8 @@ namespace LTW.UnityClient.UI
 
         private bool showingMap;
 
+        public bool IsShowingMap => showingMap;
+
         public string NextViewLabel => showingMap ? "LANE" : "MAP";
 
         public void Initialize(UnityVerticalSliceRenderer presentationRenderer)
