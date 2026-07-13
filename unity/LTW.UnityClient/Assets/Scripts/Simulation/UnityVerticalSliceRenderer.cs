@@ -201,6 +201,7 @@ namespace LTW.UnityClient.Simulation
                         SpawnCellFrameCue(buildPosition, MintSignal, 0.28f);
                         SpawnEffect(buildPosition, MintSignal, 0.68f, 0.34f);
                         SpawnFloatingText(buildPosition, "WARD", MintSignal, 0.62f);
+                        SpawnReducedEffectCue(buildPosition, "BUILD", MintSignal);
                         PlaySound(towerBuiltClip);
                         break;
                     case TowerSoldEvent towerSold:
@@ -208,6 +209,7 @@ namespace LTW.UnityClient.Simulation
                         SpawnCellFrameCue(sellPosition, SignalGold, 0.24f);
                         SpawnEffect(sellPosition, SignalGold, 0.42f, 0.24f);
                         SpawnFloatingText(sellPosition, $"+{towerSold.Refund.Amount}", SignalGold, 0.58f);
+                        SpawnReducedEffectCue(sellPosition, "SELL", SignalGold);
                         break;
                     case CreepQueuedEvent queued:
                         SpawnSendCue(queued);
@@ -218,6 +220,7 @@ namespace LTW.UnityClient.Simulation
                         SpawnCreepArrivalCue(spawned.DefenderId.Value, spawnColor);
                         SpawnEffect(spawnPosition, spawnColor, 0.52f, 0.28f);
                         SpawnFloatingText(spawnPosition, SpawnLabel(spawned.CreepId.Value), spawnColor, 0.48f);
+                        SpawnReducedEffectCue(spawnPosition, "SPAWN", spawnColor);
                         break;
                     case CreepDamagedEvent damaged:
                         var hitPosition = PositionFor(damaged.CreepEntityId.Value.ToString());
@@ -235,6 +238,7 @@ namespace LTW.UnityClient.Simulation
                         SpawnCreepDeathCue(killPosition, SignalGold);
                         SpawnEffect(killPosition, SignalGold, 0.42f, 0.2f);
                         SpawnFloatingText(killPosition, $"+{creepKilled.BountyAwarded.Amount}", SignalGold, 0.56f);
+                        SpawnReducedEffectCue(killPosition, "KILL", SignalGold);
                         PlaySound(creepKilledClip);
                         break;
                     case LeakEvent leak:
@@ -242,6 +246,7 @@ namespace LTW.UnityClient.Simulation
                         SpawnLeakGateCue(leak.DefenderId.Value);
                         SpawnEffect(position, LeakRed, 0.86f, 0.42f);
                         SpawnFloatingText(position, $"-{leak.LivesLost.Amount} LIFE", LeakRed, 0.72f);
+                        SpawnReducedEffectCue(position, "LEAK", LeakRed);
                         if (leak.BountyAwarded.Amount > 0)
                         {
                             SpawnFloatingText(position + Vector3.right * 0.55f, $"+{leak.BountyAwarded.Amount}", SignalGold, 0.52f);
@@ -254,17 +259,20 @@ namespace LTW.UnityClient.Simulation
                         SpawnIncomeLaneCue(incomeTick.PlayerId.Value);
                         SpawnEffect(IncomePosition(incomeTick.PlayerId.Value), SignalGold, 0.46f, 0.22f);
                         SpawnFloatingText(IncomePosition(incomeTick.PlayerId.Value), $"+{incomeTick.GoldAwarded.Amount} income", SignalGold, 0.58f);
+                        SpawnReducedEffectCue(IncomePosition(incomeTick.PlayerId.Value), "INCOME", SignalGold);
                         PlaySound(incomeClip);
                         break;
                     case PlayerEliminatedEvent eliminated:
                         SpawnLaneShutdownCue(eliminated.PlayerId.Value);
                         SpawnEffect(LaneCenter(eliminated.PlayerId.Value) + Vector3.up * 0.2f, LeakRed, 1.15f, 0.55f);
                         SpawnFloatingText(LaneCenter(eliminated.PlayerId.Value) + Vector3.up * 1.2f, $"PLAYER {eliminated.PlayerId.Value} OUT", LeakRed, 0.8f);
+                        SpawnReducedEffectCue(LaneCenter(eliminated.PlayerId.Value), "OUT", LeakRed);
                         PlaySound(eliminationClip);
                         break;
                     case MatchEndedEvent ended:
                         SpawnVictoryLaneCue(ended.WinnerId.Value);
                         SpawnFloatingText(LaneCenter(ended.WinnerId.Value) + Vector3.up * 1.85f, $"PLAYER {ended.WinnerId.Value} WINS", SignalGold, 1f);
+                        SpawnReducedEffectCue(LaneCenter(ended.WinnerId.Value), "WIN", SignalGold);
                         PlaySound(eliminationClip);
                         break;
                 }
@@ -272,6 +280,14 @@ namespace LTW.UnityClient.Simulation
         }
 
         private void SpawnEffect(Vector3 position, Color color) => SpawnEffect(position, color, 0.62f, 0.3f);
+
+        private void SpawnReducedEffectCue(Vector3 position, string label, Color color)
+        {
+            if (PresentationPreferences.ReducedEffects)
+            {
+                SpawnFloatingText(position + Vector3.up * 0.18f, label, color, 0.5f);
+            }
+        }
 
         private void SpawnEffect(Vector3 position, Color color, float scale, float duration)
         {
@@ -422,6 +438,7 @@ namespace LTW.UnityClient.Simulation
             SpawnEffect(LaneCenter(queued.DefenderId.Value), color, 0.42f, 0.2f);
             SpawnFloatingText(senderPosition + Vector3.left * 0.42f, "SEND", color, 0.42f);
             SpawnFloatingText(defenderPosition, $"{queued.Quantity}x {SpawnLabel(queued.CreepId.Value)}", color, 0.56f);
+            SpawnReducedEffectCue(defenderPosition, "SEND", color);
             PlaySound(sendClip);
         }
 
@@ -459,6 +476,11 @@ namespace LTW.UnityClient.Simulation
             if (ContainsRole(creepId, "attacker") || ContainsRole(creepId, "siege"))
             {
                 return "SIEGE";
+            }
+
+            if (ContainsRole(creepId, "aura") || ContainsRole(creepId, "support"))
+            {
+                return "AURA";
             }
 
             return "RUNNER";
@@ -885,6 +907,11 @@ namespace LTW.UnityClient.Simulation
                 return new Vector3(0.46f, 0.3f, 0.34f);
             }
 
+            if (ContainsRole(creepId, "aura") || ContainsRole(creepId, "support"))
+            {
+                return new Vector3(0.52f, 0.34f, 0.52f);
+            }
+
             return new Vector3(0.56f, 0.34f, 0.56f);
         }
 
@@ -984,6 +1011,11 @@ namespace LTW.UnityClient.Simulation
             if (ContainsRole(creepId, "attacker") || ContainsRole(creepId, "siege"))
             {
                 return new Color(1f, 0.38f, 0.44f);
+            }
+
+            if (ContainsRole(creepId, "aura") || ContainsRole(creepId, "support"))
+            {
+                return new Color(0.42f, 1f, 0.72f);
             }
 
             return SenderColor(senderId);
@@ -1145,6 +1177,10 @@ namespace LTW.UnityClient.Simulation
             var siegeBase = EnsureChild(creepObject, "SiegeBase", PrimitiveType.Cube);
             var siegeBarrel = EnsureChild(creepObject, "SiegeBarrel", PrimitiveType.Cube);
             var siegeSpike = EnsureChild(creepObject, "SiegeSpike", PrimitiveType.Cube);
+            var auraField = EnsureChild(creepObject, "AuraField", PrimitiveType.Cylinder);
+            var auraCore = EnsureChild(creepObject, "AuraCore", PrimitiveType.Sphere);
+            var auraNorthNode = EnsureChild(creepObject, "AuraNorthNode", PrimitiveType.Sphere);
+            var auraSouthNode = EnsureChild(creepObject, "AuraSouthNode", PrimitiveType.Sphere);
 
             var isSwarm = ContainsRole(creepId, "swarm");
             var isBoss = ContainsRole(creepId, "boss");
@@ -1152,7 +1188,8 @@ namespace LTW.UnityClient.Simulation
             var isAir = ContainsRole(creepId, "flying") || ContainsRole(creepId, "air");
             var isStealth = ContainsRole(creepId, "invisible") || ContainsRole(creepId, "stealth");
             var isSiege = ContainsRole(creepId, "attacker") || ContainsRole(creepId, "siege");
-            var isRunner = !isSwarm && !isBrute && !isAir && !isStealth && !isSiege;
+            var isAura = ContainsRole(creepId, "aura") || ContainsRole(creepId, "support");
+            var isRunner = !isSwarm && !isBrute && !isAir && !isStealth && !isSiege && !isAura;
             var senderColor = SenderColor(senderId);
 
             ConfigureChild(nose, isRunner, new Vector3(0f, 0.02f, 0.42f), new Vector3(0.16f, 0.1f, 0.34f), MintSignal);
@@ -1186,6 +1223,11 @@ namespace LTW.UnityClient.Simulation
             ConfigureChild(siegeBase, isSiege, new Vector3(0f, -0.02f, -0.06f), new Vector3(0.58f, 0.22f, 0.5f), new Color(0.56f, 0.12f, 0.16f));
             ConfigureChild(siegeBarrel, isSiege, new Vector3(0f, 0.08f, 0.42f), new Vector3(0.18f, 0.16f, 0.62f), new Color(1f, 0.38f, 0.44f));
             ConfigureChild(siegeSpike, isSiege, new Vector3(0.28f, 0.08f, 0f), new Vector3(0.38f, 0.16f, 0.2f), new Color(1f, 0.3f, 0.36f));
+
+            ConfigureChild(auraField, isAura, new Vector3(0f, -0.34f, 0f), new Vector3(1.42f, 0.035f, 1.42f), new Color(0.42f, 1f, 0.72f));
+            ConfigureChild(auraCore, isAura, new Vector3(0f, 0.24f, 0f), new Vector3(0.28f, 0.28f, 0.28f), MintSignal);
+            ConfigureChild(auraNorthNode, isAura, new Vector3(0f, 0.02f, 0.46f), new Vector3(0.18f, 0.18f, 0.18f), SignalGold);
+            ConfigureChild(auraSouthNode, isAura, new Vector3(0f, 0.02f, -0.46f), new Vector3(0.18f, 0.18f, 0.18f), SignalGold);
         }
 
         private static Vector3 CreepShadowScale(string creepId)
@@ -1208,6 +1250,11 @@ namespace LTW.UnityClient.Simulation
             if (ContainsRole(creepId, "flying") || ContainsRole(creepId, "air"))
             {
                 return new Vector3(0.92f, 0.02f, 0.92f);
+            }
+
+            if (ContainsRole(creepId, "aura") || ContainsRole(creepId, "support"))
+            {
+                return new Vector3(1.38f, 0.02f, 1.38f);
             }
 
             return new Vector3(0.72f, 0.025f, 1.05f);
