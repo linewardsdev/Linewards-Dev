@@ -1,0 +1,39 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f284b4e30c9048f8b5b90f45692c7686, type: 3}
+  m_Name: CreepVisualLibrary
+  m_EditorClassIdentifier: 
+  profiles:
+  - creepId: creep.runner
+    role: 0
+    prefab: {fileID: 0}
+    scale: {x: 0.42, y: 0.24, z: 0.72}
+    motionStyle: 1
+    bodyRendererPath: 
+    senderAccentRendererPaths: []
+    damageRendererPaths: []
+  - creepId: creep.brute
+    role: 1
+    prefab: {fileID: 0}
+    scale: {x: 0.78, y: 0.48, z: 0.96}
+    motionStyle: 2
+    bodyRendererPath: 
+    senderAccentRendererPaths: []
+    damageRendererPaths: []
+  - creepId: creep.swarm
+    role: 2
+    prefab: {fileID: 0}
+    scale: {x: 0.18, y: 0.12, z: 0.18}
+    motionStyle: 3
+    bodyRendererPath: 
+    senderAccentRendererPaths: []
+    damageRendererPaths: []

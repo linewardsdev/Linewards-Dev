@@ -18,6 +18,8 @@ namespace LTW.UnityClient.Simulation
         private const int CenterColumn = 3;
         private const float BoardCenterX = (LaneWidth - 1) * 0.5f;
         private const float BoardCenterZ = (LaneLength - 1) * 0.5f;
+        private const string PrimitiveCreepPoolKey = "primitive-creep";
+        private const string DefaultCreepVisualLibraryResourcePath = "CreepVisualLibrary";
 
         [SerializeField] private UnitySimulationDriver simulationDriver = null!;
         [SerializeField] private PresentationDetail presentationDetail = PresentationDetail.Full;
@@ -36,6 +38,7 @@ namespace LTW.UnityClient.Simulation
 
         private readonly Dictionary<string, GameObject> activeTowers = new Dictionary<string, GameObject>();
         private readonly Dictionary<string, GameObject> activeCreeps = new Dictionary<string, GameObject>();
+        private readonly Dictionary<string, string> activeCreepPoolKeys = new Dictionary<string, string>();
         private readonly Dictionary<string, Vector3> lastKnownPositions = new Dictionary<string, Vector3>();
         private readonly Dictionary<string, string> towerRolesByCell = new Dictionary<string, string>();
         private readonly Dictionary<string, int> lastCreepHealth = new Dictionary<string, int>();
@@ -48,6 +51,7 @@ namespace LTW.UnityClient.Simulation
         private readonly HashSet<string> visibleKeys = new HashSet<string>();
         private readonly Queue<GameObject> towerPool = new Queue<GameObject>();
         private readonly Queue<GameObject> creepPool = new Queue<GameObject>();
+        private readonly Dictionary<string, Queue<GameObject>> creepPrefabPools = new Dictionary<string, Queue<GameObject>>();
         private readonly Queue<GameObject> effectPool = new Queue<GameObject>();
         private readonly Queue<GameObject> textPool = new Queue<GameObject>();
         private readonly List<TimedPresentation> timedPresentations = new List<TimedPresentation>();
@@ -60,7 +64,7 @@ namespace LTW.UnityClient.Simulation
 
         public int ActivePresentationObjectCount => activeTowers.Count + activeCreeps.Count + timedPresentations.Count;
 
-        public int PooledPresentationObjectCount => towerPool.Count + creepPool.Count + effectPool.Count + textPool.Count;
+        public int PooledPresentationObjectCount => towerPool.Count + creepPool.Count + PooledCreepPrefabCount() + effectPool.Count + textPool.Count;
 
         public void Initialize(UnitySimulationDriver driver)
         {
@@ -69,6 +73,11 @@ namespace LTW.UnityClient.Simulation
 
         private void Awake()
         {
+            if (creepVisualLibrary == null)
+            {
+                creepVisualLibrary = Resources.Load<CreepVisualLibrary>(DefaultCreepVisualLibraryResourcePath);
+            }
+
             feedbackAudioSource = gameObject.AddComponent<AudioSource>();
             feedbackAudioSource.playOnAwake = false;
             feedbackAudioSource.spatialBlend = 0f;
@@ -212,9 +221,9 @@ namespace LTW.UnityClient.Simulation
             {
                 var key = creep.EntityId.Value.ToString();
                 visibleKeys.Add(key);
-                var isNewCreep = !activeCreeps.ContainsKey(key);
-                var creepObject = GetOrCreate(activeCreeps, creepPool, key, "PressureCreep", PrimitiveType.Sphere);
                 var visualProfile = creepVisualLibrary != null ? creepVisualLibrary.FindProfile(creep.CreepId.Value) : null;
+                var isNewCreep = !activeCreeps.ContainsKey(key);
+                var creepObject = GetOrCreateCreep(key, visualProfile);
                 if (!isNewCreep && lastCreepHealth.TryGetValue(key, out var previousHealth) && creep.Health < previousHealth)
                 {
                     creepHitFlashUntil[key] = Time.time + 0.16f;
@@ -223,8 +232,12 @@ namespace LTW.UnityClient.Simulation
                 SetCreepTransform(creepObject, creep.Position, creep.LaneId, creep.CreepId.Value, visualProfile, isNewCreep);
                 var healthFraction = CreepHealthFraction(creep.CreepId.Value, creep.Health);
                 var isHitFlashing = creepHitFlashUntil.TryGetValue(key, out var flashUntil) && Time.time < flashUntil;
-                SetColor(creepObject, CreepBodyColor(creep.CreepId.Value, creep.SenderId.Value, healthFraction, isHitFlashing));
-                ConfigureCreepRoleMarker(creepObject, creep.CreepId.Value, creep.SenderId.Value, healthFraction, isHitFlashing);
+                ApplyCreepColor(creepObject, creep.CreepId.Value, creep.SenderId.Value, visualProfile, healthFraction, isHitFlashing);
+                if (visualProfile == null || visualProfile.Prefab == null)
+                {
+                    ConfigureCreepRoleMarker(creepObject, creep.CreepId.Value, creep.SenderId.Value, healthFraction, isHitFlashing);
+                }
+
                 lastKnownPositions[key] = creepObject.transform.position;
                 lastCreepHealth[key] = creep.Health;
                 if (creep.LaneId.Value >= 1 && creep.LaneId.Value < pressureByLane.Length)
@@ -233,7 +246,7 @@ namespace LTW.UnityClient.Simulation
                 }
             }
 
-            ReleaseMissing(activeCreeps, creepPool);
+            ReleaseMissingCreeps();
             UpdateLanePressureIndicators(pressureByLane);
         }
 
@@ -705,9 +718,10 @@ namespace LTW.UnityClient.Simulation
         private void ReleaseAllActiveObjects()
         {
             foreach (var pair in activeTowers) ReleaseToPool(pair.Value, towerPool);
-            foreach (var pair in activeCreeps) ReleaseToPool(pair.Value, creepPool);
+            foreach (var pair in activeCreeps) ReleaseCreepToPool(pair.Key, pair.Value);
             activeTowers.Clear();
             activeCreeps.Clear();
+            activeCreepPoolKeys.Clear();
             lastCreepHealth.Clear();
             creepHitFlashUntil.Clear();
             foreach (var presentation in timedPresentations) ReleaseToPool(presentation.Object, presentation.Pool);
@@ -720,6 +734,107 @@ namespace LTW.UnityClient.Simulation
             instance = GetPooled(pool, name, primitiveType);
             activeObjects[key] = instance;
             return instance;
+        }
+
+        private GameObject GetOrCreateCreep(string key, CreepVisualProfile visualProfile)
+        {
+            var poolKey = CreepPoolKey(visualProfile);
+            if (activeCreeps.TryGetValue(key, out var instance))
+            {
+                if (activeCreepPoolKeys.TryGetValue(key, out var activePoolKey) && activePoolKey == poolKey)
+                {
+                    return instance;
+                }
+
+                ReleaseCreepToPool(key, instance);
+                activeCreeps.Remove(key);
+            }
+
+            instance = GetPooledCreep(poolKey, visualProfile);
+            activeCreeps[key] = instance;
+            activeCreepPoolKeys[key] = poolKey;
+            return instance;
+        }
+
+        private GameObject GetPooledCreep(string poolKey, CreepVisualProfile visualProfile)
+        {
+            if (visualProfile == null || visualProfile.Prefab == null)
+            {
+                return GetPooled(creepPool, "PressureCreep", PrimitiveType.Sphere);
+            }
+
+            var pool = GetCreepPrefabPool(poolKey);
+            var instance = pool.Count > 0 ? pool.Dequeue() : Instantiate(visualProfile.Prefab);
+            instance.name = visualProfile.Prefab.name;
+            instance.SetActive(true);
+            return instance;
+        }
+
+        private Queue<GameObject> GetCreepPrefabPool(string poolKey)
+        {
+            if (creepPrefabPools.TryGetValue(poolKey, out var pool))
+            {
+                return pool;
+            }
+
+            pool = new Queue<GameObject>();
+            creepPrefabPools[poolKey] = pool;
+            return pool;
+        }
+
+        private int PooledCreepPrefabCount()
+        {
+            var count = 0;
+            foreach (var pair in creepPrefabPools)
+            {
+                count += pair.Value.Count;
+            }
+
+            return count;
+        }
+
+        private void ReleaseMissingCreeps()
+        {
+            var keysToRelease = new List<string>();
+            foreach (var pair in activeCreeps)
+            {
+                if (!visibleKeys.Contains(pair.Key))
+                {
+                    keysToRelease.Add(pair.Key);
+                }
+            }
+
+            foreach (var key in keysToRelease)
+            {
+                ReleaseCreepToPool(key, activeCreeps[key]);
+                activeCreeps.Remove(key);
+                activeCreepPoolKeys.Remove(key);
+                lastCreepHealth.Remove(key);
+                creepHitFlashUntil.Remove(key);
+            }
+        }
+
+        private void ReleaseCreepToPool(string key, GameObject instance)
+        {
+            if (activeCreepPoolKeys.TryGetValue(key, out var poolKey) && poolKey != PrimitiveCreepPoolKey)
+            {
+                ReleaseToPool(instance, GetCreepPrefabPool(poolKey));
+                return;
+            }
+
+            ReleaseToPool(instance, creepPool);
+        }
+
+        private static string CreepPoolKey(CreepVisualProfile visualProfile)
+        {
+            if (visualProfile == null || visualProfile.Prefab == null)
+            {
+                return PrimitiveCreepPoolKey;
+            }
+
+            return string.IsNullOrWhiteSpace(visualProfile.CreepId)
+                ? visualProfile.Prefab.name
+                : visualProfile.CreepId;
         }
 
         private GameObject GetPooled(Queue<GameObject> pool, string name, PrimitiveType primitiveType)
@@ -772,6 +887,45 @@ namespace LTW.UnityClient.Simulation
                 : Vector3.Lerp(instance.transform.position, targetPosition, Mathf.Clamp01(Time.deltaTime * 8f));
             instance.transform.localScale = CreepRoleScale(creepId, visualProfile);
             instance.transform.rotation = roleMotion.Rotation;
+        }
+
+        private static void ApplyCreepColor(GameObject creepObject, string creepId, int senderId, CreepVisualProfile visualProfile, float healthFraction, bool isHitFlashing)
+        {
+            var bodyColor = CreepBodyColor(creepId, senderId, healthFraction, isHitFlashing);
+            var senderColor = SenderColor(senderId);
+            var damageColor = healthFraction < 0.35f
+                ? new Color(0.68f, 0.22f, 0.16f)
+                : bodyColor;
+
+            if (visualProfile == null || visualProfile.Prefab == null)
+            {
+                SetColor(creepObject, bodyColor);
+                return;
+            }
+
+            SetProfileColor(creepObject, visualProfile.BodyRendererPath, bodyColor);
+            SetProfileColors(creepObject, visualProfile.SenderAccentRendererPaths, senderColor);
+            SetProfileColors(creepObject, visualProfile.DamageRendererPaths, damageColor);
+        }
+
+        private static void SetProfileColors(GameObject root, IReadOnlyList<string> paths, Color color)
+        {
+            for (var index = 0; index < paths.Count; index++)
+            {
+                SetProfileColor(root, paths[index], color);
+            }
+        }
+
+        private static void SetProfileColor(GameObject root, string rendererPath, Color color)
+        {
+            var target = string.IsNullOrWhiteSpace(rendererPath)
+                ? root
+                : root.transform.Find(rendererPath)?.gameObject;
+
+            if (target != null)
+            {
+                SetColor(target, color);
+            }
         }
 
         private static Vector3 GridToWorld(GridPosition position, LaneId laneId) => new Vector3(LaneOffset(laneId.Value) + position.X, 0.35f, WorldZ(position.Y));

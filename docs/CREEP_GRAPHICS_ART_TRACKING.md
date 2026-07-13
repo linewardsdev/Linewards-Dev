@@ -31,13 +31,16 @@ Started asset pipeline scaffolding:
 - Added role-specific art briefs for runner, brute, and swarm.
 - Added `CreepVisualLibrary` as a Unity `ScriptableObject` profile layer for creep art metadata.
 - Wired `UnityVerticalSliceRenderer` to optionally use profile scale and motion style overrides while keeping primitive fallback rendering.
+- Added profile-backed creep prefab instantiation and pooling in `UnityVerticalSliceRenderer`.
+- Added profile renderer-path tinting for body, sender accent, and damage material slots.
+- Added a default `Assets/Resources/CreepVisualLibrary.asset` with runner, brute, and swarm profiles.
+- Added renderer auto-loading for the default creep visual library when no scene-assigned library is present.
 
 Not started yet:
 
 - Low-poly mesh creation.
 - Texture/material creation.
 - `Creep_Runner.prefab`, `Creep_Brute.prefab`, and `Creep_Swarm.prefab`.
-- Full prefab instantiation/pooling through `UnityVerticalSliceRenderer`.
 
 ## Polished Asset Direction
 
@@ -105,7 +108,7 @@ creep id -> prefab, scale, bob style, accent slots, death cue style
 
 This can be a `CreepVisualProfile` ScriptableObject or a serialized config referenced by `UnityVerticalSliceRenderer`.
 
-Current implementation note: `CreepVisualLibrary` exists and can be assigned to `UnityVerticalSliceRenderer`. The renderer currently consumes profile scale and motion style overrides. Prefab replacement is intentionally deferred until actual creep prefabs exist, so the primitive fallback remains stable.
+Current implementation note: `CreepVisualLibrary` exists and can be assigned to `UnityVerticalSliceRenderer`. The local runtime path also auto-loads `Assets/Resources/CreepVisualLibrary.asset` when no scene-assigned library is present. The renderer consumes profile scale and motion style overrides, can instantiate profile prefabs, keeps prefab instances in per-profile pools, and applies profile renderer-path tinting for body, sender accents, and damage elements. If no profile or prefab is assigned, the primitive fallback remains active.
 
 Rules:
 

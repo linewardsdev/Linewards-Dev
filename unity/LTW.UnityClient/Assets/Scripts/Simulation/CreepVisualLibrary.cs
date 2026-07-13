@@ -55,9 +55,9 @@ namespace LTW.UnityClient.Simulation
 
         public string BodyRendererPath => bodyRendererPath;
 
-        public IReadOnlyList<string> SenderAccentRendererPaths => senderAccentRendererPaths;
+        public IReadOnlyList<string> SenderAccentRendererPaths => senderAccentRendererPaths ?? Array.Empty<string>();
 
-        public IReadOnlyList<string> DamageRendererPaths => damageRendererPaths;
+        public IReadOnlyList<string> DamageRendererPaths => damageRendererPaths ?? Array.Empty<string>();
 
         public bool Matches(string contentId) =>
             string.Equals(creepId, contentId, StringComparison.OrdinalIgnoreCase);
