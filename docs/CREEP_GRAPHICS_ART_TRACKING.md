@@ -43,11 +43,12 @@ Started asset pipeline scaffolding:
 - Added original low-poly OBJ source meshes for runner, brute, and swarm under their role source-art folders.
 - Added a creep material palette/spec under `Assets/Art/Creeps/Materials/`.
 - Added profile-driven death cue styles and role-specific kill cues for runner, brute, and swarm.
+- Ran the Unity editor generator to create `Creep_Runner.prefab`, `Creep_Brute.prefab`, and `Creep_Swarm.prefab`.
+- Ran the creep visual library validator successfully after placeholder generation.
 
 Not started yet:
 
 - Replacing generated placeholder meshes/materials with final polished art.
-- Running the Unity editor generator to create `Creep_Runner.prefab`, `Creep_Brute.prefab`, and `Creep_Swarm.prefab` is blocked in this local environment by the installed macOS Unity editor requiring Rosetta 2.
 
 ## Polished Asset Direction
 
@@ -168,13 +169,18 @@ Current local environment notes:
 
 - `dotnet` was not available on PATH during the creep visual pass.
 - Unity `6000.3.12f1` is installed at `/Applications/Unity/Hub/Editor/6000.3.12f1/Unity.app`.
-- Batch mode command attempted:
+- Rosetta 2 is now installed, and Unity batch mode can run the art generator/validator locally.
+- Generator batch mode command used:
 
 ```text
 /Applications/Unity/Hub/Editor/6000.3.12f1/Unity.app/Contents/MacOS/Unity -batchmode -quit -projectPath /Users/admin/LTW/unity/LTW.UnityClient -executeMethod LTW.UnityClient.Editor.CreepVisualPrefabGenerator.GeneratePlaceholderCreepPrefabs -logFile /Users/admin/LTW/unity-generator.log
 ```
 
-- Batch mode reported Rosetta 2 was required for the available macOS editor, so prefab/material/generated-mesh asset creation still needs to be run in a Unity-capable environment.
+- Validator batch mode command used:
+
+```text
+/Applications/Unity/Hub/Editor/6000.3.12f1/Unity.app/Contents/MacOS/Unity -batchmode -quit -projectPath /Users/admin/LTW/unity/LTW.UnityClient -executeMethod LTW.UnityClient.Editor.CreepVisualPrefabGenerator.ValidateCreepVisualLibrary -logFile /Users/admin/LTW/unity-validator.log
+```
 
 ## Current Completion Summary
 
@@ -190,9 +196,7 @@ Completed repo-side work:
 
 Remaining Unity/art-side work:
 
-Prerequisite: install/use a Unity environment that can run the editor.
-
-- [ ] Run `Line Wards > Art > Generate Placeholder Creep Prefabs`.
-- [ ] Run `Line Wards > Art > Validate Creep Visual Library`.
+- [x] Run `Line Wards > Art > Generate Placeholder Creep Prefabs`.
+- [x] Run `Line Wards > Art > Validate Creep Visual Library`.
 - [ ] Run the local vertical slice and capture phone-size/heavy-send screenshots.
 - [ ] Replace generated placeholder meshes/materials with final polished art only after silhouette readability is approved.
