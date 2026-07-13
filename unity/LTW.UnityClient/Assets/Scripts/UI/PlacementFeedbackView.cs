@@ -81,10 +81,11 @@ namespace LTW.UnityClient.UI
 
             EnsureStyles();
 
-            var scale = Mathf.Clamp(Mathf.Min(Screen.width / 1080f, Screen.height / 720f), 0.74f, 1.12f);
-            var width = Mathf.Min(Screen.width - 32f * scale, 390f * scale);
+            var scale = MobileViewportLayout.UiScale();
+            var frame = MobileViewportLayout.ScreenRect();
+            var width = Mathf.Min(frame.width - 16f * scale, 390f * scale);
             var height = 48f * scale;
-            var rect = new Rect((Screen.width - width) * 0.5f, Screen.height - height - 206f * scale, width, height);
+            var rect = new Rect(frame.x + (frame.width - width) * 0.5f, frame.yMax - height - 206f * scale, width, height);
 
             DrawPanel(rect, PanelInk);
             DrawAccent(new Rect(rect.x, rect.yMax - 4f * scale, rect.width, 4f * scale), accent);

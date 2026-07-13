@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using LTW.Simulation.Events;
 using LTW.Simulation.Primitives;
+using LTW.UnityClient.UI;
 using UnityEngine;
 
 namespace LTW.UnityClient.Simulation
@@ -18,7 +19,6 @@ namespace LTW.UnityClient.Simulation
         private const int CenterColumn = 3;
         private const float BoardCenterX = (LaneWidth - 1) * 0.5f;
         private const float BoardCenterZ = (LaneLength - 1) * 0.5f;
-        private const float MobilePortraitAspect = 9f / 19.5f;
         private const string PrimitiveCreepPoolKey = "primitive-creep";
         private const string DefaultCreepVisualLibraryResourcePath = "CreepVisualLibrary";
 
@@ -129,17 +129,10 @@ namespace LTW.UnityClient.Simulation
             camera.orthographic = true;
             camera.orthographicSize = cameraFraming == LaneCameraFraming.ActiveLane ? 9.2f : 11.4f;
             camera.rect = cameraFraming == LaneCameraFraming.ActiveLane
-                ? MobilePortraitViewport()
+                ? MobileViewportLayout.CameraRect()
                 : new Rect(0f, 0f, 1f, 1f);
             camera.transform.position = boardCenter + new Vector3(0f, 17.5f, cameraFraming == LaneCameraFraming.ActiveLane ? -6.2f : -7.4f);
             camera.transform.LookAt(boardCenter);
-        }
-
-        private static Rect MobilePortraitViewport()
-        {
-            var screenAspect = Screen.height <= 0 ? 16f / 9f : (float)Screen.width / Screen.height;
-            var width = Mathf.Clamp(MobilePortraitAspect / screenAspect, 0.24f, 1f);
-            return new Rect((1f - width) * 0.5f, 0f, width, 1f);
         }
 
         private void Update()

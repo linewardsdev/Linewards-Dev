@@ -55,9 +55,10 @@ namespace LTW.UnityClient.UI
 
             EnsureStyles();
 
-            var scale = UiScale();
+            var scale = MobileViewportLayout.UiScale();
+            var frame = MobileViewportLayout.ScreenRect();
             var launcherSize = 64f * scale;
-            var launcherRect = new Rect(Screen.width - launcherSize - 12f * scale, Screen.height - launcherSize - BottomMargin(scale), launcherSize, launcherSize);
+            var launcherRect = new Rect(frame.xMax - launcherSize - 8f * scale, frame.yMax - launcherSize - MobileViewportLayout.BottomMargin(scale), launcherSize, launcherSize);
             if (!isExpanded)
             {
                 if (DrawLauncherButton(launcherRect, "SEND", SignalGold, scale))
@@ -68,9 +69,9 @@ namespace LTW.UnityClient.UI
                 return;
             }
 
-            var width = Mathf.Min(Screen.width - 32f * scale, 430f * scale);
+            var width = Mathf.Min(frame.width - 16f * scale, 430f * scale);
             var height = 176f * scale;
-            var rect = new Rect(Screen.width - width - 12f * scale, Screen.height - height - BottomMargin(scale), width, height);
+            var rect = new Rect(frame.xMax - width - 8f * scale, frame.yMax - height - MobileViewportLayout.BottomMargin(scale), width, height);
 
             DrawPanel(rect, PanelInk);
             DrawAccent(new Rect(rect.x, rect.yMax - 4f * scale, rect.width, 4f * scale), SignalGold);
@@ -255,10 +256,6 @@ namespace LTW.UnityClient.UI
                 simulationDriver = Object.FindAnyObjectByType<UnitySimulationDriver>();
             }
         }
-
-        private static float UiScale() => Mathf.Clamp(Mathf.Min(Screen.width / 1080f, Screen.height / 720f), 0.74f, 1.12f);
-
-        private static float BottomMargin(float scale) => Mathf.Max(18f * scale, Screen.height * 0.025f);
 
         private static Color TintPanel(Color accent, float amount)
         {

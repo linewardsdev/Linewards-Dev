@@ -117,34 +117,36 @@ namespace LTW.UnityClient.UI
 
             EnsureStyles();
 
-            var scale = Mathf.Clamp(Mathf.Min(Screen.width / 1080f, Screen.height / 720f), 0.68f, 1.08f);
-            var margin = 12f * scale;
-            var height = 72f * scale;
-            var strip = new Rect(margin, margin, Screen.width - margin * 2f, height);
+            var scale = MobileViewportLayout.UiScale();
+            var frame = MobileViewportLayout.ScreenRect();
+            var margin = 8f * scale;
+            var gap = 4f * scale;
+            var height = 96f * scale;
+            var strip = new Rect(frame.x + margin, frame.y + margin, frame.width - margin * 2f, height);
             DrawPanel(strip, NightInk);
 
-            var x = strip.x + 10f * scale;
-            var y = strip.y + 8f * scale;
-            var pillHeight = strip.height - 16f * scale;
-            var gap = 8f * scale;
+            var cellWidth = (strip.width - gap * 5f) / 4f;
+            var rowHeight = (strip.height - gap * 3f) * 0.5f;
+            var x = strip.x + gap;
+            var topY = strip.y + gap;
+            var bottomY = topY + rowHeight + gap;
 
-            x = DrawLanePill(x, y, 122f * scale, pillHeight, scale);
+            x = DrawLanePill(x, topY, cellWidth, rowHeight, scale);
             x += gap;
-            x = DrawStatPill(x, y, 82f * scale, pillHeight, "LIVES", LivesText, Danger, scale);
+            x = DrawStatPill(x, topY, cellWidth, rowHeight, "LIVES", LivesText, Danger, scale);
             x += gap;
-            x = DrawStatPill(x, y, 88f * scale, pillHeight, "GOLD", GoldText, SignalGold, scale);
+            x = DrawStatPill(x, topY, cellWidth, rowHeight, "GOLD", GoldText, SignalGold, scale);
             x += gap;
-            x = DrawStatPill(x, y, 96f * scale, pillHeight, "INCOME", $"+{IncomeText}", MintSignal, scale);
+            DrawStatPill(x, topY, cellWidth, rowHeight, "INCOME", $"+{IncomeText}", MintSignal, scale);
+
+            x = strip.x + gap;
+            x = DrawStatPill(x, bottomY, cellWidth, rowHeight, "TIME", MatchTimeText, Cloud, scale);
             x += gap;
-            x = DrawStatPill(x, y, 82f * scale, pillHeight, "TIME", MatchTimeText, Cloud, scale);
+            x = DrawStatPill(x, bottomY, cellWidth, rowHeight, "KILLS", KillsText, MintSignal, scale);
             x += gap;
-            x = DrawStatPill(x, y, 78f * scale, pillHeight, "KILLS", KillsText, MintSignal, scale);
+            x = DrawStatPill(x, bottomY, cellWidth, rowHeight, "LEAKS", LeaksText, LeaksText == "0" ? ArcaneBlue : Danger, scale);
             x += gap;
-            x = DrawStatPill(x, y, 76f * scale, pillHeight, "LEAKS", LeaksText, LeaksText == "0" ? ArcaneBlue : Danger, scale);
-            x += gap;
-            x = DrawTimerPill(x, y, 96f * scale, pillHeight, scale);
-            x += gap;
-            DrawStatPill(x, y, 104f * scale, pillHeight, "PRESSURE", PressureText, PressureText == "0" ? ArcaneBlue : Danger, scale);
+            DrawStatPill(x, bottomY, cellWidth, rowHeight, "PRESS", PressureText, PressureText == "0" ? ArcaneBlue : Danger, scale);
         }
 
         private static void EnsureStyles()
@@ -188,7 +190,7 @@ namespace LTW.UnityClient.UI
             DrawPanel(rect, TintPanel(ArcaneBlue, 0.05f));
             DrawAccent(new Rect(rect.x, rect.yMax - 4f * scale, rect.width, 4f * scale), ArcaneBlue);
 
-            laneStyle!.fontSize = Mathf.RoundToInt(17f * scale);
+            laneStyle!.fontSize = Mathf.RoundToInt(14f * scale);
             GUI.Label(rect, LaneText.ToUpperInvariant(), laneStyle);
             return rect.xMax;
         }
@@ -199,12 +201,12 @@ namespace LTW.UnityClient.UI
             DrawPanel(rect, TintPanel(accent, 0.045f));
             DrawAccent(new Rect(rect.x, rect.yMax - 4f * scale, rect.width, 4f * scale), accent);
 
-            labelStyle!.fontSize = Mathf.RoundToInt(10f * scale);
-            valueStyle!.fontSize = Mathf.RoundToInt(18f * scale);
+            labelStyle!.fontSize = Mathf.RoundToInt(9f * scale);
+            valueStyle!.fontSize = Mathf.RoundToInt(16f * scale);
             valueStyle.normal.textColor = accent;
 
-            GUI.Label(new Rect(rect.x, rect.y + 6f * scale, rect.width, 18f * scale), label, labelStyle);
-            GUI.Label(new Rect(rect.x, rect.y + 22f * scale, rect.width, rect.height - 22f * scale), value, valueStyle);
+            GUI.Label(new Rect(rect.x, rect.y + 4f * scale, rect.width, 14f * scale), label, labelStyle);
+            GUI.Label(new Rect(rect.x, rect.y + 16f * scale, rect.width, rect.height - 16f * scale), value, valueStyle);
             return rect.xMax;
         }
 

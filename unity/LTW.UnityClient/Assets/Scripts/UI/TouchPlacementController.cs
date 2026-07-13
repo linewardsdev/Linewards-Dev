@@ -190,7 +190,8 @@ namespace LTW.UnityClient.UI
 
             EnsureStyles();
 
-            var scale = UiScale();
+            var scale = MobileViewportLayout.UiScale();
+            var frame = MobileViewportLayout.ScreenRect();
             DrawTowerPalette(scale);
             DrawSelectedTowerPanel(scale);
 
@@ -199,9 +200,9 @@ namespace LTW.UnityClient.UI
                 return;
             }
 
-            var width = Mathf.Min(Screen.width - 32f * scale, 360f * scale);
+            var width = Mathf.Min(frame.width - 16f * scale, 360f * scale);
             var height = 92f * scale;
-            var rect = new Rect(12f * scale, Screen.height - height - BottomMargin(scale), width, height);
+            var rect = new Rect(frame.x + 8f * scale, frame.yMax - height - MobileViewportLayout.BottomMargin(scale), width, height);
             var accent = SelectedTowerAccent();
 
             DrawPanel(rect, PanelInk);
@@ -252,9 +253,10 @@ namespace LTW.UnityClient.UI
                 return;
             }
 
-            var width = Mathf.Min(Screen.width - 32f * scale, 360f * scale);
+            var frame = MobileViewportLayout.ScreenRect();
+            var width = Mathf.Min(frame.width - 16f * scale, 360f * scale);
             var height = 112f * scale;
-            var rect = new Rect(12f * scale, Screen.height - height - 112f * scale, width, height);
+            var rect = new Rect(frame.x + 8f * scale, frame.yMax - height - 112f * scale, width, height);
             var accent = TowerAccent(selectedTower.TowerId.Value);
             DrawPanel(rect, PanelInk);
             DrawAccent(new Rect(rect.x, rect.yMax - 4f * scale, rect.width, 4f * scale), accent);
@@ -462,8 +464,9 @@ namespace LTW.UnityClient.UI
                 return;
             }
 
+            var frame = MobileViewportLayout.ScreenRect();
             var launcherSize = 64f * scale;
-            var launcherRect = new Rect(12f * scale, Screen.height - launcherSize - BottomMargin(scale), launcherSize, launcherSize);
+            var launcherRect = new Rect(frame.x + 8f * scale, frame.yMax - launcherSize - MobileViewportLayout.BottomMargin(scale), launcherSize, launcherSize);
             if (!isPaletteExpanded)
             {
                 if (DrawLauncherButton(launcherRect, "BUILD", MintSignal, scale))
@@ -474,9 +477,9 @@ namespace LTW.UnityClient.UI
                 return;
             }
 
-            var width = Mathf.Min(Screen.width - 32f * scale, 430f * scale);
+            var width = Mathf.Min(frame.width - 16f * scale, 430f * scale);
             var height = 166f * scale;
-            var rect = new Rect(12f * scale, Screen.height - height - BottomMargin(scale), width, height);
+            var rect = new Rect(frame.x + 8f * scale, frame.yMax - height - MobileViewportLayout.BottomMargin(scale), width, height);
 
             DrawPanel(rect, PanelInk);
             DrawAccent(new Rect(rect.x, rect.yMax - 4f * scale, rect.width, 4f * scale), MintSignal);
@@ -682,10 +685,6 @@ namespace LTW.UnityClient.UI
             if (towerId.Contains("relay") || towerId.Contains("economy")) return "Utility pressure and income support";
             return "Focused single-target defense";
         }
-
-        private static float UiScale() => Mathf.Clamp(Mathf.Min(Screen.width / 1080f, Screen.height / 720f), 0.74f, 1.12f);
-
-        private static float BottomMargin(float scale) => Mathf.Max(18f * scale, Screen.height * 0.025f);
 
         private static RectOffset ZeroOffset() => new RectOffset(0, 0, 0, 0);
 

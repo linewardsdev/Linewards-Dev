@@ -43,10 +43,11 @@ namespace LTW.UnityClient.UI
 
             EnsureStyles();
 
-            var scale = Mathf.Clamp(Screen.width / 1080f, 0.72f, 1.15f);
+            var scale = MobileViewportLayout.UiScale();
+            var frame = MobileViewportLayout.ScreenRect();
             var width = 72f * scale;
             var height = 42f * scale;
-            var rect = new Rect(Screen.width - width - 12f * scale, 218f * scale, width, height);
+            var rect = new Rect(frame.xMax - width - 8f * scale, frame.y + 224f * scale, width, height);
             var nextView = showingMap ? "LANE" : "MAP";
 
             var previousColor = GUI.color;

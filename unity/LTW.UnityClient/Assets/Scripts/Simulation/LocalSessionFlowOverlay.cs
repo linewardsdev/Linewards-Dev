@@ -1,5 +1,6 @@
 #nullable enable
 
+using LTW.UnityClient.UI;
 using UnityEngine;
 
 namespace LTW.UnityClient.Simulation
@@ -31,10 +32,11 @@ namespace LTW.UnityClient.Simulation
             }
 
             EnsureStyles();
-            var scale = Mathf.Clamp(Screen.width / 1080f, 0.72f, 1.15f);
-            var width = Mathf.Min(Screen.width - 32f * scale, 360f * scale);
+            var scale = MobileViewportLayout.UiScale();
+            var frame = MobileViewportLayout.ScreenRect();
+            var width = Mathf.Min(frame.width - 16f * scale, 360f * scale);
             var height = 116f * scale;
-            var rect = new Rect(Screen.width - width - 12f * scale, 104f * scale, width, height);
+            var rect = new Rect(frame.x + (frame.width - width) * 0.5f, frame.y + 112f * scale, width, height);
 
             var previousColor = GUI.color;
             GUI.color = PanelInk;
