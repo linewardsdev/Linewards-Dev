@@ -104,21 +104,18 @@ namespace LTW.UnityClient.UI
             if (DrawSendButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "RUNNER", "10g  +1", "fast", ArcaneBlue, gold >= 10, scale))
             {
                 SendRunner();
-                isExpanded = false;
             }
 
             x += buttonWidth + gap;
             if (DrawSendButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "BRUTE", "18g  +2", "tank", WardViolet, gold >= 18, scale))
             {
                 SendBrute();
-                isExpanded = false;
             }
 
             x += buttonWidth + gap;
             if (DrawSendButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "SWARM", "3x 6g  +1", "wide", SignalGold, gold >= 18, scale))
             {
                 SendSwarm();
-                isExpanded = false;
             }
         }
 
