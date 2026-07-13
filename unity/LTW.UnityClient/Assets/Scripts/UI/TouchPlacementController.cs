@@ -190,7 +190,7 @@ namespace LTW.UnityClient.UI
 
             EnsureStyles();
 
-            var scale = Mathf.Clamp(Screen.width / 1080f, 0.72f, 1.15f);
+            var scale = UiScale();
             DrawTowerPalette(scale);
             DrawSelectedTowerPanel(scale);
 
@@ -199,9 +199,9 @@ namespace LTW.UnityClient.UI
                 return;
             }
 
-            var width = Mathf.Min(Screen.width - 32f * scale, 330f * scale);
-            var height = 86f * scale;
-            var rect = new Rect(12f * scale, Screen.height - height - 18f * scale, width, height);
+            var width = Mathf.Min(Screen.width - 32f * scale, 360f * scale);
+            var height = 92f * scale;
+            var rect = new Rect(12f * scale, Screen.height - height - BottomMargin(scale), width, height);
             var accent = SelectedTowerAccent();
 
             DrawPanel(rect, PanelInk);
@@ -212,10 +212,10 @@ namespace LTW.UnityClient.UI
             bodyStyle!.fontSize = Mathf.RoundToInt(12f * scale);
             bodyStyle.normal.textColor = Cloud;
 
-            GUI.Label(new Rect(rect.x + 12f * scale, rect.y + 9f * scale, rect.width - 24f * scale, 24f * scale), SelectedTowerName().ToUpperInvariant(), titleStyle);
+            GUI.Label(new Rect(rect.x + 12f * scale, rect.y + 9f * scale, rect.width - 24f * scale, 24f * scale), $"{SelectedTowerName().ToUpperInvariant()}  {SelectedTowerCost()}G", titleStyle);
             var placementLine = placementPreview.Accepted ? $"CELL {selectedCell.x}, {selectedCell.y} READY" : PlacementPreviewText();
             GUI.Label(new Rect(rect.x + 12f * scale, rect.y + 35f * scale, rect.width - 24f * scale, 20f * scale), placementLine, bodyStyle);
-            GUI.Label(new Rect(rect.x + 12f * scale, rect.y + 55f * scale, rect.width - 24f * scale, 20f * scale), placementPreview.Accepted ? "Tap board or nudge, then confirm" : PlacementRecoveryText(), bodyStyle);
+            GUI.Label(new Rect(rect.x + 12f * scale, rect.y + 57f * scale, rect.width - 24f * scale, 20f * scale), placementPreview.Accepted ? "Confirm to build, or tap another cell" : PlacementRecoveryText(), bodyStyle);
         }
 
         private void SelectTowerAt(Vector2Int cell)
@@ -252,9 +252,9 @@ namespace LTW.UnityClient.UI
                 return;
             }
 
-            var width = Mathf.Min(Screen.width - 32f * scale, 330f * scale);
-            var height = 96f * scale;
-            var rect = new Rect(12f * scale, Screen.height - height - 178f * scale, width, height);
+            var width = Mathf.Min(Screen.width - 32f * scale, 360f * scale);
+            var height = 112f * scale;
+            var rect = new Rect(12f * scale, Screen.height - height - 112f * scale, width, height);
             var accent = TowerAccent(selectedTower.TowerId.Value);
             DrawPanel(rect, PanelInk);
             DrawAccent(new Rect(rect.x, rect.yMax - 4f * scale, rect.width, 4f * scale), accent);
@@ -264,11 +264,12 @@ namespace LTW.UnityClient.UI
             bodyStyle!.fontSize = Mathf.RoundToInt(12f * scale);
             bodyStyle.normal.textColor = Cloud;
 
-            GUI.Label(new Rect(rect.x + 12f * scale, rect.y + 8f * scale, rect.width - 24f * scale, 22f * scale), TowerRoleName(selectedTower.TowerId.Value).ToUpperInvariant(), titleStyle);
-            GUI.Label(new Rect(rect.x + 12f * scale, rect.y + 32f * scale, rect.width - 24f * scale, 18f * scale), $"CELL {selectedTower.Position.X}, {selectedTower.Position.Y}  OWNER P{selectedTower.OwnerId.Value}", bodyStyle);
-            GUI.Label(new Rect(rect.x + 12f * scale, rect.y + 51f * scale, rect.width - 24f * scale, 18f * scale), "Sell selected or tap another tower", bodyStyle);
+            GUI.Label(new Rect(rect.x + 12f * scale, rect.y + 8f * scale, rect.width - 96f * scale, 22f * scale), TowerRoleName(selectedTower.TowerId.Value).ToUpperInvariant(), titleStyle);
+            GUI.Label(new Rect(rect.x + 12f * scale, rect.y + 32f * scale, rect.width - 24f * scale, 18f * scale), TowerPurpose(selectedTower.TowerId.Value), bodyStyle);
+            GUI.Label(new Rect(rect.x + 12f * scale, rect.y + 51f * scale, rect.width - 24f * scale, 18f * scale), $"CELL {selectedTower.Position.X}, {selectedTower.Position.Y}  OWNER P{selectedTower.OwnerId.Value}", bodyStyle);
+            GUI.Label(new Rect(rect.x + 12f * scale, rect.y + 70f * scale, rect.width - 108f * scale, 18f * scale), "Tap another tower or sell this one", bodyStyle);
 
-            if (GUI.Button(new Rect(rect.x + rect.width - 86f * scale, rect.y + 28f * scale, 70f * scale, 36f * scale), "SELL", buttonStyle ?? GUI.skin.button))
+            if (GUI.Button(new Rect(rect.x + rect.width - 86f * scale, rect.y + 36f * scale, 70f * scale, 42f * scale), "SELL", buttonStyle ?? GUI.skin.button))
             {
                 SellLastTower();
             }
@@ -461,8 +462,8 @@ namespace LTW.UnityClient.UI
                 return;
             }
 
-            var launcherSize = 58f * scale;
-            var launcherRect = new Rect(12f * scale, Screen.height - launcherSize - 18f * scale, launcherSize, launcherSize);
+            var launcherSize = 64f * scale;
+            var launcherRect = new Rect(12f * scale, Screen.height - launcherSize - BottomMargin(scale), launcherSize, launcherSize);
             if (!isPaletteExpanded)
             {
                 if (DrawLauncherButton(launcherRect, "BUILD", MintSignal, scale))
@@ -473,9 +474,9 @@ namespace LTW.UnityClient.UI
                 return;
             }
 
-            var width = Mathf.Min(Screen.width - 32f * scale, 390f * scale);
-            var height = 142f * scale;
-            var rect = new Rect(12f * scale, Screen.height - height - 18f * scale, width, height);
+            var width = Mathf.Min(Screen.width - 32f * scale, 430f * scale);
+            var height = 166f * scale;
+            var rect = new Rect(12f * scale, Screen.height - height - BottomMargin(scale), width, height);
 
             DrawPanel(rect, PanelInk);
             DrawAccent(new Rect(rect.x, rect.yMax - 4f * scale, rect.width, 4f * scale), MintSignal);
@@ -494,59 +495,63 @@ namespace LTW.UnityClient.UI
                 return;
             }
 
-            var buttonY = rect.y + 38f * scale;
-            var buttonHeight = 74f * scale;
+            var buttonY = rect.y + 42f * scale;
+            var buttonHeight = 92f * scale;
             var gap = 8f * scale;
             var buttonWidth = (rect.width - 24f * scale - gap * 3f) / 4f;
             var x = rect.x + 12f * scale;
 
-            if (DrawPaletteButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "ARROW", "25g", ArcaneBlue, scale))
+            if (DrawPaletteButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "ARROW", "25g", "focus", ArcaneBlue, PlayerGold() >= 25, scale))
             {
                 selectedTower = null;
                 BeginTowerPlacement();
             }
 
             x += buttonWidth + gap;
-            if (DrawPaletteButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "CONTROL", "35g", WardViolet, scale))
+            if (DrawPaletteButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "CONTROL", "35g", "area", WardViolet, PlayerGold() >= 35, scale))
             {
                 selectedTower = null;
                 BeginControlTowerPlacement();
             }
 
             x += buttonWidth + gap;
-            if (DrawPaletteButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "RELAY", "40g", SignalGold, scale))
+            if (DrawPaletteButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "RELAY", "40g", "utility", SignalGold, PlayerGold() >= 40, scale))
             {
                 selectedTower = null;
                 BeginUtilityTowerPlacement();
             }
 
             x += buttonWidth + gap;
-            if (DrawPaletteButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "SELL", "refund", Danger, scale))
+            if (DrawPaletteButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "SELL", "refund", "selected", Danger, true, scale))
             {
                 SellLastTower();
                 isPaletteExpanded = false;
             }
         }
 
-        private static bool DrawPaletteButton(Rect rect, string label, string meta, Color accent, float scale)
+        private static bool DrawPaletteButton(Rect rect, string label, string meta, string purpose, Color accent, bool enabled, float scale)
         {
             var previousColor = GUI.color;
-            GUI.color = new Color(PanelInk.r + accent.r * 0.06f, PanelInk.g + accent.g * 0.06f, PanelInk.b + accent.b * 0.06f, PanelInk.a);
+            var tint = enabled ? 0.08f : 0.025f;
+            GUI.color = new Color(PanelInk.r + accent.r * tint, PanelInk.g + accent.g * tint, PanelInk.b + accent.b * tint, enabled ? PanelInk.a : 0.62f);
             var style = buttonStyle ?? GUI.skin.button;
+            GUI.enabled = enabled;
             var pressed = GUI.Button(rect, GUIContent.none, style);
+            GUI.enabled = true;
             GUI.color = previousColor;
 
-            DrawAccent(new Rect(rect.x, rect.yMax - 4f * scale, rect.width, 4f * scale), accent);
+            DrawAccent(new Rect(rect.x, rect.yMax - 4f * scale, rect.width, 4f * scale), enabled ? accent : new Color(accent.r, accent.g, accent.b, 0.38f));
 
             buttonStyle!.fontSize = Mathf.RoundToInt(12f * scale);
-            buttonStyle.normal.textColor = Cloud;
-            GUI.Label(new Rect(rect.x, rect.y + 12f * scale, rect.width, 24f * scale), label, style);
+            buttonStyle.normal.textColor = enabled ? Cloud : new Color(Cloud.r, Cloud.g, Cloud.b, 0.5f);
+            GUI.Label(new Rect(rect.x, rect.y + 10f * scale, rect.width, 22f * scale), label, style);
 
             metaStyle!.fontSize = Mathf.RoundToInt(10f * scale);
-            metaStyle.normal.textColor = accent;
-            GUI.Label(new Rect(rect.x, rect.y + 39f * scale, rect.width, 18f * scale), meta, metaStyle);
-            DrawAccent(new Rect(rect.x + rect.width * 0.28f, rect.y + 61f * scale, rect.width * 0.44f, 3f * scale), accent);
-            return pressed;
+            metaStyle.normal.textColor = enabled ? accent : new Color(accent.r, accent.g, accent.b, 0.48f);
+            GUI.Label(new Rect(rect.x, rect.y + 36f * scale, rect.width, 18f * scale), meta, metaStyle);
+            GUI.Label(new Rect(rect.x, rect.y + 55f * scale, rect.width, 18f * scale), enabled ? purpose : "need gold", metaStyle);
+            DrawAccent(new Rect(rect.x + rect.width * 0.28f, rect.y + 76f * scale, rect.width * 0.44f, 3f * scale), enabled ? accent : new Color(accent.r, accent.g, accent.b, 0.35f));
+            return enabled && pressed;
         }
 
         private static bool DrawLauncherButton(Rect rect, string label, Color accent, float scale)
@@ -649,6 +654,38 @@ namespace LTW.UnityClient.UI
             GUI.DrawTexture(rect, Texture2D.whiteTexture);
             GUI.color = previousColor;
         }
+
+        private int PlayerGold()
+        {
+            if (simulationDriver == null)
+            {
+                simulationDriver = Object.FindAnyObjectByType<UnitySimulationDriver>();
+            }
+
+            var snapshot = simulationDriver?.LatestSnapshot;
+            return snapshot?.Players.Get(new LTW.Simulation.Primitives.PlayerId(1)).Gold.Amount ?? 0;
+        }
+
+        private int SelectedTowerCost()
+        {
+            return selectedTowerRole switch
+            {
+                1 => 35,
+                2 => 40,
+                _ => 25
+            };
+        }
+
+        private static string TowerPurpose(string towerId)
+        {
+            if (towerId.Contains("control")) return "Area control and clustered pressure";
+            if (towerId.Contains("relay") || towerId.Contains("economy")) return "Utility pressure and income support";
+            return "Focused single-target defense";
+        }
+
+        private static float UiScale() => Mathf.Clamp(Mathf.Min(Screen.width / 1080f, Screen.height / 720f), 0.74f, 1.12f);
+
+        private static float BottomMargin(float scale) => Mathf.Max(18f * scale, Screen.height * 0.025f);
 
         private static RectOffset ZeroOffset() => new RectOffset(0, 0, 0, 0);
 
