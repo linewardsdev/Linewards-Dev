@@ -23,9 +23,13 @@ namespace LTW.UnityClient.UI
         private static GUIStyle? labelStyle;
         private static GUIStyle? valueStyle;
         private static GUIStyle? laneStyle;
+        private static GUIStyle? buttonStyle;
 
         [SerializeField]
         private bool showRuntimeHud = true;
+
+        [SerializeField]
+        private bool statsExpanded;
 
         private long incomeTicksRemaining = IncomeIntervalTicks;
         private UnitySimulationDriver simulationDriver = null!;
@@ -121,25 +125,34 @@ namespace LTW.UnityClient.UI
             var frame = MobileViewportLayout.ScreenRect();
             var margin = 8f * scale;
             var gap = 4f * scale;
-            var height = 96f * scale;
+            var headerHeight = 42f * scale;
+            var drawerHeight = 96f * scale;
+            var height = statsExpanded ? headerHeight + gap + drawerHeight : headerHeight;
             var strip = new Rect(frame.x + margin, frame.y + margin, frame.width - margin * 2f, height);
             DrawPanel(strip, NightInk);
+            DrawHudHeader(strip, headerHeight, scale);
 
-            var cellWidth = (strip.width - gap * 5f) / 4f;
-            var rowHeight = (strip.height - gap * 3f) * 0.5f;
+            if (!statsExpanded)
+            {
+                return;
+            }
+
+            var drawer = new Rect(strip.x + gap, strip.y + headerHeight + gap, strip.width - gap * 2f, drawerHeight - gap);
+            var cellWidth = (drawer.width - gap * 3f) / 4f;
+            var rowHeight = (drawer.height - gap) * 0.5f;
             var x = strip.x + gap;
-            var topY = strip.y + gap;
+            var topY = drawer.y;
             var bottomY = topY + rowHeight + gap;
 
-            x = DrawLanePill(x, topY, cellWidth, rowHeight, scale);
-            x += gap;
             x = DrawStatPill(x, topY, cellWidth, rowHeight, "LIVES", LivesText, Danger, scale);
             x += gap;
             x = DrawStatPill(x, topY, cellWidth, rowHeight, "GOLD", GoldText, SignalGold, scale);
             x += gap;
-            DrawStatPill(x, topY, cellWidth, rowHeight, "INCOME", $"+{IncomeText}", MintSignal, scale);
+            x = DrawStatPill(x, topY, cellWidth, rowHeight, "INCOME", $"+{IncomeText}", MintSignal, scale);
+            x += gap;
+            DrawTimerPill(x, topY, cellWidth, rowHeight, scale);
 
-            x = strip.x + gap;
+            x = drawer.x;
             x = DrawStatPill(x, bottomY, cellWidth, rowHeight, "TIME", MatchTimeText, Cloud, scale);
             x += gap;
             x = DrawStatPill(x, bottomY, cellWidth, rowHeight, "KILLS", KillsText, MintSignal, scale);
@@ -182,6 +195,38 @@ namespace LTW.UnityClient.UI
                 alignment = TextAnchor.MiddleCenter,
                 normal = { textColor = Cloud }
             };
+
+            buttonStyle = new GUIStyle(GUI.skin.button)
+            {
+                alignment = TextAnchor.MiddleCenter,
+                fontStyle = FontStyle.Bold,
+                margin = ZeroOffset(),
+                padding = ZeroOffset(),
+                normal = { textColor = Cloud }
+            };
+        }
+
+        private void DrawHudHeader(Rect strip, float headerHeight, float scale)
+        {
+            var header = new Rect(strip.x + 4f * scale, strip.y + 4f * scale, strip.width - 8f * scale, headerHeight - 8f * scale);
+            DrawPanel(header, TintPanel(ArcaneBlue, 0.05f));
+            DrawAccent(new Rect(header.x, header.yMax - 3f * scale, header.width, 3f * scale), ArcaneBlue);
+
+            laneStyle!.fontSize = Mathf.RoundToInt(14f * scale);
+            laneStyle.normal.textColor = Cloud;
+            GUI.Label(new Rect(header.x + 10f * scale, header.y, 110f * scale, header.height), LaneText.ToUpperInvariant(), laneStyle);
+
+            valueStyle!.fontSize = Mathf.RoundToInt(12f * scale);
+            valueStyle.normal.textColor = Cloud;
+            var summary = $"{LivesText}L   {GoldText}G   +{IncomeText}";
+            GUI.Label(new Rect(header.x + 126f * scale, header.y, header.width - 224f * scale, header.height), summary, valueStyle);
+
+            buttonStyle!.fontSize = Mathf.RoundToInt(11f * scale);
+            var label = statsExpanded ? "HIDE" : "STATS";
+            if (GUI.Button(new Rect(header.xMax - 84f * scale, header.y + 3f * scale, 74f * scale, header.height - 6f * scale), label, buttonStyle))
+            {
+                statsExpanded = !statsExpanded;
+            }
         }
 
         private float DrawLanePill(float x, float y, float width, float height, float scale)
