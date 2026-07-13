@@ -21,11 +21,11 @@ Use it after the GD readability baseline is stable. The goal is original ward-te
 ### Lane Composition
 
 - [ ] Define final cell proportions for the 7x18 vertical-slice lane and expected future 8x20 option.
-- [ ] Create a clean base-board material set: deep field, buildable cells, center route, border rails, spawn, exit, and lane accents.
-- [ ] Add distinct buildable side bands that remain visible without overpowering towers.
-- [ ] Make the center creep route brighter and more continuous than build zones.
-- [ ] Add subtle lane ownership tinting for player lane and opponent lanes.
-- [ ] Add spawn and exit gates with clear vertical flow direction.
+- [x] Create a clean base-board material set: deep field, buildable cells, center route, border rails, spawn, exit, and lane accents.
+- [x] Add distinct buildable side bands that remain visible without overpowering towers.
+- [x] Make the center creep route brighter and more continuous than build zones.
+- [x] Add subtle lane ownership tinting for player lane and opponent lanes.
+- [x] Add spawn and exit gates with clear vertical flow direction.
 - [ ] Add first-pass lane background/environment trim outside the grid without adding clutter inside the playable cells.
 - [ ] Verify spawn, exit, build zones, occupied cells, and path cells are readable at normal phone scale.
 
