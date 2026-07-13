@@ -213,8 +213,11 @@ namespace LTW.UnityClient.Simulation
                         SpawnSendCue(queued);
                         break;
                     case CreepSpawnedEvent spawned:
-                        SpawnEffect(SpawnPosition(spawned.DefenderId.Value), CreepRoleColor(spawned.CreepId.Value, spawned.SenderId.Value), 0.52f, 0.28f);
-                        SpawnFloatingText(SpawnPosition(spawned.DefenderId.Value), SpawnLabel(spawned.CreepId.Value), CreepRoleColor(spawned.CreepId.Value, spawned.SenderId.Value), 0.48f);
+                        var spawnPosition = SpawnPosition(spawned.DefenderId.Value);
+                        var spawnColor = CreepRoleColor(spawned.CreepId.Value, spawned.SenderId.Value);
+                        SpawnCreepArrivalCue(spawned.DefenderId.Value, spawnColor);
+                        SpawnEffect(spawnPosition, spawnColor, 0.52f, 0.28f);
+                        SpawnFloatingText(spawnPosition, SpawnLabel(spawned.CreepId.Value), spawnColor, 0.48f);
                         break;
                     case CreepDamagedEvent damaged:
                         var hitPosition = PositionFor(damaged.CreepEntityId.Value.ToString());
@@ -229,6 +232,7 @@ namespace LTW.UnityClient.Simulation
                         break;
                     case CreepKilledEvent creepKilled:
                         var killPosition = PositionFor(creepKilled.CreepEntityId.Value.ToString());
+                        SpawnCreepDeathCue(killPosition, SignalGold);
                         SpawnEffect(killPosition, SignalGold, 0.42f, 0.2f);
                         SpawnFloatingText(killPosition, $"+{creepKilled.BountyAwarded.Amount}", SignalGold, 0.56f);
                         PlaySound(creepKilledClip);
@@ -340,6 +344,21 @@ namespace LTW.UnityClient.Simulation
             {
                 feedbackAudioSource.PlayOneShot(clip, PresentationPreferences.FeedbackVolume);
             }
+        }
+
+        private void SpawnCreepArrivalCue(int laneId, Color color)
+        {
+            var spawn = SpawnPosition(laneId);
+            SpawnCellFrameCue(spawn, color, 0.22f);
+            SpawnBeam(spawn + new Vector3(-0.54f, 0.22f, 0.54f), spawn + new Vector3(0.54f, 0.22f, -0.54f), color, 0.18f);
+            SpawnBeam(spawn + new Vector3(0.54f, 0.22f, 0.54f), spawn + new Vector3(-0.54f, 0.22f, -0.54f), color, 0.18f);
+        }
+
+        private void SpawnCreepDeathCue(Vector3 position, Color color)
+        {
+            SpawnBeam(position + new Vector3(-0.38f, 0.16f, 0f), position + new Vector3(0.38f, 0.16f, 0f), color, 0.14f);
+            SpawnBeam(position + new Vector3(0f, 0.16f, -0.38f), position + new Vector3(0f, 0.16f, 0.38f), color, 0.14f);
+            SpawnBeam(position + new Vector3(-0.24f, 0.22f, -0.24f), position + new Vector3(0.24f, 0.22f, 0.24f), color, 0.14f);
         }
 
         private void SpawnCellFrameCue(Vector3 center, Color color, float duration)
@@ -1108,16 +1127,28 @@ namespace LTW.UnityClient.Simulation
             var bruteLeftPlate = EnsureChild(creepObject, "BruteLeftPlate", PrimitiveType.Cube);
             var bruteRightPlate = EnsureChild(creepObject, "BruteRightPlate", PrimitiveType.Cube);
             var bruteCore = EnsureChild(creepObject, "BruteCore", PrimitiveType.Sphere);
+            var bossCrown = EnsureChild(creepObject, "BossCrown", PrimitiveType.Cylinder);
+            var bossCore = EnsureChild(creepObject, "BossCore", PrimitiveType.Sphere);
+            var bossLeftHorn = EnsureChild(creepObject, "BossLeftHorn", PrimitiveType.Cube);
+            var bossRightHorn = EnsureChild(creepObject, "BossRightHorn", PrimitiveType.Cube);
             var swarmA = EnsureChild(creepObject, "SwarmDotA", PrimitiveType.Sphere);
             var swarmB = EnsureChild(creepObject, "SwarmDotB", PrimitiveType.Sphere);
             var swarmC = EnsureChild(creepObject, "SwarmDotC", PrimitiveType.Sphere);
             var swarmTrail = EnsureChild(creepObject, "SwarmTrail", PrimitiveType.Cylinder);
             var hover = EnsureChild(creepObject, "AirHoverRing", PrimitiveType.Cylinder);
+            var airLeftWing = EnsureChild(creepObject, "AirLeftWing", PrimitiveType.Cube);
+            var airRightWing = EnsureChild(creepObject, "AirRightWing", PrimitiveType.Cube);
+            var airBeacon = EnsureChild(creepObject, "AirBeacon", PrimitiveType.Sphere);
             var shimmer = EnsureChild(creepObject, "StealthShimmer", PrimitiveType.Cylinder);
-            var spike = EnsureChild(creepObject, "SiegeSpike", PrimitiveType.Cube);
+            var stealthEchoA = EnsureChild(creepObject, "StealthEchoA", PrimitiveType.Cylinder);
+            var stealthEchoB = EnsureChild(creepObject, "StealthEchoB", PrimitiveType.Cylinder);
+            var siegeBase = EnsureChild(creepObject, "SiegeBase", PrimitiveType.Cube);
+            var siegeBarrel = EnsureChild(creepObject, "SiegeBarrel", PrimitiveType.Cube);
+            var siegeSpike = EnsureChild(creepObject, "SiegeSpike", PrimitiveType.Cube);
 
             var isSwarm = ContainsRole(creepId, "swarm");
-            var isBrute = ContainsRole(creepId, "brute") || ContainsRole(creepId, "tank") || ContainsRole(creepId, "boss");
+            var isBoss = ContainsRole(creepId, "boss");
+            var isBrute = isBoss || ContainsRole(creepId, "brute") || ContainsRole(creepId, "tank");
             var isAir = ContainsRole(creepId, "flying") || ContainsRole(creepId, "air");
             var isStealth = ContainsRole(creepId, "invisible") || ContainsRole(creepId, "stealth");
             var isSiege = ContainsRole(creepId, "attacker") || ContainsRole(creepId, "siege");
@@ -1129,10 +1160,14 @@ namespace LTW.UnityClient.Simulation
             ConfigureChild(runnerLeftFin, isRunner, new Vector3(-0.24f, 0f, -0.04f), new Vector3(0.08f, 0.08f, 0.26f), senderColor);
             ConfigureChild(runnerRightFin, isRunner, new Vector3(0.24f, 0f, -0.04f), new Vector3(0.08f, 0.08f, 0.26f), senderColor);
 
-            ConfigureChild(armor, isBrute, new Vector3(0f, 0.26f, 0f), new Vector3(0.72f, 0.14f, 0.84f), new Color(1f, 0.72f, 0.38f));
+            ConfigureChild(armor, isBrute, new Vector3(0f, 0.26f, 0f), isBoss ? new Vector3(0.86f, 0.18f, 0.96f) : new Vector3(0.72f, 0.14f, 0.84f), new Color(1f, 0.72f, 0.38f));
             ConfigureChild(bruteLeftPlate, isBrute, new Vector3(-0.38f, 0.12f, 0.04f), new Vector3(0.18f, 0.28f, 0.62f), new Color(0.74f, 0.38f, 0.22f));
             ConfigureChild(bruteRightPlate, isBrute, new Vector3(0.38f, 0.12f, 0.04f), new Vector3(0.18f, 0.28f, 0.62f), new Color(0.74f, 0.38f, 0.22f));
-            ConfigureChild(bruteCore, isBrute, new Vector3(0f, 0.42f, 0.18f), new Vector3(0.22f, 0.22f, 0.22f), SignalGold);
+            ConfigureChild(bruteCore, isBrute && !isBoss, new Vector3(0f, 0.42f, 0.18f), new Vector3(0.22f, 0.22f, 0.22f), SignalGold);
+            ConfigureChild(bossCrown, isBoss, new Vector3(0f, 0.72f, 0f), new Vector3(0.92f, 0.055f, 0.92f), LeakRed);
+            ConfigureChild(bossCore, isBoss, new Vector3(0f, 0.54f, 0.16f), new Vector3(0.34f, 0.34f, 0.34f), SignalGold);
+            ConfigureChild(bossLeftHorn, isBoss, new Vector3(-0.44f, 0.62f, 0.16f), new Vector3(0.16f, 0.16f, 0.42f), LeakRed);
+            ConfigureChild(bossRightHorn, isBoss, new Vector3(0.44f, 0.62f, 0.16f), new Vector3(0.16f, 0.16f, 0.42f), LeakRed);
 
             ConfigureChild(swarmA, isSwarm, new Vector3(-0.42f, 0.05f, -0.24f), new Vector3(0.62f, 0.62f, 0.62f), senderColor);
             ConfigureChild(swarmB, isSwarm, new Vector3(0.38f, 0.05f, 0.26f), new Vector3(0.52f, 0.52f, 0.52f), MintSignal);
@@ -1140,8 +1175,17 @@ namespace LTW.UnityClient.Simulation
             ConfigureChild(swarmTrail, isSwarm, new Vector3(0f, -0.18f, 0f), new Vector3(0.82f, 0.03f, 0.82f), senderColor);
 
             ConfigureChild(hover, isAir, new Vector3(0f, -0.52f, 0f), new Vector3(0.88f, 0.04f, 0.88f), new Color(0.82f, 0.72f, 1f));
+            ConfigureChild(airLeftWing, isAir, new Vector3(-0.5f, 0.02f, 0f), new Vector3(0.42f, 0.08f, 0.18f), new Color(0.82f, 0.72f, 1f));
+            ConfigureChild(airRightWing, isAir, new Vector3(0.5f, 0.02f, 0f), new Vector3(0.42f, 0.08f, 0.18f), new Color(0.82f, 0.72f, 1f));
+            ConfigureChild(airBeacon, isAir, new Vector3(0f, 0.28f, 0f), new Vector3(0.2f, 0.2f, 0.2f), MintSignal);
+
             ConfigureChild(shimmer, isStealth, new Vector3(0f, 0f, 0f), new Vector3(1.1f, 0.05f, 1.1f), new Color(0.86f, 0.96f, 1f));
-            ConfigureChild(spike, isSiege, new Vector3(0.28f, 0.08f, 0f), new Vector3(0.38f, 0.16f, 0.2f), new Color(1f, 0.3f, 0.36f));
+            ConfigureChild(stealthEchoA, isStealth, new Vector3(0f, -0.18f, 0f), new Vector3(1.34f, 0.03f, 1.34f), new Color(0.36f, 0.5f, 0.58f));
+            ConfigureChild(stealthEchoB, isStealth, new Vector3(0f, 0.2f, 0f), new Vector3(0.78f, 0.03f, 0.78f), new Color(0.72f, 0.84f, 0.9f));
+
+            ConfigureChild(siegeBase, isSiege, new Vector3(0f, -0.02f, -0.06f), new Vector3(0.58f, 0.22f, 0.5f), new Color(0.56f, 0.12f, 0.16f));
+            ConfigureChild(siegeBarrel, isSiege, new Vector3(0f, 0.08f, 0.42f), new Vector3(0.18f, 0.16f, 0.62f), new Color(1f, 0.38f, 0.44f));
+            ConfigureChild(siegeSpike, isSiege, new Vector3(0.28f, 0.08f, 0f), new Vector3(0.38f, 0.16f, 0.2f), new Color(1f, 0.3f, 0.36f));
         }
 
         private static Vector3 CreepShadowScale(string creepId)
@@ -1151,9 +1195,19 @@ namespace LTW.UnityClient.Simulation
                 return new Vector3(1.2f, 0.025f, 1.2f);
             }
 
-            if (ContainsRole(creepId, "brute") || ContainsRole(creepId, "tank") || ContainsRole(creepId, "boss"))
+            if (ContainsRole(creepId, "boss"))
+            {
+                return new Vector3(1.36f, 0.025f, 1.48f);
+            }
+
+            if (ContainsRole(creepId, "brute") || ContainsRole(creepId, "tank"))
             {
                 return new Vector3(1.05f, 0.025f, 1.25f);
+            }
+
+            if (ContainsRole(creepId, "flying") || ContainsRole(creepId, "air"))
+            {
+                return new Vector3(0.92f, 0.02f, 0.92f);
             }
 
             return new Vector3(0.72f, 0.025f, 1.05f);
