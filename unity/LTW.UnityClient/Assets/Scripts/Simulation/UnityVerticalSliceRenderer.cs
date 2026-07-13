@@ -152,6 +152,7 @@ namespace LTW.UnityClient.Simulation
                 CreateLaneEndpointLabel(lane, CenterColumn, 0, "SPAWN", MintSignal);
                 CreateLaneEndpointLabel(lane, CenterColumn, LaneLength - 1, "LIFE LOSS", LeakRed);
                 CreateLaneLabel(lane);
+                CreateLaneOwnershipBadge(lane);
             }
 
             laneCreated = true;
@@ -673,6 +674,24 @@ namespace LTW.UnityClient.Simulation
             label.text = labelText;
             label.color = color;
             laneDecorations.Add(labelObject);
+        }
+
+        private void CreateLaneOwnershipBadge(int laneId)
+        {
+            var badgeObject = new GameObject($"Lane{laneId}OwnershipBadge");
+            badgeObject.transform.position = new Vector3(LaneOffset(laneId) - 0.85f, 0.08f, BoardCenterZ);
+            badgeObject.transform.rotation = Quaternion.Euler(90f, 0f, 90f);
+            badgeObject.transform.localScale = Vector3.one * (laneId == 1 ? 0.042f : 0.034f);
+            var badge = badgeObject.AddComponent<TextMesh>();
+            badge.anchor = TextAnchor.MiddleCenter;
+            badge.alignment = TextAlignment.Center;
+            badge.fontSize = 44;
+            badge.characterSize = 0.18f;
+            badge.text = laneId == 1 ? "YOUR LINE" : $"TARGET {laneId}";
+            badge.color = OwnerAccent(laneId);
+            laneDecorations.Add(badgeObject);
+
+            CreateSurfaceBand($"Lane{laneId}OwnershipBadgeRail", new Vector3(LaneOffset(laneId) - 0.88f, -0.18f, BoardCenterZ), new Vector3(0.1f, 0.08f, LaneLength * 0.45f), LaneAnchorColor(OwnerAccent(laneId), laneId == 1));
         }
 
         private void CreateLaneLabel(int laneId)
