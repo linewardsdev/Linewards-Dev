@@ -7,7 +7,7 @@ This log records the first gameplay pacing targets for the local vertical slice.
 ## Current Baseline
 
 - Three lanes: one human lane and two bot lanes.
-- Starting economy: 100 gold, 10 income, 140 lives.
+- Starting economy: 100 gold, 10 income, 220 lives.
 - Income interval: 50 simulation ticks.
 - Global send cooldown: 30 simulation ticks.
 - Sell refund: 50% of tower cost.
@@ -40,7 +40,7 @@ This log records the first gameplay pacing targets for the local vertical slice.
 ## Known Balance Questions
 
 - Does the global 30-tick send cooldown create enough breathing room once bots and humans send together?
-- Does 140 lives make leaks too forgiving for local playtests?
+- Does 220 lives give enough room for defense corrections without making local matches drag?
 - Should Economy Relay Ward remain placeable before it has an economy/support effect?
 - Should Swarm quantity stay at 3, or should the unit be cheaper with a lower income reward?
 - Are kill bounties large enough to make defense feel rewarding without defeating send-for-income pressure?
@@ -57,7 +57,7 @@ Use the local `P` hotkey after a completed Unity Play Mode match to write the Ma
 
 ## Next Tuning Actions
 
-1. Run one local desktop Play Mode match with the tower palette and preview feedback enabled.
+1. Run one local desktop Play Mode match with the updated bot opening defense and 220-life baseline.
 2. Press `P` after match completion and copy first send, first leak, first elimination, winner, and completion timing from the generated report.
-3. Decide whether to tune lives, send cooldown, or creep stats first.
+3. Decide whether the next tuning lever should be send cooldown, creep stats, or tower damage after observing the 900-1800 tick match gate in Play Mode.
 4. Promote any repeated confusion into GD-01/GD-02 usability fixes before changing numbers heavily.

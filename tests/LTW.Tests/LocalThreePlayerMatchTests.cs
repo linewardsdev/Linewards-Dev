@@ -1,3 +1,4 @@
+using System.Linq;
 using LTW.Simulation.Bridge;
 using Xunit;
 
@@ -6,6 +7,19 @@ namespace LTW.Tests;
 public sealed class LocalThreePlayerMatchTests
 {
     [Fact]
+    public void Bots_build_opening_defense_before_first_send_pressure()
+    {
+        var slice = new LocalVerticalSlice(SampleVerticalSliceContent.Create());
+
+        for (var tick = 0; tick < 30; tick++) slice.AdvanceOneTick();
+
+        var snapshot = slice.GetSnapshot();
+        Assert.True(snapshot.Towers.Count(tower => tower.OwnerId.Value == 2) >= 2);
+        Assert.True(snapshot.Towers.Count(tower => tower.OwnerId.Value == 3) >= 3);
+        Assert.Empty(slice.GetBotDiagnostics().RecentDecisions);
+    }
+
+    [Fact]
     public void Two_bots_complete_a_local_carousel_match()
     {
         var slice = new LocalVerticalSlice(SampleVerticalSliceContent.Create());
@@ -13,7 +27,7 @@ public sealed class LocalThreePlayerMatchTests
         for (var tick = 0; tick < 6_000 && slice.MatchSummary is null; tick++) slice.AdvanceOneTick();
 
         Assert.NotNull(slice.MatchSummary);
-        Assert.InRange(slice.MatchSummary!.CompletedAtTick.Value, 300, 2_500);
+        Assert.InRange(slice.MatchSummary!.CompletedAtTick.Value, 900, 1_800);
         Assert.NotEmpty(slice.GetReplayRecord().AcceptedCommands);
     }
 }

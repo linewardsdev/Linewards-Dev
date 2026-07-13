@@ -11,7 +11,7 @@ public sealed class VerticalSliceBridgeTests
     [Fact]
     public void Local_vertical_slice_places_tower_sends_creep_and_advances_to_expected_state()
     {
-        var simulation = new LocalVerticalSlice(SampleVerticalSliceContent.Create());
+        var simulation = new LocalVerticalSlice(SampleVerticalSliceContent.Create(), enableBots: false);
 
         var place = simulation.PlaceTower(new PlayerId(1), new LaneId(1), SampleVerticalSliceContent.TowerId, new GridPosition(1, 1));
         var send = simulation.QueueSend(new PlayerId(1), SampleVerticalSliceContent.CreepId);
@@ -100,11 +100,16 @@ public sealed class VerticalSliceBridgeTests
     {
         var simulation = new LocalVerticalSlice(SampleVerticalSliceContent.Create());
 
-        simulation.AdvanceOneTick();
+        for (var tick = 0; tick < 3; tick++)
+        {
+            simulation.AdvanceOneTick();
+        }
 
         var snapshot = simulation.GetSnapshot();
         Assert.Contains(snapshot.Towers, tower => tower.OwnerId.Equals(new PlayerId(2)) && tower.TowerId.Equals(SampleVerticalSliceContent.TowerId));
         Assert.Contains(snapshot.Towers, tower => tower.OwnerId.Equals(new PlayerId(3)) && tower.TowerId.Equals(SampleVerticalSliceContent.ControlTowerId));
+        Assert.True(snapshot.Towers.Count(tower => tower.OwnerId.Equals(new PlayerId(2))) >= 2);
+        Assert.True(snapshot.Towers.Count(tower => tower.OwnerId.Equals(new PlayerId(3))) >= 3);
     }
 
     [Fact]
@@ -131,13 +136,13 @@ public sealed class VerticalSliceBridgeTests
         Assert.Contains(initial.Profiles, profile => profile.PlayerId.Equals(new PlayerId(2)) && profile.Profile == LTW.Simulation.Bots.BotDecisionProfile.Balanced);
         Assert.Contains(initial.Profiles, profile => profile.PlayerId.Equals(new PlayerId(3)) && profile.Profile == LTW.Simulation.Bots.BotDecisionProfile.Defensive);
 
-        for (var tick = 0; tick < 7; tick++)
+        for (var tick = 0; tick < 251; tick++)
         {
             simulation.AdvanceOneTick();
         }
 
         var diagnostics = simulation.GetBotDiagnostics();
-        Assert.Contains(diagnostics.RecentDecisions, decision => decision.PlayerId.Equals(new PlayerId(2)) && decision.Quantity == 2);
+        Assert.Contains(diagnostics.RecentDecisions, decision => decision.PlayerId.Equals(new PlayerId(2)) && decision.Quantity >= 1);
         Assert.Contains(diagnostics.RecentDecisions, decision => decision.PlayerId.Equals(new PlayerId(3)) && decision.Quantity == 1);
     }
 
@@ -145,7 +150,11 @@ public sealed class VerticalSliceBridgeTests
     public void Bridge_reset_clears_bot_decision_diagnostics()
     {
         var simulation = new LocalVerticalSlice(SampleVerticalSliceContent.Create());
-        simulation.AdvanceOneTick();
+        for (var tick = 0; tick < 251; tick++)
+        {
+            simulation.AdvanceOneTick();
+        }
+
         Assert.NotEmpty(simulation.GetBotDiagnostics().RecentDecisions);
 
         simulation.Reset();
@@ -189,7 +198,7 @@ public sealed class VerticalSliceBridgeTests
     [Fact]
     public void Send_cooldown_creates_a_repeat_pressure_window()
     {
-        var simulation = new LocalVerticalSlice(SampleVerticalSliceContent.Create());
+        var simulation = new LocalVerticalSlice(SampleVerticalSliceContent.Create(), enableBots: false);
 
         var first = simulation.QueueSend(new PlayerId(1), SampleVerticalSliceContent.CreepId);
         var immediate = simulation.QueueSend(new PlayerId(1), SampleVerticalSliceContent.CreepId);
@@ -209,7 +218,7 @@ public sealed class VerticalSliceBridgeTests
     [Fact]
     public void Early_pressure_window_keeps_match_alive_before_first_income_tick()
     {
-        var simulation = new LocalVerticalSlice(SampleVerticalSliceContent.Create());
+        var simulation = new LocalVerticalSlice(SampleVerticalSliceContent.Create(), enableBots: false);
         Assert.True(simulation.QueueSend(new PlayerId(1), SampleVerticalSliceContent.CreepId).Accepted);
 
         for (var tick = 0; tick < 49; tick++)
@@ -228,7 +237,7 @@ public sealed class VerticalSliceBridgeTests
     [Fact]
     public void Income_tick_emits_feedback_event()
     {
-        var simulation = new LocalVerticalSlice(SampleVerticalSliceContent.Create());
+        var simulation = new LocalVerticalSlice(SampleVerticalSliceContent.Create(), enableBots: false);
 
         for (var tick = 0; tick < 50; tick++)
         {
@@ -243,7 +252,7 @@ public sealed class VerticalSliceBridgeTests
     [Fact]
     public void Tower_attacks_emit_damage_feedback_events()
     {
-        var simulation = new LocalVerticalSlice(SampleVerticalSliceContent.Create());
+        var simulation = new LocalVerticalSlice(SampleVerticalSliceContent.Create(), enableBots: false);
         Assert.True(simulation.PlaceTower(new PlayerId(1), new LaneId(1), SampleVerticalSliceContent.TowerId, new GridPosition(2, 1)).Accepted);
         Assert.True(simulation.QueueSend(new PlayerId(3), SampleVerticalSliceContent.CreepId).Accepted);
 
@@ -260,7 +269,7 @@ public sealed class VerticalSliceBridgeTests
     [Fact]
     public void Leaked_creeps_continue_into_the_next_lane()
     {
-        var simulation = new LocalVerticalSlice(SampleVerticalSliceContent.Create());
+        var simulation = new LocalVerticalSlice(SampleVerticalSliceContent.Create(), enableBots: false);
         Assert.True(simulation.QueueSend(new PlayerId(1), SampleVerticalSliceContent.CreepId).Accepted);
 
         for (var tick = 0; tick < 17; tick++)
@@ -284,7 +293,7 @@ public sealed class VerticalSliceBridgeTests
     [Fact]
     public void Sent_creeps_do_not_wrap_back_into_the_senders_own_lane()
     {
-        var simulation = new LocalVerticalSlice(SampleVerticalSliceContent.Create());
+        var simulation = new LocalVerticalSlice(SampleVerticalSliceContent.Create(), enableBots: false);
         Assert.True(simulation.QueueSend(new PlayerId(1), SampleVerticalSliceContent.CreepId).Accepted);
 
         for (var tick = 0; tick < 36; tick++)
@@ -311,7 +320,7 @@ public sealed class VerticalSliceBridgeTests
     [Fact]
     public void Sent_creeps_cycle_through_active_opponent_lanes_until_killed()
     {
-        var simulation = new LocalVerticalSlice(SampleVerticalSliceContent.Create());
+        var simulation = new LocalVerticalSlice(SampleVerticalSliceContent.Create(), enableBots: false);
         Assert.True(simulation.QueueSend(new PlayerId(1), SampleVerticalSliceContent.CreepId).Accepted);
 
         for (var tick = 0; tick < 36; tick++)

@@ -14,6 +14,8 @@ namespace LTW.Simulation.Bridge;
 
 public sealed class LocalVerticalSlice
 {
+    private const int StartingLives = 220;
+
     private readonly ContentCatalog content;
     private readonly EconomyService economy;
     private readonly GridPathService pathService;
@@ -49,7 +51,7 @@ public sealed class LocalVerticalSlice
         return new BotDiagnosticsSnapshot(profiles, recentDecisions);
     }
 
-    public LocalVerticalSlice(ContentCatalog content)
+    public LocalVerticalSlice(ContentCatalog content, bool enableBots = true)
     {
         this.content = content;
         economy = new EconomyService(new EconomyRules(incomeIntervalTicks: 50, sendCooldownTicks: 30, sellRefundPercent: 50, leakLifeLoss: 1));
@@ -72,16 +74,18 @@ public sealed class LocalVerticalSlice
             new Dictionary<LaneId, PlayerId> { [new LaneId(1)] = new PlayerId(1), [new LaneId(2)] = new PlayerId(2), [new LaneId(3)] = new PlayerId(3) });
         players = new EconomyPlayerSet(new[]
         {
-            new PlayerEconomyState(new PlayerId(1), new Gold(100), new Income(10), new Lives(140)),
-            new PlayerEconomyState(new PlayerId(2), new Gold(100), new Income(10), new Lives(140)),
-            new PlayerEconomyState(new PlayerId(3), new Gold(100), new Income(10), new Lives(140))
+            new PlayerEconomyState(new PlayerId(1), new Gold(100), new Income(10), new Lives(StartingLives)),
+            new PlayerEconomyState(new PlayerId(2), new Gold(100), new Income(10), new Lives(StartingLives)),
+            new PlayerEconomyState(new PlayerId(3), new Gold(100), new Income(10), new Lives(StartingLives))
         });
         combatState = new CombatState(Enumerable.Empty<CreepCombatState>(), Enumerable.Empty<TowerCombatState>());
-        bots = new Dictionary<PlayerId, BotController>
-        {
-            [new PlayerId(2)] = new BotController(BotDecisionProfile.Balanced, content.Creeps[0].Id),
-            [new PlayerId(3)] = new BotController(BotDecisionProfile.Defensive, content.Creeps[0].Id)
-        };
+        bots = enableBots
+            ? new Dictionary<PlayerId, BotController>
+            {
+                [new PlayerId(2)] = new BotController(BotDecisionProfile.Balanced, content.Creeps[0].Id),
+                [new PlayerId(3)] = new BotController(BotDecisionProfile.Defensive, content.Creeps[0].Id)
+            }
+            : new Dictionary<PlayerId, BotController>();
         tick = new SimulationTick(0);
     }
 
@@ -248,9 +252,9 @@ public sealed class LocalVerticalSlice
     {
         players = new EconomyPlayerSet(new[]
         {
-            new PlayerEconomyState(new PlayerId(1), new Gold(100), new Income(10), new Lives(140)),
-            new PlayerEconomyState(new PlayerId(2), new Gold(100), new Income(10), new Lives(140)),
-            new PlayerEconomyState(new PlayerId(3), new Gold(100), new Income(10), new Lives(140))
+            new PlayerEconomyState(new PlayerId(1), new Gold(100), new Income(10), new Lives(StartingLives)),
+            new PlayerEconomyState(new PlayerId(2), new Gold(100), new Income(10), new Lives(StartingLives)),
+            new PlayerEconomyState(new PlayerId(3), new Gold(100), new Income(10), new Lives(StartingLives))
         });
         combatState = new CombatState(Enumerable.Empty<CreepCombatState>(), Enumerable.Empty<TowerCombatState>());
         var map = content.Maps[0];
@@ -270,18 +274,16 @@ public sealed class LocalVerticalSlice
 
     private void TryPlaceBotTower(PlayerId playerId, BotController bot)
     {
-        if (combatState.Towers.Any(tower => tower.OwnerId.Equals(playerId)))
+        var ownedTowerCount = combatState.Towers.Count(tower => tower.OwnerId.Equals(playerId));
+        var desiredTowerCount = bot.Profile == BotDecisionProfile.Defensive ? 3 : 2;
+        if (ownedTowerCount >= desiredTowerCount)
         {
             return;
         }
 
-        var towerId = bot.Profile == BotDecisionProfile.Defensive
-            ? SampleVerticalSliceContent.ControlTowerId
-            : SampleVerticalSliceContent.TowerId;
+        var towerId = BotTowerForSlot(bot.Profile, ownedTowerCount);
         var laneId = new LaneId(playerId.Value);
-        var candidates = bot.Profile == BotDecisionProfile.Defensive
-            ? new[] { new GridPosition(1, 3), new GridPosition(5, 5), new GridPosition(1, 7) }
-            : new[] { new GridPosition(5, 3), new GridPosition(1, 5), new GridPosition(5, 7) };
+        var candidates = BotPlacementCandidates(bot.Profile, ownedTowerCount);
 
         foreach (var position in candidates)
         {
@@ -290,6 +292,35 @@ public sealed class LocalVerticalSlice
                 return;
             }
         }
+    }
+
+    private static ContentId BotTowerForSlot(BotDecisionProfile profile, int ownedTowerCount)
+    {
+        if (profile == BotDecisionProfile.Defensive)
+        {
+            return ownedTowerCount == 0 ? SampleVerticalSliceContent.ControlTowerId : SampleVerticalSliceContent.TowerId;
+        }
+
+        return ownedTowerCount == 1 ? SampleVerticalSliceContent.ControlTowerId : SampleVerticalSliceContent.TowerId;
+    }
+
+    private static IReadOnlyList<GridPosition> BotPlacementCandidates(BotDecisionProfile profile, int ownedTowerCount)
+    {
+        if (profile == BotDecisionProfile.Defensive)
+        {
+            return ownedTowerCount switch
+            {
+                0 => new[] { new GridPosition(1, 3), new GridPosition(5, 5), new GridPosition(1, 7) },
+                1 => new[] { new GridPosition(5, 3), new GridPosition(1, 5), new GridPosition(5, 7) },
+                _ => new[] { new GridPosition(5, 9), new GridPosition(1, 11), new GridPosition(5, 13) }
+            };
+        }
+
+        return ownedTowerCount switch
+        {
+            0 => new[] { new GridPosition(5, 3), new GridPosition(1, 5), new GridPosition(5, 7) },
+            _ => new[] { new GridPosition(1, 7), new GridPosition(5, 9), new GridPosition(1, 11) }
+        };
     }
 
     private TowerPlacementValidation ValidateTowerPlacement(PlayerId playerId, LaneId laneId, ContentId towerId, GridPosition position)

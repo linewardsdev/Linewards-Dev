@@ -40,8 +40,8 @@ public sealed class BotController
         var reserve = profile switch
         {
             BotDecisionProfile.Greedy => 0,
-            BotDecisionProfile.Balanced => 20,
-            BotDecisionProfile.Defensive => tick.Value < 6 ? 70 : 35,
+            BotDecisionProfile.Balanced => tick.Value < 120 ? 70 : 35,
+            BotDecisionProfile.Defensive => tick.Value < 180 ? 85 : 55,
             _ => 20
         };
 

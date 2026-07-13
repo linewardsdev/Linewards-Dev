@@ -99,11 +99,11 @@ Current sends have distinct cost, income, speed/health, and quantity pressure. C
 ### Deliverables
 
 - [x] Define target ranges for first send, first leak, first elimination, and match completion.
-- [ ] Tune starting gold, income interval, send rewards, bounties, lives, and cooldowns around those ranges.
+- [x] Tune starting gold, income interval, send rewards, bounties, lives, and cooldowns around those ranges.
 - [ ] Add scenario tests for low-pressure, normal-pressure, and heavy-pressure matches.
 - [x] Record current known balance problems in a tuning log.
 
-Initial target ranges and known balance questions are recorded in `docs/GD_TUNING_LOG.md`. Scenario coverage has started with send cooldown and early-pressure tests, but the full low/normal/heavy suite remains open.
+Initial target ranges and known balance questions are recorded in `docs/GD_TUNING_LOG.md`. The first pacing pass raises local lives to 220, delays bot send spending during the opening, and guards the deterministic local match against the 900-1800 tick completion target. Scenario coverage has started with send cooldown, early-pressure, bot-opening-defense, and match-duration tests, but the full low/normal/heavy suite remains open.
 
 ### Acceptance Checks
 
@@ -120,7 +120,7 @@ Initial target ranges and known balance questions are recorded in `docs/GD_TUNIN
 - [x] Add at least one pressure bot and one defensive bot profile.
 - [x] Log bot decisions in replay diagnostics.
 
-Bot profiles now surface through the local diagnostics overlay and playtest report. Balanced and Defensive bots now place first-pass defensive towers before creating send pressure, giving playtests visible opponent behavior without hidden advantages.
+Bot profiles now surface through the local diagnostics overlay and playtest report. Balanced and Defensive bots now place first-pass defensive tower packages before creating send pressure, giving playtests visible opponent behavior without hidden advantages. Balanced bots build two early towers; Defensive bots build three and hold a larger opening reserve before sending.
 
 ### Acceptance Checks
 
@@ -171,7 +171,7 @@ Tower attacks now emit damage events so Unity can show lane beams and hit cues b
 - [ ] Prioritize fixes into must-fix, should-fix, and later buckets.
 - [ ] Decide whether the next fork should be more gameplay, local UX polish, or mobile validation.
 
-The local playtest recorder writes Markdown reports with seed/content/map, completion tick, winner, first send/leak/elimination observations, replay path, bot profiles, recent bot decisions, and tester-note prompts. Reports are saved under Unity's persistent data path; on the current Windows editor setup this is `C:\Users\engch\AppData\LocalLow\DefaultCompany\LTW_UnityClient\Playtests`.
+The local playtest recorder writes Markdown reports with seed/content/map, completion tick, winner, first send/leak/elimination observations, replay path, bot profiles, recent bot decisions, and tester-note prompts. Reports are saved under Unity's persistent data path; on the current Windows editor setup this is `C:\Users\engch\AppData\LocalLow\DefaultCompany\LTW_UnityClient\Playtests`. The next Play Mode pass should capture the updated 220-life, opening-defense bot baseline.
 
 ### Acceptance Checks
 

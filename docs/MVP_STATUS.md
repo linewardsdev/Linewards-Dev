@@ -18,7 +18,7 @@ dotnet format LTW.sln --no-restore --verify-no-changes
 dotnet test LTW.sln --no-restore --configuration Release
 ```
 
-Latest local result: 49 tests passed.
+Latest local result: 54 tests passed.
 
 Unity compile smoke also passes locally when `LTW.Simulation.dll` is built and copied to
 `unity/LTW.UnityClient/Assets/Plugins`. The latest MCP-assisted Play Mode startup loaded
@@ -53,8 +53,9 @@ Current code evidence:
 - `LocalVerticalSlice` runs a three-player carousel with Player 1 as the human lane and two bot players.
 - The local sample map uses three 7x18 lanes.
 - The bridge supports placement, sends, selling, reset, match summary, and replay records.
-- `LocalThreePlayerMatchTests` verifies a deterministic local bot match completes in the current faster 300-900 tick carousel target window.
-- Creeps that leak through a lane now continue into the next lane's spawn, preserving carousel pressure instead of disappearing after one life-loss event.
+- `LocalThreePlayerMatchTests` verifies a deterministic local bot match completes in the current 900-1800 tick pacing target window.
+- Creeps that leak through a lane now continue through active non-sender lanes, preserving carousel pressure while preventing a sender's own creeps from entering their lane.
+- Bot opponents now build opening defensive packages before send pressure: Balanced builds two early towers, Defensive builds three and keeps a higher opening gold reserve.
 - `LocalReplayExporter` writes diagnostic replay JSON.
 - `LocalPlaytestRecorder` writes Markdown playtest reports and now confirms manual `P` exports with a runtime toast.
 - `HeavySendStressHarness` can run a local stress pass and write diagnostics.
@@ -88,7 +89,7 @@ Remaining acceptance evidence:
 
 ## Next Work Order
 
-1. Re-run the GD-00 Play Mode pass after the side-by-side lane layout, top-to-bottom creep flow, runtime HUD, placement ghost, camera zoom, slower Unity tick rate, creep carousel handoff, feedback polish, and playtest export confirmation fixes.
+1. Re-run the GD-00 Play Mode pass after the side-by-side lane layout, top-to-bottom creep flow, runtime HUD, placement ghost, camera zoom, slower Unity tick rate, active-opponent creep carousel, bot opening-defense tuning, feedback polish, and playtest export confirmation fixes.
 2. Close MVP-06, MVP-08, and MVP-09 acceptance evidence as part of that local play loop.
 3. Continue GD-02 with manual placement correction, sell, and reset notes.
 4. Work GD-03 through GD-07 to improve content variety, pacing, bots, session flow, and feedback.
