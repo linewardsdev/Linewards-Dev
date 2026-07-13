@@ -35,10 +35,13 @@ namespace LTW.UnityClient.UI
             var message = reason switch
             {
                 CommandRejectionReason.InsufficientGold => "Need gold",
+                CommandRejectionReason.CooldownActive => "Send cooling down",
+                CommandRejectionReason.MatchPaused => "Press Space to start",
                 CommandRejectionReason.CellOccupied => "Occupied",
                 CommandRejectionReason.PathBlocked => "Path blocked",
                 CommandRejectionReason.InvalidLane => "Invalid cell",
-                _ => "Cannot place"
+                CommandRejectionReason.PlayerEliminated => "Player eliminated",
+                _ => "Action blocked"
             };
             Show(message, Danger);
         }

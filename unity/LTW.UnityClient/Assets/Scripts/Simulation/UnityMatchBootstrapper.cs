@@ -34,7 +34,7 @@ namespace LTW.UnityClient.Simulation
 
             var simulation = new LocalVerticalSlice(SampleVerticalSliceContent.Create());
             simulationDriver.Initialize(simulation);
-            commandAdapter.Initialize(simulation);
+            commandAdapter.Initialize(simulation, simulationDriver);
             initialized = true;
         }
     }

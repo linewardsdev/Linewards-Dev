@@ -152,9 +152,9 @@ namespace LTW.UnityClient.Simulation
             if (Input.GetKeyDown(KeyCode.DownArrow)) placement.NudgeDown();
             if (Input.GetKeyDown(KeyCode.LeftArrow)) placement.NudgeLeft();
             if (Input.GetKeyDown(KeyCode.RightArrow)) placement.NudgeRight();
-            if (Input.GetKeyDown(KeyCode.S)) commands.SendSampleCreep();
-            if (Input.GetKeyDown(KeyCode.V)) commands.SendBruteCreep();
-            if (Input.GetKeyDown(KeyCode.W)) commands.SendSwarmCreep();
+            if (Input.GetKeyDown(KeyCode.S)) ShowSendResult(commands.SendSampleCreep(), "Runner sent");
+            if (Input.GetKeyDown(KeyCode.V)) ShowSendResult(commands.SendBruteCreep(), "Brute sent");
+            if (Input.GetKeyDown(KeyCode.W)) ShowSendResult(commands.SendSwarmCreep(), "Swarm sent");
             if (Input.GetKeyDown(KeyCode.X)) commands.SellLastSampleTower();
             if (Input.GetKeyDown(KeyCode.R))
             {
@@ -177,5 +177,15 @@ namespace LTW.UnityClient.Simulation
             if (Input.GetKeyDown(KeyCode.Alpha3)) renderer.SetPresentationDetail(PresentationDetail.Disabled);
         }
 
+        private void ShowSendResult(LTW.Simulation.Bridge.VerticalSliceCommandResult result, string successMessage)
+        {
+            if (result.Accepted)
+            {
+                feedback.ShowEconomy(successMessage);
+                return;
+            }
+
+            feedback.ShowRejected(result.RejectionReason);
+        }
     }
 }

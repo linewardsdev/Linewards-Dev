@@ -7,10 +7,12 @@ namespace LTW.UnityClient.Simulation
     public sealed class UnityCommandAdapter : MonoBehaviour
     {
         private LocalVerticalSlice simulation;
+        private UnitySimulationDriver simulationDriver;
 
-        public void Initialize(LocalVerticalSlice localSimulation)
+        public void Initialize(LocalVerticalSlice localSimulation, UnitySimulationDriver driver)
         {
             simulation = localSimulation;
+            simulationDriver = driver;
         }
 
         public VerticalSliceCommandResult PreviewSampleTower(int x, int y) => PreviewTower(SampleVerticalSliceContent.TowerId, x, y);
@@ -52,6 +54,11 @@ namespace LTW.UnityClient.Simulation
 
         private VerticalSliceCommandResult SendCreep(LTW.Simulation.Content.ContentId creepId, int quantity)
         {
+            if (simulationDriver == null || !simulationDriver.HasStarted || simulationDriver.IsPaused)
+            {
+                return VerticalSliceCommandResult.Reject(LTW.Simulation.Commands.CommandRejectionReason.MatchPaused);
+            }
+
             return simulation is null
                 ? VerticalSliceCommandResult.Reject(LTW.Simulation.Commands.CommandRejectionReason.MatchPaused)
                 : simulation.QueueSend(new PlayerId(1), creepId, quantity);
