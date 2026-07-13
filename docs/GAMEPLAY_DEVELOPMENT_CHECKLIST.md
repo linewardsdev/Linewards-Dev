@@ -87,7 +87,7 @@ Current tower palette exposes Arrow, Control, Relay, selected-tower inspect, and
 - [ ] Give each creep/send a different cost, income gain, cooldown, and pressure profile.
 - [x] Extend tests so new content validates through the existing simulation contracts.
 
-Current sends have distinct cost, income, speed/health, and quantity pressure. Cooldown remains global through economy rules, so per-send cooldown differentiation remains open.
+Current sends have distinct cost, income, speed/health, and quantity pressure. Tower art now has stronger role silhouettes for Arrow/focused, Control/area, and Relay/utility wards, including owner trim, role props, role-shaped placement previews, and selected-tower rings. Cooldown remains global through economy rules, so per-send cooldown differentiation remains open.
 
 ### Acceptance Checks
 
@@ -155,7 +155,7 @@ The local session now starts in a ready state with a runtime start/pause/restart
 - [x] Add simple audio mix controls or global mute for desktop testing.
 - [x] Review text scale and contrast in the HUD.
 
-Tower build/sell events now frame the affected cell, creep spawn/death events add arrival and collapse cues, and tower attacks emit damage events so Unity can show lane beams, tower muzzle flashes, hit glints, and hit cues before kills. Send actions now add lane-to-lane pressure beams plus sender/defender pulses, leaks pulse the life-loss gate, income ticks glint across the lane, and elimination/victory events add lane-level shutdown/win cues. Reduced-effects mode now adds text-only fallback cues while skipping burst effects and beams, desktop hotkeys cover reduced effects/mute/volume, and HUD panels use compact high-contrast runtime styling. Tower and creep silhouettes now carry role-specific bases, halos, shadows, markers, starter tower silhouette props, and creep role props so Arrow, Control, Relay, Runner, Brute, Swarm, Boss, Air, Stealth, Siege, and Aura/Support pressures remain distinguishable without transient effects.
+Tower build/sell events now frame the affected cell, creep spawn/death events add arrival and collapse cues, and tower attacks emit damage events so Unity can show role-specific focused beams, control pulses, relay signals, tower muzzle flashes, hit glints, and hit cues before kills. Send actions now add lane-to-lane pressure beams plus sender/defender pulses, leaks pulse the life-loss gate, income ticks glint across the lane, and elimination/victory events add lane-level shutdown/win cues. Reduced-effects mode now adds text-only fallback cues while skipping burst effects and beams, desktop hotkeys cover reduced effects/mute/volume, and HUD panels use compact high-contrast runtime styling. Tower and creep silhouettes now carry role-specific bases, halos, shadows, markers, starter tower silhouette props, and creep role props so Arrow, Control, Relay, Runner, Brute, Swarm, Boss, Air, Stealth, Siege, and Aura/Support pressures remain distinguishable without transient effects.
 
 ### Acceptance Checks
 
