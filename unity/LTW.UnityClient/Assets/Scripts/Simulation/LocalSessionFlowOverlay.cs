@@ -34,7 +34,7 @@ namespace LTW.UnityClient.Simulation
             var scale = Mathf.Clamp(Screen.width / 1080f, 0.72f, 1.15f);
             var width = Mathf.Min(Screen.width - 32f * scale, 360f * scale);
             var height = 116f * scale;
-            var rect = new Rect(Screen.width - width - 12f * scale, 12f * scale, width, height);
+            var rect = new Rect(Screen.width - width - 12f * scale, 96f * scale, width, height);
 
             var previousColor = GUI.color;
             GUI.color = PanelInk;

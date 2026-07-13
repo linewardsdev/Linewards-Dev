@@ -36,7 +36,7 @@ namespace LTW.UnityClient.UI
             var scale = Mathf.Clamp(Screen.width / 1080f, 0.72f, 1.15f);
             var width = 72f * scale;
             var height = 42f * scale;
-            var rect = new Rect(Screen.width - width - 12f * scale, 92f * scale, width, height);
+            var rect = new Rect(Screen.width - width - 12f * scale, 218f * scale, width, height);
             var nextView = renderer.CameraFraming == LaneCameraFraming.ActiveLane ? "MAP" : "LANE";
 
             var previousColor = GUI.color;

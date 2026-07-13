@@ -115,6 +115,9 @@ namespace LTW.UnityClient.Simulation
                 : new Vector3(LaneOffset(2) + BoardCenterX, 0f, BoardCenterZ);
             camera.orthographic = true;
             camera.orthographicSize = cameraFraming == LaneCameraFraming.ActiveLane ? 9.2f : 11.4f;
+            camera.rect = cameraFraming == LaneCameraFraming.ActiveLane
+                ? new Rect(0.32f, 0f, 0.36f, 1f)
+                : new Rect(0f, 0f, 1f, 1f);
             camera.transform.position = boardCenter + new Vector3(0f, 17.5f, cameraFraming == LaneCameraFraming.ActiveLane ? -6.2f : -7.4f);
             camera.transform.LookAt(boardCenter);
         }
