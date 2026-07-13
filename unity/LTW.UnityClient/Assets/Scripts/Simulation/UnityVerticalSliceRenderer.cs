@@ -21,6 +21,8 @@ namespace LTW.UnityClient.Simulation
 
         [SerializeField] private UnitySimulationDriver simulationDriver = null!;
         [SerializeField] private PresentationDetail presentationDetail = PresentationDetail.Full;
+        [SerializeField] private LaneCameraFraming cameraFraming = LaneCameraFraming.AllLanes;
+        [SerializeField] private int activeLaneCameraId = 1;
 
         private AudioSource feedbackAudioSource = null!;
         private AudioClip towerBuiltClip = null!;
@@ -80,7 +82,7 @@ namespace LTW.UnityClient.Simulation
             }
         }
 
-        private static void ConfigureDefaultCamera()
+        private void ConfigureDefaultCamera()
         {
             var camera = Camera.main;
             if (camera == null)
@@ -88,10 +90,13 @@ namespace LTW.UnityClient.Simulation
                 return;
             }
 
-            var boardCenter = new Vector3(LaneOffset(2) + BoardCenterX, 0f, BoardCenterZ);
+            var clampedLane = Mathf.Clamp(activeLaneCameraId, 1, 3);
+            var boardCenter = cameraFraming == LaneCameraFraming.ActiveLane
+                ? LaneCenter(clampedLane)
+                : new Vector3(LaneOffset(2) + BoardCenterX, 0f, BoardCenterZ);
             camera.orthographic = true;
-            camera.orthographicSize = 11.4f;
-            camera.transform.position = boardCenter + new Vector3(0f, 17.5f, -7.4f);
+            camera.orthographicSize = cameraFraming == LaneCameraFraming.ActiveLane ? 9.2f : 11.4f;
+            camera.transform.position = boardCenter + new Vector3(0f, 17.5f, cameraFraming == LaneCameraFraming.ActiveLane ? -6.2f : -7.4f);
             camera.transform.LookAt(boardCenter);
         }
 
@@ -225,10 +230,12 @@ namespace LTW.UnityClient.Simulation
                     case CreepDamagedEvent damaged:
                         var hitPosition = PositionFor(damaged.CreepEntityId.Value.ToString());
                         SpawnBeam(GridToWorld(damaged.TowerPosition, damaged.LaneId) + Vector3.up * 0.35f, hitPosition + Vector3.up * 0.12f, MintSignal, 0.16f);
+                        SpawnCreepHitCue(hitPosition, new Color(1f, 0.88f, 0.44f), damaged.DamageDealt);
                         SpawnEffect(hitPosition, new Color(1f, 0.88f, 0.44f), 0.24f, 0.12f);
                         if (damaged.DamageDealt >= 5)
                         {
                             SpawnFloatingText(hitPosition + Vector3.left * 0.32f, damaged.DamageDealt.ToString(), new Color(1f, 0.88f, 0.44f), 0.32f);
+                            SpawnReducedEffectCue(hitPosition, "HIT", new Color(1f, 0.88f, 0.44f));
                         }
 
                         PlaySound(towerHitClip);
@@ -368,6 +375,13 @@ namespace LTW.UnityClient.Simulation
             SpawnCellFrameCue(spawn, color, 0.22f);
             SpawnBeam(spawn + new Vector3(-0.54f, 0.22f, 0.54f), spawn + new Vector3(0.54f, 0.22f, -0.54f), color, 0.18f);
             SpawnBeam(spawn + new Vector3(0.54f, 0.22f, 0.54f), spawn + new Vector3(-0.54f, 0.22f, -0.54f), color, 0.18f);
+        }
+
+        private void SpawnCreepHitCue(Vector3 position, Color color, int damage)
+        {
+            var scale = damage >= 5 ? 0.44f : 0.3f;
+            SpawnBeam(position + new Vector3(-scale, 0.2f, 0f), position + new Vector3(scale, 0.2f, 0f), color, 0.1f);
+            SpawnBeam(position + new Vector3(0f, 0.2f, -scale), position + new Vector3(0f, 0.2f, scale), color, 0.1f);
         }
 
         private void SpawnCreepDeathCue(Vector3 position, Color color)
@@ -1377,5 +1391,11 @@ namespace LTW.UnityClient.Simulation
         Disabled,
         Simplified,
         Full,
+    }
+
+    public enum LaneCameraFraming
+    {
+        AllLanes,
+        ActiveLane,
     }
 }
