@@ -155,7 +155,7 @@ The local session now starts in a ready state with a runtime start/pause/restart
 - [x] Add simple audio mix controls or global mute for desktop testing.
 - [x] Review text scale and contrast in the HUD.
 
-Tower attacks now emit damage events so Unity can show lane beams and hit cues before kills. Send actions now add lane-to-lane pressure beams plus sender/defender pulses. Reduced-effects mode keeps text/readability cues while skipping burst effects and beams, desktop hotkeys cover reduced effects/mute/volume, and HUD panels use compact high-contrast runtime styling. Tower and creep silhouettes now carry role-specific bases, halos, shadows, markers, starter tower silhouette props, and creep role props so Arrow, Control, Relay, Runner, Brute, and Swarm remain distinguishable without transient effects.
+Tower attacks now emit damage events so Unity can show lane beams and hit cues before kills. Send actions now add lane-to-lane pressure beams plus sender/defender pulses, and elimination/victory events add lane-level shutdown/win cues. Reduced-effects mode keeps text/readability cues while skipping burst effects and beams, desktop hotkeys cover reduced effects/mute/volume, and HUD panels use compact high-contrast runtime styling. Tower and creep silhouettes now carry role-specific bases, halos, shadows, markers, starter tower silhouette props, and creep role props so Arrow, Control, Relay, Runner, Brute, and Swarm remain distinguishable without transient effects.
 
 ### Acceptance Checks
 
