@@ -93,10 +93,10 @@ namespace LTW.UnityClient.UI
             var gold = PlayerGold();
             metaStyle!.fontSize = Mathf.RoundToInt(10f * scale);
             metaStyle.normal.textColor = cooldown == 0 ? MintSignal : SignalGold;
-            GUI.Label(new Rect(rect.x + 12f * scale, rect.y + 29f * scale, rect.width - 24f * scale, 18f * scale), cooldown == 0 ? "READY TO SEND" : $"COOLDOWN {cooldown} TICKS", metaStyle);
+            GUI.Label(new Rect(rect.x + 12f * scale, rect.y + 37f * scale, rect.width - 24f * scale, 18f * scale), cooldown == 0 ? "READY TO SEND" : $"COOLDOWN {cooldown} TICKS", metaStyle);
 
-            var buttonY = rect.y + 54f * scale;
-            var buttonHeight = 96f * scale;
+            var buttonY = rect.y + 62f * scale;
+            var buttonHeight = 90f * scale;
             var gap = 8f * scale;
             var buttonWidth = (rect.width - 24f * scale - gap * 2f) / 3f;
             var x = rect.x + 12f * scale;
@@ -244,13 +244,7 @@ namespace LTW.UnityClient.UI
             }
 
             var player = snapshot.Players.Get(new PlayerId(1));
-            var remaining = player.NextSendAvailableTick.Value - snapshot.Tick.Value;
-            if (remaining <= 0)
-            {
-                return 0;
-            }
-
-            return remaining > int.MaxValue ? int.MaxValue : (int)remaining;
+            return Mathf.Max(0, player.NextSendAvailableTick.Value - snapshot.Tick.Value);
         }
 
         private void EnsureDriver()
