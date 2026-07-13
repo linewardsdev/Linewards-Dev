@@ -27,6 +27,32 @@ namespace LTW.UnityClient.UI
 
         public static float UiScale() => Mathf.Clamp(Mathf.Min(Screen.width / 1080f, Screen.height / 720f), 0.78f, 1.08f);
 
+
+        public static float EdgeMargin(float scale) => Mathf.Max(8f * scale, Screen.width * 0.008f);
+
+        public static float TopMargin(float scale) => Mathf.Max(8f * scale, Screen.height * 0.012f);
+
+        public static float BottomDockHeight(float scale) => 176f * scale + BottomMargin(scale);
+
+        public static Rect TopHudRect(float scale, float height)
+        {
+            var frame = ScreenRect();
+            var margin = EdgeMargin(scale);
+            return new Rect(frame.x + margin, frame.y + TopMargin(scale), frame.width - margin * 2f, height);
+        }
+
+        public static Rect RightRailRect(float scale, float orderFromBottom)
+        {
+            var frame = ScreenRect();
+            var width = 72f * scale;
+            var height = 40f * scale;
+            return new Rect(
+                frame.xMax - width - EdgeMargin(scale),
+                frame.yMax - BottomDockHeight(scale) - height - orderFromBottom * (height + 8f * scale),
+                width,
+                height);
+        }
+
         public static float BottomMargin(float scale) => Mathf.Max(18f * scale, Screen.height * 0.025f);
     }
 }

@@ -58,14 +58,7 @@ namespace LTW.UnityClient.UI
 
             EnsureStyle();
             var scale = MobileViewportLayout.UiScale();
-            var frame = MobileViewportLayout.ScreenRect();
-            var width = 72f * scale;
-            var height = 40f * scale;
-            var rect = new Rect(
-                frame.xMax - width - 8f * scale,
-                frame.yMax - height - MobileViewportLayout.BottomMargin(scale) - 74f * scale,
-                width,
-                height);
+            var rect = MobileViewportLayout.RightRailRect(scale, 0f);
 
             buttonStyle!.fontSize = Mathf.RoundToInt(13f * scale);
             var previousColor = GUI.color;

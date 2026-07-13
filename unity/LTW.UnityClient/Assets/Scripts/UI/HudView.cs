@@ -122,13 +122,11 @@ namespace LTW.UnityClient.UI
             EnsureStyles();
 
             var scale = MobileViewportLayout.UiScale();
-            var frame = MobileViewportLayout.ScreenRect();
-            var margin = 8f * scale;
             var gap = 4f * scale;
-            var headerHeight = 42f * scale;
+            var headerHeight = 48f * scale;
             var drawerHeight = 96f * scale;
             var height = statsExpanded ? headerHeight + gap + drawerHeight : headerHeight;
-            var strip = new Rect(frame.x + margin, frame.y + margin, frame.width - margin * 2f, height);
+            var strip = MobileViewportLayout.TopHudRect(scale, height);
             DrawPanel(strip, NightInk);
             DrawHudHeader(strip, headerHeight, scale);
 
@@ -212,18 +210,36 @@ namespace LTW.UnityClient.UI
             DrawPanel(header, TintPanel(ArcaneBlue, 0.05f));
             DrawAccent(new Rect(header.x, header.yMax - 3f * scale, header.width, 3f * scale), ArcaneBlue);
 
-            laneStyle!.fontSize = Mathf.RoundToInt(14f * scale);
-            laneStyle.normal.textColor = Cloud;
-            GUI.Label(new Rect(header.x + 10f * scale, header.y, 110f * scale, header.height), LaneText.ToUpperInvariant(), laneStyle);
+            var gap = 5f * scale;
+            var leftWidth = Mathf.Min(142f * scale, header.width * 0.29f);
+            var rightWidth = Mathf.Min(112f * scale, header.width * 0.24f);
+            var centerWidth = Mathf.Max(92f * scale, header.width - leftWidth - rightWidth - gap * 2f);
 
+            var left = new Rect(header.x + 6f * scale, header.y + 4f * scale, leftWidth, header.height - 8f * scale);
+            var center = new Rect(left.xMax + gap, left.y, centerWidth, left.height);
+            var right = new Rect(center.xMax + gap, left.y, rightWidth - 6f * scale, left.height);
+
+            DrawPanel(left, TintPanel(ArcaneBlue, 0.08f));
+            DrawAccent(new Rect(left.x, left.yMax - 3f * scale, left.width, 3f * scale), ArcaneBlue);
+            laneStyle!.fontSize = Mathf.RoundToInt(12f * scale);
+            laneStyle.normal.textColor = Cloud;
+            GUI.Label(new Rect(left.x + 6f * scale, left.y, left.width - 12f * scale, left.height), LaneText.ToUpperInvariant(), laneStyle);
+
+            DrawPanel(center, TintPanel(SignalGold, 0.055f));
+            DrawAccent(new Rect(center.x, center.yMax - 3f * scale, center.width, 3f * scale), SignalGold);
             valueStyle!.fontSize = Mathf.RoundToInt(12f * scale);
             valueStyle.normal.textColor = Cloud;
-            var summary = $"{LivesText}L   {GoldText}G   +{IncomeText}";
-            GUI.Label(new Rect(header.x + 126f * scale, header.y, header.width - 224f * scale, header.height), summary, valueStyle);
+            var summary = $"{LivesText}L   {GoldText}G   +{IncomeText}   PRESS {PressureText}";
+            GUI.Label(new Rect(center.x + 8f * scale, center.y, center.width - 16f * scale, center.height), summary, valueStyle);
 
-            buttonStyle!.fontSize = Mathf.RoundToInt(11f * scale);
-            var label = statsExpanded ? "HIDE" : "STATS";
-            if (GUI.Button(new Rect(header.xMax - 84f * scale, header.y + 3f * scale, 74f * scale, header.height - 6f * scale), label, buttonStyle))
+            var matchState = LeaksText == "0" ? "READY" : $"LEAK {LeaksText}";
+            var rightAccent = LeaksText == "0" ? MintSignal : Danger;
+            DrawPanel(right, TintPanel(rightAccent, 0.065f));
+            DrawAccent(new Rect(right.x, right.yMax - 3f * scale, right.width, 3f * scale), rightAccent);
+            buttonStyle!.fontSize = Mathf.RoundToInt(10f * scale);
+            buttonStyle.normal.textColor = rightAccent;
+            var label = statsExpanded ? "HIDE" : matchState;
+            if (GUI.Button(right, label, buttonStyle))
             {
                 statsExpanded = !statsExpanded;
             }
