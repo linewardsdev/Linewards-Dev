@@ -840,9 +840,20 @@ namespace LTW.UnityClient.Simulation
             SetColor(marker, TowerMarkerColor(towerId));
 
             var lens = EnsureChild(towerObject, "FocusedLens", PrimitiveType.Sphere);
+            var focusedSpire = EnsureChild(towerObject, "FocusedSpire", PrimitiveType.Cube);
+            var focusedSightLine = EnsureChild(towerObject, "FocusedSightLine", PrimitiveType.Cube);
+            var focusedLeftVane = EnsureChild(towerObject, "FocusedLeftVane", PrimitiveType.Cube);
+            var focusedRightVane = EnsureChild(towerObject, "FocusedRightVane", PrimitiveType.Cube);
             var controlRing = EnsureChild(towerObject, "ControlRing", PrimitiveType.Cylinder);
+            var controlDish = EnsureChild(towerObject, "ControlDish", PrimitiveType.Cylinder);
+            var controlNodeA = EnsureChild(towerObject, "ControlNodeA", PrimitiveType.Sphere);
+            var controlNodeB = EnsureChild(towerObject, "ControlNodeB", PrimitiveType.Sphere);
+            var controlNodeC = EnsureChild(towerObject, "ControlNodeC", PrimitiveType.Sphere);
             var relayMast = EnsureChild(towerObject, "RelayMast", PrimitiveType.Cube);
             var relayCore = EnsureChild(towerObject, "RelayCore", PrimitiveType.Sphere);
+            var relayCapacitorLeft = EnsureChild(towerObject, "RelayCapacitorLeft", PrimitiveType.Cube);
+            var relayCapacitorRight = EnsureChild(towerObject, "RelayCapacitorRight", PrimitiveType.Cube);
+            var relaySignalTop = EnsureChild(towerObject, "RelaySignalTop", PrimitiveType.Cylinder);
             var rangeHalo = EnsureChild(towerObject, "RangeReadHalo", PrimitiveType.Cylinder);
 
             var isControl = ContainsRole(towerId, "slow") || ContainsRole(towerId, "splash") || ContainsRole(towerId, "control") || ContainsRole(towerId, "area");
@@ -850,9 +861,23 @@ namespace LTW.UnityClient.Simulation
             var isFocused = !isControl && !isRelay;
 
             ConfigureChild(lens, isFocused, new Vector3(0f, 1.08f, 0f), new Vector3(0.24f, 0.24f, 0.42f), MintSignal);
+            ConfigureChild(focusedSpire, isFocused, new Vector3(0f, 0.64f, 0f), new Vector3(0.16f, 0.92f, 0.16f), TowerMarkerColor(towerId));
+            ConfigureChild(focusedSightLine, isFocused, new Vector3(0f, 0.98f, 0.32f), new Vector3(0.12f, 0.08f, 0.62f), MintSignal);
+            ConfigureChild(focusedLeftVane, isFocused, new Vector3(-0.26f, 0.36f, -0.02f), new Vector3(0.1f, 0.34f, 0.18f), TowerBaseColor(towerId));
+            ConfigureChild(focusedRightVane, isFocused, new Vector3(0.26f, 0.36f, -0.02f), new Vector3(0.1f, 0.34f, 0.18f), TowerBaseColor(towerId));
+
             ConfigureChild(controlRing, isControl, new Vector3(0f, 0.34f, 0f), new Vector3(1.24f, 0.035f, 1.24f), TowerMarkerColor(towerId));
+            ConfigureChild(controlDish, isControl, new Vector3(0f, 0.68f, 0f), new Vector3(1.02f, 0.04f, 1.02f), TowerBaseColor(towerId));
+            ConfigureChild(controlNodeA, isControl, new Vector3(0f, 0.76f, 0.46f), new Vector3(0.18f, 0.18f, 0.18f), TowerMarkerColor(towerId));
+            ConfigureChild(controlNodeB, isControl, new Vector3(-0.4f, 0.76f, -0.26f), new Vector3(0.16f, 0.16f, 0.16f), TowerMarkerColor(towerId));
+            ConfigureChild(controlNodeC, isControl, new Vector3(0.4f, 0.76f, -0.26f), new Vector3(0.16f, 0.16f, 0.16f), TowerMarkerColor(towerId));
+
             ConfigureChild(relayMast, isRelay, new Vector3(0f, 0.72f, 0f), new Vector3(0.1f, 0.9f, 0.1f), SignalGold);
             ConfigureChild(relayCore, isRelay, new Vector3(0f, 1.24f, 0f), new Vector3(0.28f, 0.28f, 0.28f), SignalGold);
+            ConfigureChild(relayCapacitorLeft, isRelay, new Vector3(-0.26f, 0.54f, 0f), new Vector3(0.12f, 0.48f, 0.12f), TowerBaseColor(towerId));
+            ConfigureChild(relayCapacitorRight, isRelay, new Vector3(0.26f, 0.54f, 0f), new Vector3(0.12f, 0.48f, 0.12f), TowerBaseColor(towerId));
+            ConfigureChild(relaySignalTop, isRelay, new Vector3(0f, 1.48f, 0f), new Vector3(0.48f, 0.045f, 0.48f), MintSignal);
+
             ConfigureChild(rangeHalo, true, new Vector3(0f, -0.22f, 0f), TowerRangeHaloScale(towerId), TowerMarkerColor(towerId));
         }
 
