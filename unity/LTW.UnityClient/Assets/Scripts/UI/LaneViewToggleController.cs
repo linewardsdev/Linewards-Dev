@@ -9,10 +9,10 @@ namespace LTW.UnityClient.UI
     {
         private static readonly Color Cloud = new Color(0.957f, 0.969f, 1f, 1f);
         private static readonly Color LaneBlue = new Color(0.25f, 0.58f, 1f, 1f);
-        private static readonly Color PanelInk = new Color(0.055f, 0.067f, 0.11f, 0.88f);
-        private static readonly Color PanelEdge = new Color(0.20f, 0.36f, 0.62f, 0.72f);
-        private static readonly Color InactiveLane = new Color(0.11f, 0.14f, 0.22f, 0.92f);
-        private static readonly Color ActiveLane = new Color(0.10f, 0.36f, 0.74f, 0.96f);
+        private static readonly Color PanelInk = new Color(0.035f, 0.043f, 0.07f, 0.98f);
+        private static readonly Color PanelEdge = new Color(0.34f, 0.58f, 0.95f, 1f);
+        private static readonly Color InactiveLane = new Color(0.18f, 0.22f, 0.32f, 1f);
+        private static readonly Color ActiveLane = new Color(0.14f, 0.46f, 0.95f, 1f);
 
         [SerializeField]
         private UnityVerticalSliceRenderer renderer = null!;
@@ -65,11 +65,16 @@ namespace LTW.UnityClient.UI
 
             EnsureStyle();
             var scale = MobileViewportLayout.UiScale();
-            var rect = MobileViewportLayout.RightRailRect(scale, 0f);
+            var railRect = MobileViewportLayout.RightRailRect(scale, 0f);
+            var rect = new Rect(
+                railRect.xMax - 40f * scale,
+                railRect.y + 10f * scale,
+                40f * scale,
+                46f * scale);
 
-            buttonStyle!.fontSize = Mathf.RoundToInt(14f * scale);
+            buttonStyle!.fontSize = Mathf.RoundToInt(12f * scale);
             var previousColor = GUI.color;
-            DrawPanel(Inflate(rect, 2f * scale), selectorExpanded ? PanelEdge : PanelInk);
+            DrawPanel(Inflate(rect, selectorExpanded ? 2f * scale : 1f * scale), selectorExpanded ? PanelEdge : PanelInk);
             GUI.color = selectorExpanded ? ActiveLane : InactiveLane;
             if (GUI.Button(rect, NextViewLabel, buttonStyle))
             {
@@ -83,15 +88,15 @@ namespace LTW.UnityClient.UI
                 return;
             }
 
-            var buttonHeight = 38f * scale;
-            var gap = 6f * scale;
-            var panelWidth = 82f * scale;
+            var buttonHeight = 32f * scale;
+            var gap = 5f * scale;
+            var panelWidth = 46f * scale;
             var panelX = rect.x - panelWidth - gap;
             var panelRect = new Rect(
-                panelX - 5f * scale,
-                rect.y - 5f * scale,
-                panelWidth + 10f * scale,
-                buttonHeight * 3f + gap * 2f + 10f * scale);
+                panelX - 4f * scale,
+                rect.y - 4f * scale,
+                panelWidth + 8f * scale,
+                buttonHeight * 3f + gap * 2f + 8f * scale);
             DrawPanel(panelRect, PanelInk);
 
             for (var lane = 1; lane <= 3; lane++)
@@ -142,9 +147,9 @@ namespace LTW.UnityClient.UI
 
         private static string LaneButtonLabel(int laneId) => laneId switch
         {
-            2 => "Lane 2",
-            3 => "Lane 3",
-            _ => "Lane 1"
+            2 => "L2",
+            3 => "L3",
+            _ => "L1"
         };
 
         private static Rect Inflate(Rect rect, float amount)
