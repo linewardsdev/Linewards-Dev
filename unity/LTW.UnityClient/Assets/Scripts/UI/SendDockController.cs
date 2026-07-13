@@ -90,11 +90,10 @@ namespace LTW.UnityClient.UI
                 return;
             }
 
-            var cooldown = SendCooldown();
             var gold = PlayerGold();
             metaStyle!.fontSize = Mathf.RoundToInt(10f * scale);
-            metaStyle.normal.textColor = cooldown == 0 ? MintSignal : SignalGold;
-            GUI.Label(new Rect(rect.x + 12f * scale, rect.y + 37f * scale, rect.width - 24f * scale, 18f * scale), cooldown == 0 ? "READY TO SEND" : $"COOLDOWN {cooldown} TICKS", metaStyle);
+            metaStyle.normal.textColor = MintSignal;
+            GUI.Label(new Rect(rect.x + 12f * scale, rect.y + 37f * scale, rect.width - 24f * scale, 18f * scale), $"GOLD {gold} - SENDS LIMITED BY COST", metaStyle);
 
             var buttonY = rect.y + 54f * scale;
             var buttonHeight = 72f * scale;
@@ -102,21 +101,21 @@ namespace LTW.UnityClient.UI
             var buttonWidth = (rect.width - 24f * scale - gap * 2f) / 3f;
             var x = rect.x + 12f * scale;
 
-            if (DrawSendButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "RUNNER", "10g  +1", "fast", ArcaneBlue, gold >= 10 && cooldown == 0, scale))
+            if (DrawSendButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "RUNNER", "10g  +1", "fast", ArcaneBlue, gold >= 10, scale))
             {
                 SendRunner();
                 isExpanded = false;
             }
 
             x += buttonWidth + gap;
-            if (DrawSendButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "BRUTE", "18g  +2", "tank", WardViolet, gold >= 18 && cooldown == 0, scale))
+            if (DrawSendButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "BRUTE", "18g  +2", "tank", WardViolet, gold >= 18, scale))
             {
                 SendBrute();
                 isExpanded = false;
             }
 
             x += buttonWidth + gap;
-            if (DrawSendButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "SWARM", "3x 6g  +1", "wide", SignalGold, gold >= 18 && cooldown == 0, scale))
+            if (DrawSendButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "SWARM", "3x 6g  +1", "wide", SignalGold, gold >= 18, scale))
             {
                 SendSwarm();
                 isExpanded = false;
@@ -154,7 +153,7 @@ namespace LTW.UnityClient.UI
             metaStyle!.fontSize = Mathf.RoundToInt(10f * scale);
             metaStyle.normal.textColor = enabled ? accent : new Color(accent.r, accent.g, accent.b, 0.48f);
             GUI.Label(new Rect(rect.x, rect.y + 34f * scale, rect.width, 17f * scale), meta, metaStyle);
-            GUI.Label(new Rect(rect.x, rect.y + 52f * scale, rect.width, 16f * scale), enabled ? purpose : "wait", metaStyle);
+            GUI.Label(new Rect(rect.x, rect.y + 52f * scale, rect.width, 16f * scale), enabled ? purpose : "need gold", metaStyle);
             return enabled && pressed;
         }
 
@@ -233,20 +232,6 @@ namespace LTW.UnityClient.UI
             EnsureDriver();
             var snapshot = simulationDriver?.LatestSnapshot;
             return snapshot?.Players.Get(new PlayerId(1)).Gold.Amount ?? 0;
-        }
-
-        private int SendCooldown()
-        {
-            EnsureDriver();
-            var snapshot = simulationDriver?.LatestSnapshot;
-            if (snapshot is null)
-            {
-                return 0;
-            }
-
-            var player = snapshot.Players.Get(new PlayerId(1));
-            var cooldownTicks = player.NextSendAvailableTick.Value - snapshot.Tick.Value;
-            return cooldownTicks <= 0 ? 0 : cooldownTicks > int.MaxValue ? int.MaxValue : (int)cooldownTicks;
         }
 
         private void EnsureDriver()

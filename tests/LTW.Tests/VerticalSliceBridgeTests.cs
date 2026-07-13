@@ -196,23 +196,23 @@ public sealed class VerticalSliceBridgeTests
     }
 
     [Fact]
-    public void Send_cooldown_creates_a_repeat_pressure_window()
+    public void Repeat_sends_are_limited_by_gold_only()
     {
         var simulation = new LocalVerticalSlice(SampleVerticalSliceContent.Create(), enableBots: false);
 
         var first = simulation.QueueSend(new PlayerId(1), SampleVerticalSliceContent.CreepId);
         var immediate = simulation.QueueSend(new PlayerId(1), SampleVerticalSliceContent.CreepId);
-        for (var tick = 0; tick < 30; tick++)
+        for (var send = 0; send < 8; send++)
         {
-            simulation.AdvanceOneTick();
+            Assert.True(simulation.QueueSend(new PlayerId(1), SampleVerticalSliceContent.CreepId).Accepted);
         }
 
-        var afterCooldown = simulation.QueueSend(new PlayerId(1), SampleVerticalSliceContent.CreepId);
+        var noGold = simulation.QueueSend(new PlayerId(1), SampleVerticalSliceContent.CreepId);
 
         Assert.True(first.Accepted);
-        Assert.False(immediate.Accepted);
-        Assert.Equal(CommandRejectionReason.CooldownActive, immediate.RejectionReason);
-        Assert.True(afterCooldown.Accepted);
+        Assert.True(immediate.Accepted);
+        Assert.False(noGold.Accepted);
+        Assert.Equal(CommandRejectionReason.InsufficientGold, noGold.RejectionReason);
     }
 
     [Fact]

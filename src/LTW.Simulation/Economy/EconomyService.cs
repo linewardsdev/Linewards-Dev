@@ -53,11 +53,6 @@ public sealed class EconomyService
             return SendResult.Reject(players, CommandRejectionReason.PlayerEliminated);
         }
 
-        if (requestedTick.CompareTo(sender.NextSendAvailableTick) < 0)
-        {
-            return SendResult.Reject(players, CommandRejectionReason.CooldownActive);
-        }
-
         var cost = creep.Cost.Amount * quantity;
         if (sender.Gold.Amount < cost)
         {
@@ -66,8 +61,7 @@ public sealed class EconomyService
 
         var updatedSender = sender
             .WithGold(new Gold(sender.Gold.Amount - cost))
-            .WithIncome(new Income(sender.Income.Amount + creep.IncomeGain.Amount * quantity))
-            .WithNextSendAvailableTick(new SimulationTick(requestedTick.Value + rules.SendCooldownTicks));
+            .WithIncome(new Income(sender.Income.Amount + creep.IncomeGain.Amount * quantity));
 
         var targetId = players.GetCarouselTarget(senderId);
         return SendResult.Accept(players.Replace(updatedSender), targetId);

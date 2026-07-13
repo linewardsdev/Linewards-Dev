@@ -32,7 +32,7 @@ public sealed class BotController
 
     private int GetSendQuantity(PlayerEconomyState player, CreepDefinition creep, SimulationTick tick)
     {
-        if (player.IsEliminated || tick.CompareTo(player.NextSendAvailableTick) < 0)
+        if (player.IsEliminated)
         {
             return 0;
         }

@@ -38,7 +38,7 @@ public sealed class EconomyTests
     }
 
     [Fact]
-    public void Cooldown_rejects_without_changing_state()
+    public void Repeat_sends_are_allowed_until_gold_runs_out()
     {
         var service = CreateService(sendCooldownTicks: 30);
         var players = CreatePlayers();
@@ -46,10 +46,9 @@ public sealed class EconomyTests
 
         var second = service.QueueSend(first.Players, new PlayerId(1), Runner(), quantity: 1, new SimulationTick(20));
 
-        Assert.False(second.Accepted);
-        Assert.Equal(CommandRejectionReason.CooldownActive, second.RejectionReason);
-        Assert.Equal(90, second.Players.Get(new PlayerId(1)).Gold.Amount);
-        Assert.Equal(11, second.Players.Get(new PlayerId(1)).Income.Amount);
+        Assert.True(second.Accepted);
+        Assert.Equal(80, second.Players.Get(new PlayerId(1)).Gold.Amount);
+        Assert.Equal(12, second.Players.Get(new PlayerId(1)).Income.Amount);
     }
 
     [Fact]

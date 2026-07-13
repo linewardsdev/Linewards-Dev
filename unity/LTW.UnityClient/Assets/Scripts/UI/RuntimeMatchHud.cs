@@ -60,12 +60,10 @@ namespace LTW.UnityClient.UI
             DrawAccent(new Rect(rect.x, rect.yMax - 4f * scale, rect.width, 4f * scale), StateAccent());
 
             var player = snapshot.Players.Get(new PlayerId(1));
-            var cooldownTicks = player.NextSendAvailableTick.Value - snapshot.Tick.Value;
-            var cooldown = cooldownTicks <= 0 ? 0 : cooldownTicks > int.MaxValue ? int.MaxValue : (int)cooldownTicks;
             DrawStat(new Rect(rect.x + 12f * scale, rect.y + 9f * scale, 118f * scale, 56f * scale), "LIVES", player.Lives.Amount.ToString(), player.Lives.Amount <= 30 ? Danger : MintSignal, scale);
             DrawStat(new Rect(rect.x + 135f * scale, rect.y + 9f * scale, 108f * scale, 56f * scale), "GOLD", player.Gold.Amount.ToString(), SignalGold, scale);
             DrawStat(new Rect(rect.x + 248f * scale, rect.y + 9f * scale, 112f * scale, 56f * scale), "INCOME", "+" + player.Income.Amount, MintSignal, scale);
-            DrawStat(new Rect(rect.x + 365f * scale, rect.y + 9f * scale, 118f * scale, 56f * scale), "SEND", cooldown == 0 ? "READY" : cooldown.ToString(), cooldown == 0 ? MintSignal : SignalGold, scale);
+            DrawStat(new Rect(rect.x + 365f * scale, rect.y + 9f * scale, 118f * scale, 56f * scale), "SEND", "GOLD", MintSignal, scale);
 
             titleStyle!.fontSize = Mathf.RoundToInt(13f * scale);
             titleStyle.normal.textColor = StateAccent();
