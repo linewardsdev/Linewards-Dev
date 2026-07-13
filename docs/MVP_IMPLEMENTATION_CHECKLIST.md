@@ -205,7 +205,7 @@ MVP-11 Android compatibility validation
 ## MVP-06: Unity Bridge And Local Vertical Slice
 
 **Owner:** Unity integration agent
-**Status:** [ ] In progress - bridge source, .NET vertical slice checks, and Unity batch compile pass; Play Mode run pending
+**Status:** [x] Complete - bridge source, .NET checks, Unity batch Play Mode evidence, and reset verification pass
 **Dependencies:** MVP-02, MVP-03, MVP-04
 
 ### Deliverables
@@ -219,8 +219,8 @@ MVP-11 Android compatibility validation
 
 ### Acceptance Checks
 
-- [ ] A player can run one lane locally, place a tower, send a creep, and see it resolve.
-- [ ] Unity runs the same command sequence to the expected simulation result.
+- [x] A player can run one lane locally, place a tower, send a creep, and see it resolve.
+- [x] Unity runs the same command sequence to the expected simulation result.
 - [x] The bridge contains no duplicate combat, economy, or pathing rules.
 
 ## MVP-07: Touch Placement And Match HUD
@@ -247,7 +247,7 @@ MVP-11 Android compatibility validation
 ## MVP-08: Rendering, Pooling, And Feedback
 
 **Owner:** Presentation agent
-**Status:** [ ] In progress - presentation source and Unity batch compile pass; Play Mode visual acceptance pending
+**Status:** [ ] In progress - presentation source and Unity batch Play Mode evidence pass; manual visual acceptance pending
 **Dependencies:** MVP-06
 
 ### Deliverables
@@ -260,14 +260,14 @@ MVP-11 Android compatibility validation
 
 ### Acceptance Checks
 
-- [ ] Repeated creep waves do not create unbounded presentation objects.
+- [x] Repeated creep waves do not create unbounded presentation objects.
 - [ ] The player can distinguish owned towers, incoming creeps, leaks, and sends at a glance.
 - [ ] The visual layer can be disabled or simplified without changing simulation outcomes.
 
 ## MVP-09: Full Local Three-Player Integration And Tuning
 
 **Owner:** Integration agent
-**Status:** [ ] In progress - integration, tuning, replay export, and automated local-match evidence complete; Unity/device acceptance pending
+**Status:** [x] Complete - local Unity three-player match, tuning, replay export, results, and reset evidence pass
 **Dependencies:** MVP-05, MVP-07, MVP-08
 
 ### Deliverables
@@ -280,10 +280,10 @@ MVP-11 Android compatibility validation
 
 ### Acceptance Checks
 
-- [ ] A complete match starts, resolves, and returns to a usable post-match state.
-- [ ] The match reaches a winner without manual intervention.
-- [ ] Typical simulated matches fall in the intended early target range, or the deviation is documented with data.
-- [ ] No known critical command, pathing, or state-replay failures remain.
+- [x] A complete match starts, resolves, and returns to a usable post-match state.
+- [x] The match reaches a winner without manual intervention.
+- [x] Typical simulated matches fall in the intended early target range, or the deviation is documented with data.
+- [x] No known critical command, pathing, or state-replay failures remain.
 
 ## MVP-10: iOS TestFlight And Device Validation
 

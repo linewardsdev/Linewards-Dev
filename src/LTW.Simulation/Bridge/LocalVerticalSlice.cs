@@ -179,6 +179,11 @@ public sealed class LocalVerticalSlice
 
     public void AdvanceOneTick()
     {
+        if (matchEnded)
+        {
+            return;
+        }
+
         foreach (var bot in bots)
         {
             TryPlaceBotTower(bot.Key, bot.Value);

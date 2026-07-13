@@ -18,14 +18,14 @@ dotnet format LTW.sln --no-restore --verify-no-changes
 dotnet test LTW.sln --no-restore --configuration Release
 ```
 
-Latest local result: 54 tests passed.
+Latest local result: 55 tests passed.
 
 Unity compile smoke also passes locally when `LTW.Simulation.dll` is built and copied to
-`unity/LTW.UnityClient/Assets/Plugins`. The latest MCP-assisted Play Mode startup loaded
-`Assets/Scenes/LocalVerticalSlice.unity`, created the local match runtime objects, and reported
-no current Unity console errors. The generated local match camera now adds an `AudioListener`
-when the scene does not already provide one, clearing the Play Mode audio-listener warning found
-during the GD-00 smoke pass.
+`unity/LTW.UnityClient/Assets/Plugins`. The latest batch Play Mode evidence run loaded
+`Assets/Scenes/LocalVerticalSlice.unity`, created the local match runtime objects, completed a
+three-player match at tick 910 with P3 as winner, exported replay/report files, and verified reset
+cleanup with zero active presentation objects. Repo evidence is tracked at
+`docs/playtest-evidence/local-unity-batch-20260713-055905.md`.
 
 The Unity editor pin is now `6000.5.3f1`. The latest GD-01 batch compile also succeeds under
 that editor after the mobile HUD treatment merge.
@@ -42,9 +42,9 @@ Current code evidence:
 
 Remaining acceptance evidence:
 
-- Run repeated creep waves in Unity Play Mode and confirm active plus pooled presentation objects remain bounded.
 - Confirm a tester can visually distinguish owned towers, incoming creeps, leaks, and sends at a glance.
 - Confirm full, simplified, and disabled presentation modes do not change simulation outcomes.
+- Add a normal-speed or less-accelerated stress capture so presentation pool growth can be evaluated under realistic frame pacing.
 
 ## MVP-09 Full Local Three-Player Integration And Tuning
 
@@ -62,9 +62,8 @@ Current code evidence:
 
 Remaining acceptance evidence:
 
-- Run the Unity scene end to end and confirm a complete match starts, reaches a winner, shows results, and resets to a usable state.
-- Confirm the winner can be reached without manual intervention in the Unity client, not only in pure .NET tests.
-- Record the observed match duration, seed, replay export, and any balance/usability issues from a Play Mode or device run.
+- Capture at least two more local playtest reports using different seeds or bot profiles before GD-08 is considered complete.
+- Record manual balance/usability notes from a human Play Mode run, not only automated batch evidence.
 
 ## MVP-10 iOS TestFlight And Device Validation
 
@@ -89,12 +88,11 @@ Remaining acceptance evidence:
 
 ## Next Work Order
 
-1. Re-run the GD-00 Play Mode pass after the side-by-side lane layout, top-to-bottom creep flow, runtime HUD, placement ghost, camera zoom, slower Unity tick rate, active-opponent creep carousel, bot opening-defense tuning, feedback polish, and playtest export confirmation fixes.
-2. Close MVP-06, MVP-08, and MVP-09 acceptance evidence as part of that local play loop.
-3. Continue GD-02 with manual placement correction, sell, and reset notes.
-4. Work GD-03 through GD-07 to improve content variety, pacing, bots, session flow, and feedback.
-5. Run GD-08 local playtests, use the saved Markdown reports under Unity's persistent data path, and prioritize fixes from real gameplay notes.
-6. Resume MVP-10 TestFlight/device validation only after local play is coherent enough to benefit from mobile testing.
+1. Run two more GD-08 local playtests with different seeds or bot profiles and save the generated Markdown reports.
+2. Complete a manual Play Mode pass focused on visual readability, placement correction, send readability, and presentation detail modes.
+3. Add a realistic pacing stress capture for presentation pooling; the accelerated batch pass proves reset cleanup but grows the effect pool aggressively.
+4. Continue GD-03 through GD-07 tuning only from observed playtest notes.
+5. Resume MVP-10 TestFlight/device validation only after GD-08 has three reports plus manual usability notes.
 
 ## GD-01 Board Readability And Camera
 

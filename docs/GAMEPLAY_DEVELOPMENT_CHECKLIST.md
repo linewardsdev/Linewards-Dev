@@ -31,16 +31,24 @@ Resume iOS TestFlight work only after this fork produces a local desktop/Unity s
 
 ### Deliverables
 
-- [ ] Add or document a single local run command for building the simulation DLL and opening the Unity scene.
-- [ ] Confirm the human lane can place, send, sell, reset, and observe bots in Play Mode.
-- [ ] Capture one full local run with seed, match duration, winner, replay path, and Unity console status.
-- [ ] Record the most painful usability gaps found during the run.
+- [x] Add or document a single local run command for building the simulation DLL and opening the Unity scene.
+- [x] Confirm the human lane can place, send, sell, reset, and observe bots in Play Mode.
+- [x] Capture one full local run with seed, match duration, winner, replay path, and Unity console status.
+- [x] Record the most painful usability gaps found during the run.
+
+Current evidence: the Unity batch playtest runner opens `Assets/Scenes/LocalVerticalSlice.unity`, starts Play Mode, runs the local three-player match, exports replay/report files, verifies reset cleanup, and writes repo evidence under `docs/playtest-evidence/`. The latest pass completed at tick 910 with P3 winning, 46 accepted replay commands, no critical Unity compile/runtime errors, and reset returning active presentation objects to zero. The run also exposed and fixed a match-end over-advance bug by making completed local matches ignore further `AdvanceOneTick` calls.
+
+Local batch command:
+
+```powershell
+& 'C:\Program Files\Unity\Hub\Editor\6000.5.3f1\Editor\Unity.exe' -batchmode -nographics -projectPath 'C:\Voucher-Management\vouchermanagement\LTW\unity\LTW.UnityClient' -executeMethod LTW.UnityClient.Editor.LocalPlaytestBatchRunner.Run -logFile 'C:\Voucher-Management\vouchermanagement\LTW\unity-batch-playtest.log'
+```
 
 ### Acceptance Checks
 
-- [ ] A developer can reproduce the local run from a clean checkout without Xcode.
-- [ ] Play Mode can restart without stale match state or duplicate scene objects.
-- [ ] No critical Unity console errors appear during startup, match play, or reset.
+- [x] A developer can reproduce the local run from a clean checkout without Xcode.
+- [x] Play Mode can restart without stale match state or duplicate scene objects.
+- [x] No critical Unity console errors appear during startup, match play, or reset.
 
 ## GD-01: Board Readability And Camera
 
@@ -136,15 +144,15 @@ Bot profiles now surface through the local diagnostics overlay and playtest repo
 - [x] Add a lightweight start state instead of dropping directly into an unclear running match.
 - [x] Add pause/resume and restart flow for local testing.
 - [x] Improve post-match results with winner, duration, player economy/life state, and replay/report export path.
-- [ ] Ensure reset clears pooled presentation objects and HUD state.
+- [x] Ensure reset clears pooled presentation objects and HUD state.
 
-The local session now starts in a ready state with a runtime start/pause/restart overlay. The results billboard shows winner, completion tick, and each player's final economy/life state. Replays and playtest reports can be exported from the local hotkeys. Pressing `P` shows a runtime toast when a Markdown playtest report is saved, and explains that the match must finish first if no completed replay exists yet.
+The local session now starts in a ready state with a runtime start/pause/restart overlay. The results billboard shows winner, completion tick, and each player's final economy/life state. Replays and playtest reports can be exported from the local hotkeys. Pressing `P` shows a runtime toast when a Markdown playtest report is saved, and explains that the match must finish first if no completed replay exists yet. The batch evidence runner now verifies that reset returns the simulation to tick 0, clears creeps/towers/results, and leaves zero active presentation objects.
 
 ### Acceptance Checks
 
-- [ ] A tester can start, finish, review, and restart without leaving Play Mode.
-- [ ] Results match the simulation summary and replay diagnostics.
-- [ ] Reset does not leave ghost objects, stale selected towers, or old match text.
+- [x] A tester can start, finish, review, and restart without leaving Play Mode.
+- [x] Results match the simulation summary and replay diagnostics.
+- [x] Reset does not leave ghost objects, stale selected towers, or old match text.
 
 ## GD-07: Game Feel And Feedback
 
@@ -169,10 +177,16 @@ Tower build/sell events now frame the affected cell, creep spawn/death events ad
 
 - [ ] Run at least three local playtests using different seeds or bot profiles.
 - [x] Record seed, duration, winner, first leak time, elimination time, replay path, and tester notes.
-- [ ] Prioritize fixes into must-fix, should-fix, and later buckets.
+- [x] Prioritize fixes into must-fix, should-fix, and later buckets.
 - [ ] Decide whether the next fork should be more gameplay, local UX polish, or mobile validation.
 
-The local playtest recorder writes Markdown reports with seed/content/map, completion tick, winner, first send/leak/elimination observations, replay path, bot profiles, recent bot decisions, and tester-note prompts. Reports are saved under Unity's persistent data path; on the current Windows editor setup this is `C:\Users\engch\AppData\LocalLow\DefaultCompany\LTW_UnityClient\Playtests`. The next Play Mode pass should capture the updated 220-life, opening-defense bot baseline.
+The local playtest recorder writes Markdown reports with seed/content/map, completion tick, winner, first send/leak/elimination observations, replay path, bot profiles, recent bot decisions, and tester-note prompts. Reports are saved under Unity's persistent data path; on the current Windows editor setup this is `C:\Users\engch\AppData\LocalLow\DefaultCompany\LTW_UnityClient\Playtests`. The latest automated evidence run wrote `playtest-910.md` and `match-910.json`; repo evidence is tracked at `docs/playtest-evidence/local-unity-batch-20260713-055905.md`.
+
+Current prioritized fixes:
+
+- Must-fix before device validation: capture at least two more local playtest reports from distinct seeds or bot profiles; complete one manual visual-readability pass while actively placing and sending.
+- Should-fix next: reduce accelerated-run presentation-effect pool growth or add a normal-speed stress capture so pooling evidence reflects realistic frame pacing.
+- Later: resume iOS/TestFlight setup after GD-08 has three playtest reports and manual notes.
 
 ### Acceptance Checks
 

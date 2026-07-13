@@ -30,4 +30,23 @@ public sealed class LocalThreePlayerMatchTests
         Assert.InRange(slice.MatchSummary!.CompletedAtTick.Value, 900, 1_800);
         Assert.NotEmpty(slice.GetReplayRecord().AcceptedCommands);
     }
+
+    [Fact]
+    public void Completed_local_match_does_not_advance_after_results()
+    {
+        var slice = new LocalVerticalSlice(SampleVerticalSliceContent.Create());
+
+        for (var tick = 0; tick < 6_000 && slice.MatchSummary is null; tick++) slice.AdvanceOneTick();
+
+        Assert.NotNull(slice.MatchSummary);
+        var completedAt = slice.MatchSummary!.CompletedAtTick;
+        var replayCommandCount = slice.GetReplayRecord().AcceptedCommands.Count;
+        var snapshot = slice.GetSnapshot();
+
+        for (var tick = 0; tick < 500; tick++) slice.AdvanceOneTick();
+
+        Assert.Equal(completedAt, slice.MatchSummary.CompletedAtTick);
+        Assert.Equal(snapshot.Tick, slice.GetSnapshot().Tick);
+        Assert.Equal(replayCommandCount, slice.GetReplayRecord().AcceptedCommands.Count);
+    }
 }
