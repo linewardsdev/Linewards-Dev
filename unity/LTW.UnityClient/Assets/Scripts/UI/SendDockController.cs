@@ -101,19 +101,19 @@ namespace LTW.UnityClient.UI
             var buttonWidth = (rect.width - 24f * scale - gap * 2f) / 3f;
             var x = rect.x + 12f * scale;
 
-            if (DrawSendButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "RUNNER", "10g  +1", "fast", ArcaneBlue, gold >= 10, scale))
+            if (DrawSendButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "RUNNER", "10g  +1", "fast", ArcaneBlue, scale))
             {
                 SendRunner();
             }
 
             x += buttonWidth + gap;
-            if (DrawSendButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "BRUTE", "18g  +2", "tank", WardViolet, gold >= 18, scale))
+            if (DrawSendButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "BRUTE", "18g  +2", "tank", WardViolet, scale))
             {
                 SendBrute();
             }
 
             x += buttonWidth + gap;
-            if (DrawSendButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "SWARM", "3x 6g  +1", "wide", SignalGold, gold >= 18, scale))
+            if (DrawSendButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "SWARM", "3x 6g  +1", "wide", SignalGold, scale))
             {
                 SendSwarm();
             }
@@ -130,28 +130,26 @@ namespace LTW.UnityClient.UI
             feedbackView.ShowRejected(result.RejectionReason);
         }
 
-        private static bool DrawSendButton(Rect rect, string label, string meta, string purpose, Color accent, bool enabled, float scale)
+        private static bool DrawSendButton(Rect rect, string label, string meta, string purpose, Color accent, float scale)
         {
             var previousColor = GUI.color;
-            GUI.color = TintPanel(accent, enabled ? 0.08f : 0.025f);
-            GUI.enabled = enabled;
+            GUI.color = TintPanel(accent, 0.08f);
             var pressed = GUI.Button(rect, GUIContent.none, buttonStyle);
-            GUI.enabled = true;
             GUI.color = previousColor;
 
-            DrawAccent(new Rect(rect.x, rect.yMax - 4f * scale, rect.width, 4f * scale), enabled ? accent : new Color(accent.r, accent.g, accent.b, 0.38f));
+            DrawAccent(new Rect(rect.x, rect.yMax - 4f * scale, rect.width, 4f * scale), accent);
 
             buttonStyle!.fontSize = Mathf.RoundToInt(14f * scale);
-            buttonStyle.normal.textColor = enabled ? Cloud : new Color(Cloud.r, Cloud.g, Cloud.b, 0.5f);
+            buttonStyle.normal.textColor = Cloud;
             buttonStyle.hover.textColor = buttonStyle.normal.textColor;
             buttonStyle.active.textColor = buttonStyle.normal.textColor;
             GUI.Label(new Rect(rect.x, rect.y + 9f * scale, rect.width, 21f * scale), label, buttonStyle);
 
             metaStyle!.fontSize = Mathf.RoundToInt(10f * scale);
-            metaStyle.normal.textColor = enabled ? accent : new Color(accent.r, accent.g, accent.b, 0.48f);
+            metaStyle.normal.textColor = accent;
             GUI.Label(new Rect(rect.x, rect.y + 34f * scale, rect.width, 17f * scale), meta, metaStyle);
-            GUI.Label(new Rect(rect.x, rect.y + 52f * scale, rect.width, 16f * scale), enabled ? purpose : "need gold", metaStyle);
-            return enabled && pressed;
+            GUI.Label(new Rect(rect.x, rect.y + 52f * scale, rect.width, 16f * scale), purpose, metaStyle);
+            return pressed;
         }
 
         private static bool DrawLauncherButton(Rect rect, string label, Color accent, float scale)
