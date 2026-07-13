@@ -14,16 +14,14 @@ namespace LTW.UnityClient.Simulation
 
         private UnitySimulationDriver simulationDriver = null!;
         private LocalPlaytestRecorder? playtestRecorder;
-        private LaneViewToggleController? laneViewToggle;
         private GUIStyle? titleStyle;
         private GUIStyle? bodyStyle;
         private GUIStyle? buttonStyle;
 
-        public void Initialize(UnitySimulationDriver driver, LocalPlaytestRecorder recorder, LaneViewToggleController viewToggle)
+        public void Initialize(UnitySimulationDriver driver, LocalPlaytestRecorder recorder)
         {
             simulationDriver = driver;
             playtestRecorder = recorder;
-            laneViewToggle = viewToggle;
         }
 
         private void OnGUI()
@@ -37,7 +35,7 @@ namespace LTW.UnityClient.Simulation
             var scale = MobileViewportLayout.UiScale();
             var frame = MobileViewportLayout.ScreenRect();
             var width = Mathf.Min(frame.width - 16f * scale, 360f * scale);
-            var height = 158f * scale;
+            var height = 112f * scale;
             var rect = new Rect(frame.x + (frame.width - width) * 0.5f, frame.y + 112f * scale, width, height);
 
             var previousColor = GUI.color;
@@ -73,19 +71,6 @@ namespace LTW.UnityClient.Simulation
             {
                 simulationDriver.ResetMatch();
                 playtestRecorder?.ResetRecorder();
-            }
-
-            if (laneViewToggle is not null
-                && GUI.Button(new Rect(rect.x + 12f * scale, rect.y + 106f * scale, rect.width - 24f * scale, 34f * scale), laneViewToggle.NextViewLabel, buttonStyle))
-            {
-                if (laneViewToggle.IsShowingMap)
-                {
-                    laneViewToggle.ShowLaneView();
-                }
-                else
-                {
-                    laneViewToggle.ShowMapView();
-                }
             }
         }
 
