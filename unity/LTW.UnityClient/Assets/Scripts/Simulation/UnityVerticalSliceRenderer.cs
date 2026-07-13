@@ -128,6 +128,7 @@ namespace LTW.UnityClient.Simulation
             {
                 CreateLaneBackplate(lane);
                 CreateLaneEnvironmentTrim(lane);
+                CreateLaneFlowTickMarks(lane);
                 CreateLaneSurfaceBands(lane);
                 for (var x = 0; x < LaneWidth; x++)
                 {
@@ -562,6 +563,29 @@ namespace LTW.UnityClient.Simulation
             pylon.transform.localScale = new Vector3(0.22f * focusScale, 0.38f * focusScale, 0.22f * focusScale);
             SetColor(pylon, color);
             laneDecorations.Add(pylon);
+        }
+
+        private void CreateLaneFlowTickMarks(int laneId)
+        {
+            var offset = LaneOffset(laneId);
+            var color = LaneTickColor(OwnerAccent(laneId), laneId == 1);
+
+            for (var y = 2; y < LaneLength - 1; y += 3)
+            {
+                var z = WorldZ(y);
+                CreateFlowTick(laneId, $"WestTick{y}", new Vector3(offset - 0.58f, -0.16f, z), color, -18f, laneId == 1);
+                CreateFlowTick(laneId, $"EastTick{y}", new Vector3(offset + LaneWidth - 0.42f, -0.16f, z), color, 18f, laneId == 1);
+            }
+        }
+
+        private void CreateFlowTick(int laneId, string name, Vector3 position, Color color, float rotationY, bool isPlayerLane)
+        {
+            var tick = CreatePrimitive($"Lane{laneId}{name}", PrimitiveType.Cube);
+            tick.transform.position = position;
+            tick.transform.rotation = Quaternion.Euler(0f, rotationY, 0f);
+            tick.transform.localScale = new Vector3(isPlayerLane ? 0.1f : 0.075f, 0.055f, isPlayerLane ? 0.42f : 0.32f);
+            SetColor(tick, color);
+            laneDecorations.Add(tick);
         }
 
         private void CreateLaneSurfaceBands(int laneId)
@@ -1088,6 +1112,12 @@ namespace LTW.UnityClient.Simulation
         private static Color LaneAnchorColor(Color accent, bool isPlayerLane)
         {
             var strength = isPlayerLane ? 0.34f : 0.18f;
+            return new Color(accent.r * strength, accent.g * strength, accent.b * strength);
+        }
+
+        private static Color LaneTickColor(Color accent, bool isPlayerLane)
+        {
+            var strength = isPlayerLane ? 0.5f : 0.26f;
             return new Color(accent.r * strength, accent.g * strength, accent.b * strength);
         }
 
