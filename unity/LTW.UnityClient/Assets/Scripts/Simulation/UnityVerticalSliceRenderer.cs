@@ -212,8 +212,8 @@ namespace LTW.UnityClient.Simulation
                         break;
                     case LeakEvent leak:
                         var position = PositionFor(leak.CreepEntityId.Value.ToString());
-                        SpawnEffect(position, new Color(1f, 0.22f, 0.28f), 0.86f, 0.42f);
-                        SpawnFloatingText(position, $"-{leak.LivesLost.Amount} LIFE", new Color(1f, 0.35f, 0.35f), 0.72f);
+                        SpawnEffect(position, LeakRed, 0.86f, 0.42f);
+                        SpawnFloatingText(position, $"-{leak.LivesLost.Amount} LIFE", LeakRed, 0.72f);
                         if (leak.BountyAwarded.Amount > 0)
                         {
                             SpawnFloatingText(position + Vector3.right * 0.55f, $"+{leak.BountyAwarded.Amount}", SignalGold, 0.52f);
@@ -321,7 +321,11 @@ namespace LTW.UnityClient.Simulation
             var defenderPosition = SpawnPosition(queued.DefenderId.Value);
             var color = CreepRoleColor(queued.CreepId.Value, queued.SenderId.Value);
             SpawnEffect(senderPosition, color, 0.44f, 0.24f);
+            SpawnEffect(LaneCenter(queued.SenderId.Value), color, 0.36f, 0.18f);
+            SpawnBeam(senderPosition + Vector3.up * 0.18f, defenderPosition + Vector3.up * 0.18f, color, 0.22f);
             SpawnEffect(defenderPosition, color, 0.54f, 0.3f);
+            SpawnEffect(LaneCenter(queued.DefenderId.Value), color, 0.42f, 0.2f);
+            SpawnFloatingText(senderPosition + Vector3.left * 0.42f, "SEND", color, 0.42f);
             SpawnFloatingText(defenderPosition, $"{queued.Quantity}x {SpawnLabel(queued.CreepId.Value)}", color, 0.56f);
             PlaySound(sendClip);
         }
