@@ -43,6 +43,10 @@ namespace LTW.UnityClient.UI
                 simulationDriver = Object.FindAnyObjectByType<UnitySimulationDriver>();
             }
 
+            // OnGUI can run before/after Update in the same frame. Refresh here so the displayed
+            // economy value is never one frame behind a command or income tick.
+            simulationDriver?.RefreshSnapshot();
+
             var snapshot = simulationDriver?.LatestSnapshot;
             if (snapshot is null)
             {
