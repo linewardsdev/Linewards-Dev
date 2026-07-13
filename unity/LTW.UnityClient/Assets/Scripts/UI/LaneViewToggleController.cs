@@ -37,20 +37,19 @@ namespace LTW.UnityClient.UI
             var width = 72f * scale;
             var height = 42f * scale;
             var rect = new Rect(Screen.width - width - 12f * scale, 218f * scale, width, height);
-            var nextView = renderer.CameraFraming == LaneCameraFraming.ActiveLane ? "MAP" : "LANE";
+            var isLaneView = renderer.CameraFraming == LaneCameraFraming.ActiveLane;
+            var nextView = isLaneView ? "MAP" : "LANE";
 
             var previousColor = GUI.color;
             GUI.color = new Color(PanelInk.r + ArcaneBlue.r * 0.1f, PanelInk.g + ArcaneBlue.g * 0.1f, PanelInk.b + ArcaneBlue.b * 0.1f, PanelInk.a);
-            if (GUI.Button(rect, GUIContent.none, buttonStyle))
+            buttonStyle!.fontSize = Mathf.RoundToInt(13f * scale);
+            if (GUI.Button(rect, nextView, buttonStyle))
             {
-                renderer.ToggleCameraFraming();
+                renderer.SetCameraFraming(isLaneView ? LaneCameraFraming.AllLanes : LaneCameraFraming.ActiveLane);
             }
 
             GUI.color = previousColor;
-
             DrawAccent(new Rect(rect.x, rect.yMax - 4f * scale, rect.width, 4f * scale), ArcaneBlue);
-            buttonStyle!.fontSize = Mathf.RoundToInt(13f * scale);
-            GUI.Label(rect, nextView, buttonStyle);
         }
 
         private static void EnsureStyles()
