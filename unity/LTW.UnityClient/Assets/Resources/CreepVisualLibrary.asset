@@ -49,3 +49,29 @@ MonoBehaviour:
     damageRendererPaths:
     - Damage/CrackedShard
     deathCueStyle: 3
+  - creepId: creep.shade
+    role: 5
+    prefab: {fileID: 17933250415338013, guid: 39ec01edf900247d6877b9b3cd6b446a, type: 3}
+    scale: {x: 0.36, y: 0.2, z: 0.58}
+    motionStyle: 5
+    bodyRendererPath: Body
+    senderAccentRendererPaths:
+    - Accent
+    - EchoA
+    - EchoB
+    damageRendererPaths:
+    - Damage
+    deathCueStyle: 4
+  - creepId: creep.siege
+    role: 6
+    prefab: {fileID: 3194545920970905800, guid: db958c59e84cf4566ac55cffe0a4a878, type: 3}
+    scale: {x: 0.46, y: 0.3, z: 0.34}
+    motionStyle: 6
+    bodyRendererPath: Body
+    senderAccentRendererPaths:
+    - Accent
+    - Ram
+    damageRendererPaths:
+    - Damage/WarningPlateLeft
+    - Damage/WarningPlateRight
+    deathCueStyle: 2
