@@ -231,6 +231,7 @@ namespace LTW.UnityClient.Simulation
                         break;
                     case LeakEvent leak:
                         var position = PositionFor(leak.CreepEntityId.Value.ToString());
+                        SpawnLeakGateCue(leak.DefenderId.Value);
                         SpawnEffect(position, LeakRed, 0.86f, 0.42f);
                         SpawnFloatingText(position, $"-{leak.LivesLost.Amount} LIFE", LeakRed, 0.72f);
                         if (leak.BountyAwarded.Amount > 0)
@@ -242,6 +243,7 @@ namespace LTW.UnityClient.Simulation
                         TriggerHapticFeedback();
                         break;
                     case IncomeTickEvent incomeTick:
+                        SpawnIncomeLaneCue(incomeTick.PlayerId.Value);
                         SpawnEffect(IncomePosition(incomeTick.PlayerId.Value), SignalGold, 0.46f, 0.22f);
                         SpawnFloatingText(IncomePosition(incomeTick.PlayerId.Value), $"+{incomeTick.GoldAwarded.Amount} income", SignalGold, 0.58f);
                         PlaySound(incomeClip);
@@ -334,6 +336,23 @@ namespace LTW.UnityClient.Simulation
             {
                 feedbackAudioSource.PlayOneShot(clip, PresentationPreferences.FeedbackVolume);
             }
+        }
+
+        private void SpawnLeakGateCue(int laneId)
+        {
+            var offset = LaneOffset(laneId);
+            var gateCenter = GridToWorld(new GridPosition(CenterColumn, LaneLength - 1), new LaneId(laneId)) + Vector3.up * 0.24f;
+            SpawnEffect(gateCenter, LeakRed, 0.72f, 0.34f);
+            SpawnBeam(new Vector3(offset + 0.7f, 0.48f, WorldZ(LaneLength - 1)), new Vector3(offset + LaneWidth - 1.7f, 0.48f, WorldZ(LaneLength - 1)), LeakRed, 0.3f);
+        }
+
+        private void SpawnIncomeLaneCue(int laneId)
+        {
+            var offset = LaneOffset(laneId);
+            var west = new Vector3(offset + 0.85f, 0.42f, WorldZ(1));
+            var east = new Vector3(offset + LaneWidth - 1.85f, 0.42f, WorldZ(1));
+            SpawnEffect(LaneCenter(laneId) + Vector3.up * 0.18f, SignalGold, 0.34f, 0.18f);
+            SpawnBeam(west, east, SignalGold, 0.2f);
         }
 
         private void SpawnLaneShutdownCue(int laneId)
