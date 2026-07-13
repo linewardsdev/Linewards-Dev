@@ -7,12 +7,11 @@ namespace LTW.UnityClient.UI
 {
     public sealed class LaneViewToggleController : MonoBehaviour
     {
-        private static readonly Color Cloud = new Color(0.957f, 0.969f, 1f, 1f);
-        private static readonly Color LaneBlue = new Color(0.25f, 0.58f, 1f, 1f);
-        private static readonly Color PanelInk = new Color(0.035f, 0.043f, 0.07f, 0.98f);
-        private static readonly Color PanelEdge = new Color(0.34f, 0.58f, 0.95f, 1f);
-        private static readonly Color InactiveLane = new Color(0.18f, 0.22f, 0.32f, 1f);
-        private static readonly Color ActiveLane = new Color(0.14f, 0.46f, 0.95f, 1f);
+        private static readonly Color Ink = new Color(0.035f, 0.045f, 0.075f, 1f);
+        private static readonly Color PanelInk = new Color(0.08f, 0.12f, 0.20f, 0.86f);
+        private static readonly Color PanelEdge = new Color(0.70f, 0.88f, 1f, 1f);
+        private static readonly Color InactiveLane = new Color(0.46f, 0.57f, 0.72f, 1f);
+        private static readonly Color ActiveLane = new Color(0.22f, 0.72f, 1f, 1f);
 
         [SerializeField]
         private UnityVerticalSliceRenderer renderer = null!;
@@ -67,30 +66,25 @@ namespace LTW.UnityClient.UI
             var scale = MobileViewportLayout.UiScale();
             var railRect = MobileViewportLayout.RightRailRect(scale, 0f);
             var rect = new Rect(
-                railRect.xMax - 40f * scale,
-                railRect.y + 10f * scale,
-                40f * scale,
-                46f * scale);
+                railRect.xMax - 34f * scale,
+                railRect.y + 12f * scale,
+                34f * scale,
+                38f * scale);
 
             buttonStyle!.fontSize = Mathf.RoundToInt(12f * scale);
-            var previousColor = GUI.color;
-            DrawPanel(Inflate(rect, selectorExpanded ? 2f * scale : 1f * scale), selectorExpanded ? PanelEdge : PanelInk);
-            GUI.color = selectorExpanded ? ActiveLane : InactiveLane;
-            if (GUI.Button(rect, NextViewLabel, buttonStyle))
+            if (DrawFlatButton(rect, NextViewLabel, selectorExpanded ? ActiveLane : InactiveLane, PanelEdge, Ink, buttonStyle))
             {
                 ToggleView();
             }
-
-            GUI.color = previousColor;
 
             if (!selectorExpanded)
             {
                 return;
             }
 
-            var buttonHeight = 32f * scale;
-            var gap = 5f * scale;
-            var panelWidth = 46f * scale;
+            var buttonHeight = 28f * scale;
+            var gap = 4f * scale;
+            var panelWidth = 38f * scale;
             var panelX = rect.x - panelWidth - gap;
             var panelRect = new Rect(
                 panelX - 4f * scale,
@@ -103,43 +97,28 @@ namespace LTW.UnityClient.UI
             {
                 var laneRect = new Rect(panelX, rect.y + (lane - 1) * (buttonHeight + gap), panelWidth, buttonHeight);
                 var isActive = renderer.ActiveLaneCameraId == lane;
-                DrawPanel(Inflate(laneRect, isActive ? 2f * scale : 1f * scale), isActive ? PanelEdge : InactiveLane);
-                if (isActive)
-                {
-                    DrawAccent(new Rect(laneRect.x, laneRect.y + 4f * scale, 4f * scale, laneRect.height - 8f * scale), LaneBlue);
-                }
-
-                GUI.color = isActive ? ActiveLane : InactiveLane;
                 miniButtonStyle!.fontSize = Mathf.RoundToInt(12f * scale);
-                if (GUI.Button(laneRect, LaneButtonLabel(lane), miniButtonStyle))
+                if (DrawFlatButton(laneRect, LaneButtonLabel(lane), isActive ? ActiveLane : InactiveLane, PanelEdge, Ink, miniButtonStyle))
                 {
                     renderer.SetActiveLaneCameraId(lane);
                     selectorExpanded = false;
                 }
             }
-
-            GUI.color = previousColor;
         }
 
         private void EnsureStyle()
         {
-            buttonStyle ??= new GUIStyle(GUI.skin.button)
+            buttonStyle ??= new GUIStyle(GUI.skin.label)
             {
                 alignment = TextAnchor.MiddleCenter,
                 fontStyle = FontStyle.Bold,
-                normal = { textColor = Cloud },
-                hover = { textColor = Cloud },
-                active = { textColor = Cloud },
-                focused = { textColor = Cloud }
+                normal = { textColor = Ink }
             };
-            miniButtonStyle ??= new GUIStyle(GUI.skin.button)
+            miniButtonStyle ??= new GUIStyle(GUI.skin.label)
             {
                 alignment = TextAnchor.MiddleCenter,
                 fontStyle = FontStyle.Bold,
-                normal = { textColor = Cloud },
-                hover = { textColor = Cloud },
-                active = { textColor = Cloud },
-                focused = { textColor = Cloud }
+                normal = { textColor = Ink }
             };
         }
 
@@ -161,16 +140,29 @@ namespace LTW.UnityClient.UI
         {
             var previousColor = GUI.color;
             GUI.color = color;
-            GUI.Box(rect, GUIContent.none);
-            GUI.color = previousColor;
-        }
-
-        private static void DrawAccent(Rect rect, Color color)
-        {
-            var previousColor = GUI.color;
-            GUI.color = color;
             GUI.DrawTexture(rect, Texture2D.whiteTexture);
             GUI.color = previousColor;
         }
+
+        private static bool DrawFlatButton(Rect rect, string label, Color fill, Color border, Color text, GUIStyle style)
+        {
+            DrawPanel(Inflate(rect, 1f), border);
+            DrawPanel(rect, fill);
+
+            var previousTextColor = style.normal.textColor;
+            style.normal.textColor = text;
+            GUI.Label(rect, label, style);
+            style.normal.textColor = previousTextColor;
+
+            var currentEvent = Event.current;
+            if (currentEvent.type != EventType.MouseDown || !rect.Contains(currentEvent.mousePosition))
+            {
+                return false;
+            }
+
+            currentEvent.Use();
+            return true;
+        }
+
     }
 }
