@@ -1242,9 +1242,9 @@ namespace LTW.UnityClient.Simulation
             ConfigureChild(relaySignalBeam, isRelay, new Vector3(0f, 1.44f, 0f), new Vector3(0.06f, 0.4f, 0.06f), MintSignal);
         }
 
-        private static bool IsControlTower(string towerId) => IsControlTower(towerId);
+        private static bool IsControlTower(string towerId) => ContainsRole(towerId, "slow") || ContainsRole(towerId, "splash") || ContainsRole(towerId, "control") || ContainsRole(towerId, "area");
 
-        private static bool IsRelayTower(string towerId) => IsRelayTower(towerId);
+        private static bool IsRelayTower(string towerId) => ContainsRole(towerId, "economy") || ContainsRole(towerId, "utility") || ContainsRole(towerId, "relay");
 
         private static Vector3 TowerOwnerTrimScale(string towerId)
         {
