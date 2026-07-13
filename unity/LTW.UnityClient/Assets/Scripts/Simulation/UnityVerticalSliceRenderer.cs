@@ -36,6 +36,7 @@ namespace LTW.UnityClient.Simulation
         private readonly Dictionary<string, GameObject> activeTowers = new Dictionary<string, GameObject>();
         private readonly Dictionary<string, GameObject> activeCreeps = new Dictionary<string, GameObject>();
         private readonly Dictionary<string, Vector3> lastKnownPositions = new Dictionary<string, Vector3>();
+        private readonly Dictionary<string, string> towerRolesByCell = new Dictionary<string, string>();
         private readonly Dictionary<int, GameObject> lanePressureMeters = new Dictionary<int, GameObject>();
         private readonly Dictionary<int, GameObject> lanePressureCaps = new Dictionary<int, GameObject>();
         private readonly Dictionary<int, TextMesh> lanePressureLabels = new Dictionary<int, TextMesh>();
@@ -185,14 +186,16 @@ namespace LTW.UnityClient.Simulation
         private void RenderSnapshot(LTW.Simulation.Bridge.VerticalSliceSnapshot snapshot)
         {
             visibleKeys.Clear();
+            towerRolesByCell.Clear();
             foreach (var tower in snapshot.Towers)
             {
                 var key = tower.EntityId.Value.ToString();
                 visibleKeys.Add(key);
+                towerRolesByCell[TowerGridKey(tower.Position, tower.LaneId)] = tower.TowerId.Value;
                 var towerObject = GetOrCreate(activeTowers, towerPool, key, "WardTower", PrimitiveType.Cylinder);
                 SetTowerTransform(towerObject, tower.Position, tower.LaneId, tower.TowerId.Value);
                 SetColor(towerObject, TowerRoleColor(tower.TowerId.Value, tower.OwnerId.Value));
-                ConfigureTowerRoleMarker(towerObject, tower.TowerId.Value);
+                ConfigureTowerRoleMarker(towerObject, tower.TowerId.Value, tower.OwnerId.Value);
                 lastKnownPositions[key] = towerObject.transform.position;
             }
 
@@ -326,8 +329,8 @@ namespace LTW.UnityClient.Simulation
                     case CreepDamagedEvent damaged:
                         var hitPosition = PositionFor(damaged.CreepEntityId.Value.ToString());
                         var towerPosition = GridToWorld(damaged.TowerPosition, damaged.LaneId);
-                        SpawnTowerMuzzleCue(towerPosition, TowerShotColor(damaged.DamageDealt), damaged.DamageDealt);
-                        SpawnBeam(towerPosition + Vector3.up * 0.35f, hitPosition + Vector3.up * 0.12f, TowerShotColor(damaged.DamageDealt), 0.16f);
+                        var towerRole = TowerRoleAt(damaged.TowerPosition, damaged.LaneId);
+                        SpawnTowerAttackCue(towerPosition, hitPosition, towerRole, damaged.DamageDealt);
                         SpawnCreepHitCue(hitPosition, new Color(1f, 0.88f, 0.44f), damaged.DamageDealt);
                         SpawnEffect(hitPosition, new Color(1f, 0.88f, 0.44f), 0.24f, 0.12f);
                         if (damaged.DamageDealt >= 5)
@@ -475,13 +478,33 @@ namespace LTW.UnityClient.Simulation
             SpawnBeam(spawn + new Vector3(0.54f, 0.22f, 0.54f), spawn + new Vector3(-0.54f, 0.22f, -0.54f), color, 0.18f);
         }
 
-        private void SpawnTowerMuzzleCue(Vector3 position, Color color, int damage)
+        private void SpawnTowerAttackCue(Vector3 towerPosition, Vector3 hitPosition, string towerId, int damage)
         {
+            var shotColor = TowerShotColor(towerId, damage);
+            var muzzle = towerPosition + Vector3.up * 0.62f;
+            if (IsControlTower(towerId))
+            {
+                SpawnBeam(muzzle + new Vector3(-0.42f, 0f, 0f), hitPosition + Vector3.up * 0.12f, shotColor, 0.18f);
+                SpawnBeam(muzzle + new Vector3(0.42f, 0f, 0f), hitPosition + Vector3.up * 0.12f, shotColor, 0.18f);
+                SpawnEffect(towerPosition + Vector3.up * 0.28f, shotColor, 0.42f, 0.16f);
+                SpawnEffect(hitPosition, shotColor, damage >= 5 ? 0.42f : 0.32f, 0.16f);
+                return;
+            }
+
+            if (IsRelayTower(towerId))
+            {
+                SpawnBeam(muzzle, hitPosition + Vector3.up * 0.2f, shotColor, 0.2f);
+                SpawnBeam(towerPosition + new Vector3(-0.34f, 0.34f, 0f), towerPosition + new Vector3(0.34f, 0.34f, 0f), shotColor, 0.14f);
+                SpawnBeam(towerPosition + new Vector3(0f, 0.58f, -0.34f), towerPosition + new Vector3(0f, 0.58f, 0.34f), shotColor, 0.14f);
+                SpawnEffect(muzzle, shotColor, 0.26f, 0.12f);
+                return;
+            }
+
             var scale = damage >= 5 ? 0.48f : 0.34f;
-            var muzzle = position + Vector3.up * 0.58f;
-            SpawnBeam(muzzle + new Vector3(-scale, 0f, 0f), muzzle + new Vector3(scale, 0f, 0f), color, 0.1f);
-            SpawnBeam(muzzle + new Vector3(0f, 0f, -scale), muzzle + new Vector3(0f, 0f, scale), color, 0.1f);
-            SpawnEffect(muzzle, color, damage >= 5 ? 0.3f : 0.22f, 0.1f);
+            SpawnBeam(muzzle + new Vector3(-scale, 0f, 0f), muzzle + new Vector3(scale, 0f, 0f), shotColor, 0.1f);
+            SpawnBeam(muzzle + new Vector3(0f, 0f, -scale), muzzle + new Vector3(0f, 0f, scale), shotColor, 0.1f);
+            SpawnBeam(muzzle, hitPosition + Vector3.up * 0.12f, shotColor, 0.14f);
+            SpawnEffect(muzzle, shotColor, damage >= 5 ? 0.3f : 0.22f, 0.1f);
         }
 
         private void SpawnCreepHitCue(Vector3 position, Color color, int damage)
@@ -562,6 +585,13 @@ namespace LTW.UnityClient.Simulation
             SpawnReducedEffectCue(defenderPosition, "SEND", color);
             PlaySound(sendClip);
         }
+
+        private string TowerRoleAt(GridPosition position, LaneId laneId)
+        {
+            return towerRolesByCell.TryGetValue(TowerGridKey(position, laneId), out var towerId) ? towerId : string.Empty;
+        }
+
+        private static string TowerGridKey(GridPosition position, LaneId laneId) => $"{laneId.Value}:{position.X}:{position.Y}";
 
         private static Vector3 SpawnPosition(int laneId) => GridToWorld(new GridPosition(CenterColumn, 0), new LaneId(laneId));
 
@@ -983,7 +1013,7 @@ namespace LTW.UnityClient.Simulation
                 return new Vector3(0.92f, 0.34f, 0.92f);
             }
 
-            if (ContainsRole(towerId, "economy") || ContainsRole(towerId, "utility") || ContainsRole(towerId, "relay"))
+            if (IsRelayTower(towerId))
             {
                 return new Vector3(0.46f, 0.92f, 0.46f);
             }
@@ -993,7 +1023,7 @@ namespace LTW.UnityClient.Simulation
 
         private static float TowerRoleLift(string towerId)
         {
-            if (ContainsRole(towerId, "economy") || ContainsRole(towerId, "utility") || ContainsRole(towerId, "relay"))
+            if (IsRelayTower(towerId))
             {
                 return 0.18f;
             }
@@ -1099,7 +1129,7 @@ namespace LTW.UnityClient.Simulation
                 return new Color(1f, 0.58f, 0.22f);
             }
 
-            if (ContainsRole(towerId, "economy") || ContainsRole(towerId, "utility") || ContainsRole(towerId, "relay"))
+            if (IsRelayTower(towerId))
             {
                 return SignalGold;
             }
@@ -1142,73 +1172,103 @@ namespace LTW.UnityClient.Simulation
             return SenderColor(senderId);
         }
 
-        private static void ConfigureTowerRoleMarker(GameObject towerObject, string towerId)
+        private static void ConfigureTowerRoleMarker(GameObject towerObject, string towerId, int ownerId)
         {
+            var roleColor = TowerMarkerColor(towerId);
+            var baseColor = TowerBaseColor(towerId);
+            var ownerColor = OwnerAccent(ownerId);
+            var isControl = IsControlTower(towerId);
+            var isRelay = IsRelayTower(towerId);
+            var isFocused = !isControl && !isRelay;
+
             var basePlate = EnsureChild(towerObject, "RoleBasePlate", PrimitiveType.Cylinder);
-            ConfigureChild(basePlate, true, new Vector3(0f, -0.26f, 0f), TowerBaseScale(towerId), TowerBaseColor(towerId));
+            var ownerTrim = EnsureChild(towerObject, "OwnerTrim", PrimitiveType.Cylinder);
+            var ownerPylon = EnsureChild(towerObject, "OwnerPylon", PrimitiveType.Cube);
+            var ownerPennant = EnsureChild(towerObject, "OwnerPennant", PrimitiveType.Cube);
+            var rangeHalo = EnsureChild(towerObject, "RangeReadHalo", PrimitiveType.Cylinder);
 
-            var marker = towerObject.transform.Find("RoleMarker")?.gameObject;
-            if (marker == null)
-            {
-                marker = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-                marker.name = "RoleMarker";
-                marker.transform.SetParent(towerObject.transform, false);
-            }
+            ConfigureChild(basePlate, true, new Vector3(0f, -0.28f, 0f), TowerBaseScale(towerId), baseColor);
+            ConfigureChild(ownerTrim, true, new Vector3(0f, -0.19f, 0f), TowerOwnerTrimScale(towerId), ownerColor);
+            ConfigureChild(ownerPylon, true, new Vector3(-0.42f, 0.18f, -0.42f), new Vector3(0.08f, 0.52f, 0.08f), ownerColor);
+            ConfigureChild(ownerPennant, true, new Vector3(-0.24f, 0.44f, -0.42f), new Vector3(0.34f, 0.12f, 0.06f), ownerColor);
+            ConfigureChild(rangeHalo, true, new Vector3(0f, -0.22f, 0f), TowerRangeHaloScale(towerId), roleColor);
 
-            marker.transform.localPosition = Vector3.up * 0.72f;
-            marker.transform.localScale = TowerMarkerScale(towerId);
-            SetColor(marker, TowerMarkerColor(towerId));
-
-            var lens = EnsureChild(towerObject, "FocusedLens", PrimitiveType.Sphere);
+            var focusedBowLeft = EnsureChild(towerObject, "FocusedBowLeft", PrimitiveType.Cube);
+            var focusedBowRight = EnsureChild(towerObject, "FocusedBowRight", PrimitiveType.Cube);
             var focusedSpire = EnsureChild(towerObject, "FocusedSpire", PrimitiveType.Cube);
-            var focusedSightLine = EnsureChild(towerObject, "FocusedSightLine", PrimitiveType.Cube);
-            var focusedLeftVane = EnsureChild(towerObject, "FocusedLeftVane", PrimitiveType.Cube);
-            var focusedRightVane = EnsureChild(towerObject, "FocusedRightVane", PrimitiveType.Cube);
+            var focusedString = EnsureChild(towerObject, "FocusedString", PrimitiveType.Cube);
+            var focusedLens = EnsureChild(towerObject, "FocusedLens", PrimitiveType.Sphere);
+            var focusedArrowHead = EnsureChild(towerObject, "FocusedArrowHead", PrimitiveType.Cube);
+
+            ConfigureChild(focusedBowLeft, isFocused, new Vector3(-0.28f, 0.58f, 0f), new Vector3(0.1f, 0.82f, 0.14f), baseColor);
+            ConfigureChild(focusedBowRight, isFocused, new Vector3(0.28f, 0.58f, 0f), new Vector3(0.1f, 0.82f, 0.14f), baseColor);
+            ConfigureChild(focusedSpire, isFocused, new Vector3(0f, 0.66f, -0.02f), new Vector3(0.14f, 1.08f, 0.14f), roleColor);
+            ConfigureChild(focusedString, isFocused, new Vector3(0f, 0.82f, 0.34f), new Vector3(0.08f, 0.72f, 0.08f), MintSignal);
+            ConfigureChild(focusedLens, isFocused, new Vector3(0f, 1.18f, 0.08f), new Vector3(0.24f, 0.24f, 0.34f), MintSignal);
+            ConfigureChild(focusedArrowHead, isFocused, new Vector3(0f, 1.34f, 0.08f), new Vector3(0.34f, 0.18f, 0.18f), roleColor);
+
             var controlRing = EnsureChild(towerObject, "ControlRing", PrimitiveType.Cylinder);
             var controlDish = EnsureChild(towerObject, "ControlDish", PrimitiveType.Cylinder);
+            var controlCore = EnsureChild(towerObject, "ControlCore", PrimitiveType.Sphere);
+            var controlNorthArc = EnsureChild(towerObject, "ControlNorthArc", PrimitiveType.Cube);
+            var controlSouthArc = EnsureChild(towerObject, "ControlSouthArc", PrimitiveType.Cube);
             var controlNodeA = EnsureChild(towerObject, "ControlNodeA", PrimitiveType.Sphere);
             var controlNodeB = EnsureChild(towerObject, "ControlNodeB", PrimitiveType.Sphere);
             var controlNodeC = EnsureChild(towerObject, "ControlNodeC", PrimitiveType.Sphere);
+
+            ConfigureChild(controlRing, isControl, new Vector3(0f, 0.24f, 0f), new Vector3(1.42f, 0.04f, 1.42f), roleColor);
+            ConfigureChild(controlDish, isControl, new Vector3(0f, 0.58f, 0f), new Vector3(1.1f, 0.05f, 1.1f), baseColor);
+            ConfigureChild(controlCore, isControl, new Vector3(0f, 0.78f, 0f), new Vector3(0.34f, 0.34f, 0.34f), roleColor);
+            ConfigureChild(controlNorthArc, isControl, new Vector3(0f, 0.78f, 0.54f), new Vector3(0.82f, 0.08f, 0.12f), roleColor);
+            ConfigureChild(controlSouthArc, isControl, new Vector3(0f, 0.78f, -0.54f), new Vector3(0.82f, 0.08f, 0.12f), roleColor);
+            ConfigureChild(controlNodeA, isControl, new Vector3(0f, 0.88f, 0.52f), new Vector3(0.18f, 0.18f, 0.18f), MintSignal);
+            ConfigureChild(controlNodeB, isControl, new Vector3(-0.46f, 0.82f, -0.28f), new Vector3(0.16f, 0.16f, 0.16f), MintSignal);
+            ConfigureChild(controlNodeC, isControl, new Vector3(0.46f, 0.82f, -0.28f), new Vector3(0.16f, 0.16f, 0.16f), MintSignal);
+
             var relayMast = EnsureChild(towerObject, "RelayMast", PrimitiveType.Cube);
             var relayCore = EnsureChild(towerObject, "RelayCore", PrimitiveType.Sphere);
             var relayCapacitorLeft = EnsureChild(towerObject, "RelayCapacitorLeft", PrimitiveType.Cube);
             var relayCapacitorRight = EnsureChild(towerObject, "RelayCapacitorRight", PrimitiveType.Cube);
             var relaySignalTop = EnsureChild(towerObject, "RelaySignalTop", PrimitiveType.Cylinder);
-            var rangeHalo = EnsureChild(towerObject, "RangeReadHalo", PrimitiveType.Cylinder);
+            var relayLowerSignal = EnsureChild(towerObject, "RelayLowerSignal", PrimitiveType.Cylinder);
+            var relaySignalBeam = EnsureChild(towerObject, "RelaySignalBeam", PrimitiveType.Cube);
 
-            var isControl = ContainsRole(towerId, "slow") || ContainsRole(towerId, "splash") || ContainsRole(towerId, "control") || ContainsRole(towerId, "area");
-            var isRelay = ContainsRole(towerId, "economy") || ContainsRole(towerId, "utility") || ContainsRole(towerId, "relay");
-            var isFocused = !isControl && !isRelay;
+            ConfigureChild(relayMast, isRelay, new Vector3(0f, 0.76f, 0f), new Vector3(0.1f, 1.12f, 0.1f), SignalGold);
+            ConfigureChild(relayCore, isRelay, new Vector3(0f, 1.18f, 0f), new Vector3(0.3f, 0.3f, 0.3f), SignalGold);
+            ConfigureChild(relayCapacitorLeft, isRelay, new Vector3(-0.28f, 0.5f, 0f), new Vector3(0.12f, 0.56f, 0.12f), baseColor);
+            ConfigureChild(relayCapacitorRight, isRelay, new Vector3(0.28f, 0.5f, 0f), new Vector3(0.12f, 0.56f, 0.12f), baseColor);
+            ConfigureChild(relaySignalTop, isRelay, new Vector3(0f, 1.54f, 0f), new Vector3(0.56f, 0.04f, 0.56f), MintSignal);
+            ConfigureChild(relayLowerSignal, isRelay, new Vector3(0f, 1.34f, 0f), new Vector3(0.38f, 0.035f, 0.38f), SignalGold);
+            ConfigureChild(relaySignalBeam, isRelay, new Vector3(0f, 1.44f, 0f), new Vector3(0.06f, 0.4f, 0.06f), MintSignal);
+        }
 
-            ConfigureChild(lens, isFocused, new Vector3(0f, 1.08f, 0f), new Vector3(0.24f, 0.24f, 0.42f), MintSignal);
-            ConfigureChild(focusedSpire, isFocused, new Vector3(0f, 0.64f, 0f), new Vector3(0.16f, 0.92f, 0.16f), TowerMarkerColor(towerId));
-            ConfigureChild(focusedSightLine, isFocused, new Vector3(0f, 0.98f, 0.32f), new Vector3(0.12f, 0.08f, 0.62f), MintSignal);
-            ConfigureChild(focusedLeftVane, isFocused, new Vector3(-0.26f, 0.36f, -0.02f), new Vector3(0.1f, 0.34f, 0.18f), TowerBaseColor(towerId));
-            ConfigureChild(focusedRightVane, isFocused, new Vector3(0.26f, 0.36f, -0.02f), new Vector3(0.1f, 0.34f, 0.18f), TowerBaseColor(towerId));
+        private static bool IsControlTower(string towerId) => ContainsRole(towerId, "slow") || ContainsRole(towerId, "splash") || ContainsRole(towerId, "control") || ContainsRole(towerId, "area");
 
-            ConfigureChild(controlRing, isControl, new Vector3(0f, 0.34f, 0f), new Vector3(1.24f, 0.035f, 1.24f), TowerMarkerColor(towerId));
-            ConfigureChild(controlDish, isControl, new Vector3(0f, 0.68f, 0f), new Vector3(1.02f, 0.04f, 1.02f), TowerBaseColor(towerId));
-            ConfigureChild(controlNodeA, isControl, new Vector3(0f, 0.76f, 0.46f), new Vector3(0.18f, 0.18f, 0.18f), TowerMarkerColor(towerId));
-            ConfigureChild(controlNodeB, isControl, new Vector3(-0.4f, 0.76f, -0.26f), new Vector3(0.16f, 0.16f, 0.16f), TowerMarkerColor(towerId));
-            ConfigureChild(controlNodeC, isControl, new Vector3(0.4f, 0.76f, -0.26f), new Vector3(0.16f, 0.16f, 0.16f), TowerMarkerColor(towerId));
+        private static bool IsRelayTower(string towerId) => ContainsRole(towerId, "economy") || ContainsRole(towerId, "utility") || ContainsRole(towerId, "relay");
 
-            ConfigureChild(relayMast, isRelay, new Vector3(0f, 0.72f, 0f), new Vector3(0.1f, 0.9f, 0.1f), SignalGold);
-            ConfigureChild(relayCore, isRelay, new Vector3(0f, 1.24f, 0f), new Vector3(0.28f, 0.28f, 0.28f), SignalGold);
-            ConfigureChild(relayCapacitorLeft, isRelay, new Vector3(-0.26f, 0.54f, 0f), new Vector3(0.12f, 0.48f, 0.12f), TowerBaseColor(towerId));
-            ConfigureChild(relayCapacitorRight, isRelay, new Vector3(0.26f, 0.54f, 0f), new Vector3(0.12f, 0.48f, 0.12f), TowerBaseColor(towerId));
-            ConfigureChild(relaySignalTop, isRelay, new Vector3(0f, 1.48f, 0f), new Vector3(0.48f, 0.045f, 0.48f), MintSignal);
+        private static Vector3 TowerOwnerTrimScale(string towerId)
+        {
+            if (IsControlTower(towerId))
+            {
+                return new Vector3(1.28f, 0.035f, 1.28f);
+            }
 
-            ConfigureChild(rangeHalo, true, new Vector3(0f, -0.22f, 0f), TowerRangeHaloScale(towerId), TowerMarkerColor(towerId));
+            if (IsRelayTower(towerId))
+            {
+                return new Vector3(0.92f, 0.035f, 0.92f);
+            }
+
+            return new Vector3(0.84f, 0.035f, 0.84f);
         }
 
         private static Vector3 TowerBaseScale(string towerId)
         {
-            if (ContainsRole(towerId, "slow") || ContainsRole(towerId, "splash") || ContainsRole(towerId, "control") || ContainsRole(towerId, "area"))
+            if (IsControlTower(towerId))
             {
                 return new Vector3(1.18f, 0.055f, 1.18f);
             }
 
-            if (ContainsRole(towerId, "economy") || ContainsRole(towerId, "utility") || ContainsRole(towerId, "relay"))
+            if (IsRelayTower(towerId))
             {
                 return new Vector3(0.78f, 0.06f, 0.78f);
             }
@@ -1218,7 +1278,7 @@ namespace LTW.UnityClient.Simulation
 
         private static Vector3 TowerRangeHaloScale(string towerId)
         {
-            if (ContainsRole(towerId, "economy") || ContainsRole(towerId, "utility") || ContainsRole(towerId, "relay"))
+            if (IsRelayTower(towerId))
             {
                 return new Vector3(1.45f, 0.018f, 1.45f);
             }
@@ -1234,12 +1294,12 @@ namespace LTW.UnityClient.Simulation
 
         private static Vector3 TowerMarkerScale(string towerId)
         {
-            if (ContainsRole(towerId, "slow") || ContainsRole(towerId, "splash") || ContainsRole(towerId, "control") || ContainsRole(towerId, "area"))
+            if (IsControlTower(towerId))
             {
                 return new Vector3(0.8f, 0.08f, 0.8f);
             }
 
-            if (ContainsRole(towerId, "economy") || ContainsRole(towerId, "utility") || ContainsRole(towerId, "relay"))
+            if (IsRelayTower(towerId))
             {
                 return new Vector3(0.34f, 0.34f, 0.34f);
             }
@@ -1259,7 +1319,7 @@ namespace LTW.UnityClient.Simulation
                 return new Color(1f, 0.7f, 0.28f);
             }
 
-            if (ContainsRole(towerId, "economy") || ContainsRole(towerId, "utility") || ContainsRole(towerId, "relay"))
+            if (IsRelayTower(towerId))
             {
                 return SignalGold;
             }
@@ -1425,7 +1485,20 @@ namespace LTW.UnityClient.Simulation
             return pressure >= 8 ? $"DANGER {pressure}" : $"PRESS {pressure}";
         }
 
-        private static Color TowerShotColor(int damage) => damage >= 5 ? SignalGold : MintSignal;
+        private static Color TowerShotColor(string towerId, int damage)
+        {
+            if (IsControlTower(towerId))
+            {
+                return new Color(0.72f, 0.94f, 1f);
+            }
+
+            if (IsRelayTower(towerId))
+            {
+                return damage >= 5 ? SignalGold : MintSignal;
+            }
+
+            return damage >= 5 ? SignalGold : ArcaneBlue;
+        }
 
         private static Color BuildZoneColor(Color tint, bool isPlayerLane)
         {

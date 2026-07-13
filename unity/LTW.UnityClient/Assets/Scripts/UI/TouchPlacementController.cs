@@ -45,6 +45,8 @@ namespace LTW.UnityClient.UI
         [SerializeField]
         private bool showPlacementReadout = true;
 
+        private GameObject selectionRing = null!;
+
         private bool isPlacing;
         private bool isPaletteExpanded;
         private int selectedTowerRole;
@@ -77,6 +79,7 @@ namespace LTW.UnityClient.UI
             ghost.SetActive(true);
             MoveGhost();
             selectedTower = null;
+            HideSelectionRing();
             feedbackView.Clear();
         }
 
@@ -140,6 +143,7 @@ namespace LTW.UnityClient.UI
             if (result.Accepted)
             {
                 selectedTower = null;
+                HideSelectionRing();
                 feedbackView.ShowEconomy("Tower sold");
                 return;
             }
@@ -222,6 +226,7 @@ namespace LTW.UnityClient.UI
             }
 
             selectedTower = null;
+            HideSelectionRing();
             var snapshot = simulationDriver?.LatestSnapshot;
             if (snapshot is null)
             {
@@ -233,6 +238,7 @@ namespace LTW.UnityClient.UI
                 if (tower.OwnerId.Value == 1 && tower.LaneId.Value == 1 && tower.Position.X == cell.x && tower.Position.Y == cell.y)
                 {
                     selectedTower = tower;
+                    UpdateSelectionRing(tower);
                     feedbackView.ShowAccepted(TowerRoleName(tower.TowerId.Value) + " selected");
                     return;
                 }
@@ -284,12 +290,8 @@ namespace LTW.UnityClient.UI
         private void MoveGhost()
         {
             ghost.transform.position = new Vector3(selectedCell.x, 0.6f, 17 - selectedCell.y);
-            ghost.transform.localScale = selectedTowerRole switch
-            {
-                1 => new Vector3(0.82f, 0.46f, 0.82f),
-                2 => new Vector3(0.52f, 0.52f, 0.52f),
-                _ => new Vector3(0.62f, 0.78f, 0.62f)
-            };
+            ghost.transform.localScale = SelectedTowerGhostScale();
+            ConfigurePlacementGhostVisual();
             RefreshPlacementPreview();
         }
 
@@ -314,15 +316,108 @@ namespace LTW.UnityClient.UI
 
         private void UpdateGhostColor()
         {
-            var renderer = ghost.GetComponent<Renderer>();
-            if (renderer == null)
+            var color = placementPreview.Accepted ? SelectedTowerAccent() : Danger;
+            color.a = placementPreview.Accepted ? 0.74f : 0.86f;
+            foreach (var ghostRenderer in ghost.GetComponentsInChildren<Renderer>(true))
+            {
+                ghostRenderer.material.color = color;
+            }
+        }
+
+        private void ConfigurePlacementGhostVisual()
+        {
+            var roleId = SelectedTowerRoleId();
+            var accent = SelectedTowerAccent();
+            var isControl = roleId == "control";
+            var isRelay = roleId == "relay";
+            var isArrow = roleId == "arrow";
+
+            ConfigureGhostChild("GhostBase", true, new Vector3(0f, -0.28f, 0f), isControl ? new Vector3(1.18f, 0.06f, 1.18f) : isRelay ? new Vector3(0.78f, 0.06f, 0.78f) : new Vector3(0.72f, 0.06f, 0.72f), accent);
+            ConfigureGhostChild("GhostArrowSpire", isArrow, new Vector3(0f, 0.48f, 0f), new Vector3(0.14f, 0.92f, 0.14f), accent);
+            ConfigureGhostChild("GhostArrowBowLeft", isArrow, new Vector3(-0.26f, 0.36f, 0f), new Vector3(0.1f, 0.62f, 0.12f), accent);
+            ConfigureGhostChild("GhostArrowBowRight", isArrow, new Vector3(0.26f, 0.36f, 0f), new Vector3(0.1f, 0.62f, 0.12f), accent);
+            ConfigureGhostChild("GhostControlRing", isControl, new Vector3(0f, 0.1f, 0f), new Vector3(1.36f, 0.04f, 1.36f), accent);
+            ConfigureGhostChild("GhostControlCore", isControl, new Vector3(0f, 0.42f, 0f), new Vector3(0.34f, 0.34f, 0.34f), accent);
+            ConfigureGhostChild("GhostRelayMast", isRelay, new Vector3(0f, 0.52f, 0f), new Vector3(0.1f, 1.02f, 0.1f), accent);
+            ConfigureGhostChild("GhostRelaySignal", isRelay, new Vector3(0f, 1.08f, 0f), new Vector3(0.5f, 0.04f, 0.5f), accent);
+        }
+
+        private GameObject EnsureGhostChild(string childName, PrimitiveType primitiveType)
+        {
+            var child = ghost.transform.Find(childName)?.gameObject;
+            if (child != null)
+            {
+                return child;
+            }
+
+            child = GameObject.CreatePrimitive(primitiveType);
+            child.name = childName;
+            child.transform.SetParent(ghost.transform, false);
+            return child;
+        }
+
+        private void ConfigureGhostChild(string childName, bool active, Vector3 localPosition, Vector3 localScale, Color color)
+        {
+            var child = EnsureGhostChild(childName, childName.Contains("Ring") || childName.Contains("Signal") || childName.Contains("Base") ? PrimitiveType.Cylinder : PrimitiveType.Cube);
+            child.SetActive(active);
+            if (!active)
             {
                 return;
             }
 
-            var color = placementPreview.Accepted ? SelectedTowerAccent() : Danger;
-            color.a = 0.72f;
-            renderer.material.color = color;
+            child.transform.localPosition = localPosition;
+            child.transform.localRotation = Quaternion.identity;
+            child.transform.localScale = localScale;
+            child.GetComponent<Renderer>().material.color = color;
+        }
+
+        private void UpdateSelectionRing(TowerCombatState tower)
+        {
+            if (selectionRing == null)
+            {
+                selectionRing = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+                selectionRing.name = "SelectedTowerRangeRing";
+            }
+
+            selectionRing.SetActive(true);
+            selectionRing.transform.position = new Vector3(tower.Position.X, 0.06f, 17 - tower.Position.Y);
+            selectionRing.transform.localScale = TowerSelectionRingScale(tower.TowerId.Value);
+            selectionRing.GetComponent<Renderer>().material.color = TowerAccent(tower.TowerId.Value);
+        }
+
+        private void HideSelectionRing()
+        {
+            if (selectionRing != null)
+            {
+                selectionRing.SetActive(false);
+            }
+        }
+
+        private Vector3 SelectedTowerGhostScale()
+        {
+            return SelectedTowerRoleId() switch
+            {
+                "control" => new Vector3(0.82f, 0.46f, 0.82f),
+                "relay" => new Vector3(0.52f, 0.52f, 0.52f),
+                _ => new Vector3(0.62f, 0.78f, 0.62f)
+            };
+        }
+
+        private string SelectedTowerRoleId()
+        {
+            return selectedTowerRole switch
+            {
+                1 => "control",
+                2 => "relay",
+                _ => "arrow"
+            };
+        }
+
+        private static Vector3 TowerSelectionRingScale(string towerId)
+        {
+            if (towerId.Contains("control")) return new Vector3(1.42f, 0.03f, 1.42f);
+            if (towerId.Contains("relay") || towerId.Contains("economy")) return new Vector3(1.18f, 0.03f, 1.18f);
+            return new Vector3(1.28f, 0.03f, 1.28f);
         }
 
         private string SelectedTowerName()
@@ -445,6 +540,7 @@ namespace LTW.UnityClient.UI
             metaStyle!.fontSize = Mathf.RoundToInt(10f * scale);
             metaStyle.normal.textColor = accent;
             GUI.Label(new Rect(rect.x, rect.y + 39f * scale, rect.width, 18f * scale), meta, metaStyle);
+            DrawAccent(new Rect(rect.x + rect.width * 0.28f, rect.y + 61f * scale, rect.width * 0.44f, 3f * scale), accent);
             return pressed;
         }
 
