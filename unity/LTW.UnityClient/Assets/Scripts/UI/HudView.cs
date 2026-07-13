@@ -117,7 +117,7 @@ namespace LTW.UnityClient.UI
 
             EnsureStyles();
 
-            var scale = Mathf.Clamp(Screen.width / 1080f, 0.72f, 1.15f);
+            var scale = Mathf.Clamp(Mathf.Min(Screen.width / 1080f, Screen.height / 720f), 0.68f, 1.08f);
             var margin = 12f * scale;
             var height = 72f * scale;
             var strip = new Rect(margin, margin, Screen.width - margin * 2f, height);
