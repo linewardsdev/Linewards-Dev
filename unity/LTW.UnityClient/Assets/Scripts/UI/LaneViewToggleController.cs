@@ -47,10 +47,12 @@ namespace LTW.UnityClient.UI
             var frame = MobileViewportLayout.ScreenRect();
             var width = 72f * scale;
             var height = 42f * scale;
-            var rect = new Rect(frame.xMax - width - 8f * scale, frame.y + 224f * scale, width, height);
+            var rect = new Rect(frame.xMax - width - 8f * scale, frame.y + 252f * scale, width, height);
             var nextView = showingMap ? "LANE" : "MAP";
 
             var previousColor = GUI.color;
+            var previousDepth = GUI.depth;
+            GUI.depth = -100;
             GUI.color = new Color(PanelInk.r + ArcaneBlue.r * 0.1f, PanelInk.g + ArcaneBlue.g * 0.1f, PanelInk.b + ArcaneBlue.b * 0.1f, PanelInk.a);
             buttonStyle!.fontSize = Mathf.RoundToInt(13f * scale);
             if (GUI.Button(rect, nextView, buttonStyle))
@@ -60,6 +62,7 @@ namespace LTW.UnityClient.UI
 
             GUI.color = previousColor;
             DrawAccent(new Rect(rect.x, rect.yMax - 4f * scale, rect.width, 4f * scale), ArcaneBlue);
+            GUI.depth = previousDepth;
         }
 
         private static void EnsureStyles()
