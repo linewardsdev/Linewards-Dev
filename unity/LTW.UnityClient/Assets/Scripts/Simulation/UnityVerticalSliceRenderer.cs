@@ -213,8 +213,11 @@ namespace LTW.UnityClient.Simulation
                         SpawnSendCue(queued);
                         break;
                     case CreepSpawnedEvent spawned:
-                        SpawnEffect(SpawnPosition(spawned.DefenderId.Value), CreepRoleColor(spawned.CreepId.Value, spawned.SenderId.Value), 0.52f, 0.28f);
-                        SpawnFloatingText(SpawnPosition(spawned.DefenderId.Value), SpawnLabel(spawned.CreepId.Value), CreepRoleColor(spawned.CreepId.Value, spawned.SenderId.Value), 0.48f);
+                        var spawnPosition = SpawnPosition(spawned.DefenderId.Value);
+                        var spawnColor = CreepRoleColor(spawned.CreepId.Value, spawned.SenderId.Value);
+                        SpawnCreepArrivalCue(spawned.DefenderId.Value, spawnColor);
+                        SpawnEffect(spawnPosition, spawnColor, 0.52f, 0.28f);
+                        SpawnFloatingText(spawnPosition, SpawnLabel(spawned.CreepId.Value), spawnColor, 0.48f);
                         break;
                     case CreepDamagedEvent damaged:
                         var hitPosition = PositionFor(damaged.CreepEntityId.Value.ToString());
@@ -229,6 +232,7 @@ namespace LTW.UnityClient.Simulation
                         break;
                     case CreepKilledEvent creepKilled:
                         var killPosition = PositionFor(creepKilled.CreepEntityId.Value.ToString());
+                        SpawnCreepDeathCue(killPosition, SignalGold);
                         SpawnEffect(killPosition, SignalGold, 0.42f, 0.2f);
                         SpawnFloatingText(killPosition, $"+{creepKilled.BountyAwarded.Amount}", SignalGold, 0.56f);
                         PlaySound(creepKilledClip);
@@ -340,6 +344,21 @@ namespace LTW.UnityClient.Simulation
             {
                 feedbackAudioSource.PlayOneShot(clip, PresentationPreferences.FeedbackVolume);
             }
+        }
+
+        private void SpawnCreepArrivalCue(int laneId, Color color)
+        {
+            var spawn = SpawnPosition(laneId);
+            SpawnCellFrameCue(spawn, color, 0.22f);
+            SpawnBeam(spawn + new Vector3(-0.54f, 0.22f, 0.54f), spawn + new Vector3(0.54f, 0.22f, -0.54f), color, 0.18f);
+            SpawnBeam(spawn + new Vector3(0.54f, 0.22f, 0.54f), spawn + new Vector3(-0.54f, 0.22f, -0.54f), color, 0.18f);
+        }
+
+        private void SpawnCreepDeathCue(Vector3 position, Color color)
+        {
+            SpawnBeam(position + new Vector3(-0.38f, 0.16f, 0f), position + new Vector3(0.38f, 0.16f, 0f), color, 0.14f);
+            SpawnBeam(position + new Vector3(0f, 0.16f, -0.38f), position + new Vector3(0f, 0.16f, 0.38f), color, 0.14f);
+            SpawnBeam(position + new Vector3(-0.24f, 0.22f, -0.24f), position + new Vector3(0.24f, 0.22f, 0.24f), color, 0.14f);
         }
 
         private void SpawnCellFrameCue(Vector3 center, Color color, float duration)
