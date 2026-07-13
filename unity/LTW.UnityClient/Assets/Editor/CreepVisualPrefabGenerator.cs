@@ -17,6 +17,8 @@ namespace LTW.UnityClient.Editor
         private const string RunnerPrefabPath = PrefabFolder + "/Creep_Runner.prefab";
         private const string BrutePrefabPath = PrefabFolder + "/Creep_Brute.prefab";
         private const string SwarmPrefabPath = PrefabFolder + "/Creep_Swarm.prefab";
+        private const string ShadePrefabPath = PrefabFolder + "/Creep_Shade.prefab";
+        private const string SiegePrefabPath = PrefabFolder + "/Creep_Siege.prefab";
 
         [MenuItem(MenuPath)]
         public static void GeneratePlaceholderCreepPrefabs()
@@ -30,6 +32,8 @@ namespace LTW.UnityClient.Editor
             var bruteCoreMesh = CreateOrUpdateMesh(MeshFolder + "/Brute_ArmoredCore.asset", CreateOctagonalCoreMesh());
             var brutePlateMesh = CreateOrUpdateMesh(MeshFolder + "/Brute_ArmorPlate.asset", CreateWedgePlateMesh());
             var swarmShardMesh = CreateOrUpdateMesh(MeshFolder + "/Swarm_Shard.asset", CreateShardMesh());
+            var shadeEchoMesh = CreateOrUpdateMesh(MeshFolder + "/Shade_EchoShard.asset", CreateShardMesh());
+            var siegeRamMesh = CreateOrUpdateMesh(MeshFolder + "/Siege_RamCore.asset", CreateWedgePlateMesh());
 
             var bodyMaterial = CreateOrUpdateMaterial(
                 MaterialFolder + "/Creep_Body.mat",
@@ -43,12 +47,20 @@ namespace LTW.UnityClient.Editor
             var shadowMaterial = CreateOrUpdateMaterial(
                 MaterialFolder + "/Creep_Shadow.mat",
                 new Color(0.04f, 0.05f, 0.07f, 0.42f));
+            var shadeMaterial = CreateOrUpdateMaterial(
+                MaterialFolder + "/Creep_Shade.mat",
+                new Color(0.62f, 0.76f, 0.92f, 0.74f));
+            var siegeMaterial = CreateOrUpdateMaterial(
+                MaterialFolder + "/Creep_Siege.mat",
+                new Color(0.9f, 0.32f, 0.22f));
 
             var runnerPrefab = SaveRunnerPrefab(runnerDartMesh, runnerFinMesh, bodyMaterial, accentMaterial, damageMaterial, shadowMaterial);
             var brutePrefab = SaveBrutePrefab(bruteCoreMesh, brutePlateMesh, bodyMaterial, accentMaterial, damageMaterial, shadowMaterial);
             var swarmPrefab = SaveSwarmPrefab(swarmShardMesh, bodyMaterial, accentMaterial, damageMaterial, shadowMaterial);
+            var shadePrefab = SaveShadePrefab(shadeEchoMesh, shadeMaterial, accentMaterial, damageMaterial, shadowMaterial);
+            var siegePrefab = SaveSiegePrefab(siegeRamMesh, bruteCoreMesh, siegeMaterial, accentMaterial, damageMaterial, shadowMaterial);
 
-            UpdateVisualLibrary(runnerPrefab, brutePrefab, swarmPrefab);
+            UpdateVisualLibrary(runnerPrefab, brutePrefab, swarmPrefab, shadePrefab, siegePrefab);
             WriteGenerationReport();
 
             AssetDatabase.SaveAssets();
@@ -176,6 +188,46 @@ namespace LTW.UnityClient.Editor
             return SavePrefab(root, SwarmPrefabPath);
         }
 
+        private static GameObject SaveShadePrefab(
+            Mesh shadeEchoMesh,
+            Material shadeMaterial,
+            Material accentMaterial,
+            Material damageMaterial,
+            Material shadowMaterial)
+        {
+            var root = new GameObject("Creep_Shade");
+            CreateChild(root, "Shadow", PrimitiveType.Cylinder, new Vector3(0f, -0.08f, 0f), new Vector3(0.95f, 0.018f, 1.16f), shadowMaterial);
+            CreateMeshChild(root, "Body", shadeEchoMesh, new Vector3(0f, 0.15f, 0f), new Vector3(0.54f, 0.24f, 0.86f), shadeMaterial);
+            CreateMeshChild(root, "EchoA", shadeEchoMesh, new Vector3(-0.28f, 0.1f, 0.24f), new Vector3(0.3f, 0.12f, 0.5f), shadeMaterial);
+            CreateMeshChild(root, "EchoB", shadeEchoMesh, new Vector3(0.28f, 0.12f, -0.2f), new Vector3(0.26f, 0.1f, 0.44f), shadeMaterial);
+            CreateChild(root, "Accent", PrimitiveType.Cylinder, new Vector3(0f, 0.22f, 0f), new Vector3(0.86f, 0.025f, 0.86f), accentMaterial);
+            CreateMeshChild(root, "Damage", shadeEchoMesh, new Vector3(0f, 0.28f, 0.34f), new Vector3(0.2f, 0.08f, 0.26f), damageMaterial);
+
+            return SavePrefab(root, ShadePrefabPath);
+        }
+
+        private static GameObject SaveSiegePrefab(
+            Mesh siegeRamMesh,
+            Mesh coreMesh,
+            Material siegeMaterial,
+            Material accentMaterial,
+            Material damageMaterial,
+            Material shadowMaterial)
+        {
+            var root = new GameObject("Creep_Siege");
+            CreateChild(root, "Shadow", PrimitiveType.Cylinder, new Vector3(0f, -0.1f, 0f), new Vector3(1.18f, 0.03f, 1.02f), shadowMaterial);
+            CreateMeshChild(root, "Body", siegeRamMesh, new Vector3(0f, 0.18f, 0f), new Vector3(1.02f, 0.44f, 0.92f), siegeMaterial);
+            CreateMeshChild(root, "Ram", siegeRamMesh, new Vector3(0f, 0.22f, 0.48f), new Vector3(0.42f, 0.22f, 0.66f), siegeMaterial);
+            CreateMeshChild(root, "Accent", coreMesh, new Vector3(0f, 0.36f, -0.28f), new Vector3(0.28f, 0.2f, 0.24f), accentMaterial);
+
+            var damage = new GameObject("Damage");
+            damage.transform.SetParent(root.transform, false);
+            CreateMeshChild(damage, "WarningPlateLeft", siegeRamMesh, new Vector3(-0.42f, 0.24f, 0.02f), new Vector3(0.2f, 0.1f, 0.48f), damageMaterial);
+            CreateMeshChild(damage, "WarningPlateRight", siegeRamMesh, new Vector3(0.42f, 0.24f, 0.02f), new Vector3(0.2f, 0.1f, 0.48f), damageMaterial);
+
+            return SavePrefab(root, SiegePrefabPath);
+        }
+
         private static GameObject CreateMeshChild(
             GameObject parent,
             string name,
@@ -279,7 +331,9 @@ namespace LTW.UnityClient.Editor
         private static void UpdateVisualLibrary(
             GameObject runnerPrefab,
             GameObject brutePrefab,
-            GameObject swarmPrefab)
+            GameObject swarmPrefab,
+            GameObject shadePrefab,
+            GameObject siegePrefab)
         {
             var library = AssetDatabase.LoadAssetAtPath<CreepVisualLibrary>(LibraryPath);
             if (library == null)
@@ -290,7 +344,7 @@ namespace LTW.UnityClient.Editor
 
             var serializedLibrary = new SerializedObject(library);
             var profiles = serializedLibrary.FindProperty("profiles");
-            profiles.arraySize = 3;
+            profiles.arraySize = 5;
 
             ConfigureProfile(
                 profiles.GetArrayElementAtIndex(0),
@@ -325,6 +379,28 @@ namespace LTW.UnityClient.Editor
                 new[] { "Accent/Signal0", "Accent/Signal1" },
                 new[] { "Damage/CrackedShard" },
                 CreepDeathCueStyle.ShardScatter);
+            ConfigureProfile(
+                profiles.GetArrayElementAtIndex(3),
+                "creep.shade",
+                CreepVisualRole.Stealth,
+                shadePrefab,
+                new Vector3(0.36f, 0.2f, 0.58f),
+                CreepVisualMotionStyle.Shimmer,
+                "Body",
+                new[] { "Accent", "EchoA", "EchoB" },
+                new[] { "Damage" },
+                CreepDeathCueStyle.SoftDissolve);
+            ConfigureProfile(
+                profiles.GetArrayElementAtIndex(4),
+                "creep.siege",
+                CreepVisualRole.Siege,
+                siegePrefab,
+                new Vector3(0.46f, 0.3f, 0.34f),
+                CreepVisualMotionStyle.SiegeWindup,
+                "Body",
+                new[] { "Accent", "Ram" },
+                new[] { "Damage/WarningPlateLeft", "Damage/WarningPlateRight" },
+                CreepDeathCueStyle.HeavyShatter);
 
             serializedLibrary.ApplyModifiedProperties();
             EditorUtility.SetDirty(library);
@@ -412,6 +488,8 @@ This report is generated by `Line Wards > Art > Generate Placeholder Creep Prefa
 | Runner | `Assets/Prefabs/Creeps/Creep_Runner.prefab` | `Body` | `Accent`, `SpeedLine` | `Damage` | Spark burst |
 | Brute | `Assets/Prefabs/Creeps/Creep_Brute.prefab` | `Body` | `Accent/Core` | `Damage/PlateLeft`, `Damage/PlateRight` | Heavy shatter |
 | Swarm | `Assets/Prefabs/Creeps/Creep_Swarm.prefab` | `Body` | `Accent/Signal0`, `Accent/Signal1` | `Damage/CrackedShard` | Shard scatter |
+| Shade | `Assets/Prefabs/Creeps/Creep_Shade.prefab` | `Body` | `Accent`, `EchoA`, `EchoB` | `Damage` | Soft dissolve |
+| Siege | `Assets/Prefabs/Creeps/Creep_Siege.prefab` | `Body` | `Accent`, `Ram` | `Damage/WarningPlateLeft`, `Damage/WarningPlateRight` | Heavy shatter |
 
 ## Generated Materials
 
@@ -419,6 +497,8 @@ This report is generated by `Line Wards > Art > Generate Placeholder Creep Prefa
 - `Assets/Art/Creeps/GeneratedMaterials/Creep_SenderAccent.mat`
 - `Assets/Art/Creeps/GeneratedMaterials/Creep_Damage.mat`
 - `Assets/Art/Creeps/GeneratedMaterials/Creep_Shadow.mat`
+- `Assets/Art/Creeps/GeneratedMaterials/Creep_Shade.mat`
+- `Assets/Art/Creeps/GeneratedMaterials/Creep_Siege.mat`
 
 ## Generated Low-Poly Meshes
 
@@ -427,12 +507,14 @@ This report is generated by `Line Wards > Art > Generate Placeholder Creep Prefa
 - `Assets/Art/Creeps/GeneratedMeshes/Brute_ArmoredCore.asset`
 - `Assets/Art/Creeps/GeneratedMeshes/Brute_ArmorPlate.asset`
 - `Assets/Art/Creeps/GeneratedMeshes/Swarm_Shard.asset`
+- `Assets/Art/Creeps/GeneratedMeshes/Shade_EchoShard.asset`
+- `Assets/Art/Creeps/GeneratedMeshes/Siege_RamCore.asset`
 
 ## Follow-Up
 
 1. Run `Line Wards > Art > Validate Creep Visual Library`.
 2. Run the local vertical slice.
-3. Send runner, brute, and swarm creeps with `S`, `V`, and `W`.
+3. Send runner, brute, swarm, shade, and siege creeps with `S`, `V`, `W`, `D`, and `G`.
 4. Check phone-size silhouette readability and heavy-send readability.
 5. Replace generated placeholder meshes/materials with polished production art after the silhouettes are approved.
 ";

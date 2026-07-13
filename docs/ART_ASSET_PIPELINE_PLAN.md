@@ -21,9 +21,13 @@ Create a predictable Unity art layout:
 - `unity/LTW.UnityClient/Assets/Art/Towers/Arrow`
 - `unity/LTW.UnityClient/Assets/Art/Towers/Control`
 - `unity/LTW.UnityClient/Assets/Art/Towers/Relay`
+- `unity/LTW.UnityClient/Assets/Art/Towers/Pulse`
+- `unity/LTW.UnityClient/Assets/Art/Towers/Prism`
 - `unity/LTW.UnityClient/Assets/Art/Creeps/Runner`
 - `unity/LTW.UnityClient/Assets/Art/Creeps/Brute`
 - `unity/LTW.UnityClient/Assets/Art/Creeps/Swarm`
+- `unity/LTW.UnityClient/Assets/Art/Creeps/Shade`
+- `unity/LTW.UnityClient/Assets/Art/Creeps/Siege`
 - `unity/LTW.UnityClient/Assets/Art/UI/Icons`
 - `unity/LTW.UnityClient/Assets/Art/Materials`
 - `unity/LTW.UnityClient/Assets/Prefabs/Towers`
@@ -41,9 +45,13 @@ Examples:
 - `tower_arrow_body_v01`
 - `tower_control_ring_v01`
 - `tower_relay_signal_v01`
+- `tower_pulse_core_v01`
+- `tower_prism_lens_v01`
 - `creep_runner_body_v01`
 - `creep_brute_armor_v01`
 - `creep_swarm_dot_v01`
+- `creep_shade_echo_v01`
+- `creep_siege_ram_v01`
 - `ui_icon_send_runner_v01`
 - `ui_icon_tower_control_v01`
 - `mat_team_p1_arcane`
@@ -66,8 +74,8 @@ Define reusable material intent before production materials exist.
 Material groups:
 
 - Team ownership: Player 1, Player 2, Player 3.
-- Tower roles: focused/arrow, control/area, relay/utility.
-- Creep roles: runner, brute, swarm, boss, air, stealth, siege, aura/support.
+- Tower roles: focused/arrow, control/area, relay/utility, pulse/burst, prism/focus.
+- Creep roles: runner, brute, swarm, shade/stealth-read, siege, boss, air, aura/support.
 - Signals: build, sell, hit, leak, income, danger, disabled.
 - UI states: enabled, disabled, selected, warning, cooldown.
 
@@ -81,6 +89,13 @@ Initial material catalog examples:
 | `mat_role_tower_arrow` | Focused single-target tower role color. |
 | `mat_role_tower_control` | Area/control tower role color. |
 | `mat_role_tower_relay` | Utility/economy relay tower role color. |
+| `mat_role_tower_pulse` | Short-range burst/splash tower role color. |
+| `mat_role_tower_prism` | Long-range priority/focus tower role color. |
+| `mat_role_creep_runner` | Fast basic pressure creep body. |
+| `mat_role_creep_brute` | Heavy pressure creep armor/body. |
+| `mat_role_creep_swarm` | Clustered swarm shard body. |
+| `mat_role_creep_shade` | Low-visibility shimmer/echo pressure creep. |
+| `mat_role_creep_siege` | Slow high-threat pressure creep. |
 | `mat_signal_leak` | Life-loss, danger, and leak feedback. |
 | `mat_signal_income` | Income and economy feedback. |
 | `mat_ui_disabled` | Unavailable action state. |
@@ -103,6 +118,8 @@ Optional role children:
 - Arrow/focused: `Muzzle`, `BowLeft`, `BowRight`, `Lens`
 - Control/area: `ControlRing`, `ControlCore`, `PulseEmitter`
 - Relay/utility: `RelayMast`, `RelayCore`, `RelaySignal`, `CapacitorLeft`, `CapacitorRight`
+- Pulse/burst: `PulseCore`, `PulseRingA`, `PulseRingB`, `PulseEmitter`
+- Prism/focus: `PrismSpire`, `PrismLens`, `BeamAnchor`, `FacetLeft`, `FacetRight`
 
 ### Creep Prefab Contract
 
@@ -117,9 +134,9 @@ Optional role children:
 - Runner: `Nose`, `Tail`, `FinLeft`, `FinRight`
 - Brute: `Armor`, `PlateLeft`, `PlateRight`, `Core`
 - Swarm: `SwarmDotA`, `SwarmDotB`, `SwarmDotC`, `Trail`
-- Air: `WingLeft`, `WingRight`, `HoverRing`
-- Stealth: `Shimmer`, `EchoA`, `EchoB`
+- Shade: `Shimmer`, `EchoA`, `EchoB`
 - Siege: `Base`, `Barrel`, `Spike`
+- Air: `WingLeft`, `WingRight`, `HoverRing`
 - Aura/support: `AuraRing`, `AuraCore`, `AuraNodeNorth`, `AuraNodeSouth`
 
 ### UI Prefab/Icon Contract
@@ -160,7 +177,9 @@ Migrate from procedural primitives to prefab-backed visuals in phases.
 - Replace Arrow tower first.
 - Replace Control tower second.
 - Replace Relay tower third.
+- Replace Pulse and Prism towers after the first three prove the tower contract.
 - Replace Runner, Brute, Swarm creeps after tower path is proven.
+- Replace Shade and Siege after the creep contract covers the full 5-creep roster.
 - Keep fallback code until every required role has stable prefab coverage.
 
 ## 6. Agent And Artist Handoff Docs
