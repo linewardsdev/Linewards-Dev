@@ -1,3 +1,5 @@
+#nullable enable
+
 using System.Collections.Generic;
 using LTW.Simulation.Bridge;
 using LTW.Simulation.Events;
@@ -12,14 +14,14 @@ namespace LTW.UnityClient.Simulation
         [SerializeField]
         private float ticksPerSecond = 4f;
 
-        private LocalVerticalSlice simulation;
+        private LocalVerticalSlice simulation = null!;
         private float accumulator;
 
         public bool HasStarted { get; private set; }
 
         public bool IsPaused { get; private set; } = true;
 
-        public VerticalSliceSnapshot LatestSnapshot { get; private set; }
+        public VerticalSliceSnapshot LatestSnapshot { get; private set; } = null!;
 
         public IReadOnlyList<ISimulationEvent> LatestEvents { get; private set; } = new List<ISimulationEvent>();
 

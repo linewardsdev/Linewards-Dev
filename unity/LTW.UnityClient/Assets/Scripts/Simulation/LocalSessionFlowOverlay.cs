@@ -1,3 +1,5 @@
+#nullable enable
+
 using UnityEngine;
 
 namespace LTW.UnityClient.Simulation

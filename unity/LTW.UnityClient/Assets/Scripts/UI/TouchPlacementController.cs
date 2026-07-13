@@ -1,3 +1,5 @@
+#nullable enable
+
 using LTW.Simulation.Bridge;
 using LTW.Simulation.Commands;
 using LTW.Simulation.Combat;

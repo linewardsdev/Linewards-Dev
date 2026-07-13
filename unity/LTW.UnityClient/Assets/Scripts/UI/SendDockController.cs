@@ -1,3 +1,5 @@
+#nullable enable
+
 using LTW.UnityClient.Simulation;
 using UnityEngine;
 
