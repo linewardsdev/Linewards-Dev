@@ -1,5 +1,6 @@
 #nullable enable
 
+using System.Linq;
 using LTW.Simulation.Bridge;
 using LTW.Simulation.Commands;
 using LTW.Simulation.Combat;
@@ -137,6 +138,7 @@ namespace LTW.UnityClient.UI
 
         public void SellLastTower()
         {
+            RefreshSelectedTowerFromSnapshot();
             var result = selectedTower is not null
                 ? commandAdapter.SellTowerAt(selectedTower.Position.X, selectedTower.Position.Y)
                 : commandAdapter.SellLastSampleTower();
@@ -154,6 +156,11 @@ namespace LTW.UnityClient.UI
         private void Update()
         {
             if (!Input.GetMouseButtonDown(0))
+            {
+                return;
+            }
+
+            if (IsPointerOverRuntimeUi(Input.mousePosition))
             {
                 return;
             }
@@ -200,9 +207,7 @@ namespace LTW.UnityClient.UI
                 return;
             }
 
-            var width = Mathf.Min(frame.width - 16f * scale, 360f * scale);
-            var height = 92f * scale;
-            var rect = new Rect(frame.x + 8f * scale, frame.yMax - height - MobileViewportLayout.BottomMargin(scale), width, height);
+            var rect = PlacementPanelRect(scale, frame);
             var accent = SelectedTowerAccent();
 
             DrawPanel(rect, PanelInk);
@@ -254,9 +259,7 @@ namespace LTW.UnityClient.UI
             }
 
             var frame = MobileViewportLayout.ScreenRect();
-            var width = Mathf.Min(frame.width - 16f * scale, 360f * scale);
-            var height = 112f * scale;
-            var rect = new Rect(frame.x + 8f * scale, frame.yMax - height - 112f * scale, width, height);
+            var rect = SelectedTowerPanelRect(scale, frame);
             var accent = TowerAccent(selectedTower.TowerId.Value);
             DrawPanel(rect, PanelInk);
             DrawAccent(new Rect(rect.x, rect.yMax - 4f * scale, rect.width, 4f * scale), accent);
@@ -465,8 +468,7 @@ namespace LTW.UnityClient.UI
             }
 
             var frame = MobileViewportLayout.ScreenRect();
-            var launcherSize = 64f * scale;
-            var launcherRect = new Rect(frame.x + 8f * scale, frame.yMax - launcherSize - MobileViewportLayout.BottomMargin(scale), launcherSize, launcherSize);
+            var launcherRect = TowerPaletteLauncherRect(scale, frame);
             if (!isPaletteExpanded)
             {
                 if (DrawLauncherButton(launcherRect, "BUILD", MintSignal, scale))
@@ -477,9 +479,7 @@ namespace LTW.UnityClient.UI
                 return;
             }
 
-            var width = Mathf.Min(frame.width - 16f * scale, 430f * scale);
-            var height = 166f * scale;
-            var rect = new Rect(frame.x + 8f * scale, frame.yMax - height - MobileViewportLayout.BottomMargin(scale), width, height);
+            var rect = TowerPalettePanelRect(scale, frame);
 
             DrawPanel(rect, PanelInk);
             DrawAccent(new Rect(rect.x, rect.yMax - 4f * scale, rect.width, 4f * scale), MintSignal);
@@ -690,5 +690,80 @@ namespace LTW.UnityClient.UI
 
         private bool IsSelectedCellInBounds() =>
             selectedCell.x >= 0 && selectedCell.x < LaneWidth && selectedCell.y >= 0 && selectedCell.y < LaneLength;
+
+        private bool IsPointerOverRuntimeUi(Vector2 screenPosition)
+        {
+            var scale = MobileViewportLayout.UiScale();
+            var frame = MobileViewportLayout.ScreenRect();
+            var guiPoint = new Vector2(screenPosition.x, Screen.height - screenPosition.y);
+
+            if (TowerPaletteLauncherRect(scale, frame).Contains(guiPoint))
+            {
+                return true;
+            }
+
+            if (isPaletteExpanded && TowerPalettePanelRect(scale, frame).Contains(guiPoint))
+            {
+                return true;
+            }
+
+            if (isPlacing && PlacementPanelRect(scale, frame).Contains(guiPoint))
+            {
+                return true;
+            }
+
+            return selectedTower is not null && SelectedTowerPanelRect(scale, frame).Contains(guiPoint);
+        }
+
+        private void RefreshSelectedTowerFromSnapshot()
+        {
+            if (selectedTower is null)
+            {
+                return;
+            }
+
+            if (simulationDriver == null)
+            {
+                simulationDriver = Object.FindAnyObjectByType<UnitySimulationDriver>();
+            }
+
+            var snapshot = simulationDriver?.LatestSnapshot;
+            var current = snapshot?.Towers.FirstOrDefault(tower => tower.EntityId.Equals(selectedTower.EntityId));
+            if (current is null)
+            {
+                selectedTower = null;
+                HideSelectionRing();
+                return;
+            }
+
+            selectedTower = current;
+        }
+
+        private static Rect TowerPaletteLauncherRect(float scale, Rect frame)
+        {
+            var launcherSize = 64f * scale;
+            return new Rect(frame.x + 8f * scale, frame.yMax - launcherSize - MobileViewportLayout.BottomMargin(scale), launcherSize, launcherSize);
+        }
+
+        private static Rect TowerPalettePanelRect(float scale, Rect frame)
+        {
+            var width = Mathf.Min(frame.width - 16f * scale, 430f * scale);
+            var height = 166f * scale;
+            return new Rect(frame.x + 8f * scale, frame.yMax - height - MobileViewportLayout.BottomMargin(scale), width, height);
+        }
+
+        private static Rect PlacementPanelRect(float scale, Rect frame)
+        {
+            var width = Mathf.Min(frame.width - 16f * scale, 360f * scale);
+            var height = 92f * scale;
+            return new Rect(frame.x + 8f * scale, frame.yMax - height - MobileViewportLayout.BottomMargin(scale), width, height);
+        }
+
+        private static Rect SelectedTowerPanelRect(float scale, Rect frame)
+        {
+            var width = Mathf.Min(frame.width - 16f * scale, 360f * scale);
+            var height = 112f * scale;
+            return new Rect(frame.x + 8f * scale, frame.yMax - height - 112f * scale, width, height);
+        }
     }
 }
