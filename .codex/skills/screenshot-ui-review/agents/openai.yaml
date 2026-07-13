@@ -1,0 +1,4 @@
+interface:
+  display_name: "Screenshot UI Review"
+  short_description: "Consistent UI and art screenshot audits"
+  default_prompt: "Use $screenshot-ui-review to audit these screenshots for UI readability and visual regressions."
