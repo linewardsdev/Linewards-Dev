@@ -34,8 +34,10 @@ namespace LTW.UnityClient.Simulation
             var sendDock = matchObject.AddComponent<SendDockController>();
             var placement = matchObject.AddComponent<TouchPlacementController>();
             var laneViewToggle = matchObject.AddComponent<LaneViewToggleController>();
+            var camera = CreateCamera();
 
             renderer.Initialize(driver);
+            renderer.SetPresentationCamera(camera);
             laneViewToggle.Initialize(renderer);
             hud.Initialize(driver);
             replayExporter.Initialize(driver);
@@ -46,7 +48,6 @@ namespace LTW.UnityClient.Simulation
             sessionOverlay.Initialize(driver, playtestRecorder, laneViewToggle);
             controls.Initialize(commands, driver, renderer, replayExporter, playtestRecorder, stressHarness, placement, laneViewToggle, feedback);
             bootstrapper.Initialize(driver, commands);
-            var camera = CreateCamera();
             renderer.SetCameraFraming(renderer.CameraFraming);
             CreateRuntimeHud(matchObject, camera, commands, feedback, sendDock, placement);
         }

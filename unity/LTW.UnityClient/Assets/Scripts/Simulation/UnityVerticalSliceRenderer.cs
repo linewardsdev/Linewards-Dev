@@ -57,6 +57,7 @@ namespace LTW.UnityClient.Simulation
         private readonly Queue<GameObject> textPool = new Queue<GameObject>();
         private readonly List<TimedPresentation> timedPresentations = new List<TimedPresentation>();
 
+        private Camera presentationCamera = null!;
         private bool laneCreated;
 
         public PresentationDetail Detail => presentationDetail;
@@ -70,6 +71,12 @@ namespace LTW.UnityClient.Simulation
         public void Initialize(UnitySimulationDriver driver)
         {
             simulationDriver = driver;
+        }
+
+        public void SetPresentationCamera(Camera camera)
+        {
+            presentationCamera = camera;
+            ConfigureDefaultCamera();
         }
 
         private void Awake()
@@ -110,13 +117,18 @@ namespace LTW.UnityClient.Simulation
 
         public void SetCameraFraming(LaneCameraFraming framing)
         {
+            if (cameraFraming != framing)
+            {
+                Debug.Log($"LTW camera framing -> {framing}");
+            }
+
             cameraFraming = framing;
             ConfigureDefaultCamera();
         }
 
         private void ConfigureDefaultCamera()
         {
-            var camera = Camera.main;
+            var camera = presentationCamera != null ? presentationCamera : Camera.main;
             if (camera == null)
             {
                 return;
@@ -133,6 +145,11 @@ namespace LTW.UnityClient.Simulation
                 : new Rect(0f, 0f, 1f, 1f);
             camera.transform.position = boardCenter + new Vector3(0f, 17.5f, cameraFraming == LaneCameraFraming.ActiveLane ? -6.2f : -7.4f);
             camera.transform.LookAt(boardCenter);
+        }
+
+        private void LateUpdate()
+        {
+            ConfigureDefaultCamera();
         }
 
         private void Update()
