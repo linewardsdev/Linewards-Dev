@@ -52,7 +52,7 @@ Resume iOS TestFlight work only after this fork produces a local desktop/Unity s
 - [x] Add placement preview feedback for legal, blocked, unaffordable, and path-blocking cells.
 
 Placement preview now queries the simulation bridge before confirmation, so legal, occupied, unaffordable, invalid-lane, and path-blocking outcomes use the same rules as actual placement.
-The empty local scene now creates the runtime tower palette, send dock, placement ghost, and feedback toast during bootstrap. The lanes render side by side with top spawn boxes and bottom life-loss boxes. Unity-side creep rendering uses larger markers, slower local ticks, top-to-bottom projection, and interpolation so movement is easier to read.
+The empty local scene now creates the runtime tower palette, send dock, placement ghost, and feedback toast during bootstrap. The lanes render side by side with top spawn boxes and bottom life-loss boxes. Unity-side creep rendering uses larger markers, slower local ticks, top-to-bottom projection, and interpolation so movement is easier to read. The first art-upgrade pass adds board material bands, clearer center-route ribbons, endpoint washes, and spawn/life-loss gates.
 
 ### Acceptance Checks
 
