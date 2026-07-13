@@ -80,9 +80,14 @@ public sealed class EconomyService
 
     public LeakResult ApplyLeak(EconomyPlayerSet players, PlayerId senderId, PlayerId defenderId, CreepDefinition creep)
     {
+        return ApplyLeak(players, senderId, defenderId, creep, new Lives(rules.LeakLifeLoss));
+    }
+
+    public LeakResult ApplyLeak(EconomyPlayerSet players, PlayerId senderId, PlayerId defenderId, CreepDefinition creep, Lives requestedLivesLost)
+    {
         var sender = players.Get(senderId);
         var defender = players.Get(defenderId);
-        var livesLost = Math.Min(defender.Lives.Amount, rules.LeakLifeLoss);
+        var livesLost = Math.Min(defender.Lives.Amount, Math.Max(1, requestedLivesLost.Amount));
         var updatedDefender = defender.WithLives(new Lives(defender.Lives.Amount - livesLost));
         var updatedSender = sender.WithGold(new Gold(sender.Gold.Amount + creep.LeakBounty.Amount));
 

@@ -23,11 +23,42 @@ public sealed class BotController
 
     public BotDecision Decide(PlayerEconomyState player, ContentCatalog content, SimulationTick tick)
     {
-        var creep = content.Creeps.First(creep => creep.Id.Equals(creepId));
+        var creep = SelectCreep(player, content, tick);
         var sendQuantity = GetSendQuantity(player, creep, tick);
         return sendQuantity > 0
-            ? new BotDecision(new QueueSendCommand(player.PlayerId, tick, creepId, sendQuantity))
+            ? new BotDecision(new QueueSendCommand(player.PlayerId, tick, creep.Id, sendQuantity))
             : BotDecision.None;
+    }
+
+    private CreepDefinition SelectCreep(PlayerEconomyState player, ContentCatalog content, SimulationTick tick)
+    {
+        var available = player.Gold.Amount - GoldReserve(tick);
+        var preferredIds = profile switch
+        {
+            BotDecisionProfile.Greedy => tick.Value >= 260
+                ? new[] { "creep.siege", "creep.shade", "creep.brute", creepId.Value }
+                : tick.Value >= 120
+                    ? new[] { "creep.shade", "creep.brute", creepId.Value }
+                    : new[] { creepId.Value, "creep.brute" },
+            BotDecisionProfile.Balanced => tick.Value >= 180
+                ? new[] { "creep.shade", "creep.brute", "creep.swarm", creepId.Value }
+                : new[] { "creep.brute", "creep.swarm", creepId.Value },
+            BotDecisionProfile.Defensive => tick.Value >= 220
+                ? new[] { "creep.brute", "creep.swarm", "creep.runner", creepId.Value }
+                : new[] { "creep.swarm", "creep.runner", creepId.Value },
+            _ => new[] { creepId.Value }
+        };
+
+        foreach (var preferredId in preferredIds)
+        {
+            var candidate = content.Creeps.FirstOrDefault(creep => creep.Id.Value == preferredId);
+            if (candidate != null && available >= candidate.Cost.Amount)
+            {
+                return candidate;
+            }
+        }
+
+        return content.Creeps.First(creep => creep.Id.Equals(creepId));
     }
 
     private int GetSendQuantity(PlayerEconomyState player, CreepDefinition creep, SimulationTick tick)
@@ -37,13 +68,7 @@ public sealed class BotController
             return 0;
         }
 
-        var reserve = profile switch
-        {
-            BotDecisionProfile.Greedy => 0,
-            BotDecisionProfile.Balanced => tick.Value < 120 ? 70 : 35,
-            BotDecisionProfile.Defensive => tick.Value < 180 ? 85 : 55,
-            _ => 20
-        };
+        var reserve = GoldReserve(tick);
 
         var available = player.Gold.Amount - reserve;
         if (available < creep.Cost.Amount)
@@ -58,6 +83,17 @@ public sealed class BotController
             BotDecisionProfile.Balanced => System.Math.Min(2, max),
             BotDecisionProfile.Defensive => 1,
             _ => 1
+        };
+    }
+
+    private int GoldReserve(SimulationTick tick)
+    {
+        return profile switch
+        {
+            BotDecisionProfile.Greedy => 0,
+            BotDecisionProfile.Balanced => tick.Value < 120 ? 70 : 35,
+            BotDecisionProfile.Defensive => tick.Value < 180 ? 85 : 30,
+            _ => 20
         };
     }
 }

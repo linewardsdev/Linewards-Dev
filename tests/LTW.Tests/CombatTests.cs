@@ -88,16 +88,98 @@ public sealed class CombatTests
         Assert.Equal(10, snapshot.Health);
     }
 
+    [Fact]
+    public void Pulse_tower_splashes_nearby_creeps()
+    {
+        var service = new CombatService();
+        var content = CreateContent();
+        var routes = CreateRoutes();
+        var state = new CombatState(
+            new[]
+            {
+                service.SpawnCreep(new EntityId(1), Runner(), new PlayerId(2), LaneOne),
+                service.SpawnCreep(new EntityId(2), Runner(), new PlayerId(2), LaneOne)
+            },
+            new[] { new TowerCombatState(new EntityId(10), PulseTowerId, new PlayerId(1), LaneOne, new GridPosition(1, 1)) });
+
+        var result = service.Advance(state, content, routes, new SimulationTick(0));
+
+        Assert.Contains(result.State.Creeps, creep => creep.EntityId.Equals(new EntityId(1)) && creep.Health == 2);
+        Assert.Contains(result.State.Creeps, creep => creep.EntityId.Equals(new EntityId(2)) && creep.Health == 6);
+        Assert.Equal(2, result.Events.OfType<CreepDamagedEvent>().Count());
+    }
+
+    [Fact]
+    public void Prism_prioritizes_shade_and_bypasses_shade_resistance()
+    {
+        var service = new CombatService();
+        var content = CreateContent();
+        var routes = CreateRoutes();
+        var state = new CombatState(
+            new[]
+            {
+                service.SpawnCreep(new EntityId(1), Runner(), new PlayerId(2), LaneOne),
+                service.SpawnCreep(new EntityId(2), Shade(), new PlayerId(2), LaneOne)
+            },
+            new[] { new TowerCombatState(new EntityId(10), PrismTowerId, new PlayerId(1), LaneOne, new GridPosition(1, 1)) });
+
+        var result = service.Advance(state, content, routes, new SimulationTick(0));
+
+        Assert.Contains(result.Events, simulationEvent => simulationEvent is CreepDamagedEvent damaged && damaged.CreepEntityId.Equals(new EntityId(2)) && damaged.DamageDealt == 12);
+        Assert.Contains(result.State.Creeps, creep => creep.EntityId.Equals(new EntityId(1)) && creep.Health == 10);
+        Assert.Contains(result.State.Creeps, creep => creep.EntityId.Equals(new EntityId(2)) && creep.Health == 2);
+    }
+
+    [Fact]
+    public void Shade_resists_non_detection_tower_damage()
+    {
+        var service = new CombatService();
+        var content = CreateContent();
+        var routes = CreateRoutes();
+        var state = new CombatState(
+            new[] { service.SpawnCreep(new EntityId(1), Shade(), new PlayerId(2), LaneOne) },
+            new[] { new TowerCombatState(new EntityId(10), ArrowTowerId, new PlayerId(1), LaneOne, new GridPosition(1, 1)) });
+
+        var result = service.Advance(state, content, routes, new SimulationTick(0));
+
+        Assert.Contains(result.Events, simulationEvent => simulationEvent is CreepDamagedEvent damaged && damaged.DamageDealt == 3);
+        Assert.Contains(result.State.Creeps, creep => creep.EntityId.Equals(new EntityId(1)) && creep.Health == 11);
+    }
+
+    [Fact]
+    public void Siege_creep_emits_extra_leak_loss()
+    {
+        var service = new CombatService();
+        var content = CreateContent();
+        var routes = CreateRoutes(length: 2);
+        var state = new CombatState(
+            new[] { service.SpawnCreep(new EntityId(1), Siege(), new PlayerId(2), LaneOne) },
+            Array.Empty<TowerCombatState>());
+
+        var result = service.Advance(state, content, routes, new SimulationTick(1));
+        var leak = Assert.Single(result.Events.OfType<LeakEvent>());
+
+        Assert.Equal(2, leak.LivesLost.Amount);
+    }
+
     private static readonly LaneId LaneOne = new(1);
 
     private static readonly ContentId ArrowTowerId = new("tower.arrow");
 
+    private static readonly ContentId PulseTowerId = new("tower.pulse");
+
+    private static readonly ContentId PrismTowerId = new("tower.prism");
+
     private static readonly ContentId RunnerCreepId = new("creep.runner");
+
+    private static readonly ContentId ShadeCreepId = new("creep.shade");
+
+    private static readonly ContentId SiegeCreepId = new("creep.siege");
 
     private static CombatContent CreateContent() =>
         new(
-            new[] { Runner() },
-            new[] { ArrowTower() },
+            new[] { Runner(), Shade(), Siege() },
+            new[] { ArrowTower(), PulseTower(), PrismTower() },
             new Dictionary<LaneId, PlayerId> { [LaneOne] = new PlayerId(1) });
 
     private static IReadOnlyDictionary<LaneId, IReadOnlyList<GridPosition>> CreateRoutes(int length = 5)
@@ -112,6 +194,18 @@ public sealed class CombatTests
     private static CreepDefinition Runner() =>
         new(RunnerCreepId, "Runner", new Gold(10), new Income(1), new Gold(1), new Gold(2), maxHealth: 10, speedPerSecond: 1);
 
+    private static CreepDefinition Shade() =>
+        new(ShadeCreepId, "Shade", new Gold(24), new Income(3), new Gold(2), new Gold(4), maxHealth: 14, speedPerSecond: 1);
+
+    private static CreepDefinition Siege() =>
+        new(SiegeCreepId, "Siege", new Gold(40), new Income(4), new Gold(4), new Gold(6), maxHealth: 48, speedPerSecond: 1);
+
     private static TowerDefinition ArrowTower() =>
         new(ArrowTowerId, "Arrow Tower", new Gold(25), rangeCells: 2, damage: 5, attackCooldownTicks: 2);
+
+    private static TowerDefinition PulseTower() =>
+        new(PulseTowerId, "Pulse Tower", new Gold(45), rangeCells: 2, damage: 8, attackCooldownTicks: 4);
+
+    private static TowerDefinition PrismTower() =>
+        new(PrismTowerId, "Prism Tower", new Gold(60), rangeCells: 4, damage: 12, attackCooldownTicks: 6);
 }

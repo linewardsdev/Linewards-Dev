@@ -1,6 +1,8 @@
 using System.Linq;
+using LTW.Simulation.Bots;
 using LTW.Simulation.Bridge;
 using LTW.Simulation.Commands;
+using LTW.Simulation.Economy;
 using LTW.Simulation.Events;
 using LTW.Simulation.Primitives;
 
@@ -100,7 +102,7 @@ public sealed class VerticalSliceBridgeTests
     {
         var simulation = new LocalVerticalSlice(SampleVerticalSliceContent.Create());
 
-        for (var tick = 0; tick < 3; tick++)
+        for (var tick = 0; tick < 60; tick++)
         {
             simulation.AdvanceOneTick();
         }
@@ -108,8 +110,27 @@ public sealed class VerticalSliceBridgeTests
         var snapshot = simulation.GetSnapshot();
         Assert.Contains(snapshot.Towers, tower => tower.OwnerId.Equals(new PlayerId(2)) && tower.TowerId.Equals(SampleVerticalSliceContent.TowerId));
         Assert.Contains(snapshot.Towers, tower => tower.OwnerId.Equals(new PlayerId(3)) && tower.TowerId.Equals(SampleVerticalSliceContent.ControlTowerId));
-        Assert.True(snapshot.Towers.Count(tower => tower.OwnerId.Equals(new PlayerId(2))) >= 2);
+        Assert.Contains(snapshot.Towers, tower => tower.OwnerId.Equals(new PlayerId(2)) && tower.TowerId.Equals(SampleVerticalSliceContent.PulseTowerId));
+        Assert.True(snapshot.Towers.Count(tower => tower.OwnerId.Equals(new PlayerId(2))) >= 3);
         Assert.True(snapshot.Towers.Count(tower => tower.OwnerId.Equals(new PlayerId(3))) >= 3);
+    }
+
+    [Fact]
+    public void Bot_profiles_choose_expanded_roster_sends_when_available()
+    {
+        var content = SampleVerticalSliceContent.Create();
+        var richState = new PlayerEconomyState(new PlayerId(2), new Gold(500), new Income(10), new Lives(220));
+        var greedy = new BotController(BotDecisionProfile.Greedy, SampleVerticalSliceContent.CreepId);
+        var balanced = new BotController(BotDecisionProfile.Balanced, SampleVerticalSliceContent.CreepId);
+        var defensive = new BotController(BotDecisionProfile.Defensive, SampleVerticalSliceContent.CreepId);
+
+        var greedySend = Assert.IsType<QueueSendCommand>(greedy.Decide(richState, content, new SimulationTick(300)).Command);
+        var balancedSend = Assert.IsType<QueueSendCommand>(balanced.Decide(richState, content, new SimulationTick(220)).Command);
+        var defensiveSend = Assert.IsType<QueueSendCommand>(defensive.Decide(richState, content, new SimulationTick(240)).Command);
+
+        Assert.Equal(SampleVerticalSliceContent.SiegeCreepId, greedySend.CreepId);
+        Assert.Equal(SampleVerticalSliceContent.ShadeCreepId, balancedSend.CreepId);
+        Assert.Equal(SampleVerticalSliceContent.BruteCreepId, defensiveSend.CreepId);
     }
 
     [Fact]
@@ -136,7 +157,7 @@ public sealed class VerticalSliceBridgeTests
         Assert.Contains(initial.Profiles, profile => profile.PlayerId.Equals(new PlayerId(2)) && profile.Profile == LTW.Simulation.Bots.BotDecisionProfile.Balanced);
         Assert.Contains(initial.Profiles, profile => profile.PlayerId.Equals(new PlayerId(3)) && profile.Profile == LTW.Simulation.Bots.BotDecisionProfile.Defensive);
 
-        for (var tick = 0; tick < 251; tick++)
+        for (var tick = 0; tick < 500; tick++)
         {
             simulation.AdvanceOneTick();
         }
@@ -150,7 +171,7 @@ public sealed class VerticalSliceBridgeTests
     public void Bridge_reset_clears_bot_decision_diagnostics()
     {
         var simulation = new LocalVerticalSlice(SampleVerticalSliceContent.Create());
-        for (var tick = 0; tick < 251; tick++)
+        for (var tick = 0; tick < 500; tick++)
         {
             simulation.AdvanceOneTick();
         }

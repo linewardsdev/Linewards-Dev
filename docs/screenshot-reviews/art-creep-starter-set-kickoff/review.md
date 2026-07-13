@@ -12,6 +12,7 @@ Status: Pass for current corrective pass; Needs Review for final art polish
 - Captured default HUD, build menu, send menu, lane selector, active combat, heavy pressure, reduced effects, and match-complete/late-match screenshots.
 - The `1-4` corrective pass is complete: results overlay collision, build/send menu crowding, creep role readability starter shapes, and the Unity capture rerun.
 - The latest captures also include the 5x2 prototype roster menu layout: five tower buttons and five send buttons in compact 3+2 grids.
+- The follow-up mechanics pass keeps the same captured layout while adding Pulse splash, Prism priority targeting, Shade resistance, Siege extra leak pressure, and expanded bot usage.
 - The visual baseline is usable for the `art-creep-starter-set` branch. Remaining work is now polish-level art readability rather than broken mobile UI layout.
 
 ## Findings

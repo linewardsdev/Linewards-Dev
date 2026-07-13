@@ -191,7 +191,8 @@ These numbers are starting points for implementation, not final balance.
 - [x] Add `creep.shade` and `creep.siege` to sample content.
 - [x] Add tests that sample content validates with 5 towers and 5 creeps.
 - [x] Add command acceptance tests for the new content.
-- [ ] Add scenario tests for low, normal, heavy, and mixed-pressure sends.
+- [x] Add first mechanic tests for mixed pressure roles.
+- [ ] Add full scenario tests for low, normal, heavy, and mixed-pressure matches.
 
 ### Phase 3: Unity Controls
 
@@ -200,7 +201,7 @@ These numbers are starting points for implementation, not final balance.
 - [x] Add hotkeys for the new tower and send slots.
 - [x] Keep expanded menus above the bottom launcher row.
 - [ ] Add selected-detail strip or compact role hint if needed.
-- [ ] Verify no text crowding at phone-size capture.
+- [x] Verify no text crowding at phone-size capture.
 
 ### Phase 4: Presentation And Readability
 
@@ -208,22 +209,22 @@ These numbers are starting points for implementation, not final balance.
 - [x] Add primitive/fallback visual language for Shade and Siege creeps.
 - [x] Add asset folders/readmes for new tower and creep roles.
 - [x] Update art checklist for the 5x2 roster.
-- [ ] Run screenshot capture set with build menu, send menu, active combat, heavy pressure, and results.
+- [x] Run screenshot capture set with build menu, send menu, active combat, heavy pressure, and results.
 
 ### Phase 5: Balance And Bots
 
-- [ ] Let bots choose from more than one send type by profile.
-- [ ] Let bots use expanded tower roles by profile.
-- [ ] Tune opening gold and bot reserve behavior if new costs distort pacing.
+- [x] Let bots choose from more than one send type by profile.
+- [x] Let bots use expanded tower roles by profile.
+- [x] Tune opening gold and bot reserve behavior if new costs distort pacing.
 - [ ] Record playtest evidence for mixed send pressure.
-- [ ] Update `GD_TUNING_LOG.md` with first-pass findings.
+- [x] Update `GD_TUNING_LOG.md` with first-pass findings.
 
 ## Open Questions
 
 1. Should Relay become a real economy modifier now, or remain a low-damage utility placeholder until tower abilities exist?
-2. Should Pulse get true splash next, or remain a stat placeholder until the ability system is formalized?
-3. Should Shade get real stealth/detection next, or remain visual stealth only for another balance pass?
-4. Should Siege get a special leak penalty/windup next, or just high-health pressure for another balance pass?
+2. Should Pulse splash get authored VFX and explicit UI explanation now that the mechanic exists?
+3. Should Shade get a real reveal/detection layer beyond its current non-detection damage resistance?
+4. Should Siege get a visible windup or warning layer now that extra leak loss exists?
 5. Do the 3+2 build/send menus pass phone-size screenshot review after Unity capture?
 
 ## Recommended Next Branch

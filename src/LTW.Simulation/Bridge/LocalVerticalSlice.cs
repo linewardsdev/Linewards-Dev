@@ -241,7 +241,7 @@ public sealed class LocalVerticalSlice
             {
                 var creep = content.Creeps.First(definition => definition.Id.Equals(leakedCreep.CreepId));
                 var defenderLivesBefore = players.Get(leak.DefenderId).Lives.Amount;
-                players = economy.ApplyLeak(players, leak.SenderId, leak.DefenderId, creep).Players;
+                players = economy.ApplyLeak(players, leak.SenderId, leak.DefenderId, creep, leak.LivesLost).Players;
                 if (defenderLivesBefore > 0 && players.Get(leak.DefenderId).Lives.Amount == 0)
                 {
                     pendingEvents.Add(new PlayerEliminatedEvent(tick, leak.DefenderId));
@@ -302,7 +302,13 @@ public sealed class LocalVerticalSlice
     private void TryPlaceBotTower(PlayerId playerId, BotController bot)
     {
         var ownedTowerCount = combatState.Towers.Count(tower => tower.OwnerId.Equals(playerId));
-        var desiredTowerCount = bot.Profile == BotDecisionProfile.Defensive ? 3 : 2;
+        var desiredTowerCount = bot.Profile switch
+        {
+            BotDecisionProfile.Greedy => 2,
+            BotDecisionProfile.Balanced => 3,
+            BotDecisionProfile.Defensive => 4,
+            _ => 2
+        };
         if (ownedTowerCount >= desiredTowerCount)
         {
             return;
@@ -325,10 +331,27 @@ public sealed class LocalVerticalSlice
     {
         if (profile == BotDecisionProfile.Defensive)
         {
-            return ownedTowerCount == 0 ? SampleVerticalSliceContent.ControlTowerId : SampleVerticalSliceContent.TowerId;
+            return ownedTowerCount switch
+            {
+                0 => SampleVerticalSliceContent.ControlTowerId,
+                1 => SampleVerticalSliceContent.TowerId,
+                2 => SampleVerticalSliceContent.TowerId,
+                3 => SampleVerticalSliceContent.PulseTowerId,
+                _ => SampleVerticalSliceContent.PrismTowerId
+            };
         }
 
-        return ownedTowerCount == 1 ? SampleVerticalSliceContent.ControlTowerId : SampleVerticalSliceContent.TowerId;
+        if (profile == BotDecisionProfile.Balanced)
+        {
+            return ownedTowerCount switch
+            {
+                0 => SampleVerticalSliceContent.TowerId,
+                1 => SampleVerticalSliceContent.ControlTowerId,
+                _ => SampleVerticalSliceContent.PulseTowerId
+            };
+        }
+
+        return ownedTowerCount == 1 ? SampleVerticalSliceContent.PrismTowerId : SampleVerticalSliceContent.TowerId;
     }
 
     private static IReadOnlyList<GridPosition> BotPlacementCandidates(BotDecisionProfile profile, int ownedTowerCount)

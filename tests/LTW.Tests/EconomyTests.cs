@@ -65,6 +65,18 @@ public sealed class EconomyTests
     }
 
     [Fact]
+    public void Explicit_leak_loss_can_exceed_default_rule_for_special_pressure()
+    {
+        var service = CreateService(leakLifeLoss: 1);
+        var players = CreatePlayers();
+
+        var result = service.ApplyLeak(players, new PlayerId(1), new PlayerId(2), Runner(), new Lives(2));
+
+        Assert.Equal(2, result.LivesLost.Amount);
+        Assert.Equal(18, result.Players.Get(new PlayerId(2)).Lives.Amount);
+    }
+
+    [Fact]
     public void Completed_elimination_sequence_produces_one_winner()
     {
         var service = CreateService(leakLifeLoss: 20);

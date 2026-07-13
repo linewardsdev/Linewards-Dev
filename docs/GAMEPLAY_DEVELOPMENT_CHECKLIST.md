@@ -98,10 +98,10 @@ Current tower palette exposes Arrow, Control, Relay, selected-tower inspect, and
 
 - [x] Add first-pass content for five tower roles: reliable single-target, area/control, relay utility, pulse burst, and prism long-range.
 - [x] Add first-pass content for five creep/send roles: runner, brute, swarm, shade, and siege.
-- [ ] Give each creep/send a different cost, income gain, cooldown, and pressure profile.
+- [x] Give each creep/send a different cost, income gain, and pressure profile.
 - [x] Extend tests so new content validates through the existing simulation contracts.
 
-Current sends have distinct cost, income, speed/health, and quantity pressure across the 5x2 prototype roster. Tower art now has stronger role silhouettes for Arrow/focused, Control/area, Relay/utility, Pulse/burst, and Prism/long-range wards, including owner trim, role props, role-shaped placement previews, and selected-tower rings. Cooldown remains global through economy rules, and Pulse/Shade/Siege special mechanics remain future ability work.
+Current sends have distinct cost, income, speed/health, and quantity pressure across the 5x2 prototype roster. Tower art now has stronger role silhouettes for Arrow/focused, Control/area, Relay/utility, Pulse/burst, and Prism/long-range wards, including owner trim, role props, role-shaped placement previews, and selected-tower rings. Pulse now splashes nearby creeps, Prism prioritizes Shade/high-health pressure, Shade resists non-detection damage, and Siege leaks for extra life loss. Cooldown remains global through economy rules.
 
 ### Acceptance Checks
 

@@ -11,9 +11,9 @@ This log records the first gameplay pacing targets for the local vertical slice.
 - Income interval: 50 simulation ticks.
 - Global send cooldown: 30 simulation ticks.
 - Sell refund: 50% of tower cost.
-- Leak life loss: 1 life per leaked creep.
-- Starter towers: Arrow Tower, Slow Control Ward, Economy Relay Ward.
-- Starter sends: Runner, Brute, Swarm.
+- Leak life loss: 1 life per leaked creep; Siege currently leaks for 2.
+- Prototype towers: Arrow, Control, Relay, Pulse, Prism.
+- Prototype sends: Runner, Brute, Swarm, Shade, Siege.
 
 ## First Target Ranges
 
@@ -30,12 +30,16 @@ This log records the first gameplay pacing targets for the local vertical slice.
 
 | Content | Role | Current Intent | Tuning Risk |
 | --- | --- | --- | --- |
-| Arrow Tower | Reliable single-target | Cheap baseline damage. | May become the only rational defense if control/relay are too weak. |
-| Slow Control Ward | Area/control placeholder | Lower damage, slower cadence, visually wider role. | Needs real slow/control behavior before final balance. |
-| Economy Relay Ward | Utility/economy placeholder | Expensive support-looking tower with minimal damage. | Needs a gameplay payoff or disabled-state framing. |
+| Arrow Ward | Reliable single-target | Cheap baseline damage. | May become the only rational defense if special roles are too situational. |
+| Control Ward | Area/control placeholder | Lower damage, slower cadence, counters Shade resistance. | Needs real slow/control behavior before final balance. |
+| Relay Ward | Utility/economy placeholder | Expensive support-looking tower with minimal damage. | Needs a gameplay payoff or disabled-state framing. |
+| Pulse Ward | Dense-pressure answer | Short-range splash damages nearby creeps. | Can erase Swarm too efficiently if splash count/damage is too high. |
+| Prism Ward | Long-range specialist | Prioritizes Shade/high-health pressure and bypasses Shade resistance. | High range plus high damage may become mandatory against Brute/Siege. |
 | Runner | Basic speed pressure | Cheap opener with modest income. | Could feel bland without speed/readability tuning. |
 | Brute | Health pressure | More health and income, higher cost. | Could be too efficient if tower damage is low. |
 | Swarm | Volume pressure | Cheap fast group send. | Can clutter the board if quantity and speed are too high. |
+| Shade | Low-visibility pressure | Resists non-Control/non-Prism damage. | Needs clear reveal/readability language before becoming a frustration unit. |
+| Siege | Late high-threat pressure | High health and 2-life leak pressure. | Needs warning/windup language so extra leak loss feels fair. |
 
 ## Known Balance Questions
 
@@ -44,6 +48,10 @@ This log records the first gameplay pacing targets for the local vertical slice.
 - Should Economy Relay Ward remain placeable before it has an economy/support effect?
 - Should Swarm quantity stay at 3, or should the unit be cheaper with a lower income reward?
 - Are kill bounties large enough to make defense feel rewarding without defeating send-for-income pressure?
+- Does Pulse splash need a stricter target cap or lower splash damage?
+- Does Prism priority targeting overvalue Prism against mixed waves?
+- Does Shade resistance need a visible reveal/detection state before player-facing tuning?
+- Does Siege extra leak loss require a windup, warning, or special lane alert?
 
 ## Playtest Capture Template
 
@@ -62,4 +70,4 @@ Use the local `P` hotkey after a completed Unity Play Mode match to write the Ma
 3. Decide whether the next tuning lever should be send cooldown, creep stats, or tower damage after observing the 900-1800 tick match gate in Play Mode.
 4. Promote any repeated confusion into GD-01/GD-02 usability fixes before changing numbers heavily.
 
-Latest objective read: the first recorded Play Mode run ended at tick 476, well before the target match-completion range. Before changing presentation again, prioritize a tuning pass that slows player-driven bot collapse without removing early offensive feedback.
+Latest objective read: the first recorded Play Mode run ended at tick 476, well before the target match-completion range. The 5x2 prototype now adds Pulse splash, Prism priority targeting, Shade resistance, Siege extra leak pressure, and expanded bot roster usage. Before changing presentation again, prioritize a mixed-pressure playtest that checks whether these mechanics improve decision variety without shortening matches further.
