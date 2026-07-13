@@ -15,28 +15,37 @@ MonoBehaviour:
   profiles:
   - creepId: creep.runner
     role: 0
-    prefab: {fileID: 0}
+    prefab: {fileID: 410533662627495829, guid: 19cb09508dd7b4a2192bcb68cc2d3e90, type: 3}
     scale: {x: 0.42, y: 0.24, z: 0.72}
     motionStyle: 1
-    bodyRendererPath: 
-    senderAccentRendererPaths: []
-    damageRendererPaths: []
+    bodyRendererPath: Body
+    senderAccentRendererPaths:
+    - Accent
+    - SpeedLine
+    damageRendererPaths:
+    - Damage
     deathCueStyle: 1
   - creepId: creep.brute
     role: 1
-    prefab: {fileID: 0}
+    prefab: {fileID: 1847165988346696735, guid: 0c289a6ce8e63496a83230747a2390b0, type: 3}
     scale: {x: 0.78, y: 0.48, z: 0.96}
     motionStyle: 2
-    bodyRendererPath: 
-    senderAccentRendererPaths: []
-    damageRendererPaths: []
+    bodyRendererPath: Body
+    senderAccentRendererPaths:
+    - Accent/Core
+    damageRendererPaths:
+    - Damage/PlateLeft
+    - Damage/PlateRight
     deathCueStyle: 2
   - creepId: creep.swarm
     role: 2
-    prefab: {fileID: 0}
+    prefab: {fileID: 8608776379439343738, guid: acdf43f65e24b4ab2862189e5a325b9b, type: 3}
     scale: {x: 0.18, y: 0.12, z: 0.18}
     motionStyle: 3
-    bodyRendererPath: 
-    senderAccentRendererPaths: []
-    damageRendererPaths: []
+    bodyRendererPath: Body
+    senderAccentRendererPaths:
+    - Accent/Signal0
+    - Accent/Signal1
+    damageRendererPaths:
+    - Damage/CrackedShard
     deathCueStyle: 3
