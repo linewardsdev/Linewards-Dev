@@ -111,7 +111,7 @@ namespace LTW.UnityClient.Simulation
             for (var lane = 1; lane <= 3; lane++)
             {
                 CreateLaneBackplate(lane);
-                CreateLaneBuildZones(lane);
+                CreateLaneSurfaceBands(lane);
                 for (var x = 0; x < LaneWidth; x++)
                 {
                     for (var y = 0; y < LaneLength; y++)
@@ -124,16 +124,16 @@ namespace LTW.UnityClient.Simulation
                     }
                 }
 
-                CreateLaneEndpointBox(lane, CenterColumn, 0, "SpawnBox", MintSignal);
-                CreateLaneEndpointBox(lane, CenterColumn, LaneLength - 1, "LifeLossBox", new Color(1f, 0.32f, 0.24f));
                 CreateLaneFrame(lane);
                 CreateLaneFlowCues(lane);
+                CreateLaneEndpointBox(lane, CenterColumn, 0, "SpawnBox", MintSignal);
+                CreateLaneEndpointBox(lane, CenterColumn, LaneLength - 1, "LifeLossBox", LeakRed);
+                CreateLaneGate(lane, 0, MintSignal, "SpawnGate");
+                CreateLaneGate(lane, LaneLength - 1, LeakRed, "LifeLossGate");
                 CreateLaneLandmark(lane, CenterColumn, 0, "Spawn", MintSignal, 0.42f);
-                CreateLaneLandmark(lane, CenterColumn, LaneLength - 1, "LifeLoss", new Color(1f, 0.32f, 0.24f), 0.5f);
-                CreateLaneGate(lane, 0, MintSignal, "ENTRY");
-                CreateLaneGate(lane, LaneLength - 1, new Color(1f, 0.32f, 0.24f), "LEAK");
+                CreateLaneLandmark(lane, CenterColumn, LaneLength - 1, "LifeLoss", LeakRed, 0.5f);
                 CreateLaneEndpointLabel(lane, CenterColumn, 0, "SPAWN", MintSignal);
-                CreateLaneEndpointLabel(lane, CenterColumn, LaneLength - 1, "LIFE LOSS", new Color(1f, 0.32f, 0.24f));
+                CreateLaneEndpointLabel(lane, CenterColumn, LaneLength - 1, "LIFE LOSS", LeakRed);
                 CreateLaneLabel(lane);
             }
 
@@ -468,7 +468,7 @@ namespace LTW.UnityClient.Simulation
 
         private static void SetTowerTransform(GameObject instance, GridPosition position, LaneId laneId, string towerId)
         {
-            instance.transform.position = GridToWorld(position, laneId) + Vector3.up * TowerRoleLift(towerId);
+            instance.transform.position = GridToWorld(position, laneId) + Vector3.up * 0.12f;
             instance.transform.localScale = TowerRoleScale(towerId);
         }
 
@@ -515,27 +515,25 @@ namespace LTW.UnityClient.Simulation
             laneDecorations.Add(backplate);
         }
 
-        private void CreateLaneBuildZones(int laneId)
+        private void CreateLaneSurfaceBands(int laneId)
         {
             var offset = LaneOffset(laneId);
-            var tint = OwnerAccent(laneId);
-            var leftZone = CreatePrimitive($"Lane{laneId}LeftBuildBand", PrimitiveType.Cube);
-            leftZone.transform.position = new Vector3(1f, -0.255f, offset + (LaneLength - 1) * 0.5f);
-            leftZone.transform.localScale = new Vector3(1.88f, 0.035f, LaneLength - 1.2f);
-            SetColor(leftZone, BuildZoneColor(tint, laneId == 1));
-            laneDecorations.Add(leftZone);
+            var accent = OwnerAccent(laneId);
 
-            var rightZone = CreatePrimitive($"Lane{laneId}RightBuildBand", PrimitiveType.Cube);
-            rightZone.transform.position = new Vector3(5f, -0.255f, offset + (LaneLength - 1) * 0.5f);
-            rightZone.transform.localScale = new Vector3(1.88f, 0.035f, LaneLength - 1.2f);
-            SetColor(rightZone, BuildZoneColor(tint, laneId == 1));
-            laneDecorations.Add(rightZone);
+            CreateSurfaceBand($"Lane{laneId}LeftBuildBand", new Vector3(offset + 1f, -0.255f, BoardCenterZ), new Vector3(1.82f, 0.035f, LaneLength - 1.2f), BuildZoneColor(accent, laneId == 1));
+            CreateSurfaceBand($"Lane{laneId}RightBuildBand", new Vector3(offset + 5f, -0.255f, BoardCenterZ), new Vector3(1.82f, 0.035f, LaneLength - 1.2f), BuildZoneColor(accent, laneId == 1));
+            CreateSurfaceBand($"Lane{laneId}CenterRouteBand", new Vector3(offset + CenterColumn, -0.248f, BoardCenterZ), new Vector3(1.08f, 0.038f, LaneLength - 0.55f), RouteBandColor(laneId));
+            CreateSurfaceBand($"Lane{laneId}NorthFlowWash", new Vector3(offset + BoardCenterX, -0.252f, LaneLength - 2.25f), new Vector3(LaneWidth - 0.7f, 0.032f, 2.2f), EndpointWashColor(SignalGold, laneId == 1));
+            CreateSurfaceBand($"Lane{laneId}SouthFlowWash", new Vector3(offset + BoardCenterX, -0.252f, 1.25f), new Vector3(LaneWidth - 0.7f, 0.032f, 2.2f), EndpointWashColor(MintSignal, laneId == 1));
+        }
 
-            var pathRibbon = CreatePrimitive($"Lane{laneId}PathRibbon", PrimitiveType.Cube);
-            pathRibbon.transform.position = new Vector3(CenterColumn, -0.248f, offset + (LaneLength - 1) * 0.5f);
-            pathRibbon.transform.localScale = new Vector3(1.02f, 0.038f, LaneLength - 0.6f);
-            SetColor(pathRibbon, laneId == 1 ? new Color(0.11f, 0.34f, 0.52f) : new Color(0.08f, 0.19f, 0.32f));
-            laneDecorations.Add(pathRibbon);
+        private void CreateSurfaceBand(string name, Vector3 position, Vector3 scale, Color color)
+        {
+            var band = CreatePrimitive(name, PrimitiveType.Cube);
+            band.transform.position = position;
+            band.transform.localScale = scale;
+            SetColor(band, color);
+            laneDecorations.Add(band);
         }
 
         private void CreateLaneFlowCues(int laneId)
@@ -589,33 +587,19 @@ namespace LTW.UnityClient.Simulation
             laneDecorations.Add(marker);
 
             var halo = CreatePrimitive($"Lane{laneId}{landmarkName}Halo", PrimitiveType.Cylinder);
-            halo.transform.position = new Vector3(x, 0.035f, LaneOffset(laneId) + y);
-            halo.transform.localScale = new Vector3(scale * 1.85f, 0.045f, scale * 1.85f);
-            SetColor(halo, new Color(color.r * 0.72f, color.g * 0.72f, color.b * 0.72f));
+            halo.transform.position = GridToWorld(new GridPosition(x, y), new LaneId(laneId)) + Vector3.down * 0.31f;
+            halo.transform.localScale = new Vector3(scale * 1.95f, 0.045f, scale * 1.95f);
+            SetColor(halo, EndpointWashColor(color, laneId == 1));
             laneDecorations.Add(halo);
         }
 
-        private void CreateLaneGate(int laneId, int y, Color color, string label)
+        private void CreateLaneGate(int laneId, int y, Color color, string gateName)
         {
             var offset = LaneOffset(laneId);
-            var z = offset + y;
-            var gate = CreatePrimitive($"Lane{laneId}{label}Gate", PrimitiveType.Cube);
-            gate.transform.position = new Vector3(BoardCenterX, 0.04f, z);
-            gate.transform.localScale = new Vector3(LaneWidth - 1.05f, 0.08f, 0.12f);
-            SetColor(gate, color);
-            laneDecorations.Add(gate);
-
-            var leftPost = CreatePrimitive($"Lane{laneId}{label}GateLeft", PrimitiveType.Cube);
-            leftPost.transform.position = new Vector3(0.55f, 0.22f, z);
-            leftPost.transform.localScale = new Vector3(0.18f, 0.48f, 0.18f);
-            SetColor(leftPost, color);
-            laneDecorations.Add(leftPost);
-
-            var rightPost = CreatePrimitive($"Lane{laneId}{label}GateRight", PrimitiveType.Cube);
-            rightPost.transform.position = new Vector3(LaneWidth - 1.55f, 0.22f, z);
-            rightPost.transform.localScale = new Vector3(0.18f, 0.48f, 0.18f);
-            SetColor(rightPost, color);
-            laneDecorations.Add(rightPost);
+            var z = WorldZ(y);
+            CreateSurfaceBand($"Lane{laneId}{gateName}Crossbar", new Vector3(offset + BoardCenterX, -0.16f, z), new Vector3(LaneWidth - 1.08f, 0.09f, 0.13f), color);
+            CreateSurfaceBand($"Lane{laneId}{gateName}LeftPost", new Vector3(offset + 0.58f, 0.02f, z), new Vector3(0.16f, 0.46f, 0.16f), color);
+            CreateSurfaceBand($"Lane{laneId}{gateName}RightPost", new Vector3(offset + LaneWidth - 1.58f, 0.02f, z), new Vector3(0.16f, 0.46f, 0.16f), color);
         }
 
         private void CreateLaneEndpointBox(int laneId, int x, int y, string boxName, Color color)
@@ -677,34 +661,24 @@ namespace LTW.UnityClient.Simulation
             }
 
             var checker = (x + y + laneId) % 2 == 0 ? 0.026f : 0f;
-            var laneTint = laneId == 1 ? 0.025f : 0f;
-            var buildColumn = x < CenterColumn ? 0.012f : 0.024f;
-            return new Color(0.058f + checker + laneTint + buildColumn, 0.082f + checker + laneTint, 0.14f + checker + laneTint);
+            var ownLaneLift = laneId == 1 ? 0.018f : 0f;
+            var sideBand = x < CenterColumn ? 0.01f : 0.022f;
+            return new Color(0.058f + checker + ownLaneLift + sideBand, 0.082f + checker + ownLaneLift, 0.14f + checker + ownLaneLift);
         }
 
         private static Vector3 TowerRoleScale(string towerId)
         {
             if (ContainsRole(towerId, "slow") || ContainsRole(towerId, "splash") || ContainsRole(towerId, "control"))
             {
-                return new Vector3(0.92f, 0.34f, 0.92f);
+                return new Vector3(0.82f, 0.46f, 0.82f);
             }
 
             if (ContainsRole(towerId, "economy") || ContainsRole(towerId, "utility") || ContainsRole(towerId, "relay"))
             {
-                return new Vector3(0.46f, 0.92f, 0.46f);
+                return new Vector3(0.52f, 0.52f, 0.52f);
             }
 
-            return new Vector3(0.48f, 1.08f, 0.48f);
-        }
-
-        private static float TowerRoleLift(string towerId)
-        {
-            if (ContainsRole(towerId, "economy") || ContainsRole(towerId, "utility") || ContainsRole(towerId, "relay"))
-            {
-                return 0.18f;
-            }
-
-            return 0.12f;
+            return new Vector3(0.62f, 0.78f, 0.62f);
         }
 
         private static Vector3 CreepRoleScale(string creepId)
@@ -840,9 +814,6 @@ namespace LTW.UnityClient.Simulation
 
         private static void ConfigureTowerRoleMarker(GameObject towerObject, string towerId)
         {
-            var basePlate = EnsureChild(towerObject, "RoleBasePlate", PrimitiveType.Cylinder);
-            ConfigureChild(basePlate, true, new Vector3(0f, -0.26f, 0f), TowerBaseScale(towerId), TowerBaseColor(towerId));
-
             var marker = towerObject.transform.Find("RoleMarker")?.gameObject;
             if (marker == null)
             {
@@ -859,48 +830,15 @@ namespace LTW.UnityClient.Simulation
             var controlRing = EnsureChild(towerObject, "ControlRing", PrimitiveType.Cylinder);
             var relayMast = EnsureChild(towerObject, "RelayMast", PrimitiveType.Cube);
             var relayCore = EnsureChild(towerObject, "RelayCore", PrimitiveType.Sphere);
-            var rangeHalo = EnsureChild(towerObject, "RangeReadHalo", PrimitiveType.Cylinder);
 
             var isControl = ContainsRole(towerId, "slow") || ContainsRole(towerId, "splash") || ContainsRole(towerId, "control") || ContainsRole(towerId, "area");
             var isRelay = ContainsRole(towerId, "economy") || ContainsRole(towerId, "utility") || ContainsRole(towerId, "relay");
             var isFocused = !isControl && !isRelay;
 
-            ConfigureChild(lens, isFocused, new Vector3(0f, 1.08f, 0f), new Vector3(0.24f, 0.24f, 0.42f), MintSignal);
-            ConfigureChild(controlRing, isControl, new Vector3(0f, 0.34f, 0f), new Vector3(1.24f, 0.035f, 1.24f), TowerMarkerColor(towerId));
-            ConfigureChild(relayMast, isRelay, new Vector3(0f, 0.72f, 0f), new Vector3(0.1f, 0.9f, 0.1f), SignalGold);
-            ConfigureChild(relayCore, isRelay, new Vector3(0f, 1.24f, 0f), new Vector3(0.28f, 0.28f, 0.28f), SignalGold);
-            ConfigureChild(rangeHalo, true, new Vector3(0f, -0.22f, 0f), TowerRangeHaloScale(towerId), TowerMarkerColor(towerId));
-        }
-
-        private static Vector3 TowerBaseScale(string towerId)
-        {
-            if (ContainsRole(towerId, "slow") || ContainsRole(towerId, "splash") || ContainsRole(towerId, "control") || ContainsRole(towerId, "area"))
-            {
-                return new Vector3(1.18f, 0.055f, 1.18f);
-            }
-
-            if (ContainsRole(towerId, "economy") || ContainsRole(towerId, "utility") || ContainsRole(towerId, "relay"))
-            {
-                return new Vector3(0.78f, 0.06f, 0.78f);
-            }
-
-            return new Vector3(0.72f, 0.06f, 0.72f);
-        }
-
-        private static Vector3 TowerRangeHaloScale(string towerId)
-        {
-            if (ContainsRole(towerId, "economy") || ContainsRole(towerId, "utility") || ContainsRole(towerId, "relay"))
-            {
-                return new Vector3(1.45f, 0.018f, 1.45f);
-            }
-
-            return new Vector3(1.88f, 0.018f, 1.88f);
-        }
-
-        private static Color TowerBaseColor(string towerId)
-        {
-            var marker = TowerMarkerColor(towerId);
-            return new Color(marker.r * 0.45f, marker.g * 0.45f, marker.b * 0.45f);
+            ConfigureChild(lens, isFocused, new Vector3(0f, 0.98f, 0f), new Vector3(0.28f, 0.28f, 0.28f), MintSignal);
+            ConfigureChild(controlRing, isControl, new Vector3(0f, 0.42f, 0f), new Vector3(1.04f, 0.04f, 1.04f), TowerMarkerColor(towerId));
+            ConfigureChild(relayMast, isRelay, new Vector3(0f, 0.68f, 0f), new Vector3(0.12f, 0.74f, 0.12f), SignalGold);
+            ConfigureChild(relayCore, isRelay, new Vector3(0f, 1.08f, 0f), new Vector3(0.26f, 0.26f, 0.26f), SignalGold);
         }
 
         private static Vector3 TowerMarkerScale(string towerId)
@@ -940,9 +878,6 @@ namespace LTW.UnityClient.Simulation
 
         private static void ConfigureCreepRoleMarker(GameObject creepObject, string creepId, int senderId)
         {
-            var shadow = EnsureChild(creepObject, "GroundShadow", PrimitiveType.Cylinder);
-            ConfigureChild(shadow, true, new Vector3(0f, -0.42f, 0f), CreepShadowScale(creepId), new Color(0.015f, 0.022f, 0.035f));
-
             var nose = EnsureChild(creepObject, "RunnerNose", PrimitiveType.Cube);
             var armor = EnsureChild(creepObject, "BruteArmor", PrimitiveType.Cube);
             var swarmA = EnsureChild(creepObject, "SwarmDotA", PrimitiveType.Sphere);
@@ -958,39 +893,13 @@ namespace LTW.UnityClient.Simulation
             var isSiege = ContainsRole(creepId, "attacker") || ContainsRole(creepId, "siege");
             var isRunner = !isSwarm && !isBrute && !isAir && !isStealth && !isSiege;
 
-            ConfigureChild(nose, isRunner, new Vector3(0f, 0.02f, 0.42f), new Vector3(0.16f, 0.1f, 0.34f), MintSignal);
-            ConfigureChild(armor, isBrute, new Vector3(0f, 0.26f, 0f), new Vector3(0.72f, 0.14f, 0.84f), new Color(1f, 0.72f, 0.38f));
-            ConfigureChild(swarmA, isSwarm, new Vector3(-0.42f, 0.05f, -0.24f), new Vector3(0.62f, 0.62f, 0.62f), SenderColor(senderId));
-            ConfigureChild(swarmB, isSwarm, new Vector3(0.38f, 0.05f, 0.26f), new Vector3(0.52f, 0.52f, 0.52f), MintSignal);
+            ConfigureChild(nose, isRunner, new Vector3(0.24f, 0f, 0f), new Vector3(0.28f, 0.1f, 0.1f), MintSignal);
+            ConfigureChild(armor, isBrute, new Vector3(0f, 0.26f, 0f), new Vector3(0.64f, 0.14f, 0.64f), new Color(1f, 0.72f, 0.38f));
+            ConfigureChild(swarmA, isSwarm, new Vector3(-0.38f, 0.05f, -0.22f), new Vector3(0.55f, 0.55f, 0.55f), SenderColor(senderId));
+            ConfigureChild(swarmB, isSwarm, new Vector3(0.34f, 0.05f, 0.24f), new Vector3(0.45f, 0.45f, 0.45f), MintSignal);
             ConfigureChild(hover, isAir, new Vector3(0f, -0.52f, 0f), new Vector3(0.88f, 0.04f, 0.88f), new Color(0.82f, 0.72f, 1f));
             ConfigureChild(shimmer, isStealth, new Vector3(0f, 0f, 0f), new Vector3(1.1f, 0.05f, 1.1f), new Color(0.86f, 0.96f, 1f));
             ConfigureChild(spike, isSiege, new Vector3(0.28f, 0.08f, 0f), new Vector3(0.38f, 0.16f, 0.2f), new Color(1f, 0.3f, 0.36f));
-        }
-
-        private static Vector3 CreepShadowScale(string creepId)
-        {
-            if (ContainsRole(creepId, "swarm"))
-            {
-                return new Vector3(1.2f, 0.025f, 1.2f);
-            }
-
-            if (ContainsRole(creepId, "brute") || ContainsRole(creepId, "tank") || ContainsRole(creepId, "boss"))
-            {
-                return new Vector3(1.05f, 0.025f, 1.25f);
-            }
-
-            return new Vector3(0.72f, 0.025f, 1.05f);
-        }
-
-        private static Color LaneBackplateColor(int laneId)
-        {
-            return laneId == 1 ? new Color(0.045f, 0.105f, 0.19f) : new Color(0.038f, 0.052f, 0.095f);
-        }
-
-        private static Color BuildZoneColor(Color tint, bool isPlayerLane)
-        {
-            var strength = isPlayerLane ? 0.16f : 0.09f;
-            return new Color(0.045f + tint.r * strength, 0.058f + tint.g * strength, 0.09f + tint.b * strength);
         }
 
         private static GameObject EnsureChild(GameObject parent, string name, PrimitiveType primitiveType)
@@ -1025,6 +934,22 @@ namespace LTW.UnityClient.Simulation
 
         private static Color SenderColor(int playerId) => playerId % 3 == 0 ? new Color(0.95f, 0.42f, 0.5f) : playerId % 3 == 1 ? SignalGold : WardViolet;
 
+        private static Color LaneBackplateColor(int laneId) => laneId == 1 ? new Color(0.045f, 0.105f, 0.19f) : new Color(0.038f, 0.052f, 0.095f);
+
+        private static Color BuildZoneColor(Color tint, bool isPlayerLane)
+        {
+            var strength = isPlayerLane ? 0.16f : 0.09f;
+            return new Color(0.045f + tint.r * strength, 0.058f + tint.g * strength, 0.09f + tint.b * strength);
+        }
+
+        private static Color RouteBandColor(int laneId) => laneId == 1 ? new Color(0.11f, 0.34f, 0.52f) : new Color(0.08f, 0.19f, 0.32f);
+
+        private static Color EndpointWashColor(Color color, bool isPlayerLane)
+        {
+            var strength = isPlayerLane ? 0.36f : 0.24f;
+            return new Color(color.r * strength, color.g * strength, color.b * strength);
+        }
+
         private static Color OwnerAccent(int playerId) => playerId switch
         {
             1 => ArcaneBlue,
@@ -1037,6 +962,7 @@ namespace LTW.UnityClient.Simulation
         private static readonly Color WardViolet = new Color(0.608f, 0.424f, 1f);
         private static readonly Color SignalGold = new Color(1f, 0.784f, 0.29f);
         private static readonly Color MintSignal = new Color(0.349f, 0.882f, 0.714f);
+        private static readonly Color LeakRed = new Color(1f, 0.32f, 0.24f);
 
         private static void SetColor(GameObject instance, Color color)
         {
