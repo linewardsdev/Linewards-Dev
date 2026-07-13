@@ -8,6 +8,7 @@ This document defines the folder structure, naming rules, and material taxonomy 
 
 | Path | Purpose |
 | --- | --- |
+| `unity/LTW.UnityClient/Assets/Art/Board` | Board, lane, path, build-band, spawn, exit, rail, and trim source art and notes. |
 | `unity/LTW.UnityClient/Assets/Art/Towers/Arrow` | Arrow/focused tower source art and notes. |
 | `unity/LTW.UnityClient/Assets/Art/Towers/Control` | Control/area tower source art and notes. |
 | `unity/LTW.UnityClient/Assets/Art/Towers/Relay` | Relay/utility tower source art and notes. |
@@ -52,6 +53,13 @@ Rules:
 | `mat_team_p1_arcane` | Human/player ownership accent. |
 | `mat_team_p2_violet` | Bot/opponent ownership accent. |
 | `mat_team_p3_gold` | Secondary opponent ownership accent. |
+| `mat_board_deep_field` | Dark lane backplate and outer board field. |
+| `mat_board_build_band` | Buildable side band surface. |
+| `mat_board_route_core` | Main north-south creep route. |
+| `mat_board_route_guide` | Thin route edge guide for grayscale/value readability. |
+| `mat_board_spawn_gate` | Spawn/entry landmark. |
+| `mat_board_leak_gate` | Exit/life-loss landmark. |
+| `mat_board_owner_rail` | Lane ownership frame and rail accent. |
 | `mat_role_tower_arrow` | Focused single-target tower role. |
 | `mat_role_tower_control` | Area/control tower role. |
 | `mat_role_tower_relay` | Utility/economy tower role. |

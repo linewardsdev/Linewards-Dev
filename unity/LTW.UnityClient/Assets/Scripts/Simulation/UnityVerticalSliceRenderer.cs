@@ -1096,9 +1096,11 @@ namespace LTW.UnityClient.Simulation
 
             CreateSurfaceBand($"Lane{laneId}LeftBuildBand", new Vector3(offset + 1f, -0.255f, BoardCenterZ), new Vector3(1.82f, 0.035f, LaneLength - 1.2f), BuildZoneColor(accent, laneId == 1));
             CreateSurfaceBand($"Lane{laneId}RightBuildBand", new Vector3(offset + 5f, -0.255f, BoardCenterZ), new Vector3(1.82f, 0.035f, LaneLength - 1.2f), BuildZoneColor(accent, laneId == 1));
-            CreateSurfaceBand($"Lane{laneId}CenterRouteBand", new Vector3(offset + CenterColumn, -0.248f, BoardCenterZ), new Vector3(1.08f, 0.038f, LaneLength - 0.55f), RouteBandColor(laneId));
-            CreateSurfaceBand($"Lane{laneId}NorthFlowWash", new Vector3(offset + BoardCenterX, -0.252f, LaneLength - 2.25f), new Vector3(LaneWidth - 0.7f, 0.032f, 2.2f), EndpointWashColor(SignalGold, laneId == 1));
-            CreateSurfaceBand($"Lane{laneId}SouthFlowWash", new Vector3(offset + BoardCenterX, -0.252f, 1.25f), new Vector3(LaneWidth - 0.7f, 0.032f, 2.2f), EndpointWashColor(MintSignal, laneId == 1));
+            CreateSurfaceBand($"Lane{laneId}CenterRouteBand", new Vector3(offset + CenterColumn, -0.248f, BoardCenterZ), new Vector3(1.08f, 0.04f, LaneLength - 0.55f), RouteBandColor(laneId));
+            CreateSurfaceBand($"Lane{laneId}RouteLeftGuide", new Vector3(offset + CenterColumn - 0.58f, -0.236f, BoardCenterZ), new Vector3(0.055f, 0.045f, LaneLength - 0.72f), RouteGuideColor(laneId));
+            CreateSurfaceBand($"Lane{laneId}RouteRightGuide", new Vector3(offset + CenterColumn + 0.58f, -0.236f, BoardCenterZ), new Vector3(0.055f, 0.045f, LaneLength - 0.72f), RouteGuideColor(laneId));
+            CreateSurfaceBand($"Lane{laneId}NorthFlowWash", new Vector3(offset + BoardCenterX, -0.252f, LaneLength - 2.25f), new Vector3(LaneWidth - 0.7f, 0.032f, 2.2f), EndpointWashColor(MintSignal, laneId == 1));
+            CreateSurfaceBand($"Lane{laneId}SouthFlowWash", new Vector3(offset + BoardCenterX, -0.252f, 1.25f), new Vector3(LaneWidth - 0.7f, 0.032f, 2.2f), EndpointWashColor(LeakRed, laneId == 1));
         }
 
         private void CreateSurfaceBand(string name, Vector3 position, Vector3 scale, Color color)
@@ -1244,18 +1246,18 @@ namespace LTW.UnityClient.Simulation
 
             if (x == CenterColumn && y == LaneLength - 1)
             {
-                return SignalGold;
+                return LeakRed;
             }
 
             if (x == CenterColumn)
             {
-                return laneId == 1 ? new Color(0.13f, 0.32f, 0.48f) : new Color(0.09f, 0.21f, 0.34f);
+                return laneId == 1 ? new Color(0.15f, 0.37f, 0.56f) : new Color(0.1f, 0.24f, 0.39f);
             }
 
-            var checker = (x + y + laneId) % 2 == 0 ? 0.026f : 0f;
-            var laneTint = laneId == 1 ? 0.025f : 0f;
-            var buildColumn = x < CenterColumn ? 0.012f : 0.024f;
-            return new Color(0.058f + checker + laneTint + buildColumn, 0.082f + checker + laneTint, 0.14f + checker + laneTint);
+            var checker = (x + y + laneId) % 2 == 0 ? 0.018f : 0f;
+            var laneTint = laneId == 1 ? 0.022f : 0f;
+            var buildColumn = x < CenterColumn ? 0.008f : 0.016f;
+            return new Color(0.047f + checker + laneTint + buildColumn, 0.064f + checker + laneTint, 0.112f + checker + laneTint);
         }
 
         private static Vector3 TowerRoleScale(string towerId)
@@ -1843,10 +1845,10 @@ namespace LTW.UnityClient.Simulation
 
         private static Color LaneBackplateColor(int laneId)
         {
-            return laneId == 1 ? new Color(0.045f, 0.105f, 0.19f) : new Color(0.038f, 0.052f, 0.095f);
+            return laneId == 1 ? new Color(0.034f, 0.086f, 0.16f) : new Color(0.028f, 0.042f, 0.082f);
         }
 
-        private static Color LaneGutterColor(int laneId) => laneId == 1 ? new Color(0.032f, 0.078f, 0.14f) : new Color(0.026f, 0.036f, 0.07f);
+        private static Color LaneGutterColor(int laneId) => laneId == 1 ? new Color(0.026f, 0.064f, 0.12f) : new Color(0.02f, 0.03f, 0.06f);
 
         private static Color LaneAnchorColor(Color accent, bool isPlayerLane)
         {
@@ -1902,15 +1904,17 @@ namespace LTW.UnityClient.Simulation
 
         private static Color BuildZoneColor(Color tint, bool isPlayerLane)
         {
-            var strength = isPlayerLane ? 0.16f : 0.09f;
-            return new Color(0.045f + tint.r * strength, 0.058f + tint.g * strength, 0.09f + tint.b * strength);
+            var strength = isPlayerLane ? 0.13f : 0.07f;
+            return new Color(0.036f + tint.r * strength, 0.048f + tint.g * strength, 0.078f + tint.b * strength);
         }
 
-        private static Color RouteBandColor(int laneId) => laneId == 1 ? new Color(0.11f, 0.34f, 0.52f) : new Color(0.08f, 0.19f, 0.32f);
+        private static Color RouteBandColor(int laneId) => laneId == 1 ? new Color(0.13f, 0.39f, 0.6f) : new Color(0.085f, 0.24f, 0.4f);
+
+        private static Color RouteGuideColor(int laneId) => laneId == 1 ? new Color(0.36f, 0.72f, 1f) : new Color(0.19f, 0.42f, 0.72f);
 
         private static Color EndpointWashColor(Color color, bool isPlayerLane)
         {
-            var strength = isPlayerLane ? 0.36f : 0.24f;
+            var strength = isPlayerLane ? 0.42f : 0.25f;
             return new Color(color.r * strength, color.g * strength, color.b * strength);
         }
 
