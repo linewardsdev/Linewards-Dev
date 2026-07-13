@@ -1,30 +1,30 @@
 # Screenshot UI Review
 
-Status: Blocked
+Status: Needs Review
 
 ## Summary
 
 - Target branch: `art-creep-starter-set`.
 - Target platform/view: Unity Game view, mobile/portrait readability.
 - Intended coverage: default HUD, build menu, send menu after sending, lane selector, active combat, heavy pressure, reduced effects, and results screen.
-- Fresh screenshot capture was attempted from the live Unity editor session, but this shell session could not create display screenshots.
-- Because no current screenshots were captured, board-material readability and current HUD/menu coverage are not visually approved by this report.
+- Fresh screenshot capture now works after macOS permissions were fixed.
+- One current Unity editor/Game view screenshot was captured.
+- Build menu, send menu, lane selector, combat, heavy pressure, reduced effects, and results captures are still missing because remote click/hotkey driving did not change the Game view state from this shell session.
 
 ## Findings
 
 | Severity | Area | Evidence | Recommendation |
 | --- | --- | --- | --- |
-| High | Fresh capture blocked | `screencapture` returned `could not create image from display`; the macOS screenshot shortcut path also produced no screenshot file. | Capture from the visible Unity editor session manually or add an in-editor capture command before judging current UI/art pixels. |
-| High | Current visual approval unavailable | No fresh images exist for the post-merge `art-board-materials` state. | Do not mark the normal-phone-scale board verification checkbox until current captures are reviewed. |
-| Medium | Creep starter work needs fresh baseline | Runner, Brute, and Swarm polishing depends on the new board contrast, but no current board screenshot was available from this run. | Start creep polish with silhouette and value separation goals, then validate against fresh board screenshots before finalizing assets. |
+| High | Missing interaction states | Only the default/ready Game view state was captured. Build, send, lane selector, combat, heavy pressure, reduced effects, and results are still missing. | Capture these states manually from the visible Unity editor or add a dedicated in-editor visual capture runner. |
+| Medium | Board readability baseline | `captures/01-current-default.png` shows the post-merge board in ready state. The center route is visibly brighter than build bands, and spawn/leak endpoints are more distinct than the prior dark pass. | Use this as a baseline only; do not mark heavy-pressure or normal-phone-scale verification complete until combat captures exist. |
+| Medium | Creep starter work needs combat baseline | Runner, Brute, and Swarm polishing depends on the new board contrast, but no active creep screenshot was captured in this run. | Start creep polish with silhouette and value separation goals, then validate against fresh combat screenshots before finalizing assets. |
 
 ## Screenshot Notes
 
-- No fresh screenshots were created during this pass.
+- `captures/01-current-default.png`: Current Unity editor/Game view ready state. Useful for board route/build-band contrast and HUD placement baseline.
 
 ## Missing Coverage
 
-- Current default HUD after board-material merge.
 - Build menu open.
 - Send menu open and still open after sending.
 - Lane selector open.
