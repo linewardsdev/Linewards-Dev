@@ -23,11 +23,13 @@ namespace LTW.UnityClient.UI
         private static GUIStyle? statStyle;
         private static GUIStyle? metaStyle;
 
-        [SerializeField]
-        private UnitySimulationDriver simulationDriver = null!;
+        [SerializeField] private UnitySimulationDriver simulationDriver = null!;
+        [SerializeField] private bool showRuntimeHud = true;
 
-        [SerializeField]
-        private bool showRuntimeHud = true;
+        public void Initialize(UnitySimulationDriver driver)
+        {
+            simulationDriver = driver;
+        }
 
         private void OnGUI()
         {
@@ -68,6 +70,7 @@ namespace LTW.UnityClient.UI
             titleStyle.normal.textColor = StateAccent();
             var state = simulationDriver!.LatestMatchSummary is not null ? "RESULTS" : !simulationDriver.HasStarted ? "READY" : simulationDriver.IsPaused ? "PAUSED" : "LIVE";
             GUI.Label(new Rect(rect.xMax - 116f * scale, rect.y + 11f * scale, 100f * scale, 22f * scale), state, titleStyle);
+
             metaStyle!.fontSize = Mathf.RoundToInt(10f * scale);
             metaStyle.normal.textColor = Cloud;
             GUI.Label(new Rect(rect.xMax - 116f * scale, rect.y + 38f * scale, 100f * scale, 20f * scale), $"TICK {snapshot.Tick.Value}", metaStyle);
