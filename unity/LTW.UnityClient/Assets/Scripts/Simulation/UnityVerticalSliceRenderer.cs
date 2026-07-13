@@ -953,9 +953,17 @@ namespace LTW.UnityClient.Simulation
             ConfigureChild(shadow, true, new Vector3(0f, -0.42f, 0f), CreepShadowScale(creepId), new Color(0.015f, 0.022f, 0.035f));
 
             var nose = EnsureChild(creepObject, "RunnerNose", PrimitiveType.Cube);
+            var runnerTail = EnsureChild(creepObject, "RunnerTail", PrimitiveType.Cube);
+            var runnerLeftFin = EnsureChild(creepObject, "RunnerLeftFin", PrimitiveType.Cube);
+            var runnerRightFin = EnsureChild(creepObject, "RunnerRightFin", PrimitiveType.Cube);
             var armor = EnsureChild(creepObject, "BruteArmor", PrimitiveType.Cube);
+            var bruteLeftPlate = EnsureChild(creepObject, "BruteLeftPlate", PrimitiveType.Cube);
+            var bruteRightPlate = EnsureChild(creepObject, "BruteRightPlate", PrimitiveType.Cube);
+            var bruteCore = EnsureChild(creepObject, "BruteCore", PrimitiveType.Sphere);
             var swarmA = EnsureChild(creepObject, "SwarmDotA", PrimitiveType.Sphere);
             var swarmB = EnsureChild(creepObject, "SwarmDotB", PrimitiveType.Sphere);
+            var swarmC = EnsureChild(creepObject, "SwarmDotC", PrimitiveType.Sphere);
+            var swarmTrail = EnsureChild(creepObject, "SwarmTrail", PrimitiveType.Cylinder);
             var hover = EnsureChild(creepObject, "AirHoverRing", PrimitiveType.Cylinder);
             var shimmer = EnsureChild(creepObject, "StealthShimmer", PrimitiveType.Cylinder);
             var spike = EnsureChild(creepObject, "SiegeSpike", PrimitiveType.Cube);
@@ -966,11 +974,23 @@ namespace LTW.UnityClient.Simulation
             var isStealth = ContainsRole(creepId, "invisible") || ContainsRole(creepId, "stealth");
             var isSiege = ContainsRole(creepId, "attacker") || ContainsRole(creepId, "siege");
             var isRunner = !isSwarm && !isBrute && !isAir && !isStealth && !isSiege;
+            var senderColor = SenderColor(senderId);
 
             ConfigureChild(nose, isRunner, new Vector3(0f, 0.02f, 0.42f), new Vector3(0.16f, 0.1f, 0.34f), MintSignal);
+            ConfigureChild(runnerTail, isRunner, new Vector3(0f, -0.02f, -0.34f), new Vector3(0.1f, 0.08f, 0.28f), senderColor);
+            ConfigureChild(runnerLeftFin, isRunner, new Vector3(-0.24f, 0f, -0.04f), new Vector3(0.08f, 0.08f, 0.26f), senderColor);
+            ConfigureChild(runnerRightFin, isRunner, new Vector3(0.24f, 0f, -0.04f), new Vector3(0.08f, 0.08f, 0.26f), senderColor);
+
             ConfigureChild(armor, isBrute, new Vector3(0f, 0.26f, 0f), new Vector3(0.72f, 0.14f, 0.84f), new Color(1f, 0.72f, 0.38f));
-            ConfigureChild(swarmA, isSwarm, new Vector3(-0.42f, 0.05f, -0.24f), new Vector3(0.62f, 0.62f, 0.62f), SenderColor(senderId));
+            ConfigureChild(bruteLeftPlate, isBrute, new Vector3(-0.38f, 0.12f, 0.04f), new Vector3(0.18f, 0.28f, 0.62f), new Color(0.74f, 0.38f, 0.22f));
+            ConfigureChild(bruteRightPlate, isBrute, new Vector3(0.38f, 0.12f, 0.04f), new Vector3(0.18f, 0.28f, 0.62f), new Color(0.74f, 0.38f, 0.22f));
+            ConfigureChild(bruteCore, isBrute, new Vector3(0f, 0.42f, 0.18f), new Vector3(0.22f, 0.22f, 0.22f), SignalGold);
+
+            ConfigureChild(swarmA, isSwarm, new Vector3(-0.42f, 0.05f, -0.24f), new Vector3(0.62f, 0.62f, 0.62f), senderColor);
             ConfigureChild(swarmB, isSwarm, new Vector3(0.38f, 0.05f, 0.26f), new Vector3(0.52f, 0.52f, 0.52f), MintSignal);
+            ConfigureChild(swarmC, isSwarm, new Vector3(0.08f, 0.08f, -0.48f), new Vector3(0.44f, 0.44f, 0.44f), new Color(0.75f, 0.95f, 1f));
+            ConfigureChild(swarmTrail, isSwarm, new Vector3(0f, -0.18f, 0f), new Vector3(0.82f, 0.03f, 0.82f), senderColor);
+
             ConfigureChild(hover, isAir, new Vector3(0f, -0.52f, 0f), new Vector3(0.88f, 0.04f, 0.88f), new Color(0.82f, 0.72f, 1f));
             ConfigureChild(shimmer, isStealth, new Vector3(0f, 0f, 0f), new Vector3(1.1f, 0.05f, 1.1f), new Color(0.86f, 0.96f, 1f));
             ConfigureChild(spike, isSiege, new Vector3(0.28f, 0.08f, 0f), new Vector3(0.38f, 0.16f, 0.2f), new Color(1f, 0.3f, 0.36f));
