@@ -128,6 +128,7 @@ namespace LTW.UnityClient.Simulation
             {
                 CreateLaneBackplate(lane);
                 CreateLaneEnvironmentTrim(lane);
+                CreateLaneFlowTickMarks(lane);
                 CreateLaneSurfaceBands(lane);
                 for (var x = 0; x < LaneWidth; x++)
                 {
@@ -196,13 +197,17 @@ namespace LTW.UnityClient.Simulation
                 switch (simulationEvent)
                 {
                     case TowerPlacedEvent towerPlaced:
-                        SpawnEffect(GridToWorld(towerPlaced.Position, towerPlaced.LaneId), MintSignal, 0.68f, 0.34f);
-                        SpawnFloatingText(GridToWorld(towerPlaced.Position, towerPlaced.LaneId), "WARD", MintSignal, 0.62f);
+                        var buildPosition = GridToWorld(towerPlaced.Position, towerPlaced.LaneId);
+                        SpawnCellFrameCue(buildPosition, MintSignal, 0.28f);
+                        SpawnEffect(buildPosition, MintSignal, 0.68f, 0.34f);
+                        SpawnFloatingText(buildPosition, "WARD", MintSignal, 0.62f);
                         PlaySound(towerBuiltClip);
                         break;
                     case TowerSoldEvent towerSold:
-                        SpawnEffect(PositionFor(towerSold.TowerEntityId.Value.ToString()), SignalGold, 0.42f, 0.24f);
-                        SpawnFloatingText(PositionFor(towerSold.TowerEntityId.Value.ToString()), $"+{towerSold.Refund.Amount}", SignalGold, 0.58f);
+                        var sellPosition = PositionFor(towerSold.TowerEntityId.Value.ToString());
+                        SpawnCellFrameCue(sellPosition, SignalGold, 0.24f);
+                        SpawnEffect(sellPosition, SignalGold, 0.42f, 0.24f);
+                        SpawnFloatingText(sellPosition, $"+{towerSold.Refund.Amount}", SignalGold, 0.58f);
                         break;
                     case CreepQueuedEvent queued:
                         SpawnSendCue(queued);
@@ -230,6 +235,7 @@ namespace LTW.UnityClient.Simulation
                         break;
                     case LeakEvent leak:
                         var position = PositionFor(leak.CreepEntityId.Value.ToString());
+                        SpawnLeakGateCue(leak.DefenderId.Value);
                         SpawnEffect(position, LeakRed, 0.86f, 0.42f);
                         SpawnFloatingText(position, $"-{leak.LivesLost.Amount} LIFE", LeakRed, 0.72f);
                         if (leak.BountyAwarded.Amount > 0)
@@ -241,16 +247,19 @@ namespace LTW.UnityClient.Simulation
                         TriggerHapticFeedback();
                         break;
                     case IncomeTickEvent incomeTick:
+                        SpawnIncomeLaneCue(incomeTick.PlayerId.Value);
                         SpawnEffect(IncomePosition(incomeTick.PlayerId.Value), SignalGold, 0.46f, 0.22f);
                         SpawnFloatingText(IncomePosition(incomeTick.PlayerId.Value), $"+{incomeTick.GoldAwarded.Amount} income", SignalGold, 0.58f);
                         PlaySound(incomeClip);
                         break;
                     case PlayerEliminatedEvent eliminated:
-                        SpawnEffect(LaneCenter(eliminated.PlayerId.Value) + Vector3.up * 0.2f, new Color(1f, 0.18f, 0.24f), 1.15f, 0.55f);
-                        SpawnFloatingText(LaneCenter(eliminated.PlayerId.Value) + Vector3.up * 1.2f, $"PLAYER {eliminated.PlayerId.Value} OUT", new Color(1f, 0.35f, 0.35f), 0.8f);
+                        SpawnLaneShutdownCue(eliminated.PlayerId.Value);
+                        SpawnEffect(LaneCenter(eliminated.PlayerId.Value) + Vector3.up * 0.2f, LeakRed, 1.15f, 0.55f);
+                        SpawnFloatingText(LaneCenter(eliminated.PlayerId.Value) + Vector3.up * 1.2f, $"PLAYER {eliminated.PlayerId.Value} OUT", LeakRed, 0.8f);
                         PlaySound(eliminationClip);
                         break;
                     case MatchEndedEvent ended:
+                        SpawnVictoryLaneCue(ended.WinnerId.Value);
                         SpawnFloatingText(LaneCenter(ended.WinnerId.Value) + Vector3.up * 1.85f, $"PLAYER {ended.WinnerId.Value} WINS", SignalGold, 1f);
                         PlaySound(eliminationClip);
                         break;
@@ -331,6 +340,55 @@ namespace LTW.UnityClient.Simulation
             {
                 feedbackAudioSource.PlayOneShot(clip, PresentationPreferences.FeedbackVolume);
             }
+        }
+
+        private void SpawnCellFrameCue(Vector3 center, Color color, float duration)
+        {
+            var northWest = center + new Vector3(-0.48f, 0.18f, 0.48f);
+            var northEast = center + new Vector3(0.48f, 0.18f, 0.48f);
+            var southWest = center + new Vector3(-0.48f, 0.18f, -0.48f);
+            var southEast = center + new Vector3(0.48f, 0.18f, -0.48f);
+            SpawnBeam(northWest, northEast, color, duration);
+            SpawnBeam(southWest, southEast, color, duration);
+            SpawnBeam(northWest, southWest, color, duration);
+            SpawnBeam(northEast, southEast, color, duration);
+        }
+
+        private void SpawnLeakGateCue(int laneId)
+        {
+            var offset = LaneOffset(laneId);
+            var gateCenter = GridToWorld(new GridPosition(CenterColumn, LaneLength - 1), new LaneId(laneId)) + Vector3.up * 0.24f;
+            SpawnEffect(gateCenter, LeakRed, 0.72f, 0.34f);
+            SpawnBeam(new Vector3(offset + 0.7f, 0.48f, WorldZ(LaneLength - 1)), new Vector3(offset + LaneWidth - 1.7f, 0.48f, WorldZ(LaneLength - 1)), LeakRed, 0.3f);
+        }
+
+        private void SpawnIncomeLaneCue(int laneId)
+        {
+            var offset = LaneOffset(laneId);
+            var west = new Vector3(offset + 0.85f, 0.42f, WorldZ(1));
+            var east = new Vector3(offset + LaneWidth - 1.85f, 0.42f, WorldZ(1));
+            SpawnEffect(LaneCenter(laneId) + Vector3.up * 0.18f, SignalGold, 0.34f, 0.18f);
+            SpawnBeam(west, east, SignalGold, 0.2f);
+        }
+
+        private void SpawnLaneShutdownCue(int laneId)
+        {
+            var offset = LaneOffset(laneId);
+            var southwest = new Vector3(offset + 0.55f, 0.52f, 0.45f);
+            var northeast = new Vector3(offset + LaneWidth - 1.55f, 0.52f, LaneLength - 0.45f);
+            var northwest = new Vector3(offset + 0.55f, 0.52f, LaneLength - 0.45f);
+            var southeast = new Vector3(offset + LaneWidth - 1.55f, 0.52f, 0.45f);
+            SpawnBeam(southwest, northeast, LeakRed, 0.48f);
+            SpawnBeam(northwest, southeast, LeakRed, 0.48f);
+        }
+
+        private void SpawnVictoryLaneCue(int laneId)
+        {
+            var center = LaneCenter(laneId);
+            var offset = LaneOffset(laneId);
+            SpawnEffect(center + Vector3.up * 0.38f, SignalGold, 1.05f, 0.45f);
+            SpawnBeam(new Vector3(offset + 0.65f, 0.5f, BoardCenterZ), new Vector3(offset + LaneWidth - 1.65f, 0.5f, BoardCenterZ), SignalGold, 0.42f);
+            SpawnBeam(new Vector3(offset + BoardCenterX, 0.5f, 0.65f), new Vector3(offset + BoardCenterX, 0.5f, LaneLength - 0.65f), SignalGold, 0.42f);
         }
 
         private void SpawnSendCue(CreepQueuedEvent queued)
@@ -562,6 +620,29 @@ namespace LTW.UnityClient.Simulation
             pylon.transform.localScale = new Vector3(0.22f * focusScale, 0.38f * focusScale, 0.22f * focusScale);
             SetColor(pylon, color);
             laneDecorations.Add(pylon);
+        }
+
+        private void CreateLaneFlowTickMarks(int laneId)
+        {
+            var offset = LaneOffset(laneId);
+            var color = LaneTickColor(OwnerAccent(laneId), laneId == 1);
+
+            for (var y = 2; y < LaneLength - 1; y += 3)
+            {
+                var z = WorldZ(y);
+                CreateFlowTick(laneId, $"WestTick{y}", new Vector3(offset - 0.58f, -0.16f, z), color, -18f, laneId == 1);
+                CreateFlowTick(laneId, $"EastTick{y}", new Vector3(offset + LaneWidth - 0.42f, -0.16f, z), color, 18f, laneId == 1);
+            }
+        }
+
+        private void CreateFlowTick(int laneId, string name, Vector3 position, Color color, float rotationY, bool isPlayerLane)
+        {
+            var tick = CreatePrimitive($"Lane{laneId}{name}", PrimitiveType.Cube);
+            tick.transform.position = position;
+            tick.transform.rotation = Quaternion.Euler(0f, rotationY, 0f);
+            tick.transform.localScale = new Vector3(isPlayerLane ? 0.1f : 0.075f, 0.055f, isPlayerLane ? 0.42f : 0.32f);
+            SetColor(tick, color);
+            laneDecorations.Add(tick);
         }
 
         private void CreateLaneSurfaceBands(int laneId)
@@ -1088,6 +1169,12 @@ namespace LTW.UnityClient.Simulation
         private static Color LaneAnchorColor(Color accent, bool isPlayerLane)
         {
             var strength = isPlayerLane ? 0.34f : 0.18f;
+            return new Color(accent.r * strength, accent.g * strength, accent.b * strength);
+        }
+
+        private static Color LaneTickColor(Color accent, bool isPlayerLane)
+        {
+            var strength = isPlayerLane ? 0.5f : 0.26f;
             return new Color(accent.r * strength, accent.g * strength, accent.b * strength);
         }
 
