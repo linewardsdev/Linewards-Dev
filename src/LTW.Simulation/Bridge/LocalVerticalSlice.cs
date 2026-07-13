@@ -216,11 +216,12 @@ public sealed class LocalVerticalSlice
                     pendingEvents.Add(new PlayerEliminatedEvent(tick, leak.DefenderId));
                 }
 
-                var nextLaneId = NextLaneId(leakedCreep.LaneId);
-                var nextDefenderId = combatContent.GetLaneOwner(nextLaneId);
-                if (!nextDefenderId.Equals(leakedCreep.SenderId))
+                var nextLaneId = NextActiveOpponentLaneId(leakedCreep.LaneId, leakedCreep.SenderId);
+                if (nextLaneId is not null)
                 {
-                    var transferred = combat.SpawnCreep(NextEntityId(), creep, leakedCreep.SenderId, nextLaneId);
+                    var laneId = nextLaneId.Value;
+                    var nextDefenderId = combatContent.GetLaneOwner(laneId);
+                    var transferred = combat.SpawnCreep(NextEntityId(), creep, leakedCreep.SenderId, laneId);
                     combatState = new CombatState(combatState.Creeps.Concat(new[] { transferred }), combatState.Towers);
                     pendingEvents.Add(new CreepSpawnedEvent(tick, transferred.EntityId, transferred.CreepId, transferred.SenderId, nextDefenderId));
                 }
@@ -323,7 +324,20 @@ public sealed class LocalVerticalSlice
 
     private EntityId NextEntityId() => new EntityId(nextEntityId++);
 
-    private static LaneId NextLaneId(LaneId laneId) => new(laneId.Value % 3 + 1);
+    private LaneId? NextActiveOpponentLaneId(LaneId currentLaneId, PlayerId senderId)
+    {
+        for (var offset = 1; offset <= routes.Count; offset++)
+        {
+            var laneId = new LaneId((currentLaneId.Value - 1 + offset) % routes.Count + 1);
+            var defenderId = combatContent.GetLaneOwner(laneId);
+            if (!defenderId.Equals(senderId) && !players.Get(defenderId).IsEliminated)
+            {
+                return laneId;
+            }
+        }
+
+        return null;
+    }
 
     private static CommandRejectionReason ToCommandRejection(PlacementRejectionReason reason)
     {

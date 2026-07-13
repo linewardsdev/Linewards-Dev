@@ -309,7 +309,7 @@ public sealed class VerticalSliceBridgeTests
     }
 
     [Fact]
-    public void Sent_creeps_exit_after_the_final_opponent_lane()
+    public void Sent_creeps_cycle_through_active_opponent_lanes_until_killed()
     {
         var simulation = new LocalVerticalSlice(SampleVerticalSliceContent.Create());
         Assert.True(simulation.QueueSend(new PlayerId(1), SampleVerticalSliceContent.CreepId).Accepted);
@@ -322,7 +322,12 @@ public sealed class VerticalSliceBridgeTests
         var snapshot = simulation.GetSnapshot();
         var events = simulation.DrainEvents();
 
-        Assert.DoesNotContain(snapshot.Creeps, creep => creep.SenderId.Equals(new PlayerId(1)));
+        Assert.Contains(snapshot.Creeps, creep =>
+            creep.SenderId.Equals(new PlayerId(1)) &&
+            creep.LaneId.Equals(new LaneId(2)));
+        Assert.DoesNotContain(snapshot.Creeps, creep =>
+            creep.SenderId.Equals(new PlayerId(1)) &&
+            creep.LaneId.Equals(new LaneId(1)));
         Assert.Contains(events, simulationEvent =>
             simulationEvent is LeakEvent leak &&
             leak.SenderId.Equals(new PlayerId(1)) &&
@@ -331,6 +336,10 @@ public sealed class VerticalSliceBridgeTests
             simulationEvent is CreepSpawnedEvent spawned &&
             spawned.SenderId.Equals(new PlayerId(1)) &&
             spawned.DefenderId.Equals(new PlayerId(1)));
+        Assert.Contains(events, simulationEvent =>
+            simulationEvent is CreepSpawnedEvent spawned &&
+            spawned.SenderId.Equals(new PlayerId(1)) &&
+            spawned.DefenderId.Equals(new PlayerId(2)));
     }
 
     [Fact]
