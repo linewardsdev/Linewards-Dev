@@ -22,8 +22,8 @@ namespace LTW.UnityClient.UI
         private static GUIStyle? pillStyle;
         private static GUIStyle? labelStyle;
         private static GUIStyle? valueStyle;
-        private static GUIStyle? laneStyle;
         private static GUIStyle? buttonStyle;
+        private static GUIStyle? metaStyle;
 
         [SerializeField]
         private bool showRuntimeHud = true;
@@ -52,8 +52,6 @@ namespace LTW.UnityClient.UI
         public string KillsText { get; private set; } = "0";
 
         public string LeaksText { get; private set; } = "0";
-
-        public string LaneText { get; private set; } = "Your Line";
 
         public bool IncomeTickSoon { get; private set; }
 
@@ -109,7 +107,6 @@ namespace LTW.UnityClient.UI
             incomeTicksRemaining = IncomeIntervalTicks - snapshot.Tick.Value % IncomeIntervalTicks;
             IncomeTimerText = incomeTicksRemaining.ToString();
             IncomeTickSoon = incomeTicksRemaining <= 5;
-            LaneText = "Your Line";
         }
 
         private void OnGUI()
@@ -124,7 +121,7 @@ namespace LTW.UnityClient.UI
             var scale = MobileViewportLayout.UiScale();
             var gap = 4f * scale;
             var headerHeight = 52f * scale;
-            var drawerHeight = 96f * scale;
+            var drawerHeight = 78f * scale;
             var height = statsExpanded ? headerHeight + gap + drawerHeight : headerHeight;
             var strip = MobileViewportLayout.TopHudRect(scale, height);
             DrawPanel(strip, NightInk);
@@ -137,10 +134,9 @@ namespace LTW.UnityClient.UI
 
             var drawer = new Rect(strip.x + gap, strip.y + headerHeight + gap, strip.width - gap * 2f, drawerHeight - gap);
             var cellWidth = (drawer.width - gap * 3f) / 4f;
-            var rowHeight = (drawer.height - gap) * 0.5f;
+            var rowHeight = 48f * scale;
             var x = strip.x + gap;
             var topY = drawer.y;
-            var bottomY = topY + rowHeight + gap;
 
             x = DrawStatPill(x, topY, cellWidth, rowHeight, "LIVES", LivesText, Danger, scale);
             x += gap;
@@ -149,15 +145,7 @@ namespace LTW.UnityClient.UI
             x = DrawStatPill(x, topY, cellWidth, rowHeight, "INCOME", $"+{IncomeText}", MintSignal, scale);
             x += gap;
             DrawTimerPill(x, topY, cellWidth, rowHeight, scale);
-
-            x = drawer.x;
-            x = DrawStatPill(x, bottomY, cellWidth, rowHeight, "TIME", MatchTimeText, Cloud, scale);
-            x += gap;
-            x = DrawStatPill(x, bottomY, cellWidth, rowHeight, "KILLS", KillsText, MintSignal, scale);
-            x += gap;
-            x = DrawStatPill(x, bottomY, cellWidth, rowHeight, "LEAKS", LeaksText, LeaksText == "0" ? ArcaneBlue : Danger, scale);
-            x += gap;
-            DrawStatPill(x, bottomY, cellWidth, rowHeight, "PRESS", PressureText, PressureText == "0" ? ArcaneBlue : Danger, scale);
+            DrawSecondaryStats(new Rect(drawer.x + 6f * scale, topY + rowHeight + 4f * scale, drawer.width - 12f * scale, 20f * scale), scale);
         }
 
         private static void EnsureStyles()
@@ -188,12 +176,6 @@ namespace LTW.UnityClient.UI
                 normal = { textColor = Cloud }
             };
 
-            laneStyle = new GUIStyle(valueStyle)
-            {
-                alignment = TextAnchor.MiddleCenter,
-                normal = { textColor = Cloud }
-            };
-
             buttonStyle = new GUIStyle(GUI.skin.button)
             {
                 alignment = TextAnchor.MiddleCenter,
@@ -201,6 +183,13 @@ namespace LTW.UnityClient.UI
                 margin = ZeroOffset(),
                 padding = ZeroOffset(),
                 normal = { textColor = Cloud }
+            };
+
+            metaStyle = new GUIStyle(GUI.skin.label)
+            {
+                alignment = TextAnchor.MiddleCenter,
+                fontStyle = FontStyle.Bold,
+                normal = { textColor = new Color(Cloud.r, Cloud.g, Cloud.b, 0.74f) }
             };
         }
 
@@ -221,7 +210,7 @@ namespace LTW.UnityClient.UI
             DrawAccent(new Rect(left.x, left.yMax - 3f * scale, left.width, 3f * scale), ArcaneBlue);
             buttonStyle!.fontSize = Mathf.RoundToInt(10f * scale);
             buttonStyle.normal.textColor = ArcaneBlue;
-            if (GUI.Button(left, statsExpanded ? "HIDE\nSTATS" : "STATS\n▼", buttonStyle))
+            if (GUI.Button(left, statsExpanded ? "HIDE" : "STATS ▼", buttonStyle))
             {
                 statsExpanded = !statsExpanded;
             }
@@ -232,17 +221,6 @@ namespace LTW.UnityClient.UI
             valueStyle.normal.textColor = Cloud;
             var summary = $"{LivesText}♥  {GoldText}G  +{IncomeText}  P{PressureText}";
             GUI.Label(new Rect(center.x + 8f * scale, center.y, center.width - 16f * scale, center.height), summary, valueStyle);
-        }
-
-        private float DrawLanePill(float x, float y, float width, float height, float scale)
-        {
-            var rect = new Rect(x, y, width, height);
-            DrawPanel(rect, TintPanel(ArcaneBlue, 0.05f));
-            DrawAccent(new Rect(rect.x, rect.yMax - 4f * scale, rect.width, 4f * scale), ArcaneBlue);
-
-            laneStyle!.fontSize = Mathf.RoundToInt(14f * scale);
-            GUI.Label(rect, LaneText.ToUpperInvariant(), laneStyle);
-            return rect.xMax;
         }
 
         private static float DrawStatPill(float x, float y, float width, float height, string label, string value, Color accent, float scale)
@@ -258,6 +236,13 @@ namespace LTW.UnityClient.UI
             GUI.Label(new Rect(rect.x, rect.y + 4f * scale, rect.width, 14f * scale), label, labelStyle);
             GUI.Label(new Rect(rect.x, rect.y + 16f * scale, rect.width, rect.height - 16f * scale), value, valueStyle);
             return rect.xMax;
+        }
+
+        private void DrawSecondaryStats(Rect rect, float scale)
+        {
+            metaStyle!.fontSize = Mathf.RoundToInt(10f * scale);
+            metaStyle.normal.textColor = new Color(Cloud.r, Cloud.g, Cloud.b, 0.76f);
+            GUI.Label(rect, $"KILLS {KillsText}   LEAKS {LeaksText}   CREEPS {PressureText}   TIME {MatchTimeText}", metaStyle);
         }
 
         private float DrawTimerPill(float x, float y, float width, float height, float scale)
