@@ -21,6 +21,8 @@ namespace LTW.UnityClient.Simulation
 
         [SerializeField] private UnitySimulationDriver simulationDriver = null!;
         [SerializeField] private PresentationDetail presentationDetail = PresentationDetail.Full;
+        [SerializeField] private LaneCameraFraming cameraFraming = LaneCameraFraming.AllLanes;
+        [SerializeField] private int activeLaneCameraId = 1;
 
         private AudioSource feedbackAudioSource = null!;
         private AudioClip towerBuiltClip = null!;
@@ -34,6 +36,9 @@ namespace LTW.UnityClient.Simulation
         private readonly Dictionary<string, GameObject> activeTowers = new Dictionary<string, GameObject>();
         private readonly Dictionary<string, GameObject> activeCreeps = new Dictionary<string, GameObject>();
         private readonly Dictionary<string, Vector3> lastKnownPositions = new Dictionary<string, Vector3>();
+        private readonly Dictionary<int, GameObject> lanePressureMeters = new Dictionary<int, GameObject>();
+        private readonly Dictionary<int, GameObject> lanePressureCaps = new Dictionary<int, GameObject>();
+        private readonly Dictionary<int, TextMesh> lanePressureLabels = new Dictionary<int, TextMesh>();
         private readonly List<GameObject> laneCells = new List<GameObject>();
         private readonly List<GameObject> laneDecorations = new List<GameObject>();
         private readonly HashSet<string> visibleKeys = new HashSet<string>();
@@ -80,7 +85,7 @@ namespace LTW.UnityClient.Simulation
             }
         }
 
-        private static void ConfigureDefaultCamera()
+        private void ConfigureDefaultCamera()
         {
             var camera = Camera.main;
             if (camera == null)
@@ -88,10 +93,13 @@ namespace LTW.UnityClient.Simulation
                 return;
             }
 
-            var boardCenter = new Vector3(LaneOffset(2) + BoardCenterX, 0f, BoardCenterZ);
+            var clampedLane = Mathf.Clamp(activeLaneCameraId, 1, 3);
+            var boardCenter = cameraFraming == LaneCameraFraming.ActiveLane
+                ? LaneCenter(clampedLane)
+                : new Vector3(LaneOffset(2) + BoardCenterX, 0f, BoardCenterZ);
             camera.orthographic = true;
-            camera.orthographicSize = 11.4f;
-            camera.transform.position = boardCenter + new Vector3(0f, 17.5f, -7.4f);
+            camera.orthographicSize = cameraFraming == LaneCameraFraming.ActiveLane ? 9.2f : 11.4f;
+            camera.transform.position = boardCenter + new Vector3(0f, 17.5f, cameraFraming == LaneCameraFraming.ActiveLane ? -6.2f : -7.4f);
             camera.transform.LookAt(boardCenter);
         }
 
@@ -175,6 +183,7 @@ namespace LTW.UnityClient.Simulation
 
             ReleaseMissing(activeTowers, towerPool);
             visibleKeys.Clear();
+            var pressureByLane = new int[4];
             foreach (var creep in snapshot.Creeps)
             {
                 var key = creep.EntityId.Value.ToString();
@@ -185,9 +194,86 @@ namespace LTW.UnityClient.Simulation
                 SetColor(creepObject, CreepRoleColor(creep.CreepId.Value, creep.SenderId.Value));
                 ConfigureCreepRoleMarker(creepObject, creep.CreepId.Value, creep.SenderId.Value);
                 lastKnownPositions[key] = creepObject.transform.position;
+                if (creep.LaneId.Value >= 1 && creep.LaneId.Value < pressureByLane.Length)
+                {
+                    pressureByLane[creep.LaneId.Value]++;
+                }
             }
 
             ReleaseMissing(activeCreeps, creepPool);
+            UpdateLanePressureIndicators(pressureByLane);
+        }
+
+        private void UpdateLanePressureIndicators(IReadOnlyList<int> pressureByLane)
+        {
+            for (var laneId = 1; laneId <= 3; laneId++)
+            {
+                var pressure = pressureByLane[laneId];
+                var meter = GetLanePressureMeter(laneId);
+                var color = PressureColor(pressure);
+                var fill = Mathf.Clamp(pressure, 0, 12) / 12f;
+                var length = Mathf.Lerp(0.28f, LaneLength * 0.54f, fill);
+                meter.transform.localScale = new Vector3(0.16f, 0.12f, length);
+                meter.transform.position = new Vector3(LaneOffset(laneId) + LaneWidth + 0.18f, -0.08f, 0.35f + length * 0.5f);
+                SetColor(meter, color);
+
+                var cap = GetLanePressureCap(laneId);
+                cap.SetActive(pressure >= 8);
+                cap.transform.position = new Vector3(LaneOffset(laneId) + LaneWidth + 0.18f, 0.04f, 0.35f + length);
+                SetColor(cap, LeakRed);
+
+                var label = GetLanePressureLabel(laneId);
+                label.text = PressureLabel(pressure);
+                label.color = color;
+            }
+        }
+
+        private GameObject GetLanePressureMeter(int laneId)
+        {
+            if (lanePressureMeters.TryGetValue(laneId, out var meter))
+            {
+                return meter;
+            }
+
+            meter = CreatePrimitive($"Lane{laneId}PressureMeter", PrimitiveType.Cube);
+            lanePressureMeters[laneId] = meter;
+            laneDecorations.Add(meter);
+            return meter;
+        }
+
+        private GameObject GetLanePressureCap(int laneId)
+        {
+            if (lanePressureCaps.TryGetValue(laneId, out var cap))
+            {
+                return cap;
+            }
+
+            cap = CreatePrimitive($"Lane{laneId}PressureCap", PrimitiveType.Sphere);
+            cap.transform.localScale = new Vector3(0.38f, 0.18f, 0.38f);
+            lanePressureCaps[laneId] = cap;
+            laneDecorations.Add(cap);
+            return cap;
+        }
+
+        private TextMesh GetLanePressureLabel(int laneId)
+        {
+            if (lanePressureLabels.TryGetValue(laneId, out var label))
+            {
+                return label;
+            }
+
+            var labelObject = new GameObject($"Lane{laneId}PressureLabel");
+            labelObject.transform.position = new Vector3(LaneOffset(laneId) + LaneWidth + 0.34f, 0.08f, LaneLength * 0.58f);
+            labelObject.transform.rotation = Quaternion.Euler(90f, 0f, 90f);
+            labelObject.transform.localScale = Vector3.one * 0.03f;
+            label = labelObject.AddComponent<TextMesh>();
+            label.anchor = TextAnchor.MiddleCenter;
+            label.alignment = TextAlignment.Center;
+            label.fontSize = 40;
+            label.characterSize = 0.16f;
+            lanePressureLabels[laneId] = label;
+            laneDecorations.Add(labelObject);
+            return label;
         }
 
         private void RenderEvents(IReadOnlyList<ISimulationEvent> events)
@@ -224,11 +310,15 @@ namespace LTW.UnityClient.Simulation
                         break;
                     case CreepDamagedEvent damaged:
                         var hitPosition = PositionFor(damaged.CreepEntityId.Value.ToString());
-                        SpawnBeam(GridToWorld(damaged.TowerPosition, damaged.LaneId) + Vector3.up * 0.35f, hitPosition + Vector3.up * 0.12f, MintSignal, 0.16f);
+                        var towerPosition = GridToWorld(damaged.TowerPosition, damaged.LaneId);
+                        SpawnTowerMuzzleCue(towerPosition, TowerShotColor(damaged.DamageDealt), damaged.DamageDealt);
+                        SpawnBeam(towerPosition + Vector3.up * 0.35f, hitPosition + Vector3.up * 0.12f, TowerShotColor(damaged.DamageDealt), 0.16f);
+                        SpawnCreepHitCue(hitPosition, new Color(1f, 0.88f, 0.44f), damaged.DamageDealt);
                         SpawnEffect(hitPosition, new Color(1f, 0.88f, 0.44f), 0.24f, 0.12f);
                         if (damaged.DamageDealt >= 5)
                         {
                             SpawnFloatingText(hitPosition + Vector3.left * 0.32f, damaged.DamageDealt.ToString(), new Color(1f, 0.88f, 0.44f), 0.32f);
+                            SpawnReducedEffectCue(hitPosition, "HIT", new Color(1f, 0.88f, 0.44f));
                         }
 
                         PlaySound(towerHitClip);
@@ -368,6 +458,22 @@ namespace LTW.UnityClient.Simulation
             SpawnCellFrameCue(spawn, color, 0.22f);
             SpawnBeam(spawn + new Vector3(-0.54f, 0.22f, 0.54f), spawn + new Vector3(0.54f, 0.22f, -0.54f), color, 0.18f);
             SpawnBeam(spawn + new Vector3(0.54f, 0.22f, 0.54f), spawn + new Vector3(-0.54f, 0.22f, -0.54f), color, 0.18f);
+        }
+
+        private void SpawnTowerMuzzleCue(Vector3 position, Color color, int damage)
+        {
+            var scale = damage >= 5 ? 0.48f : 0.34f;
+            var muzzle = position + Vector3.up * 0.58f;
+            SpawnBeam(muzzle + new Vector3(-scale, 0f, 0f), muzzle + new Vector3(scale, 0f, 0f), color, 0.1f);
+            SpawnBeam(muzzle + new Vector3(0f, 0f, -scale), muzzle + new Vector3(0f, 0f, scale), color, 0.1f);
+            SpawnEffect(muzzle, color, damage >= 5 ? 0.3f : 0.22f, 0.1f);
+        }
+
+        private void SpawnCreepHitCue(Vector3 position, Color color, int damage)
+        {
+            var scale = damage >= 5 ? 0.44f : 0.3f;
+            SpawnBeam(position + new Vector3(-scale, 0.2f, 0f), position + new Vector3(scale, 0.2f, 0f), color, 0.1f);
+            SpawnBeam(position + new Vector3(0f, 0.2f, -scale), position + new Vector3(0f, 0.2f, scale), color, 0.1f);
         }
 
         private void SpawnCreepDeathCue(Vector3 position, Color color)
@@ -1279,6 +1385,33 @@ namespace LTW.UnityClient.Simulation
             return new Color(accent.r * strength, accent.g * strength, accent.b * strength);
         }
 
+        private static Color PressureColor(int pressure)
+        {
+            if (pressure >= 8)
+            {
+                return LeakRed;
+            }
+
+            if (pressure >= 4)
+            {
+                return SignalGold;
+            }
+
+            return MintSignal;
+        }
+
+        private static string PressureLabel(int pressure)
+        {
+            if (pressure == 0)
+            {
+                return "CALM";
+            }
+
+            return pressure >= 8 ? $"DANGER {pressure}" : $"PRESS {pressure}";
+        }
+
+        private static Color TowerShotColor(int damage) => damage >= 5 ? SignalGold : MintSignal;
+
         private static Color BuildZoneColor(Color tint, bool isPlayerLane)
         {
             var strength = isPlayerLane ? 0.16f : 0.09f;
@@ -1377,5 +1510,11 @@ namespace LTW.UnityClient.Simulation
         Disabled,
         Simplified,
         Full,
+    }
+
+    public enum LaneCameraFraming
+    {
+        AllLanes,
+        ActiveLane,
     }
 }
