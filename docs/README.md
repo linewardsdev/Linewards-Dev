@@ -14,6 +14,7 @@ This folder contains the durable project documentation for Line Wards, the mobil
 - [MVP dependencies](MVP_DEPENDENCIES.md)
 - [MVP implementation checklist](MVP_IMPLEMENTATION_CHECKLIST.md)
 - [Gameplay development checklist](GAMEPLAY_DEVELOPMENT_CHECKLIST.md)
+- [Content roster expansion plan](CONTENT_ROSTER_EXPANSION_PLAN.md)
 - [iOS device validation](IOS_DEVICE_VALIDATION.md)
 
 ## Product And Brand
@@ -24,4 +25,3 @@ This folder contains the durable project documentation for Line Wards, the mobil
 ## Related Context
 
 - [Line Wards LTW graphics art-direction skill](../skill/line-wards-ltw-graphics-art-direction.md)
-
