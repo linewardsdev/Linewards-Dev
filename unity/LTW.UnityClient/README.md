@@ -21,9 +21,13 @@ When the local vertical slice scene is running, development hotkeys can exercise
 - `B`: place the default single-target ward.
 - `C`: place the control ward placeholder.
 - `U`: place the utility/economy ward placeholder.
+- `T`: place the pulse ward placeholder.
+- `Y`: place the prism ward placeholder.
 - `S`: send a runner creep.
 - `V`: send a brute creep.
 - `W`: send a swarm group.
+- `D`: send a shade creep.
+- `G`: send a siege creep.
 - `X`: sell the selected tower, or the last sample tower if none is selected.
 - `Space`: start, pause, or resume the local match.
 - `R`: reset the match to the ready state.

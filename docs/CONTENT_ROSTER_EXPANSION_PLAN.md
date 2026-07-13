@@ -181,33 +181,33 @@ These numbers are starting points for implementation, not final balance.
 - [x] Define the 5 tower categories.
 - [x] Define the 5 creep categories.
 - [x] Decide that first pass stays mostly stat-based.
-- [ ] Confirm final names and ids.
-- [ ] Confirm whether the menu uses one row of five or a 3+2 grid.
-- [ ] Confirm whether Shade/Siege replace Air/Boss for the first five.
+- [x] Confirm final names and ids for the prototype.
+- [x] Confirm the menu uses a 3+2 grid.
+- [x] Confirm Shade/Siege replace Air/Boss for the first five.
 
 ### Phase 2: Simulation Content
 
-- [ ] Add `tower.pulse` and `tower.prism` to sample content.
-- [ ] Add `creep.shade` and `creep.siege` to sample content.
-- [ ] Add tests that sample content validates with 5 towers and 5 creeps.
-- [ ] Add affordability/command tests for the new content.
+- [x] Add `tower.pulse` and `tower.prism` to sample content.
+- [x] Add `creep.shade` and `creep.siege` to sample content.
+- [x] Add tests that sample content validates with 5 towers and 5 creeps.
+- [x] Add command acceptance tests for the new content.
 - [ ] Add scenario tests for low, normal, heavy, and mixed-pressure sends.
 
 ### Phase 3: Unity Controls
 
-- [ ] Expand build menu from 3 tower buttons to 5.
-- [ ] Expand send menu from 3 creep buttons to 5.
-- [ ] Add hotkeys for the new tower and send slots.
-- [ ] Keep expanded menus above the bottom launcher row.
+- [x] Expand build menu from 3 tower buttons to 5.
+- [x] Expand send menu from 3 creep buttons to 5.
+- [x] Add hotkeys for the new tower and send slots.
+- [x] Keep expanded menus above the bottom launcher row.
 - [ ] Add selected-detail strip or compact role hint if needed.
 - [ ] Verify no text crowding at phone-size capture.
 
 ### Phase 4: Presentation And Readability
 
-- [ ] Add primitive/fallback visual language for Pulse and Prism towers.
-- [ ] Add primitive/fallback visual language for Shade and Siege creeps.
-- [ ] Add asset folders/readmes for new tower and creep roles.
-- [ ] Update art checklist for the 5x2 roster.
+- [x] Add primitive/fallback visual language for Pulse and Prism towers.
+- [x] Add primitive/fallback visual language for Shade and Siege creeps.
+- [x] Add asset folders/readmes for new tower and creep roles.
+- [x] Update art checklist for the 5x2 roster.
 - [ ] Run screenshot capture set with build menu, send menu, active combat, heavy pressure, and results.
 
 ### Phase 5: Balance And Bots
@@ -221,10 +221,10 @@ These numbers are starting points for implementation, not final balance.
 ## Open Questions
 
 1. Should Relay become a real economy modifier now, or remain a low-damage utility placeholder until tower abilities exist?
-2. Should Pulse get true splash immediately, or should it remain a stat placeholder for the first implementation pass?
-3. Should Shade have real stealth/detection now, or visual stealth only?
-4. Should Siege have a special leak penalty/windup, or just high-health pressure?
-5. Should the mobile menu use 5 horizontal buttons or a 3+2 grid?
+2. Should Pulse get true splash next, or remain a stat placeholder until the ability system is formalized?
+3. Should Shade get real stealth/detection next, or remain visual stealth only for another balance pass?
+4. Should Siege get a special leak penalty/windup next, or just high-health pressure for another balance pass?
+5. Do the 3+2 build/send menus pass phone-size screenshot review after Unity capture?
 
 ## Recommended Next Branch
 

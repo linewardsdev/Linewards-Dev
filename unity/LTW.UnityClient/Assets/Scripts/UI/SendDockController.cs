@@ -46,6 +46,10 @@ namespace LTW.UnityClient.UI
 
         public void SendSwarm() => Send(commandAdapter.SendSwarmCreep(), "Swarm sent", 18);
 
+        public void SendShade() => Send(commandAdapter.SendShadeCreep(), "Shade sent", 24);
+
+        public void SendSiege() => Send(commandAdapter.SendSiegeCreep(), "Siege sent", 40);
+
         private void OnGUI()
         {
             if (!showRuntimeDock)
@@ -70,7 +74,7 @@ namespace LTW.UnityClient.UI
             }
 
             var width = Mathf.Min(frame.width - 16f * scale, 430f * scale);
-            var height = 122f * scale;
+            var height = 172f * scale;
             var launcherClearance = 66f * scale;
             var rect = new Rect(frame.xMax - width - 8f * scale, frame.yMax - height - MobileViewportLayout.BottomMargin(scale) - launcherClearance, width, height);
 
@@ -97,7 +101,7 @@ namespace LTW.UnityClient.UI
             GUI.Label(new Rect(rect.x + 12f * scale, rect.y + 37f * scale, rect.width - 24f * scale, 18f * scale), $"GOLD {gold}", metaStyle);
 
             var buttonY = rect.y + 54f * scale;
-            var buttonHeight = 52f * scale;
+            var buttonHeight = 50f * scale;
             var gap = 6f * scale;
             var buttonWidth = (rect.width - 24f * scale - gap * 2f) / 3f;
             var x = rect.x + 12f * scale;
@@ -117,6 +121,20 @@ namespace LTW.UnityClient.UI
             if (DrawSendButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "SWARM", "18G", SignalGold, scale))
             {
                 SendSwarm();
+            }
+
+            var secondRowY = buttonY + buttonHeight + gap;
+            var secondRowWidth = (rect.width - 24f * scale - gap) / 2f;
+            x = rect.x + 12f * scale;
+            if (DrawSendButton(new Rect(x, secondRowY, secondRowWidth, buttonHeight), "SHADE", "24G", MintSignal, scale))
+            {
+                SendShade();
+            }
+
+            x += secondRowWidth + gap;
+            if (DrawSendButton(new Rect(x, secondRowY, secondRowWidth, buttonHeight), "SIEGE", "40G", new Color(1f, 0.62f, 0.26f), scale))
+            {
+                SendSiege();
             }
         }
 

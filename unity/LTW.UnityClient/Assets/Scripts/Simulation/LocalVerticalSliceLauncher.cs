@@ -158,6 +158,8 @@ namespace LTW.UnityClient.Simulation
             if (Input.GetKeyDown(KeyCode.B)) placement.BeginTowerPlacement();
             if (Input.GetKeyDown(KeyCode.C)) placement.BeginControlTowerPlacement();
             if (Input.GetKeyDown(KeyCode.U)) placement.BeginUtilityTowerPlacement();
+            if (Input.GetKeyDown(KeyCode.T)) placement.BeginPulseTowerPlacement();
+            if (Input.GetKeyDown(KeyCode.Y)) placement.BeginPrismTowerPlacement();
             if (Input.GetKeyDown(KeyCode.Return)) placement.ConfirmPlacement();
             if (Input.GetKeyDown(KeyCode.Space))
             {
@@ -178,6 +180,8 @@ namespace LTW.UnityClient.Simulation
             if (Input.GetKeyDown(KeyCode.S)) ShowSendResult(commands.SendSampleCreep(), "Runner sent");
             if (Input.GetKeyDown(KeyCode.V)) ShowSendResult(commands.SendBruteCreep(), "Brute sent");
             if (Input.GetKeyDown(KeyCode.W)) ShowSendResult(commands.SendSwarmCreep(), "Swarm sent");
+            if (Input.GetKeyDown(KeyCode.D)) ShowSendResult(commands.SendShadeCreep(), "Shade sent");
+            if (Input.GetKeyDown(KeyCode.G)) ShowSendResult(commands.SendSiegeCreep(), "Siege sent");
             if (Input.GetKeyDown(KeyCode.X)) commands.SellLastSampleTower();
             if (Input.GetKeyDown(KeyCode.R))
             {

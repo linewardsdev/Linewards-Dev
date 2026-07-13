@@ -49,11 +49,13 @@ Use it after the GD readability baseline is stable. The goal is original ward-te
 
 ### Role Families
 
-- [ ] Create concept sheet for the three starter tower roles: Arrow, Control, Relay.
+- [ ] Create concept sheet for the five prototype tower roles: Arrow, Control, Relay, Pulse, Prism.
 - [ ] Define role silhouettes independent of color:
   - [ ] Arrow: tall, narrow, focused emitter.
   - [ ] Control: wider, flatter, ring or dish emitter.
   - [ ] Relay: mast, capacitor, core, or support beacon.
+  - [ ] Pulse: compact burst core with expanding ring language.
+  - [ ] Prism: tall crystalline lens-spire for long-range focus.
 - [ ] Define footprint/base treatment for ownership and occupied-cell clarity.
 - [ ] Define attack/readiness state for each tower.
 - [ ] Define disabled/unaffordable/preview treatment for each tower in the palette.
@@ -71,18 +73,22 @@ Use it after the GD readability baseline is stable. The goal is original ward-te
 - [ ] Replace primitive Arrow tower with original production or polished prototype asset.
 - [ ] Replace primitive Control tower with original production or polished prototype asset.
 - [ ] Replace primitive Relay tower with original production or polished prototype asset.
+- [ ] Replace primitive Pulse tower with original production or polished prototype asset.
+- [ ] Replace primitive Prism tower with original production or polished prototype asset.
 - [ ] Add LOD or simplified versions for reduced-effects/low-spec presentation.
 - [ ] Confirm tower assets are readable against build bands, center path, and creep colors.
 
 ## Phase C: Creep Art
 
-### Starter Creep Roles
+### Prototype Creep Roles
 
-- [ ] Create concept sheet for Runner, Brute, and Swarm.
+- [ ] Create concept sheet for Runner, Brute, Swarm, Shade, and Siege.
 - [ ] Define role silhouettes independent of color:
   - [ ] Runner: small, sharp, forward-pointing, fast read.
   - [ ] Brute: heavy, wide, armored, slow read.
   - [ ] Swarm: multiple tiny bodies or clustered repeated units.
+  - [ ] Shade: shimmer/echo silhouette that remains readable without transparency alone.
+  - [ ] Siege: heavy directional pressure construct, distinct from Brute.
 - [ ] Define movement timing for each role.
 - [ ] Define readable ground shadows for each role.
 - [ ] Define hit, death, leak, and spawn state treatments.
@@ -91,8 +97,8 @@ Use it after the GD readability baseline is stable. The goal is original ward-te
 
 - [ ] Define Boss silhouette and scale language.
 - [ ] Define Flying/Air hover and shadow language.
-- [ ] Define Invisible/Stealth shimmer/reveal language.
-- [ ] Define Attacker/Siege windup and tower-threat language.
+- [ ] Define advanced Invisible/Stealth reveal mechanics beyond Shade visuals.
+- [ ] Define advanced Attacker/Siege windup and tower-threat mechanics beyond Siege visuals.
 - [ ] Define Aura/Support ring or field language.
 - [ ] Define anti-maze or path-breaking pressure visuals if that mechanic is added.
 
@@ -146,7 +152,7 @@ Use it after the GD readability baseline is stable. The goal is original ward-te
 ### Tower And Send Controls
 
 - [ ] Replace placeholder tower palette with role cards that show cost, role, affordability, and selected state.
-- [ ] Design send dock cards for Runner, Brute, Swarm with cost, income gain, quantity, and cooldown.
+- [ ] Design send dock cards for Runner, Brute, Swarm, Shade, and Siege with cost, income gain, quantity, and cooldown.
 - [ ] Design disabled/unaffordable states for tower and send controls.
 - [ ] Design selected tower panel with role, position, sell, and future upgrade slot.
 - [ ] Ensure all touch targets meet mobile sizing expectations.

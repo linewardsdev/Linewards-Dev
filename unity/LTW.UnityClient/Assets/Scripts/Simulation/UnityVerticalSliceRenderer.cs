@@ -1262,7 +1262,7 @@ namespace LTW.UnityClient.Simulation
 
         private static Vector3 TowerRoleScale(string towerId)
         {
-            if (ContainsRole(towerId, "slow") || ContainsRole(towerId, "splash") || ContainsRole(towerId, "control"))
+            if (ContainsRole(towerId, "slow") || ContainsRole(towerId, "splash") || ContainsRole(towerId, "control") || ContainsRole(towerId, "pulse"))
             {
                 return new Vector3(0.92f, 0.34f, 0.92f);
             }
@@ -1270,6 +1270,11 @@ namespace LTW.UnityClient.Simulation
             if (IsRelayTower(towerId))
             {
                 return new Vector3(0.46f, 0.92f, 0.46f);
+            }
+
+            if (ContainsRole(towerId, "prism"))
+            {
+                return new Vector3(0.42f, 1.22f, 0.42f);
             }
 
             return new Vector3(0.48f, 1.08f, 0.48f);
@@ -1305,6 +1310,11 @@ namespace LTW.UnityClient.Simulation
             if (ContainsRole(creepId, "boss"))
             {
                 return new Vector3(0.82f, 0.72f, 0.82f);
+            }
+
+            if (ContainsRole(creepId, "shade") || ContainsRole(creepId, "invisible") || ContainsRole(creepId, "stealth"))
+            {
+                return new Vector3(0.36f, 0.2f, 0.58f);
             }
 
             if (ContainsRole(creepId, "flying") || ContainsRole(creepId, "air"))
@@ -1363,9 +1373,10 @@ namespace LTW.UnityClient.Simulation
                 return new CreepMotion(Vector3.up * hover, Quaternion.Euler(0f, time * 80f, 0f));
             }
 
-            if (motionStyle == CreepVisualMotionStyle.Shimmer || motionStyle == CreepVisualMotionStyle.Auto && (ContainsRole(creepId, "invisible") || ContainsRole(creepId, "stealth")))
+            if (motionStyle == CreepVisualMotionStyle.Shimmer || motionStyle == CreepVisualMotionStyle.Auto && (ContainsRole(creepId, "shade") || ContainsRole(creepId, "invisible") || ContainsRole(creepId, "stealth")))
             {
-                return new CreepMotion(Vector3.zero, Quaternion.Euler(0f, time * 45f, 0f));
+                var shimmer = Mathf.Sin(time * 8f) * 0.035f;
+                return new CreepMotion(new Vector3(shimmer, 0.02f, 0.04f), Quaternion.Euler(0f, time * 45f, 0f));
             }
 
             if (motionStyle == CreepVisualMotionStyle.SiegeWindup || motionStyle == CreepVisualMotionStyle.Auto && (ContainsRole(creepId, "attacker") || ContainsRole(creepId, "siege")))
@@ -1447,7 +1458,7 @@ namespace LTW.UnityClient.Simulation
                 return new Color(0.82f, 0.72f, 1f);
             }
 
-            if (ContainsRole(creepId, "invisible") || ContainsRole(creepId, "stealth"))
+            if (ContainsRole(creepId, "shade") || ContainsRole(creepId, "invisible") || ContainsRole(creepId, "stealth"))
             {
                 return new Color(0.72f, 0.84f, 0.9f, 0.62f);
             }
@@ -1502,6 +1513,16 @@ namespace LTW.UnityClient.Simulation
                 return 24;
             }
 
+            if (ContainsRole(creepId, "shade") || ContainsRole(creepId, "invisible") || ContainsRole(creepId, "stealth"))
+            {
+                return 14;
+            }
+
+            if (ContainsRole(creepId, "siege") || ContainsRole(creepId, "attacker"))
+            {
+                return 48;
+            }
+
             if (ContainsRole(creepId, "boss"))
             {
                 return 60;
@@ -1517,7 +1538,9 @@ namespace LTW.UnityClient.Simulation
             var ownerColor = OwnerAccent(ownerId);
             var isControl = IsControlTower(towerId);
             var isRelay = IsRelayTower(towerId);
-            var isFocused = !isControl && !isRelay;
+            var isPulse = IsPulseTower(towerId);
+            var isPrism = IsPrismTower(towerId);
+            var isFocused = !isControl && !isRelay && !isPulse && !isPrism;
 
             var basePlate = EnsureChild(towerObject, "RoleBasePlate", PrimitiveType.Cylinder);
             var ownerTrim = EnsureChild(towerObject, "OwnerTrim", PrimitiveType.Cylinder);
@@ -1578,17 +1601,50 @@ namespace LTW.UnityClient.Simulation
             ConfigureChild(relaySignalTop, isRelay, new Vector3(0f, 1.54f, 0f), new Vector3(0.56f, 0.04f, 0.56f), MintSignal);
             ConfigureChild(relayLowerSignal, isRelay, new Vector3(0f, 1.34f, 0f), new Vector3(0.38f, 0.035f, 0.38f), SignalGold);
             ConfigureChild(relaySignalBeam, isRelay, new Vector3(0f, 1.44f, 0f), new Vector3(0.06f, 0.4f, 0.06f), MintSignal);
+
+            var pulseCore = EnsureChild(towerObject, "PulseCore", PrimitiveType.Sphere);
+            var pulseRingA = EnsureChild(towerObject, "PulseRingA", PrimitiveType.Cylinder);
+            var pulseRingB = EnsureChild(towerObject, "PulseRingB", PrimitiveType.Cylinder);
+            var pulseArcNorth = EnsureChild(towerObject, "PulseArcNorth", PrimitiveType.Cube);
+            var pulseArcSouth = EnsureChild(towerObject, "PulseArcSouth", PrimitiveType.Cube);
+
+            ConfigureChild(pulseCore, isPulse, new Vector3(0f, 0.58f, 0f), new Vector3(0.44f, 0.44f, 0.44f), roleColor);
+            ConfigureChild(pulseRingA, isPulse, new Vector3(0f, 0.34f, 0f), new Vector3(1.26f, 0.04f, 1.26f), roleColor);
+            ConfigureChild(pulseRingB, isPulse, new Vector3(0f, 0.86f, 0f), new Vector3(0.92f, 0.035f, 0.92f), MintSignal);
+            ConfigureChild(pulseArcNorth, isPulse, new Vector3(0f, 0.72f, 0.48f), new Vector3(0.78f, 0.08f, 0.12f), roleColor);
+            ConfigureChild(pulseArcSouth, isPulse, new Vector3(0f, 0.72f, -0.48f), new Vector3(0.78f, 0.08f, 0.12f), roleColor);
+
+            var prismSpire = EnsureChild(towerObject, "PrismSpire", PrimitiveType.Cube);
+            var prismLens = EnsureChild(towerObject, "PrismLens", PrimitiveType.Sphere);
+            var prismBeam = EnsureChild(towerObject, "PrismBeamRead", PrimitiveType.Cube);
+            var prismLeftFacet = EnsureChild(towerObject, "PrismLeftFacet", PrimitiveType.Cube);
+            var prismRightFacet = EnsureChild(towerObject, "PrismRightFacet", PrimitiveType.Cube);
+
+            ConfigureChild(prismSpire, isPrism, new Vector3(0f, 0.82f, 0f), new Vector3(0.2f, 1.34f, 0.2f), roleColor);
+            ConfigureChild(prismLens, isPrism, new Vector3(0f, 1.52f, 0.02f), new Vector3(0.36f, 0.24f, 0.36f), MintSignal);
+            ConfigureChild(prismBeam, isPrism, new Vector3(0f, 1.08f, 0.42f), new Vector3(0.06f, 0.82f, 0.06f), MintSignal);
+            ConfigureChild(prismLeftFacet, isPrism, new Vector3(-0.22f, 0.66f, 0f), new Vector3(0.08f, 0.82f, 0.12f), baseColor);
+            ConfigureChild(prismRightFacet, isPrism, new Vector3(0.22f, 0.66f, 0f), new Vector3(0.08f, 0.82f, 0.12f), baseColor);
         }
 
         private static bool IsControlTower(string towerId) => ContainsRole(towerId, "slow") || ContainsRole(towerId, "splash") || ContainsRole(towerId, "control") || ContainsRole(towerId, "area");
 
         private static bool IsRelayTower(string towerId) => ContainsRole(towerId, "economy") || ContainsRole(towerId, "utility") || ContainsRole(towerId, "relay");
 
+        private static bool IsPulseTower(string towerId) => ContainsRole(towerId, "pulse");
+
+        private static bool IsPrismTower(string towerId) => ContainsRole(towerId, "prism");
+
         private static Vector3 TowerOwnerTrimScale(string towerId)
         {
-            if (IsControlTower(towerId))
+            if (IsControlTower(towerId) || IsPulseTower(towerId))
             {
                 return new Vector3(1.28f, 0.035f, 1.28f);
+            }
+
+            if (IsPrismTower(towerId))
+            {
+                return new Vector3(0.78f, 0.035f, 0.78f);
             }
 
             if (IsRelayTower(towerId))
@@ -1601,9 +1657,14 @@ namespace LTW.UnityClient.Simulation
 
         private static Vector3 TowerBaseScale(string towerId)
         {
-            if (IsControlTower(towerId))
+            if (IsControlTower(towerId) || IsPulseTower(towerId))
             {
                 return new Vector3(1.18f, 0.055f, 1.18f);
+            }
+
+            if (IsPrismTower(towerId))
+            {
+                return new Vector3(0.62f, 0.06f, 0.62f);
             }
 
             if (IsRelayTower(towerId))
@@ -1621,6 +1682,16 @@ namespace LTW.UnityClient.Simulation
                 return new Vector3(1.45f, 0.018f, 1.45f);
             }
 
+            if (IsPulseTower(towerId))
+            {
+                return new Vector3(1.72f, 0.018f, 1.72f);
+            }
+
+            if (IsPrismTower(towerId))
+            {
+                return new Vector3(2.25f, 0.018f, 2.25f);
+            }
+
             return new Vector3(1.88f, 0.018f, 1.88f);
         }
 
@@ -1632,7 +1703,7 @@ namespace LTW.UnityClient.Simulation
 
         private static Vector3 TowerMarkerScale(string towerId)
         {
-            if (IsControlTower(towerId))
+            if (IsControlTower(towerId) || IsPulseTower(towerId))
             {
                 return new Vector3(0.8f, 0.08f, 0.8f);
             }
@@ -1640,6 +1711,11 @@ namespace LTW.UnityClient.Simulation
             if (IsRelayTower(towerId))
             {
                 return new Vector3(0.34f, 0.34f, 0.34f);
+            }
+
+            if (IsPrismTower(towerId))
+            {
+                return new Vector3(0.18f, 0.36f, 0.18f);
             }
 
             return new Vector3(0.22f, 0.22f, 0.22f);
@@ -1652,9 +1728,14 @@ namespace LTW.UnityClient.Simulation
                 return new Color(0.72f, 0.94f, 1f);
             }
 
-            if (ContainsRole(towerId, "splash") || ContainsRole(towerId, "fire") || ContainsRole(towerId, "area"))
+            if (ContainsRole(towerId, "pulse") || ContainsRole(towerId, "splash") || ContainsRole(towerId, "fire") || ContainsRole(towerId, "area"))
             {
                 return new Color(1f, 0.7f, 0.28f);
+            }
+
+            if (IsPrismTower(towerId))
+            {
+                return new Color(0.72f, 0.94f, 1f);
             }
 
             if (IsRelayTower(towerId))
@@ -1675,7 +1756,7 @@ namespace LTW.UnityClient.Simulation
             var isBoss = ContainsRole(creepId, "boss");
             var isBrute = isBoss || ContainsRole(creepId, "brute") || ContainsRole(creepId, "tank");
             var isAir = ContainsRole(creepId, "flying") || ContainsRole(creepId, "air");
-            var isStealth = ContainsRole(creepId, "invisible") || ContainsRole(creepId, "stealth");
+            var isStealth = ContainsRole(creepId, "shade") || ContainsRole(creepId, "invisible") || ContainsRole(creepId, "stealth");
             var isSiege = ContainsRole(creepId, "attacker") || ContainsRole(creepId, "siege");
             var isAura = ContainsRole(creepId, "aura") || ContainsRole(creepId, "support");
             var isRunner = !isSwarm && !isBrute && !isAir && !isStealth && !isSiege && !isAura;
@@ -1830,6 +1911,16 @@ namespace LTW.UnityClient.Simulation
                 return new Vector3(1.05f, 0.025f, 1.25f);
             }
 
+            if (ContainsRole(creepId, "siege"))
+            {
+                return new Vector3(1.05f, 0.025f, 0.95f);
+            }
+
+            if (ContainsRole(creepId, "shade") || ContainsRole(creepId, "invisible") || ContainsRole(creepId, "stealth"))
+            {
+                return new Vector3(0.92f, 0.02f, 1.12f);
+            }
+
             if (ContainsRole(creepId, "flying") || ContainsRole(creepId, "air"))
             {
                 return new Vector3(0.92f, 0.02f, 0.92f);
@@ -1889,9 +1980,14 @@ namespace LTW.UnityClient.Simulation
 
         private static Color TowerShotColor(string towerId, int damage)
         {
-            if (IsControlTower(towerId))
+            if (IsControlTower(towerId) || IsPrismTower(towerId))
             {
                 return new Color(0.72f, 0.94f, 1f);
+            }
+
+            if (IsPulseTower(towerId))
+            {
+                return new Color(1f, 0.7f, 0.28f);
             }
 
             if (IsRelayTower(towerId))

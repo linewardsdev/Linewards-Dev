@@ -76,7 +76,7 @@ namespace LTW.UnityClient.UI
             var railRect = MobileViewportLayout.RightRailRect(scale, 0f);
             var rect = new Rect(
                 railRect.xMax - 34f * scale,
-                railRect.y + 12f * scale,
+                railRect.y - 52f * scale,
                 34f * scale,
                 38f * scale);
 

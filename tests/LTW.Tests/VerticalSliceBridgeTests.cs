@@ -170,9 +170,15 @@ public sealed class VerticalSliceBridgeTests
         Assert.Contains(content.Towers, tower => tower.Id.Equals(SampleVerticalSliceContent.TowerId));
         Assert.Contains(content.Towers, tower => tower.Id.Equals(SampleVerticalSliceContent.ControlTowerId));
         Assert.Contains(content.Towers, tower => tower.Id.Equals(SampleVerticalSliceContent.UtilityTowerId));
+        Assert.Contains(content.Towers, tower => tower.Id.Equals(SampleVerticalSliceContent.PulseTowerId));
+        Assert.Contains(content.Towers, tower => tower.Id.Equals(SampleVerticalSliceContent.PrismTowerId));
         Assert.Contains(content.Creeps, creep => creep.Id.Equals(SampleVerticalSliceContent.CreepId));
         Assert.Contains(content.Creeps, creep => creep.Id.Equals(SampleVerticalSliceContent.BruteCreepId));
         Assert.Contains(content.Creeps, creep => creep.Id.Equals(SampleVerticalSliceContent.SwarmCreepId));
+        Assert.Contains(content.Creeps, creep => creep.Id.Equals(SampleVerticalSliceContent.ShadeCreepId));
+        Assert.Contains(content.Creeps, creep => creep.Id.Equals(SampleVerticalSliceContent.SiegeCreepId));
+        Assert.Equal(5, content.Towers.Count);
+        Assert.Equal(5, content.Creeps.Count);
     }
 
     [Fact]
@@ -183,16 +189,46 @@ public sealed class VerticalSliceBridgeTests
         var arrow = content.Towers.Single(tower => tower.Id.Equals(SampleVerticalSliceContent.TowerId));
         var control = content.Towers.Single(tower => tower.Id.Equals(SampleVerticalSliceContent.ControlTowerId));
         var relay = content.Towers.Single(tower => tower.Id.Equals(SampleVerticalSliceContent.UtilityTowerId));
+        var pulse = content.Towers.Single(tower => tower.Id.Equals(SampleVerticalSliceContent.PulseTowerId));
+        var prism = content.Towers.Single(tower => tower.Id.Equals(SampleVerticalSliceContent.PrismTowerId));
         var runner = content.Creeps.Single(creep => creep.Id.Equals(SampleVerticalSliceContent.CreepId));
         var brute = content.Creeps.Single(creep => creep.Id.Equals(SampleVerticalSliceContent.BruteCreepId));
         var swarm = content.Creeps.Single(creep => creep.Id.Equals(SampleVerticalSliceContent.SwarmCreepId));
+        var shade = content.Creeps.Single(creep => creep.Id.Equals(SampleVerticalSliceContent.ShadeCreepId));
+        var siege = content.Creeps.Single(creep => creep.Id.Equals(SampleVerticalSliceContent.SiegeCreepId));
 
         Assert.True(arrow.Damage > control.Damage);
         Assert.True(control.AttackCooldownTicks > arrow.AttackCooldownTicks);
         Assert.True(relay.Cost.Amount > arrow.Cost.Amount);
+        Assert.True(pulse.Damage > control.Damage);
+        Assert.True(prism.RangeCells > arrow.RangeCells);
+        Assert.True(prism.Cost.Amount > pulse.Cost.Amount);
         Assert.True(brute.MaxHealth > runner.MaxHealth);
         Assert.True(swarm.SpeedPerSecond > runner.SpeedPerSecond);
         Assert.True(brute.IncomeGain.Amount > runner.IncomeGain.Amount);
+        Assert.True(shade.SpeedPerSecond > brute.SpeedPerSecond);
+        Assert.True(shade.IncomeGain.Amount > brute.IncomeGain.Amount);
+        Assert.True(siege.MaxHealth > brute.MaxHealth);
+        Assert.True(siege.Cost.Amount > shade.Cost.Amount);
+    }
+
+    [Fact]
+    public void Expanded_roster_content_accepts_new_tower_and_creep_commands()
+    {
+        var simulation = new LocalVerticalSlice(SampleVerticalSliceContent.Create(), enableBots: false);
+
+        var pulsePreview = simulation.PreviewPlaceTower(new PlayerId(1), new LaneId(1), SampleVerticalSliceContent.PulseTowerId, new GridPosition(1, 1));
+        var prismPreview = simulation.PreviewPlaceTower(new PlayerId(1), new LaneId(1), SampleVerticalSliceContent.PrismTowerId, new GridPosition(5, 1));
+        var shadeSend = simulation.QueueSend(new PlayerId(1), SampleVerticalSliceContent.ShadeCreepId);
+        var siegeSend = simulation.QueueSend(new PlayerId(1), SampleVerticalSliceContent.SiegeCreepId);
+        var events = simulation.DrainEvents();
+
+        Assert.True(pulsePreview.Accepted);
+        Assert.True(prismPreview.Accepted);
+        Assert.True(shadeSend.Accepted);
+        Assert.True(siegeSend.Accepted);
+        Assert.Contains(events, simulationEvent => simulationEvent is CreepQueuedEvent queued && queued.CreepId.Equals(SampleVerticalSliceContent.ShadeCreepId));
+        Assert.Contains(events, simulationEvent => simulationEvent is CreepQueuedEvent queued && queued.CreepId.Equals(SampleVerticalSliceContent.SiegeCreepId));
     }
 
     [Fact]

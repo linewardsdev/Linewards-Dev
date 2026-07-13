@@ -71,6 +71,10 @@ namespace LTW.UnityClient.UI
 
         public void BeginUtilityTowerPlacement() => BeginTowerPlacement(2);
 
+        public void BeginPulseTowerPlacement() => BeginTowerPlacement(3);
+
+        public void BeginPrismTowerPlacement() => BeginTowerPlacement(4);
+
         private void BeginTowerPlacement(int towerRole)
         {
             isPlacing = true;
@@ -123,6 +127,8 @@ namespace LTW.UnityClient.UI
             {
                 1 => commandAdapter.PlaceControlTower(selectedCell.x, selectedCell.y),
                 2 => commandAdapter.PlaceUtilityTower(selectedCell.x, selectedCell.y),
+                3 => commandAdapter.PlacePulseTower(selectedCell.x, selectedCell.y),
+                4 => commandAdapter.PlacePrismTower(selectedCell.x, selectedCell.y),
                 _ => commandAdapter.PlaceSampleTower(selectedCell.x, selectedCell.y)
             };
             if (result.Accepted)
@@ -321,6 +327,8 @@ namespace LTW.UnityClient.UI
             {
                 1 => commandAdapter.PreviewControlTower(selectedCell.x, selectedCell.y),
                 2 => commandAdapter.PreviewUtilityTower(selectedCell.x, selectedCell.y),
+                3 => commandAdapter.PreviewPulseTower(selectedCell.x, selectedCell.y),
+                4 => commandAdapter.PreviewPrismTower(selectedCell.x, selectedCell.y),
                 _ => commandAdapter.PreviewSampleTower(selectedCell.x, selectedCell.y)
             };
 
@@ -343,9 +351,11 @@ namespace LTW.UnityClient.UI
             var accent = SelectedTowerAccent();
             var isControl = roleId == "control";
             var isRelay = roleId == "relay";
+            var isPulse = roleId == "pulse";
+            var isPrism = roleId == "prism";
             var isArrow = roleId == "arrow";
 
-            ConfigureGhostChild("GhostBase", true, new Vector3(0f, -0.28f, 0f), isControl ? new Vector3(1.18f, 0.06f, 1.18f) : isRelay ? new Vector3(0.78f, 0.06f, 0.78f) : new Vector3(0.72f, 0.06f, 0.72f), accent);
+            ConfigureGhostChild("GhostBase", true, new Vector3(0f, -0.28f, 0f), isControl || isPulse ? new Vector3(1.18f, 0.06f, 1.18f) : isRelay ? new Vector3(0.78f, 0.06f, 0.78f) : isPrism ? new Vector3(0.58f, 0.06f, 0.58f) : new Vector3(0.72f, 0.06f, 0.72f), accent);
             ConfigureGhostChild("GhostArrowSpire", isArrow, new Vector3(0f, 0.48f, 0f), new Vector3(0.14f, 0.92f, 0.14f), accent);
             ConfigureGhostChild("GhostArrowBowLeft", isArrow, new Vector3(-0.26f, 0.36f, 0f), new Vector3(0.1f, 0.62f, 0.12f), accent);
             ConfigureGhostChild("GhostArrowBowRight", isArrow, new Vector3(0.26f, 0.36f, 0f), new Vector3(0.1f, 0.62f, 0.12f), accent);
@@ -353,6 +363,12 @@ namespace LTW.UnityClient.UI
             ConfigureGhostChild("GhostControlCore", isControl, new Vector3(0f, 0.42f, 0f), new Vector3(0.34f, 0.34f, 0.34f), accent);
             ConfigureGhostChild("GhostRelayMast", isRelay, new Vector3(0f, 0.52f, 0f), new Vector3(0.1f, 1.02f, 0.1f), accent);
             ConfigureGhostChild("GhostRelaySignal", isRelay, new Vector3(0f, 1.08f, 0f), new Vector3(0.5f, 0.04f, 0.5f), accent);
+            ConfigureGhostChild("GhostPulseRing", isPulse, new Vector3(0f, 0.08f, 0f), new Vector3(1.44f, 0.04f, 1.44f), accent);
+            ConfigureGhostChild("GhostPulseCore", isPulse, new Vector3(0f, 0.44f, 0f), new Vector3(0.44f, 0.44f, 0.44f), accent);
+            ConfigureGhostChild("GhostPulseEcho", isPulse, new Vector3(0f, 0.72f, 0f), new Vector3(0.92f, 0.035f, 0.92f), accent);
+            ConfigureGhostChild("GhostPrismSpire", isPrism, new Vector3(0f, 0.68f, 0f), new Vector3(0.22f, 1.28f, 0.22f), accent);
+            ConfigureGhostChild("GhostPrismLens", isPrism, new Vector3(0f, 1.36f, 0f), new Vector3(0.42f, 0.18f, 0.42f), accent);
+            ConfigureGhostChild("GhostPrismBeam", isPrism, new Vector3(0f, 1.08f, 0.34f), new Vector3(0.08f, 0.78f, 0.08f), MintSignal);
         }
 
         private GameObject EnsureGhostChild(string childName, PrimitiveType primitiveType)
@@ -412,6 +428,8 @@ namespace LTW.UnityClient.UI
             {
                 "control" => new Vector3(0.82f, 0.46f, 0.82f),
                 "relay" => new Vector3(0.52f, 0.52f, 0.52f),
+                "pulse" => new Vector3(0.86f, 0.44f, 0.86f),
+                "prism" => new Vector3(0.48f, 1.0f, 0.48f),
                 _ => new Vector3(0.62f, 0.78f, 0.62f)
             };
         }
@@ -422,6 +440,8 @@ namespace LTW.UnityClient.UI
             {
                 1 => "control",
                 2 => "relay",
+                3 => "pulse",
+                4 => "prism",
                 _ => "arrow"
             };
         }
@@ -430,6 +450,8 @@ namespace LTW.UnityClient.UI
         {
             if (towerId.Contains("control")) return new Vector3(1.42f, 0.03f, 1.42f);
             if (towerId.Contains("relay") || towerId.Contains("economy")) return new Vector3(1.18f, 0.03f, 1.18f);
+            if (towerId.Contains("pulse")) return new Vector3(1.62f, 0.03f, 1.62f);
+            if (towerId.Contains("prism")) return new Vector3(2.12f, 0.03f, 2.12f);
             return new Vector3(1.28f, 0.03f, 1.28f);
         }
 
@@ -439,6 +461,8 @@ namespace LTW.UnityClient.UI
             {
                 1 => "Control ward",
                 2 => "Relay ward",
+                3 => "Pulse ward",
+                4 => "Prism ward",
                 _ => "Arrow ward"
             };
         }
@@ -447,6 +471,8 @@ namespace LTW.UnityClient.UI
         {
             if (towerId.Contains("control")) return "Control ward";
             if (towerId.Contains("relay") || towerId.Contains("economy")) return "Relay ward";
+            if (towerId.Contains("pulse")) return "Pulse ward";
+            if (towerId.Contains("prism")) return "Prism ward";
             return "Arrow ward";
         }
 
@@ -454,6 +480,8 @@ namespace LTW.UnityClient.UI
         {
             if (towerId.Contains("control")) return WardViolet;
             if (towerId.Contains("relay") || towerId.Contains("economy")) return SignalGold;
+            if (towerId.Contains("pulse")) return MintSignal;
+            if (towerId.Contains("prism")) return new Color(0.72f, 0.94f, 1f);
             return ArcaneBlue;
         }
 
@@ -463,6 +491,8 @@ namespace LTW.UnityClient.UI
             {
                 1 => WardViolet,
                 2 => SignalGold,
+                3 => MintSignal,
+                4 => new Color(0.72f, 0.94f, 1f),
                 _ => ArcaneBlue
             };
         }
@@ -506,9 +536,9 @@ namespace LTW.UnityClient.UI
             }
 
             var buttonY = rect.y + 43f * scale;
-            var buttonHeight = 58f * scale;
+            var buttonHeight = 50f * scale;
             var gap = 6f * scale;
-            var buttonWidth = (rect.width - 24f * scale - gap * 3f) / 4f;
+            var buttonWidth = (rect.width - 24f * scale - gap * 2f) / 3f;
             var x = rect.x + 12f * scale;
 
             if (DrawPaletteButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "ARROW", "25G", ArcaneBlue, scale))
@@ -531,11 +561,20 @@ namespace LTW.UnityClient.UI
                 BeginUtilityTowerPlacement();
             }
 
-            x += buttonWidth + gap;
-            if (DrawPaletteButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "SELL", "REF", Danger, scale))
+            var secondRowY = buttonY + buttonHeight + gap;
+            var secondRowWidth = (rect.width - 24f * scale - gap) / 2f;
+            x = rect.x + 12f * scale;
+            if (DrawPaletteButton(new Rect(x, secondRowY, secondRowWidth, buttonHeight), "PULSE", "45G", MintSignal, scale))
             {
-                SellLastTower();
-                isPaletteExpanded = false;
+                selectedTower = null;
+                BeginPulseTowerPlacement();
+            }
+
+            x += secondRowWidth + gap;
+            if (DrawPaletteButton(new Rect(x, secondRowY, secondRowWidth, buttonHeight), "PRISM", "60G", new Color(0.72f, 0.94f, 1f), scale))
+            {
+                selectedTower = null;
+                BeginPrismTowerPlacement();
             }
         }
 
@@ -667,6 +706,8 @@ namespace LTW.UnityClient.UI
             {
                 1 => 35,
                 2 => 40,
+                3 => 45,
+                4 => 60,
                 _ => 25
             };
         }
@@ -685,6 +726,8 @@ namespace LTW.UnityClient.UI
         {
             if (towerId.Contains("control")) return "Area control and clustered pressure";
             if (towerId.Contains("relay") || towerId.Contains("economy")) return "Utility pressure and income support";
+            if (towerId.Contains("pulse")) return "Short-range burst against dense pressure";
+            if (towerId.Contains("prism")) return "Long-range focus against priority pressure";
             return "Focused single-target defense";
         }
 
@@ -750,7 +793,7 @@ namespace LTW.UnityClient.UI
         private static Rect TowerPalettePanelRect(float scale, Rect frame)
         {
             var width = Mathf.Min(frame.width - 16f * scale, 430f * scale);
-            var height = 116f * scale;
+            var height = 172f * scale;
             var launcherClearance = 66f * scale;
             return new Rect(frame.x + 8f * scale, frame.yMax - height - MobileViewportLayout.BottomMargin(scale) - launcherClearance, width, height);
         }
