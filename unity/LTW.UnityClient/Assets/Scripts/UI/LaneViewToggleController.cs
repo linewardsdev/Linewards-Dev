@@ -17,10 +17,12 @@ namespace LTW.UnityClient.UI
         private bool showRuntimeToggle = true;
 
         private GUIStyle? buttonStyle;
+        private GUIStyle? miniButtonStyle;
+        private bool selectorExpanded;
 
-        public bool IsShowingMap => renderer != null && renderer.CameraFraming == LaneCameraFraming.AllLanes;
+        public bool IsShowingMap => false;
 
-        public string NextViewLabel => IsShowingMap ? "LANE" : "MAP";
+        public string NextViewLabel => selectorExpanded ? "×" : LaneShortLabel(renderer?.ActiveLaneCameraId ?? 1);
 
         public void Initialize(UnityVerticalSliceRenderer presentationRenderer)
         {
@@ -30,23 +32,24 @@ namespace LTW.UnityClient.UI
 
         public void ToggleView()
         {
-            if (IsShowingMap)
+            if (selectorExpanded)
             {
-                ShowLaneView();
+                selectorExpanded = false;
                 return;
             }
 
-            ShowMapView();
+            selectorExpanded = true;
         }
 
         public void ShowLaneView()
         {
-            renderer?.SetCameraFraming(LaneCameraFraming.ActiveLane);
+            renderer?.SetActiveLaneCameraId(1);
+            selectorExpanded = false;
         }
 
         public void ShowMapView()
         {
-            renderer?.SetCameraFraming(LaneCameraFraming.AllLanes);
+            selectorExpanded = true;
         }
 
         private void OnGUI()
@@ -62,10 +65,34 @@ namespace LTW.UnityClient.UI
 
             buttonStyle!.fontSize = Mathf.RoundToInt(13f * scale);
             var previousColor = GUI.color;
-            GUI.color = IsShowingMap ? LaneBlue : Cloud;
+            GUI.color = selectorExpanded ? LaneBlue : Cloud;
             if (GUI.Button(rect, NextViewLabel, buttonStyle))
             {
                 ToggleView();
+            }
+
+            GUI.color = previousColor;
+
+            if (!selectorExpanded)
+            {
+                return;
+            }
+
+            var buttonHeight = 36f * scale;
+            var gap = 6f * scale;
+            var panelWidth = 74f * scale;
+            var panelX = rect.x - panelWidth - gap;
+            for (var lane = 1; lane <= 3; lane++)
+            {
+                var laneRect = new Rect(panelX, rect.y + (lane - 1) * (buttonHeight + gap), panelWidth, buttonHeight);
+                var isActive = renderer.ActiveLaneCameraId == lane;
+                GUI.color = isActive ? LaneBlue : Cloud;
+                miniButtonStyle!.fontSize = Mathf.RoundToInt(11f * scale);
+                if (GUI.Button(laneRect, LaneButtonLabel(lane), miniButtonStyle))
+                {
+                    renderer.SetActiveLaneCameraId(lane);
+                    selectorExpanded = false;
+                }
             }
 
             GUI.color = previousColor;
@@ -79,6 +106,21 @@ namespace LTW.UnityClient.UI
                 fontStyle = FontStyle.Bold,
                 normal = { textColor = Cloud }
             };
+            miniButtonStyle ??= new GUIStyle(GUI.skin.button)
+            {
+                alignment = TextAnchor.MiddleCenter,
+                fontStyle = FontStyle.Bold,
+                normal = { textColor = Cloud }
+            };
         }
+
+        private static string LaneShortLabel(int laneId) => $"L{Mathf.Clamp(laneId, 1, 3)}";
+
+        private static string LaneButtonLabel(int laneId) => laneId switch
+        {
+            2 => "Lane 2",
+            3 => "Lane 3",
+            _ => "Lane 1"
+        };
     }
 }

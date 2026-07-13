@@ -66,6 +66,8 @@ namespace LTW.UnityClient.Simulation
 
         public LaneCameraFraming CameraFraming => cameraFraming;
 
+        public int ActiveLaneCameraId => Mathf.Clamp(activeLaneCameraId, 1, 3);
+
         public int ActivePresentationObjectCount => activeTowers.Count + activeCreeps.Count + timedPresentations.Count;
 
         public int PooledPresentationObjectCount => towerPool.Count + creepPool.Count + PooledCreepPrefabCount() + effectPool.Count + textPool.Count;
@@ -112,9 +114,7 @@ namespace LTW.UnityClient.Simulation
 
         public void ToggleCameraFraming()
         {
-            SetCameraFraming(cameraFraming == LaneCameraFraming.ActiveLane
-                ? LaneCameraFraming.AllLanes
-                : LaneCameraFraming.ActiveLane);
+            SetActiveLaneCameraId(ActiveLaneCameraId % 3 + 1);
         }
 
         public void SetCameraFraming(LaneCameraFraming framing)
@@ -125,6 +125,19 @@ namespace LTW.UnityClient.Simulation
             }
 
             cameraFraming = framing;
+            ConfigureDefaultCamera();
+        }
+
+        public void SetActiveLaneCameraId(int laneId)
+        {
+            var nextLane = Mathf.Clamp(laneId, 1, 3);
+            if (activeLaneCameraId != nextLane || cameraFraming != LaneCameraFraming.ActiveLane)
+            {
+                Debug.Log($"LTW active lane camera -> {nextLane}");
+            }
+
+            activeLaneCameraId = nextLane;
+            cameraFraming = LaneCameraFraming.ActiveLane;
             ConfigureDefaultCamera();
         }
 
