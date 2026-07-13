@@ -9,6 +9,8 @@ namespace LTW.UnityClient.Simulation
     {
         [SerializeField] private CreepVisualProfile[] profiles = Array.Empty<CreepVisualProfile>();
 
+        public IReadOnlyList<CreepVisualProfile> Profiles => profiles ?? Array.Empty<CreepVisualProfile>();
+
         public CreepVisualProfile FindProfile(string creepId)
         {
             if (string.IsNullOrWhiteSpace(creepId))
@@ -16,9 +18,10 @@ namespace LTW.UnityClient.Simulation
                 return null;
             }
 
-            for (var index = 0; index < profiles.Length; index++)
+            var availableProfiles = Profiles;
+            for (var index = 0; index < availableProfiles.Count; index++)
             {
-                var profile = profiles[index];
+                var profile = availableProfiles[index];
                 if (profile != null && profile.Matches(creepId))
                 {
                     return profile;

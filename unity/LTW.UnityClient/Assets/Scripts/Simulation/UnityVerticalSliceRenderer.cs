@@ -924,7 +924,16 @@ namespace LTW.UnityClient.Simulation
 
             if (target != null)
             {
-                SetColor(target, color);
+                SetColorInChildren(target, color);
+            }
+        }
+
+        private static void SetColorInChildren(GameObject instance, Color color)
+        {
+            var renderers = instance.GetComponentsInChildren<Renderer>(true);
+            for (var index = 0; index < renderers.Length; index++)
+            {
+                renderers[index].material.color = color;
             }
         }
 

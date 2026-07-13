@@ -33,14 +33,17 @@ Started asset pipeline scaffolding:
 - Wired `UnityVerticalSliceRenderer` to optionally use profile scale and motion style overrides while keeping primitive fallback rendering.
 - Added profile-backed creep prefab instantiation and pooling in `UnityVerticalSliceRenderer`.
 - Added profile renderer-path tinting for body, sender accent, and damage material slots.
+- Profile renderer paths can target a parent transform; all renderers beneath that transform receive the configured tint.
 - Added a default `Assets/Resources/CreepVisualLibrary.asset` with runner, brute, and swarm profiles.
 - Added renderer auto-loading for the default creep visual library when no scene-assigned library is present.
+- Added an editor-only placeholder prefab generator at `Assets/Editor/CreepVisualPrefabGenerator.cs`.
+- Added an editor-only creep visual library validator for missing prefab references and invalid renderer paths.
 
 Not started yet:
 
 - Low-poly mesh creation.
 - Texture/material creation.
-- `Creep_Runner.prefab`, `Creep_Brute.prefab`, and `Creep_Swarm.prefab`.
+- Running the Unity editor generator to create `Creep_Runner.prefab`, `Creep_Brute.prefab`, and `Creep_Swarm.prefab`.
 
 ## Polished Asset Direction
 
@@ -109,6 +112,10 @@ creep id -> prefab, scale, bob style, accent slots, death cue style
 This can be a `CreepVisualProfile` ScriptableObject or a serialized config referenced by `UnityVerticalSliceRenderer`.
 
 Current implementation note: `CreepVisualLibrary` exists and can be assigned to `UnityVerticalSliceRenderer`. The local runtime path also auto-loads `Assets/Resources/CreepVisualLibrary.asset` when no scene-assigned library is present. The renderer consumes profile scale and motion style overrides, can instantiate profile prefabs, keeps prefab instances in per-profile pools, and applies profile renderer-path tinting for body, sender accents, and damage elements. If no profile or prefab is assigned, the primitive fallback remains active.
+
+Placeholder prefab generation note: run `Line Wards > Art > Generate Placeholder Creep Prefabs` in the Unity editor to generate editable runner, brute, and swarm placeholder prefabs, generated materials, and matching `CreepVisualLibrary` prefab/path references.
+
+After generation, run `Line Wards > Art > Validate Creep Visual Library` to check that each configured prefab path resolves to at least one renderer.
 
 Rules:
 
