@@ -35,6 +35,7 @@ namespace LTW.UnityClient.Simulation
             var placement = matchObject.AddComponent<TouchPlacementController>();
             var laneViewToggle = matchObject.AddComponent<LaneViewToggleController>();
             var camera = CreateCamera();
+            CreateBackgroundCamera(camera);
 
             renderer.Initialize(driver);
             renderer.SetPresentationCamera(camera);
@@ -78,6 +79,19 @@ namespace LTW.UnityClient.Simulation
                 cameraObject.AddComponent<AudioListener>();
             }
 
+            return camera;
+        }
+
+        private static Camera CreateBackgroundCamera(Camera presentationCamera)
+        {
+            var cameraObject = new GameObject("LTW Background Camera");
+            var camera = cameraObject.AddComponent<Camera>();
+            camera.clearFlags = CameraClearFlags.SolidColor;
+            camera.backgroundColor = presentationCamera.backgroundColor;
+            camera.cullingMask = 0;
+            camera.rect = new Rect(0f, 0f, 1f, 1f);
+            camera.depth = presentationCamera.depth - 1f;
+            camera.enabled = true;
             return camera;
         }
 
