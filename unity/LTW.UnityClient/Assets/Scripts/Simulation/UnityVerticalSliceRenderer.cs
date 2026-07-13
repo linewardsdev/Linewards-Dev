@@ -37,6 +37,7 @@ namespace LTW.UnityClient.Simulation
         private readonly Dictionary<string, GameObject> activeCreeps = new Dictionary<string, GameObject>();
         private readonly Dictionary<string, Vector3> lastKnownPositions = new Dictionary<string, Vector3>();
         private readonly Dictionary<int, GameObject> lanePressureMeters = new Dictionary<int, GameObject>();
+        private readonly Dictionary<int, GameObject> lanePressureCaps = new Dictionary<int, GameObject>();
         private readonly Dictionary<int, TextMesh> lanePressureLabels = new Dictionary<int, TextMesh>();
         private readonly List<GameObject> laneCells = new List<GameObject>();
         private readonly List<GameObject> laneDecorations = new List<GameObject>();
@@ -216,8 +217,13 @@ namespace LTW.UnityClient.Simulation
                 meter.transform.position = new Vector3(LaneOffset(laneId) + LaneWidth + 0.18f, -0.08f, 0.35f + length * 0.5f);
                 SetColor(meter, color);
 
+                var cap = GetLanePressureCap(laneId);
+                cap.SetActive(pressure >= 8);
+                cap.transform.position = new Vector3(LaneOffset(laneId) + LaneWidth + 0.18f, 0.04f, 0.35f + length);
+                SetColor(cap, LeakRed);
+
                 var label = GetLanePressureLabel(laneId);
-                label.text = pressure == 0 ? "CALM" : $"PRESS {pressure}";
+                label.text = PressureLabel(pressure);
                 label.color = color;
             }
         }
@@ -233,6 +239,20 @@ namespace LTW.UnityClient.Simulation
             lanePressureMeters[laneId] = meter;
             laneDecorations.Add(meter);
             return meter;
+        }
+
+        private GameObject GetLanePressureCap(int laneId)
+        {
+            if (lanePressureCaps.TryGetValue(laneId, out var cap))
+            {
+                return cap;
+            }
+
+            cap = CreatePrimitive($"Lane{laneId}PressureCap", PrimitiveType.Sphere);
+            cap.transform.localScale = new Vector3(0.38f, 0.18f, 0.38f);
+            lanePressureCaps[laneId] = cap;
+            laneDecorations.Add(cap);
+            return cap;
         }
 
         private TextMesh GetLanePressureLabel(int laneId)
@@ -290,7 +310,9 @@ namespace LTW.UnityClient.Simulation
                         break;
                     case CreepDamagedEvent damaged:
                         var hitPosition = PositionFor(damaged.CreepEntityId.Value.ToString());
-                        SpawnBeam(GridToWorld(damaged.TowerPosition, damaged.LaneId) + Vector3.up * 0.35f, hitPosition + Vector3.up * 0.12f, MintSignal, 0.16f);
+                        var towerPosition = GridToWorld(damaged.TowerPosition, damaged.LaneId);
+                        SpawnTowerMuzzleCue(towerPosition, TowerShotColor(damaged.DamageDealt), damaged.DamageDealt);
+                        SpawnBeam(towerPosition + Vector3.up * 0.35f, hitPosition + Vector3.up * 0.12f, TowerShotColor(damaged.DamageDealt), 0.16f);
                         SpawnCreepHitCue(hitPosition, new Color(1f, 0.88f, 0.44f), damaged.DamageDealt);
                         SpawnEffect(hitPosition, new Color(1f, 0.88f, 0.44f), 0.24f, 0.12f);
                         if (damaged.DamageDealt >= 5)
@@ -436,6 +458,15 @@ namespace LTW.UnityClient.Simulation
             SpawnCellFrameCue(spawn, color, 0.22f);
             SpawnBeam(spawn + new Vector3(-0.54f, 0.22f, 0.54f), spawn + new Vector3(0.54f, 0.22f, -0.54f), color, 0.18f);
             SpawnBeam(spawn + new Vector3(0.54f, 0.22f, 0.54f), spawn + new Vector3(-0.54f, 0.22f, -0.54f), color, 0.18f);
+        }
+
+        private void SpawnTowerMuzzleCue(Vector3 position, Color color, int damage)
+        {
+            var scale = damage >= 5 ? 0.48f : 0.34f;
+            var muzzle = position + Vector3.up * 0.58f;
+            SpawnBeam(muzzle + new Vector3(-scale, 0f, 0f), muzzle + new Vector3(scale, 0f, 0f), color, 0.1f);
+            SpawnBeam(muzzle + new Vector3(0f, 0f, -scale), muzzle + new Vector3(0f, 0f, scale), color, 0.1f);
+            SpawnEffect(muzzle, color, damage >= 5 ? 0.3f : 0.22f, 0.1f);
         }
 
         private void SpawnCreepHitCue(Vector3 position, Color color, int damage)
@@ -1368,6 +1399,18 @@ namespace LTW.UnityClient.Simulation
 
             return MintSignal;
         }
+
+        private static string PressureLabel(int pressure)
+        {
+            if (pressure == 0)
+            {
+                return "CALM";
+            }
+
+            return pressure >= 8 ? $"DANGER {pressure}" : $"PRESS {pressure}";
+        }
+
+        private static Color TowerShotColor(int damage) => damage >= 5 ? SignalGold : MintSignal;
 
         private static Color BuildZoneColor(Color tint, bool isPlayerLane)
         {
