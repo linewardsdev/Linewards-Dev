@@ -21,7 +21,7 @@ namespace LTW.UnityClient.Simulation
 
         [SerializeField] private UnitySimulationDriver simulationDriver = null!;
         [SerializeField] private PresentationDetail presentationDetail = PresentationDetail.Full;
-        [SerializeField] private LaneCameraFraming cameraFraming = LaneCameraFraming.AllLanes;
+        [SerializeField] private LaneCameraFraming cameraFraming = LaneCameraFraming.ActiveLane;
         [SerializeField] private int activeLaneCameraId = 1;
 
         private AudioSource feedbackAudioSource = null!;
@@ -51,6 +51,8 @@ namespace LTW.UnityClient.Simulation
         private bool laneCreated;
 
         public PresentationDetail Detail => presentationDetail;
+
+        public LaneCameraFraming CameraFraming => cameraFraming;
 
         public int ActivePresentationObjectCount => activeTowers.Count + activeCreeps.Count + timedPresentations.Count;
 
@@ -83,6 +85,19 @@ namespace LTW.UnityClient.Simulation
             {
                 ReleaseAllActiveObjects();
             }
+        }
+
+        public void ToggleCameraFraming()
+        {
+            SetCameraFraming(cameraFraming == LaneCameraFraming.ActiveLane
+                ? LaneCameraFraming.AllLanes
+                : LaneCameraFraming.ActiveLane);
+        }
+
+        public void SetCameraFraming(LaneCameraFraming framing)
+        {
+            cameraFraming = framing;
+            ConfigureDefaultCamera();
         }
 
         private void ConfigureDefaultCamera()

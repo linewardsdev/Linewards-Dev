@@ -33,8 +33,10 @@ namespace LTW.UnityClient.Simulation
             var hud = matchObject.AddComponent<HudView>();
             var sendDock = matchObject.AddComponent<SendDockController>();
             var placement = matchObject.AddComponent<TouchPlacementController>();
+            var laneViewToggle = matchObject.AddComponent<LaneViewToggleController>();
 
             renderer.Initialize(driver);
+            laneViewToggle.Initialize(renderer);
             hud.Initialize(driver);
             replayExporter.Initialize(driver);
             playtestRecorder.Initialize(driver, replayExporter);
@@ -45,6 +47,7 @@ namespace LTW.UnityClient.Simulation
             controls.Initialize(commands, driver, renderer, replayExporter, playtestRecorder, stressHarness, placement, feedback);
             bootstrapper.Initialize(driver, commands);
             var camera = CreateCamera();
+            renderer.SetCameraFraming(renderer.CameraFraming);
             CreateRuntimeHud(matchObject, camera, commands, feedback, sendDock, placement);
         }
 
@@ -172,6 +175,7 @@ namespace LTW.UnityClient.Simulation
             if (Input.GetKeyDown(KeyCode.Minus) || Input.GetKeyDown(KeyCode.KeypadMinus)) PresentationPreferences.AdjustFeedbackVolume(-0.1f);
             if (Input.GetKeyDown(KeyCode.Equals) || Input.GetKeyDown(KeyCode.KeypadPlus)) PresentationPreferences.AdjustFeedbackVolume(0.1f);
             if (Input.GetKeyDown(KeyCode.F)) PresentationPreferences.ReducedEffects = !PresentationPreferences.ReducedEffects;
+            if (Input.GetKeyDown(KeyCode.Tab)) renderer.ToggleCameraFraming();
             if (Input.GetKeyDown(KeyCode.Alpha1)) renderer.SetPresentationDetail(PresentationDetail.Full);
             if (Input.GetKeyDown(KeyCode.Alpha2)) renderer.SetPresentationDetail(PresentationDetail.Simplified);
             if (Input.GetKeyDown(KeyCode.Alpha3)) renderer.SetPresentationDetail(PresentationDetail.Disabled);
