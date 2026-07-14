@@ -273,11 +273,11 @@ Goal: make balance and pacing changes repeatable.
 
 Scenario tests:
 
-- [ ] Add low-pressure scenario test.
-- [ ] Add normal-pressure scenario test.
-- [ ] Add heavy-pressure scenario test.
-- [ ] Add mixed-pressure scenario test.
-- [ ] Record evidence for mixed send pressure.
+- [x] Add low-pressure scenario test.
+- [x] Add normal-pressure scenario test.
+- [x] Add heavy-pressure scenario test.
+- [x] Add mixed-pressure scenario test.
+- [x] Record evidence for mixed send pressure.
 
 Tuning checks:
 
@@ -288,6 +288,12 @@ Tuning checks:
 - [ ] Defensive play and sending both have understandable value.
 - [ ] Matches avoid both instant collapse and long no-progress stalls.
 - [ ] Bots produce visible pressure without hidden advantages.
+
+Current evidence:
+
+- `GameplayScenarioTests` records deterministic low, normal, heavy, and mixed pressure evidence.
+- Scenario output includes tick, accepted sends, multi-quantity sends, bot decisions, tower counts, active/damaged creep counts, total income/lives, damage events, and leak events.
+- Full .NET suite currently passes at 69 tests.
 
 Exit signal:
 
