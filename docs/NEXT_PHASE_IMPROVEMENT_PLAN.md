@@ -63,10 +63,10 @@ Owner: Agent 1
 
 Goal: make sure current correctness and presentation fixes are safely shared before new work piles on.
 
-- [ ] Push local `main` to cloud after final manual smoke test.
-- [ ] Confirm `origin/main` contains the three recent commits listed above.
-- [ ] Keep Unity-generated local version/package churn out of the commit unless the project intentionally changes Unity/package baseline.
-- [ ] Record the current Unity editor version mismatch risk: local editor is `6000.3.12f1`, repo baseline has recently shown `6000.5.3f1` metadata.
+- [x] Push local `main` to cloud after final manual smoke test.
+- [x] Confirm `origin/main` contains the three recent commits listed above.
+- [x] Keep Unity-generated local version/package churn out of the commit unless the project intentionally changes Unity/package baseline.
+- [x] Record the current Unity editor version mismatch risk: local editor is `6000.3.12f1`, repo baseline has recently shown `6000.5.3f1` metadata.
 
 Exit signal:
 
@@ -104,12 +104,12 @@ Observed issue:
 
 Tasks:
 
-- [ ] Define one owner for the bottom panel region at a time.
-- [ ] Hide or collapse the placement/tower descriptor while the send dock is expanded.
-- [ ] Hide or collapse the send dock while the full tower palette is expanded.
-- [ ] Ensure the builder placement descriptor still exposes the `ALL`/menu affordance when send dock is closed.
-- [ ] Ensure panel close behavior returns to the expected previous mode.
-- [ ] Verify touch targets remain large enough after cleanup.
+- [x] Define one owner for the bottom panel region at a time.
+- [x] Hide or collapse the placement/tower descriptor while the send dock is expanded.
+- [x] Hide or collapse the send dock while the full tower palette is expanded.
+- [x] Ensure the builder placement descriptor still exposes the `ALL`/menu affordance when send dock is closed.
+- [x] Ensure panel close behavior returns to the expected previous mode.
+- [x] Verify touch targets remain large enough after cleanup.
 - [ ] Capture fresh default, build menu, send menu, placement descriptor, and heavy combat screenshots.
 
 Exit signal:

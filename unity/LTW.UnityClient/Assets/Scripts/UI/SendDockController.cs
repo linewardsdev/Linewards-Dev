@@ -30,9 +30,16 @@ namespace LTW.UnityClient.UI
         private UnitySimulationDriver simulationDriver = null!;
 
         [SerializeField]
+        private TouchPlacementController touchPlacementController = null!;
+
+        [SerializeField]
         private bool showRuntimeDock = true;
 
         private bool isExpanded;
+
+        public bool IsExpanded => isExpanded;
+
+        public void CloseDock() => isExpanded = false;
 
         public void Initialize(UnityCommandAdapter adapter, PlacementFeedbackView feedback)
         {
@@ -63,10 +70,18 @@ namespace LTW.UnityClient.UI
             var frame = MobileViewportLayout.ScreenRect();
             var launcherSize = 56f * scale;
             var launcherRect = new Rect(frame.xMax - launcherSize - 12f * scale, frame.yMax - launcherSize - MobileViewportLayout.BottomMargin(scale), launcherSize, launcherSize);
+            var touchPlacement = TouchPlacement;
+            if (touchPlacement?.IsTowerPaletteExpanded == true)
+            {
+                isExpanded = false;
+                return;
+            }
+
             if (!isExpanded)
             {
                 if (DrawLauncherButton(launcherRect, "SEND", SignalGold, scale))
                 {
+                    touchPlacement?.CloseBottomPanelsForSend();
                     isExpanded = true;
                 }
 
@@ -135,6 +150,19 @@ namespace LTW.UnityClient.UI
             if (DrawSendButton(new Rect(x, secondRowY, secondRowWidth, buttonHeight), "SIEGE", "40G", CreepIconKind.Siege, new Color(1f, 0.62f, 0.26f), scale))
             {
                 SendSiege();
+            }
+        }
+
+        private TouchPlacementController? TouchPlacement
+        {
+            get
+            {
+                if (touchPlacementController == null)
+                {
+                    touchPlacementController = Object.FindAnyObjectByType<TouchPlacementController>();
+                }
+
+                return touchPlacementController;
             }
         }
 

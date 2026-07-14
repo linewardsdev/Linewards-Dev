@@ -38,6 +38,9 @@ namespace LTW.UnityClient.UI
         private UnitySimulationDriver simulationDriver = null!;
 
         [SerializeField]
+        private SendDockController sendDockController = null!;
+
+        [SerializeField]
         private PlacementFeedbackView feedbackView = null!;
 
         [SerializeField]
@@ -60,6 +63,8 @@ namespace LTW.UnityClient.UI
 
         public bool IsPlacing => isPlacing;
 
+        public bool IsTowerPaletteExpanded => isPaletteExpanded;
+
         public void Initialize(Camera camera, UnityCommandAdapter adapter, PlacementFeedbackView feedback, GameObject placementGhost)
         {
             inputCamera = camera;
@@ -81,6 +86,7 @@ namespace LTW.UnityClient.UI
 
         private void BeginTowerPlacement(int towerRole)
         {
+            CloseSendDock();
             isPlacing = true;
             isPaletteExpanded = false;
             selectedTowerRole = towerRole;
@@ -92,6 +98,18 @@ namespace LTW.UnityClient.UI
             selectedTower = null;
             HideSelectionRing();
             feedbackView.Clear();
+        }
+
+        public void CloseBottomPanelsForSend()
+        {
+            isPaletteExpanded = false;
+            selectedTower = null;
+            HideSelectionRing();
+
+            if (isPlacing)
+            {
+                CancelPlacement(false);
+            }
         }
 
         public void NudgeUp() => Nudge(Vector2Int.down);
@@ -225,6 +243,11 @@ namespace LTW.UnityClient.UI
             var scale = MobileViewportLayout.UiScale();
             var frame = MobileViewportLayout.ScreenRect();
             DrawTowerPalette(scale);
+            if (IsSendDockExpanded())
+            {
+                return;
+            }
+
             DrawSelectedTowerPanel(scale);
 
             if (!isPlacing)
@@ -247,7 +270,7 @@ namespace LTW.UnityClient.UI
             if (DrawLauncherButton(new Rect(rect.xMax - 96f * scale, rect.y + 7f * scale, 80f * scale, 30f * scale), "ALL", SignalGold, scale))
             {
                 CancelPlacement(false);
-                isPaletteExpanded = true;
+                OpenTowerPalette();
                 return;
             }
 
@@ -307,7 +330,7 @@ namespace LTW.UnityClient.UI
             {
                 selectedTower = null;
                 HideSelectionRing();
-                isPaletteExpanded = true;
+                OpenTowerPalette();
                 return;
             }
             GUI.Label(new Rect(rect.x + 12f * scale, rect.y + 32f * scale, rect.width - 24f * scale, 18f * scale), TowerPurpose(selectedTower.TowerId.Value), bodyStyle);
@@ -581,13 +604,18 @@ namespace LTW.UnityClient.UI
                 return;
             }
 
+            if (!isPaletteExpanded && IsSendDockExpanded())
+            {
+                return;
+            }
+
             var frame = MobileViewportLayout.ScreenRect();
             var launcherRect = TowerPaletteLauncherRect(scale, frame);
             if (!isPaletteExpanded)
             {
                 if (DrawLauncherButton(launcherRect, "BUILD", MintSignal, scale))
                 {
-                    isPaletteExpanded = true;
+                    OpenTowerPalette();
                 }
 
                 return;
@@ -652,6 +680,29 @@ namespace LTW.UnityClient.UI
             {
                 selectedTower = null;
                 BeginPrismTowerPlacement();
+            }
+        }
+
+        private void OpenTowerPalette()
+        {
+            CloseSendDock();
+            isPaletteExpanded = true;
+        }
+
+        private void CloseSendDock() => SendDock?.CloseDock();
+
+        private bool IsSendDockExpanded() => SendDock?.IsExpanded == true;
+
+        private SendDockController? SendDock
+        {
+            get
+            {
+                if (sendDockController == null)
+                {
+                    sendDockController = Object.FindAnyObjectByType<SendDockController>();
+                }
+
+                return sendDockController;
             }
         }
 
