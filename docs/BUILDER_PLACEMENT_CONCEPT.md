@@ -188,4 +188,6 @@ Do not add a true simulation builder entity yet. Once the target-and-confirm flo
 - [x] Player can exit builder mode intentionally.
 - [x] Existing confirm hotkey still works as a fallback during transition.
 - [x] Gold and placement legality continue to come from simulation command validation.
+- [x] Builder mode shows a separate in-world builder avatar instead of only a tower ghost.
+- [x] Builder avatar moves with the targeted cell and reflects valid/invalid placement state.
 - [ ] Mobile screenshots show the builder, target cell, feedback, and tower role clearly.

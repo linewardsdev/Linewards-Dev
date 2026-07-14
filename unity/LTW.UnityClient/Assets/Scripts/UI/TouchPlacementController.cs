@@ -47,6 +47,7 @@ namespace LTW.UnityClient.UI
         private bool showPlacementReadout = true;
 
         private GameObject selectionRing = null!;
+        private GameObject builderAvatar = null!;
 
         private bool isPlacing;
         private bool isPaletteExpanded;
@@ -82,6 +83,7 @@ namespace LTW.UnityClient.UI
             selectedTowerRole = towerRole;
             selectedCell = new Vector2Int(2, 2);
             ghost.SetActive(true);
+            EnsureBuilderAvatar().SetActive(true);
             MoveGhost();
             selectedTower = null;
             HideSelectionRing();
@@ -102,6 +104,11 @@ namespace LTW.UnityClient.UI
         {
             isPlacing = false;
             ghost.SetActive(false);
+            if (builderAvatar != null)
+            {
+                builderAvatar.SetActive(false);
+            }
+
             if (clearFeedback)
             {
                 feedbackView.Clear();
@@ -291,6 +298,7 @@ namespace LTW.UnityClient.UI
             ghost.transform.position = new Vector3(selectedCell.x, 0.6f, 17 - selectedCell.y);
             ghost.transform.localScale = SelectedTowerGhostScale();
             ConfigurePlacementGhostVisual();
+            MoveBuilderAvatar();
             RefreshPlacementPreview();
         }
 
@@ -384,6 +392,8 @@ namespace LTW.UnityClient.UI
             {
                 ghostRenderer.material.color = color;
             }
+
+            UpdateBuilderAvatarColor();
         }
 
         private void ConfigurePlacementGhostVisual()
@@ -438,6 +448,66 @@ namespace LTW.UnityClient.UI
             child.transform.localPosition = localPosition;
             child.transform.localRotation = Quaternion.identity;
             child.transform.localScale = localScale;
+            child.GetComponent<Renderer>().material.color = color;
+        }
+
+        private GameObject EnsureBuilderAvatar()
+        {
+            if (builderAvatar != null)
+            {
+                return builderAvatar;
+            }
+
+            builderAvatar = new GameObject("BuilderPlacementAvatar");
+            ConfigureBuilderChild("BuilderShadow", PrimitiveType.Cylinder, new Vector3(0f, -0.28f, 0f), new Vector3(0.46f, 0.025f, 0.34f), new Color(0.015f, 0.022f, 0.035f, 0.82f));
+            ConfigureBuilderChild("BuilderBody", PrimitiveType.Capsule, new Vector3(0f, 0.08f, 0f), new Vector3(0.22f, 0.34f, 0.22f), SelectedTowerAccent());
+            ConfigureBuilderChild("BuilderHead", PrimitiveType.Sphere, new Vector3(0f, 0.43f, 0.04f), new Vector3(0.25f, 0.2f, 0.25f), Cloud);
+            ConfigureBuilderChild("BuilderTool", PrimitiveType.Cube, new Vector3(0.23f, 0.1f, 0.18f), new Vector3(0.07f, 0.34f, 0.07f), SignalGold, Quaternion.Euler(0f, 0f, -24f));
+            ConfigureBuilderChild("BuilderBeacon", PrimitiveType.Cylinder, new Vector3(0f, 0.63f, 0f), new Vector3(0.3f, 0.025f, 0.3f), MintSignal);
+            builderAvatar.SetActive(false);
+            return builderAvatar;
+        }
+
+        private void MoveBuilderAvatar()
+        {
+            var avatar = EnsureBuilderAvatar();
+            avatar.transform.position = new Vector3(selectedCell.x - 0.34f, 0.42f, 17 - selectedCell.y - 0.32f);
+            avatar.transform.rotation = Quaternion.Euler(0f, 28f, 0f);
+            UpdateBuilderAvatarColor();
+        }
+
+        private void UpdateBuilderAvatarColor()
+        {
+            if (builderAvatar == null)
+            {
+                return;
+            }
+
+            SetBuilderChildColor("BuilderBody", SelectedTowerAccent());
+            SetBuilderChildColor("BuilderHead", Cloud);
+            SetBuilderChildColor("BuilderTool", SignalGold);
+            SetBuilderChildColor("BuilderBeacon", placementPreview.Accepted ? MintSignal : Danger);
+        }
+
+        private void ConfigureBuilderChild(string childName, PrimitiveType primitiveType, Vector3 localPosition, Vector3 localScale, Color color, Quaternion? localRotation = null)
+        {
+            var child = GameObject.CreatePrimitive(primitiveType);
+            child.name = childName;
+            child.transform.SetParent(builderAvatar.transform, false);
+            child.transform.localPosition = localPosition;
+            child.transform.localRotation = localRotation ?? Quaternion.identity;
+            child.transform.localScale = localScale;
+            child.GetComponent<Renderer>().material.color = color;
+        }
+
+        private void SetBuilderChildColor(string childName, Color color)
+        {
+            var child = builderAvatar.transform.Find(childName);
+            if (child == null)
+            {
+                return;
+            }
+
             child.GetComponent<Renderer>().material.color = color;
         }
 
