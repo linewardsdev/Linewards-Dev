@@ -1,5 +1,7 @@
 # Builder Placement Concept
 
+Status: deferred concept research. The initial runtime prototype was reverted because it regressed live placement behavior. Current game code should use the existing pre-builder placement flow until this is redesigned and prototyped more safely.
+
 ## Goal
 
 Replace the detached “pick a tower, drag a ghost, confirm” feeling with an in-world builder avatar: a small creep-like worker that can move freely across the player lane and build the last selected tower when the player chooses a square.
@@ -176,6 +178,8 @@ Prototype this as a UI/presentation upgrade first.
 Do not add a true simulation builder entity yet. Once the tap-to-build flow feels good, we can decide whether the builder should become a deeper gameplay mechanic with travel time, vulnerability, upgrades, or multiple workers.
 
 ## Acceptance Checklist
+
+Implementation status: not active in code.
 
 - [ ] Selecting a tower role activates builder placement mode.
 - [ ] Tapping an empty valid square builds the selected tower immediately.
