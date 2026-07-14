@@ -286,6 +286,7 @@ namespace LTW.UnityClient.Simulation
                 var healthFraction = CreepHealthFraction(creep.CreepId.Value, creep.Health);
                 var isHitFlashing = creepHitFlashUntil.TryGetValue(key, out var flashUntil) && Time.time < flashUntil;
                 ApplyCreepColor(creepObject, creep.CreepId.Value, creep.SenderId.Value, visualProfile, healthFraction, isHitFlashing);
+                ConfigureCreepHealthBar(creepObject, creep.CreepId.Value, healthFraction);
                 if (visualProfile == null || visualProfile.Prefab == null)
                 {
                     ConfigureCreepRoleMarker(creepObject, creep.CreepId.Value, creep.SenderId.Value, healthFraction, isHitFlashing);
@@ -378,6 +379,20 @@ namespace LTW.UnityClient.Simulation
 
         private void RenderEvents(IReadOnlyList<ISimulationEvent> events)
         {
+            var leakTransferCandidates = new HashSet<string>();
+            var queuedSpawnKeys = new HashSet<string>();
+            foreach (var simulationEvent in events)
+            {
+                if (simulationEvent is LeakEvent leak)
+                {
+                    leakTransferCandidates.Add(TransferCandidateKey(leak.Tick, leak.SenderId));
+                }
+                else if (simulationEvent is CreepQueuedEvent queued)
+                {
+                    queuedSpawnKeys.Add(SpawnEventKey(queued.Tick, queued.SenderId, queued.DefenderId, queued.CreepId.Value));
+                }
+            }
+
             foreach (var simulationEvent in events)
             {
                 switch (simulationEvent)
@@ -403,10 +418,22 @@ namespace LTW.UnityClient.Simulation
                     case CreepSpawnedEvent spawned:
                         var spawnPosition = SpawnPosition(spawned.DefenderId.Value);
                         var spawnColor = CreepRoleColor(spawned.CreepId.Value, spawned.SenderId.Value);
-                        SpawnCreepArrivalCue(spawned.DefenderId.Value, spawnColor);
+                        var isTransferArrival = leakTransferCandidates.Contains(TransferCandidateKey(spawned.Tick, spawned.SenderId)) &&
+                            !queuedSpawnKeys.Contains(SpawnEventKey(spawned.Tick, spawned.SenderId, spawned.DefenderId, spawned.CreepId.Value));
+                        if (isTransferArrival)
+                        {
+                            SpawnCreepTransferArrivalCue(spawned.DefenderId.Value, spawnColor);
+                            SpawnFloatingText(spawnPosition, "TRANSFER", spawnColor, 0.62f);
+                            SpawnReducedEffectCue(spawnPosition, "TRANSFER", spawnColor);
+                        }
+                        else
+                        {
+                            SpawnCreepArrivalCue(spawned.DefenderId.Value, spawnColor);
+                            SpawnFloatingText(spawnPosition, SpawnLabel(spawned.CreepId.Value), spawnColor, 0.48f);
+                            SpawnReducedEffectCue(spawnPosition, "SPAWN", spawnColor);
+                        }
+
                         SpawnEffect(spawnPosition, spawnColor, 0.52f, 0.28f);
-                        SpawnFloatingText(spawnPosition, SpawnLabel(spawned.CreepId.Value), spawnColor, 0.48f);
-                        SpawnReducedEffectCue(spawnPosition, "SPAWN", spawnColor);
                         break;
                     case CreepDamagedEvent damaged:
                         var hitPosition = PositionFor(damaged.CreepEntityId.Value.ToString());
@@ -563,6 +590,15 @@ namespace LTW.UnityClient.Simulation
             SpawnBeam(spawn + new Vector3(0.54f, 0.22f, 0.54f), spawn + new Vector3(-0.54f, 0.22f, -0.54f), color, 0.18f);
         }
 
+        private void SpawnCreepTransferArrivalCue(int laneId, Color color)
+        {
+            var spawn = SpawnPosition(laneId);
+            SpawnCellFrameCue(spawn, color, 0.34f);
+            SpawnBeam(spawn + new Vector3(-0.68f, 0.28f, 0.62f), spawn + new Vector3(0.68f, 0.28f, 0.62f), color, 0.24f);
+            SpawnBeam(spawn + new Vector3(-0.68f, 0.28f, -0.62f), spawn + new Vector3(0.68f, 0.28f, -0.62f), color, 0.24f);
+            SpawnBeam(spawn + new Vector3(-0.44f, 0.18f, 0f), spawn + new Vector3(0.44f, 0.38f, 0f), SignalGold, 0.24f);
+        }
+
         private void SpawnTowerAttackCue(Vector3 towerPosition, Vector3 hitPosition, string towerId, int damage)
         {
             var shotColor = TowerShotColor(towerId, damage);
@@ -702,6 +738,10 @@ namespace LTW.UnityClient.Simulation
         }
 
         private static string TowerGridKey(GridPosition position, LaneId laneId) => $"{laneId.Value}:{position.X}:{position.Y}";
+
+        private static string TransferCandidateKey(SimulationTick tick, PlayerId senderId) => $"{tick.Value}:{senderId.Value}";
+
+        private static string SpawnEventKey(SimulationTick tick, PlayerId senderId, PlayerId defenderId, string creepId) => $"{tick.Value}:{senderId.Value}:{defenderId.Value}:{creepId}";
 
         private static Vector3 SpawnPosition(int laneId) => GridToWorld(new GridPosition(CenterColumn, 0), new LaneId(laneId));
 
@@ -1091,6 +1131,43 @@ namespace LTW.UnityClient.Simulation
             SetProfileColor(creepObject, visualProfile.BodyRendererPath, bodyColor);
             SetProfileColors(creepObject, visualProfile.SenderAccentRendererPaths, senderColor);
             SetProfileColors(creepObject, visualProfile.DamageRendererPaths, damageColor);
+        }
+
+        private static void ConfigureCreepHealthBar(GameObject creepObject, string creepId, float healthFraction)
+        {
+            var barY = ContainsRole(creepId, "brute") || ContainsRole(creepId, "tank") || ContainsRole(creepId, "boss") ? 1.02f : 0.82f;
+            var barWidth = ContainsRole(creepId, "swarm") ? 1.42f : 1.26f;
+            var back = EnsureChild(creepObject, "HealthBarBack", PrimitiveType.Cube);
+            var fill = EnsureChild(creepObject, "HealthBarFill", PrimitiveType.Cube);
+            var wound = EnsureChild(creepObject, "HealthWoundPip", PrimitiveType.Cube);
+
+            ConfigureHealthBarChild(back, new Vector3(0f, barY, 0.72f), new Vector3(barWidth, 0.1f, 0.22f), new Color(0.015f, 0.022f, 0.035f));
+            var fillWidth = Mathf.Max(0.08f, barWidth * Mathf.Clamp01(healthFraction));
+            var fillX = (fillWidth - barWidth) * 0.5f;
+            ConfigureHealthBarChild(fill, new Vector3(fillX, barY + 0.018f, 0.72f), new Vector3(fillWidth, 0.115f, 0.24f), CreepHealthColor(healthFraction));
+            ConfigureHealthBarChild(wound, new Vector3(barWidth * 0.5f + 0.12f, barY + 0.03f, 0.72f), new Vector3(0.14f, 0.16f, 0.28f), LeakRed);
+            wound.SetActive(healthFraction < 0.72f);
+        }
+
+        private static void ConfigureHealthBarChild(GameObject child, Vector3 localPosition, Vector3 localScale, Color color)
+        {
+            ConfigureChild(child, true, localPosition, localScale, color);
+            child.transform.rotation = Quaternion.identity;
+        }
+
+        private static Color CreepHealthColor(float healthFraction)
+        {
+            if (healthFraction <= 0.34f)
+            {
+                return LeakRed;
+            }
+
+            if (healthFraction <= 0.66f)
+            {
+                return SignalGold;
+            }
+
+            return MintSignal;
         }
 
         private static void SetProfileColors(GameObject root, IReadOnlyList<string> paths, Color color)
