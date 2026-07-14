@@ -47,7 +47,19 @@ Move from "playable prototype with improving art" to "coherent 2000-baseline ver
 
 The target is not modern AAA polish. The target is a readable, original, low-poly tactical board game where a first-time tester can understand lane flow, tower roles, creep pressure, health, placement, sends, and major combat events without explanation.
 
+## Agent Ownership
+
+| Agent | Assigned Workstreams | Focus |
+| --- | --- | --- |
+| Agent 1 | A, C, H, J | Cloud sync, bottom-panel UI cleanup, UI/icons, screenshot QA |
+| Agent 2 | B, E, I | Manual Unity smoke testing, board/path readability, gameplay scenarios |
+| Agent 3 | D, F, G | Creep health/transfer tuning, role readability, motion/VFX |
+
+Ownership is intentionally balanced by count and by dependency shape. Agent 1 keeps the integration/UI/screenshot gate work together. Agent 2 owns test/play/readability validation. Agent 3 owns creep/tower visual readability and feedback polish.
+
 ## Workstream A: Cloud Sync And Baseline Lock
+
+Owner: Agent 1
 
 Goal: make sure current correctness and presentation fixes are safely shared before new work piles on.
 
@@ -61,6 +73,8 @@ Exit signal:
 - Cloud `main` contains the creep health persistence fix, health readability cues, and forward-preferred pathing.
 
 ## Workstream B: Manual Unity Smoke Test
+
+Owner: Agent 2
 
 Goal: validate that the latest fixes feel correct in Play Mode before broader art/UI work.
 
@@ -79,6 +93,8 @@ Exit signal:
 - A tester can complete placement, send, sell, reset, and lane-view checks without a blocking UI or pathing confusion.
 
 ## Workstream C: Bottom Panel And Mobile HUD Cleanup
+
+Owner: Agent 1
 
 Goal: remove the most visible current UI regression: overlapping bottom panels.
 
@@ -101,6 +117,8 @@ Exit signal:
 - No active bottom UI panel visually overlaps another active bottom UI panel in phone framing.
 
 ## Workstream D: Creep Health And Transfer Readability
+
+Owner: Agent 3
 
 Goal: make health persistence trustworthy to the player.
 
@@ -126,6 +144,8 @@ Exit signal:
 
 ## Workstream E: Board Readability And Path Clarity
 
+Owner: Agent 2
+
 Goal: keep the core lane and path behavior readable under real tower formations.
 
 Completed:
@@ -147,6 +167,8 @@ Exit signal:
 - Lane flow, tower placement, and creep route changes are understandable without reading logs.
 
 ## Workstream F: Tower, Creep, And Send Role Readability
+
+Owner: Agent 3
 
 Goal: make the 5x2 roster readable by shape, motion, and role behavior, not only labels.
 
@@ -177,6 +199,8 @@ Exit signal:
 - A first-time tester can identify tower and creep roles from gameplay-scale screenshots.
 
 ## Workstream G: Role Motion And Combat Feedback
+
+Owner: Agent 3
 
 Goal: make the game feel alive while preserving clarity under pressure.
 
@@ -213,6 +237,8 @@ Exit signal:
 
 ## Workstream H: UI Art, Icons, And Decision Speed
 
+Owner: Agent 1
+
 Goal: make the HUD feel designed while preserving compact mobile decisions.
 
 Build/send UI tasks:
@@ -241,6 +267,8 @@ Exit signal:
 
 ## Workstream I: Gameplay Scenario Tests And Tuning Evidence
 
+Owner: Agent 2
+
 Goal: make balance and pacing changes repeatable.
 
 Scenario tests:
@@ -266,6 +294,8 @@ Exit signal:
 - Balance changes can be evaluated through deterministic scenarios and playtest evidence.
 
 ## Workstream J: Screenshot QA Gate
+
+Owner: Agent 1
 
 Goal: every meaningful graphics/UI branch produces visible evidence.
 
