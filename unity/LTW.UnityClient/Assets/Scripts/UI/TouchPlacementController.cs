@@ -43,6 +43,8 @@ namespace LTW.UnityClient.UI
         [SerializeField]
         private GameObject ghost = null!;
 
+        private GameObject builderAvatar = null!;
+
         [SerializeField]
         private bool showPlacementReadout = true;
 
@@ -51,6 +53,7 @@ namespace LTW.UnityClient.UI
         private bool isPlacing;
         private bool isPaletteExpanded;
         private int selectedTowerRole;
+        private int lastSelectedTowerRole;
         private Vector2Int selectedCell;
         private TowerCombatState? selectedTower;
         private VerticalSliceCommandResult placementPreview = VerticalSliceCommandResult.Reject(CommandRejectionReason.InvalidLane);
@@ -63,9 +66,10 @@ namespace LTW.UnityClient.UI
             commandAdapter = adapter;
             feedbackView = feedback;
             ghost = placementGhost;
+            EnsureBuilderAvatar();
         }
 
-        public void BeginTowerPlacement() => BeginTowerPlacement(0);
+        public void BeginTowerPlacement() => BeginTowerPlacement(lastSelectedTowerRole);
 
         public void BeginControlTowerPlacement() => BeginTowerPlacement(1);
 
@@ -80,8 +84,10 @@ namespace LTW.UnityClient.UI
             isPlacing = true;
             isPaletteExpanded = false;
             selectedTowerRole = towerRole;
+            lastSelectedTowerRole = towerRole;
             selectedCell = new Vector2Int(2, 2);
             ghost.SetActive(true);
+            builderAvatar.SetActive(true);
             MoveGhost();
             selectedTower = null;
             HideSelectionRing();
@@ -102,6 +108,10 @@ namespace LTW.UnityClient.UI
         {
             isPlacing = false;
             ghost.SetActive(false);
+            if (builderAvatar != null)
+            {
+                builderAvatar.SetActive(false);
+            }
             if (clearFeedback)
             {
                 feedbackView.Clear();
@@ -134,7 +144,9 @@ namespace LTW.UnityClient.UI
             if (result.Accepted)
             {
                 feedbackView.ShowAccepted(SelectedTowerName() + " placed");
-                CancelPlacement(false);
+                // Keep the builder active with the last selected tower for fast repeat placement.
+                lastSelectedTowerRole = selectedTowerRole;
+                MoveGhost();
                 return;
             }
 
@@ -231,10 +243,18 @@ namespace LTW.UnityClient.UI
             bodyStyle!.fontSize = Mathf.RoundToInt(12f * scale);
             bodyStyle.normal.textColor = Cloud;
 
-            GUI.Label(new Rect(rect.x + 12f * scale, rect.y + 9f * scale, rect.width - 24f * scale, 24f * scale), $"{SelectedTowerName().ToUpperInvariant()}  {SelectedTowerCost()}G", titleStyle);
+            GUI.Label(new Rect(rect.x + 12f * scale, rect.y + 9f * scale, rect.width - 116f * scale, 24f * scale), $"{SelectedTowerName().ToUpperInvariant()}  {SelectedTowerCost()}G", titleStyle);
+            if (DrawLauncherButton(new Rect(rect.xMax - 96f * scale, rect.y + 7f * scale, 80f * scale, 30f * scale), "ALL", SignalGold, scale))
+            {
+                CancelPlacement(false);
+                isPaletteExpanded = true;
+                return;
+            }
+
             var placementLine = placementPreview.Accepted ? $"CELL {selectedCell.x}, {selectedCell.y} READY" : PlacementPreviewText();
             GUI.Label(new Rect(rect.x + 12f * scale, rect.y + 35f * scale, rect.width - 24f * scale, 20f * scale), placementLine, bodyStyle);
-            GUI.Label(new Rect(rect.x + 12f * scale, rect.y + 57f * scale, rect.width - 24f * scale, 20f * scale), placementPreview.Accepted ? "Confirm to build, or tap another cell" : PlacementRecoveryText(), bodyStyle);
+            var actionHint = placementPreview.Accepted ? "BUILDER ONLINE  •  CONFIRM TO BUILD" : PlacementRecoveryText();
+            GUI.Label(new Rect(rect.x + 12f * scale, rect.y + 57f * scale, rect.width - 24f * scale, 20f * scale), actionHint, bodyStyle);
         }
 
         private void SelectTowerAt(Vector2Int cell)
@@ -282,7 +302,14 @@ namespace LTW.UnityClient.UI
             bodyStyle!.fontSize = Mathf.RoundToInt(12f * scale);
             bodyStyle.normal.textColor = Cloud;
 
-            GUI.Label(new Rect(rect.x + 12f * scale, rect.y + 8f * scale, rect.width - 96f * scale, 22f * scale), TowerRoleName(selectedTower.TowerId.Value).ToUpperInvariant(), titleStyle);
+            GUI.Label(new Rect(rect.x + 12f * scale, rect.y + 8f * scale, rect.width - 116f * scale, 22f * scale), TowerRoleName(selectedTower.TowerId.Value).ToUpperInvariant(), titleStyle);
+            if (DrawLauncherButton(new Rect(rect.xMax - 96f * scale, rect.y + 7f * scale, 80f * scale, 30f * scale), "MENU", SignalGold, scale))
+            {
+                selectedTower = null;
+                HideSelectionRing();
+                isPaletteExpanded = true;
+                return;
+            }
             GUI.Label(new Rect(rect.x + 12f * scale, rect.y + 32f * scale, rect.width - 24f * scale, 18f * scale), TowerPurpose(selectedTower.TowerId.Value), bodyStyle);
             GUI.Label(new Rect(rect.x + 12f * scale, rect.y + 51f * scale, rect.width - 24f * scale, 18f * scale), $"CELL {selectedTower.Position.X}, {selectedTower.Position.Y}  OWNER P{selectedTower.OwnerId.Value}", bodyStyle);
             GUI.Label(new Rect(rect.x + 12f * scale, rect.y + 70f * scale, rect.width - 108f * scale, 18f * scale), "Tap another tower or sell this one", bodyStyle);
@@ -309,6 +336,7 @@ namespace LTW.UnityClient.UI
         private void MoveGhost()
         {
             ghost.transform.position = new Vector3(selectedCell.x, 0.6f, 17 - selectedCell.y);
+            UpdateBuilderAvatar();
             ghost.transform.localScale = SelectedTowerGhostScale();
             ConfigurePlacementGhostVisual();
             RefreshPlacementPreview();
@@ -369,6 +397,55 @@ namespace LTW.UnityClient.UI
             ConfigureGhostChild("GhostPrismSpire", isPrism, new Vector3(0f, 0.68f, 0f), new Vector3(0.22f, 1.28f, 0.22f), accent);
             ConfigureGhostChild("GhostPrismLens", isPrism, new Vector3(0f, 1.36f, 0f), new Vector3(0.42f, 0.18f, 0.42f), accent);
             ConfigureGhostChild("GhostPrismBeam", isPrism, new Vector3(0f, 1.08f, 0.34f), new Vector3(0.08f, 0.78f, 0.08f), MintSignal);
+        }
+
+        private void EnsureBuilderAvatar()
+        {
+            if (builderAvatar != null)
+            {
+                return;
+            }
+
+            builderAvatar = new GameObject("Builder Avatar");
+            builderAvatar.transform.SetParent(transform, false);
+            builderAvatar.transform.localScale = new Vector3(1.35f, 1.35f, 1.35f);
+            builderAvatar.SetActive(false);
+
+            CreateBuilderPart("Body", PrimitiveType.Capsule, new Vector3(0f, 0.34f, 0f), new Vector3(0.28f, 0.34f, 0.28f));
+            CreateBuilderPart("Pack", PrimitiveType.Cube, new Vector3(0f, 0.38f, -0.2f), new Vector3(0.25f, 0.3f, 0.12f));
+            CreateBuilderPart("Visor", PrimitiveType.Cube, new Vector3(0f, 0.53f, 0.18f), new Vector3(0.2f, 0.08f, 0.08f));
+            CreateBuilderPart("FootMarker", PrimitiveType.Cylinder, new Vector3(0f, 0.015f, 0f), new Vector3(0.72f, 0.02f, 0.72f));
+        }
+
+        private void CreateBuilderPart(string partName, PrimitiveType primitiveType, Vector3 localPosition, Vector3 localScale)
+        {
+            var part = GameObject.CreatePrimitive(primitiveType);
+            part.name = partName;
+            part.transform.SetParent(builderAvatar.transform, false);
+            part.transform.localPosition = localPosition;
+            part.transform.localScale = localScale;
+        }
+
+        private void UpdateBuilderAvatar()
+        {
+            if (builderAvatar == null)
+            {
+                return;
+            }
+
+            builderAvatar.transform.position = new Vector3(selectedCell.x - 0.48f, 0.02f, 17 - selectedCell.y + 0.24f);
+            var accent = SelectedTowerAccent();
+            accent.a = 1f;
+            foreach (var part in builderAvatar.GetComponentsInChildren<Renderer>(true))
+            {
+                part.material.color = part.gameObject.name switch
+                {
+                    "Body" => Cloud,
+                    "Pack" => PanelInk,
+                    "FootMarker" => accent,
+                    _ => accent
+                };
+            }
         }
 
         private GameObject EnsureGhostChild(string childName, PrimitiveType primitiveType)
