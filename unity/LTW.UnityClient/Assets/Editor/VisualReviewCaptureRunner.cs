@@ -3,6 +3,9 @@
 using System;
 using System.IO;
 using System.Reflection;
+using LTW.Simulation.Bridge;
+using LTW.Simulation.Content;
+using LTW.Simulation.Primitives;
 using LTW.UnityClient.Simulation;
 using LTW.UnityClient.UI;
 using UnityEditor;
@@ -36,16 +39,31 @@ namespace LTW.UnityClient.Editor
         private static bool writeGrayscaleCopies;
         private static bool previousEnterPlayModeOptionsEnabled;
         private static EnterPlayModeOptions previousEnterPlayModeOptions;
+        private static CaptureMode captureMode;
+        private static bool roleLineupPrepared;
 
         [MenuItem("Line Wards/Review/Capture Visual Review Set")]
         public static void CaptureVisualReviewSet()
         {
+            BeginCapture(CaptureMode.FullReview);
+        }
+
+        [MenuItem("Line Wards/Review/Capture Role Lineup Review Set")]
+        public static void CaptureRoleLineupReviewSet()
+        {
+            BeginCapture(CaptureMode.RoleLineup);
+        }
+
+        private static void BeginCapture(CaptureMode mode)
+        {
+            captureMode = mode;
             outputDirectory = ResolveOutputDirectory();
             Directory.CreateDirectory(outputDirectory);
             captureIndex = 1;
             pendingCapturePath = null;
             pendingCaptureLabel = null;
             delayedCaptureLabel = null;
+            roleLineupPrepared = false;
             exitAfterRun = ShouldExitAfterRun();
             writeGrayscaleCopies = HasArgument("-ltwCaptureGrayscale");
             previousEnterPlayModeOptionsEnabled = EditorSettings.enterPlayModeOptionsEnabled;
@@ -125,6 +143,12 @@ namespace LTW.UnityClient.Editor
                 return;
             }
 
+            if (captureMode == CaptureMode.RoleLineup)
+            {
+                UpdateRoleLineup(driver, commands, placement, sendDock, laneToggle);
+                return;
+            }
+
             switch (state)
             {
                 case CaptureState.WaitForPlayMode:
@@ -181,6 +205,38 @@ namespace LTW.UnityClient.Editor
             }
         }
 
+        private static void UpdateRoleLineup(
+            UnitySimulationDriver driver,
+            UnityCommandAdapter commands,
+            TouchPlacementController placement,
+            SendDockController sendDock,
+            LaneViewToggleController laneToggle)
+        {
+            switch (state)
+            {
+                case CaptureState.WaitForPlayMode:
+                    SetPrivateBool(placement, "isPaletteExpanded", false);
+                    SetPrivateBool(sendDock, "isExpanded", false);
+                    laneToggle.ShowLaneView();
+                    PrepareRoleLineup(driver, commands);
+                    ScheduleCaptureThenAdvance("role-lineup", 4.5d);
+                    break;
+
+                case CaptureState.OpenBuildMenu:
+                    PresentationPreferences.ReducedEffects = true;
+                    ScheduleCaptureThenAdvance("role-lineup-reduced-effects", 0.75d);
+                    break;
+
+                case CaptureState.OpenSendMenu:
+                    state = CaptureState.Done;
+                    break;
+
+                case CaptureState.Done:
+                    Finish(null);
+                    break;
+            }
+        }
+
         private static void StartCombat(UnitySimulationDriver driver, UnityCommandAdapter commands)
         {
             driver.StartMatch();
@@ -189,6 +245,64 @@ namespace LTW.UnityClient.Editor
             commands.SendSampleCreep();
             commands.SendBruteCreep();
             commands.SendSwarmCreep();
+        }
+
+        private static void PrepareRoleLineup(UnitySimulationDriver driver, UnityCommandAdapter commands)
+        {
+            if (roleLineupPrepared)
+            {
+                return;
+            }
+
+            roleLineupPrepared = true;
+            driver.StartMatch();
+            GrantPlaytestGold(commands, 1, 2000);
+
+            LogCommandResult("lineup Arrow tower", commands.PlaceSampleTower(1, 14));
+            LogCommandResult("lineup Control tower", commands.PlaceControlTower(5, 14));
+            LogCommandResult("lineup Relay tower", commands.PlaceUtilityTower(1, 11));
+            LogCommandResult("lineup Pulse tower", commands.PlacePulseTower(5, 11));
+            LogCommandResult("lineup Prism tower", commands.PlacePrismTower(2, 8));
+
+            GrantPlaytestGold(commands, 3, 2000);
+            LogCommandResult("lineup Runner visible send", QueueVisibleLineupCreep(commands, SampleVerticalSliceContent.CreepId, 1));
+            LogCommandResult("lineup Brute visible send", QueueVisibleLineupCreep(commands, SampleVerticalSliceContent.BruteCreepId, 1));
+            LogCommandResult("lineup Swarm visible send", QueueVisibleLineupCreep(commands, SampleVerticalSliceContent.SwarmCreepId, 3));
+            LogCommandResult("lineup Shade visible send", QueueVisibleLineupCreep(commands, SampleVerticalSliceContent.ShadeCreepId, 1));
+            LogCommandResult("lineup Siege visible send", QueueVisibleLineupCreep(commands, SampleVerticalSliceContent.SiegeCreepId, 1));
+            driver.RefreshSnapshot(drainEvents: true);
+        }
+
+        private static void GrantPlaytestGold(UnityCommandAdapter commands, int playerId, int amount)
+        {
+            var simulation = GetLocalSimulation(commands);
+            simulation?.GrantLocalPlaytestGold(new PlayerId(playerId), new Gold(amount));
+        }
+
+        private static VerticalSliceCommandResult QueueVisibleLineupCreep(UnityCommandAdapter commands, ContentId creepId, int quantity)
+        {
+            var simulation = GetLocalSimulation(commands);
+            return simulation is null
+                ? VerticalSliceCommandResult.Reject(LTW.Simulation.Commands.CommandRejectionReason.MatchPaused)
+                : simulation.QueueSend(new PlayerId(3), creepId, quantity);
+        }
+
+        private static LocalVerticalSlice? GetLocalSimulation(UnityCommandAdapter commands)
+        {
+            var field = typeof(UnityCommandAdapter).GetField("simulation", BindingFlags.Instance | BindingFlags.NonPublic);
+            return field?.GetValue(commands) as LocalVerticalSlice;
+        }
+
+        private static void LogCommandResult(string label, VerticalSliceCommandResult result)
+        {
+            if (result.Accepted)
+            {
+                Debug.Log($"LTW role lineup accepted: {label}");
+            }
+            else
+            {
+                Debug.LogWarning($"LTW role lineup rejected: {label} ({result.RejectionReason})");
+            }
         }
 
         private static void TryAccelerateMatch(UnitySimulationDriver driver)
@@ -341,6 +455,12 @@ namespace LTW.UnityClient.Editor
             ReducedEffects,
             Results,
             Done
+        }
+
+        private enum CaptureMode
+        {
+            FullReview,
+            RoleLineup
         }
     }
 }
