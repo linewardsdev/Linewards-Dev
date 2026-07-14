@@ -126,11 +126,14 @@ namespace LTW.UnityClient.Editor
             Material shadowMaterial)
         {
             var root = new GameObject("Creep_Runner");
-            CreateChild(root, "Shadow", PrimitiveType.Cylinder, new Vector3(0f, -0.08f, 0f), new Vector3(0.9f, 0.025f, 1.2f), shadowMaterial);
-            CreateMeshChild(root, "Body", runnerDartMesh, new Vector3(0f, 0.11f, 0f), new Vector3(0.68f, 0.34f, 1.16f), bodyMaterial);
-            CreateMeshChild(root, "Accent", runnerFinMesh, new Vector3(0f, 0.17f, -0.52f), new Vector3(0.22f, 0.14f, 0.28f), accentMaterial);
-            CreateMeshChild(root, "Damage", runnerFinMesh, new Vector3(0f, 0.22f, 0.35f), new Vector3(0.4f, 0.1f, 0.18f), damageMaterial);
-            CreateChild(root, "SpeedLine", PrimitiveType.Cube, new Vector3(0f, 0.12f, 0.72f), new Vector3(0.08f, 0.05f, 0.64f), accentMaterial);
+            CreateChild(root, "Shadow", PrimitiveType.Cylinder, new Vector3(0f, -0.08f, 0f), new Vector3(0.72f, 0.022f, 1.42f), shadowMaterial);
+            CreateMeshChild(root, "Body", runnerDartMesh, new Vector3(0f, 0.1f, 0.02f), new Vector3(0.48f, 0.26f, 1.52f), bodyMaterial);
+            CreateMeshChild(root, "NoseNeedle", runnerFinMesh, new Vector3(0f, 0.14f, 0.72f), new Vector3(0.18f, 0.1f, 0.42f), bodyMaterial);
+            CreateMeshChild(root, "Accent", runnerFinMesh, new Vector3(0f, 0.16f, -0.58f), new Vector3(0.18f, 0.12f, 0.38f), accentMaterial);
+            CreateMeshChild(root, "LeftFin", runnerFinMesh, new Vector3(-0.36f, 0.1f, -0.08f), new Vector3(0.14f, 0.09f, 0.58f), accentMaterial, Quaternion.Euler(0f, 0f, 16f));
+            CreateMeshChild(root, "RightFin", runnerFinMesh, new Vector3(0.36f, 0.1f, -0.08f), new Vector3(0.14f, 0.09f, 0.58f), accentMaterial, Quaternion.Euler(0f, 0f, -16f));
+            CreateMeshChild(root, "Damage", runnerFinMesh, new Vector3(0f, 0.2f, 0.3f), new Vector3(0.32f, 0.08f, 0.2f), damageMaterial);
+            CreateChild(root, "SpeedLine", PrimitiveType.Cube, new Vector3(0f, 0.1f, -0.98f), new Vector3(0.055f, 0.04f, 0.74f), accentMaterial);
 
             return SavePrefab(root, RunnerPrefabPath);
         }
@@ -144,17 +147,19 @@ namespace LTW.UnityClient.Editor
             Material shadowMaterial)
         {
             var root = new GameObject("Creep_Brute");
-            CreateChild(root, "Shadow", PrimitiveType.Cylinder, new Vector3(0f, -0.1f, 0f), new Vector3(1.25f, 0.03f, 1.25f), shadowMaterial);
-            CreateMeshChild(root, "Body", bruteCoreMesh, new Vector3(0f, 0.2f, 0f), new Vector3(1.05f, 0.72f, 1.05f), bodyMaterial);
+            CreateChild(root, "Shadow", PrimitiveType.Cylinder, new Vector3(0f, -0.1f, 0f), new Vector3(1.52f, 0.032f, 1.18f), shadowMaterial);
+            CreateMeshChild(root, "Body", bruteCoreMesh, new Vector3(0f, 0.19f, 0f), new Vector3(1.18f, 0.62f, 0.92f), bodyMaterial);
+            CreateMeshChild(root, "FrontBrow", brutePlateMesh, new Vector3(0f, 0.37f, 0.38f), new Vector3(0.78f, 0.12f, 0.22f), bodyMaterial);
 
             var accent = new GameObject("Accent");
             accent.transform.SetParent(root.transform, false);
-            CreateMeshChild(accent, "Core", bruteCoreMesh, new Vector3(0f, 0.22f, -0.45f), new Vector3(0.34f, 0.24f, 0.18f), accentMaterial);
+            CreateMeshChild(accent, "Core", bruteCoreMesh, new Vector3(0f, 0.24f, -0.44f), new Vector3(0.36f, 0.24f, 0.2f), accentMaterial);
 
             var damage = new GameObject("Damage");
             damage.transform.SetParent(root.transform, false);
-            CreateMeshChild(damage, "PlateLeft", brutePlateMesh, new Vector3(-0.42f, 0.22f, 0.05f), new Vector3(0.24f, 0.12f, 0.6f), damageMaterial);
-            CreateMeshChild(damage, "PlateRight", brutePlateMesh, new Vector3(0.42f, 0.22f, 0.05f), new Vector3(0.24f, 0.12f, 0.6f), damageMaterial);
+            CreateMeshChild(damage, "PlateLeft", brutePlateMesh, new Vector3(-0.55f, 0.22f, 0.02f), new Vector3(0.28f, 0.14f, 0.72f), damageMaterial, Quaternion.Euler(0f, 0f, -9f));
+            CreateMeshChild(damage, "PlateRight", brutePlateMesh, new Vector3(0.55f, 0.22f, 0.02f), new Vector3(0.28f, 0.14f, 0.72f), damageMaterial, Quaternion.Euler(0f, 0f, 9f));
+            CreateMeshChild(damage, "RearPlate", brutePlateMesh, new Vector3(0f, 0.2f, -0.54f), new Vector3(0.64f, 0.12f, 0.24f), damageMaterial);
 
             return SavePrefab(root, BrutePrefabPath);
         }
@@ -167,23 +172,24 @@ namespace LTW.UnityClient.Editor
             Material shadowMaterial)
         {
             var root = new GameObject("Creep_Swarm");
-            CreateChild(root, "Shadow", PrimitiveType.Cylinder, new Vector3(0f, -0.08f, 0f), new Vector3(1.15f, 0.02f, 1.15f), shadowMaterial);
+            CreateChild(root, "Shadow", PrimitiveType.Cylinder, new Vector3(0f, -0.08f, 0f), new Vector3(1.34f, 0.02f, 1.18f), shadowMaterial);
 
             var body = new GameObject("Body");
             body.transform.SetParent(root.transform, false);
-            CreateMeshChild(body, "Shard0", swarmShardMesh, new Vector3(0f, 0.12f, 0f), new Vector3(0.36f, 0.24f, 0.36f), bodyMaterial);
-            CreateMeshChild(body, "Shard1", swarmShardMesh, new Vector3(-0.34f, 0.08f, 0.2f), new Vector3(0.28f, 0.2f, 0.28f), bodyMaterial);
-            CreateMeshChild(body, "Shard2", swarmShardMesh, new Vector3(0.36f, 0.09f, 0.18f), new Vector3(0.26f, 0.18f, 0.26f), bodyMaterial);
-            CreateMeshChild(body, "Shard3", swarmShardMesh, new Vector3(0.04f, 0.08f, -0.36f), new Vector3(0.24f, 0.18f, 0.24f), bodyMaterial);
+            CreateMeshChild(body, "Shard0", swarmShardMesh, new Vector3(0f, 0.14f, 0.04f), new Vector3(0.38f, 0.26f, 0.38f), bodyMaterial);
+            CreateMeshChild(body, "Shard1", swarmShardMesh, new Vector3(-0.42f, 0.09f, 0.24f), new Vector3(0.26f, 0.19f, 0.26f), bodyMaterial, Quaternion.Euler(0f, 0f, -12f));
+            CreateMeshChild(body, "Shard2", swarmShardMesh, new Vector3(0.42f, 0.1f, 0.2f), new Vector3(0.25f, 0.18f, 0.25f), bodyMaterial, Quaternion.Euler(0f, 0f, 14f));
+            CreateMeshChild(body, "Shard3", swarmShardMesh, new Vector3(-0.12f, 0.08f, -0.42f), new Vector3(0.24f, 0.17f, 0.24f), bodyMaterial, Quaternion.Euler(0f, 0f, 21f));
+            CreateMeshChild(body, "Shard4", swarmShardMesh, new Vector3(0.3f, 0.07f, -0.34f), new Vector3(0.2f, 0.15f, 0.2f), bodyMaterial, Quaternion.Euler(0f, 0f, -24f));
 
             var accent = new GameObject("Accent");
             accent.transform.SetParent(root.transform, false);
-            CreateMeshChild(accent, "Signal0", swarmShardMesh, new Vector3(-0.18f, 0.23f, -0.12f), new Vector3(0.14f, 0.1f, 0.14f), accentMaterial);
-            CreateMeshChild(accent, "Signal1", swarmShardMesh, new Vector3(0.22f, 0.21f, 0.18f), new Vector3(0.12f, 0.09f, 0.12f), accentMaterial);
+            CreateMeshChild(accent, "Signal0", swarmShardMesh, new Vector3(-0.22f, 0.24f, -0.1f), new Vector3(0.14f, 0.1f, 0.14f), accentMaterial);
+            CreateMeshChild(accent, "Signal1", swarmShardMesh, new Vector3(0.26f, 0.22f, 0.2f), new Vector3(0.12f, 0.09f, 0.12f), accentMaterial);
 
             var damage = new GameObject("Damage");
             damage.transform.SetParent(root.transform, false);
-            CreateMeshChild(damage, "CrackedShard", swarmShardMesh, new Vector3(0.34f, 0.16f, -0.18f), new Vector3(0.18f, 0.12f, 0.18f), damageMaterial);
+            CreateMeshChild(damage, "CrackedShard", swarmShardMesh, new Vector3(0.44f, 0.16f, -0.12f), new Vector3(0.18f, 0.12f, 0.18f), damageMaterial);
 
             return SavePrefab(root, SwarmPrefabPath);
         }
@@ -196,12 +202,13 @@ namespace LTW.UnityClient.Editor
             Material shadowMaterial)
         {
             var root = new GameObject("Creep_Shade");
-            CreateChild(root, "Shadow", PrimitiveType.Cylinder, new Vector3(0f, -0.08f, 0f), new Vector3(0.95f, 0.018f, 1.16f), shadowMaterial);
-            CreateMeshChild(root, "Body", shadeEchoMesh, new Vector3(0f, 0.15f, 0f), new Vector3(0.54f, 0.24f, 0.86f), shadeMaterial);
-            CreateMeshChild(root, "EchoA", shadeEchoMesh, new Vector3(-0.28f, 0.1f, 0.24f), new Vector3(0.3f, 0.12f, 0.5f), shadeMaterial);
-            CreateMeshChild(root, "EchoB", shadeEchoMesh, new Vector3(0.28f, 0.12f, -0.2f), new Vector3(0.26f, 0.1f, 0.44f), shadeMaterial);
-            CreateChild(root, "Accent", PrimitiveType.Cylinder, new Vector3(0f, 0.22f, 0f), new Vector3(0.86f, 0.025f, 0.86f), accentMaterial);
-            CreateMeshChild(root, "Damage", shadeEchoMesh, new Vector3(0f, 0.28f, 0.34f), new Vector3(0.2f, 0.08f, 0.26f), damageMaterial);
+            CreateChild(root, "Shadow", PrimitiveType.Cylinder, new Vector3(0f, -0.08f, 0f), new Vector3(0.82f, 0.018f, 1.28f), shadowMaterial);
+            CreateMeshChild(root, "Body", shadeEchoMesh, new Vector3(0f, 0.15f, 0f), new Vector3(0.42f, 0.22f, 0.98f), shadeMaterial);
+            CreateMeshChild(root, "EchoA", shadeEchoMesh, new Vector3(-0.34f, 0.1f, 0.2f), new Vector3(0.26f, 0.1f, 0.58f), shadeMaterial, Quaternion.Euler(0f, 0f, -18f));
+            CreateMeshChild(root, "EchoB", shadeEchoMesh, new Vector3(0.34f, 0.12f, -0.26f), new Vector3(0.24f, 0.09f, 0.52f), shadeMaterial, Quaternion.Euler(0f, 0f, 18f));
+            CreateChild(root, "Accent", PrimitiveType.Cylinder, new Vector3(0f, 0.22f, 0f), new Vector3(0.96f, 0.018f, 0.62f), accentMaterial);
+            CreateChild(root, "BreakLine", PrimitiveType.Cube, new Vector3(0f, 0.27f, 0.38f), new Vector3(0.58f, 0.03f, 0.08f), accentMaterial);
+            CreateMeshChild(root, "Damage", shadeEchoMesh, new Vector3(0f, 0.28f, 0.34f), new Vector3(0.18f, 0.07f, 0.3f), damageMaterial);
 
             return SavePrefab(root, ShadePrefabPath);
         }
@@ -215,15 +222,16 @@ namespace LTW.UnityClient.Editor
             Material shadowMaterial)
         {
             var root = new GameObject("Creep_Siege");
-            CreateChild(root, "Shadow", PrimitiveType.Cylinder, new Vector3(0f, -0.1f, 0f), new Vector3(1.18f, 0.03f, 1.02f), shadowMaterial);
-            CreateMeshChild(root, "Body", siegeRamMesh, new Vector3(0f, 0.18f, 0f), new Vector3(1.02f, 0.44f, 0.92f), siegeMaterial);
-            CreateMeshChild(root, "Ram", siegeRamMesh, new Vector3(0f, 0.22f, 0.48f), new Vector3(0.42f, 0.22f, 0.66f), siegeMaterial);
-            CreateMeshChild(root, "Accent", coreMesh, new Vector3(0f, 0.36f, -0.28f), new Vector3(0.28f, 0.2f, 0.24f), accentMaterial);
+            CreateChild(root, "Shadow", PrimitiveType.Cylinder, new Vector3(0f, -0.1f, 0f), new Vector3(1.12f, 0.03f, 1.48f), shadowMaterial);
+            CreateMeshChild(root, "Body", siegeRamMesh, new Vector3(0f, 0.18f, -0.06f), new Vector3(0.88f, 0.4f, 1.14f), siegeMaterial);
+            CreateMeshChild(root, "Ram", siegeRamMesh, new Vector3(0f, 0.24f, 0.62f), new Vector3(0.5f, 0.24f, 0.82f), siegeMaterial);
+            CreateMeshChild(root, "ImpactNose", coreMesh, new Vector3(0f, 0.28f, 0.92f), new Vector3(0.22f, 0.18f, 0.22f), damageMaterial);
+            CreateMeshChild(root, "Accent", coreMesh, new Vector3(0f, 0.36f, -0.42f), new Vector3(0.28f, 0.2f, 0.24f), accentMaterial);
 
             var damage = new GameObject("Damage");
             damage.transform.SetParent(root.transform, false);
-            CreateMeshChild(damage, "WarningPlateLeft", siegeRamMesh, new Vector3(-0.42f, 0.24f, 0.02f), new Vector3(0.2f, 0.1f, 0.48f), damageMaterial);
-            CreateMeshChild(damage, "WarningPlateRight", siegeRamMesh, new Vector3(0.42f, 0.24f, 0.02f), new Vector3(0.2f, 0.1f, 0.48f), damageMaterial);
+            CreateMeshChild(damage, "WarningPlateLeft", siegeRamMesh, new Vector3(-0.4f, 0.24f, 0.04f), new Vector3(0.18f, 0.1f, 0.58f), damageMaterial, Quaternion.Euler(0f, 0f, -8f));
+            CreateMeshChild(damage, "WarningPlateRight", siegeRamMesh, new Vector3(0.4f, 0.24f, 0.04f), new Vector3(0.18f, 0.1f, 0.58f), damageMaterial, Quaternion.Euler(0f, 0f, 8f));
 
             return SavePrefab(root, SiegePrefabPath);
         }
@@ -234,11 +242,13 @@ namespace LTW.UnityClient.Editor
             Mesh mesh,
             Vector3 localPosition,
             Vector3 localScale,
-            Material material)
+            Material material,
+            Quaternion? localRotation = null)
         {
             var child = new GameObject(name);
             child.transform.SetParent(parent.transform, false);
             child.transform.localPosition = localPosition;
+            child.transform.localRotation = localRotation ?? Quaternion.identity;
             child.transform.localScale = localScale;
             child.AddComponent<MeshFilter>().sharedMesh = mesh;
             child.AddComponent<MeshRenderer>().sharedMaterial = material;
@@ -354,7 +364,7 @@ namespace LTW.UnityClient.Editor
                 new Vector3(0.5f, 0.28f, 0.86f),
                 CreepVisualMotionStyle.RunnerDart,
                 "Body",
-                new[] { "Accent", "SpeedLine" },
+                new[] { "Accent", "LeftFin", "RightFin", "SpeedLine" },
                 new[] { "Damage" },
                 CreepDeathCueStyle.SparkBurst);
             ConfigureProfile(
@@ -366,14 +376,14 @@ namespace LTW.UnityClient.Editor
                 CreepVisualMotionStyle.HeavyBob,
                 "Body",
                 new[] { "Accent/Core" },
-                new[] { "Damage/PlateLeft", "Damage/PlateRight" },
+                new[] { "Damage/PlateLeft", "Damage/PlateRight", "Damage/RearPlate" },
                 CreepDeathCueStyle.HeavyShatter);
             ConfigureProfile(
                 profiles.GetArrayElementAtIndex(2),
                 "creep.swarm",
                 CreepVisualRole.Swarm,
                 swarmPrefab,
-                new Vector3(0.24f, 0.15f, 0.24f),
+                new Vector3(0.26f, 0.16f, 0.26f),
                 CreepVisualMotionStyle.ClusterJitter,
                 "Body",
                 new[] { "Accent/Signal0", "Accent/Signal1" },
@@ -387,7 +397,7 @@ namespace LTW.UnityClient.Editor
                 new Vector3(0.46f, 0.24f, 0.72f),
                 CreepVisualMotionStyle.Shimmer,
                 "Body",
-                new[] { "Accent", "EchoA", "EchoB" },
+                new[] { "Accent", "EchoA", "EchoB", "BreakLine" },
                 new[] { "Damage" },
                 CreepDeathCueStyle.SoftDissolve);
             ConfigureProfile(
@@ -395,7 +405,7 @@ namespace LTW.UnityClient.Editor
                 "creep.siege",
                 CreepVisualRole.Siege,
                 siegePrefab,
-                new Vector3(0.58f, 0.36f, 0.46f),
+                new Vector3(0.62f, 0.38f, 0.56f),
                 CreepVisualMotionStyle.SiegeWindup,
                 "Body",
                 new[] { "Accent", "Ram" },
@@ -485,10 +495,10 @@ This report is generated by `Line Wards > Art > Generate Placeholder Creep Prefa
 
 | Creep | Prefab | Body Path | Sender Accent Paths | Damage Paths | Death Cue |
 | --- | --- | --- | --- | --- | --- |
-| Runner | `Assets/Prefabs/Creeps/Creep_Runner.prefab` | `Body` | `Accent`, `SpeedLine` | `Damage` | Spark burst |
-| Brute | `Assets/Prefabs/Creeps/Creep_Brute.prefab` | `Body` | `Accent/Core` | `Damage/PlateLeft`, `Damage/PlateRight` | Heavy shatter |
+| Runner | `Assets/Prefabs/Creeps/Creep_Runner.prefab` | `Body` | `Accent`, `LeftFin`, `RightFin`, `SpeedLine` | `Damage` | Spark burst |
+| Brute | `Assets/Prefabs/Creeps/Creep_Brute.prefab` | `Body` | `Accent/Core` | `Damage/PlateLeft`, `Damage/PlateRight`, `Damage/RearPlate` | Heavy shatter |
 | Swarm | `Assets/Prefabs/Creeps/Creep_Swarm.prefab` | `Body` | `Accent/Signal0`, `Accent/Signal1` | `Damage/CrackedShard` | Shard scatter |
-| Shade | `Assets/Prefabs/Creeps/Creep_Shade.prefab` | `Body` | `Accent`, `EchoA`, `EchoB` | `Damage` | Soft dissolve |
+| Shade | `Assets/Prefabs/Creeps/Creep_Shade.prefab` | `Body` | `Accent`, `EchoA`, `EchoB`, `BreakLine` | `Damage` | Soft dissolve |
 | Siege | `Assets/Prefabs/Creeps/Creep_Siege.prefab` | `Body` | `Accent`, `Ram` | `Damage/WarningPlateLeft`, `Damage/WarningPlateRight` | Heavy shatter |
 
 ## Generated Materials
