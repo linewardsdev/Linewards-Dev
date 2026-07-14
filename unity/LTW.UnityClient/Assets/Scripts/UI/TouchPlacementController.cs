@@ -159,7 +159,6 @@ namespace LTW.UnityClient.UI
             if (isPlacing)
             {
                 MoveGhost();
-                TryPlaceSelectedTower(true);
                 return;
             }
 
@@ -199,7 +198,23 @@ namespace LTW.UnityClient.UI
             GUI.Label(new Rect(rect.x + 12f * scale, rect.y + 9f * scale, rect.width - 24f * scale, 24f * scale), $"{SelectedTowerName().ToUpperInvariant()}  {SelectedTowerCost()}G", titleStyle);
             var placementLine = placementPreview.Accepted ? $"CELL {selectedCell.x}, {selectedCell.y} READY" : PlacementPreviewText();
             GUI.Label(new Rect(rect.x + 12f * scale, rect.y + 35f * scale, rect.width - 24f * scale, 20f * scale), placementLine, bodyStyle);
-            GUI.Label(new Rect(rect.x + 12f * scale, rect.y + 57f * scale, rect.width - 24f * scale, 20f * scale), placementPreview.Accepted ? "Tap a square to build; stays active" : PlacementRecoveryText(), bodyStyle);
+            GUI.Label(new Rect(rect.x + 12f * scale, rect.y + 57f * scale, rect.width - 24f * scale, 20f * scale), placementPreview.Accepted ? "Tap square to target, then confirm" : PlacementRecoveryText(), bodyStyle);
+
+            var buttonY = rect.y + 82f * scale;
+            var gap = 8f * scale;
+            var buttonWidth = (rect.width - 24f * scale - gap) * 0.5f;
+            var previousEnabled = GUI.enabled;
+            GUI.enabled = placementPreview.Accepted;
+            if (GUI.Button(new Rect(rect.x + 12f * scale, buttonY, buttonWidth, 30f * scale), "PLACE", buttonStyle ?? GUI.skin.button))
+            {
+                TryPlaceSelectedTower(true);
+            }
+
+            GUI.enabled = previousEnabled;
+            if (GUI.Button(new Rect(rect.x + 12f * scale + buttonWidth + gap, buttonY, buttonWidth, 30f * scale), "CANCEL", buttonStyle ?? GUI.skin.button))
+            {
+                CancelPlacement(true);
+            }
         }
 
         private void SelectTowerAt(Vector2Int cell)
@@ -493,18 +508,6 @@ namespace LTW.UnityClient.UI
             };
         }
 
-        private string SelectedTowerShortName()
-        {
-            return selectedTowerRole switch
-            {
-                1 => "CTRL",
-                2 => "RELAY",
-                3 => "PULSE",
-                4 => "PRISM",
-                _ => "ARROW"
-            };
-        }
-
         private static string TowerRoleName(string towerId)
         {
             if (towerId.Contains("control")) return "Control ward";
@@ -541,11 +544,6 @@ namespace LTW.UnityClient.UI
             var launcherRect = TowerPaletteLauncherRect(scale, frame);
             if (isPlacing)
             {
-                if (DrawLauncherButton(launcherRect, SelectedTowerShortName(), SelectedTowerAccent(), scale))
-                {
-                    CancelPlacement(true);
-                }
-
                 return;
             }
 
@@ -852,6 +850,11 @@ namespace LTW.UnityClient.UI
                 return true;
             }
 
+            if (isPlacing && PlacementPanelRect(scale, frame).Contains(guiPoint))
+            {
+                return true;
+            }
+
             return selectedTower is not null && SelectedTowerPanelRect(scale, frame).Contains(guiPoint);
         }
 
@@ -896,7 +899,7 @@ namespace LTW.UnityClient.UI
         private static Rect PlacementPanelRect(float scale, Rect frame)
         {
             var width = Mathf.Min(frame.width - 16f * scale, 360f * scale);
-            var height = 92f * scale;
+            var height = 126f * scale;
             return new Rect(frame.x + 8f * scale, frame.yMax - height - MobileViewportLayout.BottomMargin(scale), width, height);
         }
 
