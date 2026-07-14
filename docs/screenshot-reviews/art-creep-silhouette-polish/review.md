@@ -18,8 +18,20 @@ Changed role reads:
 - `dotnet test LTW.sln --no-restore --configuration Release`: pass, 63 tests.
 - `Line Wards > Art > Validate Creep Visual Library`: pass in Unity batch mode.
 - Local Unity batch playtest: pass, seed 909, 75 peak creeps, reset clean.
+- `Line Wards > Review > Capture Visual Review Set`: pass in Unity batch mode with graphics enabled, including grayscale copies.
 
-## Capture Note
+## Capture Notes
 
-`VisualReviewCaptureRunner.CaptureVisualReviewSet` was attempted with grayscale output for this branch, but the batch capture timed out after entering Play Mode and produced no screenshots. Manual or retried editor capture is still needed before declaring the silhouette pass visually accepted.
+The capture runner now uses an immediate camera-render path in batch mode. The old `ScreenCapture.CaptureScreenshot` path still runs for interactive editor use, but batch capture no longer waits on a PNG file that Unity may never write.
 
+Captured frames:
+
+- `01-default-hud.png`
+- `02-build-menu-open.png`
+- `03-send-menu-open.png`
+- `04-lane-selector-open.png`
+- `05-active-combat.png`
+- `06-heavy-pressure.png`
+- `07-reduced-effects-heavy.png`
+- `08-results-or-late-match.png`
+- matching grayscale copies under `captures/grayscale/`
