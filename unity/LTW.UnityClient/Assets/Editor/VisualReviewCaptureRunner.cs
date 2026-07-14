@@ -511,9 +511,71 @@ namespace LTW.UnityClient.Editor
         {
             var path = Path.Combine(outputDirectory, $"{captureIndex:00}-{label}.png");
             captureIndex++;
+            if (InternalEditorUtility.inBatchMode)
+            {
+                WriteImmediateCapture(path);
+                if (writeGrayscaleCopies)
+                {
+                    WriteGrayscaleCopy(label, path);
+                }
+
+                nextActionAt = EditorApplication.timeSinceStartup + 0.5d;
+                AdvanceState(label);
+                return;
+            }
+
             pendingCapturePath = path;
             pendingCaptureLabel = label;
             ScreenCapture.CaptureScreenshot(path);
+        }
+
+        private static void WriteImmediateCapture(string path)
+        {
+            var width = Math.Max(1080, Screen.width);
+            var height = Math.Max(1920, Screen.height);
+            var renderTexture = new RenderTexture(width, height, 24, RenderTextureFormat.ARGB32);
+            var texture = new Texture2D(width, height, TextureFormat.RGBA32, false);
+            var previousActive = RenderTexture.active;
+
+            try
+            {
+                RenderTexture.active = renderTexture;
+                GL.Clear(true, true, Color.black);
+                RenderActiveCameras(renderTexture);
+                texture.ReadPixels(new Rect(0, 0, width, height), 0, 0);
+                texture.Apply();
+                Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+                File.WriteAllBytes(path, ImageConversion.EncodeToPNG(texture));
+                Debug.Log($"Saved visual review capture {path}");
+            }
+            finally
+            {
+                RenderTexture.active = previousActive;
+                UnityEngine.Object.DestroyImmediate(texture);
+                UnityEngine.Object.DestroyImmediate(renderTexture);
+            }
+        }
+
+        private static void RenderActiveCameras(RenderTexture renderTexture)
+        {
+            var cameras = UnityEngine.Object.FindObjectsByType<Camera>();
+            Array.Sort(cameras, static (left, right) => left.depth.CompareTo(right.depth));
+            for (var index = 0; index < cameras.Length; index++)
+            {
+                var camera = cameras[index];
+                if (camera == null || !camera.enabled || !camera.gameObject.activeInHierarchy)
+                {
+                    continue;
+                }
+
+                var previousTarget = camera.targetTexture;
+                var previousAspect = camera.aspect;
+                camera.targetTexture = renderTexture;
+                camera.aspect = renderTexture.width / (float)renderTexture.height;
+                camera.Render();
+                camera.targetTexture = previousTarget;
+                camera.aspect = previousAspect;
+            }
         }
 
         private static void AdvanceState(string? completedLabel)

@@ -21,6 +21,8 @@ MonoBehaviour:
     bodyRendererPath: Body
     senderAccentRendererPaths:
     - Accent
+    - LeftFin
+    - RightFin
     - SpeedLine
     damageRendererPaths:
     - Damage
@@ -36,11 +38,12 @@ MonoBehaviour:
     damageRendererPaths:
     - Damage/PlateLeft
     - Damage/PlateRight
+    - Damage/RearPlate
     deathCueStyle: 2
   - creepId: creep.swarm
     role: 2
     prefab: {fileID: 8608776379439343738, guid: acdf43f65e24b4ab2862189e5a325b9b, type: 3}
-    scale: {x: 0.24, y: 0.15, z: 0.24}
+    scale: {x: 0.26, y: 0.16, z: 0.26}
     motionStyle: 3
     bodyRendererPath: Body
     senderAccentRendererPaths:
@@ -59,13 +62,14 @@ MonoBehaviour:
     - Accent
     - EchoA
     - EchoB
+    - BreakLine
     damageRendererPaths:
     - Damage
     deathCueStyle: 4
   - creepId: creep.siege
     role: 6
     prefab: {fileID: 3194545920970905800, guid: db958c59e84cf4566ac55cffe0a4a878, type: 3}
-    scale: {x: 0.58, y: 0.36, z: 0.46}
+    scale: {x: 0.62, y: 0.38, z: 0.56}
     motionStyle: 6
     bodyRendererPath: Body
     senderAccentRendererPaths:
