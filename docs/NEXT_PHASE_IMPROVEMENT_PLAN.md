@@ -112,6 +112,10 @@ Tasks:
 - [x] Verify touch targets remain large enough after cleanup.
 - [ ] Capture fresh default, build menu, send menu, placement descriptor, and heavy combat screenshots.
 
+Status note:
+
+- Agent 1 added runtime ownership between `SendDockController` and `TouchPlacementController`: opening Send closes placement/selection/palette panels, while opening the build palette closes Send.
+
 Exit signal:
 
 - No active bottom UI panel visually overlaps another active bottom UI panel in phone framing.
@@ -265,6 +269,10 @@ Exit signal:
 
 - Build/send decisions are fast, readable, and do not hide placement-critical cells.
 
+Status note:
+
+- Agent 1 added build/send affordability states. Cards remain visible but dim when the player lacks gold, and disabled cards do not fire actions.
+
 ## Workstream I: Gameplay Scenario Tests And Tuning Evidence
 
 Owner: Agent 2
@@ -315,6 +323,10 @@ Required capture set:
 - [ ] `06-heavy-pressure.png`
 - [ ] `07-reduced-effects-heavy.png`
 - [ ] `08-results-or-late-match.png`
+
+Status note:
+
+- Agent 1 attempted the full visual capture gate for this pass. Normal GUI launch exited before invoking the capture method, and `-batchmode -nographics` crashed inside Unity camera rendering before writing captures. This checklist remains open until a GUI/editor capture run can produce fresh pixels.
 
 Review dimensions:
 
