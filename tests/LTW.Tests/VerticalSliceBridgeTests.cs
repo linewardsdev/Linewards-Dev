@@ -348,6 +348,27 @@ public sealed class VerticalSliceBridgeTests
     }
 
     [Fact]
+    public void Leaked_creeps_keep_current_health_when_entering_next_lane()
+    {
+        var simulation = new LocalVerticalSlice(SampleVerticalSliceContent.Create(), enableBots: false);
+        Assert.True(simulation.PlaceTower(new PlayerId(2), new LaneId(2), SampleVerticalSliceContent.UtilityTowerId, new GridPosition(2, 8)).Accepted);
+        Assert.True(simulation.QueueSend(new PlayerId(1), SampleVerticalSliceContent.CreepId).Accepted);
+
+        for (var tick = 0; tick < 17; tick++)
+        {
+            simulation.AdvanceOneTick();
+        }
+
+        var snapshot = simulation.GetSnapshot();
+        var transferred = snapshot.Creeps.Single(creep =>
+            creep.SenderId.Equals(new PlayerId(1)) &&
+            creep.LaneId.Equals(new LaneId(3)) &&
+            creep.Position.Equals(new GridPosition(3, 0)));
+
+        Assert.Equal(9, transferred.Health);
+    }
+
+    [Fact]
     public void Sent_creeps_do_not_wrap_back_into_the_senders_own_lane()
     {
         var simulation = new LocalVerticalSlice(SampleVerticalSliceContent.Create(), enableBots: false);

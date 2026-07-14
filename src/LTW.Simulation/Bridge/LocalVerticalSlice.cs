@@ -252,7 +252,7 @@ public sealed class LocalVerticalSlice
                 {
                     var laneId = nextLaneId.Value;
                     var nextDefenderId = combatContent.GetLaneOwner(laneId);
-                    var transferred = combat.SpawnCreep(NextEntityId(), creep, leakedCreep.SenderId, laneId);
+                    var transferred = combat.TransferCreep(NextEntityId(), leakedCreep, laneId);
                     combatState = new CombatState(combatState.Creeps.Concat(new[] { transferred }), combatState.Towers);
                     pendingEvents.Add(new CreepSpawnedEvent(tick, transferred.EntityId, transferred.CreepId, transferred.SenderId, nextDefenderId));
                 }

@@ -26,6 +26,22 @@ public sealed class CombatService
             hasLeaked: false);
     }
 
+    public CreepCombatState TransferCreep(
+        EntityId entityId,
+        CreepCombatState creep,
+        LaneId laneId)
+    {
+        return new CreepCombatState(
+            entityId,
+            creep.CreepId,
+            creep.SenderId,
+            laneId,
+            creep.Health,
+            pathIndex: 0,
+            movementProgress: 0,
+            hasLeaked: false);
+    }
+
     public CombatTickResult Advance(
         CombatState state,
         CombatContent content,
