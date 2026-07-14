@@ -41,28 +41,28 @@ Replace primitive-first visuals with simple authored prefabs while keeping primi
 
 ### Tower Prefabs
 
-- [ ] Arrow Ward: tall focused emitter / firing spine.
-- [ ] Control Ward: wide ring, dish, or field controller.
-- [ ] Relay Ward: mast, capacitor, support beacon, or signal core.
-- [ ] Pulse Ward: compact burst core with expanding ring language.
-- [ ] Prism Ward: tall crystal lens-spire for long-range focus.
+- [x] Arrow Ward: tall focused emitter / firing spine.
+- [x] Control Ward: wide ring, dish, or field controller.
+- [x] Relay Ward: mast, capacitor, support beacon, or signal core.
+- [x] Pulse Ward: compact burst core with expanding ring language.
+- [x] Prism Ward: tall crystal lens-spire for long-range focus.
 
 ### Creep Prefabs
 
-- [ ] Runner: dart shard / ward-spark.
-- [ ] Brute: armored pressure core.
-- [ ] Swarm: clustered shardlings/signal mites.
-- [ ] Shade: shimmer body with echo/afterimage structure.
-- [ ] Siege: heavy directional ram/core.
+- [x] Runner: dart shard / ward-spark.
+- [x] Brute: armored pressure core.
+- [x] Swarm: clustered shardlings/signal mites.
+- [x] Shade: shimmer body with echo/afterimage structure.
+- [x] Siege: heavy directional ram/core.
 
 ### Implementation Tasks
 
-- [ ] Confirm prefab contract for towers, matching or extending `ART_PREFAB_CONTRACT.md`.
-- [ ] Confirm prefab contract for creeps, matching current `CreepVisualLibrary`.
-- [ ] Add or update tower visual library if needed.
-- [ ] Extend creep prefab generator/library to include Shade and Siege.
-- [ ] Keep runtime fallback geometry for missing assets.
-- [ ] Add import/readme notes for every tower and creep role folder.
+- [x] Confirm prefab contract for towers, matching or extending `ART_PREFAB_CONTRACT.md`.
+- [x] Confirm prefab contract for creeps, matching current `CreepVisualLibrary`.
+- [x] Add or update tower visual library if needed.
+- [x] Extend creep prefab generator/library to include Shade and Siege.
+- [x] Keep runtime fallback geometry for missing assets.
+- [x] Add import/readme notes for every tower and creep role folder.
 - [ ] Capture before/after screenshots.
 
 ### Exit Signal

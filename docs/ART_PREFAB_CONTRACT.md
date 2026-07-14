@@ -50,6 +50,25 @@ Optional Relay/utility children:
 | `CapacitorLeft` | Utility/economy side component. |
 | `CapacitorRight` | Utility/economy side component. |
 
+Optional Pulse/burst children:
+
+| Child | Purpose |
+| --- | --- |
+| `PulseCore` | Central splash/burst origin. |
+| `PulseRingA` | Primary expanding-ring silhouette. |
+| `PulseRingB` | Secondary ring or charged-state read. |
+| `PulseEmitter` | VFX origin for splash effect. |
+
+Optional Prism/focus children:
+
+| Child | Purpose |
+| --- | --- |
+| `PrismSpire` | Tall crystalline body silhouette. |
+| `PrismLens` | Priority-targeting/focus read. |
+| `BeamAnchor` | Beam origin / attack flash point. |
+| `FacetLeft` | Left crystal facet. |
+| `FacetRight` | Right crystal facet. |
+
 ## Creep Prefab Contract
 
 Required children:
@@ -67,9 +86,9 @@ Optional role children:
 | Runner | `Nose`, `Tail`, `FinLeft`, `FinRight` |
 | Brute | `Armor`, `PlateLeft`, `PlateRight`, `Core` |
 | Swarm | `SwarmDotA`, `SwarmDotB`, `SwarmDotC`, `Trail` |
-| Air | `WingLeft`, `WingRight`, `HoverRing` |
-| Stealth | `Shimmer`, `EchoA`, `EchoB` |
+| Shade | `Shimmer`, `EchoA`, `EchoB` |
 | Siege | `Base`, `Barrel`, `Spike` |
+| Air | `WingLeft`, `WingRight`, `HoverRing` |
 | Aura/Support | `AuraRing`, `AuraCore`, `AuraNodeNorth`, `AuraNodeSouth` |
 
 ## UI Prefab And Icon Contract
