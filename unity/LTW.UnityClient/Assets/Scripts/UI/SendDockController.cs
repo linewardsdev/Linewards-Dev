@@ -106,19 +106,19 @@ namespace LTW.UnityClient.UI
             var buttonWidth = (rect.width - 24f * scale - gap * 2f) / 3f;
             var x = rect.x + 12f * scale;
 
-            if (DrawSendButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "RUN", "10G", ArcaneBlue, scale))
+            if (DrawSendButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "RUN", "10G", CreepIconKind.Runner, ArcaneBlue, scale))
             {
                 SendRunner();
             }
 
             x += buttonWidth + gap;
-            if (DrawSendButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "BRUTE", "18G", WardViolet, scale))
+            if (DrawSendButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "BRUTE", "18G", CreepIconKind.Brute, WardViolet, scale))
             {
                 SendBrute();
             }
 
             x += buttonWidth + gap;
-            if (DrawSendButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "SWARM", "18G", SignalGold, scale))
+            if (DrawSendButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "SWARM", "18G", CreepIconKind.Swarm, SignalGold, scale))
             {
                 SendSwarm();
             }
@@ -126,13 +126,13 @@ namespace LTW.UnityClient.UI
             var secondRowY = buttonY + buttonHeight + gap;
             var secondRowWidth = (rect.width - 24f * scale - gap) / 2f;
             x = rect.x + 12f * scale;
-            if (DrawSendButton(new Rect(x, secondRowY, secondRowWidth, buttonHeight), "SHADE", "24G", MintSignal, scale))
+            if (DrawSendButton(new Rect(x, secondRowY, secondRowWidth, buttonHeight), "SHADE", "24G", CreepIconKind.Shade, MintSignal, scale))
             {
                 SendShade();
             }
 
             x += secondRowWidth + gap;
-            if (DrawSendButton(new Rect(x, secondRowY, secondRowWidth, buttonHeight), "SIEGE", "40G", new Color(1f, 0.62f, 0.26f), scale))
+            if (DrawSendButton(new Rect(x, secondRowY, secondRowWidth, buttonHeight), "SIEGE", "40G", CreepIconKind.Siege, new Color(1f, 0.62f, 0.26f), scale))
             {
                 SendSiege();
             }
@@ -156,7 +156,7 @@ namespace LTW.UnityClient.UI
             }
         }
 
-        private static bool DrawSendButton(Rect rect, string label, string meta, Color accent, float scale)
+        private static bool DrawSendButton(Rect rect, string label, string meta, CreepIconKind iconKind, Color accent, float scale)
         {
             var previousColor = GUI.color;
             GUI.color = TintPanel(accent, 0.08f);
@@ -164,17 +164,65 @@ namespace LTW.UnityClient.UI
             GUI.color = previousColor;
 
             DrawAccent(new Rect(rect.x, rect.yMax - 4f * scale, rect.width, 4f * scale), accent);
+            var iconRect = new Rect(rect.x + 7f * scale, rect.y + 9f * scale, 20f * scale, 27f * scale);
+            DrawCreepIcon(iconRect, iconKind, accent, scale);
 
             buttonStyle!.fontSize = Mathf.RoundToInt(12f * scale);
             buttonStyle.normal.textColor = Cloud;
             buttonStyle.hover.textColor = buttonStyle.normal.textColor;
             buttonStyle.active.textColor = buttonStyle.normal.textColor;
-            GUI.Label(new Rect(rect.x + 2f * scale, rect.y + 9f * scale, rect.width - 4f * scale, 21f * scale), label, buttonStyle);
+            GUI.Label(new Rect(rect.x + 26f * scale, rect.y + 9f * scale, rect.width - 28f * scale, 21f * scale), label, buttonStyle);
 
             metaStyle!.fontSize = Mathf.RoundToInt(9f * scale);
             metaStyle.normal.textColor = accent;
-            GUI.Label(new Rect(rect.x + 2f * scale, rect.y + 34f * scale, rect.width - 4f * scale, 17f * scale), meta, metaStyle);
+            GUI.Label(new Rect(rect.x + 26f * scale, rect.y + 34f * scale, rect.width - 28f * scale, 17f * scale), meta, metaStyle);
             return pressed;
+        }
+
+        private static void DrawCreepIcon(Rect rect, CreepIconKind iconKind, Color accent, float scale)
+        {
+            var previousColor = GUI.color;
+            GUI.color = accent;
+
+            var cx = rect.x + rect.width * 0.5f;
+            var cy = rect.y + rect.height * 0.52f;
+            var line = Mathf.Max(2f * scale, 1f);
+
+            switch (iconKind)
+            {
+                case CreepIconKind.Brute:
+                    GUI.DrawTexture(new Rect(cx - 10f * scale, cy - 7f * scale, 20f * scale, 14f * scale), Texture2D.whiteTexture);
+                    GUI.DrawTexture(new Rect(cx - 13f * scale, cy - 2f * scale, 5f * scale, 9f * scale), Texture2D.whiteTexture);
+                    GUI.DrawTexture(new Rect(cx + 8f * scale, cy - 2f * scale, 5f * scale, 9f * scale), Texture2D.whiteTexture);
+                    break;
+                case CreepIconKind.Swarm:
+                    GUI.DrawTexture(new Rect(cx - 9f * scale, cy - 6f * scale, 5f * scale, 5f * scale), Texture2D.whiteTexture);
+                    GUI.DrawTexture(new Rect(cx - 1f * scale, cy - 11f * scale, 5f * scale, 5f * scale), Texture2D.whiteTexture);
+                    GUI.DrawTexture(new Rect(cx + 7f * scale, cy - 4f * scale, 5f * scale, 5f * scale), Texture2D.whiteTexture);
+                    GUI.DrawTexture(new Rect(cx - 5f * scale, cy + 4f * scale, 5f * scale, 5f * scale), Texture2D.whiteTexture);
+                    GUI.DrawTexture(new Rect(cx + 4f * scale, cy + 8f * scale, 5f * scale, 5f * scale), Texture2D.whiteTexture);
+                    break;
+                case CreepIconKind.Shade:
+                    GUI.color = new Color(accent.r, accent.g, accent.b, 0.42f);
+                    GUI.DrawTexture(new Rect(cx - 7f * scale, cy - 8f * scale, 14f * scale, 15f * scale), Texture2D.whiteTexture);
+                    GUI.color = accent;
+                    GUI.DrawTexture(new Rect(cx - 3f * scale, cy - 5f * scale, 13f * scale, 13f * scale), Texture2D.whiteTexture);
+                    GUI.DrawTexture(new Rect(cx - 1f * scale, cy + 8f * scale, 5f * scale, 5f * scale), Texture2D.whiteTexture);
+                    break;
+                case CreepIconKind.Siege:
+                    GUI.DrawTexture(new Rect(cx - 11f * scale, cy - 6f * scale, 22f * scale, 12f * scale), Texture2D.whiteTexture);
+                    GUI.DrawTexture(new Rect(cx - 5f * scale, cy + 5f * scale, 10f * scale, 10f * scale), Texture2D.whiteTexture);
+                    GUI.DrawTexture(new Rect(cx - 14f * scale, cy - 1f * scale, 4f * scale, 9f * scale), Texture2D.whiteTexture);
+                    GUI.DrawTexture(new Rect(cx + 10f * scale, cy - 1f * scale, 4f * scale, 9f * scale), Texture2D.whiteTexture);
+                    break;
+                default:
+                    GUI.DrawTexture(new Rect(cx - 5f * scale, cy - 11f * scale, 10f * scale, 18f * scale), Texture2D.whiteTexture);
+                    GUI.DrawTexture(new Rect(cx - line * 0.5f, cy + 3f * scale, line, 13f * scale), Texture2D.whiteTexture);
+                    GUI.DrawTexture(new Rect(cx - 8f * scale, cy + 2f * scale, 16f * scale, line), Texture2D.whiteTexture);
+                    break;
+            }
+
+            GUI.color = previousColor;
         }
 
         private static bool DrawLauncherButton(Rect rect, string label, Color accent, float scale)
@@ -275,5 +323,14 @@ namespace LTW.UnityClient.UI
         }
 
         private static RectOffset ZeroOffset() => new RectOffset(0, 0, 0, 0);
+
+        private enum CreepIconKind
+        {
+            Runner,
+            Brute,
+            Swarm,
+            Shade,
+            Siege
+        }
     }
 }

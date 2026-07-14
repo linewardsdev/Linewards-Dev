@@ -541,21 +541,21 @@ namespace LTW.UnityClient.UI
             var buttonWidth = (rect.width - 24f * scale - gap * 2f) / 3f;
             var x = rect.x + 12f * scale;
 
-            if (DrawPaletteButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "ARROW", "25G", ArcaneBlue, scale))
+            if (DrawPaletteButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "ARROW", "25G", TowerIconKind.Arrow, ArcaneBlue, scale))
             {
                 selectedTower = null;
                 BeginTowerPlacement();
             }
 
             x += buttonWidth + gap;
-            if (DrawPaletteButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "CTRL", "35G", WardViolet, scale))
+            if (DrawPaletteButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "CTRL", "35G", TowerIconKind.Control, WardViolet, scale))
             {
                 selectedTower = null;
                 BeginControlTowerPlacement();
             }
 
             x += buttonWidth + gap;
-            if (DrawPaletteButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "RELAY", "40G", SignalGold, scale))
+            if (DrawPaletteButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "RELAY", "40G", TowerIconKind.Relay, SignalGold, scale))
             {
                 selectedTower = null;
                 BeginUtilityTowerPlacement();
@@ -564,21 +564,21 @@ namespace LTW.UnityClient.UI
             var secondRowY = buttonY + buttonHeight + gap;
             var secondRowWidth = (rect.width - 24f * scale - gap) / 2f;
             x = rect.x + 12f * scale;
-            if (DrawPaletteButton(new Rect(x, secondRowY, secondRowWidth, buttonHeight), "PULSE", "45G", MintSignal, scale))
+            if (DrawPaletteButton(new Rect(x, secondRowY, secondRowWidth, buttonHeight), "PULSE", "45G", TowerIconKind.Pulse, MintSignal, scale))
             {
                 selectedTower = null;
                 BeginPulseTowerPlacement();
             }
 
             x += secondRowWidth + gap;
-            if (DrawPaletteButton(new Rect(x, secondRowY, secondRowWidth, buttonHeight), "PRISM", "60G", new Color(0.72f, 0.94f, 1f), scale))
+            if (DrawPaletteButton(new Rect(x, secondRowY, secondRowWidth, buttonHeight), "PRISM", "60G", TowerIconKind.Prism, new Color(0.72f, 0.94f, 1f), scale))
             {
                 selectedTower = null;
                 BeginPrismTowerPlacement();
             }
         }
 
-        private static bool DrawPaletteButton(Rect rect, string label, string meta, Color accent, float scale)
+        private static bool DrawPaletteButton(Rect rect, string label, string meta, TowerIconKind iconKind, Color accent, float scale)
         {
             var previousColor = GUI.color;
             GUI.color = new Color(PanelInk.r + accent.r * 0.08f, PanelInk.g + accent.g * 0.08f, PanelInk.b + accent.b * 0.08f, PanelInk.a);
@@ -587,16 +587,64 @@ namespace LTW.UnityClient.UI
             GUI.color = previousColor;
 
             DrawAccent(new Rect(rect.x, rect.yMax - 4f * scale, rect.width, 4f * scale), accent);
+            var iconRect = new Rect(rect.x + 7f * scale, rect.y + 9f * scale, 19f * scale, 26f * scale);
+            DrawTowerIcon(iconRect, iconKind, accent, scale);
 
             buttonStyle!.fontSize = Mathf.RoundToInt(10f * scale);
             buttonStyle.normal.textColor = Cloud;
-            GUI.Label(new Rect(rect.x + 2f * scale, rect.y + 8f * scale, rect.width - 4f * scale, 20f * scale), label, style);
+            GUI.Label(new Rect(rect.x + 25f * scale, rect.y + 8f * scale, rect.width - 27f * scale, 20f * scale), label, style);
 
             metaStyle!.fontSize = Mathf.RoundToInt(9f * scale);
             metaStyle.normal.textColor = accent;
-            GUI.Label(new Rect(rect.x + 2f * scale, rect.y + 31f * scale, rect.width - 4f * scale, 16f * scale), meta, metaStyle);
+            GUI.Label(new Rect(rect.x + 25f * scale, rect.y + 31f * scale, rect.width - 27f * scale, 16f * scale), meta, metaStyle);
             DrawAccent(new Rect(rect.x + rect.width * 0.22f, rect.y + rect.height - 10f * scale, rect.width * 0.56f, 3f * scale), accent);
             return pressed;
+        }
+
+        private static void DrawTowerIcon(Rect rect, TowerIconKind iconKind, Color accent, float scale)
+        {
+            var previousColor = GUI.color;
+            GUI.color = accent;
+
+            var cx = rect.x + rect.width * 0.5f;
+            var cy = rect.y + rect.height * 0.52f;
+            var line = Mathf.Max(2f * scale, 1f);
+
+            switch (iconKind)
+            {
+                case TowerIconKind.Control:
+                    GUI.DrawTexture(new Rect(cx - 7f * scale, cy - 5f * scale, 14f * scale, line), Texture2D.whiteTexture);
+                    GUI.DrawTexture(new Rect(cx - 7f * scale, cy + 5f * scale, 14f * scale, line), Texture2D.whiteTexture);
+                    GUI.DrawTexture(new Rect(cx - 7f * scale, cy - 5f * scale, line, 12f * scale), Texture2D.whiteTexture);
+                    GUI.DrawTexture(new Rect(cx + 5f * scale, cy - 5f * scale, line, 12f * scale), Texture2D.whiteTexture);
+                    GUI.DrawTexture(new Rect(cx - 3f * scale, cy - 1f * scale, 6f * scale, 6f * scale), Texture2D.whiteTexture);
+                    break;
+                case TowerIconKind.Relay:
+                    GUI.DrawTexture(new Rect(cx - line * 0.5f, cy - 11f * scale, line, 22f * scale), Texture2D.whiteTexture);
+                    GUI.DrawTexture(new Rect(cx - 6f * scale, cy + 8f * scale, 12f * scale, line), Texture2D.whiteTexture);
+                    GUI.DrawTexture(new Rect(cx - 4f * scale, cy - 11f * scale, 8f * scale, 8f * scale), Texture2D.whiteTexture);
+                    GUI.DrawTexture(new Rect(cx - 9f * scale, cy - 1f * scale, 4f * scale, 12f * scale), Texture2D.whiteTexture);
+                    GUI.DrawTexture(new Rect(cx + 5f * scale, cy - 1f * scale, 4f * scale, 12f * scale), Texture2D.whiteTexture);
+                    break;
+                case TowerIconKind.Pulse:
+                    GUI.DrawTexture(new Rect(cx - 10f * scale, cy - 7f * scale, 20f * scale, line), Texture2D.whiteTexture);
+                    GUI.DrawTexture(new Rect(cx - 7f * scale, cy + 2f * scale, 14f * scale, line), Texture2D.whiteTexture);
+                    GUI.DrawTexture(new Rect(cx - 4f * scale, cy - 3f * scale, 8f * scale, 8f * scale), Texture2D.whiteTexture);
+                    break;
+                case TowerIconKind.Prism:
+                    GUI.DrawTexture(new Rect(cx - 3f * scale, cy - 13f * scale, 6f * scale, 24f * scale), Texture2D.whiteTexture);
+                    GUI.DrawTexture(new Rect(cx - 8f * scale, cy - 4f * scale, 16f * scale, line), Texture2D.whiteTexture);
+                    GUI.DrawTexture(new Rect(cx - 5f * scale, cy + 8f * scale, 10f * scale, line), Texture2D.whiteTexture);
+                    break;
+                default:
+                    GUI.DrawTexture(new Rect(cx - line * 0.5f, cy - 12f * scale, line, 24f * scale), Texture2D.whiteTexture);
+                    GUI.DrawTexture(new Rect(cx - 9f * scale, cy - 6f * scale, line, 15f * scale), Texture2D.whiteTexture);
+                    GUI.DrawTexture(new Rect(cx + 7f * scale, cy - 6f * scale, line, 15f * scale), Texture2D.whiteTexture);
+                    GUI.DrawTexture(new Rect(cx - 5f * scale, cy - 11f * scale, 10f * scale, line), Texture2D.whiteTexture);
+                    break;
+            }
+
+            GUI.color = previousColor;
         }
 
         private static bool DrawLauncherButton(Rect rect, string label, Color accent, float scale)
@@ -732,6 +780,15 @@ namespace LTW.UnityClient.UI
         }
 
         private static RectOffset ZeroOffset() => new RectOffset(0, 0, 0, 0);
+
+        private enum TowerIconKind
+        {
+            Arrow,
+            Control,
+            Relay,
+            Pulse,
+            Prism
+        }
 
         private bool IsSelectedCellInBounds() =>
             selectedCell.x >= 0 && selectedCell.x < LaneWidth && selectedCell.y >= 0 && selectedCell.y < LaneLength;
