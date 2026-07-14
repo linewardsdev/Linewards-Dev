@@ -15,11 +15,11 @@ namespace LTW.UnityClient.Editor
 
         private static readonly TowerSpec[] TowerSpecs =
         {
-            new("Arrow", "Tower_Arrow", new Color(0.24f, 0.78f, 1f), new Color(0.95f, 0.82f, 0.34f), TowerShape.Spire),
-            new("Control", "Tower_Control", new Color(0.55f, 0.5f, 1f), new Color(0.32f, 0.94f, 0.88f), TowerShape.Antenna),
-            new("Relay", "Tower_Relay", new Color(0.25f, 0.9f, 0.58f), new Color(1f, 0.72f, 0.3f), TowerShape.Dish),
-            new("Pulse", "Tower_Pulse", new Color(0.95f, 0.38f, 0.55f), new Color(1f, 0.95f, 0.44f), TowerShape.Ring),
-            new("Prism", "Tower_Prism", new Color(0.74f, 0.54f, 1f), new Color(0.4f, 0.94f, 1f), TowerShape.Crystal),
+            new("Arrow", "Tower_Arrow", new Color(0.24f, 0.78f, 1f), new Color(0.95f, 0.82f, 0.34f), TowerShape.Crossbow),
+            new("Control", "Tower_Control", new Color(0.55f, 0.5f, 1f), new Color(0.32f, 0.94f, 0.88f), TowerShape.ControlRing),
+            new("Relay", "Tower_Relay", new Color(0.25f, 0.9f, 0.58f), new Color(1f, 0.72f, 0.3f), TowerShape.RelayMast),
+            new("Pulse", "Tower_Pulse", new Color(0.95f, 0.38f, 0.55f), new Color(1f, 0.95f, 0.44f), TowerShape.PulseCore),
+            new("Prism", "Tower_Prism", new Color(0.74f, 0.54f, 1f), new Color(0.4f, 0.94f, 1f), TowerShape.PrismSpire),
         };
 
         [MenuItem(MenuPath)]
@@ -120,32 +120,48 @@ namespace LTW.UnityClient.Editor
             var root = new GameObject(spec.PrefabName);
 
             CreateChild(root, "RangeHalo", PrimitiveType.Cylinder, new Vector3(0f, -0.04f, 0f), new Vector3(1.6f, 0.012f, 1.6f), haloMaterial);
-            CreateChild(root, "Base", PrimitiveType.Cylinder, new Vector3(0f, 0.04f, 0f), new Vector3(0.56f, 0.12f, 0.56f), bodyMaterial);
-            CreateChild(root, "Body", PrimitiveType.Cylinder, new Vector3(0f, 0.26f, 0f), new Vector3(0.38f, 0.44f, 0.38f), bodyMaterial);
-            CreateChild(root, "OwnerTrim", PrimitiveType.Cylinder, new Vector3(0f, 0.5f, 0f), new Vector3(0.46f, 0.035f, 0.46f), trimMaterial);
+            CreateChild(root, "Base", PrimitiveType.Cylinder, new Vector3(0f, 0.04f, 0f), new Vector3(0.62f, 0.12f, 0.62f), bodyMaterial);
+            CreateChild(root, "Body", PrimitiveType.Cylinder, new Vector3(0f, 0.24f, 0f), BodyScale(spec.Shape), bodyMaterial);
+            CreateChild(root, "OwnerTrim", PrimitiveType.Cylinder, new Vector3(0f, 0.46f, 0f), new Vector3(0.5f, 0.035f, 0.5f), trimMaterial);
 
             switch (spec.Shape)
             {
-                case TowerShape.Spire:
-                    CreateChild(root, "RoleMarker", PrimitiveType.Cube, new Vector3(0f, 0.86f, 0f), new Vector3(0.24f, 0.62f, 0.24f), roleMaterial).transform.localRotation = Quaternion.Euler(0f, 45f, 0f);
-                    CreateChild(root, "Muzzle", PrimitiveType.Cube, new Vector3(0f, 0.64f, 0.42f), new Vector3(0.12f, 0.1f, 0.54f), roleMaterial);
+                case TowerShape.Crossbow:
+                    CreateChild(root, "RoleMarker", PrimitiveType.Cube, new Vector3(0f, 0.66f, 0.06f), new Vector3(0.14f, 0.12f, 0.88f), roleMaterial);
+                    CreateChild(root, "BowLeft", PrimitiveType.Cube, new Vector3(-0.34f, 0.68f, 0.22f), new Vector3(0.12f, 0.1f, 0.66f), roleMaterial, Quaternion.Euler(0f, 0f, 23f));
+                    CreateChild(root, "BowRight", PrimitiveType.Cube, new Vector3(0.34f, 0.68f, 0.22f), new Vector3(0.12f, 0.1f, 0.66f), roleMaterial, Quaternion.Euler(0f, 0f, -23f));
+                    CreateChild(root, "BoltRail", PrimitiveType.Cube, new Vector3(0f, 0.76f, 0.18f), new Vector3(0.08f, 0.08f, 0.98f), roleMaterial);
+                    CreateChild(root, "Muzzle", PrimitiveType.Cube, new Vector3(0f, 0.76f, 0.68f), new Vector3(0.16f, 0.12f, 0.18f), roleMaterial);
+                    CreateChild(root, "Lens", PrimitiveType.Sphere, new Vector3(0f, 0.66f, -0.22f), new Vector3(0.18f, 0.18f, 0.18f), roleMaterial);
                     break;
-                case TowerShape.Antenna:
-                    CreateChild(root, "RoleMarker", PrimitiveType.Sphere, new Vector3(0f, 0.82f, 0f), new Vector3(0.28f, 0.28f, 0.28f), roleMaterial);
-                    CreateChild(root, "SignalLeft", PrimitiveType.Cube, new Vector3(-0.28f, 0.68f, 0f), new Vector3(0.08f, 0.34f, 0.08f), roleMaterial);
-                    CreateChild(root, "SignalRight", PrimitiveType.Cube, new Vector3(0.28f, 0.68f, 0f), new Vector3(0.08f, 0.34f, 0.08f), roleMaterial);
+                case TowerShape.ControlRing:
+                    CreateChild(root, "RoleMarker", PrimitiveType.Cylinder, new Vector3(0f, 0.58f, 0f), new Vector3(0.82f, 0.038f, 0.82f), roleMaterial);
+                    CreateChild(root, "ControlRing", PrimitiveType.Cylinder, new Vector3(0f, 0.72f, 0f), new Vector3(1.02f, 0.03f, 1.02f), roleMaterial);
+                    CreateChild(root, "ControlCore", PrimitiveType.Sphere, new Vector3(0f, 0.7f, 0f), new Vector3(0.24f, 0.24f, 0.24f), roleMaterial);
+                    CreateChild(root, "PulseEmitter", PrimitiveType.Cube, new Vector3(0f, 0.63f, 0.38f), new Vector3(0.12f, 0.08f, 0.42f), roleMaterial);
                     break;
-                case TowerShape.Dish:
-                    CreateChild(root, "RoleMarker", PrimitiveType.Cylinder, new Vector3(0f, 0.74f, 0f), new Vector3(0.66f, 0.035f, 0.66f), roleMaterial);
-                    CreateChild(root, "RelayPost", PrimitiveType.Cube, new Vector3(0f, 0.78f, -0.18f), new Vector3(0.08f, 0.26f, 0.08f), roleMaterial);
+                case TowerShape.RelayMast:
+                    CreateChild(root, "RoleMarker", PrimitiveType.Sphere, new Vector3(0f, 0.92f, 0f), new Vector3(0.28f, 0.28f, 0.28f), roleMaterial);
+                    CreateChild(root, "RelayMast", PrimitiveType.Cube, new Vector3(0f, 0.72f, 0f), new Vector3(0.1f, 0.72f, 0.1f), roleMaterial);
+                    CreateChild(root, "RelayCore", PrimitiveType.Sphere, new Vector3(0f, 0.52f, 0f), new Vector3(0.26f, 0.26f, 0.26f), roleMaterial);
+                    CreateChild(root, "RelaySignal", PrimitiveType.Cylinder, new Vector3(0f, 1.08f, 0f), new Vector3(0.48f, 0.025f, 0.48f), roleMaterial);
+                    CreateChild(root, "CapacitorLeft", PrimitiveType.Cube, new Vector3(-0.32f, 0.5f, -0.1f), new Vector3(0.1f, 0.38f, 0.1f), roleMaterial);
+                    CreateChild(root, "CapacitorRight", PrimitiveType.Cube, new Vector3(0.32f, 0.5f, -0.1f), new Vector3(0.1f, 0.38f, 0.1f), roleMaterial);
                     break;
-                case TowerShape.Ring:
-                    CreateChild(root, "RoleMarker", PrimitiveType.Cylinder, new Vector3(0f, 0.78f, 0f), new Vector3(0.5f, 0.045f, 0.5f), roleMaterial);
-                    CreateChild(root, "PulseCore", PrimitiveType.Sphere, new Vector3(0f, 0.78f, 0f), new Vector3(0.18f, 0.18f, 0.18f), roleMaterial);
+                case TowerShape.PulseCore:
+                    CreateChild(root, "RoleMarker", PrimitiveType.Cylinder, new Vector3(0f, 0.58f, 0f), new Vector3(0.66f, 0.05f, 0.66f), roleMaterial);
+                    CreateChild(root, "PulseRingA", PrimitiveType.Cylinder, new Vector3(0f, 0.72f, 0f), new Vector3(0.86f, 0.035f, 0.86f), roleMaterial);
+                    CreateChild(root, "PulseRingB", PrimitiveType.Cylinder, new Vector3(0f, 0.86f, 0f), new Vector3(0.5f, 0.035f, 0.5f), roleMaterial);
+                    CreateChild(root, "PulseCore", PrimitiveType.Sphere, new Vector3(0f, 0.73f, 0f), new Vector3(0.28f, 0.28f, 0.28f), roleMaterial);
+                    CreateChild(root, "PulseEmitter", PrimitiveType.Cube, new Vector3(0f, 0.76f, 0.36f), new Vector3(0.16f, 0.1f, 0.28f), roleMaterial);
                     break;
-                case TowerShape.Crystal:
-                    CreateChild(root, "RoleMarker", PrimitiveType.Cube, new Vector3(0f, 0.82f, 0f), new Vector3(0.34f, 0.48f, 0.34f), roleMaterial).transform.localRotation = Quaternion.Euler(0f, 45f, 0f);
-                    CreateChild(root, "PrismBeamHint", PrimitiveType.Cube, new Vector3(0f, 0.72f, 0.42f), new Vector3(0.08f, 0.08f, 0.62f), roleMaterial);
+                case TowerShape.PrismSpire:
+                    CreateChild(root, "RoleMarker", PrimitiveType.Cube, new Vector3(0f, 0.9f, 0f), new Vector3(0.3f, 0.86f, 0.3f), roleMaterial, Quaternion.Euler(0f, 45f, 0f));
+                    CreateChild(root, "PrismSpire", PrimitiveType.Cube, new Vector3(0f, 1.02f, 0f), new Vector3(0.22f, 0.64f, 0.22f), roleMaterial, Quaternion.Euler(0f, 45f, 0f));
+                    CreateChild(root, "PrismLens", PrimitiveType.Sphere, new Vector3(0f, 0.72f, 0.28f), new Vector3(0.22f, 0.22f, 0.22f), roleMaterial);
+                    CreateChild(root, "BeamAnchor", PrimitiveType.Cube, new Vector3(0f, 0.76f, 0.58f), new Vector3(0.08f, 0.08f, 0.66f), roleMaterial);
+                    CreateChild(root, "FacetLeft", PrimitiveType.Cube, new Vector3(-0.24f, 0.78f, -0.02f), new Vector3(0.08f, 0.38f, 0.16f), roleMaterial, Quaternion.Euler(0f, 20f, -16f));
+                    CreateChild(root, "FacetRight", PrimitiveType.Cube, new Vector3(0.24f, 0.78f, -0.02f), new Vector3(0.08f, 0.38f, 0.16f), roleMaterial, Quaternion.Euler(0f, -20f, 16f));
                     break;
             }
 
@@ -196,12 +212,14 @@ namespace LTW.UnityClient.Editor
             PrimitiveType primitiveType,
             Vector3 localPosition,
             Vector3 localScale,
-            Material material)
+            Material material,
+            Quaternion? localRotation = null)
         {
             var child = GameObject.CreatePrimitive(primitiveType);
             child.name = name;
             child.transform.SetParent(parent.transform, false);
             child.transform.localPosition = localPosition;
+            child.transform.localRotation = localRotation ?? Quaternion.identity;
             child.transform.localScale = localScale;
 
             if (child.TryGetComponent<Collider>(out var collider))
@@ -216,6 +234,15 @@ namespace LTW.UnityClient.Editor
 
             return child;
         }
+
+        private static Vector3 BodyScale(TowerShape shape) => shape switch
+        {
+            TowerShape.ControlRing => new Vector3(0.48f, 0.3f, 0.48f),
+            TowerShape.RelayMast => new Vector3(0.32f, 0.5f, 0.32f),
+            TowerShape.PulseCore => new Vector3(0.52f, 0.34f, 0.52f),
+            TowerShape.PrismSpire => new Vector3(0.3f, 0.58f, 0.3f),
+            _ => new Vector3(0.34f, 0.38f, 0.34f)
+        };
 
         private static Material CreateOrUpdateMaterial(string path, Color color)
         {
@@ -274,11 +301,11 @@ This report is generated by `Line Wards > Art > Generate Placeholder Tower Prefa
 
 | Tower | Runtime ID | Prefab | Required Children | Readability Target |
 | --- | --- | --- | --- | --- |
-| Arrow | `tower.arrow` | `Assets/Prefabs/Towers/Tower_Arrow.prefab` | `Body`, `RoleMarker`, `OwnerTrim`, `RangeHalo` | Fast single-target spire and muzzle |
-| Control | `tower.control` | `Assets/Prefabs/Towers/Tower_Control.prefab` | `Body`, `RoleMarker`, `OwnerTrim`, `RangeHalo` | Antenna/signal silhouette for slow/control |
-| Relay | `tower.relay` | `Assets/Prefabs/Towers/Tower_Relay.prefab` | `Body`, `RoleMarker`, `OwnerTrim`, `RangeHalo` | Dish silhouette for support/economy |
-| Pulse | `tower.pulse` | `Assets/Prefabs/Towers/Tower_Pulse.prefab` | `Body`, `RoleMarker`, `OwnerTrim`, `RangeHalo` | Ring/core silhouette for area pulse |
-| Prism | `tower.prism` | `Assets/Prefabs/Towers/Tower_Prism.prefab` | `Body`, `RoleMarker`, `OwnerTrim`, `RangeHalo` | Crystal/beam silhouette for focused scaling |
+| Arrow | `tower.arrow` | `Assets/Prefabs/Towers/Tower_Arrow.prefab` | `Body`, `RoleMarker`, `OwnerTrim`, `RangeHalo` | Crossbow limbs, bolt rail, and forward muzzle |
+| Control | `tower.control` | `Assets/Prefabs/Towers/Tower_Control.prefab` | `Body`, `RoleMarker`, `OwnerTrim`, `RangeHalo` | Wide control ring, dish core, and field emitter |
+| Relay | `tower.relay` | `Assets/Prefabs/Towers/Tower_Relay.prefab` | `Body`, `RoleMarker`, `OwnerTrim`, `RangeHalo` | Tall relay mast, signal node, and capacitors |
+| Pulse | `tower.pulse` | `Assets/Prefabs/Towers/Tower_Pulse.prefab` | `Body`, `RoleMarker`, `OwnerTrim`, `RangeHalo` | Compact burst core with stacked shock rings |
+| Prism | `tower.prism` | `Assets/Prefabs/Towers/Tower_Prism.prefab` | `Body`, `RoleMarker`, `OwnerTrim`, `RangeHalo` | Tall faceted lens-spire and beam anchor |
 
 ## Generated Library
 
@@ -372,11 +399,11 @@ This report is generated by `Line Wards > Art > Generate Placeholder Tower Prefa
 
             public Vector3 RuntimeScale => DisplayName switch
             {
-                "Control" => new Vector3(1.05f, 1.0f, 1.05f),
-                "Relay" => new Vector3(1.0f, 1.16f, 1.0f),
-                "Pulse" => new Vector3(1.08f, 1.02f, 1.08f),
-                "Prism" => new Vector3(1.0f, 1.22f, 1.0f),
-                _ => new Vector3(1.02f, 1.16f, 1.02f)
+                "Control" => new Vector3(1.12f, 0.96f, 1.12f),
+                "Relay" => new Vector3(0.96f, 1.24f, 0.96f),
+                "Pulse" => new Vector3(1.12f, 1.0f, 1.12f),
+                "Prism" => new Vector3(0.96f, 1.34f, 0.96f),
+                _ => new Vector3(1.04f, 1.1f, 1.04f)
             };
 
             public float RuntimeLift => DisplayName == "Relay" ? 0.16f : 0.12f;
@@ -384,11 +411,11 @@ This report is generated by `Line Wards > Art > Generate Placeholder Tower Prefa
 
         private enum TowerShape
         {
-            Spire,
-            Antenna,
-            Dish,
-            Ring,
-            Crystal
+            Crossbow,
+            ControlRing,
+            RelayMast,
+            PulseCore,
+            PrismSpire
         }
     }
 }
