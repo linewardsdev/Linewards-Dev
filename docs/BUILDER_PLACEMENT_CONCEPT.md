@@ -17,7 +17,7 @@ That means:
 - It does not affect combat, targeting, income, send timing, or lane ownership.
 - It can visually move anywhere on the player lane, but actual builds still use the existing placement validation.
 - It remembers the last selected tower role.
-- Selecting a square targets that remembered tower and shows whether placement is legal.
+- Selecting a square attempts to build that remembered tower immediately.
 
 This gives us the better UX without opening pathing, balance, networking, or save-state questions too early.
 
@@ -28,18 +28,16 @@ This gives us the better UX without opening pathing, balance, networking, or sav
 3. The palette closes.
 4. The builder avatar becomes active and takes on the selected tower accent color.
 5. Player taps a lane square.
-6. The builder moves to that square and previews whether the selected tower can be placed.
-7. Player taps `PLACE` to confirm the build.
-8. If the build succeeds, the tower appears and the builder remains active with the same selected tower.
-9. If the build fails, the builder stays active, the target marker flashes rejected, and the feedback text explains why.
-10. Player can keep targeting and confirming squares to build more of the same tower until they change tower type or close/cancel builder mode.
+6. The builder moves to that square and immediately attempts to build the selected tower.
+7. If the build succeeds, the tower appears and the builder remains active with the same selected tower.
+8. If the build fails, the builder still moves to the square, but the target marker flashes rejected and the feedback text explains why.
+9. Player can keep tapping squares to build more of the same tower until they change tower type or close/cancel builder mode.
 
 ## Core Rules
 
 - Last selected tower is persistent during the session.
 - Tapping a tower card changes the remembered tower.
-- Tapping a valid empty build square targets the remembered tower.
-- Tapping `PLACE` confirms the targeted build.
+- Tapping a valid empty build square places the remembered tower.
 - Tapping an invalid square shows rejection feedback without closing builder mode.
 - Tapping an existing owned tower while builder mode is inactive selects that tower for inspection/sell.
 - Tapping an existing owned tower while builder mode is active should reject as occupied rather than switching to sell mode.
@@ -119,7 +117,7 @@ Builder behavior should become:
 - tap cell;
 - move builder and ghost/reticle;
 - preview placement;
-- if preview accepted, wait for explicit `PLACE` confirmation;
+- if preview accepted, place immediately;
 - keep builder mode active.
 
 ### Step 4: Keep command validation unchanged
@@ -164,7 +162,7 @@ Use the screenshot UI review flow to verify:
 
 ## Risks And Open Questions
 
-- Confirmation adds one tap, but prevents accidental touchscreen placement.
+- Accidental builds: immediate placement is faster, but easier to mis-tap.
 - Tower selection vs tower placement: active builder mode should clearly override tower inspection.
 - Cancel affordance: player needs an obvious way to leave builder mode.
 - Animation expectations: if the builder visibly walks slowly, players may expect delayed build timing.
@@ -175,13 +173,12 @@ Use the screenshot UI review flow to verify:
 
 Prototype this as a UI/presentation upgrade first.
 
-Do not add a true simulation builder entity yet. Once the target-and-confirm flow feels good, we can decide whether the builder should become a deeper gameplay mechanic with travel time, vulnerability, upgrades, or multiple workers.
+Do not add a true simulation builder entity yet. Once the tap-to-build flow feels good, we can decide whether the builder should become a deeper gameplay mechanic with travel time, vulnerability, upgrades, or multiple workers.
 
 ## Acceptance Checklist
 
 - [x] Selecting a tower role activates builder placement mode.
-- [x] Tapping an empty valid square targets the selected tower.
-- [x] Pressing `PLACE` builds the targeted tower.
+- [x] Tapping an empty valid square builds the selected tower immediately.
 - [x] Builder mode remains active after a successful build.
 - [x] Tapping an invalid square shows rejection feedback and keeps builder mode active.
 - [x] Tapping an occupied square rejects instead of opening sell/inspect while builder mode is active.
