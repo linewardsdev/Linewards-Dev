@@ -659,7 +659,6 @@ namespace LTW.UnityClient.Simulation
             var offset = LaneOffset(laneId);
             var west = new Vector3(offset + 0.85f, 0.42f, WorldZ(1));
             var east = new Vector3(offset + LaneWidth - 1.85f, 0.42f, WorldZ(1));
-            SpawnEffect(LaneCenter(laneId) + Vector3.up * 0.18f, SignalGold, 0.34f, 0.18f);
             SpawnBeam(west, east, SignalGold, 0.2f);
         }
 
