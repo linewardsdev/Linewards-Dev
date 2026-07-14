@@ -15,7 +15,7 @@ namespace LTW.UnityClient.Editor
     public static class VisualReviewCaptureRunner
     {
         private const string ScenePath = "Assets/Scenes/LocalVerticalSlice.unity";
-        private static readonly string OutputDirectory = Path.GetFullPath(Path.Combine(
+        private static readonly string DefaultOutputDirectory = Path.GetFullPath(Path.Combine(
             Directory.GetCurrentDirectory(),
             "..",
             "..",
@@ -24,6 +24,7 @@ namespace LTW.UnityClient.Editor
             "art-creep-starter-set-kickoff",
             "captures"));
 
+        private static string outputDirectory = DefaultOutputDirectory;
         private static CaptureState state;
         private static double nextActionAt;
         private static string? pendingCapturePath;
@@ -38,8 +39,8 @@ namespace LTW.UnityClient.Editor
         [MenuItem("Line Wards/Review/Capture Visual Review Set")]
         public static void CaptureVisualReviewSet()
         {
-            Directory.CreateDirectory(OutputDirectory);
-            ClearPriorGeneratedCaptures();
+            outputDirectory = ResolveOutputDirectory();
+            Directory.CreateDirectory(outputDirectory);
             captureIndex = 1;
             pendingCapturePath = null;
             pendingCaptureLabel = null;
@@ -199,7 +200,7 @@ namespace LTW.UnityClient.Editor
 
         private static void QueueCapture(string label)
         {
-            var path = Path.Combine(OutputDirectory, $"{captureIndex:00}-{label}.png");
+            var path = Path.Combine(outputDirectory, $"{captureIndex:00}-{label}.png");
             captureIndex++;
             pendingCapturePath = path;
             pendingCaptureLabel = label;
@@ -229,7 +230,7 @@ namespace LTW.UnityClient.Editor
             EditorSettings.enterPlayModeOptions = previousEnterPlayModeOptions;
             if (error == null)
             {
-                Debug.Log($"LTW visual review screenshots captured in {OutputDirectory}");
+                Debug.Log($"LTW visual review screenshots captured in {outputDirectory}");
             }
             else
             {
@@ -248,12 +249,15 @@ namespace LTW.UnityClient.Editor
             field?.SetValue(target, value);
         }
 
-        private static void ClearPriorGeneratedCaptures()
+        private static string ResolveOutputDirectory()
         {
-            foreach (var file in Directory.GetFiles(OutputDirectory, "*.png"))
+            var explicitOutput = ReadArgumentValue("-ltwCaptureOutputDir");
+            if (!string.IsNullOrWhiteSpace(explicitOutput))
             {
-                File.Delete(file);
+                return Path.GetFullPath(explicitOutput);
             }
+
+            return DefaultOutputDirectory;
         }
 
         private static bool ShouldExitAfterRun()
@@ -268,6 +272,20 @@ namespace LTW.UnityClient.Editor
             }
 
             return false;
+        }
+
+        private static string? ReadArgumentValue(string name)
+        {
+            var args = Environment.GetCommandLineArgs();
+            for (var index = 0; index < args.Length - 1; index++)
+            {
+                if (string.Equals(args[index], name, StringComparison.OrdinalIgnoreCase))
+                {
+                    return args[index + 1];
+                }
+            }
+
+            return null;
         }
 
         private enum CaptureState
