@@ -47,6 +47,33 @@ Move from "playable prototype with improving art" to "coherent 2000-baseline ver
 
 The target is not modern AAA polish. The target is a readable, original, low-poly tactical board game where a first-time tester can understand lane flow, tower roles, creep pressure, health, placement, sends, and major combat events without explanation.
 
+## 2000-Baseline Graphics Gap
+
+Reference analysis from early-2000s RTS/TD readability shows that the remaining gap is not primarily polygon count. The quality bar comes from a complete visual stack working together:
+
+- physical board materials with tile wear, grime, cracks, edge contrast, route wear, and grounding shadows;
+- authored low-poly assets with strong silhouettes, chunky proportions, and role-specific landmarks;
+- hand-painted or stylized texture/value work that separates metal, stone, crystal, energy, trim, and team ownership without relying on labels;
+- chunky, short-lived VFX for build, sell, shot, hit, kill, leak, send, income, transfer, and victory moments;
+- animation identity for towers and creeps, including attack windup, impact timing, idle/motion loops, and death/arrival reactions;
+- designed UI frames, icons, disabled/pressed states, and decision cards that feel like one system rather than debug panels;
+- lighting, shadows, and camera framing that make gameplay objects sit in the lane instead of floating over flat primitives.
+
+Current status:
+
+- The build is still in "functional prototype with improving silhouettes," not "2000-baseline vertical slice."
+- Primitive-generated tower/creep prefabs helped prove role language, but they should now be treated as placeholders and contract references, not final art.
+- More primitive stacking will have diminishing returns. The next meaningful jump requires an asset pipeline shift: authored meshes, stylized textures/materials, icon art, VFX prefabs, and screenshot QA.
+- The project should study early-2000s readability techniques, but must not copy Warcraft III names, faction motifs, UI chrome, icons, unit silhouettes, sounds, or screenshots.
+
+Art production priority:
+
+1. Board material pass first, because the lane surface, route, spawn/exit boxes, rails, shadows, and tile value structure will make every other object read better.
+2. One authored tower asset second, starting with Arrow, to define the production quality bar and prefab replacement workflow.
+3. Convert Control and Relay after Arrow proves the pipeline, then Pulse and Prism.
+4. Convert Runner, Brute, and Swarm creeps after the first tower pipeline is stable, then Shade and Siege.
+5. Add VFX and animation passes only after the base board/object readability survives heavy-pressure screenshots.
+
 ## Agent Ownership
 
 | Agent | Assigned Workstreams | Focus |
@@ -273,6 +300,44 @@ Status note:
 
 - Agent 1 added build/send affordability states. Cards remain visible but dim when the player lacks gold, and disabled cards do not fire actions.
 
+## Workstream K: 2000-Baseline Art Production Pipeline
+
+Owner: Shared, with Agent 2 owning board/path readability validation
+
+Goal: move from generated primitive placeholders to authored, original Line Wards production art while preserving phone-size gameplay clarity.
+
+Board and lane material tasks:
+
+- [ ] Create a board material pass for route tiles, build bands, spawn gate, life-loss gate, lane rails, and side gutters.
+- [ ] Add route wear/value contrast so the creep path reads even under towers, creeps, and VFX.
+- [ ] Add quiet tile variation, cracks, grime, and edge highlights without overpowering gameplay objects.
+- [ ] Add grounding shadows or ambient-occlusion-style contact treatment for towers and creeps.
+- [ ] Verify spawn and exit boxes are understandable without text.
+
+Authored asset pipeline tasks:
+
+- [ ] Define source-art folder and naming rules for authored meshes/textures that replace generated placeholders.
+- [ ] Create the first authored Arrow tower mesh and texture as the quality-bar asset.
+- [ ] Replace generated `Tower_Arrow.prefab` while preserving the stable prefab contract child paths.
+- [ ] Capture Arrow in default, active combat, heavy pressure, and grayscale review frames.
+- [ ] Document what worked before converting Control and Relay.
+
+Texture/material tasks:
+
+- [ ] Define stylized material language for stone, metal, crystal, energy, trim, health, and ownership.
+- [ ] Establish palette/value rules that work in grayscale.
+- [ ] Avoid one-hue board themes and keep the board visually quieter than towers, creeps, shots, and UI decisions.
+
+VFX/animation preparation tasks:
+
+- [ ] List required VFX prefabs for build, sell, shot, hit, kill, leak, send, income, transfer, and results.
+- [ ] Define per-role tower attack motion targets: Arrow bolt, Control field pulse, Relay signal ping, Pulse shockwave, Prism beam charge.
+- [ ] Define per-role creep motion targets: Runner dart, Brute lumber, Swarm jitter, Shade echo, Siege weighted pressure.
+
+Exit signal:
+
+- A screenshot of the authored board plus one authored tower looks like an intentional original low-poly tactics game, not primitives on a flat grid, while still passing mobile, grayscale, heavy-pressure, and reduced-effects readability checks.
+
 ## Workstream I: Gameplay Scenario Tests And Tuning Evidence
 
 Owner: Agent 2
@@ -345,14 +410,17 @@ Exit signal:
 
 ## Recommended Execution Order
 
-1. Bottom panel cleanup.
-2. Manual Unity smoke test for pathing, health persistence, and panel behavior.
-3. Push the current local commits plus UI cleanup to cloud.
-4. Tune creep health bar sizing and add damaged-transfer capture coverage.
-5. Run a role-readability pass for all five creeps and five towers.
-6. Add scenario tests for low, normal, heavy, and mixed pressure.
-7. Start UI icon/card polish once gameplay panels stop overlapping.
-8. Start final polished art replacement only after role silhouettes pass heavy-pressure screenshot review.
+1. Keep cloud `main` synced and protect Unity/package local churn.
+2. Finish the manual Unity smoke test for pathing, health persistence, reduced effects, and bottom-panel behavior.
+3. Repair or complete the screenshot QA gate so every art/UI branch produces fresh pixels.
+4. Start the board material/readability pass: route tiles, build bands, spawn/exit gates, rails, gutters, shadows, and tile variation.
+5. Build one authored production-quality Arrow tower asset and use it to prove the replacement pipeline.
+6. Capture heavy-pressure and grayscale evidence for the board plus authored Arrow asset.
+7. Convert Control and Relay once Arrow proves the pipeline, then Pulse and Prism.
+8. Convert Runner, Brute, and Swarm, then Shade and Siege.
+9. Add role motion and VFX passes after base object readability is stable.
+10. Continue UI icon/card polish in parallel, but keep it subordinate to board readability and placement-safe mobile framing.
+11. Use `GameplayScenarioTests` for repeatable low, normal, heavy, and mixed pressure tuning evidence.
 
 ## Definition Of Done For This Phase
 
@@ -361,6 +429,8 @@ Exit signal:
 - [ ] Creep pathing feels natural around center-lane towers.
 - [ ] Wounded creeps remain wounded across lanes and the player can see it.
 - [ ] All 10 current roster roles are readable at phone size.
+- [ ] Board materials, route wear, spawn/exit gates, rails, and shadows make the lane feel authored rather than flat.
+- [ ] At least one authored production-quality tower asset replaces its generated primitive placeholder.
 - [ ] Heavy pressure remains readable without zooming.
 - [ ] Reduced-effects mode remains gameplay-complete.
 - [ ] Build/send UI supports fast decisions without covering the board.
