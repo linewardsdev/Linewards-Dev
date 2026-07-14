@@ -313,13 +313,13 @@ namespace LTW.UnityClient.UI
             if (result.Accepted)
             {
                 feedbackView.ShowAccepted(SelectedTowerName() + " placed");
+                placementPreview = result;
+                UpdateGhostColor();
                 if (!stayInPlacementMode)
                 {
                     CancelPlacement(false);
-                    return true;
                 }
 
-                RefreshPlacementPreview();
                 return true;
             }
 
@@ -848,6 +848,11 @@ namespace LTW.UnityClient.UI
             }
 
             if (isPaletteExpanded && TowerPalettePanelRect(scale, frame).Contains(guiPoint))
+            {
+                return true;
+            }
+
+            if (isPlacing && PlacementPanelRect(scale, frame).Contains(guiPoint))
             {
                 return true;
             }
