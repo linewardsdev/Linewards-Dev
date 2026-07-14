@@ -14,6 +14,8 @@ namespace LTW.UnityClient.UI
         private static readonly Color SignalGold = new(1f, 0.784f, 0.29f, 1f);
         private static readonly Color WardViolet = new(0.608f, 0.424f, 1f, 1f);
         private static readonly Color Cloud = new(0.957f, 0.969f, 1f, 1f);
+        private static readonly Color DisabledInk = new(0.22f, 0.25f, 0.32f, 0.88f);
+        private static readonly Color DisabledText = new(0.55f, 0.59f, 0.68f, 1f);
 
         private static GUIStyle? panelStyle;
         private static GUIStyle? titleStyle;
@@ -121,19 +123,19 @@ namespace LTW.UnityClient.UI
             var buttonWidth = (rect.width - 24f * scale - gap * 2f) / 3f;
             var x = rect.x + 12f * scale;
 
-            if (DrawSendButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "RUN", "10G", CreepIconKind.Runner, ArcaneBlue, scale))
+            if (DrawSendButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "RUN", "10G", CreepIconKind.Runner, ArcaneBlue, gold >= 10, scale))
             {
                 SendRunner();
             }
 
             x += buttonWidth + gap;
-            if (DrawSendButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "BRUTE", "18G", CreepIconKind.Brute, WardViolet, scale))
+            if (DrawSendButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "BRUTE", "18G", CreepIconKind.Brute, WardViolet, gold >= 18, scale))
             {
                 SendBrute();
             }
 
             x += buttonWidth + gap;
-            if (DrawSendButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "SWARM", "18G", CreepIconKind.Swarm, SignalGold, scale))
+            if (DrawSendButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "SWARM", "18G", CreepIconKind.Swarm, SignalGold, gold >= 18, scale))
             {
                 SendSwarm();
             }
@@ -141,13 +143,13 @@ namespace LTW.UnityClient.UI
             var secondRowY = buttonY + buttonHeight + gap;
             var secondRowWidth = (rect.width - 24f * scale - gap) / 2f;
             x = rect.x + 12f * scale;
-            if (DrawSendButton(new Rect(x, secondRowY, secondRowWidth, buttonHeight), "SHADE", "24G", CreepIconKind.Shade, MintSignal, scale))
+            if (DrawSendButton(new Rect(x, secondRowY, secondRowWidth, buttonHeight), "SHADE", "24G", CreepIconKind.Shade, MintSignal, gold >= 24, scale))
             {
                 SendShade();
             }
 
             x += secondRowWidth + gap;
-            if (DrawSendButton(new Rect(x, secondRowY, secondRowWidth, buttonHeight), "SIEGE", "40G", CreepIconKind.Siege, new Color(1f, 0.62f, 0.26f), scale))
+            if (DrawSendButton(new Rect(x, secondRowY, secondRowWidth, buttonHeight), "SIEGE", "40G", CreepIconKind.Siege, new Color(1f, 0.62f, 0.26f), gold >= 40, scale))
             {
                 SendSiege();
             }
@@ -184,25 +186,29 @@ namespace LTW.UnityClient.UI
             }
         }
 
-        private static bool DrawSendButton(Rect rect, string label, string meta, CreepIconKind iconKind, Color accent, float scale)
+        private static bool DrawSendButton(Rect rect, string label, string meta, CreepIconKind iconKind, Color accent, bool isAffordable, float scale)
         {
+            var displayAccent = isAffordable ? accent : DisabledText;
             var previousColor = GUI.color;
-            GUI.color = TintPanel(accent, 0.08f);
+            GUI.color = isAffordable ? TintPanel(accent, 0.08f) : DisabledInk;
+            var previousEnabled = GUI.enabled;
+            GUI.enabled = isAffordable;
             var pressed = GUI.Button(rect, GUIContent.none, buttonStyle);
+            GUI.enabled = previousEnabled;
             GUI.color = previousColor;
 
-            DrawAccent(new Rect(rect.x, rect.yMax - 4f * scale, rect.width, 4f * scale), accent);
+            DrawAccent(new Rect(rect.x, rect.yMax - 4f * scale, rect.width, 4f * scale), displayAccent);
             var iconRect = new Rect(rect.x + 7f * scale, rect.y + 9f * scale, 20f * scale, 27f * scale);
-            DrawCreepIcon(iconRect, iconKind, accent, scale);
+            DrawCreepIcon(iconRect, iconKind, displayAccent, scale);
 
             buttonStyle!.fontSize = Mathf.RoundToInt(12f * scale);
-            buttonStyle.normal.textColor = Cloud;
+            buttonStyle.normal.textColor = isAffordable ? Cloud : DisabledText;
             buttonStyle.hover.textColor = buttonStyle.normal.textColor;
             buttonStyle.active.textColor = buttonStyle.normal.textColor;
             GUI.Label(new Rect(rect.x + 26f * scale, rect.y + 9f * scale, rect.width - 28f * scale, 21f * scale), label, buttonStyle);
 
             metaStyle!.fontSize = Mathf.RoundToInt(9f * scale);
-            metaStyle.normal.textColor = accent;
+            metaStyle.normal.textColor = displayAccent;
             GUI.Label(new Rect(rect.x + 26f * scale, rect.y + 34f * scale, rect.width - 28f * scale, 17f * scale), meta, metaStyle);
             return pressed;
         }

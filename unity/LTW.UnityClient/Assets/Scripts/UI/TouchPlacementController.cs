@@ -21,6 +21,8 @@ namespace LTW.UnityClient.UI
         private static readonly Color SignalGold = new(1f, 0.784f, 0.29f, 1f);
         private static readonly Color Cloud = new(0.957f, 0.969f, 1f, 1f);
         private static readonly Color Danger = new(1f, 0.32f, 0.24f, 1f);
+        private static readonly Color DisabledInk = new(0.22f, 0.25f, 0.32f, 0.88f);
+        private static readonly Color DisabledText = new(0.55f, 0.59f, 0.68f, 1f);
 
         private static GUIStyle? panelStyle;
         private static GUIStyle? titleStyle;
@@ -645,22 +647,23 @@ namespace LTW.UnityClient.UI
             var gap = 6f * scale;
             var buttonWidth = (rect.width - 24f * scale - gap * 2f) / 3f;
             var x = rect.x + 12f * scale;
+            var gold = CurrentPlayerGold();
 
-            if (DrawPaletteButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "ARROW", "25G", TowerIconKind.Arrow, ArcaneBlue, scale))
+            if (DrawPaletteButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "ARROW", "25G", TowerIconKind.Arrow, ArcaneBlue, gold >= 25, scale))
             {
                 selectedTower = null;
                 BeginTowerPlacement();
             }
 
             x += buttonWidth + gap;
-            if (DrawPaletteButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "CTRL", "35G", TowerIconKind.Control, WardViolet, scale))
+            if (DrawPaletteButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "CTRL", "35G", TowerIconKind.Control, WardViolet, gold >= 35, scale))
             {
                 selectedTower = null;
                 BeginControlTowerPlacement();
             }
 
             x += buttonWidth + gap;
-            if (DrawPaletteButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "RELAY", "40G", TowerIconKind.Relay, SignalGold, scale))
+            if (DrawPaletteButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "RELAY", "40G", TowerIconKind.Relay, SignalGold, gold >= 40, scale))
             {
                 selectedTower = null;
                 BeginUtilityTowerPlacement();
@@ -669,14 +672,14 @@ namespace LTW.UnityClient.UI
             var secondRowY = buttonY + buttonHeight + gap;
             var secondRowWidth = (rect.width - 24f * scale - gap) / 2f;
             x = rect.x + 12f * scale;
-            if (DrawPaletteButton(new Rect(x, secondRowY, secondRowWidth, buttonHeight), "PULSE", "45G", TowerIconKind.Pulse, MintSignal, scale))
+            if (DrawPaletteButton(new Rect(x, secondRowY, secondRowWidth, buttonHeight), "PULSE", "45G", TowerIconKind.Pulse, MintSignal, gold >= 45, scale))
             {
                 selectedTower = null;
                 BeginPulseTowerPlacement();
             }
 
             x += secondRowWidth + gap;
-            if (DrawPaletteButton(new Rect(x, secondRowY, secondRowWidth, buttonHeight), "PRISM", "60G", TowerIconKind.Prism, new Color(0.72f, 0.94f, 1f), scale))
+            if (DrawPaletteButton(new Rect(x, secondRowY, secondRowWidth, buttonHeight), "PRISM", "60G", TowerIconKind.Prism, new Color(0.72f, 0.94f, 1f), gold >= 60, scale))
             {
                 selectedTower = null;
                 BeginPrismTowerPlacement();
@@ -706,26 +709,32 @@ namespace LTW.UnityClient.UI
             }
         }
 
-        private static bool DrawPaletteButton(Rect rect, string label, string meta, TowerIconKind iconKind, Color accent, float scale)
+        private static bool DrawPaletteButton(Rect rect, string label, string meta, TowerIconKind iconKind, Color accent, bool isAffordable, float scale)
         {
+            var displayAccent = isAffordable ? accent : DisabledText;
             var previousColor = GUI.color;
-            GUI.color = new Color(PanelInk.r + accent.r * 0.08f, PanelInk.g + accent.g * 0.08f, PanelInk.b + accent.b * 0.08f, PanelInk.a);
+            GUI.color = isAffordable
+                ? new Color(PanelInk.r + accent.r * 0.08f, PanelInk.g + accent.g * 0.08f, PanelInk.b + accent.b * 0.08f, PanelInk.a)
+                : DisabledInk;
             var style = buttonStyle ?? GUI.skin.button;
+            var previousEnabled = GUI.enabled;
+            GUI.enabled = isAffordable;
             var pressed = GUI.Button(rect, GUIContent.none, style);
+            GUI.enabled = previousEnabled;
             GUI.color = previousColor;
 
-            DrawAccent(new Rect(rect.x, rect.yMax - 4f * scale, rect.width, 4f * scale), accent);
+            DrawAccent(new Rect(rect.x, rect.yMax - 4f * scale, rect.width, 4f * scale), displayAccent);
             var iconRect = new Rect(rect.x + 7f * scale, rect.y + 9f * scale, 19f * scale, 26f * scale);
-            DrawTowerIcon(iconRect, iconKind, accent, scale);
+            DrawTowerIcon(iconRect, iconKind, displayAccent, scale);
 
             buttonStyle!.fontSize = Mathf.RoundToInt(10f * scale);
-            buttonStyle.normal.textColor = Cloud;
+            buttonStyle.normal.textColor = isAffordable ? Cloud : DisabledText;
             GUI.Label(new Rect(rect.x + 25f * scale, rect.y + 8f * scale, rect.width - 27f * scale, 20f * scale), label, style);
 
             metaStyle!.fontSize = Mathf.RoundToInt(9f * scale);
-            metaStyle.normal.textColor = accent;
+            metaStyle.normal.textColor = displayAccent;
             GUI.Label(new Rect(rect.x + 25f * scale, rect.y + 31f * scale, rect.width - 27f * scale, 16f * scale), meta, metaStyle);
-            DrawAccent(new Rect(rect.x + rect.width * 0.22f, rect.y + rect.height - 10f * scale, rect.width * 0.56f, 3f * scale), accent);
+            DrawAccent(new Rect(rect.x + rect.width * 0.22f, rect.y + rect.height - 10f * scale, rect.width * 0.56f, 3f * scale), displayAccent);
             return pressed;
         }
 

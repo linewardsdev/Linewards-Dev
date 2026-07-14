@@ -243,11 +243,11 @@ Goal: make the HUD feel designed while preserving compact mobile decisions.
 
 Build/send UI tasks:
 
-- [ ] Icon for each tower.
-- [ ] Icon for each creep/send.
-- [ ] Card frame treatment for build menu.
-- [ ] Card frame treatment for send menu.
-- [ ] Affordability/disabled states.
+- [x] Icon for each tower.
+- [x] Icon for each creep/send.
+- [x] Card frame treatment for build menu.
+- [x] Card frame treatment for send menu.
+- [x] Affordability/disabled states.
 - [ ] Selected/pressed states.
 - [ ] Compact detail strip or role hint if needed.
 - [ ] Ensure no third-line microcopy returns to build/send cards.
