@@ -76,25 +76,25 @@ Goal: make the world feel intentional.
 
 ### Material Kit
 
-- [ ] Dark slate board material.
-- [ ] Slightly brighter route material.
-- [ ] Muted build-zone material.
-- [ ] Blue/mint ward energy material.
-- [ ] Gold economy/relay material.
-- [ ] Violet control material.
-- [ ] Warm pulse material.
-- [ ] Pale prism material.
-- [ ] Red leak/danger material.
-- [ ] Shade shimmer/transparent material.
-- [ ] Creep shadow material.
+- [x] Dark slate board material.
+- [x] Slightly brighter route material.
+- [x] Muted build-zone material.
+- [x] Blue/mint ward energy material.
+- [x] Gold economy/relay material.
+- [x] Violet control material.
+- [x] Warm pulse material.
+- [x] Pale prism material.
+- [x] Red leak/danger material.
+- [x] Shade shimmer/transparent material.
+- [x] Creep shadow material.
 
 ### Lighting/Post
 
 - [ ] Tune orthographic-friendly shadows.
 - [ ] Add subtle bloom only for energy accents.
-- [ ] Avoid noisy textures inside playable cells.
-- [ ] Preserve contrast between board, towers, creeps, HUD, and effects.
-- [ ] Verify reduced-effects mode still reads.
+- [x] Avoid noisy textures inside playable cells.
+- [x] Preserve contrast between board, towers, creeps, HUD, and effects.
+- [x] Verify reduced-effects mode still reads.
 
 ### Exit Signal
 
@@ -132,9 +132,9 @@ Goal: make game feedback satisfying and understandable.
 
 Prioritized VFX:
 
-1. [ ] Tower fire effect per tower role.
-2. [ ] Creep hit reaction.
-3. [ ] Creep death/bounty effect.
+1. [x] Tower fire effect per tower role.
+2. [x] Creep hit reaction.
+3. [x] Creep death/bounty effect.
 4. [ ] Leak effect.
 5. [ ] Send/arrival effect.
 6. [ ] Income tick/economy pulse.
@@ -177,14 +177,14 @@ Goal: make the HUD feel designed, not merely functional.
 
 Every graphics branch must rerun the visual capture set:
 
-- [ ] `01-default-hud.png`
-- [ ] `02-build-menu-open.png`
-- [ ] `03-send-menu-open.png`
-- [ ] `04-lane-selector-open.png`
-- [ ] `05-active-combat.png`
-- [ ] `06-heavy-pressure.png`
-- [ ] `07-reduced-effects-heavy.png`
-- [ ] `08-results-or-late-match.png`
+- [x] `01-default-hud.png`
+- [x] `02-build-menu-open.png`
+- [x] `03-send-menu-open.png`
+- [x] `04-lane-selector-open.png`
+- [x] `05-active-combat.png`
+- [x] `06-heavy-pressure.png`
+- [x] `07-reduced-effects-heavy.png`
+- [x] `08-results-or-late-match.png`
 
 Review against:
 

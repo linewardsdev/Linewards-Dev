@@ -33,6 +33,7 @@ namespace LTW.UnityClient.Editor
         private static int captureIndex;
         private static double startedAt;
         private static bool exitAfterRun;
+        private static bool writeGrayscaleCopies;
         private static bool previousEnterPlayModeOptionsEnabled;
         private static EnterPlayModeOptions previousEnterPlayModeOptions;
 
@@ -46,6 +47,7 @@ namespace LTW.UnityClient.Editor
             pendingCaptureLabel = null;
             delayedCaptureLabel = null;
             exitAfterRun = ShouldExitAfterRun();
+            writeGrayscaleCopies = HasArgument("-ltwCaptureGrayscale");
             previousEnterPlayModeOptionsEnabled = EditorSettings.enterPlayModeOptionsEnabled;
             previousEnterPlayModeOptions = EditorSettings.enterPlayModeOptions;
             EditorSettings.enterPlayModeOptionsEnabled = true;
@@ -79,9 +81,15 @@ namespace LTW.UnityClient.Editor
                     return;
                 }
 
+                var completedPath = pendingCapturePath;
                 pendingCapturePath = null;
                 var completedLabel = pendingCaptureLabel;
                 pendingCaptureLabel = null;
+                if (writeGrayscaleCopies)
+                {
+                    WriteGrayscaleCopy(completedLabel, completedPath);
+                }
+
                 nextActionAt = EditorApplication.timeSinceStartup + 0.5d;
                 AdvanceState(completedLabel);
                 return;
@@ -260,12 +268,14 @@ namespace LTW.UnityClient.Editor
             return DefaultOutputDirectory;
         }
 
-        private static bool ShouldExitAfterRun()
+        private static bool ShouldExitAfterRun() => HasArgument("-ltwExitAfterCapture");
+
+        private static bool HasArgument(string name)
         {
             var args = Environment.GetCommandLineArgs();
             for (var index = 0; index < args.Length; index++)
             {
-                if (string.Equals(args[index], "-ltwExitAfterCapture", StringComparison.OrdinalIgnoreCase))
+                if (string.Equals(args[index], name, StringComparison.OrdinalIgnoreCase))
                 {
                     return true;
                 }
@@ -286,6 +296,38 @@ namespace LTW.UnityClient.Editor
             }
 
             return null;
+        }
+
+        private static void WriteGrayscaleCopy(string? label, string? sourcePath)
+        {
+            if (string.IsNullOrWhiteSpace(label) || string.IsNullOrWhiteSpace(sourcePath) || !File.Exists(sourcePath))
+            {
+                return;
+            }
+
+            var bytes = File.ReadAllBytes(sourcePath);
+            var texture = new Texture2D(2, 2, TextureFormat.RGBA32, false);
+            if (!ImageConversion.LoadImage(texture, bytes))
+            {
+                UnityEngine.Object.DestroyImmediate(texture);
+                return;
+            }
+
+            var pixels = texture.GetPixels32();
+            for (var index = 0; index < pixels.Length; index++)
+            {
+                var pixel = pixels[index];
+                var value = (byte)Mathf.Clamp(Mathf.RoundToInt(pixel.r * 0.299f + pixel.g * 0.587f + pixel.b * 0.114f), 0, 255);
+                pixels[index] = new Color32(value, value, value, pixel.a);
+            }
+
+            texture.SetPixels32(pixels);
+            texture.Apply();
+
+            var grayscaleDirectory = Path.Combine(outputDirectory, "grayscale");
+            Directory.CreateDirectory(grayscaleDirectory);
+            File.WriteAllBytes(Path.Combine(grayscaleDirectory, Path.GetFileName(sourcePath)), ImageConversion.EncodeToPNG(texture));
+            UnityEngine.Object.DestroyImmediate(texture);
         }
 
         private enum CaptureState

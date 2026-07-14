@@ -508,7 +508,7 @@ namespace LTW.UnityClient.Simulation
             var distance = Vector3.Distance(start, end);
             beam.transform.position = midpoint;
             beam.transform.LookAt(end);
-            beam.transform.localScale = new Vector3(0.045f, 0.045f, Mathf.Max(0.1f, distance));
+            beam.transform.localScale = new Vector3(0.06f, 0.06f, Mathf.Max(0.1f, distance));
             SetColor(beam, color);
             timedPresentations.Add(new TimedPresentation(beam, Time.time + duration, effectPool));
         }
@@ -571,6 +571,7 @@ namespace LTW.UnityClient.Simulation
             {
                 SpawnBeam(muzzle + new Vector3(-0.42f, 0f, 0f), hitPosition + Vector3.up * 0.12f, shotColor, 0.18f);
                 SpawnBeam(muzzle + new Vector3(0.42f, 0f, 0f), hitPosition + Vector3.up * 0.12f, shotColor, 0.18f);
+                SpawnCellFrameCue(hitPosition, shotColor, 0.18f);
                 SpawnEffect(towerPosition + Vector3.up * 0.28f, shotColor, 0.42f, 0.16f);
                 SpawnEffect(hitPosition, shotColor, damage >= 5 ? 0.42f : 0.32f, 0.16f);
                 return;
@@ -581,6 +582,7 @@ namespace LTW.UnityClient.Simulation
                 SpawnBeam(muzzle, hitPosition + Vector3.up * 0.2f, shotColor, 0.2f);
                 SpawnBeam(towerPosition + new Vector3(-0.34f, 0.34f, 0f), towerPosition + new Vector3(0.34f, 0.34f, 0f), shotColor, 0.14f);
                 SpawnBeam(towerPosition + new Vector3(0f, 0.58f, -0.34f), towerPosition + new Vector3(0f, 0.58f, 0.34f), shotColor, 0.14f);
+                SpawnCellFrameCue(towerPosition, shotColor, 0.16f);
                 SpawnEffect(muzzle, shotColor, 0.26f, 0.12f);
                 return;
             }
@@ -589,6 +591,7 @@ namespace LTW.UnityClient.Simulation
             SpawnBeam(muzzle + new Vector3(-scale, 0f, 0f), muzzle + new Vector3(scale, 0f, 0f), shotColor, 0.1f);
             SpawnBeam(muzzle + new Vector3(0f, 0f, -scale), muzzle + new Vector3(0f, 0f, scale), shotColor, 0.1f);
             SpawnBeam(muzzle, hitPosition + Vector3.up * 0.12f, shotColor, 0.14f);
+            SpawnCellFrameCue(hitPosition, shotColor, damage >= 5 ? 0.16f : 0.12f);
             SpawnEffect(muzzle, shotColor, damage >= 5 ? 0.3f : 0.22f, 0.1f);
         }
 
@@ -1240,24 +1243,24 @@ namespace LTW.UnityClient.Simulation
         private void CreateFlowArrow(int laneId, int y)
         {
             var offset = LaneOffset(laneId);
-            var color = laneId == 1 ? new Color(0.42f, 0.76f, 1f) : new Color(0.24f, 0.4f, 0.68f);
+            var color = laneId == 1 ? new Color(0.24f, 0.48f, 0.76f) : new Color(0.14f, 0.26f, 0.46f);
             var shaft = CreatePrimitive($"Lane{laneId}Flow_{y}_Shaft", PrimitiveType.Cube);
-            shaft.transform.position = new Vector3(offset + CenterColumn, 0.02f, WorldZ(y));
-            shaft.transform.localScale = new Vector3(0.07f, 0.05f, 0.48f);
+            shaft.transform.position = new Vector3(offset + CenterColumn, -0.005f, WorldZ(y));
+            shaft.transform.localScale = new Vector3(0.045f, 0.035f, 0.34f);
             SetColor(shaft, color);
             laneDecorations.Add(shaft);
 
             var eastHead = CreatePrimitive($"Lane{laneId}Flow_{y}_HeadA", PrimitiveType.Cube);
-            eastHead.transform.position = new Vector3(offset + CenterColumn + 0.12f, 0.025f, WorldZ(y) - 0.27f);
+            eastHead.transform.position = new Vector3(offset + CenterColumn + 0.09f, 0f, WorldZ(y) - 0.2f);
             eastHead.transform.rotation = Quaternion.Euler(0f, 35f, 0f);
-            eastHead.transform.localScale = new Vector3(0.06f, 0.05f, 0.24f);
+            eastHead.transform.localScale = new Vector3(0.04f, 0.035f, 0.18f);
             SetColor(eastHead, color);
             laneDecorations.Add(eastHead);
 
             var westHead = CreatePrimitive($"Lane{laneId}Flow_{y}_HeadB", PrimitiveType.Cube);
-            westHead.transform.position = new Vector3(offset + CenterColumn - 0.12f, 0.025f, WorldZ(y) - 0.27f);
+            westHead.transform.position = new Vector3(offset + CenterColumn - 0.09f, 0f, WorldZ(y) - 0.2f);
             westHead.transform.rotation = Quaternion.Euler(0f, -35f, 0f);
-            westHead.transform.localScale = new Vector3(0.06f, 0.05f, 0.24f);
+            westHead.transform.localScale = new Vector3(0.04f, 0.035f, 0.18f);
             SetColor(westHead, color);
             laneDecorations.Add(westHead);
         }
@@ -1411,7 +1414,10 @@ namespace LTW.UnityClient.Simulation
         {
             if (visualProfile != null && visualProfile.HasScale)
             {
-                return visualProfile.Scale;
+                return new Vector3(
+                    visualProfile.Scale.x * 1.18f,
+                    visualProfile.Scale.y * 1.12f,
+                    visualProfile.Scale.z * 1.18f);
             }
 
             if (ContainsRole(creepId, "swarm"))
@@ -1560,10 +1566,10 @@ namespace LTW.UnityClient.Simulation
 
         private static void ApplyTowerColor(GameObject towerObject, string towerId, int ownerId, TowerVisualProfile visualProfile)
         {
-            var roleColor = TowerMarkerColor(towerId);
-            var baseColor = TowerBaseColor(towerId);
+            var roleColor = BoostValue(TowerMarkerColor(towerId), 1.16f);
+            var baseColor = BoostValue(TowerBaseColor(towerId), 1.08f);
             var ownerColor = OwnerAccent(ownerId);
-            var rangeColor = roleColor;
+            var rangeColor = DimValue(roleColor, 0.7f);
 
             if (visualProfile == null || visualProfile.Prefab == null)
             {
@@ -1576,6 +1582,12 @@ namespace LTW.UnityClient.Simulation
             SetProfileColor(towerObject, visualProfile.OwnerTrimRendererPath, ownerColor);
             SetProfileColor(towerObject, visualProfile.RangeHaloRendererPath, rangeColor);
         }
+
+        private static Color BoostValue(Color color, float amount) =>
+            new Color(Mathf.Clamp01(color.r * amount), Mathf.Clamp01(color.g * amount), Mathf.Clamp01(color.b * amount), color.a);
+
+        private static Color DimValue(Color color, float amount) =>
+            new Color(Mathf.Clamp01(color.r * amount), Mathf.Clamp01(color.g * amount), Mathf.Clamp01(color.b * amount), color.a);
 
         private static Color CreepRoleColor(string creepId, int senderId)
         {
@@ -2140,9 +2152,9 @@ namespace LTW.UnityClient.Simulation
             return new Color(0.036f + tint.r * strength, 0.048f + tint.g * strength, 0.078f + tint.b * strength);
         }
 
-        private static Color RouteBandColor(int laneId) => laneId == 1 ? new Color(0.13f, 0.39f, 0.6f) : new Color(0.085f, 0.24f, 0.4f);
+        private static Color RouteBandColor(int laneId) => laneId == 1 ? new Color(0.1f, 0.3f, 0.5f) : new Color(0.065f, 0.2f, 0.34f);
 
-        private static Color RouteGuideColor(int laneId) => laneId == 1 ? new Color(0.36f, 0.72f, 1f) : new Color(0.19f, 0.42f, 0.72f);
+        private static Color RouteGuideColor(int laneId) => laneId == 1 ? new Color(0.22f, 0.5f, 0.82f) : new Color(0.13f, 0.3f, 0.55f);
 
         private static Color EndpointWashColor(Color color, bool isPlayerLane)
         {

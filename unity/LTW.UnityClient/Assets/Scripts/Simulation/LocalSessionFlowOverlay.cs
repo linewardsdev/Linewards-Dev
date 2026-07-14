@@ -39,11 +39,13 @@ namespace LTW.UnityClient.Simulation
             EnsureStyle();
             var scale = MobileViewportLayout.UiScale();
             var frame = MobileViewportLayout.ScreenRect();
-            var buttonWidth = 42f * scale;
-            var buttonHeight = 26f * scale;
-            var gap = 5f * scale;
-            var y = frame.y + 144f * scale;
-            var x = frame.xMax - buttonWidth * 2f - gap - MobileViewportLayout.EdgeMargin(scale);
+            var buttonWidth = 48f * scale;
+            var buttonHeight = 24f * scale;
+            var resetWidth = 28f * scale;
+            var resetHeight = 20f * scale;
+            var gap = 4f * scale;
+            var y = frame.y + 58f * scale;
+            var x = frame.xMax - buttonWidth - MobileViewportLayout.EdgeMargin(scale);
 
             buttonStyle!.fontSize = Mathf.RoundToInt(11f * scale);
 
@@ -54,7 +56,8 @@ namespace LTW.UnityClient.Simulation
                 simulationDriver.TogglePause();
             }
 
-            if (DrawFlatButton(new Rect(x + buttonWidth + gap, y, buttonWidth, buttonHeight), "RESET", PanelInk, Cloud, buttonStyle))
+            buttonStyle.fontSize = Mathf.RoundToInt(10f * scale);
+            if (DrawFlatButton(new Rect(x + buttonWidth - resetWidth, y + buttonHeight + gap, resetWidth, resetHeight), "R", PanelInk, Cloud, buttonStyle))
             {
                 simulationDriver.ResetMatch();
                 playtestRecorder?.ResetRecorder();
