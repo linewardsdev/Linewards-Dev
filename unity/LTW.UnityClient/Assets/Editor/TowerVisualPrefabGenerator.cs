@@ -1,3 +1,4 @@
+using LTW.UnityClient.Simulation;
 using UnityEditor;
 using UnityEngine;
 
@@ -7,6 +8,7 @@ namespace LTW.UnityClient.Editor
     {
         private const string MenuPath = "Line Wards/Art/Generate Placeholder Tower Prefabs";
         private const string ValidateMenuPath = "Line Wards/Art/Validate Tower Placeholder Prefabs";
+        private const string LibraryPath = "Assets/Resources/TowerVisualLibrary.asset";
         private const string PrefabFolder = "Assets/Prefabs/Towers";
         private const string MaterialFolder = "Assets/Art/Towers/GeneratedMaterials";
         private const string ReportPath = "Assets/Art/Towers/GeneratedPlaceholderReport.md";
@@ -28,19 +30,22 @@ namespace LTW.UnityClient.Editor
 
             var trimMaterial = CreateOrUpdateMaterial(MaterialFolder + "/Tower_OwnerTrim.mat", new Color(0.98f, 0.76f, 0.24f));
             var haloMaterial = CreateOrUpdateMaterial(MaterialFolder + "/Tower_RangeHalo.mat", new Color(0.36f, 0.72f, 1f, 0.26f));
+            var prefabs = new GameObject[TowerSpecs.Length];
 
-            foreach (var spec in TowerSpecs)
+            for (var index = 0; index < TowerSpecs.Length; index++)
             {
+                var spec = TowerSpecs[index];
                 var bodyMaterial = CreateOrUpdateMaterial(MaterialFolder + "/" + spec.PrefabName + "_Body.mat", spec.BodyColor);
                 var roleMaterial = CreateOrUpdateMaterial(MaterialFolder + "/" + spec.PrefabName + "_RoleMarker.mat", spec.MarkerColor);
-                SaveTowerPrefab(spec, bodyMaterial, roleMaterial, trimMaterial, haloMaterial);
+                prefabs[index] = SaveTowerPrefab(spec, bodyMaterial, roleMaterial, trimMaterial, haloMaterial);
             }
 
+            UpdateVisualLibrary(prefabs);
             WriteGenerationReport();
             AssetDatabase.SaveAssets();
             AssetDatabase.ImportAsset(ReportPath);
             AssetDatabase.Refresh();
-            Debug.Log($"Generated placeholder tower prefabs and wrote {ReportPath}.");
+            Debug.Log($"Generated placeholder tower prefabs, updated TowerVisualLibrary, and wrote {ReportPath}.");
         }
 
         [MenuItem(ValidateMenuPath)]
@@ -64,6 +69,37 @@ namespace LTW.UnityClient.Editor
                 issueCount += ValidateRendererPath(prefab, "RangeHalo");
             }
 
+            var library = AssetDatabase.LoadAssetAtPath<TowerVisualLibrary>(LibraryPath);
+            if (library == null)
+            {
+                Debug.LogError($"Missing tower visual library at {LibraryPath}.");
+                issueCount++;
+            }
+            else
+            {
+                foreach (var profile in library.Profiles)
+                {
+                    if (profile == null)
+                    {
+                        Debug.LogError("Tower visual library contains a null profile entry.", library);
+                        issueCount++;
+                        continue;
+                    }
+
+                    if (string.IsNullOrWhiteSpace(profile.TowerId))
+                    {
+                        Debug.LogError("Tower visual profile is missing a tower id.", library);
+                        issueCount++;
+                    }
+
+                    if (profile.Prefab == null)
+                    {
+                        Debug.LogError($"Tower visual profile '{profile.TowerId}' has no prefab assigned.", library);
+                        issueCount++;
+                    }
+                }
+            }
+
             if (issueCount == 0)
             {
                 Debug.Log("Tower placeholder prefab validation passed.");
@@ -74,7 +110,7 @@ namespace LTW.UnityClient.Editor
             }
         }
 
-        private static void SaveTowerPrefab(
+        private static GameObject SaveTowerPrefab(
             TowerSpec spec,
             Material bodyMaterial,
             Material roleMaterial,
@@ -114,8 +150,44 @@ namespace LTW.UnityClient.Editor
             }
 
             var prefabPath = PrefabFolder + "/" + spec.PrefabName + ".prefab";
-            PrefabUtility.SaveAsPrefabAsset(root, prefabPath);
+            var prefab = PrefabUtility.SaveAsPrefabAsset(root, prefabPath);
             Object.DestroyImmediate(root);
+            return prefab;
+        }
+
+        private static void UpdateVisualLibrary(GameObject[] prefabs)
+        {
+            var library = AssetDatabase.LoadAssetAtPath<TowerVisualLibrary>(LibraryPath);
+            if (library == null)
+            {
+                library = ScriptableObject.CreateInstance<TowerVisualLibrary>();
+                AssetDatabase.CreateAsset(library, LibraryPath);
+            }
+
+            var serializedLibrary = new SerializedObject(library);
+            var profiles = serializedLibrary.FindProperty("profiles");
+            profiles.arraySize = TowerSpecs.Length;
+
+            for (var index = 0; index < TowerSpecs.Length; index++)
+            {
+                ConfigureProfile(profiles.GetArrayElementAtIndex(index), TowerSpecs[index], prefabs[index]);
+            }
+
+            serializedLibrary.ApplyModifiedProperties();
+            EditorUtility.SetDirty(library);
+        }
+
+        private static void ConfigureProfile(SerializedProperty profile, TowerSpec spec, GameObject prefab)
+        {
+            profile.FindPropertyRelative("towerId").stringValue = spec.TowerId;
+            profile.FindPropertyRelative("role").enumValueIndex = (int)spec.Role;
+            profile.FindPropertyRelative("prefab").objectReferenceValue = prefab;
+            profile.FindPropertyRelative("scale").vector3Value = spec.RuntimeScale;
+            profile.FindPropertyRelative("lift").floatValue = spec.RuntimeLift;
+            profile.FindPropertyRelative("bodyRendererPath").stringValue = "Body";
+            profile.FindPropertyRelative("roleMarkerRendererPath").stringValue = "RoleMarker";
+            profile.FindPropertyRelative("ownerTrimRendererPath").stringValue = "OwnerTrim";
+            profile.FindPropertyRelative("rangeHaloRendererPath").stringValue = "RangeHalo";
         }
 
         private static GameObject CreateChild(
@@ -200,13 +272,17 @@ This report is generated by `Line Wards > Art > Generate Placeholder Tower Prefa
 
 ## Generated Prefabs
 
-| Tower | Prefab | Required Children | Readability Target |
-| --- | --- | --- | --- |
-| Arrow | `Assets/Prefabs/Towers/Tower_Arrow.prefab` | `Body`, `RoleMarker`, `OwnerTrim`, `RangeHalo` | Fast single-target spire and muzzle |
-| Control | `Assets/Prefabs/Towers/Tower_Control.prefab` | `Body`, `RoleMarker`, `OwnerTrim`, `RangeHalo` | Antenna/signal silhouette for slow/control |
-| Relay | `Assets/Prefabs/Towers/Tower_Relay.prefab` | `Body`, `RoleMarker`, `OwnerTrim`, `RangeHalo` | Dish silhouette for support/economy |
-| Pulse | `Assets/Prefabs/Towers/Tower_Pulse.prefab` | `Body`, `RoleMarker`, `OwnerTrim`, `RangeHalo` | Ring/core silhouette for area pulse |
-| Prism | `Assets/Prefabs/Towers/Tower_Prism.prefab` | `Body`, `RoleMarker`, `OwnerTrim`, `RangeHalo` | Crystal/beam silhouette for focused scaling |
+| Tower | Runtime ID | Prefab | Required Children | Readability Target |
+| --- | --- | --- | --- | --- |
+| Arrow | `tower.arrow` | `Assets/Prefabs/Towers/Tower_Arrow.prefab` | `Body`, `RoleMarker`, `OwnerTrim`, `RangeHalo` | Fast single-target spire and muzzle |
+| Control | `tower.control` | `Assets/Prefabs/Towers/Tower_Control.prefab` | `Body`, `RoleMarker`, `OwnerTrim`, `RangeHalo` | Antenna/signal silhouette for slow/control |
+| Relay | `tower.relay` | `Assets/Prefabs/Towers/Tower_Relay.prefab` | `Body`, `RoleMarker`, `OwnerTrim`, `RangeHalo` | Dish silhouette for support/economy |
+| Pulse | `tower.pulse` | `Assets/Prefabs/Towers/Tower_Pulse.prefab` | `Body`, `RoleMarker`, `OwnerTrim`, `RangeHalo` | Ring/core silhouette for area pulse |
+| Prism | `tower.prism` | `Assets/Prefabs/Towers/Tower_Prism.prefab` | `Body`, `RoleMarker`, `OwnerTrim`, `RangeHalo` | Crystal/beam silhouette for focused scaling |
+
+## Generated Library
+
+- `Assets/Resources/TowerVisualLibrary.asset`
 
 ## Generated Materials
 
@@ -269,11 +345,41 @@ This report is generated by `Line Wards > Art > Generate Placeholder Tower Prefa
 
             public string PrefabName { get; }
 
+            public string TowerId => DisplayName switch
+            {
+                "Arrow" => "tower.arrow",
+                "Control" => "tower.control",
+                "Relay" => "tower.relay",
+                "Pulse" => "tower.pulse",
+                "Prism" => "tower.prism",
+                _ => string.Empty
+            };
+
+            public TowerVisualRole Role => DisplayName switch
+            {
+                "Control" => TowerVisualRole.Control,
+                "Relay" => TowerVisualRole.Relay,
+                "Pulse" => TowerVisualRole.Pulse,
+                "Prism" => TowerVisualRole.Prism,
+                _ => TowerVisualRole.Arrow
+            };
+
             public Color BodyColor { get; }
 
             public Color MarkerColor { get; }
 
             public TowerShape Shape { get; }
+
+            public Vector3 RuntimeScale => DisplayName switch
+            {
+                "Control" => new Vector3(0.92f, 0.92f, 0.92f),
+                "Relay" => new Vector3(0.9f, 1.02f, 0.9f),
+                "Pulse" => new Vector3(0.94f, 0.94f, 0.94f),
+                "Prism" => new Vector3(0.88f, 1.08f, 0.88f),
+                _ => new Vector3(0.92f, 1.02f, 0.92f)
+            };
+
+            public float RuntimeLift => DisplayName == "Relay" ? 0.16f : 0.12f;
         }
 
         private enum TowerShape

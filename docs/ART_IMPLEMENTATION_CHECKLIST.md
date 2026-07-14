@@ -15,40 +15,44 @@ Track the staged implementation work required to move LTW from procedural placeh
 
 ## Phase B: Placeholder Assets And Materials
 
-- [ ] Add placeholder material assets for team ownership colors.
-- [ ] Add placeholder material assets for tower roles.
-- [ ] Add placeholder material assets for creep roles.
+- [x] Add placeholder material assets for team ownership colors.
+- [x] Add placeholder material assets for tower roles.
+- [x] Add placeholder material assets for creep roles.
 - [ ] Add placeholder UI icon files or import targets.
-- [ ] Add a review note for material contrast against the lane board.
+- [x] Add a review note for material contrast against the lane board.
 
 ## Phase C: Visual Library Scaffolding
 
-- [ ] Add `TowerVisualLibrary` mapping tower content IDs or roles to optional prefabs/materials.
-- [ ] Add `CreepVisualLibrary` mapping creep content IDs or roles to optional prefabs/materials.
-- [ ] Add inspector-facing fields on the Unity renderer for visual libraries.
-- [ ] Keep procedural fallback rendering active.
+- [x] Add `TowerVisualLibrary` mapping tower content IDs or roles to optional prefabs/materials.
+- [x] Add `CreepVisualLibrary` mapping creep content IDs or roles to optional prefabs/materials.
+- [x] Add inspector-facing fields on the Unity renderer for visual libraries.
+- [x] Keep procedural fallback rendering active.
 
 ## Phase D: Prefab-First Rendering
 
-- [ ] Renderer tries tower prefab lookup before procedural tower construction.
-- [ ] Renderer tries creep prefab lookup before procedural creep construction.
-- [ ] Missing prefab fallback remains silent during normal play.
+- [x] Renderer tries tower prefab lookup before procedural tower construction.
+- [x] Renderer tries creep prefab lookup before procedural creep construction.
+- [x] Missing prefab fallback remains silent during normal play.
 - [ ] Optional art QA diagnostics identify missing prefab mappings.
 
 ## Phase E: Role Replacement Order
 
-- [ ] Replace Arrow/focused tower prefab first.
-- [ ] Replace Control/area tower prefab second.
-- [ ] Replace Relay/utility tower prefab third.
-- [ ] Replace Runner creep prefab first.
-- [ ] Replace Brute creep prefab second.
-- [ ] Replace Swarm creep prefab third.
+- [x] Replace Arrow/focused tower prefab first.
+- [x] Replace Control/area tower prefab second.
+- [x] Replace Relay/utility tower prefab third.
+- [x] Replace Runner creep prefab first.
+- [x] Replace Brute creep prefab second.
+- [x] Replace Swarm creep prefab third.
+- [x] Replace Pulse tower prefab.
+- [x] Replace Prism tower prefab.
+- [x] Replace Shade creep prefab.
+- [x] Replace Siege creep prefab.
 
 ## Validation Checklist
 
-- [ ] Unity imports all new folders and README/meta files cleanly.
-- [ ] No duplicate Unity GUIDs are introduced.
-- [ ] Existing procedural visuals still render when no prefab is assigned.
+- [x] Unity imports all new folders and README/meta files cleanly.
+- [x] No duplicate Unity GUIDs are introduced.
+- [x] Existing procedural visuals still render when no prefab is assigned.
 - [ ] Build/send UI icon naming follows the asset pipeline doc.
-- [ ] Prefab child names match `docs/ART_PREFAB_CONTRACT.md`.
+- [x] Prefab child names match `docs/ART_PREFAB_CONTRACT.md`.
 - [ ] Play Mode can start without missing-reference errors.

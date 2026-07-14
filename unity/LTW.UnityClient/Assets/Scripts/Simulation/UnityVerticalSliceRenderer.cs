@@ -20,13 +20,16 @@ namespace LTW.UnityClient.Simulation
         private const int CenterColumn = 3;
         private const float BoardCenterX = (LaneWidth - 1) * 0.5f;
         private const float BoardCenterZ = (LaneLength - 1) * 0.5f;
+        private const string PrimitiveTowerPoolKey = "primitive-tower";
         private const string PrimitiveCreepPoolKey = "primitive-creep";
+        private const string DefaultTowerVisualLibraryResourcePath = "TowerVisualLibrary";
         private const string DefaultCreepVisualLibraryResourcePath = "CreepVisualLibrary";
 
         [SerializeField] private UnitySimulationDriver simulationDriver = null!;
         [SerializeField] private PresentationDetail presentationDetail = PresentationDetail.Full;
         [SerializeField] private LaneCameraFraming cameraFraming = LaneCameraFraming.ActiveLane;
         [SerializeField] private int activeLaneCameraId = 1;
+        [SerializeField] private TowerVisualLibrary towerVisualLibrary = null!;
         [SerializeField] private CreepVisualLibrary creepVisualLibrary = null!;
 
         private AudioSource feedbackAudioSource = null!;
@@ -40,6 +43,7 @@ namespace LTW.UnityClient.Simulation
 
         private readonly Dictionary<string, GameObject> activeTowers = new Dictionary<string, GameObject>();
         private readonly Dictionary<string, GameObject> activeCreeps = new Dictionary<string, GameObject>();
+        private readonly Dictionary<string, string> activeTowerPoolKeys = new Dictionary<string, string>();
         private readonly Dictionary<string, string> activeCreepPoolKeys = new Dictionary<string, string>();
         private readonly Dictionary<string, Vector3> lastKnownPositions = new Dictionary<string, Vector3>();
         private readonly Dictionary<string, string> lastKnownCreepIds = new Dictionary<string, string>();
@@ -54,6 +58,7 @@ namespace LTW.UnityClient.Simulation
         private readonly HashSet<string> visibleKeys = new HashSet<string>();
         private readonly Queue<GameObject> towerPool = new Queue<GameObject>();
         private readonly Queue<GameObject> creepPool = new Queue<GameObject>();
+        private readonly Dictionary<string, Queue<GameObject>> towerPrefabPools = new Dictionary<string, Queue<GameObject>>();
         private readonly Dictionary<string, Queue<GameObject>> creepPrefabPools = new Dictionary<string, Queue<GameObject>>();
         private readonly Queue<GameObject> effectPool = new Queue<GameObject>();
         private readonly Queue<GameObject> textPool = new Queue<GameObject>();
@@ -70,7 +75,7 @@ namespace LTW.UnityClient.Simulation
 
         public int ActivePresentationObjectCount => activeTowers.Count + activeCreeps.Count + timedPresentations.Count;
 
-        public int PooledPresentationObjectCount => towerPool.Count + creepPool.Count + PooledCreepPrefabCount() + effectPool.Count + textPool.Count;
+        public int PooledPresentationObjectCount => towerPool.Count + PooledTowerPrefabCount() + creepPool.Count + PooledCreepPrefabCount() + effectPool.Count + textPool.Count;
 
         public void Initialize(UnitySimulationDriver driver)
         {
@@ -85,6 +90,11 @@ namespace LTW.UnityClient.Simulation
 
         private void Awake()
         {
+            if (towerVisualLibrary == null)
+            {
+                towerVisualLibrary = Resources.Load<TowerVisualLibrary>(DefaultTowerVisualLibraryResourcePath);
+            }
+
             if (creepVisualLibrary == null)
             {
                 creepVisualLibrary = Resources.Load<CreepVisualLibrary>(DefaultCreepVisualLibraryResourcePath);
@@ -245,14 +255,19 @@ namespace LTW.UnityClient.Simulation
                 var key = tower.EntityId.Value.ToString();
                 visibleKeys.Add(key);
                 towerRolesByCell[TowerGridKey(tower.Position, tower.LaneId)] = tower.TowerId.Value;
-                var towerObject = GetOrCreate(activeTowers, towerPool, key, "WardTower", PrimitiveType.Cylinder);
-                SetTowerTransform(towerObject, tower.Position, tower.LaneId, tower.TowerId.Value);
-                SetColor(towerObject, TowerRoleColor(tower.TowerId.Value, tower.OwnerId.Value));
-                ConfigureTowerRoleMarker(towerObject, tower.TowerId.Value, tower.OwnerId.Value);
+                var visualProfile = towerVisualLibrary != null ? towerVisualLibrary.FindProfile(tower.TowerId.Value) : null;
+                var towerObject = GetOrCreateTower(key, visualProfile);
+                SetTowerTransform(towerObject, tower.Position, tower.LaneId, tower.TowerId.Value, visualProfile);
+                ApplyTowerColor(towerObject, tower.TowerId.Value, tower.OwnerId.Value, visualProfile);
+                if (visualProfile == null || visualProfile.Prefab == null)
+                {
+                    ConfigureTowerRoleMarker(towerObject, tower.TowerId.Value, tower.OwnerId.Value);
+                }
+
                 lastKnownPositions[key] = towerObject.transform.position;
             }
 
-            ReleaseMissing(activeTowers, towerPool);
+            ReleaseMissingTowers();
             visibleKeys.Clear();
             var pressureByLane = new int[4];
             foreach (var creep in snapshot.Creeps)
@@ -784,10 +799,11 @@ namespace LTW.UnityClient.Simulation
 
         private void ReleaseAllActiveObjects()
         {
-            foreach (var pair in activeTowers) ReleaseToPool(pair.Value, towerPool);
+            foreach (var pair in activeTowers) ReleaseTowerToPool(pair.Key, pair.Value);
             foreach (var pair in activeCreeps) ReleaseCreepToPool(pair.Key, pair.Value);
             activeTowers.Clear();
             activeCreeps.Clear();
+            activeTowerPoolKeys.Clear();
             activeCreepPoolKeys.Clear();
             lastKnownCreepIds.Clear();
             lastCreepHealth.Clear();
@@ -802,6 +818,105 @@ namespace LTW.UnityClient.Simulation
             instance = GetPooled(pool, name, primitiveType);
             activeObjects[key] = instance;
             return instance;
+        }
+
+        private GameObject GetOrCreateTower(string key, TowerVisualProfile visualProfile)
+        {
+            var poolKey = TowerPoolKey(visualProfile);
+            if (activeTowers.TryGetValue(key, out var instance))
+            {
+                if (activeTowerPoolKeys.TryGetValue(key, out var activePoolKey) && activePoolKey == poolKey)
+                {
+                    return instance;
+                }
+
+                ReleaseTowerToPool(key, instance);
+                activeTowers.Remove(key);
+            }
+
+            instance = GetPooledTower(poolKey, visualProfile);
+            activeTowers[key] = instance;
+            activeTowerPoolKeys[key] = poolKey;
+            return instance;
+        }
+
+        private GameObject GetPooledTower(string poolKey, TowerVisualProfile visualProfile)
+        {
+            if (visualProfile == null || visualProfile.Prefab == null)
+            {
+                return GetPooled(towerPool, "WardTower", PrimitiveType.Cylinder);
+            }
+
+            var pool = GetTowerPrefabPool(poolKey);
+            var instance = pool.Count > 0 ? pool.Dequeue() : Instantiate(visualProfile.Prefab);
+            instance.name = visualProfile.Prefab.name;
+            instance.SetActive(true);
+            return instance;
+        }
+
+        private Queue<GameObject> GetTowerPrefabPool(string poolKey)
+        {
+            if (towerPrefabPools.TryGetValue(poolKey, out var pool))
+            {
+                return pool;
+            }
+
+            pool = new Queue<GameObject>();
+            towerPrefabPools[poolKey] = pool;
+            return pool;
+        }
+
+        private int PooledTowerPrefabCount()
+        {
+            var count = 0;
+            foreach (var pair in towerPrefabPools)
+            {
+                count += pair.Value.Count;
+            }
+
+            return count;
+        }
+
+        private void ReleaseMissingTowers()
+        {
+            var keysToRelease = new List<string>();
+            foreach (var pair in activeTowers)
+            {
+                if (!visibleKeys.Contains(pair.Key))
+                {
+                    keysToRelease.Add(pair.Key);
+                }
+            }
+
+            foreach (var key in keysToRelease)
+            {
+                ReleaseTowerToPool(key, activeTowers[key]);
+                activeTowers.Remove(key);
+                activeTowerPoolKeys.Remove(key);
+            }
+        }
+
+        private void ReleaseTowerToPool(string key, GameObject instance)
+        {
+            if (activeTowerPoolKeys.TryGetValue(key, out var poolKey) && poolKey != PrimitiveTowerPoolKey)
+            {
+                ReleaseToPool(instance, GetTowerPrefabPool(poolKey));
+                return;
+            }
+
+            ReleaseToPool(instance, towerPool);
+        }
+
+        private static string TowerPoolKey(TowerVisualProfile visualProfile)
+        {
+            if (visualProfile == null || visualProfile.Prefab == null)
+            {
+                return PrimitiveTowerPoolKey;
+            }
+
+            return string.IsNullOrWhiteSpace(visualProfile.TowerId)
+                ? visualProfile.Prefab.name
+                : visualProfile.TowerId;
         }
 
         private GameObject GetOrCreateCreep(string key, CreepVisualProfile visualProfile)
@@ -940,10 +1055,12 @@ namespace LTW.UnityClient.Simulation
             instance.transform.localScale = Vector3.one * scale;
         }
 
-        private static void SetTowerTransform(GameObject instance, GridPosition position, LaneId laneId, string towerId)
+        private static void SetTowerTransform(GameObject instance, GridPosition position, LaneId laneId, string towerId, TowerVisualProfile visualProfile)
         {
-            instance.transform.position = GridToWorld(position, laneId) + Vector3.up * TowerRoleLift(towerId);
-            instance.transform.localScale = TowerRoleScale(towerId);
+            var lift = visualProfile != null && visualProfile.Prefab != null ? visualProfile.Lift : TowerRoleLift(towerId);
+            instance.transform.position = GridToWorld(position, laneId) + Vector3.up * lift;
+            instance.transform.localScale = visualProfile != null && visualProfile.HasScale ? visualProfile.Scale : TowerRoleScale(towerId);
+            instance.transform.rotation = Quaternion.identity;
         }
 
         private static void SetCreepTransform(GameObject instance, GridPosition position, LaneId laneId, string creepId, CreepVisualProfile visualProfile, bool snapToTarget)
@@ -1439,6 +1556,25 @@ namespace LTW.UnityClient.Simulation
             }
 
             return OwnerAccent(ownerId);
+        }
+
+        private static void ApplyTowerColor(GameObject towerObject, string towerId, int ownerId, TowerVisualProfile visualProfile)
+        {
+            var roleColor = TowerMarkerColor(towerId);
+            var baseColor = TowerBaseColor(towerId);
+            var ownerColor = OwnerAccent(ownerId);
+            var rangeColor = roleColor;
+
+            if (visualProfile == null || visualProfile.Prefab == null)
+            {
+                SetColor(towerObject, TowerRoleColor(towerId, ownerId));
+                return;
+            }
+
+            SetProfileColor(towerObject, visualProfile.BodyRendererPath, baseColor);
+            SetProfileColor(towerObject, visualProfile.RoleMarkerRendererPath, roleColor);
+            SetProfileColor(towerObject, visualProfile.OwnerTrimRendererPath, ownerColor);
+            SetProfileColor(towerObject, visualProfile.RangeHaloRendererPath, rangeColor);
         }
 
         private static Color CreepRoleColor(string creepId, int senderId)

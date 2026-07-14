@@ -18,9 +18,9 @@ Completed presentation-layer improvements:
 - Creeps flash when hit using visual-only health tracking.
 - Low-health creeps tint toward damaged colors.
 - Creep marker setup is now role-specific, so runner/brute/swarm do not instantiate every future creep marker type.
-- Future hooks remain for boss, air, stealth, siege, and aura/support creep roles.
+- Future hooks remain for boss, air, and aura/support creep roles after the playable Shade and Siege roles.
 
-This pass uses Unity primitives only. No polished prefabs, meshes, sprites, or imported art assets have been added yet.
+The runtime now supports prefab-backed creep visuals through `CreepVisualLibrary`, while primitive rendering remains available as fallback.
 
 ## Asset Pipeline Status
 
@@ -28,13 +28,13 @@ Started asset pipeline scaffolding:
 
 - Added source-art folders under `unity/LTW.UnityClient/Assets/Art/Creeps/`.
 - Added prefab handoff folder under `unity/LTW.UnityClient/Assets/Prefabs/Creeps/`.
-- Added role-specific art briefs for runner, brute, and swarm.
+- Added role-specific art briefs for runner, brute, swarm, shade, and siege.
 - Added `CreepVisualLibrary` as a Unity `ScriptableObject` profile layer for creep art metadata.
 - Wired `UnityVerticalSliceRenderer` to optionally use profile scale and motion style overrides while keeping primitive fallback rendering.
 - Added profile-backed creep prefab instantiation and pooling in `UnityVerticalSliceRenderer`.
 - Added profile renderer-path tinting for body, sender accent, and damage material slots.
 - Profile renderer paths can target a parent transform; all renderers beneath that transform receive the configured tint.
-- Added a default `Assets/Resources/CreepVisualLibrary.asset` with runner, brute, and swarm profiles.
+- Added a default `Assets/Resources/CreepVisualLibrary.asset` with runner, brute, swarm, shade, and siege profiles.
 - Added renderer auto-loading for the default creep visual library when no scene-assigned library is present.
 - Added an editor-only placeholder prefab generator at `Assets/Editor/CreepVisualPrefabGenerator.cs`.
 - Added an editor-only creep visual library validator for missing prefab references and invalid renderer paths.
@@ -42,8 +42,8 @@ Started asset pipeline scaffolding:
 - Placeholder generation creates procedural low-poly mesh assets under `Assets/Art/Creeps/GeneratedMeshes/`.
 - Added original low-poly OBJ source meshes for runner, brute, and swarm under their role source-art folders.
 - Added a creep material palette/spec under `Assets/Art/Creeps/Materials/`.
-- Added profile-driven death cue styles and role-specific kill cues for runner, brute, and swarm.
-- Ran the Unity editor generator to create `Creep_Runner.prefab`, `Creep_Brute.prefab`, and `Creep_Swarm.prefab`.
+- Added profile-driven death cue styles and role-specific kill cues for runner, brute, swarm, shade, and siege.
+- Ran the Unity editor generator to create `Creep_Runner.prefab`, `Creep_Brute.prefab`, `Creep_Swarm.prefab`, `Creep_Shade.prefab`, and `Creep_Siege.prefab`.
 - Ran the creep visual library validator successfully after placeholder generation.
 
 Not started yet:
@@ -68,6 +68,8 @@ Start with only the current playable creep roles:
 | Runner | Ward-spark or dart construct | Sharp, low, triangular | Fast and darting |
 | Brute | Armored ward golem or pressure core | Wide, heavy, rounded/armored | Slow, weighty bob |
 | Swarm | Signal mites or shardlings | Several tiny bodies as one unit | Clustered jitter |
+| Shade | Echo-glass shimmer construct | Soft body with readable echo offsets | Flicker/shimmer |
+| Siege | Directional pressure ram/core | Heavy forward pressure shape, distinct from Brute | Weighty windup |
 
 Keep the language original ward-tech fantasy: arcane constructs, signal fragments, glass cores, rune plates, prism bodies, and clean board-game readability.
 
@@ -93,6 +95,8 @@ Suggested repo paths:
 unity/LTW.UnityClient/Assets/Art/Creeps/Runner/
 unity/LTW.UnityClient/Assets/Art/Creeps/Brute/
 unity/LTW.UnityClient/Assets/Art/Creeps/Swarm/
+unity/LTW.UnityClient/Assets/Art/Creeps/Shade/
+unity/LTW.UnityClient/Assets/Art/Creeps/Siege/
 unity/LTW.UnityClient/Assets/Art/Creeps/Materials/
 unity/LTW.UnityClient/Assets/Prefabs/Creeps/
 ```
@@ -103,6 +107,8 @@ Suggested prefab names:
 Creep_Runner.prefab
 Creep_Brute.prefab
 Creep_Swarm.prefab
+Creep_Shade.prefab
+Creep_Siege.prefab
 ```
 
 ## Renderer Integration Plan
@@ -119,7 +125,7 @@ This can be a `CreepVisualProfile` ScriptableObject or a serialized config refer
 
 Current implementation note: `CreepVisualLibrary` exists and can be assigned to `UnityVerticalSliceRenderer`. The local runtime path also auto-loads `Assets/Resources/CreepVisualLibrary.asset` when no scene-assigned library is present. The renderer consumes profile scale, motion style, and death cue style overrides, can instantiate profile prefabs, keeps prefab instances in per-profile pools, and applies profile renderer-path tinting for body, sender accents, and damage elements. If no profile or prefab is assigned, the primitive fallback remains active.
 
-Placeholder prefab generation note: run `Line Wards > Art > Generate Placeholder Creep Prefabs` in the Unity editor to generate editable runner, brute, and swarm placeholder prefabs, procedural low-poly mesh assets, generated materials, and matching `CreepVisualLibrary` prefab/path references.
+Placeholder prefab generation note: run `Line Wards > Art > Generate Placeholder Creep Prefabs` in the Unity editor to generate editable runner, brute, swarm, shade, and siege placeholder prefabs, procedural low-poly mesh assets, generated materials, and matching `CreepVisualLibrary` prefab/path references.
 
 After generation, run `Line Wards > Art > Validate Creep Visual Library` to check that each configured prefab path resolves to at least one renderer.
 
@@ -142,7 +148,7 @@ Use this brief for concept art or external asset direction:
 
 A polished creep asset is not done until:
 
-- Runner, brute, and swarm are distinguishable by silhouette without labels.
+- Runner, brute, swarm, shade, and siege are distinguishable by silhouette without labels.
 - Each creep role remains readable at phone size.
 - Each creep role remains readable in grayscale silhouette.
 - Heavy-send pressure with 20+ visible creeps remains readable.
@@ -160,7 +166,7 @@ Suggested checks:
 
 1. Open `unity/LTW.UnityClient` in Unity.
 2. Run the local vertical slice scene.
-3. Send runner, brute, and swarm creeps with `S`, `V`, and `W`.
+3. Send runner, brute, swarm, shade, and siege creeps with `S`, `V`, `W`, `D`, and `G`.
 4. Run heavy-send stress with `H`.
 5. Toggle reduced effects with `F`.
 6. Capture screenshots or short clips for review.
@@ -186,12 +192,12 @@ Current local environment notes:
 
 Completed repo-side work:
 
-- Presentation fallback differentiates runner, brute, and swarm.
+- Presentation fallback differentiates runner, brute, swarm, shade, and siege.
 - Profile-driven prefab, scale, motion, tint, and death cue hooks exist.
-- Default `CreepVisualLibrary.asset` has runner, brute, and swarm profile defaults.
+- Default `CreepVisualLibrary.asset` has runner, brute, swarm, shade, and siege profile defaults.
 - Editor menu can generate placeholder prefabs, procedural generated meshes, generated materials, library references, and a generated review report.
 - Editor menu can validate library prefab/path wiring.
-- Original low-poly OBJ source meshes exist for runner, brute, and swarm.
+- Original low-poly OBJ source meshes exist for runner, brute, and swarm; generated placeholder meshes exist for shade and siege.
 - Material palette/spec exists for body, sender accent, damage, and shadow slots.
 
 Remaining Unity/art-side work:
