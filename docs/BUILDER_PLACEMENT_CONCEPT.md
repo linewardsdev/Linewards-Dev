@@ -1,6 +1,6 @@
 # Builder Placement Concept
 
-Status: deferred concept research. The initial runtime prototype was reverted because it regressed live placement behavior. Current game code should use the existing pre-builder placement flow until this is redesigned and prototyped more safely.
+Status: presentation prototype active. The builder avatar has been reintroduced as a separate visual layer while the existing preview/confirm placement flow remains authoritative.
 
 ## Goal
 
@@ -19,7 +19,7 @@ That means:
 - It does not affect combat, targeting, income, send timing, or lane ownership.
 - It can visually move anywhere on the player lane, but actual builds still use the existing placement validation.
 - It remembers the last selected tower role.
-- Selecting a square attempts to build that remembered tower immediately.
+- Selecting a square moves the avatar and previews that remembered tower.
 
 This gives us the better UX without opening pathing, balance, networking, or save-state questions too early.
 
@@ -30,22 +30,24 @@ This gives us the better UX without opening pathing, balance, networking, or sav
 3. The palette closes.
 4. The builder avatar becomes active and takes on the selected tower accent color.
 5. Player taps a lane square.
-6. The builder moves to that square and immediately attempts to build the selected tower.
-7. If the build succeeds, the tower appears and the builder remains active with the same selected tower.
-8. If the build fails, the builder still moves to the square, but the target marker flashes rejected and the feedback text explains why.
-9. Player can keep tapping squares to build more of the same tower until they change tower type or close/cancel builder mode.
+6. The builder moves to that square and the existing preview/confirm step evaluates the target.
+7. If the player confirms and the build succeeds, the tower appears and the builder remains at the target cell.
+8. The builder remembers that tower, allowing the player to tap another cell and confirm another placement quickly.
+9. If the build fails, the builder remains visible and the feedback text explains why.
+10. Player can select another tower or close/cancel builder mode without changing simulation state.
 
 ## Core Rules
 
 - Last selected tower is persistent during the session.
 - Tapping a tower card changes the remembered tower.
-- Tapping a valid empty build square places the remembered tower.
+- Tapping a valid empty build square previews the remembered tower; confirmation places it.
 - Tapping an invalid square shows rejection feedback without closing builder mode.
 - Tapping an existing owned tower while builder mode is inactive selects that tower for inspection/sell.
 - Tapping an existing owned tower while builder mode is active should reject as occupied rather than switching to sell mode.
 - The builder is visually free-moving, but the command adapter remains the authority for whether a tower can actually be placed.
 - Gold remains the limiting factor.
-- There should be no separate confirm button in the default mobile flow.
+- The existing confirm action remains required for the avatar prototype to prevent accidental touch placement.
+- A successful placement does not close builder mode; the last selected tower remains armed for repeat placement.
 
 ## Builder Visual Direction
 
@@ -72,6 +74,10 @@ The build menu can stay compact:
 - The build button text can change to the selected tower name while builder mode is active.
 - A small close/cancel affordance should exit builder mode.
 - The old placement panel should be removed or reduced to one compact feedback line.
+
+## Current Prototype Boundary
+
+The avatar is intentionally not a simulation entity. It is created by `TouchPlacementController`, has no colliders, follows the selected cell, and changes accent with the selected tower. Tower preview, validation, gold checks, and confirmation still use the existing command adapter path. This boundary is deliberate after the earlier tap-to-build prototype caused placement regressions.
 
 Suggested active-state text:
 
