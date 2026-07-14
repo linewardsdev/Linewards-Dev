@@ -110,7 +110,43 @@ namespace LTW.UnityClient.UI
 
         public void ConfirmPlacement()
         {
-            TryPlaceSelectedTower(false);
+            if (!isPlacing)
+            {
+                return;
+            }
+
+            if (!IsSelectedCellInBounds())
+            {
+                feedbackView.ShowRejected(CommandRejectionReason.InvalidLane);
+                placementPreview = VerticalSliceCommandResult.Reject(CommandRejectionReason.InvalidLane);
+                UpdateGhostColor();
+                return;
+            }
+
+            var result = selectedTowerRole switch
+            {
+                1 => commandAdapter.PlaceControlTower(selectedCell.x, selectedCell.y),
+                2 => commandAdapter.PlaceUtilityTower(selectedCell.x, selectedCell.y),
+                3 => commandAdapter.PlacePulseTower(selectedCell.x, selectedCell.y),
+                4 => commandAdapter.PlacePrismTower(selectedCell.x, selectedCell.y),
+                _ => commandAdapter.PlaceSampleTower(selectedCell.x, selectedCell.y)
+            };
+            if (result.Accepted)
+            {
+                feedbackView.ShowAccepted(SelectedTowerName() + " placed");
+                CancelPlacement(false);
+                return;
+            }
+
+            if (result.RejectionReason == CommandRejectionReason.InsufficientGold)
+            {
+                feedbackView.ShowRejected(result.RejectionReason, SelectedTowerCost(), CurrentPlayerGold());
+            }
+            else
+            {
+                feedbackView.ShowRejected(result.RejectionReason);
+            }
+            RefreshPlacementPreview();
         }
 
         public void SellLastTower()
@@ -159,7 +195,6 @@ namespace LTW.UnityClient.UI
             if (isPlacing)
             {
                 MoveGhost();
-                TryPlaceSelectedTower(true);
                 return;
             }
 
@@ -199,7 +234,7 @@ namespace LTW.UnityClient.UI
             GUI.Label(new Rect(rect.x + 12f * scale, rect.y + 9f * scale, rect.width - 24f * scale, 24f * scale), $"{SelectedTowerName().ToUpperInvariant()}  {SelectedTowerCost()}G", titleStyle);
             var placementLine = placementPreview.Accepted ? $"CELL {selectedCell.x}, {selectedCell.y} READY" : PlacementPreviewText();
             GUI.Label(new Rect(rect.x + 12f * scale, rect.y + 35f * scale, rect.width - 24f * scale, 20f * scale), placementLine, bodyStyle);
-            GUI.Label(new Rect(rect.x + 12f * scale, rect.y + 57f * scale, rect.width - 24f * scale, 20f * scale), placementPreview.Accepted ? "Tap a square to build; stays active" : PlacementRecoveryText(), bodyStyle);
+            GUI.Label(new Rect(rect.x + 12f * scale, rect.y + 57f * scale, rect.width - 24f * scale, 20f * scale), placementPreview.Accepted ? "Confirm to build, or tap another cell" : PlacementRecoveryText(), bodyStyle);
         }
 
         private void SelectTowerAt(Vector2Int cell)
@@ -277,67 +312,6 @@ namespace LTW.UnityClient.UI
             ghost.transform.localScale = SelectedTowerGhostScale();
             ConfigurePlacementGhostVisual();
             RefreshPlacementPreview();
-        }
-
-        private bool TryPlaceSelectedTower(bool stayInPlacementMode)
-        {
-            if (!isPlacing)
-            {
-                return false;
-            }
-
-            if (!IsSelectedCellInBounds())
-            {
-                placementPreview = VerticalSliceCommandResult.Reject(CommandRejectionReason.InvalidLane);
-                ShowPlacementRejection(placementPreview);
-                UpdateGhostColor();
-                return false;
-            }
-
-            if (!placementPreview.Accepted)
-            {
-                ShowPlacementRejection(placementPreview);
-                UpdateGhostColor();
-                return false;
-            }
-
-            var result = selectedTowerRole switch
-            {
-                1 => commandAdapter.PlaceControlTower(selectedCell.x, selectedCell.y),
-                2 => commandAdapter.PlaceUtilityTower(selectedCell.x, selectedCell.y),
-                3 => commandAdapter.PlacePulseTower(selectedCell.x, selectedCell.y),
-                4 => commandAdapter.PlacePrismTower(selectedCell.x, selectedCell.y),
-                _ => commandAdapter.PlaceSampleTower(selectedCell.x, selectedCell.y)
-            };
-
-            if (result.Accepted)
-            {
-                feedbackView.ShowAccepted(SelectedTowerName() + " placed");
-                placementPreview = result;
-                UpdateGhostColor();
-                if (!stayInPlacementMode)
-                {
-                    CancelPlacement(false);
-                }
-
-                return true;
-            }
-
-            placementPreview = result;
-            ShowPlacementRejection(result);
-            RefreshPlacementPreview();
-            return false;
-        }
-
-        private void ShowPlacementRejection(VerticalSliceCommandResult result)
-        {
-            if (result.RejectionReason == CommandRejectionReason.InsufficientGold)
-            {
-                feedbackView.ShowRejected(result.RejectionReason, SelectedTowerCost(), CurrentPlayerGold());
-                return;
-            }
-
-            feedbackView.ShowRejected(result.RejectionReason);
         }
 
         private void RefreshPlacementPreview()
@@ -493,18 +467,6 @@ namespace LTW.UnityClient.UI
             };
         }
 
-        private string SelectedTowerShortName()
-        {
-            return selectedTowerRole switch
-            {
-                1 => "CTRL",
-                2 => "RELAY",
-                3 => "PULSE",
-                4 => "PRISM",
-                _ => "ARROW"
-            };
-        }
-
         private static string TowerRoleName(string towerId)
         {
             if (towerId.Contains("control")) return "Control ward";
@@ -537,18 +499,13 @@ namespace LTW.UnityClient.UI
 
         private void DrawTowerPalette(float scale)
         {
-            var frame = MobileViewportLayout.ScreenRect();
-            var launcherRect = TowerPaletteLauncherRect(scale, frame);
             if (isPlacing)
             {
-                if (DrawLauncherButton(launcherRect, SelectedTowerShortName(), SelectedTowerAccent(), scale))
-                {
-                    CancelPlacement(true);
-                }
-
                 return;
             }
 
+            var frame = MobileViewportLayout.ScreenRect();
+            var launcherRect = TowerPaletteLauncherRect(scale, frame);
             if (!isPaletteExpanded)
             {
                 if (DrawLauncherButton(launcherRect, "BUILD", MintSignal, scale))

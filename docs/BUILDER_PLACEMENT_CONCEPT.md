@@ -177,12 +177,12 @@ Do not add a true simulation builder entity yet. Once the tap-to-build flow feel
 
 ## Acceptance Checklist
 
-- [x] Selecting a tower role activates builder placement mode.
-- [x] Tapping an empty valid square builds the selected tower immediately.
-- [x] Builder mode remains active after a successful build.
-- [x] Tapping an invalid square shows rejection feedback and keeps builder mode active.
-- [x] Tapping an occupied square rejects instead of opening sell/inspect while builder mode is active.
-- [x] Player can exit builder mode intentionally.
-- [x] Existing confirm hotkey still works as a fallback during transition.
-- [x] Gold and placement legality continue to come from simulation command validation.
+- [ ] Selecting a tower role activates builder placement mode.
+- [ ] Tapping an empty valid square builds the selected tower immediately.
+- [ ] Builder mode remains active after a successful build.
+- [ ] Tapping an invalid square shows rejection feedback and keeps builder mode active.
+- [ ] Tapping an occupied square rejects instead of opening sell/inspect while builder mode is active.
+- [ ] Player can exit builder mode intentionally.
+- [ ] Existing confirm hotkey still works as a fallback during transition.
+- [ ] Gold and placement legality continue to come from simulation command validation.
 - [ ] Mobile screenshots show the builder, target cell, feedback, and tower role clearly.
