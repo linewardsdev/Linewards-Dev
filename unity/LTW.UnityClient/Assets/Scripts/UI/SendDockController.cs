@@ -123,19 +123,19 @@ namespace LTW.UnityClient.UI
             var buttonWidth = (rect.width - 24f * scale - gap * 2f) / 3f;
             var x = rect.x + 12f * scale;
 
-            if (DrawSendButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "RUN", "10G", CreepIconKind.Runner, ArcaneBlue, gold >= 10, scale))
+            if (DrawSendButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "RUN", "10G  +1", CreepIconKind.Runner, ArcaneBlue, gold >= 10, scale))
             {
                 SendRunner();
             }
 
             x += buttonWidth + gap;
-            if (DrawSendButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "BRUTE", "18G", CreepIconKind.Brute, WardViolet, gold >= 18, scale))
+            if (DrawSendButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "BRUTE", "18G  +2", CreepIconKind.Brute, WardViolet, gold >= 18, scale))
             {
                 SendBrute();
             }
 
             x += buttonWidth + gap;
-            if (DrawSendButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "SWARM", "18G", CreepIconKind.Swarm, SignalGold, gold >= 18, scale))
+            if (DrawSendButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "SWARM", "18G  +3", CreepIconKind.Swarm, SignalGold, gold >= 18, scale))
             {
                 SendSwarm();
             }
@@ -143,13 +143,13 @@ namespace LTW.UnityClient.UI
             var secondRowY = buttonY + buttonHeight + gap;
             var secondRowWidth = (rect.width - 24f * scale - gap) / 2f;
             x = rect.x + 12f * scale;
-            if (DrawSendButton(new Rect(x, secondRowY, secondRowWidth, buttonHeight), "SHADE", "24G", CreepIconKind.Shade, MintSignal, gold >= 24, scale))
+            if (DrawSendButton(new Rect(x, secondRowY, secondRowWidth, buttonHeight), "SHADE", "24G  +3", CreepIconKind.Shade, MintSignal, gold >= 24, scale))
             {
                 SendShade();
             }
 
             x += secondRowWidth + gap;
-            if (DrawSendButton(new Rect(x, secondRowY, secondRowWidth, buttonHeight), "SIEGE", "40G", CreepIconKind.Siege, new Color(1f, 0.62f, 0.26f), gold >= 40, scale))
+            if (DrawSendButton(new Rect(x, secondRowY, secondRowWidth, buttonHeight), "SIEGE", "40G  +4", CreepIconKind.Siege, new Color(1f, 0.62f, 0.26f), gold >= 40, scale))
             {
                 SendSiege();
             }

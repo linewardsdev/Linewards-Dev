@@ -287,6 +287,7 @@ namespace LTW.UnityClient.Simulation
                 var isHitFlashing = creepHitFlashUntil.TryGetValue(key, out var flashUntil) && Time.time < flashUntil;
                 ApplyCreepColor(creepObject, creep.CreepId.Value, creep.SenderId.Value, visualProfile, healthFraction, isHitFlashing);
                 ConfigureCreepHealthBar(creepObject, creep.CreepId.Value, healthFraction);
+                ConfigureCreepReadabilityOverlay(creepObject, creep.CreepId.Value, creep.SenderId.Value, healthFraction, isHitFlashing);
                 if (visualProfile == null || visualProfile.Prefab == null)
                 {
                     ConfigureCreepRoleMarker(creepObject, creep.CreepId.Value, creep.SenderId.Value, healthFraction, isHitFlashing);
@@ -1135,17 +1136,18 @@ namespace LTW.UnityClient.Simulation
 
         private static void ConfigureCreepHealthBar(GameObject creepObject, string creepId, float healthFraction)
         {
-            var barY = ContainsRole(creepId, "brute") || ContainsRole(creepId, "tank") || ContainsRole(creepId, "boss") ? 1.02f : 0.82f;
-            var barWidth = ContainsRole(creepId, "swarm") ? 1.42f : 1.26f;
+            var metrics = CreepHealthBarMetrics.For(creepId);
             var back = EnsureChild(creepObject, "HealthBarBack", PrimitiveType.Cube);
             var fill = EnsureChild(creepObject, "HealthBarFill", PrimitiveType.Cube);
+            var midpoint = EnsureChild(creepObject, "HealthBarMidTick", PrimitiveType.Cube);
             var wound = EnsureChild(creepObject, "HealthWoundPip", PrimitiveType.Cube);
 
-            ConfigureHealthBarChild(back, new Vector3(0f, barY, 0.72f), new Vector3(barWidth, 0.1f, 0.22f), new Color(0.015f, 0.022f, 0.035f));
-            var fillWidth = Mathf.Max(0.08f, barWidth * Mathf.Clamp01(healthFraction));
-            var fillX = (fillWidth - barWidth) * 0.5f;
-            ConfigureHealthBarChild(fill, new Vector3(fillX, barY + 0.018f, 0.72f), new Vector3(fillWidth, 0.115f, 0.24f), CreepHealthColor(healthFraction));
-            ConfigureHealthBarChild(wound, new Vector3(barWidth * 0.5f + 0.12f, barY + 0.03f, 0.72f), new Vector3(0.14f, 0.16f, 0.28f), LeakRed);
+            ConfigureHealthBarChild(back, new Vector3(0f, metrics.Y, metrics.Z), new Vector3(metrics.Width, metrics.Height, metrics.Depth), new Color(0.015f, 0.022f, 0.035f));
+            var fillWidth = Mathf.Max(metrics.MinFillWidth, metrics.Width * Mathf.Clamp01(healthFraction));
+            var fillX = (fillWidth - metrics.Width) * 0.5f;
+            ConfigureHealthBarChild(fill, new Vector3(fillX, metrics.Y + metrics.FillLift, metrics.Z), new Vector3(fillWidth, metrics.Height * 1.12f, metrics.Depth * 1.08f), CreepHealthColor(healthFraction));
+            ConfigureHealthBarChild(midpoint, new Vector3(0f, metrics.Y + metrics.FillLift * 1.6f, metrics.Z), new Vector3(0.035f, metrics.Height * 1.35f, metrics.Depth * 1.16f), new Color(0.015f, 0.022f, 0.035f));
+            ConfigureHealthBarChild(wound, new Vector3(metrics.Width * 0.5f + metrics.WoundOffset, metrics.Y + metrics.FillLift * 1.7f, metrics.Z), new Vector3(metrics.WoundSize, metrics.Height * 1.5f, metrics.Depth * 1.18f), LeakRed);
             wound.SetActive(healthFraction < 0.72f);
         }
 
@@ -1168,6 +1170,64 @@ namespace LTW.UnityClient.Simulation
             }
 
             return MintSignal;
+        }
+
+        private static void ConfigureCreepReadabilityOverlay(GameObject creepObject, string creepId, int senderId, float healthFraction, bool isHitFlashing)
+        {
+            DeactivateRoleReadabilityOverlay(creepObject);
+
+            var roleColor = isHitFlashing ? new Color(1f, 0.94f, 0.62f) : BoostValue(CreepRoleColor(creepId, senderId), 1.14f);
+            var senderColor = SenderColor(senderId);
+            var damageColor = healthFraction < 0.35f ? LeakRed : roleColor;
+
+            if (ContainsRole(creepId, "swarm"))
+            {
+                var jitter = Mathf.Sin(Time.time * 19f) * 0.06f;
+                ConfigureChild(EnsureChild(creepObject, "RoleSwarmValueRing", PrimitiveType.Cylinder), true, new Vector3(0f, -0.33f, 0f), new Vector3(1.34f, 0.02f, 1.18f), DimValue(roleColor, 0.72f));
+                ConfigureChild(EnsureChild(creepObject, "RoleSwarmLeadSpark", PrimitiveType.Sphere), true, new Vector3(0.38f + jitter, 0.18f, 0.52f), new Vector3(0.18f, 0.18f, 0.18f), roleColor);
+                return;
+            }
+
+            if (ContainsRole(creepId, "brute") || ContainsRole(creepId, "tank") || ContainsRole(creepId, "boss"))
+            {
+                ConfigureChild(EnsureChild(creepObject, "RoleBruteLeftShoulder", PrimitiveType.Cube), true, new Vector3(-0.44f, 0.36f, 0.18f), new Vector3(0.22f, 0.18f, 0.46f), damageColor);
+                ConfigureChild(EnsureChild(creepObject, "RoleBruteRightShoulder", PrimitiveType.Cube), true, new Vector3(0.44f, 0.36f, 0.18f), new Vector3(0.22f, 0.18f, 0.46f), damageColor);
+                ConfigureChild(EnsureChild(creepObject, "RoleBruteCenterPlate", PrimitiveType.Cube), true, new Vector3(0f, 0.5f, 0.36f), new Vector3(0.42f, 0.08f, 0.2f), SignalGold);
+                return;
+            }
+
+            if (ContainsRole(creepId, "shade") || ContainsRole(creepId, "invisible") || ContainsRole(creepId, "stealth"))
+            {
+                var shimmer = Mathf.Sin(Time.time * 8f) * 0.08f;
+                ConfigureChild(EnsureChild(creepObject, "RoleShadeLeftEcho", PrimitiveType.Cube), true, new Vector3(-0.34f + shimmer, 0.2f, 0.02f), new Vector3(0.06f, 0.5f, 0.66f), new Color(0.72f, 0.94f, 1f));
+                ConfigureChild(EnsureChild(creepObject, "RoleShadeRightEcho", PrimitiveType.Cube), true, new Vector3(0.34f - shimmer, 0.2f, -0.04f), new Vector3(0.06f, 0.42f, 0.58f), new Color(0.36f, 0.5f, 0.58f));
+                ConfigureChild(EnsureChild(creepObject, "RoleShadeCoreLine", PrimitiveType.Cube), true, new Vector3(0f, 0.42f, 0.22f), new Vector3(0.1f, 0.08f, 0.46f), roleColor);
+                return;
+            }
+
+            if (ContainsRole(creepId, "siege") || ContainsRole(creepId, "attacker"))
+            {
+                var windup = Mathf.Abs(Mathf.Sin(Time.time * 5f));
+                ConfigureChild(EnsureChild(creepObject, "RoleSiegeRamHead", PrimitiveType.Cube), true, new Vector3(0f, 0.18f, 0.62f), new Vector3(0.48f, 0.22f, 0.2f), roleColor);
+                ConfigureChild(EnsureChild(creepObject, "RoleSiegeWarningLeft", PrimitiveType.Cube), true, new Vector3(-0.38f, 0.24f, 0.14f), new Vector3(0.08f, 0.24f + windup * 0.08f, 0.58f), LeakRed);
+                ConfigureChild(EnsureChild(creepObject, "RoleSiegeWarningRight", PrimitiveType.Cube), true, new Vector3(0.38f, 0.24f, 0.14f), new Vector3(0.08f, 0.24f + windup * 0.08f, 0.58f), LeakRed);
+                return;
+            }
+
+            ConfigureChild(EnsureChild(creepObject, "RoleRunnerChevron", PrimitiveType.Cube), true, new Vector3(0f, 0.28f, 0.62f), new Vector3(0.24f, 0.08f, 0.28f), roleColor);
+            ConfigureChild(EnsureChild(creepObject, "RoleRunnerWake", PrimitiveType.Cube), true, new Vector3(0f, -0.2f, -0.72f), new Vector3(0.055f, 0.035f, 0.58f), senderColor);
+        }
+
+        private static void DeactivateRoleReadabilityOverlay(GameObject creepObject)
+        {
+            for (var index = 0; index < CreepReadabilityOverlayNames.Length; index++)
+            {
+                var marker = creepObject.transform.Find(CreepReadabilityOverlayNames[index]);
+                if (marker != null)
+                {
+                    marker.gameObject.SetActive(false);
+                }
+            }
         }
 
         private static void SetProfileColors(GameObject root, IReadOnlyList<string> paths, Color color)
@@ -2313,6 +2373,23 @@ namespace LTW.UnityClient.Simulation
             "AuraSouthNode"
         };
 
+        private static readonly string[] CreepReadabilityOverlayNames =
+        {
+            "RoleRunnerChevron",
+            "RoleRunnerWake",
+            "RoleBruteLeftShoulder",
+            "RoleBruteRightShoulder",
+            "RoleBruteCenterPlate",
+            "RoleSwarmValueRing",
+            "RoleSwarmLeadSpark",
+            "RoleShadeLeftEcho",
+            "RoleShadeRightEcho",
+            "RoleShadeCoreLine",
+            "RoleSiegeRamHead",
+            "RoleSiegeWarningLeft",
+            "RoleSiegeWarningRight"
+        };
+
         private static readonly Color NightInk = new Color(0.063f, 0.094f, 0.184f);
         private static readonly Color ArcaneBlue = new Color(0.302f, 0.639f, 1f);
         private static readonly Color WardViolet = new Color(0.608f, 0.424f, 1f);
@@ -2336,6 +2413,61 @@ namespace LTW.UnityClient.Simulation
 
             public Vector3 PositionOffset { get; }
             public Quaternion Rotation { get; }
+        }
+
+        private readonly struct CreepHealthBarMetrics
+        {
+            private CreepHealthBarMetrics(float width, float height, float depth, float y, float z, float minFillWidth, float woundOffset, float woundSize)
+            {
+                Width = width;
+                Height = height;
+                Depth = depth;
+                Y = y;
+                Z = z;
+                MinFillWidth = minFillWidth;
+                WoundOffset = woundOffset;
+                WoundSize = woundSize;
+            }
+
+            public float Width { get; }
+            public float Height { get; }
+            public float Depth { get; }
+            public float Y { get; }
+            public float Z { get; }
+            public float FillLift => Height * 0.18f;
+            public float MinFillWidth { get; }
+            public float WoundOffset { get; }
+            public float WoundSize { get; }
+
+            public static CreepHealthBarMetrics For(string creepId)
+            {
+                if (ContainsRole(creepId, "swarm"))
+                {
+                    return new CreepHealthBarMetrics(1.08f, 0.07f, 0.16f, 0.68f, 0.62f, 0.07f, 0.08f, 0.1f);
+                }
+
+                if (ContainsRole(creepId, "boss"))
+                {
+                    return new CreepHealthBarMetrics(1.58f, 0.095f, 0.22f, 1.26f, 0.78f, 0.1f, 0.12f, 0.14f);
+                }
+
+                if (ContainsRole(creepId, "brute") || ContainsRole(creepId, "tank"))
+                {
+                    return new CreepHealthBarMetrics(1.38f, 0.085f, 0.2f, 1.08f, 0.76f, 0.09f, 0.11f, 0.13f);
+                }
+
+                if (ContainsRole(creepId, "siege") || ContainsRole(creepId, "attacker"))
+                {
+                    return new CreepHealthBarMetrics(1.42f, 0.08f, 0.2f, 0.96f, 0.82f, 0.09f, 0.11f, 0.13f);
+                }
+
+                if (ContainsRole(creepId, "shade") || ContainsRole(creepId, "invisible") || ContainsRole(creepId, "stealth"))
+                {
+                    return new CreepHealthBarMetrics(1.06f, 0.07f, 0.16f, 0.84f, 0.66f, 0.07f, 0.08f, 0.1f);
+                }
+
+                return new CreepHealthBarMetrics(0.98f, 0.07f, 0.16f, 0.78f, 0.72f, 0.07f, 0.08f, 0.1f);
+            }
         }
 
         private readonly struct TimedPresentation

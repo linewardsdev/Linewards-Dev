@@ -159,15 +159,20 @@ Completed:
 - [x] Regression test covers wounded creep entering the next lane.
 - [x] Runtime creep health bars exist.
 - [x] Damaged creeps have persistent visual cues through health fill, tinting, hit flash, and wound pip.
+- [x] Runtime health bar metrics cover Runner, Brute, Swarm, Shade, Siege, and boss-style creeps.
 - [x] Transfer arrivals have a distinct cue path from fresh sends.
 - [x] Screenshot review exists at `docs/screenshot-reviews/creep-health-transfer-pass/review.md`.
 
 Open tuning:
 
-- [ ] Tune per-role health bar size and offset so bars are readable without looking chunky under heavy pressure.
+- [x] Tune per-role health bar size and offset so bars are readable without looking chunky under heavy pressure.
 - [ ] Add a dedicated damaged-transfer capture state or manual screenshot showing the `TRANSFER` cue and reduced health in the same frame.
 - [ ] Confirm health bars work for Runner, Brute, Swarm, Shade, and Siege, not only the most common pressure cases.
 - [ ] Confirm health bars remain readable in grayscale.
+
+Status note:
+
+- Agent 3 added role-specific health bar metrics for Runner, Brute, Swarm, Shade, Siege, and boss-style creeps. The runtime now sizes and offsets bars by role instead of using one chunky global bar.
 
 Exit signal:
 
@@ -213,6 +218,7 @@ Current creep status:
 - [x] Runner, Brute, Swarm, Shade, and Siege have prefab/profile support.
 - [x] Generated placeholder prefabs and material/profile wiring exist.
 - [x] Creep visual library validator exists.
+- [x] Runtime role-readability overlays exist for Runner, Brute, Swarm, Shade, and Siege.
 
 Open role-readability tasks:
 
@@ -224,6 +230,10 @@ Open role-readability tasks:
 - [ ] Verify Shade reads as echo/shimmer without relying on transparency alone.
 - [ ] Verify Siege reads as directional pressure and is distinct from Brute.
 - [ ] Verify reduced-effects mode keeps creep role readable through silhouette and motion.
+
+Status note:
+
+- Agent 3 added runtime role-readability overlays for prefab-backed and fallback creeps: Runner chevron/wake, Brute shoulder plates, Swarm value ring/lead spark, Shade solid echo rails, and Siege ram/warning plates. Phone-size screenshot verification is still required before closing the broader role-readability exit signal.
 
 Exit signal:
 
@@ -245,11 +255,11 @@ Tower motion tasks:
 
 Creep motion tasks:
 
-- [ ] Runner darts.
-- [ ] Brute lumbers/bobs.
-- [ ] Swarm jitters as a cluster.
-- [ ] Shade flickers or leaves echo offsets.
-- [ ] Siege lumbers with weight and directionality.
+- [x] Runner darts.
+- [x] Brute lumbers/bobs.
+- [x] Swarm jitters as a cluster.
+- [x] Shade flickers or leaves echo offsets.
+- [x] Siege lumbers with weight and directionality.
 
 Combat/economy feedback tasks:
 
