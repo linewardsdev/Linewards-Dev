@@ -6,6 +6,8 @@ This checklist turns the Line Wards graphics direction into an upgrade plan for 
 
 Use it after the GD readability baseline is stable. The goal is original ward-tech fantasy art that keeps the long north-south lanes, tower roles, creep pressure, economy timing, and leak moments readable on mobile.
 
+Use `ART_THEME_AND_ROLE_GUIDE.md` as the source of truth for tower and creep silhouettes, role motifs, and phone-size readability checks.
+
 ## Upgrade Principles
 
 - [ ] Preserve the long, skinny north-south lane as the dominant visual shape.
@@ -51,7 +53,7 @@ Use it after the GD readability baseline is stable. The goal is original ward-te
 
 - [ ] Create concept sheet for the five prototype tower roles: Arrow, Control, Relay, Pulse, Prism.
 - [ ] Define role silhouettes independent of color:
-  - [ ] Arrow: tall, narrow, focused emitter.
+  - [ ] Arrow: bow/crossbow or tension-limb tower with visible bolt rail.
   - [ ] Control: wider, flatter, ring or dish emitter.
   - [ ] Relay: mast, capacitor, core, or support beacon.
   - [ ] Pulse: compact burst core with expanding ring language.
@@ -88,7 +90,7 @@ Use it after the GD readability baseline is stable. The goal is original ward-te
   - [ ] Brute: heavy, wide, armored, slow read.
   - [ ] Swarm: multiple tiny bodies or clustered repeated units.
   - [ ] Shade: shimmer/echo silhouette that remains readable without transparency alone.
-  - [ ] Siege: heavy directional pressure construct, distinct from Brute.
+  - [ ] Siege: heavy ram/cannon/wedge pressure construct, distinct from Brute.
 - [ ] Define movement timing for each role.
 - [ ] Define readable ground shadows for each role.
 - [ ] Define hit, death, leak, and spawn state treatments.

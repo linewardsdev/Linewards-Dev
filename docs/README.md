@@ -20,6 +20,7 @@ This folder contains the durable project documentation for Line Wards, the mobil
 ## Product And Brand
 
 - [Branding guide](BRANDING_GUIDE.md)
+- [Art theme and role guide](ART_THEME_AND_ROLE_GUIDE.md)
 - [Monetization and payments](MONETIZATION_AND_PAYMENTS.md)
 
 ## Related Context
