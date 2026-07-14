@@ -558,7 +558,7 @@ namespace LTW.UnityClient.Editor
 
         private static void RenderActiveCameras(RenderTexture renderTexture)
         {
-            var cameras = UnityEngine.Object.FindObjectsByType<Camera>();
+            var cameras = UnityEngine.Object.FindObjectsByType<Camera>(FindObjectsSortMode.None);
             Array.Sort(cameras, static (left, right) => left.depth.CompareTo(right.depth));
             for (var index = 0; index < cameras.Length; index++)
             {
