@@ -7,9 +7,9 @@ public sealed class GridPathService
 {
     private static readonly (int X, int Y)[] NeighborOffsets =
     {
-        (1, 0),
         (0, 1),
         (-1, 0),
+        (1, 0),
         (0, -1)
     };
 

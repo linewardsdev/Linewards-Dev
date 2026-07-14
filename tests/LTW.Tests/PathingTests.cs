@@ -31,6 +31,20 @@ public sealed class PathingTests
     }
 
     [Fact]
+    public void Vertical_lane_route_prefers_forward_progress_before_right_detours()
+    {
+        var service = new GridPathService();
+        var grid = new LaneGrid(VerticalMap(width: 7, height: 18));
+
+        var result = service.ValidatePlacement(grid, new GridPosition(3, 2));
+
+        Assert.True(result.IsValid);
+        Assert.Equal(new GridPosition(3, 0), result.Route[0]);
+        Assert.Equal(new GridPosition(3, 1), result.Route[1]);
+        Assert.Equal(new GridPosition(2, 1), result.Route[2]);
+    }
+
+    [Fact]
     public void Blocking_placement_is_rejected_before_state_changes()
     {
         var service = new GridPathService();
@@ -155,6 +169,18 @@ public sealed class PathingTests
             height,
             new GridPosition(0, height / 2),
             new GridPosition(width - 1, height / 2),
+            Array.Empty<GridPosition>());
+    }
+
+    private static MapDefinition VerticalMap(int width, int height)
+    {
+        return new MapDefinition(
+            new ContentId($"map.vertical-{width}x{height}"),
+            "Vertical Test Map",
+            width,
+            height,
+            new GridPosition(width / 2, 0),
+            new GridPosition(width / 2, height - 1),
             Array.Empty<GridPosition>());
     }
 }
