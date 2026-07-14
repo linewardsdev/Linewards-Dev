@@ -15,6 +15,7 @@ This folder contains the durable project documentation for Line Wards, the mobil
 - [MVP implementation checklist](MVP_IMPLEMENTATION_CHECKLIST.md)
 - [Gameplay development checklist](GAMEPLAY_DEVELOPMENT_CHECKLIST.md)
 - [Content roster expansion plan](CONTENT_ROSTER_EXPANSION_PLAN.md)
+- [Builder placement concept](BUILDER_PLACEMENT_CONCEPT.md)
 - [Graphics 2000 baseline roadmap](GRAPHICS_2000_BASELINE_ROADMAP.md)
 - [Graphics theme work breakdown](GRAPHICS_THEME_WORK_BREAKDOWN.md)
 - [iOS device validation](IOS_DEVICE_VALIDATION.md)
