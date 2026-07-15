@@ -18,6 +18,7 @@ This folder contains the durable project documentation for Line Wards, the mobil
 - [Builder placement concept](BUILDER_PLACEMENT_CONCEPT.md)
 - [Graphics 2000 baseline roadmap](GRAPHICS_2000_BASELINE_ROADMAP.md)
 - [Graphics theme work breakdown](GRAPHICS_THEME_WORK_BREAKDOWN.md)
+- [Blink stylized weapons integration checklist](BLINK_STYLIZED_WEAPONS_INTEGRATION_CHECKLIST.md)
 - [iOS device validation](IOS_DEVICE_VALIDATION.md)
 
 ## Product And Brand
