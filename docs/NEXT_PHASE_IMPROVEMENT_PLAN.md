@@ -405,7 +405,9 @@ Required capture set:
 
 Status note:
 
-- Agent 1 attempted the full visual capture gate for this pass. Normal GUI launch exited before invoking the capture method, and `-batchmode -nographics` crashed inside Unity camera rendering before writing captures. This checklist remains open until a GUI/editor capture run can produce fresh pixels.
+- Agent 1 attempted the full visual capture gate for this pass. Normal GUI launch exited before invoking the capture method, and `-batchmode -nographics` crashed inside Unity camera rendering before writing captures.
+- Agent 1 added a capture-runner guardrail so future `-batchmode -nographics` attempts exit with a clear error instead of risking a native crash. The documented graphics batch command omits `-nographics`; the next capture attempt should run that command after the currently open Unity editor releases the project lock, or use the in-editor `Line Wards/Review/Capture Visual Review Set` menu item.
+- This checklist remains open until a GUI/editor capture run can produce fresh pixels.
 
 Review dimensions:
 

@@ -87,6 +87,13 @@ namespace LTW.UnityClient.Editor
 
         private static void BeginCapture(CaptureMode mode)
         {
+            if (InternalEditorUtility.inBatchMode && HasArgument("-nographics"))
+            {
+                Debug.LogError("LTW visual review capture cannot run with -nographics because the capture path renders active cameras. Run batch capture without -nographics, or use the in-editor Line Wards/Review menu item.");
+                EditorApplication.Exit(1);
+                return;
+            }
+
             captureMode = mode;
             outputDirectory = ResolveOutputDirectory();
             Directory.CreateDirectory(outputDirectory);
