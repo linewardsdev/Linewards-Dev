@@ -23,7 +23,7 @@ The current local build has a playable Unity vertical slice with:
 - presentation cues for build, sell, send, spawn, hit, kill, leak, income, elimination, and victory;
 - reduced-effects support;
 - automated visual capture tooling;
-- current .NET test suite passing at 65 tests.
+- current .NET test suite passing at 69 tests.
 
 Recent local commits not yet pushed at the time this plan was written:
 
