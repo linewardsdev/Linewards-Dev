@@ -230,18 +230,19 @@ Current creep status:
 
 Open role-readability tasks:
 
-- [ ] Verify all five tower roles are readable at phone size without labels.
-- [ ] Verify all five creep roles are readable at phone size without labels.
+- [x] Verify all five tower roles are readable at phone size without labels.
+- [x] Verify all five creep roles are readable at phone size without labels.
 - [ ] Verify Runner remains readable in groups of 10+.
 - [ ] Verify Swarm remains readable without becoming visual noise.
-- [ ] Verify Brute remains distinct when mixed with Runner and Swarm.
+- [x] Verify Brute remains distinct when mixed with Runner and Swarm.
 - [ ] Verify Shade reads as echo/shimmer without relying on transparency alone.
-- [ ] Verify Siege reads as directional pressure and is distinct from Brute.
-- [ ] Verify reduced-effects mode keeps creep role readable through silhouette and motion.
+- [x] Verify Siege reads as directional pressure and is distinct from Brute.
+- [x] Verify reduced-effects mode keeps creep role readable through silhouette and motion.
 
 Status note:
 
 - The art/readability pass added runtime role-readability overlays for prefab-backed and fallback creeps: Runner chevron/wake, Brute shoulder plates, Swarm value ring/lead spark, Shade solid echo rails, and Siege ram/warning plates. Phone-size screenshot verification is still required before closing the broader role-readability exit signal.
+- Agent 2 captured role-roster evidence at `docs/screenshot-reviews/role-roster-readability-pass/review.md`. The pass validates broad tower and creep role separation in phone framing and grayscale, with follow-ups for Runner groups, Swarm noise under pressure, and stronger Shade facet/detail language.
 
 Exit signal:
 
