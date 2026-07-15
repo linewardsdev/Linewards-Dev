@@ -1466,7 +1466,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 2220497613814394647, guid: ebec99c53d49744418b4b8ed5035fe0b, type: 3}
       propertyPath: m_Name
-      value: BlinkShardC
+      value: SwarmShardCVisual
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -1540,7 +1540,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 2220497613814394647, guid: ebec99c53d49744418b4b8ed5035fe0b, type: 3}
       propertyPath: m_Name
-      value: BlinkShardA
+      value: SwarmShardAVisual
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -1614,7 +1614,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 2258411484881710256, guid: d2a69bab98638ae41819a23ca7985832, type: 3}
       propertyPath: m_Name
-      value: BlinkShardB
+      value: SwarmShardBVisual
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []

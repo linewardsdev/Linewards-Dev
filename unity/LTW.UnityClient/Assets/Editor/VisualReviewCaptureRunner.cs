@@ -91,8 +91,8 @@ namespace LTW.UnityClient.Editor
             }
         }
 
-        [MenuItem("Line Wards/Review/Capture Blink Asset Contact Sheet")]
-        public static void CaptureBlinkAssetContactSheet()
+        [MenuItem("Line Wards/Review/Capture Stylized Weapon Kit Contact Sheet")]
+        public static void CaptureStylizedWeaponKitContactSheet()
         {
             outputDirectory = ResolveOutputDirectory();
             Directory.CreateDirectory(outputDirectory);
@@ -101,14 +101,14 @@ namespace LTW.UnityClient.Editor
             var exitCode = 0;
             try
             {
-                var path = Path.Combine(outputDirectory, "01-blink-stylized-weapons-contact-sheet.png");
-                RenderBlinkAssetContactSheet(path);
+                var path = Path.Combine(outputDirectory, "01-stylized-weapon-kit-contact-sheet.png");
+                RenderStylizedWeaponKitContactSheet(path);
                 if (writeGrayscaleCopies)
                 {
-                    WriteGrayscaleCopy("blink-stylized-weapons-contact-sheet", path);
+                    WriteGrayscaleCopy("stylized-weapon-kit-contact-sheet", path);
                 }
 
-                Debug.Log($"LTW Blink asset contact sheet captured in {outputDirectory}");
+                Debug.Log($"LTW stylized weapon kit contact sheet captured in {outputDirectory}");
             }
             catch (Exception exception)
             {
@@ -509,12 +509,12 @@ namespace LTW.UnityClient.Editor
             }
         }
 
-        private static void RenderBlinkAssetContactSheet(string path)
+        private static void RenderStylizedWeaponKitContactSheet(string path)
         {
             EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
             RenderSettings.ambientLight = new Color(0.5f, 0.54f, 0.62f);
 
-            var cameraObject = new GameObject("BlinkAssetContactSheetCamera");
+            var cameraObject = new GameObject("StylizedWeaponKitContactSheetCamera");
             var camera = cameraObject.AddComponent<Camera>();
             camera.clearFlags = CameraClearFlags.SolidColor;
             camera.backgroundColor = new Color(0.035f, 0.055f, 0.09f);
@@ -525,34 +525,34 @@ namespace LTW.UnityClient.Editor
             camera.transform.position = new Vector3(0f, 9.25f, -8.8f);
             camera.transform.rotation = Quaternion.LookRotation(new Vector3(0f, 0.35f, 0f) - camera.transform.position);
 
-            var lightObject = new GameObject("BlinkAssetContactSheetKeyLight");
+            var lightObject = new GameObject("StylizedWeaponKitContactSheetKeyLight");
             var light = lightObject.AddComponent<Light>();
             light.type = LightType.Directional;
             light.intensity = 1.35f;
             light.transform.rotation = Quaternion.Euler(54f, -34f, 0f);
 
-            CreateBlinkContactSheetBackdrop();
+            CreateStylizedWeaponKitContactSheetBackdrop();
 
             var prefabs = new[]
             {
-                ("AXE BASIC 1", "Assets/Blink/Art/Weapons/Stylized/Axes/PrefabsAxes/AxeBasic1_2.prefab"),
-                ("AXE BASIC 2", "Assets/Blink/Art/Weapons/Stylized/Axes/PrefabsAxes/AxeBasic2_1.prefab"),
-                ("AXE EVO", "Assets/Blink/Art/Weapons/Stylized/Axes/PrefabsAxes/AxeEvolving3_3_2.prefab"),
-                ("DAGGER 1", "Assets/Blink/Art/Weapons/Stylized/Daggers/_PrefabsDaggers/Dagger1_3_5.prefab"),
-                ("DAGGER 4", "Assets/Blink/Art/Weapons/Stylized/Daggers/_PrefabsDaggers/Dagger4_1_3.prefab"),
-                ("HAMMER", "Assets/Blink/Art/Weapons/Stylized/Hammers/_PrefabsHammers/Hammer1_1_3.prefab"),
-                ("MUSKET", "Assets/Blink/Art/Weapons/Stylized/Musket/_Prefabs_Musket/Musket1_2_1.prefab"),
-                ("POLEARM", "Assets/Blink/Art/Weapons/Stylized/Polearms/_Prefabs_Polearms/Polearm2_2_2.prefab"),
-                ("SCYTHE", "Assets/Blink/Art/Weapons/Stylized/Scythes/_Prefabs_Scythes/Scythe1_3_2.prefab"),
-                ("SHIELD 2", "Assets/Blink/Art/Weapons/Stylized/Shields/_PrefabsShields/Shield2_1_2.prefab"),
-                ("SHIELD 3", "Assets/Blink/Art/Weapons/Stylized/Shields/_PrefabsShields/Shield3_1_1.prefab"),
-                ("STAFF 2", "Assets/Blink/Art/Weapons/Stylized/Staves/_PrefabsStaves/Staff2_2_6.prefab"),
-                ("STAFF 4", "Assets/Blink/Art/Weapons/Stylized/Staves/_PrefabsStaves/Staff4_1_1.prefab"),
-                ("STAFF 5", "Assets/Blink/Art/Weapons/Stylized/Staves/_PrefabsStaves/Staff5_1_1.prefab"),
-                ("SWORD 1", "Assets/Blink/Art/Weapons/Stylized/Swords/_PrefabsSwords/Sword1_1_3.prefab"),
-                ("SWORD 2", "Assets/Blink/Art/Weapons/Stylized/Swords/_PrefabsSwords/Sword2_3_3.prefab"),
-                ("SWORD 3", "Assets/Blink/Art/Weapons/Stylized/Swords/_PrefabsSwords/Sword3_1_3.prefab"),
-                ("SWORD 5", "Assets/Blink/Art/Weapons/Stylized/Swords/_PrefabsSwords/Sword5_3_2.prefab"),
+                ("AXE BASIC 1", "Assets/ThirdParty/StylizedWeaponKit/Art/Weapons/Stylized/Axes/PrefabsAxes/AxeBasic1_2.prefab"),
+                ("AXE BASIC 2", "Assets/ThirdParty/StylizedWeaponKit/Art/Weapons/Stylized/Axes/PrefabsAxes/AxeBasic2_1.prefab"),
+                ("AXE EVO", "Assets/ThirdParty/StylizedWeaponKit/Art/Weapons/Stylized/Axes/PrefabsAxes/AxeEvolving3_3_2.prefab"),
+                ("DAGGER 1", "Assets/ThirdParty/StylizedWeaponKit/Art/Weapons/Stylized/Daggers/_PrefabsDaggers/Dagger1_3_5.prefab"),
+                ("DAGGER 4", "Assets/ThirdParty/StylizedWeaponKit/Art/Weapons/Stylized/Daggers/_PrefabsDaggers/Dagger4_1_3.prefab"),
+                ("HAMMER", "Assets/ThirdParty/StylizedWeaponKit/Art/Weapons/Stylized/Hammers/_PrefabsHammers/Hammer1_1_3.prefab"),
+                ("MUSKET", "Assets/ThirdParty/StylizedWeaponKit/Art/Weapons/Stylized/Musket/_Prefabs_Musket/Musket1_2_1.prefab"),
+                ("POLEARM", "Assets/ThirdParty/StylizedWeaponKit/Art/Weapons/Stylized/Polearms/_Prefabs_Polearms/Polearm2_2_2.prefab"),
+                ("SCYTHE", "Assets/ThirdParty/StylizedWeaponKit/Art/Weapons/Stylized/Scythes/_Prefabs_Scythes/Scythe1_3_2.prefab"),
+                ("SHIELD 2", "Assets/ThirdParty/StylizedWeaponKit/Art/Weapons/Stylized/Shields/_PrefabsShields/Shield2_1_2.prefab"),
+                ("SHIELD 3", "Assets/ThirdParty/StylizedWeaponKit/Art/Weapons/Stylized/Shields/_PrefabsShields/Shield3_1_1.prefab"),
+                ("STAFF 2", "Assets/ThirdParty/StylizedWeaponKit/Art/Weapons/Stylized/Staves/_PrefabsStaves/Staff2_2_6.prefab"),
+                ("STAFF 4", "Assets/ThirdParty/StylizedWeaponKit/Art/Weapons/Stylized/Staves/_PrefabsStaves/Staff4_1_1.prefab"),
+                ("STAFF 5", "Assets/ThirdParty/StylizedWeaponKit/Art/Weapons/Stylized/Staves/_PrefabsStaves/Staff5_1_1.prefab"),
+                ("SWORD 1", "Assets/ThirdParty/StylizedWeaponKit/Art/Weapons/Stylized/Swords/_PrefabsSwords/Sword1_1_3.prefab"),
+                ("SWORD 2", "Assets/ThirdParty/StylizedWeaponKit/Art/Weapons/Stylized/Swords/_PrefabsSwords/Sword2_3_3.prefab"),
+                ("SWORD 3", "Assets/ThirdParty/StylizedWeaponKit/Art/Weapons/Stylized/Swords/_PrefabsSwords/Sword3_1_3.prefab"),
+                ("SWORD 5", "Assets/ThirdParty/StylizedWeaponKit/Art/Weapons/Stylized/Swords/_PrefabsSwords/Sword5_3_2.prefab"),
             };
 
             const int columns = 6;
@@ -568,7 +568,7 @@ namespace LTW.UnityClient.Editor
                 AddContactLabel(prefabs[index].Item1, new Vector3(x, 0.05f, z + 1.05f), camera, 0.07f);
             }
 
-            AddContactLabel("BLINK STYLIZED WEAPONS - SOURCE ASSET TRIAGE", new Vector3(0f, 0.08f, 4.78f), camera, 0.1f, new Color(0.38f, 0.93f, 1f));
+            AddContactLabel("STYLIZED WEAPON KIT - SOURCE ASSET TRIAGE", new Vector3(0f, 0.08f, 4.78f), camera, 0.1f, new Color(0.38f, 0.93f, 1f));
             AddContactLabel("Use as Line Wards wrapper-prefab parts; do not depend on vendor paths at runtime.", new Vector3(0f, 0.08f, -4.68f), camera, 0.065f, new Color(0.95f, 0.84f, 0.38f));
 
             var texture = new RenderTexture(1920, 1080, 24, RenderTextureFormat.ARGB32);
@@ -592,7 +592,7 @@ namespace LTW.UnityClient.Editor
             }
         }
 
-        private static void CreateBlinkContactSheetBackdrop()
+        private static void CreateStylizedWeaponKitContactSheetBackdrop()
         {
             var material = new Material(FindContactSheetShader())
             {
@@ -600,7 +600,7 @@ namespace LTW.UnityClient.Editor
             };
 
             var backdrop = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            backdrop.name = "BlinkContactSheetBackdrop";
+            backdrop.name = "StylizedWeaponKitContactSheetBackdrop";
             backdrop.transform.position = new Vector3(0f, -0.08f, 0f);
             backdrop.transform.localScale = new Vector3(13.2f, 0.04f, 10.4f);
             if (backdrop.TryGetComponent<Renderer>(out var renderer))
@@ -662,7 +662,7 @@ namespace LTW.UnityClient.Editor
             var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(assetPath);
             if (prefab == null)
             {
-                throw new InvalidOperationException($"Missing Blink contact-sheet prefab at {assetPath}.");
+                throw new InvalidOperationException($"Missing stylized weapon kit contact-sheet prefab at {assetPath}.");
             }
 
             var instance = PrefabUtility.InstantiatePrefab(prefab) as GameObject;

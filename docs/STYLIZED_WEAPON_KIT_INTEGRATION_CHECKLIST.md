@@ -1,19 +1,19 @@
-# Blink Stylized Weapons Integration Checklist
+# Stylized Weapon Kit Integration Checklist
 
-Date created: 2026-07-15  
-Imported asset pack: `FREE - Stylized Weapons` by Blink  
-Source folder: `unity/LTW.UnityClient/Assets/Blink/Art/Weapons/Stylized/`  
+Date created: 2026-07-15
+Imported source kit: `FREE - Stylized Weapons`; vendor attribution is tracked in `docs/MVP_DEPENDENCIES.md`
+Source folder: `unity/LTW.UnityClient/Assets/ThirdParty/StylizedWeaponKit/Art/Weapons/Stylized/`
 Dependency record: `docs/MVP_DEPENDENCIES.md`
 
 ## Purpose
 
-Use the imported Blink stylized weapon pack as a rapid improvement track for Line Wards art, without letting third-party assets blur the original ward-tech identity.
+Use the imported stylized weapon kit as a rapid improvement track for Line Wards art, without letting third-party assets blur the original ward-tech identity.
 
-This pack does not add gameplay code. It provides source art assets: prefabs, FBX meshes, materials, textures, and a demo scene. Use those assets as kitbash/reference parts for better tower, builder, creep, icon, and VFX silhouettes.
+This pack does not add gameplay code. It provides source art assets: prefabs, FBX meshes, materials, and textures. The original demo scene was removed from the project after import cleanup.
 
 ## Non-Negotiables
 
-- Keep the vendor package intact under `Assets/Blink/...`.
+- Keep source-kit art under `Assets/ThirdParty/StylizedWeaponKit/...`.
 - Create Line Wards wrapper/polished prefabs under `Assets/Prefabs/...` and role source folders under `Assets/Art/...`; do not make runtime code depend directly on vendor folder structure.
 - Preserve prefab contracts from `docs/ART_PREFAB_CONTRACT.md`.
 - Preserve original Line Wards ward-tech fantasy from `docs/ART_THEME_AND_ROLE_GUIDE.md`.
@@ -30,7 +30,7 @@ This pack does not add gameplay code. It provides source art assets: prefabs, FB
 | Agent 1 | Towers, builder/avatar/tooling, UI icon candidates, integration docs, final capture gate | Tower wrapper prefabs, builder prop pass, icon source candidates, capture/review docs |
 | Agent 2 | Creeps, creep role props, combat/send/leak VFX source candidates, pressure readability | Creep wrapper prefabs, role silhouette upgrades, VFX attachment candidates, pressure captures |
 
-Both agents must keep the vendor pack source untouched and produce Line Wards-specific prefabs/assets that can be swapped, reverted, or replaced later.
+Both agents must keep source-kit assets isolated and produce Line Wards-specific prefabs/assets that can be swapped, reverted, or replaced later.
 
 ## Asset Inventory
 
@@ -115,17 +115,17 @@ Imported usable categories:
 
 Owner: Agent 1
 
-- [ ] Open or capture the Blink demo scene for visual reference.
+- [x] Remove unused imported demo scene content after contact-sheet capture.
 - [x] Create a source inventory/contact sheet of all 18 imported prefabs.
 - [x] Identify top 2 candidates per tower role.
 - [x] Identify top 2 candidates per builder/tooling role.
-- [x] Record candidate screenshots or notes under `docs/screenshot-reviews/blink-asset-triage/`.
+- [x] Record candidate screenshots or notes under `docs/screenshot-reviews/stylized-weapon-kit-triage/`.
 - [x] Mark any assets that are too medieval, too noisy, or too hard to read from above as rejected for runtime use.
 - [x] Confirm source/license note remains in `docs/MVP_DEPENDENCIES.md`.
 
 Status note:
 
-- Agent 1 added `Line Wards/Review/Capture Blink Asset Contact Sheet` and captured normal/grayscale evidence in `docs/screenshot-reviews/blink-asset-triage/`. Triage review recommends starting wrappers with Arrow, Relay, and Control.
+- Agent 1 added `Line Wards/Review/Capture Stylized Weapon Kit Contact Sheet` and captured normal/grayscale evidence in `docs/screenshot-reviews/stylized-weapon-kit-triage/`. Triage review recommends starting wrappers with Arrow, Relay, and Control.
 
 Acceptance:
 
@@ -136,11 +136,11 @@ Acceptance:
 
 Owner: Agent 1
 
-- [x] Create `Tower_Arrow_BlinkPrototype.prefab` or replace `Tower_Arrow.prefab` through a safe wrapper branch.
-- [x] Create `Tower_Control_BlinkPrototype.prefab` or wrapper replacement.
-- [x] Create `Tower_Relay_BlinkPrototype.prefab` or wrapper replacement.
-- [ ] Create `Tower_Pulse_BlinkPrototype.prefab` or wrapper replacement.
-- [ ] Create `Tower_Prism_BlinkPrototype.prefab` or wrapper replacement.
+- [x] Create `Tower_Arrow_WardPrototype.prefab` or replace `Tower_Arrow.prefab` through a safe wrapper branch.
+- [x] Create `Tower_Control_WardPrototype.prefab` or wrapper replacement.
+- [x] Create `Tower_Relay_WardPrototype.prefab` or wrapper replacement.
+- [ ] Create `Tower_Pulse_WardPrototype.prefab` or wrapper replacement.
+- [ ] Create `Tower_Prism_WardPrototype.prefab` or wrapper replacement.
 - [ ] Ensure required child names exist on every tower wrapper.
   - [x] Arrow, Control, and Relay wrappers include `Body`, `RoleMarker`, `OwnerTrim`, and `RangeHalo`.
   - [ ] Pulse and Prism pending.
@@ -151,15 +151,15 @@ Owner: Agent 1
   - Pulse: `PulseCore`, `PulseRingA`, `PulseEmitter`
   - Prism: `PrismSpire`, `PrismLens`, `BeamAnchor`
 - [x] Update `TowerVisualLibrary` if wrapper names or references change.
-- [ ] Verify procedural fallback still works if a Blink wrapper is missing.
+- [ ] Verify procedural fallback still works if a ward wrapper is missing.
 - [x] Capture tower lineup normal and grayscale.
 
 Status note:
 
-- Agent 1 generated Blink-backed wrapper replacements for Arrow, Relay, and Control through `Line Wards/Art/Generate Blink Agent 1 Tower Wrappers`.
+- Agent 1 generated kit-backed wrapper replacements for Arrow, Relay, and Control through `Line Wards/Art/Generate Ward Prototype Tower Wrappers`.
 - Validation passed with `Line Wards/Art/Validate Tower Placeholder Prefabs`.
-- Normal, grayscale, and reduced-effects evidence lives under `docs/screenshot-reviews/blink-agent1-tower-wrappers/`.
-- The current wrappers keep the original prototype gameplay silhouette as the primary read and use Blink meshes as embedded detail accents. This is intentional for safety; a later polish pass can promote more vendor mesh detail once phone-size readability is stable.
+- Normal, grayscale, and reduced-effects evidence lives under `docs/screenshot-reviews/ward-tower-wrapper-prototypes/`.
+- The current wrappers keep the original prototype gameplay silhouette as the primary read and use kit meshes as embedded detail accents. This is intentional for safety; a later polish pass can promote more vendor mesh detail once phone-size readability is stable.
 
 Acceptance:
 
@@ -187,11 +187,11 @@ Acceptance:
 
 Owner: Agent 2
 
-- [x] Create `Creep_Runner_BlinkPrototype.prefab` or wrapper replacement.
-- [x] Create `Creep_Brute_BlinkPrototype.prefab` or wrapper replacement.
-- [x] Create `Creep_Swarm_BlinkPrototype.prefab` or wrapper replacement.
-- [x] Create `Creep_Shade_BlinkPrototype.prefab` or wrapper replacement.
-- [x] Create `Creep_Siege_BlinkPrototype.prefab` or wrapper replacement.
+- [x] Create `Creep_Runner_WardPrototype.prefab` or wrapper replacement.
+- [x] Create `Creep_Brute_WardPrototype.prefab` or wrapper replacement.
+- [x] Create `Creep_Swarm_WardPrototype.prefab` or wrapper replacement.
+- [x] Create `Creep_Shade_WardPrototype.prefab` or wrapper replacement.
+- [x] Create `Creep_Siege_WardPrototype.prefab` or wrapper replacement.
 - [x] Ensure required child names exist on every creep wrapper.
 - [x] Ensure role children exist where useful:
   - Runner: `Nose`, `Tail`, `FinLeft`, `FinRight`
@@ -205,9 +205,9 @@ Owner: Agent 2
 
 Status note:
 
-- Agent 2 updated `CreepVisualPrefabGenerator` so generated Line Wards wrappers keep the procedural silhouettes as fallbacks and nest Blink source-art parts for Runner, Brute, Swarm, Shade, and Siege when the imported pack is present. Generated prefabs now include required `Body`, `GroundShadow`, and `RoleMarker` children plus role-specific child names from `docs/ART_PREFAB_CONTRACT.md`.
-- Unity regeneration updated `Assets/Prefabs/Creeps/Creep_*.prefab`, `Assets/Resources/CreepVisualLibrary.asset`, and `Assets/Art/Creeps/GeneratedPlaceholderReport.md`. File-side checks confirmed the required child names and Blink nested parts are present.
-- Agent 2 captured role-lineup, pressure, damaged-transfer, reduced-effects, and grayscale evidence under `docs/screenshot-reviews/blink-stylized-integration/`. Review verdict is pass with one low-severity staged leak-text follow-up.
+- Agent 2 updated `CreepVisualPrefabGenerator` so generated Line Wards wrappers keep the procedural silhouettes as fallbacks and nest source-kit parts for Runner, Brute, Swarm, Shade, and Siege when the imported pack is present. Generated prefabs now include required `Body`, `GroundShadow`, and `RoleMarker` children plus role-specific child names from `docs/ART_PREFAB_CONTRACT.md`.
+- Unity regeneration updated `Assets/Prefabs/Creeps/Creep_*.prefab`, `Assets/Resources/CreepVisualLibrary.asset`, and `Assets/Art/Creeps/GeneratedPlaceholderReport.md`. File-side checks confirmed the required child names and source-kit nested parts are present.
+- Agent 2 captured role-lineup, pressure, damaged-transfer, reduced-effects, and grayscale evidence under `docs/screenshot-reviews/stylized-weapon-kit-integration/`. Review verdict is pass with one low-severity staged leak-text follow-up.
 
 Acceptance:
 
@@ -234,7 +234,7 @@ Agent 2:
 
 Agent 2 note:
 
-- Agent 2 updated `SendDockController` procedural glyphs and `Assets/Art/UI/Icons/README.md` so Runner, Brute, Swarm, Shade, and Siege send cards map back to the Blink-derived creep wrapper silhouettes. Disabled/affordability states keep the same silhouettes with reduced value.
+- Agent 2 updated `SendDockController` procedural glyphs and `Assets/Art/UI/Icons/README.md` so Runner, Brute, Swarm, Shade, and Siege send cards map back to the kit-derived creep wrapper silhouettes. Disabled/affordability states keep the same silhouettes with reduced value.
 
 Shared acceptance:
 
@@ -248,19 +248,19 @@ Owner: Shared
 
 Agent 1:
 
-- [ ] Attach Arrow muzzle/bolt origin to Blink-derived tower wrapper.
-- [ ] Attach Relay signal/economy origin to Blink-derived tower wrapper.
-- [ ] Attach Prism beam origin to Blink-derived tower wrapper.
+- [ ] Attach Arrow muzzle/bolt origin to kit-derived tower wrapper.
+- [ ] Attach Relay signal/economy origin to kit-derived tower wrapper.
+- [ ] Attach Prism beam origin to kit-derived tower wrapper.
 
 Agent 2:
 
-- [x] Attach Pulse splash source to Blink-derived Pulse wrapper.
-- [x] Attach Shade reveal/resist source to Blink-derived Shade wrapper.
-- [x] Attach Siege warning/leak source to Blink-derived Siege wrapper.
+- [x] Attach Pulse splash source to kit-derived Pulse wrapper.
+- [x] Attach Shade reveal/resist source to kit-derived Shade wrapper.
+- [x] Attach Siege warning/leak source to kit-derived Siege wrapper.
 
 Agent 2 note:
 
-- Agent 2 strengthened runtime feedback in `UnityVerticalSliceRenderer`: Pulse attacks get a brighter core/radial splash read, Shade hits/leaks get reveal/slip cues tied to the `BlinkScytheEcho` silhouette, and Siege hits/leaks get directional warning/breach cues tied to the `BlinkMusketBarrel` silhouette. Reduced-effects text cues are included for high-signal hit/leak events.
+- Agent 2 strengthened runtime feedback in `UnityVerticalSliceRenderer`: Pulse attacks get a brighter core/radial splash read, Shade hits/leaks get reveal/slip cues tied to the `ShadeEchoVisual` silhouette, and Siege hits/leaks get directional warning/breach cues tied to the `SiegeBarrelVisual` silhouette. Reduced-effects text cues are included for high-signal hit/leak events.
 
 Shared acceptance:
 
@@ -280,12 +280,12 @@ Owner: Agent 1 final integration, Agent 2 supplies creep-specific evidence
 - [x] Capture damaged transfer with reduced health.
 - [x] Capture reduced-effects combat.
 - [x] Capture grayscale copies for all relevant frames.
-- [x] Write review under `docs/screenshot-reviews/blink-stylized-integration/`.
+- [x] Write review under `docs/screenshot-reviews/stylized-weapon-kit-integration/`.
 - [x] Record any medium/high readability regressions in this checklist before merge.
 
 Status note:
 
-- Agent 2 supplied the creep-specific evidence set at `docs/screenshot-reviews/blink-stylized-integration/review.md`. No medium/high readability regressions were found; one low-severity staged leak-text overlap remains for later capture/HUD polish.
+- Agent 2 supplied the creep-specific evidence set at `docs/screenshot-reviews/stylized-weapon-kit-integration/review.md`. No medium/high readability regressions were found; one low-severity staged leak-text overlap remains for later capture/HUD polish.
 
 Acceptance:
 
@@ -316,7 +316,7 @@ Owner: Agent 1
 
 ## Definition Of Done
 
-- [ ] Every Blink-derived runtime asset has a Line Wards wrapper prefab or documented rejection.
+- [ ] Every kit-derived runtime asset has a Line Wards wrapper prefab or documented rejection.
 - [ ] All five tower roles have improved silhouettes or a clear reason to defer.
 - [ ] All five creep roles have improved silhouettes or a clear reason to defer.
 - [ ] Builder avatar/tooling has a stronger intentional read.

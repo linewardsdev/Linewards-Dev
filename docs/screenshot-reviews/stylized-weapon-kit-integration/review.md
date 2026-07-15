@@ -1,4 +1,4 @@
-# Blink Stylized Integration Review
+# Stylized Weapon Kit Integration Review
 
 Date: 2026-07-15
 Owner: Agent 2
@@ -9,13 +9,13 @@ Verdict: Pass with low-severity polish follow-up
 Role lineup command:
 
 ```bash
-C:\Program Files\Unity\Hub\Editor\6000.5.3f1\Editor\Unity.exe -batchmode -projectPath C:\Voucher-Management\vouchermanagement\LTW\unity\LTW.UnityClient -executeMethod LTW.UnityClient.Editor.VisualReviewCaptureRunner.CaptureRoleLineupReviewSet -logFile C:\Voucher-Management\vouchermanagement\LTW\unity-blink-agent2-role-lineup-4.log -ltwExitAfterCapture -ltwCaptureGrayscale -ltwCaptureOutputDir C:\Voucher-Management\vouchermanagement\LTW\docs\screenshot-reviews\blink-stylized-integration\captures
+C:\Program Files\Unity\Hub\Editor\6000.5.3f1\Editor\Unity.exe -batchmode -projectPath C:\Voucher-Management\vouchermanagement\LTW\unity\LTW.UnityClient -executeMethod LTW.UnityClient.Editor.VisualReviewCaptureRunner.CaptureRoleLineupReviewSet -logFile C:\Voucher-Management\vouchermanagement\LTW\unity-source-kit-agent2-role-lineup-4.log -ltwExitAfterCapture -ltwCaptureGrayscale -ltwCaptureOutputDir C:\Voucher-Management\vouchermanagement\LTW\docs\screenshot-reviews\stylized-weapon-kit-integration\captures
 ```
 
 Checklist evidence command:
 
 ```bash
-C:\Program Files\Unity\Hub\Editor\6000.5.3f1\Editor\Unity.exe -batchmode -projectPath C:\Voucher-Management\vouchermanagement\LTW\unity\LTW.UnityClient -executeMethod LTW.UnityClient.Editor.VisualReviewCaptureRunner.CaptureChecklistEvidenceSet -logFile C:\Voucher-Management\vouchermanagement\LTW\unity-blink-agent2-checklist-2.log -ltwExitAfterCapture -ltwCaptureGrayscale -ltwCaptureOutputDir C:\Voucher-Management\vouchermanagement\LTW\docs\screenshot-reviews\blink-stylized-integration\captures
+C:\Program Files\Unity\Hub\Editor\6000.5.3f1\Editor\Unity.exe -batchmode -projectPath C:\Voucher-Management\vouchermanagement\LTW\unity\LTW.UnityClient -executeMethod LTW.UnityClient.Editor.VisualReviewCaptureRunner.CaptureChecklistEvidenceSet -logFile C:\Voucher-Management\vouchermanagement\LTW\unity-source-kit-agent2-checklist-2.log -ltwExitAfterCapture -ltwCaptureGrayscale -ltwCaptureOutputDir C:\Voucher-Management\vouchermanagement\LTW\docs\screenshot-reviews\stylized-weapon-kit-integration\captures
 ```
 
 Captured:

@@ -952,7 +952,7 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: 3844808660582485764, guid: 4a094bd13a554ce429a71f8ade990f26, type: 3}
       propertyPath: m_Name
-      value: BlinkSource_Staff5_Mast
+      value: RelayMastVisual
       objectReference: {fileID: 0}
     - target: {fileID: 4472164279384872382, guid: 4a094bd13a554ce429a71f8ade990f26, type: 3}
       propertyPath: m_LocalScale.x

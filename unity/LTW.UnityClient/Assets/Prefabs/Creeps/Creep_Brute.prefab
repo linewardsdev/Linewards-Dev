@@ -1075,7 +1075,7 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: 106938356439800904, guid: 18f29e80816a3d143b43e9a148d39649, type: 3}
       propertyPath: m_Name
-      value: BlinkShieldShell
+      value: BruteShellVisual
       objectReference: {fileID: 0}
     - target: {fileID: 734152103408502514, guid: 18f29e80816a3d143b43e9a148d39649, type: 3}
       propertyPath: m_LocalScale.x

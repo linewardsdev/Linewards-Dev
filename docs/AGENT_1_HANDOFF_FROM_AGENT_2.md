@@ -6,8 +6,8 @@ Date: 2026-07-15
 
 Local `main` is ahead of `origin/main` with Agent 2 art commits, including:
 
-- `9cdac1c Add Blink creep wrapper pass`
-- the current local closeout commit for Blink send icons, role feedback cues, evidence, and docs
+- `9cdac1c Add source-kit creep wrapper pass`
+- the current local closeout commit for source-kit send icons, role feedback cues, evidence, and docs
 
 Do not push until Agent 1 finishes integration review/manual smoke testing.
 
@@ -23,18 +23,18 @@ Leave this local Unity-generated file out unless package settings were intention
 - Runtime tower attack cues now differ by role: Arrow bolt, Control field pulse, Relay signal ping, Pulse shockwave, Prism charge/beam.
 - VFX/animation target list added at `docs/VFX_AND_ANIMATION_TARGETS.md`.
 - Role roster readability review captured and documented.
-- Blink-derived creep wrapper pass for Runner, Brute, Swarm, Shade, and Siege through `CreepVisualPrefabGenerator`.
+- kit-derived creep wrapper pass for Runner, Brute, Swarm, Shade, and Siege through `CreepVisualPrefabGenerator`.
 - `CreepVisualLibrary` updated to point at contract-safe creep wrapper children.
-- Send dock glyphs updated to match the Blink-derived creep silhouettes.
+- Send dock glyphs updated to match the kit-derived creep silhouettes.
 - Runtime Agent 2 feedback cues strengthened: Pulse splash core/radial cues, Shade reveal/slip beams, and Siege warning/leak directional beams.
-- Blink stylized integration evidence captured and reviewed.
+- Stylized weapon kit integration evidence captured and reviewed.
 
 ## Evidence To Review
 
 - `docs/screenshot-reviews/board-material-pass/review.md`
 - `docs/screenshot-reviews/authored-arrow-pass/review.md`
 - `docs/screenshot-reviews/role-roster-readability-pass/review.md`
-- `docs/screenshot-reviews/blink-stylized-integration/review.md`
+- `docs/screenshot-reviews/stylized-weapon-kit-integration/review.md`
 
 ## Validation Already Run
 
@@ -42,8 +42,8 @@ Leave this local Unity-generated file out unless package settings were intention
 - `dotnet format LTW.sln --no-restore --verify-no-changes` passed.
 - Unity tower prefab validation passed.
 - Unity screenshot captures completed for board, authored Arrow, and roster readability.
-- Unity batch compile/import completed during Blink evidence captures with existing warnings only: `LocalPlaytestBatchRunner.cs` nullable warning and `VisualReviewCaptureRunner.cs` obsolete API warnings.
-- Blink role-lineup and checklist evidence captures completed with grayscale copies.
+- Unity batch compile/import completed during source-kit evidence captures with existing warnings only: `LocalPlaytestBatchRunner.cs` nullable warning and `VisualReviewCaptureRunner.cs` obsolete API warnings.
+- source-kit role-lineup and checklist evidence captures completed with grayscale copies.
 
 ## Agent 1 Next Steps
 
@@ -55,6 +55,6 @@ Leave this local Unity-generated file out unless package settings were intention
 
 ## Known Open Agent 2 Follow-Ups
 
-- No medium/high Agent 2 readability regressions remain from the Blink closeout.
+- No medium/high Agent 2 readability regressions remain from the source-kit closeout.
 - Low severity: staged leak/life-loss text can stack in automated visual captures. This is capture/HUD polish, not a blocker for the creep wrapper pass.
-- Shared/Agent 1-owned items remain open in `docs/BLINK_STYLIZED_WEAPONS_INTEGRATION_CHECKLIST.md`: final full visual gate after tower wrappers, builder/tooling, tower-side icons/VFX, repo sync, and manual smoke.
+- Shared/Agent 1-owned items remain open in `docs/STYLIZED_WEAPON_KIT_INTEGRATION_CHECKLIST.md`: final full visual gate after tower wrappers, builder/tooling, tower-side icons/VFX, repo sync, and manual smoke.

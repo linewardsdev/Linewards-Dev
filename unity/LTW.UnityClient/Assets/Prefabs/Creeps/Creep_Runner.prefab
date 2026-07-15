@@ -913,7 +913,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 2258411484881710256, guid: d2a69bab98638ae41819a23ca7985832, type: 3}
       propertyPath: m_Name
-      value: BlinkDaggerSpine
+      value: RunnerSpineVisual
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []

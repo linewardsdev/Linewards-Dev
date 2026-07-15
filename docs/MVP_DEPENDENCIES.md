@@ -102,7 +102,7 @@ These are code dependencies, not optional design notes. The MVP cannot prove its
 
 | Asset | Owner / Source | Location | Purpose | License / Notes | Removal Cost |
 | --- | --- | --- | --- | --- | --- |
-| FREE - Stylized Weapons | Blink, imported from Unity Package Manager / Asset Store local cache | `unity/LTW.UnityClient/Assets/Blink/Art/Weapons/Stylized/` | Rapid production-art reference and candidate tower/builder silhouette parts: swords, staves, shields, polearms, scythes, hammers, axes, daggers, musket | Imported on 2026-07-15 from local `.unitypackage`. Treat as third-party Unity Asset Store content; keep source folder intact and verify license/distribution assumptions before store release. | Low to medium while used only as visual candidates; higher if prefabs become production tower assets. |
+| FREE - Stylized Weapons | Blink, imported from Unity Package Manager / Asset Store local cache | `unity/LTW.UnityClient/Assets/ThirdParty/StylizedWeaponKit/Art/Weapons/Stylized/` | Rapid production-art reference and candidate tower/builder silhouette parts: swords, staves, shields, polearms, scythes, hammers, axes, daggers, musket | Imported on 2026-07-15 from local `.unitypackage`; demo scene content removed after import cleanup. Treat as third-party Unity Asset Store content and verify license/distribution assumptions before store release. | Low to medium while used only as visual candidates; higher if prefabs become production tower assets. |
 
 ## Test Dependencies
 

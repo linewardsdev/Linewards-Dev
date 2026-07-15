@@ -1,4 +1,4 @@
-# Blink Asset Triage Review
+# Stylized Weapon Kit Asset Triage Review
 
 Date: 2026-07-15  
 Owner: Agent 1  
@@ -9,15 +9,15 @@ Verdict: Usable as source-art / wrapper-prefab parts
 Capture command:
 
 ```bash
-/Applications/Unity/Hub/Editor/6000.3.12f1/Unity.app/Contents/MacOS/Unity -batchmode -projectPath /Users/admin/LTW/unity/LTW.UnityClient -executeMethod LTW.UnityClient.Editor.VisualReviewCaptureRunner.CaptureBlinkAssetContactSheet -logFile /Users/admin/LTW/unity-blink-contact-sheet.log -ltwExitAfterCapture -ltwCaptureGrayscale -ltwCaptureOutputDir /Users/admin/LTW/docs/screenshot-reviews/blink-asset-triage/captures
+/Applications/Unity/Hub/Editor/6000.3.12f1/Unity.app/Contents/MacOS/Unity -batchmode -projectPath /Users/admin/LTW/unity/LTW.UnityClient -executeMethod LTW.UnityClient.Editor.VisualReviewCaptureRunner.CaptureStylizedWeaponKitContactSheet -logFile /Users/admin/LTW/unity-kit-contact-sheet.log -ltwExitAfterCapture -ltwCaptureGrayscale -ltwCaptureOutputDir /Users/admin/LTW/docs/screenshot-reviews/stylized-weapon-kit-triage/captures
 ```
 
 Captured:
 
-- `captures/01-blink-stylized-weapons-contact-sheet.png`
-- `captures/grayscale/01-blink-stylized-weapons-contact-sheet.png`
+- `captures/01-stylized-weapon-kit-contact-sheet.png`
+- `captures/grayscale/01-stylized-weapon-kit-contact-sheet.png`
 
-Unity capture completed. The log includes the usual Unity licensing noise and an existing nullable warning in `LocalPlaytestBatchRunner`; no Blink contact-sheet capture failure was found.
+Unity capture completed. The log includes the usual Unity licensing noise and an existing nullable warning in `LocalPlaytestBatchRunner`; no stylized weapon kit contact-sheet capture failure was found.
 
 ## Agent 1 Candidate Picks
 
@@ -52,7 +52,7 @@ Start with wrappers rather than direct vendor-prefab runtime references:
 4. Control wrapper using `Shield2_1_2` as a containment/dish ring.
 5. Prism wrapper using `Staff5_1_1` plus `Sword2_3_3` or emissive material treatment for facets.
 
-Keep every Blink-derived object nested under a Line Wards wrapper prefab with required contract children. Do not wire runtime code to `Assets/Blink/...` paths directly.
+Keep every kit-derived object nested under a Line Wards wrapper prefab with required contract children. Do not wire play-mode renderer code directly to source-kit paths.
 
 ## Next Agent 1 Step
 
@@ -62,4 +62,4 @@ Build the first three tower wrappers in this order:
 2. Relay
 3. Control
 
-Those three cover the clearest Blink candidate reads and will expose scale/material issues before spending time on Pulse/Prism.
+Those three cover the clearest source-kit candidate reads and will expose scale/material issues before spending time on Pulse/Prism.

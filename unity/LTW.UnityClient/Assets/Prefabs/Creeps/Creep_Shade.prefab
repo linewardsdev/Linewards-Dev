@@ -822,7 +822,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 5221380844292194378, guid: f0f31d6958f5de143bf9963ec2a41351, type: 3}
       propertyPath: m_Name
-      value: BlinkScytheEcho
+      value: ShadeEchoVisual
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []

@@ -33,11 +33,11 @@ These glyphs are intentionally simple placeholders for final imported UI art. Ke
 | Shade | `SHADE` | Split echo facets around a central shimmer line | `ui_icon_send_shade_v01` |
 | Siege | `SIEGE` | Heavy ram base, top pressure block, forward barrel | `ui_icon_send_siege_v01` |
 
-## Blink Creep Source Mapping
+## Source-Kit Creep Source Mapping
 
 Agent 2 source pass, 2026-07-15:
 
-| Send icon | Runtime source motif | Blink source candidate |
+| Send icon | Runtime source motif | source-kit candidate |
 | --- | --- | --- |
 | `ui_icon_send_runner_v01` | Dagger spine plus speed fins from `Creep_Runner` | `Dagger4_1_3` |
 | `ui_icon_send_brute_v01` | Shield shell plus armored side plates from `Creep_Brute` | `Shield2_1_2` |

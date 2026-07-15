@@ -861,7 +861,7 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: 3050473083335013294, guid: 7070f2e474af67a498e180139d5a2df6, type: 3}
       propertyPath: m_Name
-      value: BlinkSource_Musket_Rail
+      value: ArrowRailVisual
       objectReference: {fileID: 0}
     - target: {fileID: 5546931322854842985, guid: 7070f2e474af67a498e180139d5a2df6, type: 3}
       propertyPath: m_LocalScale.x
