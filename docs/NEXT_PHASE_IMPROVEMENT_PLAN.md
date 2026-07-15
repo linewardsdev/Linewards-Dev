@@ -78,11 +78,15 @@ Art production priority:
 
 | Agent | Assigned Workstreams | Focus |
 | --- | --- | --- |
-| Agent 1 | A, C, H, J | Cloud sync, bottom-panel UI cleanup, UI/icons, screenshot QA |
-| Agent 2 | B, E, I | Manual Unity smoke testing, board/path readability, gameplay scenarios |
-| Agent 3 | D, F, G | Creep health/transfer tuning, role readability, motion/VFX |
+| Agent 1 | A, B, C, E, H, I, J | Integration, manual smoke testing, gameplay evidence, UI polish, screenshot QA, and cloud sync |
+| Agent 2 | D, F, G, K | Creep/tower readability, role motion/VFX, board material pass, and authored art pipeline |
 
-Ownership is intentionally balanced by count and by dependency shape. Agent 1 keeps the integration/UI/screenshot gate work together. Agent 2 owns test/play/readability validation. Agent 3 owns creep/tower visual readability and feedback polish.
+Two-agent ownership is intentionally split by dependency shape:
+
+- Agent 1 is the validation/integration lane. This agent keeps `main` synced, protects Unity/package local churn, runs manual and automated evidence, repairs screenshot capture, and keeps UI/mobile framing safe.
+- Agent 2 is the art-production/readability lane. This agent moves the project from generated primitives toward authored Line Wards art: board materials first, then the Arrow tower quality bar, then broader tower/creep/VFX conversion.
+
+Both agents should treat screenshot evidence as the shared gate. Agent 2 can implement art without waiting on perfect capture tooling, but Agent 1 must produce or coordinate the final evidence before closing visual-readability checklists.
 
 ## Workstream A: Cloud Sync And Baseline Lock
 
@@ -101,7 +105,7 @@ Exit signal:
 
 ## Workstream B: Manual Unity Smoke Test
 
-Owner: Agent 2
+Owner: Agent 1
 
 Goal: validate that the latest fixes feel correct in Play Mode before broader art/UI work.
 
@@ -149,7 +153,7 @@ Exit signal:
 
 ## Workstream D: Creep Health And Transfer Readability
 
-Owner: Agent 3
+Owner: Agent 2
 
 Goal: make health persistence trustworthy to the player.
 
@@ -172,7 +176,7 @@ Open tuning:
 
 Status note:
 
-- Agent 3 added role-specific health bar metrics for Runner, Brute, Swarm, Shade, Siege, and boss-style creeps. The runtime now sizes and offsets bars by role instead of using one chunky global bar.
+- The art/readability pass added role-specific health bar metrics for Runner, Brute, Swarm, Shade, Siege, and boss-style creeps. The runtime now sizes and offsets bars by role instead of using one chunky global bar.
 
 Exit signal:
 
@@ -180,7 +184,7 @@ Exit signal:
 
 ## Workstream E: Board Readability And Path Clarity
 
-Owner: Agent 2
+Owner: Agent 1
 
 Goal: keep the core lane and path behavior readable under real tower formations.
 
@@ -204,7 +208,7 @@ Exit signal:
 
 ## Workstream F: Tower, Creep, And Send Role Readability
 
-Owner: Agent 3
+Owner: Agent 2
 
 Goal: make the 5x2 roster readable by shape, motion, and role behavior, not only labels.
 
@@ -233,7 +237,7 @@ Open role-readability tasks:
 
 Status note:
 
-- Agent 3 added runtime role-readability overlays for prefab-backed and fallback creeps: Runner chevron/wake, Brute shoulder plates, Swarm value ring/lead spark, Shade solid echo rails, and Siege ram/warning plates. Phone-size screenshot verification is still required before closing the broader role-readability exit signal.
+- The art/readability pass added runtime role-readability overlays for prefab-backed and fallback creeps: Runner chevron/wake, Brute shoulder plates, Swarm value ring/lead spark, Shade solid echo rails, and Siege ram/warning plates. Phone-size screenshot verification is still required before closing the broader role-readability exit signal.
 
 Exit signal:
 
@@ -241,7 +245,7 @@ Exit signal:
 
 ## Workstream G: Role Motion And Combat Feedback
 
-Owner: Agent 3
+Owner: Agent 2
 
 Goal: make the game feel alive while preserving clarity under pressure.
 
@@ -312,7 +316,7 @@ Status note:
 
 ## Workstream K: 2000-Baseline Art Production Pipeline
 
-Owner: Shared, with Agent 2 owning board/path readability validation
+Owner: Agent 2, with Agent 1 owning capture/review validation
 
 Goal: move from generated primitive placeholders to authored, original Line Wards production art while preserving phone-size gameplay clarity.
 
@@ -420,17 +424,54 @@ Exit signal:
 
 ## Recommended Execution Order
 
-1. Keep cloud `main` synced and protect Unity/package local churn.
-2. Finish the manual Unity smoke test for pathing, health persistence, reduced effects, and bottom-panel behavior.
-3. Repair or complete the screenshot QA gate so every art/UI branch produces fresh pixels.
-4. Start the board material/readability pass: route tiles, build bands, spawn/exit gates, rails, gutters, shadows, and tile variation.
-5. Build one authored production-quality Arrow tower asset and use it to prove the replacement pipeline.
-6. Capture heavy-pressure and grayscale evidence for the board plus authored Arrow asset.
-7. Convert Control and Relay once Arrow proves the pipeline, then Pulse and Prism.
-8. Convert Runner, Brute, and Swarm, then Shade and Siege.
-9. Add role motion and VFX passes after base object readability is stable.
-10. Continue UI icon/card polish in parallel, but keep it subordinate to board readability and placement-safe mobile framing.
-11. Use `GameplayScenarioTests` for repeatable low, normal, heavy, and mixed pressure tuning evidence.
+1. Agent 1: keep cloud `main` synced and protect Unity/package local churn.
+2. Agent 1: finish the manual Unity smoke test for pathing, health persistence, reduced effects, and bottom-panel behavior.
+3. Agent 1: repair or complete the screenshot QA gate so every art/UI branch produces fresh pixels.
+4. Agent 2: start the board material/readability pass: route tiles, build bands, spawn/exit gates, rails, gutters, shadows, and tile variation.
+5. Agent 2: build one authored production-quality Arrow tower asset and use it to prove the replacement pipeline.
+6. Agent 1: capture heavy-pressure and grayscale evidence for the board plus authored Arrow asset.
+7. Agent 2: convert Control and Relay once Arrow proves the pipeline, then Pulse and Prism.
+8. Agent 2: convert Runner, Brute, and Swarm, then Shade and Siege.
+9. Agent 2: add role motion and VFX passes after base object readability is stable.
+10. Agent 1: continue UI icon/card polish in parallel, but keep it subordinate to board readability and placement-safe mobile framing.
+11. Agent 1: use `GameplayScenarioTests` for repeatable low, normal, heavy, and mixed pressure tuning evidence.
+
+## Two-Agent Handoff Queue
+
+### Agent 1: Validation, Integration, UI, And Evidence
+
+Immediate responsibilities:
+
+- Keep `main` synced with cloud and avoid committing local Unity/package churn.
+- Run the manual smoke test for pathing, health persistence, reduced effects, bottom-panel behavior, and core build/send/sell/reset flows.
+- Repair or route around the screenshot QA blocker so fresh pixels are available for art/UI work.
+- Own Workstream J screenshot reviews and record findings in `docs/screenshot-reviews/`.
+- Continue UI polish only where it improves mobile decision speed or preserves board visibility.
+- Maintain deterministic scenario evidence with `GameplayScenarioTests`.
+
+Near-term deliverables:
+
+- Fresh capture set for default HUD, build menu, send menu, lane selector, active combat, heavy pressure, reduced-effects heavy, and late/results state.
+- Manual smoke-test notes covering pathing, health persistence, reduced effects, and bottom-panel behavior.
+- A screenshot review verdict for the first board material pass and authored Arrow asset.
+
+### Agent 2: Art Production, Board Materials, Role Readability, And VFX
+
+Immediate responsibilities:
+
+- Start Workstream K with the board material/readability pass.
+- Define source-art folder and naming rules for authored meshes/textures.
+- Build the first authored Arrow tower asset as the quality-bar replacement.
+- Preserve prefab contract child paths when replacing generated placeholders.
+- Keep board surfaces quieter than towers, creeps, projectiles, leak cues, and HUD decisions.
+- Continue role readability/VFX only after board and authored asset readability survive screenshot review.
+
+Near-term deliverables:
+
+- Board material pass covering route tiles, build bands, spawn gate, life-loss gate, rails, side gutters, shadows, and restrained tile variation.
+- Authored Arrow tower mesh/texture replacing the generated placeholder while preserving runtime wiring.
+- Material language notes for stone, metal, crystal, energy, trim, health, and ownership.
+- VFX/animation target list for build, sell, shot, hit, kill, leak, send, income, transfer, and results.
 
 ## Definition Of Done For This Phase
 
