@@ -136,21 +136,30 @@ Acceptance:
 
 Owner: Agent 1
 
-- [ ] Create `Tower_Arrow_BlinkPrototype.prefab` or replace `Tower_Arrow.prefab` through a safe wrapper branch.
-- [ ] Create `Tower_Control_BlinkPrototype.prefab` or wrapper replacement.
-- [ ] Create `Tower_Relay_BlinkPrototype.prefab` or wrapper replacement.
+- [x] Create `Tower_Arrow_BlinkPrototype.prefab` or replace `Tower_Arrow.prefab` through a safe wrapper branch.
+- [x] Create `Tower_Control_BlinkPrototype.prefab` or wrapper replacement.
+- [x] Create `Tower_Relay_BlinkPrototype.prefab` or wrapper replacement.
 - [ ] Create `Tower_Pulse_BlinkPrototype.prefab` or wrapper replacement.
 - [ ] Create `Tower_Prism_BlinkPrototype.prefab` or wrapper replacement.
 - [ ] Ensure required child names exist on every tower wrapper.
+  - [x] Arrow, Control, and Relay wrappers include `Body`, `RoleMarker`, `OwnerTrim`, and `RangeHalo`.
+  - [ ] Pulse and Prism pending.
 - [ ] Ensure optional role anchors exist where needed:
-  - Arrow: `Muzzle`, `BowLeft`, `BowRight`, `Lens`
-  - Control: `ControlRing`, `ControlCore`, `PulseEmitter`
-  - Relay: `RelayMast`, `RelayCore`, `RelaySignal`
+  - [x] Arrow: `Muzzle`, `BowLeft`, `BowRight`, `Lens`
+  - [x] Control: `ControlRing`, `ControlCore`, `PulseEmitter`
+  - [x] Relay: `RelayMast`, `RelayCore`, `RelaySignal`
   - Pulse: `PulseCore`, `PulseRingA`, `PulseEmitter`
   - Prism: `PrismSpire`, `PrismLens`, `BeamAnchor`
-- [ ] Update `TowerVisualLibrary` if wrapper names or references change.
+- [x] Update `TowerVisualLibrary` if wrapper names or references change.
 - [ ] Verify procedural fallback still works if a Blink wrapper is missing.
-- [ ] Capture tower lineup normal and grayscale.
+- [x] Capture tower lineup normal and grayscale.
+
+Status note:
+
+- Agent 1 generated Blink-backed wrapper replacements for Arrow, Relay, and Control through `Line Wards/Art/Generate Blink Agent 1 Tower Wrappers`.
+- Validation passed with `Line Wards/Art/Validate Tower Placeholder Prefabs`.
+- Normal, grayscale, and reduced-effects evidence lives under `docs/screenshot-reviews/blink-agent1-tower-wrappers/`.
+- The current wrappers keep the original prototype gameplay silhouette as the primary read and use Blink meshes as embedded detail accents. This is intentional for safety; a later polish pass can promote more vendor mesh detail once phone-size readability is stable.
 
 Acceptance:
 

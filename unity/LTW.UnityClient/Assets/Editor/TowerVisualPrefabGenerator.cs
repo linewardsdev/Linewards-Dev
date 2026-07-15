@@ -9,11 +9,14 @@ namespace LTW.UnityClient.Editor
         private const string MenuPath = "Line Wards/Art/Generate Placeholder Tower Prefabs";
         private const string ValidateMenuPath = "Line Wards/Art/Validate Tower Placeholder Prefabs";
         private const string GenerateAuthoredArrowMenuPath = "Line Wards/Art/Generate Authored Arrow Tower";
+        private const string GenerateBlinkAgent1MenuPath = "Line Wards/Art/Generate Blink Agent 1 Tower Wrappers";
         private const string LibraryPath = "Assets/Resources/TowerVisualLibrary.asset";
         private const string PrefabFolder = "Assets/Prefabs/Towers";
         private const string MaterialFolder = "Assets/Art/Towers/GeneratedMaterials";
         private const string AuthoredArrowMaterialFolder = "Assets/Art/Towers/Arrow/Materials";
+        private const string BlinkPrototypeMaterialFolder = "Assets/Art/Towers/BlinkPrototype/Materials";
         private const string ReportPath = "Assets/Art/Towers/GeneratedPlaceholderReport.md";
+        private const string BlinkReportPath = "Assets/Art/Towers/BlinkPrototype/Agent1BlinkWrapperReport.md";
 
         private static readonly TowerSpec[] TowerSpecs =
         {
@@ -67,6 +70,35 @@ namespace LTW.UnityClient.Editor
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
             Debug.Log("Generated authored Arrow tower prefab and updated TowerVisualLibrary profile.");
+        }
+
+        [MenuItem(GenerateBlinkAgent1MenuPath)]
+        public static void GenerateBlinkAgent1TowerWrappers()
+        {
+            EnsureFolder(BlinkPrototypeMaterialFolder);
+            EnsureFolder(PrefabFolder);
+
+            var baseMaterial = CreateOrUpdateMaterial(BlinkPrototypeMaterialFolder + "/mat_blink_tower_body_v01.mat", new Color(0.1f, 0.25f, 0.32f));
+            var darkMaterial = CreateOrUpdateMaterial(BlinkPrototypeMaterialFolder + "/mat_blink_tower_dark_v01.mat", new Color(0.035f, 0.07f, 0.095f));
+            var energyMaterial = CreateOrUpdateMaterial(BlinkPrototypeMaterialFolder + "/mat_blink_tower_energy_v01.mat", new Color(0.38f, 0.94f, 1f));
+            var controlMaterial = CreateOrUpdateMaterial(BlinkPrototypeMaterialFolder + "/mat_blink_tower_control_v01.mat", new Color(0.58f, 0.52f, 1f));
+            var relayMaterial = CreateOrUpdateMaterial(BlinkPrototypeMaterialFolder + "/mat_blink_tower_relay_v01.mat", new Color(0.36f, 0.96f, 0.64f));
+            var trimMaterial = CreateOrUpdateMaterial(BlinkPrototypeMaterialFolder + "/mat_blink_tower_owner_trim_v01.mat", new Color(0.96f, 0.78f, 0.24f));
+            var haloMaterial = CreateOrUpdateMaterial(BlinkPrototypeMaterialFolder + "/mat_blink_tower_range_v01.mat", new Color(0.24f, 0.62f, 1f, 0.22f));
+
+            var arrowPrefab = SaveBlinkArrowWrapper(baseMaterial, energyMaterial, trimMaterial, darkMaterial, haloMaterial);
+            var relayPrefab = SaveBlinkRelayWrapper(baseMaterial, relayMaterial, trimMaterial, darkMaterial, haloMaterial);
+            var controlPrefab = SaveBlinkControlWrapper(baseMaterial, controlMaterial, trimMaterial, darkMaterial, haloMaterial);
+
+            UpdateSingleVisualProfile(new TowerSpec("Arrow", "Tower_Arrow", new Color(0.24f, 0.78f, 1f), new Color(0.95f, 0.82f, 0.34f), TowerShape.Crossbow), arrowPrefab);
+            UpdateSingleVisualProfile(new TowerSpec("Relay", "Tower_Relay", new Color(0.25f, 0.9f, 0.58f), new Color(1f, 0.72f, 0.3f), TowerShape.SignalMast), relayPrefab);
+            UpdateSingleVisualProfile(new TowerSpec("Control", "Tower_Control", new Color(0.55f, 0.5f, 1f), new Color(0.32f, 0.94f, 0.88f), TowerShape.ContainmentDish), controlPrefab);
+            WriteBlinkWrapperReport();
+
+            AssetDatabase.SaveAssets();
+            AssetDatabase.ImportAsset(BlinkReportPath);
+            AssetDatabase.Refresh();
+            Debug.Log("Generated Blink Agent 1 tower wrappers for Arrow, Relay, and Control.");
         }
 
         [MenuItem(ValidateMenuPath)]
@@ -261,6 +293,137 @@ namespace LTW.UnityClient.Editor
             return prefab;
         }
 
+        private static GameObject SaveBlinkArrowWrapper(
+            Material bodyMaterial,
+            Material energyMaterial,
+            Material trimMaterial,
+            Material darkMaterial,
+            Material haloMaterial)
+        {
+            var root = new GameObject("Tower_Arrow");
+
+            CreateChild(root, "RangeHalo", PrimitiveType.Cylinder, new Vector3(0f, -0.045f, 0f), new Vector3(1.72f, 0.01f, 1.72f), haloMaterial);
+            CreateChild(root, "Base", PrimitiveType.Cylinder, new Vector3(0f, 0.035f, -0.02f), new Vector3(0.72f, 0.085f, 0.6f), darkMaterial);
+            CreateChild(root, "Body", PrimitiveType.Cylinder, new Vector3(0f, 0.2f, -0.04f), new Vector3(0.52f, 0.24f, 0.42f), bodyMaterial);
+            CreateChild(root, "OwnerTrim", PrimitiveType.Cylinder, new Vector3(0f, 0.35f, -0.04f), new Vector3(0.54f, 0.028f, 0.44f), trimMaterial);
+            CreateChild(root, "RoleMarker", PrimitiveType.Cube, new Vector3(0f, 0.58f, 0.2f), new Vector3(0.12f, 0.07f, 0.98f), energyMaterial);
+            CreateChild(root, "Muzzle", PrimitiveType.Sphere, new Vector3(0f, 0.65f, 0.86f), new Vector3(0.16f, 0.16f, 0.16f), energyMaterial);
+            CreateChild(root, "Lens", PrimitiveType.Sphere, new Vector3(0f, 0.68f, 0.02f), new Vector3(0.22f, 0.19f, 0.22f), energyMaterial);
+            CreateChild(root, "BowLeft", PrimitiveType.Cube, new Vector3(-0.52f, 0.56f, 0.04f), new Vector3(0.68f, 0.07f, 0.12f), energyMaterial).transform.localRotation = Quaternion.Euler(0f, 0f, -22f);
+            CreateChild(root, "BowRight", PrimitiveType.Cube, new Vector3(0.52f, 0.56f, 0.04f), new Vector3(0.68f, 0.07f, 0.12f), energyMaterial).transform.localRotation = Quaternion.Euler(0f, 0f, 22f);
+            AddVendorPrefabChild(
+                root,
+                "BlinkSource_Musket_Rail",
+                "Assets/Blink/Art/Weapons/Stylized/Musket/_Prefabs_Musket/Musket1_2_1.prefab",
+                new Vector3(0f, 0.66f, 0.2f),
+                new Vector3(0.18f, 0.18f, 0.18f),
+                Quaternion.Euler(0f, 90f, 0f));
+
+            var prefab = PrefabUtility.SaveAsPrefabAsset(root, PrefabFolder + "/Tower_Arrow.prefab");
+            Object.DestroyImmediate(root);
+            return prefab;
+        }
+
+        private static GameObject SaveBlinkRelayWrapper(
+            Material bodyMaterial,
+            Material relayMaterial,
+            Material trimMaterial,
+            Material darkMaterial,
+            Material haloMaterial)
+        {
+            var root = new GameObject("Tower_Relay");
+
+            CreateChild(root, "RangeHalo", PrimitiveType.Cylinder, new Vector3(0f, -0.045f, 0f), new Vector3(1.58f, 0.01f, 1.58f), haloMaterial);
+            CreateChild(root, "Base", PrimitiveType.Cylinder, new Vector3(0f, 0.04f, 0f), new Vector3(0.56f, 0.11f, 0.56f), darkMaterial);
+            CreateChild(root, "Body", PrimitiveType.Cylinder, new Vector3(0f, 0.24f, 0f), new Vector3(0.42f, 0.28f, 0.42f), bodyMaterial);
+            CreateChild(root, "OwnerTrim", PrimitiveType.Cylinder, new Vector3(0f, 0.43f, 0f), new Vector3(0.48f, 0.026f, 0.48f), trimMaterial);
+            CreateChild(root, "RoleMarker", PrimitiveType.Sphere, new Vector3(0f, 1.2f, 0f), new Vector3(0.24f, 0.24f, 0.24f), relayMaterial);
+            CreateChild(root, "RelayMast", PrimitiveType.Cube, new Vector3(0f, 0.78f, 0f), new Vector3(0.08f, 0.86f, 0.08f), bodyMaterial);
+            CreateChild(root, "RelayCore", PrimitiveType.Cylinder, new Vector3(0f, 0.55f, 0f), new Vector3(0.4f, 0.09f, 0.4f), relayMaterial);
+            CreateChild(root, "RelaySignal", PrimitiveType.Cylinder, new Vector3(0f, 1.02f, -0.14f), new Vector3(0.5f, 0.026f, 0.5f), relayMaterial).transform.localRotation = Quaternion.Euler(68f, 0f, 0f);
+            CreateChild(root, "CapacitorLeft", PrimitiveType.Cube, new Vector3(-0.34f, 0.62f, 0f), new Vector3(0.11f, 0.48f, 0.11f), trimMaterial);
+            CreateChild(root, "CapacitorRight", PrimitiveType.Cube, new Vector3(0.34f, 0.62f, 0f), new Vector3(0.11f, 0.48f, 0.11f), trimMaterial);
+            AddVendorPrefabChild(
+                root,
+                "BlinkSource_Staff5_Mast",
+                "Assets/Blink/Art/Weapons/Stylized/Staves/_PrefabsStaves/Staff5_1_1.prefab",
+                new Vector3(0f, 0.85f, 0.02f),
+                new Vector3(0.9f, 0.9f, 0.9f),
+                Quaternion.Euler(0f, 0f, 0f));
+
+            var prefab = PrefabUtility.SaveAsPrefabAsset(root, PrefabFolder + "/Tower_Relay.prefab");
+            Object.DestroyImmediate(root);
+            return prefab;
+        }
+
+        private static GameObject SaveBlinkControlWrapper(
+            Material bodyMaterial,
+            Material controlMaterial,
+            Material trimMaterial,
+            Material darkMaterial,
+            Material haloMaterial)
+        {
+            var root = new GameObject("Tower_Control");
+
+            CreateChild(root, "RangeHalo", PrimitiveType.Cylinder, new Vector3(0f, -0.045f, 0f), new Vector3(1.78f, 0.01f, 1.78f), haloMaterial);
+            CreateChild(root, "Base", PrimitiveType.Cylinder, new Vector3(0f, 0.04f, 0f), new Vector3(0.78f, 0.1f, 0.78f), darkMaterial);
+            CreateChild(root, "Body", PrimitiveType.Cylinder, new Vector3(0f, 0.22f, 0f), new Vector3(0.58f, 0.24f, 0.58f), bodyMaterial);
+            CreateChild(root, "OwnerTrim", PrimitiveType.Cylinder, new Vector3(0f, 0.4f, 0f), new Vector3(0.64f, 0.026f, 0.64f), trimMaterial);
+            CreateChild(root, "RoleMarker", PrimitiveType.Cylinder, new Vector3(0f, 0.62f, 0f), new Vector3(1.02f, 0.034f, 1.02f), controlMaterial);
+            CreateChild(root, "ControlRing", PrimitiveType.Cylinder, new Vector3(0f, 0.77f, 0f), new Vector3(0.84f, 0.032f, 0.84f), controlMaterial);
+            CreateChild(root, "ControlCore", PrimitiveType.Sphere, new Vector3(0f, 0.77f, 0f), new Vector3(0.26f, 0.26f, 0.26f), controlMaterial);
+            CreateChild(root, "PulseEmitter", PrimitiveType.Cube, new Vector3(0f, 0.7f, 0.54f), new Vector3(0.22f, 0.14f, 0.18f), controlMaterial);
+            AddVendorPrefabChild(
+                root,
+                "BlinkSource_Shield2_Dish",
+                "Assets/Blink/Art/Weapons/Stylized/Shields/_PrefabsShields/Shield2_1_2.prefab",
+                new Vector3(0f, 0.66f, 0f),
+                new Vector3(1.08f, 1.08f, 1.08f),
+                Quaternion.Euler(70f, 0f, 0f));
+
+            var prefab = PrefabUtility.SaveAsPrefabAsset(root, PrefabFolder + "/Tower_Control.prefab");
+            Object.DestroyImmediate(root);
+            return prefab;
+        }
+
+        private static void AddVendorPrefabChild(
+            GameObject parent,
+            string childName,
+            string assetPath,
+            Vector3 localPosition,
+            Vector3 localScale,
+            Quaternion localRotation)
+        {
+            var source = AssetDatabase.LoadAssetAtPath<GameObject>(assetPath);
+            if (source == null)
+            {
+                Debug.LogWarning($"Missing Blink source prefab at {assetPath}; skipping '{childName}'.");
+                return;
+            }
+
+            var instance = PrefabUtility.InstantiatePrefab(source) as GameObject;
+            if (instance == null)
+            {
+                instance = Object.Instantiate(source);
+            }
+
+            instance.name = childName;
+            instance.transform.SetParent(parent.transform, false);
+            instance.transform.localPosition = localPosition;
+            instance.transform.localRotation = localRotation;
+            instance.transform.localScale = localScale;
+            RemoveColliders(instance);
+        }
+
+        private static void RemoveColliders(GameObject root)
+        {
+            var colliders = root.GetComponentsInChildren<Collider>(true);
+            for (var index = 0; index < colliders.Length; index++)
+            {
+                Object.DestroyImmediate(colliders[index]);
+            }
+        }
+
         private static void UpdateVisualLibrary(GameObject[] prefabs)
         {
             var library = AssetDatabase.LoadAssetAtPath<TowerVisualLibrary>(LibraryPath);
@@ -442,6 +605,53 @@ This report is generated by `Line Wards > Art > Generate Placeholder Tower Prefa
 ";
 
             var fullPath = System.IO.Path.Combine(System.IO.Directory.GetCurrentDirectory(), ReportPath);
+            var directory = System.IO.Path.GetDirectoryName(fullPath);
+            if (!string.IsNullOrWhiteSpace(directory))
+            {
+                System.IO.Directory.CreateDirectory(directory);
+            }
+
+            System.IO.File.WriteAllText(fullPath, report);
+        }
+
+        private static void WriteBlinkWrapperReport()
+        {
+            var report = @"# Blink Agent 1 Tower Wrapper Report
+
+This report is generated by `Line Wards > Art > Generate Blink Agent 1 Tower Wrappers`.
+
+## Generated Runtime Wrappers
+
+| Tower | Runtime ID | Runtime Prefab | Blink Source Child | Blink Source Asset | Intent |
+| --- | --- | --- | --- | --- | --- |
+| Arrow | `tower.arrow` | `Assets/Prefabs/Towers/Tower_Arrow.prefab` | `BlinkSource_Musket_Rail` | `Musket1_2_1.prefab` | Strong long-axis rail for focused single-target read. |
+| Relay | `tower.relay` | `Assets/Prefabs/Towers/Tower_Relay.prefab` | `BlinkSource_Staff5_Mast` | `Staff5_1_1.prefab` | Tall mast/capacitor support profile. |
+| Control | `tower.control` | `Assets/Prefabs/Towers/Tower_Control.prefab` | `BlinkSource_Shield2_Dish` | `Shield2_1_2.prefab` | Wide dish/containment silhouette. |
+
+## Contract
+
+Each wrapper keeps the required runtime children:
+
+- `Body`
+- `RoleMarker`
+- `OwnerTrim`
+- `RangeHalo`
+
+Optional role anchors were also kept where useful:
+
+- Arrow: `Muzzle`, `BowLeft`, `BowRight`, `Lens`
+- Relay: `RelayMast`, `RelayCore`, `RelaySignal`, `CapacitorLeft`, `CapacitorRight`
+- Control: `ControlRing`, `ControlCore`, `PulseEmitter`
+
+## Notes
+
+- Blink source prefabs are nested as visual children; runtime profiles still point to Line Wards wrapper prefabs.
+- Vendor source folder paths are not used by play-mode renderer code.
+- Vendor child colliders are stripped during wrapper generation.
+- Pulse and Prism are intentionally deferred until the first three wrappers pass screenshot review.
+";
+
+            var fullPath = System.IO.Path.Combine(System.IO.Directory.GetCurrentDirectory(), BlinkReportPath);
             var directory = System.IO.Path.GetDirectoryName(fullPath);
             if (!string.IsNullOrWhiteSpace(directory))
             {
