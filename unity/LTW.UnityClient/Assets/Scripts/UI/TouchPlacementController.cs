@@ -73,7 +73,10 @@ namespace LTW.UnityClient.UI
             commandAdapter = adapter;
             feedbackView = feedback;
             ghost = placementGhost;
+            selectedCell = DefaultBuilderCell();
             EnsureBuilderAvatar();
+            builderAvatar.SetActive(true);
+            UpdateBuilderAvatar();
         }
 
         public void BeginTowerPlacement() => BeginTowerPlacement(lastSelectedTowerRole);
@@ -93,7 +96,6 @@ namespace LTW.UnityClient.UI
             isPaletteExpanded = false;
             selectedTowerRole = towerRole;
             lastSelectedTowerRole = towerRole;
-            selectedCell = new Vector2Int(2, 2);
             ghost.SetActive(true);
             builderAvatar.SetActive(true);
             MoveGhost();
@@ -128,10 +130,9 @@ namespace LTW.UnityClient.UI
         {
             isPlacing = false;
             ghost.SetActive(false);
-            if (builderAvatar != null)
-            {
-                builderAvatar.SetActive(false);
-            }
+            EnsureBuilderAvatar();
+            builderAvatar.SetActive(true);
+            UpdateBuilderAvatar();
             if (clearFeedback)
             {
                 feedbackView.Clear();
@@ -223,14 +224,23 @@ namespace LTW.UnityClient.UI
             }
 
             var hit = ray.GetPoint(distance);
-            selectedCell = new Vector2Int(Mathf.RoundToInt(hit.x), 17 - Mathf.RoundToInt(hit.z));
+            var hitCell = ClampToLane(new Vector2Int(Mathf.RoundToInt(hit.x), 17 - Mathf.RoundToInt(hit.z)));
             if (isPlacing)
             {
+                selectedCell = hitCell;
                 MoveGhost();
                 return;
             }
 
-            SelectTowerAt(selectedCell);
+            if (SelectTowerAt(hitCell))
+            {
+                return;
+            }
+
+            selectedTower = null;
+            HideSelectionRing();
+            selectedCell = hitCell;
+            UpdateBuilderAvatar();
         }
 
         private void OnGUI()
@@ -282,7 +292,7 @@ namespace LTW.UnityClient.UI
             GUI.Label(new Rect(rect.x + 12f * scale, rect.y + 57f * scale, rect.width - 24f * scale, 20f * scale), actionHint, bodyStyle);
         }
 
-        private void SelectTowerAt(Vector2Int cell)
+        private bool SelectTowerAt(Vector2Int cell)
         {
             if (simulationDriver == null)
             {
@@ -294,7 +304,7 @@ namespace LTW.UnityClient.UI
             var snapshot = simulationDriver?.LatestSnapshot;
             if (snapshot is null)
             {
-                return;
+                return false;
             }
 
             foreach (var tower in snapshot.Towers)
@@ -304,9 +314,11 @@ namespace LTW.UnityClient.UI
                     selectedTower = tower;
                     UpdateSelectionRing(tower);
                     feedbackView.ShowAccepted(TowerRoleName(tower.TowerId.Value) + " selected");
-                    return;
+                    return true;
                 }
             }
+
+            return false;
         }
 
         private void DrawSelectedTowerPanel(float scale)
@@ -353,10 +365,16 @@ namespace LTW.UnityClient.UI
             }
 
             selectedCell += delta;
-            selectedCell.x = Mathf.Clamp(selectedCell.x, 0, LaneWidth - 1);
-            selectedCell.y = Mathf.Clamp(selectedCell.y, 0, LaneLength - 1);
+            selectedCell = ClampToLane(selectedCell);
             MoveGhost();
         }
+
+        private static Vector2Int DefaultBuilderCell() => new(LaneWidth / 2, LaneLength - 3);
+
+        private static Vector2Int ClampToLane(Vector2Int cell) =>
+            new(
+                Mathf.Clamp(cell.x, 0, LaneWidth - 1),
+                Mathf.Clamp(cell.y, 0, LaneLength - 1));
 
         private void MoveGhost()
         {
