@@ -20,6 +20,12 @@ namespace LTW.UnityClient.Editor
         private const string ShadePrefabPath = PrefabFolder + "/Creep_Shade.prefab";
         private const string SiegePrefabPath = PrefabFolder + "/Creep_Siege.prefab";
 
+        private const string BlinkDaggerPath = "Assets/Blink/Art/Weapons/Stylized/Daggers/_PrefabsDaggers/Dagger4_1_3.prefab";
+        private const string BlinkSwordShardPath = "Assets/Blink/Art/Weapons/Stylized/Swords/_PrefabsSwords/Sword3_1_3.prefab";
+        private const string BlinkShieldPath = "Assets/Blink/Art/Weapons/Stylized/Shields/_PrefabsShields/Shield2_1_2.prefab";
+        private const string BlinkScythePath = "Assets/Blink/Art/Weapons/Stylized/Scythes/_Prefabs_Scythes/Scythe1_3_2.prefab";
+        private const string BlinkMusketPath = "Assets/Blink/Art/Weapons/Stylized/Musket/_Prefabs_Musket/Musket1_2_1.prefab";
+
         [MenuItem(MenuPath)]
         public static void GeneratePlaceholderCreepPrefabs()
         {
@@ -102,6 +108,9 @@ namespace LTW.UnityClient.Editor
                     continue;
                 }
 
+                issueCount += ValidateRequiredChild(profile, "Body");
+                issueCount += ValidateRequiredChild(profile, "GroundShadow");
+                issueCount += ValidateRequiredChild(profile, "RoleMarker");
                 issueCount += ValidateRendererPath(profile, profile.BodyRendererPath, "body");
                 issueCount += ValidateRendererPaths(profile, profile.SenderAccentRendererPaths, "sender accent");
                 issueCount += ValidateRendererPaths(profile, profile.DamageRendererPaths, "damage");
@@ -126,12 +135,14 @@ namespace LTW.UnityClient.Editor
             Material shadowMaterial)
         {
             var root = new GameObject("Creep_Runner");
-            CreateChild(root, "Shadow", PrimitiveType.Cylinder, new Vector3(0f, -0.08f, 0f), new Vector3(0.72f, 0.022f, 1.42f), shadowMaterial);
+            CreateChild(root, "GroundShadow", PrimitiveType.Cylinder, new Vector3(0f, -0.08f, 0f), new Vector3(0.72f, 0.022f, 1.42f), shadowMaterial);
             CreateMeshChild(root, "Body", runnerDartMesh, new Vector3(0f, 0.1f, 0.02f), new Vector3(0.48f, 0.26f, 1.52f), bodyMaterial);
-            CreateMeshChild(root, "NoseNeedle", runnerFinMesh, new Vector3(0f, 0.14f, 0.72f), new Vector3(0.18f, 0.1f, 0.42f), bodyMaterial);
-            CreateMeshChild(root, "Accent", runnerFinMesh, new Vector3(0f, 0.16f, -0.58f), new Vector3(0.18f, 0.12f, 0.38f), accentMaterial);
-            CreateMeshChild(root, "LeftFin", runnerFinMesh, new Vector3(-0.36f, 0.1f, -0.08f), new Vector3(0.14f, 0.09f, 0.58f), accentMaterial, Quaternion.Euler(0f, 0f, 16f));
-            CreateMeshChild(root, "RightFin", runnerFinMesh, new Vector3(0.36f, 0.1f, -0.08f), new Vector3(0.14f, 0.09f, 0.58f), accentMaterial, Quaternion.Euler(0f, 0f, -16f));
+            CreateBlinkPart(root, "BlinkDaggerSpine", BlinkDaggerPath, new Vector3(0f, 0.18f, 0.08f), new Vector3(0.18f, 0.18f, 0.34f), Quaternion.Euler(90f, 0f, 0f));
+            CreateMeshChild(root, "Nose", runnerFinMesh, new Vector3(0f, 0.14f, 0.72f), new Vector3(0.18f, 0.1f, 0.42f), bodyMaterial);
+            CreateMeshChild(root, "Tail", runnerFinMesh, new Vector3(0f, 0.16f, -0.58f), new Vector3(0.18f, 0.12f, 0.38f), accentMaterial);
+            CreateMeshChild(root, "FinLeft", runnerFinMesh, new Vector3(-0.36f, 0.1f, -0.08f), new Vector3(0.14f, 0.09f, 0.58f), accentMaterial, Quaternion.Euler(0f, 0f, 16f));
+            CreateMeshChild(root, "FinRight", runnerFinMesh, new Vector3(0.36f, 0.1f, -0.08f), new Vector3(0.14f, 0.09f, 0.58f), accentMaterial, Quaternion.Euler(0f, 0f, -16f));
+            CreateChild(root, "RoleMarker", PrimitiveType.Cube, new Vector3(0f, 0.28f, -0.9f), new Vector3(0.08f, 0.05f, 0.48f), accentMaterial);
             CreateMeshChild(root, "Damage", runnerFinMesh, new Vector3(0f, 0.2f, 0.3f), new Vector3(0.32f, 0.08f, 0.2f), damageMaterial);
             CreateChild(root, "SpeedLine", PrimitiveType.Cube, new Vector3(0f, 0.1f, -0.98f), new Vector3(0.055f, 0.04f, 0.74f), accentMaterial);
 
@@ -147,18 +158,21 @@ namespace LTW.UnityClient.Editor
             Material shadowMaterial)
         {
             var root = new GameObject("Creep_Brute");
-            CreateChild(root, "Shadow", PrimitiveType.Cylinder, new Vector3(0f, -0.1f, 0f), new Vector3(1.52f, 0.032f, 1.18f), shadowMaterial);
+            CreateChild(root, "GroundShadow", PrimitiveType.Cylinder, new Vector3(0f, -0.1f, 0f), new Vector3(1.52f, 0.032f, 1.18f), shadowMaterial);
             CreateMeshChild(root, "Body", bruteCoreMesh, new Vector3(0f, 0.19f, 0f), new Vector3(1.18f, 0.62f, 0.92f), bodyMaterial);
+            CreateBlinkPart(root, "BlinkShieldShell", BlinkShieldPath, new Vector3(0f, 0.3f, 0.02f), new Vector3(0.28f, 0.28f, 0.28f), Quaternion.Euler(90f, 0f, 0f));
             CreateMeshChild(root, "FrontBrow", brutePlateMesh, new Vector3(0f, 0.37f, 0.38f), new Vector3(0.78f, 0.12f, 0.22f), bodyMaterial);
+            CreateMeshChild(root, "Armor", brutePlateMesh, new Vector3(0f, 0.5f, -0.02f), new Vector3(0.98f, 0.12f, 0.72f), bodyMaterial);
 
-            var accent = new GameObject("Accent");
-            accent.transform.SetParent(root.transform, false);
-            CreateMeshChild(accent, "Core", bruteCoreMesh, new Vector3(0f, 0.24f, -0.44f), new Vector3(0.36f, 0.24f, 0.2f), accentMaterial);
+            CreateMeshChild(root, "Core", bruteCoreMesh, new Vector3(0f, 0.24f, -0.44f), new Vector3(0.36f, 0.24f, 0.2f), accentMaterial);
+            CreateChild(root, "RoleMarker", PrimitiveType.Cube, new Vector3(0f, 0.62f, 0.36f), new Vector3(0.54f, 0.06f, 0.16f), accentMaterial);
 
             var damage = new GameObject("Damage");
             damage.transform.SetParent(root.transform, false);
-            CreateMeshChild(damage, "PlateLeft", brutePlateMesh, new Vector3(-0.55f, 0.22f, 0.02f), new Vector3(0.28f, 0.14f, 0.72f), damageMaterial, Quaternion.Euler(0f, 0f, -9f));
-            CreateMeshChild(damage, "PlateRight", brutePlateMesh, new Vector3(0.55f, 0.22f, 0.02f), new Vector3(0.28f, 0.14f, 0.72f), damageMaterial, Quaternion.Euler(0f, 0f, 9f));
+            CreateMeshChild(root, "PlateLeft", brutePlateMesh, new Vector3(-0.55f, 0.22f, 0.02f), new Vector3(0.28f, 0.14f, 0.72f), damageMaterial, Quaternion.Euler(0f, 0f, -9f));
+            CreateMeshChild(root, "PlateRight", brutePlateMesh, new Vector3(0.55f, 0.22f, 0.02f), new Vector3(0.28f, 0.14f, 0.72f), damageMaterial, Quaternion.Euler(0f, 0f, 9f));
+            CreateMeshChild(damage, "PlateLeftDamage", brutePlateMesh, new Vector3(-0.55f, 0.34f, 0.08f), new Vector3(0.18f, 0.1f, 0.4f), damageMaterial, Quaternion.Euler(0f, 0f, -9f));
+            CreateMeshChild(damage, "PlateRightDamage", brutePlateMesh, new Vector3(0.55f, 0.34f, 0.08f), new Vector3(0.18f, 0.1f, 0.4f), damageMaterial, Quaternion.Euler(0f, 0f, 9f));
             CreateMeshChild(damage, "RearPlate", brutePlateMesh, new Vector3(0f, 0.2f, -0.54f), new Vector3(0.64f, 0.12f, 0.24f), damageMaterial);
 
             return SavePrefab(root, BrutePrefabPath);
@@ -172,7 +186,7 @@ namespace LTW.UnityClient.Editor
             Material shadowMaterial)
         {
             var root = new GameObject("Creep_Swarm");
-            CreateChild(root, "Shadow", PrimitiveType.Cylinder, new Vector3(0f, -0.08f, 0f), new Vector3(1.34f, 0.02f, 1.18f), shadowMaterial);
+            CreateChild(root, "GroundShadow", PrimitiveType.Cylinder, new Vector3(0f, -0.08f, 0f), new Vector3(1.34f, 0.02f, 1.18f), shadowMaterial);
 
             var body = new GameObject("Body");
             body.transform.SetParent(root.transform, false);
@@ -186,6 +200,14 @@ namespace LTW.UnityClient.Editor
             accent.transform.SetParent(root.transform, false);
             CreateMeshChild(accent, "Signal0", swarmShardMesh, new Vector3(-0.22f, 0.24f, -0.1f), new Vector3(0.14f, 0.1f, 0.14f), accentMaterial);
             CreateMeshChild(accent, "Signal1", swarmShardMesh, new Vector3(0.26f, 0.22f, 0.2f), new Vector3(0.12f, 0.09f, 0.12f), accentMaterial);
+            CreateBlinkPart(root, "BlinkShardA", BlinkSwordShardPath, new Vector3(-0.28f, 0.22f, 0.32f), new Vector3(0.1f, 0.1f, 0.16f), Quaternion.Euler(90f, 0f, -22f));
+            CreateBlinkPart(root, "BlinkShardB", BlinkDaggerPath, new Vector3(0.36f, 0.2f, -0.18f), new Vector3(0.08f, 0.08f, 0.14f), Quaternion.Euler(90f, 0f, 31f));
+            CreateBlinkPart(root, "BlinkShardC", BlinkSwordShardPath, new Vector3(0.02f, 0.24f, -0.48f), new Vector3(0.08f, 0.08f, 0.13f), Quaternion.Euler(90f, 0f, 8f));
+            CreateChild(root, "SwarmDotA", PrimitiveType.Sphere, new Vector3(-0.58f, 0.14f, -0.3f), new Vector3(0.22f, 0.22f, 0.22f), accentMaterial);
+            CreateChild(root, "SwarmDotB", PrimitiveType.Sphere, new Vector3(0.56f, 0.14f, 0.28f), new Vector3(0.2f, 0.2f, 0.2f), accentMaterial);
+            CreateChild(root, "SwarmDotC", PrimitiveType.Sphere, new Vector3(0.04f, 0.17f, -0.62f), new Vector3(0.17f, 0.17f, 0.17f), accentMaterial);
+            CreateChild(root, "Trail", PrimitiveType.Cylinder, new Vector3(0f, -0.02f, -0.1f), new Vector3(1.1f, 0.018f, 0.74f), accentMaterial);
+            CreateChild(root, "RoleMarker", PrimitiveType.Cube, new Vector3(0f, 0.3f, 0.46f), new Vector3(0.48f, 0.045f, 0.1f), accentMaterial);
 
             var damage = new GameObject("Damage");
             damage.transform.SetParent(root.transform, false);
@@ -202,11 +224,13 @@ namespace LTW.UnityClient.Editor
             Material shadowMaterial)
         {
             var root = new GameObject("Creep_Shade");
-            CreateChild(root, "Shadow", PrimitiveType.Cylinder, new Vector3(0f, -0.08f, 0f), new Vector3(0.82f, 0.018f, 1.28f), shadowMaterial);
+            CreateChild(root, "GroundShadow", PrimitiveType.Cylinder, new Vector3(0f, -0.08f, 0f), new Vector3(0.82f, 0.018f, 1.28f), shadowMaterial);
             CreateMeshChild(root, "Body", shadeEchoMesh, new Vector3(0f, 0.15f, 0f), new Vector3(0.42f, 0.22f, 0.98f), shadeMaterial);
+            CreateBlinkPart(root, "BlinkScytheEcho", BlinkScythePath, new Vector3(0f, 0.2f, 0.08f), new Vector3(0.12f, 0.12f, 0.18f), Quaternion.Euler(90f, 0f, 0f));
             CreateMeshChild(root, "EchoA", shadeEchoMesh, new Vector3(-0.34f, 0.1f, 0.2f), new Vector3(0.26f, 0.1f, 0.58f), shadeMaterial, Quaternion.Euler(0f, 0f, -18f));
             CreateMeshChild(root, "EchoB", shadeEchoMesh, new Vector3(0.34f, 0.12f, -0.26f), new Vector3(0.24f, 0.09f, 0.52f), shadeMaterial, Quaternion.Euler(0f, 0f, 18f));
-            CreateChild(root, "Accent", PrimitiveType.Cylinder, new Vector3(0f, 0.22f, 0f), new Vector3(0.96f, 0.018f, 0.62f), accentMaterial);
+            CreateChild(root, "Shimmer", PrimitiveType.Cylinder, new Vector3(0f, 0.22f, 0f), new Vector3(0.96f, 0.018f, 0.62f), accentMaterial);
+            CreateChild(root, "RoleMarker", PrimitiveType.Cube, new Vector3(0f, 0.34f, -0.2f), new Vector3(0.12f, 0.045f, 0.52f), accentMaterial);
             CreateChild(root, "BreakLine", PrimitiveType.Cube, new Vector3(0f, 0.27f, 0.38f), new Vector3(0.58f, 0.03f, 0.08f), accentMaterial);
             CreateMeshChild(root, "Damage", shadeEchoMesh, new Vector3(0f, 0.28f, 0.34f), new Vector3(0.18f, 0.07f, 0.3f), damageMaterial);
 
@@ -222,11 +246,13 @@ namespace LTW.UnityClient.Editor
             Material shadowMaterial)
         {
             var root = new GameObject("Creep_Siege");
-            CreateChild(root, "Shadow", PrimitiveType.Cylinder, new Vector3(0f, -0.1f, 0f), new Vector3(1.12f, 0.03f, 1.48f), shadowMaterial);
+            CreateChild(root, "GroundShadow", PrimitiveType.Cylinder, new Vector3(0f, -0.1f, 0f), new Vector3(1.12f, 0.03f, 1.48f), shadowMaterial);
             CreateMeshChild(root, "Body", siegeRamMesh, new Vector3(0f, 0.18f, -0.06f), new Vector3(0.88f, 0.4f, 1.14f), siegeMaterial);
-            CreateMeshChild(root, "Ram", siegeRamMesh, new Vector3(0f, 0.24f, 0.62f), new Vector3(0.5f, 0.24f, 0.82f), siegeMaterial);
-            CreateMeshChild(root, "ImpactNose", coreMesh, new Vector3(0f, 0.28f, 0.92f), new Vector3(0.22f, 0.18f, 0.22f), damageMaterial);
-            CreateMeshChild(root, "Accent", coreMesh, new Vector3(0f, 0.36f, -0.42f), new Vector3(0.28f, 0.2f, 0.24f), accentMaterial);
+            CreateBlinkPart(root, "BlinkMusketBarrel", BlinkMusketPath, new Vector3(0f, 0.26f, 0.14f), new Vector3(0.16f, 0.16f, 0.28f), Quaternion.Euler(90f, 0f, 0f));
+            CreateMeshChild(root, "Base", siegeRamMesh, new Vector3(0f, 0.2f, -0.2f), new Vector3(0.72f, 0.28f, 0.62f), siegeMaterial);
+            CreateMeshChild(root, "Barrel", siegeRamMesh, new Vector3(0f, 0.24f, 0.62f), new Vector3(0.5f, 0.24f, 0.82f), siegeMaterial);
+            CreateMeshChild(root, "Spike", coreMesh, new Vector3(0f, 0.28f, 0.92f), new Vector3(0.22f, 0.18f, 0.22f), damageMaterial);
+            CreateMeshChild(root, "RoleMarker", coreMesh, new Vector3(0f, 0.36f, -0.42f), new Vector3(0.28f, 0.2f, 0.24f), accentMaterial);
 
             var damage = new GameObject("Damage");
             damage.transform.SetParent(root.transform, false);
@@ -234,6 +260,34 @@ namespace LTW.UnityClient.Editor
             CreateMeshChild(damage, "WarningPlateRight", siegeRamMesh, new Vector3(0.4f, 0.24f, 0.04f), new Vector3(0.18f, 0.1f, 0.58f), damageMaterial, Quaternion.Euler(0f, 0f, 8f));
 
             return SavePrefab(root, SiegePrefabPath);
+        }
+
+        private static GameObject CreateBlinkPart(
+            GameObject parent,
+            string name,
+            string assetPath,
+            Vector3 localPosition,
+            Vector3 localScale,
+            Quaternion localRotation)
+        {
+            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(assetPath);
+            if (prefab == null)
+            {
+                return null;
+            }
+
+            var instance = PrefabUtility.InstantiatePrefab(prefab) as GameObject;
+            if (instance == null)
+            {
+                return null;
+            }
+
+            instance.name = name;
+            instance.transform.SetParent(parent.transform, false);
+            instance.transform.localPosition = localPosition;
+            instance.transform.localScale = localScale;
+            instance.transform.localRotation = localRotation;
+            return instance;
         }
 
         private static GameObject CreateMeshChild(
@@ -364,7 +418,7 @@ namespace LTW.UnityClient.Editor
                 new Vector3(0.5f, 0.28f, 0.86f),
                 CreepVisualMotionStyle.RunnerDart,
                 "Body",
-                new[] { "Accent", "LeftFin", "RightFin", "SpeedLine" },
+                new[] { "RoleMarker", "Tail", "FinLeft", "FinRight", "SpeedLine" },
                 new[] { "Damage" },
                 CreepDeathCueStyle.SparkBurst);
             ConfigureProfile(
@@ -375,8 +429,8 @@ namespace LTW.UnityClient.Editor
                 new Vector3(0.88f, 0.54f, 1.08f),
                 CreepVisualMotionStyle.HeavyBob,
                 "Body",
-                new[] { "Accent/Core" },
-                new[] { "Damage/PlateLeft", "Damage/PlateRight", "Damage/RearPlate" },
+                new[] { "RoleMarker", "Core" },
+                new[] { "PlateLeft", "PlateRight", "Damage/RearPlate" },
                 CreepDeathCueStyle.HeavyShatter);
             ConfigureProfile(
                 profiles.GetArrayElementAtIndex(2),
@@ -386,7 +440,7 @@ namespace LTW.UnityClient.Editor
                 new Vector3(0.26f, 0.16f, 0.26f),
                 CreepVisualMotionStyle.ClusterJitter,
                 "Body",
-                new[] { "Accent/Signal0", "Accent/Signal1" },
+                new[] { "RoleMarker", "Accent/Signal0", "Accent/Signal1", "SwarmDotA", "SwarmDotB", "SwarmDotC", "Trail" },
                 new[] { "Damage/CrackedShard" },
                 CreepDeathCueStyle.ShardScatter);
             ConfigureProfile(
@@ -397,7 +451,7 @@ namespace LTW.UnityClient.Editor
                 new Vector3(0.46f, 0.24f, 0.72f),
                 CreepVisualMotionStyle.Shimmer,
                 "Body",
-                new[] { "Accent", "EchoA", "EchoB", "BreakLine" },
+                new[] { "RoleMarker", "Shimmer", "EchoA", "EchoB", "BreakLine" },
                 new[] { "Damage" },
                 CreepDeathCueStyle.SoftDissolve);
             ConfigureProfile(
@@ -408,7 +462,7 @@ namespace LTW.UnityClient.Editor
                 new Vector3(0.62f, 0.38f, 0.56f),
                 CreepVisualMotionStyle.SiegeWindup,
                 "Body",
-                new[] { "Accent", "Ram" },
+                new[] { "RoleMarker", "Barrel" },
                 new[] { "Damage/WarningPlateLeft", "Damage/WarningPlateRight" },
                 CreepDeathCueStyle.HeavyShatter);
 
@@ -485,21 +539,38 @@ namespace LTW.UnityClient.Editor
             return 0;
         }
 
+        private static int ValidateRequiredChild(CreepVisualProfile profile, string childName)
+        {
+            if (profile.Prefab == null)
+            {
+                return 0;
+            }
+
+            if (profile.Prefab.transform.Find(childName) != null)
+            {
+                return 0;
+            }
+
+            Debug.LogError($"Creep visual profile '{profile.CreepId}' prefab is missing required child '{childName}'.", profile.Prefab);
+            return 1;
+        }
+
         private static void WriteGenerationReport()
         {
             var report = @"# Generated Creep Placeholder Prefabs
 
 This report is generated by `Line Wards > Art > Generate Placeholder Creep Prefabs`.
+The generator keeps procedural silhouettes as fallbacks and nests small Blink source-art parts inside Line Wards wrapper prefabs when the imported asset pack is present.
 
 ## Generated Prefabs
 
 | Creep | Prefab | Body Path | Sender Accent Paths | Damage Paths | Death Cue |
 | --- | --- | --- | --- | --- | --- |
-| Runner | `Assets/Prefabs/Creeps/Creep_Runner.prefab` | `Body` | `Accent`, `LeftFin`, `RightFin`, `SpeedLine` | `Damage` | Spark burst |
-| Brute | `Assets/Prefabs/Creeps/Creep_Brute.prefab` | `Body` | `Accent/Core` | `Damage/PlateLeft`, `Damage/PlateRight`, `Damage/RearPlate` | Heavy shatter |
-| Swarm | `Assets/Prefabs/Creeps/Creep_Swarm.prefab` | `Body` | `Accent/Signal0`, `Accent/Signal1` | `Damage/CrackedShard` | Shard scatter |
-| Shade | `Assets/Prefabs/Creeps/Creep_Shade.prefab` | `Body` | `Accent`, `EchoA`, `EchoB`, `BreakLine` | `Damage` | Soft dissolve |
-| Siege | `Assets/Prefabs/Creeps/Creep_Siege.prefab` | `Body` | `Accent`, `Ram` | `Damage/WarningPlateLeft`, `Damage/WarningPlateRight` | Heavy shatter |
+| Runner | `Assets/Prefabs/Creeps/Creep_Runner.prefab` | `Body` | `RoleMarker`, `Tail`, `FinLeft`, `FinRight`, `SpeedLine` | `Damage` | Spark burst |
+| Brute | `Assets/Prefabs/Creeps/Creep_Brute.prefab` | `Body` | `RoleMarker`, `Core` | `PlateLeft`, `PlateRight`, `Damage/RearPlate` | Heavy shatter |
+| Swarm | `Assets/Prefabs/Creeps/Creep_Swarm.prefab` | `Body` | `RoleMarker`, `Accent/Signal0`, `Accent/Signal1`, `SwarmDotA`, `SwarmDotB`, `SwarmDotC`, `Trail` | `Damage/CrackedShard` | Shard scatter |
+| Shade | `Assets/Prefabs/Creeps/Creep_Shade.prefab` | `Body` | `RoleMarker`, `Shimmer`, `EchoA`, `EchoB`, `BreakLine` | `Damage` | Soft dissolve |
+| Siege | `Assets/Prefabs/Creeps/Creep_Siege.prefab` | `Body` | `RoleMarker`, `Barrel` | `Damage/WarningPlateLeft`, `Damage/WarningPlateRight` | Heavy shatter |
 
 ## Generated Materials
 

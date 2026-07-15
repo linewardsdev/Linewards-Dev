@@ -20,9 +20,10 @@ MonoBehaviour:
     motionStyle: 1
     bodyRendererPath: Body
     senderAccentRendererPaths:
-    - Accent
-    - LeftFin
-    - RightFin
+    - RoleMarker
+    - Tail
+    - FinLeft
+    - FinRight
     - SpeedLine
     damageRendererPaths:
     - Damage
@@ -34,10 +35,11 @@ MonoBehaviour:
     motionStyle: 2
     bodyRendererPath: Body
     senderAccentRendererPaths:
-    - Accent/Core
+    - RoleMarker
+    - Core
     damageRendererPaths:
-    - Damage/PlateLeft
-    - Damage/PlateRight
+    - PlateLeft
+    - PlateRight
     - Damage/RearPlate
     deathCueStyle: 2
   - creepId: creep.swarm
@@ -47,8 +49,13 @@ MonoBehaviour:
     motionStyle: 3
     bodyRendererPath: Body
     senderAccentRendererPaths:
+    - RoleMarker
     - Accent/Signal0
     - Accent/Signal1
+    - SwarmDotA
+    - SwarmDotB
+    - SwarmDotC
+    - Trail
     damageRendererPaths:
     - Damage/CrackedShard
     deathCueStyle: 3
@@ -59,7 +66,8 @@ MonoBehaviour:
     motionStyle: 5
     bodyRendererPath: Body
     senderAccentRendererPaths:
-    - Accent
+    - RoleMarker
+    - Shimmer
     - EchoA
     - EchoB
     - BreakLine
@@ -73,8 +81,8 @@ MonoBehaviour:
     motionStyle: 6
     bodyRendererPath: Body
     senderAccentRendererPaths:
-    - Accent
-    - Ram
+    - RoleMarker
+    - Barrel
     damageRendererPaths:
     - Damage/WarningPlateLeft
     - Damage/WarningPlateRight

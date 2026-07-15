@@ -187,21 +187,27 @@ Acceptance:
 
 Owner: Agent 2
 
-- [ ] Create `Creep_Runner_BlinkPrototype.prefab` or wrapper replacement.
-- [ ] Create `Creep_Brute_BlinkPrototype.prefab` or wrapper replacement.
-- [ ] Create `Creep_Swarm_BlinkPrototype.prefab` or wrapper replacement.
-- [ ] Create `Creep_Shade_BlinkPrototype.prefab` or wrapper replacement.
-- [ ] Create `Creep_Siege_BlinkPrototype.prefab` or wrapper replacement.
-- [ ] Ensure required child names exist on every creep wrapper.
-- [ ] Ensure role children exist where useful:
+- [x] Create `Creep_Runner_BlinkPrototype.prefab` or wrapper replacement.
+- [x] Create `Creep_Brute_BlinkPrototype.prefab` or wrapper replacement.
+- [x] Create `Creep_Swarm_BlinkPrototype.prefab` or wrapper replacement.
+- [x] Create `Creep_Shade_BlinkPrototype.prefab` or wrapper replacement.
+- [x] Create `Creep_Siege_BlinkPrototype.prefab` or wrapper replacement.
+- [x] Ensure required child names exist on every creep wrapper.
+- [x] Ensure role children exist where useful:
   - Runner: `Nose`, `Tail`, `FinLeft`, `FinRight`
   - Brute: `Armor`, `PlateLeft`, `PlateRight`, `Core`
   - Swarm: `SwarmDotA`, `SwarmDotB`, `SwarmDotC`, `Trail`
   - Shade: `Shimmer`, `EchoA`, `EchoB`
   - Siege: `Base`, `Barrel`, `Spike`
-- [ ] Update `CreepVisualLibrary` if wrapper names or references change.
+- [x] Update `CreepVisualLibrary` if wrapper names or references change.
 - [ ] Verify damaged health bars/wound pips still sit correctly on each role.
 - [ ] Capture role roster normal and grayscale.
+
+Status note:
+
+- Agent 2 updated `CreepVisualPrefabGenerator` so generated Line Wards wrappers keep the procedural silhouettes as fallbacks and nest Blink source-art parts for Runner, Brute, Swarm, Shade, and Siege when the imported pack is present. Generated prefabs now include required `Body`, `GroundShadow`, and `RoleMarker` children plus role-specific child names from `docs/ART_PREFAB_CONTRACT.md`.
+- Unity regeneration updated `Assets/Prefabs/Creeps/Creep_*.prefab`, `Assets/Resources/CreepVisualLibrary.asset`, and `Assets/Art/Creeps/GeneratedPlaceholderReport.md`. File-side checks confirmed the required child names and Blink nested parts are present.
+- MCP Unity menu execution timed out after writing the assets, so the remaining Workstream D closeout is visual: run the local slice, inspect damaged health/wound placement, and capture normal/grayscale role-roster evidence.
 
 Acceptance:
 
@@ -226,6 +232,10 @@ Agent 2:
 - [ ] Keep send icons aligned with send dock pressure roles.
 - [ ] Confirm icons still read in disabled/affordability states.
 
+Agent 2 note:
+
+- Creep wrapper silhouettes now have stable source shapes for icon extraction, but send-card icon candidates have not been produced yet.
+
 Shared acceptance:
 
 - Icons are readable in current build/send card sizes.
@@ -247,6 +257,10 @@ Agent 2:
 - [ ] Attach Pulse splash source to Blink-derived Pulse wrapper.
 - [ ] Attach Shade reveal/resist source to Blink-derived Shade wrapper.
 - [ ] Attach Siege warning/leak source to Blink-derived Siege wrapper.
+
+Agent 2 note:
+
+- Shade and Siege wrappers now include Blink source-art candidates (`BlinkScytheEcho`, `BlinkMusketBarrel`) that can serve as reveal/resist and warning/leak visual anchors. Runtime VFX attachment and reduced-effects verification remain open.
 
 Shared acceptance:
 
