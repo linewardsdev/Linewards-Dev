@@ -8,9 +8,11 @@ namespace LTW.UnityClient.Editor
     {
         private const string MenuPath = "Line Wards/Art/Generate Placeholder Tower Prefabs";
         private const string ValidateMenuPath = "Line Wards/Art/Validate Tower Placeholder Prefabs";
+        private const string GenerateAuthoredArrowMenuPath = "Line Wards/Art/Generate Authored Arrow Tower";
         private const string LibraryPath = "Assets/Resources/TowerVisualLibrary.asset";
         private const string PrefabFolder = "Assets/Prefabs/Towers";
         private const string MaterialFolder = "Assets/Art/Towers/GeneratedMaterials";
+        private const string AuthoredArrowMaterialFolder = "Assets/Art/Towers/Arrow/Materials";
         private const string ReportPath = "Assets/Art/Towers/GeneratedPlaceholderReport.md";
 
         private static readonly TowerSpec[] TowerSpecs =
@@ -48,6 +50,25 @@ namespace LTW.UnityClient.Editor
             Debug.Log($"Generated placeholder tower prefabs, updated TowerVisualLibrary, and wrote {ReportPath}.");
         }
 
+        [MenuItem(GenerateAuthoredArrowMenuPath)]
+        public static void GenerateAuthoredArrowTower()
+        {
+            EnsureFolder(AuthoredArrowMaterialFolder);
+            EnsureFolder(PrefabFolder);
+
+            var bodyMaterial = CreateOrUpdateMaterial(AuthoredArrowMaterialFolder + "/mat_role_tower_arrow_body_v01.mat", new Color(0.12f, 0.32f, 0.42f));
+            var energyMaterial = CreateOrUpdateMaterial(AuthoredArrowMaterialFolder + "/mat_role_tower_arrow_energy_v01.mat", new Color(0.42f, 0.96f, 1f));
+            var trimMaterial = CreateOrUpdateMaterial(AuthoredArrowMaterialFolder + "/mat_role_tower_arrow_trim_v01.mat", new Color(0.96f, 0.78f, 0.24f));
+            var darkMaterial = CreateOrUpdateMaterial(AuthoredArrowMaterialFolder + "/mat_role_tower_arrow_dark_v01.mat", new Color(0.04f, 0.09f, 0.12f));
+            var haloMaterial = CreateOrUpdateMaterial(AuthoredArrowMaterialFolder + "/mat_role_tower_arrow_range_v01.mat", new Color(0.24f, 0.62f, 1f, 0.22f));
+
+            var prefab = SaveAuthoredArrowPrefab(bodyMaterial, energyMaterial, trimMaterial, darkMaterial, haloMaterial);
+            UpdateSingleVisualProfile(new TowerSpec("Arrow", "Tower_Arrow", new Color(0.24f, 0.78f, 1f), new Color(0.95f, 0.82f, 0.34f), TowerShape.Crossbow), prefab);
+            AssetDatabase.SaveAssets();
+            AssetDatabase.Refresh();
+            Debug.Log("Generated authored Arrow tower prefab and updated TowerVisualLibrary profile.");
+        }
+
         [MenuItem(ValidateMenuPath)]
         public static void ValidateTowerPlaceholderPrefabs()
         {
@@ -67,6 +88,14 @@ namespace LTW.UnityClient.Editor
                 issueCount += ValidateRendererPath(prefab, "RoleMarker");
                 issueCount += ValidateRendererPath(prefab, "OwnerTrim");
                 issueCount += ValidateRendererPath(prefab, "RangeHalo");
+
+                if (spec.DisplayName == "Arrow")
+                {
+                    issueCount += ValidateRendererPath(prefab, "BowLeft");
+                    issueCount += ValidateRendererPath(prefab, "BowRight");
+                    issueCount += ValidateRendererPath(prefab, "Lens");
+                    issueCount += ValidateRendererPath(prefab, "Muzzle");
+                }
             }
 
             var library = AssetDatabase.LoadAssetAtPath<TowerVisualLibrary>(LibraryPath);
@@ -193,6 +222,45 @@ namespace LTW.UnityClient.Editor
             return prefab;
         }
 
+        private static GameObject SaveAuthoredArrowPrefab(
+            Material bodyMaterial,
+            Material energyMaterial,
+            Material trimMaterial,
+            Material darkMaterial,
+            Material haloMaterial)
+        {
+            var root = new GameObject("Tower_Arrow");
+
+            CreateChild(root, "RangeHalo", PrimitiveType.Cylinder, new Vector3(0f, -0.045f, 0f), new Vector3(1.72f, 0.01f, 1.72f), haloMaterial);
+            CreateChild(root, "Base", PrimitiveType.Cylinder, new Vector3(0f, 0.035f, -0.02f), new Vector3(0.72f, 0.085f, 0.6f), darkMaterial);
+            CreateChild(root, "Body", PrimitiveType.Cylinder, new Vector3(0f, 0.2f, -0.04f), new Vector3(0.52f, 0.24f, 0.42f), bodyMaterial);
+            CreateChild(root, "OwnerTrim", PrimitiveType.Cylinder, new Vector3(0f, 0.35f, -0.04f), new Vector3(0.54f, 0.028f, 0.44f), trimMaterial);
+
+            CreateChild(root, "RoleMarker", PrimitiveType.Cube, new Vector3(0f, 0.55f, 0.16f), new Vector3(0.14f, 0.08f, 1.12f), energyMaterial);
+            CreateChild(root, "BoltRail", PrimitiveType.Cube, new Vector3(0f, 0.47f, 0.14f), new Vector3(0.24f, 0.08f, 1.16f), darkMaterial);
+            CreateChild(root, "RailGlow", PrimitiveType.Cube, new Vector3(0f, 0.575f, 0.32f), new Vector3(0.07f, 0.035f, 0.72f), energyMaterial);
+            CreateChild(root, "ArrowShaft", PrimitiveType.Cube, new Vector3(0f, 0.63f, 0.4f), new Vector3(0.045f, 0.045f, 0.76f), energyMaterial);
+            CreateChild(root, "Muzzle", PrimitiveType.Sphere, new Vector3(0f, 0.64f, 0.86f), new Vector3(0.16f, 0.16f, 0.16f), energyMaterial);
+            CreateChild(root, "ArrowHead", PrimitiveType.Cube, new Vector3(0f, 0.64f, 0.91f), new Vector3(0.2f, 0.12f, 0.2f), energyMaterial).transform.localRotation = Quaternion.Euler(0f, 45f, 0f);
+
+            CreateChild(root, "BowLeft", PrimitiveType.Cube, new Vector3(-0.5f, 0.55f, 0.05f), new Vector3(0.72f, 0.08f, 0.14f), energyMaterial).transform.localRotation = Quaternion.Euler(0f, 0f, -22f);
+            CreateChild(root, "BowRight", PrimitiveType.Cube, new Vector3(0.5f, 0.55f, 0.05f), new Vector3(0.72f, 0.08f, 0.14f), energyMaterial).transform.localRotation = Quaternion.Euler(0f, 0f, 22f);
+            CreateChild(root, "BowTipLeft", PrimitiveType.Cube, new Vector3(-0.88f, 0.48f, -0.08f), new Vector3(0.16f, 0.08f, 0.28f), trimMaterial).transform.localRotation = Quaternion.Euler(0f, 0f, 28f);
+            CreateChild(root, "BowTipRight", PrimitiveType.Cube, new Vector3(0.88f, 0.48f, -0.08f), new Vector3(0.16f, 0.08f, 0.28f), trimMaterial).transform.localRotation = Quaternion.Euler(0f, 0f, -28f);
+            CreateChild(root, "BowString", PrimitiveType.Cube, new Vector3(0f, 0.5f, -0.22f), new Vector3(1.58f, 0.022f, 0.028f), trimMaterial);
+            CreateChild(root, "DrawCord", PrimitiveType.Cube, new Vector3(0f, 0.53f, 0.02f), new Vector3(0.035f, 0.028f, 0.52f), trimMaterial);
+
+            CreateChild(root, "Lens", PrimitiveType.Sphere, new Vector3(0f, 0.7f, 0.02f), new Vector3(0.24f, 0.2f, 0.24f), energyMaterial);
+            CreateChild(root, "LensFrame", PrimitiveType.Cylinder, new Vector3(0f, 0.7f, 0.02f), new Vector3(0.34f, 0.032f, 0.34f), trimMaterial).transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
+            CreateChild(root, "LeftAnchor", PrimitiveType.Cube, new Vector3(-0.34f, 0.42f, -0.04f), new Vector3(0.12f, 0.2f, 0.18f), darkMaterial);
+            CreateChild(root, "RightAnchor", PrimitiveType.Cube, new Vector3(0.34f, 0.42f, -0.04f), new Vector3(0.12f, 0.2f, 0.18f), darkMaterial);
+
+            var prefabPath = PrefabFolder + "/Tower_Arrow.prefab";
+            var prefab = PrefabUtility.SaveAsPrefabAsset(root, prefabPath);
+            Object.DestroyImmediate(root);
+            return prefab;
+        }
+
         private static void UpdateVisualLibrary(GameObject[] prefabs)
         {
             var library = AssetDatabase.LoadAssetAtPath<TowerVisualLibrary>(LibraryPath);
@@ -211,6 +279,39 @@ namespace LTW.UnityClient.Editor
                 ConfigureProfile(profiles.GetArrayElementAtIndex(index), TowerSpecs[index], prefabs[index]);
             }
 
+            serializedLibrary.ApplyModifiedProperties();
+            EditorUtility.SetDirty(library);
+        }
+
+        private static void UpdateSingleVisualProfile(TowerSpec spec, GameObject prefab)
+        {
+            var library = AssetDatabase.LoadAssetAtPath<TowerVisualLibrary>(LibraryPath);
+            if (library == null)
+            {
+                library = ScriptableObject.CreateInstance<TowerVisualLibrary>();
+                AssetDatabase.CreateAsset(library, LibraryPath);
+            }
+
+            var serializedLibrary = new SerializedObject(library);
+            var profiles = serializedLibrary.FindProperty("profiles");
+            var profileIndex = -1;
+            for (var index = 0; index < profiles.arraySize; index++)
+            {
+                var profile = profiles.GetArrayElementAtIndex(index);
+                if (profile.FindPropertyRelative("towerId").stringValue == spec.TowerId)
+                {
+                    profileIndex = index;
+                    break;
+                }
+            }
+
+            if (profileIndex < 0)
+            {
+                profileIndex = profiles.arraySize;
+                profiles.InsertArrayElementAtIndex(profileIndex);
+            }
+
+            ConfigureProfile(profiles.GetArrayElementAtIndex(profileIndex), spec, prefab);
             serializedLibrary.ApplyModifiedProperties();
             EditorUtility.SetDirty(library);
         }

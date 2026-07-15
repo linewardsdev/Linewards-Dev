@@ -255,11 +255,11 @@ Goal: make the game feel alive while preserving clarity under pressure.
 
 Tower motion tasks:
 
-- [ ] Arrow tracks/fires with a crisp bolt or beam.
-- [ ] Control pulses a field/ring.
-- [ ] Relay sends a signal ping.
-- [ ] Pulse expands a short shockwave.
-- [ ] Prism charges and releases a focused beam.
+- [x] Arrow tracks/fires with a crisp bolt or beam.
+- [x] Control pulses a field/ring.
+- [x] Relay sends a signal ping.
+- [x] Pulse expands a short shockwave.
+- [x] Prism charges and releases a focused beam.
 
 Creep motion tasks:
 
@@ -279,6 +279,10 @@ Combat/economy feedback tasks:
 - [ ] Add or strengthen Shade resistance/reveal cue.
 - [ ] Add or strengthen Siege warning/leak cue.
 - [ ] Confirm haptics/audio are not the only way to notice critical events.
+
+Status note:
+
+- Agent 2 split runtime tower attack cues by role: Arrow now has a string flash and crisp bolt, Control keeps twin field beams and impact field frame, Relay keeps signal pings, Pulse has a square shockwave plus impact pulse, and Prism has a charge glint plus focused beam. Full authored VFX prefabs are specified in `docs/VFX_AND_ANIMATION_TARGETS.md`.
 
 Exit signal:
 
@@ -334,11 +338,11 @@ Board and lane material tasks:
 
 Authored asset pipeline tasks:
 
-- [ ] Define source-art folder and naming rules for authored meshes/textures that replace generated placeholders.
-- [ ] Create the first authored Arrow tower mesh and texture as the quality-bar asset.
-- [ ] Replace generated `Tower_Arrow.prefab` while preserving the stable prefab contract child paths.
-- [ ] Capture Arrow in default, active combat, heavy pressure, and grayscale review frames.
-- [ ] Document what worked before converting Control and Relay.
+- [x] Define source-art folder and naming rules for authored meshes/textures that replace generated placeholders.
+- [x] Create the first authored Arrow tower mesh/material pass as the quality-bar asset.
+- [x] Replace generated `Tower_Arrow.prefab` while preserving the stable prefab contract child paths.
+- [x] Capture Arrow in default, active combat, heavy pressure, and grayscale review frames.
+- [x] Document what worked before converting Control and Relay.
 
 Texture/material tasks:
 
@@ -352,9 +356,14 @@ Status note:
 
 VFX/animation preparation tasks:
 
-- [ ] List required VFX prefabs for build, sell, shot, hit, kill, leak, send, income, transfer, and results.
-- [ ] Define per-role tower attack motion targets: Arrow bolt, Control field pulse, Relay signal ping, Pulse shockwave, Prism beam charge.
-- [ ] Define per-role creep motion targets: Runner dart, Brute lumber, Swarm jitter, Shade echo, Siege weighted pressure.
+- [x] List required VFX prefabs for build, sell, shot, hit, kill, leak, send, income, transfer, and results.
+- [x] Define per-role tower attack motion targets: Arrow bolt, Control field pulse, Relay signal ping, Pulse shockwave, Prism beam charge.
+- [x] Define per-role creep motion targets: Runner dart, Brute lumber, Swarm jitter, Shade echo, Siege weighted pressure.
+
+Status note:
+
+- Agent 2 added an authored Arrow quality-bar pass: `Tower_Arrow.prefab` now preserves required child paths and adds optional `BowLeft`, `BowRight`, `Lens`, and `Muzzle` contract children. Screenshot review passed at `docs/screenshot-reviews/authored-arrow-pass/review.md`. The Arrow art notes live in `Assets/Art/Towers/Arrow/README.md`.
+- Agent 2 added the VFX/animation target handoff at `docs/VFX_AND_ANIMATION_TARGETS.md` and split runtime tower attack cues so Arrow, Pulse, and Prism have distinct shot reads instead of sharing the generic fallback.
 
 Exit signal:
 

@@ -607,6 +607,16 @@ namespace LTW.UnityClient.Simulation
         {
             var shotColor = TowerShotColor(towerId, damage);
             var muzzle = towerPosition + Vector3.up * 0.62f;
+            if (IsArrowTower(towerId))
+            {
+                SpawnBeam(muzzle + new Vector3(-0.5f, 0f, -0.18f), muzzle + new Vector3(0.5f, 0f, -0.18f), shotColor, 0.08f);
+                SpawnBeam(muzzle + new Vector3(0f, -0.04f, -0.32f), muzzle + new Vector3(0f, 0.04f, 0.26f), SignalGold, 0.08f);
+                SpawnBeam(muzzle + new Vector3(0f, 0f, 0.08f), hitPosition + Vector3.up * 0.12f, shotColor, damage >= 5 ? 0.16f : 0.12f);
+                SpawnCellFrameCue(hitPosition, shotColor, damage >= 5 ? 0.15f : 0.1f);
+                SpawnEffect(muzzle + new Vector3(0f, 0f, 0.12f), shotColor, damage >= 5 ? 0.28f : 0.2f, 0.08f);
+                return;
+            }
+
             if (IsControlTower(towerId))
             {
                 SpawnBeam(muzzle + new Vector3(-0.42f, 0f, 0f), hitPosition + Vector3.up * 0.12f, shotColor, 0.18f);
@@ -624,6 +634,28 @@ namespace LTW.UnityClient.Simulation
                 SpawnBeam(towerPosition + new Vector3(0f, 0.58f, -0.34f), towerPosition + new Vector3(0f, 0.58f, 0.34f), shotColor, 0.14f);
                 SpawnCellFrameCue(towerPosition, shotColor, 0.16f);
                 SpawnEffect(muzzle, shotColor, 0.26f, 0.12f);
+                return;
+            }
+
+            if (IsPulseTower(towerId))
+            {
+                SpawnEffect(towerPosition + Vector3.up * 0.28f, shotColor, 0.68f, 0.18f);
+                SpawnBeam(towerPosition + new Vector3(-0.54f, 0.34f, 0.54f), towerPosition + new Vector3(0.54f, 0.34f, 0.54f), shotColor, 0.14f);
+                SpawnBeam(towerPosition + new Vector3(-0.54f, 0.34f, -0.54f), towerPosition + new Vector3(0.54f, 0.34f, -0.54f), shotColor, 0.14f);
+                SpawnBeam(towerPosition + new Vector3(-0.54f, 0.34f, -0.54f), towerPosition + new Vector3(-0.54f, 0.34f, 0.54f), shotColor, 0.14f);
+                SpawnBeam(towerPosition + new Vector3(0.54f, 0.34f, -0.54f), towerPosition + new Vector3(0.54f, 0.34f, 0.54f), shotColor, 0.14f);
+                SpawnCellFrameCue(hitPosition, shotColor, 0.18f);
+                SpawnEffect(hitPosition, shotColor, damage >= 5 ? 0.5f : 0.36f, 0.16f);
+                return;
+            }
+
+            if (IsPrismTower(towerId))
+            {
+                SpawnBeam(muzzle + new Vector3(-0.16f, 0.08f, 0f), muzzle + new Vector3(0.16f, 0.08f, 0f), SignalGold, 0.12f);
+                SpawnBeam(muzzle + new Vector3(0f, 0.08f, -0.16f), muzzle + new Vector3(0f, 0.08f, 0.16f), SignalGold, 0.12f);
+                SpawnEffect(muzzle + Vector3.up * 0.08f, SignalGold, 0.22f, 0.12f);
+                SpawnBeam(muzzle + Vector3.up * 0.08f, hitPosition + Vector3.up * 0.16f, shotColor, damage >= 5 ? 0.22f : 0.18f);
+                SpawnEffect(hitPosition + Vector3.up * 0.08f, shotColor, damage >= 5 ? 0.46f : 0.32f, 0.18f);
                 return;
             }
 
@@ -1981,6 +2013,8 @@ namespace LTW.UnityClient.Simulation
         }
 
         private static bool IsControlTower(string towerId) => ContainsRole(towerId, "slow") || ContainsRole(towerId, "splash") || ContainsRole(towerId, "control") || ContainsRole(towerId, "area");
+
+        private static bool IsArrowTower(string towerId) => ContainsRole(towerId, "arrow") || ContainsRole(towerId, "basic");
 
         private static bool IsRelayTower(string towerId) => ContainsRole(towerId, "economy") || ContainsRole(towerId, "utility") || ContainsRole(towerId, "relay");
 
