@@ -426,9 +426,10 @@ namespace LTW.UnityClient.Simulation
                             !queuedSpawnKeys.Contains(SpawnEventKey(spawned.Tick, spawned.SenderId, spawned.DefenderId, spawned.CreepId.Value));
                         if (isTransferArrival)
                         {
+                            var transferLabelPosition = spawnPosition + Vector3.back * 1.25f;
                             SpawnCreepTransferArrivalCue(spawned.DefenderId.Value, spawnColor);
-                            SpawnFloatingText(spawnPosition, "TRANSFER", spawnColor, 0.62f);
-                            SpawnReducedEffectCue(spawnPosition, "TRANSFER", spawnColor);
+                            SpawnFloatingText(transferLabelPosition, "TRANSFER", spawnColor, 0.82f);
+                            SpawnReducedEffectCue(transferLabelPosition, "TRANSFER", spawnColor);
                         }
                         else
                         {
@@ -551,7 +552,7 @@ namespace LTW.UnityClient.Simulation
             var textObject = GetTextObject();
             textObject.transform.position = position + Vector3.up * 0.55f;
             textObject.transform.rotation = Quaternion.Euler(90f, 0f, 0f);
-            textObject.transform.localScale = Vector3.one * 0.01f;
+            textObject.transform.localScale = Vector3.one;
             var mesh = textObject.GetComponent<TextMesh>();
             if (mesh == null)
             {

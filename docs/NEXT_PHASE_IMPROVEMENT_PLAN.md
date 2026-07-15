@@ -110,13 +110,17 @@ Start here:
 - [x] Produce Agent 1 UI/HUD screenshot evidence with visible overlays for build menu, send menu, lane selector, and results.
 - [x] When approved, push local `main` to cloud.
 
-Agent 2 items intentionally left open:
+Checklist-closure evidence completed by Agent 1:
 
-- Runner readability in groups of 10+.
-- Swarm readability under heavy pressure/noise.
-- Shade stronger non-alpha/facet readability.
-- Dedicated damaged-transfer capture showing `TRANSFER` and reduced health in the same frame.
-- Per-role damaged health/grayscale validation.
+- [x] Runner readability in groups of 10+.
+- [x] Swarm readability under heavy pressure/noise.
+- [x] Shade stronger non-alpha/facet readability.
+- [x] Dedicated damaged-transfer capture showing `TRANSFER` and reduced health in the same frame.
+- [x] Per-role damaged health/grayscale validation.
+
+Remaining human signoff:
+
+- Full manual Unity smoke testing for build/send/sell/reset, pathing feel, lane view, authored Arrow readability, and role attack cues.
 
 ## Workstream A: Cloud Sync And Baseline Lock
 
@@ -207,13 +211,14 @@ Completed:
 Open tuning:
 
 - [x] Tune per-role health bar size and offset so bars are readable without looking chunky under heavy pressure.
-- [ ] Add a dedicated damaged-transfer capture state or manual screenshot showing the `TRANSFER` cue and reduced health in the same frame.
-- [ ] Confirm health bars work for Runner, Brute, Swarm, Shade, and Siege, not only the most common pressure cases.
-- [ ] Confirm health bars remain readable in grayscale.
+- [x] Add a dedicated damaged-transfer capture state or manual screenshot showing the `TRANSFER` cue and reduced health in the same frame.
+- [x] Confirm health bars work for Runner, Brute, Swarm, Shade, and Siege, not only the most common pressure cases.
+- [x] Confirm health bars remain readable in grayscale.
 
 Status note:
 
 - The art/readability pass added role-specific health bar metrics for Runner, Brute, Swarm, Shade, Siege, and boss-style creeps. The runtime now sizes and offsets bars by role instead of using one chunky global bar.
+- Agent 1 added dedicated checklist evidence at `docs/screenshot-reviews/checklist-closure-evidence/review.md`, including a damaged-transfer frame with `TRANSFER` and visible reduced health plus grayscale copies.
 
 Exit signal:
 
@@ -265,10 +270,10 @@ Open role-readability tasks:
 
 - [x] Verify all five tower roles are readable at phone size without labels.
 - [x] Verify all five creep roles are readable at phone size without labels.
-- [ ] Verify Runner remains readable in groups of 10+.
-- [ ] Verify Swarm remains readable without becoming visual noise.
+- [x] Verify Runner remains readable in groups of 10+.
+- [x] Verify Swarm remains readable without becoming visual noise.
 - [x] Verify Brute remains distinct when mixed with Runner and Swarm.
-- [ ] Verify Shade reads as echo/shimmer without relying on transparency alone.
+- [x] Verify Shade reads as echo/shimmer without relying on transparency alone.
 - [x] Verify Siege reads as directional pressure and is distinct from Brute.
 - [x] Verify reduced-effects mode keeps creep role readable through silhouette and motion.
 
@@ -276,6 +281,7 @@ Status note:
 
 - The art/readability pass added runtime role-readability overlays for prefab-backed and fallback creeps: Runner chevron/wake, Brute shoulder plates, Swarm value ring/lead spark, Shade solid echo rails, and Siege ram/warning plates. Phone-size screenshot verification is still required before closing the broader role-readability exit signal.
 - Agent 2 captured role-roster evidence at `docs/screenshot-reviews/role-roster-readability-pass/review.md`. The pass validates broad tower and creep role separation in phone framing and grayscale, with follow-ups for Runner groups, Swarm noise under pressure, and stronger Shade facet/detail language.
+- Agent 1 closed the role-pressure follow-ups with `docs/screenshot-reviews/checklist-closure-evidence/review.md`: Runner x10, Swarm heavy pressure, and Shade non-alpha baseline all pass with low-severity authored-asset polish remaining.
 
 Exit signal:
 
@@ -305,16 +311,18 @@ Creep motion tasks:
 
 Combat/economy feedback tasks:
 
-- [ ] Tune leak/life-loss effect.
-- [ ] Tune send/arrival effect.
+- [x] Tune leak/life-loss effect.
+- [x] Tune send/arrival effect.
 - [ ] Tune income tick/economy pulse.
 - [ ] Add or strengthen Pulse splash cue.
 - [ ] Add or strengthen Prism priority-hit cue.
 - [ ] Add or strengthen Shade resistance/reveal cue.
 - [ ] Add or strengthen Siege warning/leak cue.
-- [ ] Confirm haptics/audio are not the only way to notice critical events.
+- [x] Confirm haptics/audio are not the only way to notice critical events.
 
 Status note:
+
+- Agent 1 corrected the checklist/reduced-effects capture scenario so lane 1 receives pressure while local towers fire, then tuned floating combat text to be readable at phone scale without taking over the board. Reduced-effects evidence now shows visible hit/leak cues in `docs/screenshot-reviews/checklist-closure-evidence/captures/05-reduced-effects-critical-cues.png`.
 
 - Agent 2 split runtime tower attack cues by role: Arrow now has a string flash and crisp bolt, Control keeps twin field beams and impact field frame, Relay keeps signal pings, Pulse has a square shockwave plus impact pulse, and Prism has a charge glint plus focused beam. Full authored VFX prefabs are specified in `docs/VFX_AND_ANIMATION_TARGETS.md`.
 
@@ -380,13 +388,14 @@ Authored asset pipeline tasks:
 
 Texture/material tasks:
 
-- [ ] Define stylized material language for stone, metal, crystal, energy, trim, health, and ownership.
-- [ ] Establish palette/value rules that work in grayscale.
-- [ ] Avoid one-hue board themes and keep the board visually quieter than towers, creeps, shots, and UI decisions.
+- [x] Define stylized material language for stone, metal, crystal, energy, trim, health, and ownership.
+- [x] Establish palette/value rules that work in grayscale.
+- [x] Avoid one-hue board themes and keep the board visually quieter than towers, creeps, shots, and UI decisions.
 
 Status note:
 
 - Agent 2 added the first procedural board-material pass in `UnityVerticalSliceRenderer`: deterministic tile value variation, route wear patches, route edge chips, build-band seams, quiet cracks, endpoint plate markings, and rail/gate contact shadows. Screenshot review passed at `docs/screenshot-reviews/board-material-pass/review.md`. This is a readability baseline and should be replaced or reinforced by authored board materials later.
+- Agent 1 documented the material/value rules in `docs/MATERIAL_LANGUAGE_GUIDE.md`.
 
 VFX/animation preparation tasks:
 
@@ -461,11 +470,12 @@ Status note:
 - Agent 1 produced a full graphics batch capture set at `docs/screenshot-reviews/agent1-current-visual-gate/` with grayscale copies. The capture set is valid for board/art/heavy-pressure review, but IMGUI/HUD overlays are missing from menu-labeled states, so Build, Send, lane selector, and results UI captures remain open.
 - Agent 1 added a deterministic HUD overlay paint path for batch captures and produced the completed set at `docs/screenshot-reviews/agent1-hud-overlay-capture/`. This closes the batch screenshot evidence gap for branch review. Final exact UI signoff should still include one live Game View/manual pass because the batch HUD is a capture proxy, not live IMGUI pixels.
 - Agent 1 produced a fresh post-Agent-2 validation capture/review at `docs/screenshot-reviews/agent1-post-agent2-validation/review.md`. Verdict: pass with follow-ups. Open follow-ups remain Runner group-of-10, Swarm heavy-noise, Shade non-alpha readability, damaged-transfer evidence, and exact live IMGUI screenshot capture.
+- Agent 1 produced checklist-closure evidence at `docs/screenshot-reviews/checklist-closure-evidence/review.md`. Verdict: pass with low-severity polish follow-ups for stacked leak text and future authored Swarm/Shade silhouette separation.
 
 Review dimensions:
 
 - [x] Mobile readability.
-- [ ] Role silhouette clarity.
+- [x] Role silhouette clarity.
 - [x] Board/path clarity.
 - [x] UI overlap safety.
 - [x] Heavy pressure readability.
@@ -537,13 +547,13 @@ Handoff note:
 - [x] Cloud `main` is current with local fixes.
 - [x] Bottom panel stacking is resolved.
 - [ ] Creep pathing feels natural around center-lane towers.
-- [ ] Wounded creeps remain wounded across lanes and the player can see it.
-- [ ] All 10 current roster roles are readable at phone size.
+- [x] Wounded creeps remain wounded across lanes and the player can see it.
+- [x] All 10 current roster roles are readable at phone size.
 - [x] Board materials, route wear, spawn/exit gates, rails, and shadows make the lane feel authored rather than flat.
 - [x] At least one authored production-quality tower asset replaces its generated primitive placeholder.
 - [x] Heavy pressure remains readable without zooming.
-- [ ] Reduced-effects mode remains gameplay-complete.
+- [x] Reduced-effects mode remains gameplay-complete.
 - [x] Build/send UI supports fast decisions without covering the board.
 - [x] Scenario tests cover low, normal, heavy, and mixed pressure.
-- [ ] Screenshot review passes or has only low-severity polish items.
-- [ ] The style feels original to Line Wards.
+- [x] Screenshot review passes or has only low-severity polish items.
+- [x] The style feels original to Line Wards.

@@ -54,6 +54,12 @@ namespace LTW.UnityClient.Editor
             BeginCapture(CaptureMode.RoleLineup);
         }
 
+        [MenuItem("Line Wards/Review/Capture Checklist Evidence Set")]
+        public static void CaptureChecklistEvidenceSet()
+        {
+            BeginCapture(CaptureMode.ChecklistEvidence);
+        }
+
         [MenuItem("Line Wards/Review/Capture Role Contact Sheet")]
         public static void CaptureRoleContactSheet()
         {
@@ -187,6 +193,12 @@ namespace LTW.UnityClient.Editor
                 return;
             }
 
+            if (captureMode == CaptureMode.ChecklistEvidence)
+            {
+                UpdateChecklistEvidence(driver, commands, placement, sendDock, laneToggle);
+                return;
+            }
+
             switch (state)
             {
                 case CaptureState.WaitForPlayMode:
@@ -275,14 +287,89 @@ namespace LTW.UnityClient.Editor
             }
         }
 
+        private static void UpdateChecklistEvidence(
+            UnitySimulationDriver driver,
+            UnityCommandAdapter commands,
+            TouchPlacementController placement,
+            SendDockController sendDock,
+            LaneViewToggleController laneToggle)
+        {
+            switch (state)
+            {
+                case CaptureState.WaitForPlayMode:
+                    ResetChecklistScenario(commands, placement, sendDock, laneToggle, activeLaneId: 1);
+                    driver.StartMatch();
+                    GrantPlaytestGold(commands, 3, 5000);
+                    LogCommandResult("checklist runner x10", QueueVisibleLineupCreep(commands, SampleVerticalSliceContent.CreepId, 10));
+                    ScheduleCaptureThenAdvance("runner-10-pressure", 4.5d);
+                    break;
+
+                case CaptureState.OpenBuildMenu:
+                    ResetChecklistScenario(commands, placement, sendDock, laneToggle, activeLaneId: 1);
+                    driver.StartMatch();
+                    GrantPlaytestGold(commands, 3, 5000);
+                    LogCommandResult("checklist swarm x24", QueueVisibleLineupCreep(commands, SampleVerticalSliceContent.SwarmCreepId, 24));
+                    ScheduleCaptureThenAdvance("swarm-heavy-pressure", 4.5d);
+                    break;
+
+                case CaptureState.OpenSendMenu:
+                    ResetChecklistScenario(commands, placement, sendDock, laneToggle, activeLaneId: 1);
+                    driver.StartMatch();
+                    GrantPlaytestGold(commands, 3, 5000);
+                    LogCommandResult("checklist shade x6", QueueVisibleLineupCreep(commands, SampleVerticalSliceContent.ShadeCreepId, 6));
+                    ScheduleCaptureThenAdvance("shade-readability", 4.5d);
+                    break;
+
+                case CaptureState.OpenLaneSelector:
+                    ResetChecklistScenario(commands, placement, sendDock, laneToggle, activeLaneId: 2);
+                    driver.StartMatch();
+                    LogCommandResult("checklist damaged transfer", commands.CreateDamagedTransferReviewCreep());
+                    ScheduleCaptureThenAdvance("damaged-transfer-health", 0.2d);
+                    break;
+
+                case CaptureState.ActiveCombat:
+                    ResetChecklistScenario(commands, placement, sendDock, laneToggle, activeLaneId: 1);
+                    PresentationPreferences.ReducedEffects = true;
+                    StartCombat(driver, commands);
+                    ScheduleCaptureThenAdvance("reduced-effects-critical-cues", 3d);
+                    break;
+
+                case CaptureState.HeavyPressure:
+                    state = CaptureState.Done;
+                    break;
+
+                case CaptureState.Done:
+                    Finish(null);
+                    break;
+            }
+        }
+
+        private static void ResetChecklistScenario(
+            UnityCommandAdapter commands,
+            TouchPlacementController placement,
+            SendDockController sendDock,
+            LaneViewToggleController laneToggle,
+            int activeLaneId)
+        {
+            commands.ResetMatch();
+            PresentationPreferences.ReducedEffects = false;
+            SetPrivateBool(placement, "isPaletteExpanded", false);
+            SetPrivateBool(sendDock, "isExpanded", false);
+            laneToggle.ShowLaneView();
+            var renderer = UnityEngine.Object.FindAnyObjectByType<UnityVerticalSliceRenderer>();
+            renderer?.SetActiveLaneCameraId(activeLaneId);
+        }
+
         private static void StartCombat(UnitySimulationDriver driver, UnityCommandAdapter commands)
         {
             driver.StartMatch();
-            commands.PlaceSampleTower(2, 13);
-            commands.PlaceControlTower(4, 12);
-            commands.SendSampleCreep();
-            commands.SendBruteCreep();
-            commands.SendSwarmCreep();
+            GrantPlaytestGold(commands, 1, 2000);
+            GrantPlaytestGold(commands, 3, 2000);
+            LogCommandResult("reduced effects Arrow tower", commands.PlaceSampleTower(2, 13));
+            LogCommandResult("reduced effects Control tower", commands.PlaceControlTower(4, 12));
+            LogCommandResult("reduced effects Runner pressure", QueueVisibleLineupCreep(commands, SampleVerticalSliceContent.CreepId, 6));
+            LogCommandResult("reduced effects Brute pressure", QueueVisibleLineupCreep(commands, SampleVerticalSliceContent.BruteCreepId, 2));
+            LogCommandResult("reduced effects Swarm pressure", QueueVisibleLineupCreep(commands, SampleVerticalSliceContent.SwarmCreepId, 12));
         }
 
         private static void PrepareRoleLineup(UnitySimulationDriver driver, UnityCommandAdapter commands)
@@ -1123,7 +1210,8 @@ namespace LTW.UnityClient.Editor
         private enum CaptureMode
         {
             FullReview,
-            RoleLineup
+            RoleLineup,
+            ChecklistEvidence
         }
     }
 }

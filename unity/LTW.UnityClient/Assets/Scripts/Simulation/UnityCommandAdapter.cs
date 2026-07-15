@@ -91,6 +91,17 @@ namespace LTW.UnityClient.Simulation
 
         public VerticalSliceCommandResult SendSiegeCreep() => SendCreep(SampleVerticalSliceContent.SiegeCreepId, 1);
 
+        public VerticalSliceCommandResult CreateDamagedTransferReviewCreep()
+        {
+            if (simulation is null)
+            {
+                return VerticalSliceCommandResult.Reject(CommandRejectionReason.MatchPaused);
+            }
+
+            var result = simulation.CreateLocalPlaytestDamagedTransferCreep(SampleVerticalSliceContent.BruteCreepId, health: 8);
+            return RefreshAfterAccepted(result);
+        }
+
         public VerticalSliceCommandResult SendStressReviewWave(int burstIndex)
         {
             if (simulationDriver == null || !simulationDriver.HasStarted || simulationDriver.IsPaused)

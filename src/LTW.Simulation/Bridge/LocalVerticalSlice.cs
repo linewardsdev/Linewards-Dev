@@ -142,6 +142,35 @@ public sealed class LocalVerticalSlice
         players = players.Replace(player.WithGold(new Gold(player.Gold.Amount + amount.Amount)));
     }
 
+    /// <summary>
+    /// Local editor/playtest helper for screenshot review. Creates a wounded creep that has just
+    /// transferred into the next opponent lane, and emits the same leak/spawn event pairing the
+    /// Unity renderer uses to display TRANSFER arrival cues.
+    /// </summary>
+    public VerticalSliceCommandResult CreateLocalPlaytestDamagedTransferCreep(ContentId creepId, int health)
+    {
+        var creep = content.Creeps.FirstOrDefault(definition => definition.Id.Equals(creepId));
+        if (creep is null)
+        {
+            return VerticalSliceCommandResult.Reject(CommandRejectionReason.InvalidContentId);
+        }
+
+        var senderId = new PlayerId(1);
+        var sourceLaneId = new LaneId(1);
+        var targetLaneId = new LaneId(2);
+        var sourceDefenderId = combatContent.GetLaneOwner(sourceLaneId);
+        var targetDefenderId = combatContent.GetLaneOwner(targetLaneId);
+        var clampedHealth = System.Math.Clamp(health, 1, System.Math.Max(1, creep.MaxHealth - 1));
+        var leakedEntityId = NextEntityId();
+        var sourceCreep = combat.SpawnCreep(leakedEntityId, creep, senderId, sourceLaneId).WithHealth(clampedHealth);
+        var transferred = combat.TransferCreep(NextEntityId(), sourceCreep, targetLaneId).WithMovement(pathIndex: 3, movementProgress: 0);
+
+        combatState = new CombatState(combatState.Creeps.Concat(new[] { transferred }), combatState.Towers);
+        pendingEvents.Add(new LeakEvent(tick, senderId, sourceDefenderId, leakedEntityId, new Lives(1), creep.LeakBounty));
+        pendingEvents.Add(new CreepSpawnedEvent(tick, transferred.EntityId, transferred.CreepId, transferred.SenderId, targetDefenderId));
+        return VerticalSliceCommandResult.Accept();
+    }
+
     public VerticalSliceCommandResult QueueSend(PlayerId playerId, ContentId creepId, int quantity)
     {
         var command = new QueueSendCommand(playerId, tick, creepId, quantity);
