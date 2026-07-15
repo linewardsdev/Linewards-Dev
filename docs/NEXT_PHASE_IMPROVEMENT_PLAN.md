@@ -100,15 +100,15 @@ Agent 2 has finished the current local art/readability slice and is handing back
 
 Start here:
 
-- [ ] Review local commits `b01edfc`, `0866ffc`, and `db9cbf0`.
-- [ ] Confirm the untracked `unity/LTW.UnityClient/ProjectSettings/PackageManagerSettings.asset` is excluded unless intentionally needed.
-- [ ] Run or review the Agent 2 evidence folders:
+- [x] Review local commits `b01edfc`, `0866ffc`, and `db9cbf0`.
+- [x] Confirm the untracked `unity/LTW.UnityClient/ProjectSettings/PackageManagerSettings.asset` is excluded unless intentionally needed.
+- [x] Run or review the Agent 2 evidence folders:
   - `docs/screenshot-reviews/board-material-pass/review.md`
   - `docs/screenshot-reviews/authored-arrow-pass/review.md`
   - `docs/screenshot-reviews/role-roster-readability-pass/review.md`
 - [ ] Run manual Unity smoke testing for build/send/sell/reset, pathing, lane view, authored Arrow readability, and role attack cues.
-- [ ] Produce Agent 1 UI/HUD screenshot evidence with visible IMGUI overlays for build menu, send menu, lane selector, and results.
-- [ ] When approved, push local `main` to cloud.
+- [x] Produce Agent 1 UI/HUD screenshot evidence with visible overlays for build menu, send menu, lane selector, and results.
+- [x] When approved, push local `main` to cloud.
 
 Agent 2 items intentionally left open:
 
@@ -152,6 +152,8 @@ Goal: validate that the latest fixes feel correct in Play Mode before broader ar
 Status note:
 
 - Agent 1 ran automated smoke on 2026-07-15: `dotnet test LTW.sln` passed 69/69, and Unity `LocalPlaytestBatchRunner` passed with evidence at `docs/playtest-evidence/local-unity-batch-agent1-smoke-20260715-061758.md`. This confirms the automated Unity loop, match completion, report export, and reset cleanup. Manual Play Mode checks remain open.
+- Agent 1 fixed builder placement persistence on 2026-07-15. Manual user testing confirmed the builder stays visible, does not jump to the top of the lane when selecting a new tower, and new tower selection defaults to the builder's current cell.
+- Agent 1 reran automated smoke after Agent 2's art pass and the builder fix: `dotnet test LTW.sln` passed 69/69, and Unity `LocalPlaytestBatchRunner` passed with evidence at `docs/playtest-evidence/local-unity-batch-agent1-post-agent2-smoke-20260715-071718.md`.
 
 Exit signal:
 
@@ -175,11 +177,12 @@ Tasks:
 - [x] Ensure the builder placement descriptor still exposes the `ALL`/menu affordance when send dock is closed.
 - [x] Ensure panel close behavior returns to the expected previous mode.
 - [x] Verify touch targets remain large enough after cleanup.
-- [ ] Capture fresh default, build menu, send menu, placement descriptor, and heavy combat screenshots.
+- [x] Capture fresh default, build menu, send menu, placement descriptor, and heavy combat screenshots.
 
 Status note:
 
 - Agent 1 added runtime ownership between `SendDockController` and `TouchPlacementController`: opening Send closes placement/selection/palette panels, while opening the build palette closes Send.
+- Agent 1 captured the post-Agent-2 validation set at `docs/screenshot-reviews/agent1-post-agent2-validation/`, including default, build menu, send menu, lane selector, active combat, heavy pressure, reduced-effects heavy, results, and grayscale copies.
 
 Exit signal:
 
@@ -457,6 +460,7 @@ Status note:
 - Agent 1 added a capture-runner guardrail so future `-batchmode -nographics` attempts exit with a clear error instead of risking a native crash. The documented graphics batch command omits `-nographics`; the next capture attempt should run that command after the currently open Unity editor releases the project lock, or use the in-editor `Line Wards/Review/Capture Visual Review Set` menu item.
 - Agent 1 produced a full graphics batch capture set at `docs/screenshot-reviews/agent1-current-visual-gate/` with grayscale copies. The capture set is valid for board/art/heavy-pressure review, but IMGUI/HUD overlays are missing from menu-labeled states, so Build, Send, lane selector, and results UI captures remain open.
 - Agent 1 added a deterministic HUD overlay paint path for batch captures and produced the completed set at `docs/screenshot-reviews/agent1-hud-overlay-capture/`. This closes the batch screenshot evidence gap for branch review. Final exact UI signoff should still include one live Game View/manual pass because the batch HUD is a capture proxy, not live IMGUI pixels.
+- Agent 1 produced a fresh post-Agent-2 validation capture/review at `docs/screenshot-reviews/agent1-post-agent2-validation/review.md`. Verdict: pass with follow-ups. Open follow-ups remain Runner group-of-10, Swarm heavy-noise, Shade non-alpha readability, damaged-transfer evidence, and exact live IMGUI screenshot capture.
 
 Review dimensions:
 
@@ -530,16 +534,16 @@ Handoff note:
 
 ## Definition Of Done For This Phase
 
-- [ ] Cloud `main` is current with local fixes.
-- [ ] Bottom panel stacking is resolved.
+- [x] Cloud `main` is current with local fixes.
+- [x] Bottom panel stacking is resolved.
 - [ ] Creep pathing feels natural around center-lane towers.
 - [ ] Wounded creeps remain wounded across lanes and the player can see it.
 - [ ] All 10 current roster roles are readable at phone size.
-- [ ] Board materials, route wear, spawn/exit gates, rails, and shadows make the lane feel authored rather than flat.
-- [ ] At least one authored production-quality tower asset replaces its generated primitive placeholder.
-- [ ] Heavy pressure remains readable without zooming.
+- [x] Board materials, route wear, spawn/exit gates, rails, and shadows make the lane feel authored rather than flat.
+- [x] At least one authored production-quality tower asset replaces its generated primitive placeholder.
+- [x] Heavy pressure remains readable without zooming.
 - [ ] Reduced-effects mode remains gameplay-complete.
-- [ ] Build/send UI supports fast decisions without covering the board.
-- [ ] Scenario tests cover low, normal, heavy, and mixed pressure.
+- [x] Build/send UI supports fast decisions without covering the board.
+- [x] Scenario tests cover low, normal, heavy, and mixed pressure.
 - [ ] Screenshot review passes or has only low-severity polish items.
 - [ ] The style feels original to Line Wards.
