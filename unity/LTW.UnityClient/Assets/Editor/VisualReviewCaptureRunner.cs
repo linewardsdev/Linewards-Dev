@@ -91,6 +91,37 @@ namespace LTW.UnityClient.Editor
             }
         }
 
+        [MenuItem("Line Wards/Review/Capture Blink Asset Contact Sheet")]
+        public static void CaptureBlinkAssetContactSheet()
+        {
+            outputDirectory = ResolveOutputDirectory();
+            Directory.CreateDirectory(outputDirectory);
+            writeGrayscaleCopies = HasArgument("-ltwCaptureGrayscale");
+
+            var exitCode = 0;
+            try
+            {
+                var path = Path.Combine(outputDirectory, "01-blink-stylized-weapons-contact-sheet.png");
+                RenderBlinkAssetContactSheet(path);
+                if (writeGrayscaleCopies)
+                {
+                    WriteGrayscaleCopy("blink-stylized-weapons-contact-sheet", path);
+                }
+
+                Debug.Log($"LTW Blink asset contact sheet captured in {outputDirectory}");
+            }
+            catch (Exception exception)
+            {
+                exitCode = 1;
+                Debug.LogException(exception);
+            }
+
+            if (ShouldExitAfterRun() || InternalEditorUtility.inBatchMode)
+            {
+                EditorApplication.Exit(exitCode);
+            }
+        }
+
         private static void BeginCapture(CaptureMode mode)
         {
             if (InternalEditorUtility.inBatchMode && HasArgument("-nographics"))
@@ -478,6 +509,111 @@ namespace LTW.UnityClient.Editor
             }
         }
 
+        private static void RenderBlinkAssetContactSheet(string path)
+        {
+            EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+            RenderSettings.ambientLight = new Color(0.5f, 0.54f, 0.62f);
+
+            var cameraObject = new GameObject("BlinkAssetContactSheetCamera");
+            var camera = cameraObject.AddComponent<Camera>();
+            camera.clearFlags = CameraClearFlags.SolidColor;
+            camera.backgroundColor = new Color(0.035f, 0.055f, 0.09f);
+            camera.orthographic = true;
+            camera.orthographicSize = 5.85f;
+            camera.nearClipPlane = 0.1f;
+            camera.farClipPlane = 60f;
+            camera.transform.position = new Vector3(0f, 9.25f, -8.8f);
+            camera.transform.rotation = Quaternion.LookRotation(new Vector3(0f, 0.35f, 0f) - camera.transform.position);
+
+            var lightObject = new GameObject("BlinkAssetContactSheetKeyLight");
+            var light = lightObject.AddComponent<Light>();
+            light.type = LightType.Directional;
+            light.intensity = 1.35f;
+            light.transform.rotation = Quaternion.Euler(54f, -34f, 0f);
+
+            CreateBlinkContactSheetBackdrop();
+
+            var prefabs = new[]
+            {
+                ("AXE BASIC 1", "Assets/Blink/Art/Weapons/Stylized/Axes/PrefabsAxes/AxeBasic1_2.prefab"),
+                ("AXE BASIC 2", "Assets/Blink/Art/Weapons/Stylized/Axes/PrefabsAxes/AxeBasic2_1.prefab"),
+                ("AXE EVO", "Assets/Blink/Art/Weapons/Stylized/Axes/PrefabsAxes/AxeEvolving3_3_2.prefab"),
+                ("DAGGER 1", "Assets/Blink/Art/Weapons/Stylized/Daggers/_PrefabsDaggers/Dagger1_3_5.prefab"),
+                ("DAGGER 4", "Assets/Blink/Art/Weapons/Stylized/Daggers/_PrefabsDaggers/Dagger4_1_3.prefab"),
+                ("HAMMER", "Assets/Blink/Art/Weapons/Stylized/Hammers/_PrefabsHammers/Hammer1_1_3.prefab"),
+                ("MUSKET", "Assets/Blink/Art/Weapons/Stylized/Musket/_Prefabs_Musket/Musket1_2_1.prefab"),
+                ("POLEARM", "Assets/Blink/Art/Weapons/Stylized/Polearms/_Prefabs_Polearms/Polearm2_2_2.prefab"),
+                ("SCYTHE", "Assets/Blink/Art/Weapons/Stylized/Scythes/_Prefabs_Scythes/Scythe1_3_2.prefab"),
+                ("SHIELD 2", "Assets/Blink/Art/Weapons/Stylized/Shields/_PrefabsShields/Shield2_1_2.prefab"),
+                ("SHIELD 3", "Assets/Blink/Art/Weapons/Stylized/Shields/_PrefabsShields/Shield3_1_1.prefab"),
+                ("STAFF 2", "Assets/Blink/Art/Weapons/Stylized/Staves/_PrefabsStaves/Staff2_2_6.prefab"),
+                ("STAFF 4", "Assets/Blink/Art/Weapons/Stylized/Staves/_PrefabsStaves/Staff4_1_1.prefab"),
+                ("STAFF 5", "Assets/Blink/Art/Weapons/Stylized/Staves/_PrefabsStaves/Staff5_1_1.prefab"),
+                ("SWORD 1", "Assets/Blink/Art/Weapons/Stylized/Swords/_PrefabsSwords/Sword1_1_3.prefab"),
+                ("SWORD 2", "Assets/Blink/Art/Weapons/Stylized/Swords/_PrefabsSwords/Sword2_3_3.prefab"),
+                ("SWORD 3", "Assets/Blink/Art/Weapons/Stylized/Swords/_PrefabsSwords/Sword3_1_3.prefab"),
+                ("SWORD 5", "Assets/Blink/Art/Weapons/Stylized/Swords/_PrefabsSwords/Sword5_3_2.prefab"),
+            };
+
+            const int columns = 6;
+            const float columnSpacing = 2f;
+            const float rowSpacing = 2.85f;
+            for (var index = 0; index < prefabs.Length; index++)
+            {
+                var column = index % columns;
+                var row = index / columns;
+                var x = -5f + column * columnSpacing;
+                var z = 3.15f - row * rowSpacing;
+                InstantiateNormalizedContactPrefab(prefabs[index].Item2, new Vector3(x, 0f, z), 1.45f, Quaternion.Euler(0f, 180f, 0f));
+                AddContactLabel(prefabs[index].Item1, new Vector3(x, 0.05f, z + 1.05f), camera, 0.07f);
+            }
+
+            AddContactLabel("BLINK STYLIZED WEAPONS - SOURCE ASSET TRIAGE", new Vector3(0f, 0.08f, 4.78f), camera, 0.1f, new Color(0.38f, 0.93f, 1f));
+            AddContactLabel("Use as Line Wards wrapper-prefab parts; do not depend on vendor paths at runtime.", new Vector3(0f, 0.08f, -4.68f), camera, 0.065f, new Color(0.95f, 0.84f, 0.38f));
+
+            var texture = new RenderTexture(1920, 1080, 24, RenderTextureFormat.ARGB32);
+            var previousActive = RenderTexture.active;
+            try
+            {
+                camera.targetTexture = texture;
+                camera.Render();
+                RenderTexture.active = texture;
+                var output = new Texture2D(texture.width, texture.height, TextureFormat.RGBA32, false);
+                output.ReadPixels(new Rect(0f, 0f, texture.width, texture.height), 0, 0);
+                output.Apply();
+                File.WriteAllBytes(path, ImageConversion.EncodeToPNG(output));
+                UnityEngine.Object.DestroyImmediate(output);
+            }
+            finally
+            {
+                camera.targetTexture = null;
+                RenderTexture.active = previousActive;
+                UnityEngine.Object.DestroyImmediate(texture);
+            }
+        }
+
+        private static void CreateBlinkContactSheetBackdrop()
+        {
+            var material = new Material(FindContactSheetShader())
+            {
+                color = new Color(0.065f, 0.09f, 0.145f)
+            };
+
+            var backdrop = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            backdrop.name = "BlinkContactSheetBackdrop";
+            backdrop.transform.position = new Vector3(0f, -0.08f, 0f);
+            backdrop.transform.localScale = new Vector3(13.2f, 0.04f, 10.4f);
+            if (backdrop.TryGetComponent<Renderer>(out var renderer))
+            {
+                renderer.sharedMaterial = material;
+            }
+
+            if (backdrop.TryGetComponent<Collider>(out var collider))
+            {
+                UnityEngine.Object.DestroyImmediate(collider);
+            }
+        }
+
         private static void CreateContactSheetBackdrop()
         {
             var material = new Material(FindContactSheetShader())
@@ -519,6 +655,52 @@ namespace LTW.UnityClient.Editor
             instance.transform.rotation = rotation;
             instance.transform.localScale = Vector3.one * scale;
             HideContactSheetOnlyChild(instance, "RangeHalo");
+        }
+
+        private static void InstantiateNormalizedContactPrefab(string assetPath, Vector3 position, float targetMaxSize, Quaternion rotation)
+        {
+            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(assetPath);
+            if (prefab == null)
+            {
+                throw new InvalidOperationException($"Missing Blink contact-sheet prefab at {assetPath}.");
+            }
+
+            var instance = PrefabUtility.InstantiatePrefab(prefab) as GameObject;
+            if (instance == null)
+            {
+                instance = UnityEngine.Object.Instantiate(prefab);
+            }
+
+            instance.name = prefab.name;
+            instance.transform.position = Vector3.zero;
+            instance.transform.rotation = rotation;
+            instance.transform.localScale = Vector3.one;
+
+            var bounds = CalculateRendererBounds(instance);
+            var maxSize = Mathf.Max(bounds.size.x, Mathf.Max(bounds.size.y, bounds.size.z));
+            var scale = maxSize > 0.001f ? targetMaxSize / maxSize : 1f;
+            instance.transform.localScale = Vector3.one * scale;
+
+            bounds = CalculateRendererBounds(instance);
+            var offset = position - bounds.center;
+            instance.transform.position += offset;
+        }
+
+        private static Bounds CalculateRendererBounds(GameObject instance)
+        {
+            var renderers = instance.GetComponentsInChildren<Renderer>();
+            if (renderers.Length == 0)
+            {
+                return new Bounds(instance.transform.position, Vector3.one);
+            }
+
+            var bounds = renderers[0].bounds;
+            for (var index = 1; index < renderers.Length; index++)
+            {
+                bounds.Encapsulate(renderers[index].bounds);
+            }
+
+            return bounds;
         }
 
         private static void HideContactSheetOnlyChild(GameObject instance, string childName)

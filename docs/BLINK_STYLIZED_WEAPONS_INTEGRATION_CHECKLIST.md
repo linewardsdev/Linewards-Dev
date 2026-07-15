@@ -116,12 +116,16 @@ Imported usable categories:
 Owner: Agent 1
 
 - [ ] Open or capture the Blink demo scene for visual reference.
-- [ ] Create a source inventory/contact sheet of all 18 imported prefabs.
-- [ ] Identify top 2 candidates per tower role.
-- [ ] Identify top 2 candidates per builder/tooling role.
-- [ ] Record candidate screenshots or notes under `docs/screenshot-reviews/blink-asset-triage/`.
-- [ ] Mark any assets that are too medieval, too noisy, or too hard to read from above as rejected for runtime use.
-- [ ] Confirm source/license note remains in `docs/MVP_DEPENDENCIES.md`.
+- [x] Create a source inventory/contact sheet of all 18 imported prefabs.
+- [x] Identify top 2 candidates per tower role.
+- [x] Identify top 2 candidates per builder/tooling role.
+- [x] Record candidate screenshots or notes under `docs/screenshot-reviews/blink-asset-triage/`.
+- [x] Mark any assets that are too medieval, too noisy, or too hard to read from above as rejected for runtime use.
+- [x] Confirm source/license note remains in `docs/MVP_DEPENDENCIES.md`.
+
+Status note:
+
+- Agent 1 added `Line Wards/Review/Capture Blink Asset Contact Sheet` and captured normal/grayscale evidence in `docs/screenshot-reviews/blink-asset-triage/`. Triage review recommends starting wrappers with Arrow, Relay, and Control.
 
 Acceptance:
 
