@@ -256,13 +256,15 @@ Owner: Agent 1
 - [ ] Keep Line Wards runtime wrappers under `Assets/Prefabs/...`.
 - [ ] Keep Line Wards material instances under `Assets/Art/...`.
 - [ ] Do not commit Unity package/project churn unless intentional.
-- [ ] Run Unity prefab/library validation.
-  - [ ] 2026-07-15: Pending; batch validation was blocked because the Unity editor already had `unity/LTW.UnityClient` open.
+- [x] Run Unity prefab/library validation.
+  - [x] 2026-07-15: `ValidateTowerPlaceholderPrefabs` passed in Unity batchmode.
+  - [x] 2026-07-15: `ValidateCreepVisualLibrary` passed in Unity batchmode.
 - [ ] Run `dotnet test LTW.sln` only if simulation-facing code changes.
   - [x] 2026-07-15: `dotnet test LTW.sln --no-restore` passed, 69/69.
 - [ ] Update this checklist after each completed slice.
   - [x] 2026-07-15: Tracked Arrow + Runner proof-of-method slice.
-- [ ] Push to cloud after accepted implementation slices.
+- [x] Push to cloud after accepted implementation slices.
+  - [x] 2026-07-15: Pushed Arrow + Runner proof-of-method slice to `origin/main`.
 
 ## Suggested Execution Order
 
