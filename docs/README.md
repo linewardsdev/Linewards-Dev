@@ -19,6 +19,7 @@ This folder contains the durable project documentation for Line Wards, the mobil
 - [Graphics 2000 baseline roadmap](GRAPHICS_2000_BASELINE_ROADMAP.md)
 - [Graphics theme work breakdown](GRAPHICS_THEME_WORK_BREAKDOWN.md)
 - [Stylized weapon kit integration checklist](STYLIZED_WEAPON_KIT_INTEGRATION_CHECKLIST.md)
+- [Proper art replacement pass checklist](PROPER_ART_REPLACEMENT_PASS_CHECKLIST.md)
 - [iOS device validation](IOS_DEVICE_VALIDATION.md)
 
 ## Product And Brand
