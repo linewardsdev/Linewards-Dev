@@ -27,9 +27,15 @@ The current local build has a playable Unity vertical slice with:
 
 Recent local commits not yet pushed at the time this plan was written:
 
-- `6a348e9 Preserve creep health across lane transfers`
-- `8b6265e Add creep health readability cues`
-- `6e2e020 Prefer forward creep pathing around towers`
+- `b01edfc Add board material readability pass`
+- `0866ffc Add authored Arrow tower pass`
+- `db9cbf0 Add role roster readability review`
+
+Agent 1 handoff status:
+
+- Local `main` is ahead of `origin/main` by three Agent 2 commits listed above.
+- Do not include `unity/LTW.UnityClient/ProjectSettings/PackageManagerSettings.asset` unless Agent 1 intentionally changes Unity/package settings; it is currently local Unity churn.
+- Agent 2 validation passed before handoff: .NET tests 69/69, `dotnet format --verify-no-changes`, Unity tower prefab validation, and Unity screenshot captures for board, authored Arrow, and roster readability.
 
 ## Non-Negotiables
 
@@ -87,6 +93,30 @@ Two-agent ownership is intentionally split by dependency shape:
 - Agent 2 is the art-production/readability lane. This agent moves the project from generated primitives toward authored Line Wards art: board materials first, then the Arrow tower quality bar, then broader tower/creep/VFX conversion.
 
 Both agents should treat screenshot evidence as the shared gate. Agent 2 can implement art without waiting on perfect capture tooling, but Agent 1 must produce or coordinate the final evidence before closing visual-readability checklists.
+
+## Agent 1 Resume Checklist
+
+Agent 2 has finished the current local art/readability slice and is handing back to Agent 1 for integration, smoke testing, UI validation, and eventual cloud sync.
+
+Start here:
+
+- [ ] Review local commits `b01edfc`, `0866ffc`, and `db9cbf0`.
+- [ ] Confirm the untracked `unity/LTW.UnityClient/ProjectSettings/PackageManagerSettings.asset` is excluded unless intentionally needed.
+- [ ] Run or review the Agent 2 evidence folders:
+  - `docs/screenshot-reviews/board-material-pass/review.md`
+  - `docs/screenshot-reviews/authored-arrow-pass/review.md`
+  - `docs/screenshot-reviews/role-roster-readability-pass/review.md`
+- [ ] Run manual Unity smoke testing for build/send/sell/reset, pathing, lane view, authored Arrow readability, and role attack cues.
+- [ ] Produce Agent 1 UI/HUD screenshot evidence with visible IMGUI overlays for build menu, send menu, lane selector, and results.
+- [ ] When approved, push local `main` to cloud.
+
+Agent 2 items intentionally left open:
+
+- Runner readability in groups of 10+.
+- Swarm readability under heavy pressure/noise.
+- Shade stronger non-alpha/facet readability.
+- Dedicated damaged-transfer capture showing `TRANSFER` and reduced health in the same frame.
+- Per-role damaged health/grayscale validation.
 
 ## Workstream A: Cloud Sync And Baseline Lock
 
@@ -489,10 +519,14 @@ Immediate responsibilities:
 
 Near-term deliverables:
 
-- Board material pass covering route tiles, build bands, spawn gate, life-loss gate, rails, side gutters, shadows, and restrained tile variation.
-- Authored Arrow tower mesh/texture replacing the generated placeholder while preserving runtime wiring.
-- Material language notes for stone, metal, crystal, energy, trim, health, and ownership.
-- VFX/animation target list for build, sell, shot, hit, kill, leak, send, income, transfer, and results.
+- [x] Board material pass covering route tiles, build bands, spawn gate, life-loss gate, rails, side gutters, shadows, and restrained tile variation.
+- [x] Authored Arrow tower mesh/material pass replacing the generated placeholder while preserving runtime wiring.
+- [x] Material and naming notes for authored Arrow and board readability.
+- [x] VFX/animation target list for build, sell, shot, hit, kill, leak, send, income, transfer, and results.
+
+Handoff note:
+
+- Agent 2 current slice is complete locally. Agent 1 owns integration review, manual smoke testing, UI/HUD capture evidence, and cloud sync from here.
 
 ## Definition Of Done For This Phase
 
