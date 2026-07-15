@@ -42,13 +42,13 @@ The previous pass intentionally kept generated low-poly primitives as the main b
 
 Owner: Agent 1
 
-- [ ] Define the final role language for each tower:
+- [x] Define the final role language for each tower:
   - Arrow: focused rail / lens / bolt emitter.
   - Control: dish / ring / containment field.
   - Relay: mast / beacon / signal capacitor.
   - Pulse: impact core / drum / shock emitter.
   - Prism: lens spire / crystal focus / beam anchor.
-- [ ] Define the final role language for each creep:
+- [x] Define the final role language for each creep:
   - Runner: sharp fast dart.
   - Brute: armored health shell.
   - Swarm: multiple shardlings.
@@ -60,6 +60,11 @@ Owner: Agent 1
   - last-selected tower state is clear.
 - [ ] Record one-line visual intent for each role before building.
 
+Progress:
+
+- [x] 2026-07-15: Locked the initial silhouette language for all tower and creep roles.
+- [x] 2026-07-15: Selected Arrow + Runner as the proof-of-method pair for source-kit mesh promotion.
+
 Acceptance:
 
 - The team can explain each role by silhouette before opening Unity.
@@ -70,7 +75,17 @@ Acceptance:
 Owner: Agent 1 towers/builder, Agent 2 creeps
 
 - [ ] Choose the primary mesh/mesh group for each tower.
+  - [x] Arrow: `Musket1_2_1.prefab` promoted as the long-axis authored rail/lens silhouette; old primitive body remains as a smaller contract/footprint support.
+  - [ ] Control
+  - [ ] Relay
+  - [ ] Pulse
+  - [ ] Prism
 - [ ] Choose the primary mesh/mesh group for each creep.
+  - [x] Runner: `Dagger4_1_3.prefab` promoted as the sharp dart/spine silhouette; old primitive body remains as a smaller contract/health anchor support.
+  - [ ] Brute
+  - [ ] Swarm
+  - [ ] Shade
+  - [ ] Siege
 - [ ] Choose the primary mesh/tool prop for the builder.
 - [ ] For each role, document:
   - source asset names;
@@ -90,6 +105,7 @@ Acceptance:
 Owner: Agent 1
 
 - [ ] Replace Arrow’s primitive-dominant body with primary authored rail/lens silhouette.
+  - [x] 2026-07-15 slice: enlarged `ArrowRailVisual`, reduced primitive base/body dominance, kept `Muzzle`, `Lens`, `BowLeft`, and `BowRight` anchors.
 - [ ] Replace Control’s primitive-dominant body with primary authored dish/ring silhouette.
 - [ ] Replace Relay’s primitive-dominant body with primary authored mast/beacon silhouette.
 - [ ] Replace Pulse’s primitive-dominant body with primary authored impact-core silhouette.
@@ -119,6 +135,7 @@ Acceptance:
 Owner: Agent 2
 
 - [ ] Replace Runner’s primitive-dominant body with primary authored dart/spine silhouette.
+  - [x] 2026-07-15 slice: enlarged `RunnerSpineVisual`, reduced procedural dart dominance, kept `Body`, `GroundShadow`, `RoleMarker`, and damage/speed cue children.
 - [ ] Replace Brute’s primitive-dominant body with primary authored armor/shell silhouette.
 - [ ] Replace Swarm’s primitive-dominant body with authored multi-shard silhouette.
 - [ ] Replace Shade’s primitive-dominant body with authored echo/facet silhouette.
@@ -240,8 +257,11 @@ Owner: Agent 1
 - [ ] Keep Line Wards material instances under `Assets/Art/...`.
 - [ ] Do not commit Unity package/project churn unless intentional.
 - [ ] Run Unity prefab/library validation.
+  - [ ] 2026-07-15: Pending; batch validation was blocked because the Unity editor already had `unity/LTW.UnityClient` open.
 - [ ] Run `dotnet test LTW.sln` only if simulation-facing code changes.
+  - [x] 2026-07-15: `dotnet test LTW.sln --no-restore` passed, 69/69.
 - [ ] Update this checklist after each completed slice.
+  - [x] 2026-07-15: Tracked Arrow + Runner proof-of-method slice.
 - [ ] Push to cloud after accepted implementation slices.
 
 ## Suggested Execution Order
@@ -255,4 +275,3 @@ Owner: Agent 1
 7. Realign VFX anchors.
 8. Run full screenshot QA gate.
 9. Merge/sync once the visual read is stable.
-
