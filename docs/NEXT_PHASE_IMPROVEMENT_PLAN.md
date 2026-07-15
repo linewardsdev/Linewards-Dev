@@ -394,20 +394,20 @@ Goal: every meaningful graphics/UI branch produces visible evidence.
 
 Required capture set:
 
-- [ ] `01-default-hud.png`
+- [x] `01-default-hud.png`
 - [ ] `02-build-menu-open.png`
 - [ ] `03-send-menu-open.png`
 - [ ] `04-lane-selector-open.png`
-- [ ] `05-active-combat.png`
-- [ ] `06-heavy-pressure.png`
-- [ ] `07-reduced-effects-heavy.png`
+- [x] `05-active-combat.png`
+- [x] `06-heavy-pressure.png`
+- [x] `07-reduced-effects-heavy.png`
 - [ ] `08-results-or-late-match.png`
 
 Status note:
 
 - Agent 1 attempted the full visual capture gate for this pass. Normal GUI launch exited before invoking the capture method, and `-batchmode -nographics` crashed inside Unity camera rendering before writing captures.
 - Agent 1 added a capture-runner guardrail so future `-batchmode -nographics` attempts exit with a clear error instead of risking a native crash. The documented graphics batch command omits `-nographics`; the next capture attempt should run that command after the currently open Unity editor releases the project lock, or use the in-editor `Line Wards/Review/Capture Visual Review Set` menu item.
-- This checklist remains open until a GUI/editor capture run can produce fresh pixels.
+- Agent 1 produced a full graphics batch capture set at `docs/screenshot-reviews/agent1-current-visual-gate/` with grayscale copies. The capture set is valid for board/art/heavy-pressure review, but IMGUI/HUD overlays are missing from menu-labeled states, so Build, Send, lane selector, and results UI captures remain open.
 
 Review dimensions:
 
