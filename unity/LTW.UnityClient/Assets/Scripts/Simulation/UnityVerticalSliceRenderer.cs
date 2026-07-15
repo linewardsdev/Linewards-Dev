@@ -229,8 +229,11 @@ namespace LTW.UnityClient.Simulation
                     }
                 }
 
+                CreateLaneTileDetailPass(lane);
                 CreateLaneEndpointBox(lane, CenterColumn, 0, "SpawnBox", MintSignal);
                 CreateLaneEndpointBox(lane, CenterColumn, LaneLength - 1, "LifeLossBox", LeakRed);
+                CreateEndpointPlateDetails(lane, 0, MintSignal, lane == 1, true);
+                CreateEndpointPlateDetails(lane, LaneLength - 1, LeakRed, lane == 1, false);
                 CreateLaneFrame(lane);
                 CreateLaneFlowCues(lane);
                 CreateLaneLandmark(lane, CenterColumn, 0, "Spawn", MintSignal, 0.42f);
@@ -1357,13 +1360,76 @@ namespace LTW.UnityClient.Simulation
             CreateSurfaceBand($"Lane{laneId}SouthFlowWash", new Vector3(offset + BoardCenterX, -0.252f, 1.25f), new Vector3(LaneWidth - 0.7f, 0.032f, 2.2f), EndpointWashColor(LeakRed, laneId == 1));
         }
 
-        private void CreateSurfaceBand(string name, Vector3 position, Vector3 scale, Color color)
+        private void CreateLaneTileDetailPass(int laneId)
+        {
+            var offset = LaneOffset(laneId);
+            var routeWear = RouteWearColor(laneId);
+            var seamColor = BuildBandSeamColor(laneId);
+            var crackColor = TileCrackColor(laneId);
+            var edgeColor = TileEdgeHighlightColor(laneId);
+
+            CreateSurfaceBand($"Lane{laneId}WestRailContactShadow", new Vector3(offset - 0.43f, -0.118f, BoardCenterZ), new Vector3(0.12f, 0.018f, LaneLength - 0.2f), BoardContactShadowColor(laneId));
+            CreateSurfaceBand($"Lane{laneId}EastRailContactShadow", new Vector3(offset + LaneWidth - 0.57f, -0.118f, BoardCenterZ), new Vector3(0.12f, 0.018f, LaneLength - 0.2f), BoardContactShadowColor(laneId));
+
+            for (var y = 1; y < LaneLength - 1; y++)
+            {
+                var z = WorldZ(y);
+                var jitter = TileVariation(laneId, CenterColumn, y) - 0.5f;
+                if (y % 2 == 0)
+                {
+                    var wear = CreateSurfaceBand($"Lane{laneId}RouteWear_{y}", new Vector3(offset + CenterColumn + jitter * 0.18f, -0.098f, z + jitter * 0.08f), new Vector3(0.48f + Mathf.Abs(jitter) * 0.18f, 0.018f, 0.16f), routeWear);
+                    wear.transform.rotation = Quaternion.Euler(0f, jitter * 14f, 0f);
+                }
+
+                if (y % 4 == 1)
+                {
+                    CreateSurfaceBand($"Lane{laneId}RouteLeftChip_{y}", new Vector3(offset + CenterColumn - 0.5f, -0.092f, z), new Vector3(0.16f, 0.016f, 0.08f), edgeColor);
+                    CreateSurfaceBand($"Lane{laneId}RouteRightChip_{y}", new Vector3(offset + CenterColumn + 0.5f, -0.092f, z - 0.18f), new Vector3(0.12f, 0.016f, 0.09f), edgeColor);
+                }
+            }
+
+            for (var y = 2; y < LaneLength - 2; y += 4)
+            {
+                var z = WorldZ(y) - 0.5f;
+                CreateSurfaceBand($"Lane{laneId}LeftBuildSeam_{y}", new Vector3(offset + 1f, -0.088f, z), new Vector3(1.5f, 0.014f, 0.035f), seamColor);
+                CreateSurfaceBand($"Lane{laneId}RightBuildSeam_{y}", new Vector3(offset + 5f, -0.088f, z), new Vector3(1.5f, 0.014f, 0.035f), seamColor);
+            }
+
+            for (var y = 3; y < LaneLength - 2; y += 5)
+            {
+                var westCrack = CreateSurfaceBand($"Lane{laneId}WestPlateCrack_{y}", new Vector3(offset + 1.45f, -0.082f, WorldZ(y) + 0.18f), new Vector3(0.035f, 0.014f, 0.44f), crackColor);
+                westCrack.transform.rotation = Quaternion.Euler(0f, -22f, 0f);
+                var eastCrack = CreateSurfaceBand($"Lane{laneId}EastPlateCrack_{y}", new Vector3(offset + 4.55f, -0.082f, WorldZ(y) - 0.08f), new Vector3(0.032f, 0.014f, 0.36f), crackColor);
+                eastCrack.transform.rotation = Quaternion.Euler(0f, 18f, 0f);
+            }
+        }
+
+        private void CreateEndpointPlateDetails(int laneId, int y, Color signalColor, bool isPlayerLane, bool isSpawn)
+        {
+            var offset = LaneOffset(laneId);
+            var z = WorldZ(y);
+            var signal = EndpointPlateSignalColor(signalColor, isPlayerLane);
+            var shadow = BoardContactShadowColor(laneId);
+            var direction = isSpawn ? -1f : 1f;
+            var label = isSpawn ? "Spawn" : "Leak";
+
+            CreateSurfaceBand($"Lane{laneId}{label}PlateWestShadow", new Vector3(offset + CenterColumn - 1.28f, -0.004f, z), new Vector3(0.08f, 0.014f, 1.16f), shadow);
+            CreateSurfaceBand($"Lane{laneId}{label}PlateEastShadow", new Vector3(offset + CenterColumn + 1.28f, -0.004f, z), new Vector3(0.08f, 0.014f, 1.16f), shadow);
+            CreateSurfaceBand($"Lane{laneId}{label}PlateNorthShadow", new Vector3(offset + CenterColumn, -0.004f, z + 0.55f), new Vector3(2.46f, 0.014f, 0.07f), shadow);
+            CreateSurfaceBand($"Lane{laneId}{label}PlateSouthShadow", new Vector3(offset + CenterColumn, -0.004f, z - 0.55f), new Vector3(2.46f, 0.014f, 0.07f), shadow);
+            CreateSurfaceBand($"Lane{laneId}{label}PlateCoreMark", new Vector3(offset + CenterColumn, 0.012f, z + direction * 0.18f), new Vector3(0.58f, 0.014f, 0.13f), signal);
+            CreateSurfaceBand($"Lane{laneId}{label}PlateLeftMark", new Vector3(offset + CenterColumn - 0.42f, 0.014f, z + direction * 0.02f), new Vector3(0.42f, 0.014f, 0.1f), signal);
+            CreateSurfaceBand($"Lane{laneId}{label}PlateRightMark", new Vector3(offset + CenterColumn + 0.42f, 0.014f, z + direction * 0.02f), new Vector3(0.42f, 0.014f, 0.1f), signal);
+        }
+
+        private GameObject CreateSurfaceBand(string name, Vector3 position, Vector3 scale, Color color)
         {
             var band = CreatePrimitive(name, PrimitiveType.Cube);
             band.transform.position = position;
             band.transform.localScale = scale;
             SetColor(band, color);
             laneDecorations.Add(band);
+            return band;
         }
 
         private void CreateLaneFlowCues(int laneId)
@@ -1505,13 +1571,18 @@ namespace LTW.UnityClient.Simulation
 
             if (x == CenterColumn)
             {
-                return laneId == 1 ? new Color(0.15f, 0.37f, 0.56f) : new Color(0.1f, 0.24f, 0.39f);
+                var routeVariation = TileVariation(laneId, x, y) * 0.028f;
+                return laneId == 1
+                    ? new Color(0.13f + routeVariation, 0.32f + routeVariation, 0.51f + routeVariation)
+                    : new Color(0.082f + routeVariation * 0.7f, 0.2f + routeVariation * 0.7f, 0.34f + routeVariation * 0.7f);
             }
 
             var checker = (x + y + laneId) % 2 == 0 ? 0.018f : 0f;
             var laneTint = laneId == 1 ? 0.022f : 0f;
             var buildColumn = x < CenterColumn ? 0.008f : 0.016f;
-            return new Color(0.047f + checker + laneTint + buildColumn, 0.064f + checker + laneTint, 0.112f + checker + laneTint);
+            var stoneVariation = TileVariation(laneId, x, y) * 0.018f;
+            var buildWarmth = x == 1 || x == 5 ? 0.012f : 0f;
+            return new Color(0.047f + checker + laneTint + buildColumn + stoneVariation + buildWarmth, 0.064f + checker + laneTint + stoneVariation * 0.8f, 0.104f + checker + laneTint + stoneVariation * 0.45f);
         }
 
         private static Vector3 TowerRoleScale(string towerId)
@@ -2294,6 +2365,29 @@ namespace LTW.UnityClient.Simulation
         {
             var strength = isPlayerLane ? 0.42f : 0.25f;
             return new Color(color.r * strength, color.g * strength, color.b * strength);
+        }
+
+        private static Color RouteWearColor(int laneId) => laneId == 1 ? new Color(0.06f, 0.105f, 0.14f) : new Color(0.04f, 0.07f, 0.1f);
+
+        private static Color BuildBandSeamColor(int laneId) => laneId == 1 ? new Color(0.025f, 0.09f, 0.088f) : new Color(0.018f, 0.048f, 0.052f);
+
+        private static Color TileCrackColor(int laneId) => laneId == 1 ? new Color(0.018f, 0.026f, 0.038f) : new Color(0.012f, 0.018f, 0.028f);
+
+        private static Color TileEdgeHighlightColor(int laneId) => laneId == 1 ? new Color(0.16f, 0.26f, 0.32f) : new Color(0.08f, 0.14f, 0.19f);
+
+        private static Color BoardContactShadowColor(int laneId) => laneId == 1 ? new Color(0.008f, 0.014f, 0.02f) : new Color(0.004f, 0.008f, 0.014f);
+
+        private static Color EndpointPlateSignalColor(Color color, bool isPlayerLane)
+        {
+            var strength = isPlayerLane ? 0.58f : 0.36f;
+            return new Color(color.r * strength, color.g * strength, color.b * strength);
+        }
+
+        private static float TileVariation(int laneId, int x, int y)
+        {
+            var hash = laneId * 73856093 ^ x * 19349663 ^ y * 83492791;
+            hash = (hash ^ (hash >> 13)) * 1274126177;
+            return ((hash & 0x7fffffff) % 1000) / 1000f;
         }
 
         private static GameObject EnsureChild(GameObject parent, string name, PrimitiveType primitiveType)

@@ -326,11 +326,11 @@ Goal: move from generated primitive placeholders to authored, original Line Ward
 
 Board and lane material tasks:
 
-- [ ] Create a board material pass for route tiles, build bands, spawn gate, life-loss gate, lane rails, and side gutters.
-- [ ] Add route wear/value contrast so the creep path reads even under towers, creeps, and VFX.
-- [ ] Add quiet tile variation, cracks, grime, and edge highlights without overpowering gameplay objects.
-- [ ] Add grounding shadows or ambient-occlusion-style contact treatment for towers and creeps.
-- [ ] Verify spawn and exit boxes are understandable without text.
+- [x] Create a first runtime board material pass for route tiles, build bands, spawn gate, life-loss gate, lane rails, and side gutters.
+- [x] Add route wear/value contrast so the creep path reads even under towers, creeps, and VFX.
+- [x] Add quiet tile variation, cracks, grime, and edge highlights without overpowering gameplay objects.
+- [x] Add grounding shadows or ambient-occlusion-style contact treatment for rails/gates as the first board-level grounding pass.
+- [x] Verify spawn and exit boxes are understandable without text.
 
 Authored asset pipeline tasks:
 
@@ -345,6 +345,10 @@ Texture/material tasks:
 - [ ] Define stylized material language for stone, metal, crystal, energy, trim, health, and ownership.
 - [ ] Establish palette/value rules that work in grayscale.
 - [ ] Avoid one-hue board themes and keep the board visually quieter than towers, creeps, shots, and UI decisions.
+
+Status note:
+
+- Agent 2 added the first procedural board-material pass in `UnityVerticalSliceRenderer`: deterministic tile value variation, route wear patches, route edge chips, build-band seams, quiet cracks, endpoint plate markings, and rail/gate contact shadows. Screenshot review passed at `docs/screenshot-reviews/board-material-pass/review.md`. This is a readability baseline and should be replaced or reinforced by authored board materials later.
 
 VFX/animation preparation tasks:
 
