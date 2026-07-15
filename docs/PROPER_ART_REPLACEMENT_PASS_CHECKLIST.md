@@ -106,6 +106,7 @@ Owner: Agent 1
 
 - [ ] Replace Arrow’s primitive-dominant body with primary authored rail/lens silhouette.
   - [x] 2026-07-15 slice: enlarged `ArrowRailVisual`, reduced primitive base/body dominance, kept `Muzzle`, `Lens`, `BowLeft`, and `BowRight` anchors.
+  - [x] 2026-07-15 aggressive pass: made `ArrowRailVisual` the dominant tower silhouette, shrank primitive `Body`/`Base` into utility support, and increased Arrow runtime visual scale.
 - [ ] Replace Control’s primitive-dominant body with primary authored dish/ring silhouette.
 - [ ] Replace Relay’s primitive-dominant body with primary authored mast/beacon silhouette.
 - [ ] Replace Pulse’s primitive-dominant body with primary authored impact-core silhouette.
@@ -136,6 +137,7 @@ Owner: Agent 2
 
 - [ ] Replace Runner’s primitive-dominant body with primary authored dart/spine silhouette.
   - [x] 2026-07-15 slice: enlarged `RunnerSpineVisual`, reduced procedural dart dominance, kept `Body`, `GroundShadow`, `RoleMarker`, and damage/speed cue children.
+  - [x] 2026-07-15 aggressive pass: made `RunnerSpineVisual` the dominant creep silhouette, shrank procedural dart parts into support cues, and increased Runner runtime visual scale so it survives gameplay camera distance.
 - [ ] Replace Brute’s primitive-dominant body with primary authored armor/shell silhouette.
 - [ ] Replace Swarm’s primitive-dominant body with authored multi-shard silhouette.
 - [ ] Replace Shade’s primitive-dominant body with authored echo/facet silhouette.

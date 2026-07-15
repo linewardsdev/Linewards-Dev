@@ -303,20 +303,20 @@ namespace LTW.UnityClient.Editor
             var root = new GameObject("Tower_Arrow");
 
             CreateChild(root, "RangeHalo", PrimitiveType.Cylinder, new Vector3(0f, -0.045f, 0f), new Vector3(1.72f, 0.01f, 1.72f), haloMaterial);
-            CreateChild(root, "Base", PrimitiveType.Cylinder, new Vector3(0f, 0.025f, -0.04f), new Vector3(0.62f, 0.07f, 0.5f), darkMaterial);
-            CreateChild(root, "Body", PrimitiveType.Cylinder, new Vector3(0f, 0.14f, -0.08f), new Vector3(0.38f, 0.16f, 0.3f), bodyMaterial);
-            CreateChild(root, "OwnerTrim", PrimitiveType.Cylinder, new Vector3(0f, 0.245f, -0.08f), new Vector3(0.4f, 0.022f, 0.32f), trimMaterial);
-            CreateChild(root, "RoleMarker", PrimitiveType.Cube, new Vector3(0f, 0.5f, 0.24f), new Vector3(0.08f, 0.045f, 1.06f), energyMaterial);
-            CreateChild(root, "Muzzle", PrimitiveType.Sphere, new Vector3(0f, 0.62f, 0.92f), new Vector3(0.18f, 0.18f, 0.18f), energyMaterial);
-            CreateChild(root, "Lens", PrimitiveType.Sphere, new Vector3(0f, 0.64f, -0.04f), new Vector3(0.24f, 0.2f, 0.24f), energyMaterial);
-            CreateChild(root, "BowLeft", PrimitiveType.Cube, new Vector3(-0.5f, 0.5f, 0.1f), new Vector3(0.58f, 0.055f, 0.1f), energyMaterial).transform.localRotation = Quaternion.Euler(0f, 0f, -20f);
-            CreateChild(root, "BowRight", PrimitiveType.Cube, new Vector3(0.5f, 0.5f, 0.1f), new Vector3(0.58f, 0.055f, 0.1f), energyMaterial).transform.localRotation = Quaternion.Euler(0f, 0f, 20f);
+            CreateChild(root, "Base", PrimitiveType.Cylinder, new Vector3(0f, 0.018f, -0.05f), new Vector3(0.48f, 0.045f, 0.38f), darkMaterial);
+            CreateChild(root, "Body", PrimitiveType.Cylinder, new Vector3(0f, 0.085f, -0.1f), new Vector3(0.22f, 0.08f, 0.18f), bodyMaterial);
+            CreateChild(root, "OwnerTrim", PrimitiveType.Cylinder, new Vector3(0f, 0.155f, -0.1f), new Vector3(0.26f, 0.016f, 0.2f), trimMaterial);
+            CreateChild(root, "RoleMarker", PrimitiveType.Cube, new Vector3(0f, 0.62f, 0.28f), new Vector3(0.09f, 0.055f, 1.32f), energyMaterial);
+            CreateChild(root, "Muzzle", PrimitiveType.Sphere, new Vector3(0f, 0.75f, 1.1f), new Vector3(0.22f, 0.22f, 0.22f), energyMaterial);
+            CreateChild(root, "Lens", PrimitiveType.Sphere, new Vector3(0f, 0.76f, -0.1f), new Vector3(0.3f, 0.24f, 0.3f), energyMaterial);
+            CreateChild(root, "BowLeft", PrimitiveType.Cube, new Vector3(-0.62f, 0.62f, 0.08f), new Vector3(0.74f, 0.065f, 0.11f), energyMaterial).transform.localRotation = Quaternion.Euler(0f, 0f, -24f);
+            CreateChild(root, "BowRight", PrimitiveType.Cube, new Vector3(0.62f, 0.62f, 0.08f), new Vector3(0.74f, 0.065f, 0.11f), energyMaterial).transform.localRotation = Quaternion.Euler(0f, 0f, 24f);
             AddSourceKitPrefabChild(
                 root,
                 "ArrowRailVisual",
                 "Assets/ThirdParty/StylizedWeaponKit/Art/Weapons/Stylized/Musket/_Prefabs_Musket/Musket1_2_1.prefab",
-                new Vector3(0f, 0.58f, 0.18f),
-                new Vector3(0.34f, 0.34f, 0.34f),
+                new Vector3(0f, 0.72f, 0.22f),
+                new Vector3(0.72f, 0.72f, 0.72f),
                 Quaternion.Euler(0f, 90f, 0f));
 
             var prefab = PrefabUtility.SaveAsPrefabAsset(root, PrefabFolder + "/Tower_Arrow.prefab");
@@ -776,7 +776,7 @@ Optional role anchors were also kept where useful:
                 "Relay" => new Vector3(1.0f, 1.16f, 1.0f),
                 "Pulse" => new Vector3(1.08f, 1.02f, 1.08f),
                 "Prism" => new Vector3(1.0f, 1.22f, 1.0f),
-                _ => new Vector3(1.02f, 1.16f, 1.02f)
+                _ => new Vector3(1.18f, 1.28f, 1.18f)
             };
 
             public float RuntimeLift => DisplayName == "Relay" ? 0.16f : 0.12f;

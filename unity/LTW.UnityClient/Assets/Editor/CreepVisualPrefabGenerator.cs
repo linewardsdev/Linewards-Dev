@@ -136,15 +136,15 @@ namespace LTW.UnityClient.Editor
         {
             var root = new GameObject("Creep_Runner");
             CreateChild(root, "GroundShadow", PrimitiveType.Cylinder, new Vector3(0f, -0.08f, 0f), new Vector3(0.72f, 0.022f, 1.42f), shadowMaterial);
-            CreateMeshChild(root, "Body", runnerDartMesh, new Vector3(0f, 0.08f, 0.02f), new Vector3(0.34f, 0.16f, 1.1f), bodyMaterial);
-            CreateSourceKitPart(root, "RunnerSpineVisual", SourceKitDaggerPath, new Vector3(0f, 0.18f, 0.08f), new Vector3(0.34f, 0.34f, 0.58f), Quaternion.Euler(90f, 0f, 0f));
-            CreateMeshChild(root, "Nose", runnerFinMesh, new Vector3(0f, 0.17f, 0.78f), new Vector3(0.14f, 0.08f, 0.36f), bodyMaterial);
-            CreateMeshChild(root, "Tail", runnerFinMesh, new Vector3(0f, 0.14f, -0.64f), new Vector3(0.14f, 0.09f, 0.34f), accentMaterial);
-            CreateMeshChild(root, "FinLeft", runnerFinMesh, new Vector3(-0.32f, 0.12f, -0.08f), new Vector3(0.11f, 0.07f, 0.5f), accentMaterial, Quaternion.Euler(0f, 0f, 16f));
-            CreateMeshChild(root, "FinRight", runnerFinMesh, new Vector3(0.32f, 0.12f, -0.08f), new Vector3(0.11f, 0.07f, 0.5f), accentMaterial, Quaternion.Euler(0f, 0f, -16f));
-            CreateChild(root, "RoleMarker", PrimitiveType.Cube, new Vector3(0f, 0.31f, -0.9f), new Vector3(0.07f, 0.045f, 0.44f), accentMaterial);
-            CreateMeshChild(root, "Damage", runnerFinMesh, new Vector3(0f, 0.24f, 0.26f), new Vector3(0.26f, 0.06f, 0.18f), damageMaterial);
-            CreateChild(root, "SpeedLine", PrimitiveType.Cube, new Vector3(0f, 0.11f, -1f), new Vector3(0.045f, 0.035f, 0.68f), accentMaterial);
+            CreateMeshChild(root, "Body", runnerDartMesh, new Vector3(0f, 0.055f, 0.02f), new Vector3(0.18f, 0.08f, 0.72f), bodyMaterial);
+            CreateSourceKitPart(root, "RunnerSpineVisual", SourceKitDaggerPath, new Vector3(0f, 0.22f, 0.1f), new Vector3(0.76f, 0.76f, 1.08f), Quaternion.Euler(90f, 0f, 0f));
+            CreateMeshChild(root, "Nose", runnerFinMesh, new Vector3(0f, 0.2f, 0.88f), new Vector3(0.12f, 0.07f, 0.3f), bodyMaterial);
+            CreateMeshChild(root, "Tail", runnerFinMesh, new Vector3(0f, 0.13f, -0.72f), new Vector3(0.1f, 0.07f, 0.28f), accentMaterial);
+            CreateMeshChild(root, "FinLeft", runnerFinMesh, new Vector3(-0.26f, 0.13f, -0.08f), new Vector3(0.085f, 0.055f, 0.4f), accentMaterial, Quaternion.Euler(0f, 0f, 16f));
+            CreateMeshChild(root, "FinRight", runnerFinMesh, new Vector3(0.26f, 0.13f, -0.08f), new Vector3(0.085f, 0.055f, 0.4f), accentMaterial, Quaternion.Euler(0f, 0f, -16f));
+            CreateChild(root, "RoleMarker", PrimitiveType.Cube, new Vector3(0f, 0.36f, -0.96f), new Vector3(0.07f, 0.045f, 0.5f), accentMaterial);
+            CreateMeshChild(root, "Damage", runnerFinMesh, new Vector3(0f, 0.32f, 0.28f), new Vector3(0.24f, 0.055f, 0.16f), damageMaterial);
+            CreateChild(root, "SpeedLine", PrimitiveType.Cube, new Vector3(0f, 0.1f, -1.08f), new Vector3(0.04f, 0.03f, 0.76f), accentMaterial);
 
             return SavePrefab(root, RunnerPrefabPath);
         }
@@ -415,7 +415,7 @@ namespace LTW.UnityClient.Editor
                 "creep.runner",
                 CreepVisualRole.Runner,
                 runnerPrefab,
-                new Vector3(0.5f, 0.28f, 0.86f),
+                new Vector3(0.78f, 0.48f, 1.18f),
                 CreepVisualMotionStyle.RunnerDart,
                 "Body",
                 new[] { "RoleMarker", "Tail", "FinLeft", "FinRight", "SpeedLine" },

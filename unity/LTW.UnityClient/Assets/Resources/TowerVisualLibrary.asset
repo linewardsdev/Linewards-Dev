@@ -16,7 +16,7 @@ MonoBehaviour:
   - towerId: tower.arrow
     role: 0
     prefab: {fileID: 7678135387116853247, guid: 3172e462b9fe044b98302e196fc6c432, type: 3}
-    scale: {x: 1.02, y: 1.16, z: 1.02}
+    scale: {x: 1.18, y: 1.28, z: 1.18}
     lift: 0.12
     bodyRendererPath: Body
     roleMarkerRendererPath: RoleMarker
