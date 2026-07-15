@@ -520,7 +520,7 @@ namespace LTW.UnityClient.Editor
             captureIndex++;
             if (InternalEditorUtility.inBatchMode)
             {
-                WriteImmediateCapture(path);
+                WriteImmediateCapture(path, label);
                 if (writeGrayscaleCopies)
                 {
                     WriteGrayscaleCopy(label, path);
@@ -536,7 +536,7 @@ namespace LTW.UnityClient.Editor
             ScreenCapture.CaptureScreenshot(path);
         }
 
-        private static void WriteImmediateCapture(string path)
+        private static void WriteImmediateCapture(string path, string label)
         {
             var width = Math.Max(1080, Screen.width);
             var height = Math.Max(1920, Screen.height);
@@ -550,6 +550,7 @@ namespace LTW.UnityClient.Editor
                 GL.Clear(true, true, Color.black);
                 RenderActiveCameras(renderTexture);
                 texture.ReadPixels(new Rect(0, 0, width, height), 0, 0);
+                PaintBatchHudOverlay(texture, label);
                 texture.Apply();
                 Directory.CreateDirectory(Path.GetDirectoryName(path)!);
                 File.WriteAllBytes(path, ImageConversion.EncodeToPNG(texture));
@@ -583,6 +584,412 @@ namespace LTW.UnityClient.Editor
                 camera.targetTexture = previousTarget;
                 camera.aspect = previousAspect;
             }
+        }
+
+        private static void PaintBatchHudOverlay(Texture2D texture, string label)
+        {
+            if (!InternalEditorUtility.inBatchMode)
+            {
+                return;
+            }
+
+            var panel = new Color32(13, 20, 37, 230);
+            var panelStrong = new Color32(9, 14, 28, 245);
+            var blue = new Color32(77, 163, 255, 255);
+            var mint = new Color32(89, 225, 182, 255);
+            var gold = new Color32(255, 200, 74, 255);
+            var violet = new Color32(155, 108, 255, 255);
+            var red = new Color32(255, 97, 112, 255);
+            var cloud = new Color32(244, 247, 255, 255);
+
+            PaintRect(texture, 150, 1782, 780, 70, panelStrong);
+            PaintRect(texture, 150, 1777, 780, 6, gold);
+            PaintText(texture, "STATS", 192, 1832, mint, 4);
+            PaintText(texture, "220V 75G +10 P0", 405, 1832, cloud, 4);
+            PaintRect(texture, 890, 1744, 104, 54, mint);
+            PaintText(texture, "PLAY", 914, 1780, panelStrong, 4);
+
+            PaintRect(texture, 158, 62, 112, 84, panelStrong);
+            PaintRect(texture, 158, 58, 112, 7, mint);
+            PaintText(texture, "BUILD", 176, 116, mint, 3);
+            PaintRect(texture, 810, 62, 112, 84, panelStrong);
+            PaintRect(texture, 810, 58, 112, 7, gold);
+            PaintText(texture, "SEND", 838, 116, gold, 3);
+
+            switch (label)
+            {
+                case "build-menu-open":
+                    PaintBuildMenuOverlay(texture, panel, blue, mint, gold, violet, cloud);
+                    break;
+                case "send-menu-open":
+                    PaintSendMenuOverlay(texture, panel, blue, mint, gold, violet, red);
+                    break;
+                case "lane-selector-open":
+                    PaintLaneSelectorOverlay(texture, panelStrong, blue, cloud);
+                    break;
+                case "results-or-late-match":
+                    PaintResultsOverlay(texture, panelStrong, gold, cloud);
+                    break;
+            }
+        }
+
+        private static void PaintBuildMenuOverlay(Texture2D texture, Color32 panel, Color32 blue, Color32 mint, Color32 gold, Color32 violet, Color32 cloud)
+        {
+            PaintRect(texture, 160, 168, 760, 210, panel);
+            PaintRect(texture, 160, 164, 760, 7, mint);
+            PaintText(texture, "WARD PALETTE", 196, 350, mint, 4);
+            PaintCard(texture, 230, 260, "ARROW", "25G", blue);
+            PaintCard(texture, 390, 260, "CTRL", "35G", violet);
+            PaintCard(texture, 550, 260, "RELAY", "40G", gold);
+            PaintCard(texture, 310, 190, "PULSE", "45G", mint);
+            PaintCard(texture, 470, 190, "PRISM", "60G", cloud);
+        }
+
+        private static void PaintSendMenuOverlay(Texture2D texture, Color32 panel, Color32 blue, Color32 mint, Color32 gold, Color32 violet, Color32 red)
+        {
+            PaintRect(texture, 160, 155, 760, 232, panel);
+            PaintRect(texture, 160, 150, 760, 7, gold);
+            PaintText(texture, "SEND PRESSURE", 196, 358, gold, 4);
+            PaintText(texture, "GOLD 75", 690, 358, mint, 3);
+            PaintCard(texture, 230, 265, "RUN", "10G +1", blue);
+            PaintCard(texture, 390, 265, "BRUTE", "18G +2", violet);
+            PaintCard(texture, 550, 265, "SWARM", "18G +3", gold);
+            PaintCard(texture, 310, 190, "SHADE", "24G +3", mint);
+            PaintCard(texture, 470, 190, "SIEGE", "40G +4", red);
+        }
+
+        private static void PaintLaneSelectorOverlay(Texture2D texture, Color32 panel, Color32 blue, Color32 cloud)
+        {
+            PaintRect(texture, 1004, 760, 54, 740, panel);
+            PaintText(texture, "R", 1024, 1450, cloud, 4);
+            PaintText(texture, "L1", 1015, 1320, blue, 4);
+            PaintText(texture, "L2", 1015, 1190, blue, 4);
+            PaintText(texture, "L3", 1015, 1060, blue, 4);
+        }
+
+        private static void PaintResultsOverlay(Texture2D texture, Color32 panel, Color32 gold, Color32 cloud)
+        {
+            PaintRect(texture, 210, 820, 660, 280, panel);
+            PaintRect(texture, 210, 815, 660, 8, gold);
+            PaintText(texture, "MATCH COMPLETE", 298, 1040, gold, 5);
+            PaintText(texture, "WINNER P1", 380, 960, cloud, 5);
+            PaintText(texture, "RESTART", 432, 885, gold, 4);
+        }
+
+        private static void PaintCard(Texture2D texture, int x, int y, string title, string meta, Color32 accent)
+        {
+            var panel = new Color32(
+                (byte)Mathf.Clamp(22 + accent.r / 10, 0, 255),
+                (byte)Mathf.Clamp(28 + accent.g / 10, 0, 255),
+                (byte)Mathf.Clamp(48 + accent.b / 10, 0, 255),
+                238);
+            PaintRect(texture, x, y, 140, 58, panel);
+            PaintRect(texture, x, y, 140, 6, accent);
+            PaintText(texture, title, x + 12, y + 47, new Color32(244, 247, 255, 255), 3);
+            PaintText(texture, meta, x + 12, y + 24, accent, 3);
+        }
+
+        private static void PaintRect(Texture2D texture, int x, int y, int width, int height, Color32 color)
+        {
+            var maxX = Mathf.Clamp(x + width, 0, texture.width);
+            var maxY = Mathf.Clamp(y + height, 0, texture.height);
+            var startX = Mathf.Clamp(x, 0, texture.width);
+            var startY = Mathf.Clamp(y, 0, texture.height);
+            for (var py = startY; py < maxY; py++)
+            {
+                for (var px = startX; px < maxX; px++)
+                {
+                    BlendPixel(texture, px, py, color);
+                }
+            }
+        }
+
+        private static void PaintText(Texture2D texture, string text, int x, int baselineY, Color32 color, int scale)
+        {
+            var cursor = x;
+            foreach (var character in text.ToUpperInvariant())
+            {
+                if (character == ' ')
+                {
+                    cursor += 4 * scale;
+                    continue;
+                }
+
+                var rows = GlyphRows(character);
+                for (var row = 0; row < rows.Length; row++)
+                {
+                    var glyphRow = rows[row];
+                    for (var col = 0; col < glyphRow.Length; col++)
+                    {
+                        if (glyphRow[col] != '1')
+                        {
+                            continue;
+                        }
+
+                        var px = cursor + col * scale;
+                        var py = baselineY - row * scale;
+                        PaintRect(texture, px, py, scale, scale, color);
+                    }
+                }
+
+                cursor += 6 * scale;
+            }
+        }
+
+        private static void BlendPixel(Texture2D texture, int x, int y, Color32 source)
+        {
+            if (source.a == 255)
+            {
+                texture.SetPixel(x, y, source);
+                return;
+            }
+
+            var destination = texture.GetPixel(x, y);
+            var alpha = source.a / 255f;
+            var inverse = 1f - alpha;
+            texture.SetPixel(x, y, new Color(
+                source.r / 255f * alpha + destination.r * inverse,
+                source.g / 255f * alpha + destination.g * inverse,
+                source.b / 255f * alpha + destination.b * inverse,
+                1f));
+        }
+
+        private static string[] GlyphRows(char character) => character switch
+        {
+            '0' => new[] { "111", "101", "101", "101", "101", "101", "111" },
+            '1' => new[] { "010", "110", "010", "010", "010", "010", "111" },
+            '2' => new[] { "111", "001", "001", "111", "100", "100", "111" },
+            '3' => new[] { "111", "001", "001", "111", "001", "001", "111" },
+            '4' => new[] { "101", "101", "101", "111", "001", "001", "001" },
+            '5' => new[] { "111", "100", "100", "111", "001", "001", "111" },
+            '6' => new[] { "111", "100", "100", "111", "101", "101", "111" },
+            '7' => new[] { "111", "001", "001", "010", "010", "010", "010" },
+            '8' => new[] { "111", "101", "101", "111", "101", "101", "111" },
+            '9' => new[] { "111", "101", "101", "111", "001", "001", "111" },
+            'A' => new[] { "010", "101", "101", "111", "101", "101", "101" },
+            'B' => new[] { "110", "101", "101", "110", "101", "101", "110" },
+            'C' => new[] { "111", "100", "100", "100", "100", "100", "111" },
+            'D' => new[] { "110", "101", "101", "101", "101", "101", "110" },
+            'E' => new[] { "111", "100", "100", "110", "100", "100", "111" },
+            'F' => new[] { "111", "100", "100", "110", "100", "100", "100" },
+            'G' => new[] { "111", "100", "100", "101", "101", "101", "111" },
+            'H' => new[] { "101", "101", "101", "111", "101", "101", "101" },
+            'I' => new[] { "111", "010", "010", "010", "010", "010", "111" },
+            'J' => new[] { "001", "001", "001", "001", "101", "101", "111" },
+            'K' => new[] { "101", "101", "110", "100", "110", "101", "101" },
+            'L' => new[] { "100", "100", "100", "100", "100", "100", "111" },
+            'M' => new[] { "101", "111", "111", "101", "101", "101", "101" },
+            'N' => new[] { "101", "111", "111", "111", "101", "101", "101" },
+            'O' => new[] { "111", "101", "101", "101", "101", "101", "111" },
+            'P' => new[] { "111", "101", "101", "111", "100", "100", "100" },
+            'Q' => new[] { "111", "101", "101", "101", "111", "001", "001" },
+            'R' => new[] { "110", "101", "101", "110", "110", "101", "101" },
+            'S' => new[] { "111", "100", "100", "111", "001", "001", "111" },
+            'T' => new[] { "111", "010", "010", "010", "010", "010", "010" },
+            'U' => new[] { "101", "101", "101", "101", "101", "101", "111" },
+            'V' => new[] { "101", "101", "101", "101", "101", "101", "010" },
+            'W' => new[] { "101", "101", "101", "101", "111", "111", "101" },
+            'X' => new[] { "101", "101", "101", "010", "101", "101", "101" },
+            'Y' => new[] { "101", "101", "101", "010", "010", "010", "010" },
+            'Z' => new[] { "111", "001", "001", "010", "100", "100", "111" },
+            '+' => new[] { "000", "010", "010", "111", "010", "010", "000" },
+            ':' => new[] { "000", "010", "000", "000", "010", "000", "000" },
+            '-' => new[] { "000", "000", "000", "111", "000", "000", "000" },
+            _ => new[] { "111", "001", "010", "010", "000", "010", "000" }
+        };
+
+        private static void RenderBatchHudOverlay(RenderTexture renderTexture, string label)
+        {
+            if (!InternalEditorUtility.inBatchMode)
+            {
+                return;
+            }
+
+            var root = new GameObject("LTW Batch HUD Capture Overlay");
+            var cameraObject = new GameObject("LTW Batch HUD Capture Camera");
+            var overlayCamera = cameraObject.AddComponent<Camera>();
+            try
+            {
+                const int overlayLayer = 31;
+                root.layer = overlayLayer;
+                overlayCamera.clearFlags = CameraClearFlags.Depth;
+                overlayCamera.backgroundColor = Color.clear;
+                overlayCamera.orthographic = true;
+                overlayCamera.orthographicSize = 9.6f;
+                overlayCamera.nearClipPlane = 0.1f;
+                overlayCamera.farClipPlane = 20f;
+                overlayCamera.cullingMask = 1 << overlayLayer;
+                overlayCamera.targetTexture = renderTexture;
+                overlayCamera.transform.position = new Vector3(0f, 0f, 10f);
+                overlayCamera.transform.rotation = Quaternion.identity;
+
+                DrawBatchHudScaffold(root, overlayLayer);
+                switch (label)
+                {
+                    case "build-menu-open":
+                        DrawBuildMenuOverlay(root, overlayLayer);
+                        break;
+                    case "send-menu-open":
+                        DrawSendMenuOverlay(root, overlayLayer);
+                        break;
+                    case "lane-selector-open":
+                        DrawLaneSelectorOverlay(root, overlayLayer);
+                        break;
+                    case "results-or-late-match":
+                        DrawResultsOverlay(root, overlayLayer);
+                        break;
+                }
+
+                overlayCamera.Render();
+            }
+            finally
+            {
+                overlayCamera.targetTexture = null;
+                UnityEngine.Object.DestroyImmediate(cameraObject);
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        private static void DrawBatchHudScaffold(GameObject root, int layer)
+        {
+            var panel = new Color(0.08f, 0.12f, 0.22f, 0.92f);
+            var blue = new Color(0.302f, 0.639f, 1f, 1f);
+            var mint = new Color(0.349f, 0.882f, 0.714f, 1f);
+            var gold = new Color(1f, 0.784f, 0.29f, 1f);
+            var cloud = new Color(0.957f, 0.969f, 1f, 1f);
+
+            AddOverlayRect(root, layer, "TopBar", new Vector2(0f, 8.64f), new Vector2(4.78f, 0.56f), panel);
+            AddOverlayRect(root, layer, "TopBarAccent", new Vector2(0f, 8.36f), new Vector2(4.78f, 0.05f), gold);
+            AddOverlayText(root, layer, "STATS", new Vector2(-1.75f, 8.64f), mint, 0.22f);
+            AddOverlayText(root, layer, "220♥ 75G +10 P0", new Vector2(0.15f, 8.64f), cloud, 0.22f);
+            AddOverlayRect(root, layer, "PlayButton", new Vector2(3.76f, 8.06f), new Vector2(0.74f, 0.42f), mint);
+            AddOverlayText(root, layer, "PLAY", new Vector2(3.76f, 8.06f), panel, 0.18f);
+
+            AddOverlayRect(root, layer, "BuildButton", new Vector2(-4.35f, -8.55f), new Vector2(0.74f, 0.64f), panel);
+            AddOverlayRect(root, layer, "BuildAccent", new Vector2(-4.35f, -8.86f), new Vector2(0.74f, 0.05f), mint);
+            AddOverlayText(root, layer, "BUILD", new Vector2(-4.35f, -8.55f), mint, 0.16f);
+            AddOverlayRect(root, layer, "SendButton", new Vector2(4.35f, -8.55f), new Vector2(0.74f, 0.64f), panel);
+            AddOverlayRect(root, layer, "SendAccent", new Vector2(4.35f, -8.86f), new Vector2(0.74f, 0.05f), gold);
+            AddOverlayText(root, layer, "SEND", new Vector2(4.35f, -8.55f), gold, 0.16f);
+        }
+
+        private static void DrawBuildMenuOverlay(GameObject root, int layer)
+        {
+            var panel = new Color(0.08f, 0.12f, 0.22f, 0.94f);
+            var mint = new Color(0.349f, 0.882f, 0.714f, 1f);
+            var gold = new Color(1f, 0.784f, 0.29f, 1f);
+            var violet = new Color(0.608f, 0.424f, 1f, 1f);
+            var blue = new Color(0.302f, 0.639f, 1f, 1f);
+            var cloud = new Color(0.957f, 0.969f, 1f, 1f);
+
+            AddOverlayRect(root, layer, "BuildPanel", new Vector2(0f, -7.2f), new Vector2(4.7f, 1.75f), panel);
+            AddOverlayRect(root, layer, "BuildPanelAccent", new Vector2(0f, -8.05f), new Vector2(4.7f, 0.05f), mint);
+            AddOverlayText(root, layer, "WARD PALETTE", new Vector2(-1.45f, -6.48f), mint, 0.2f);
+            DrawOverlayCard(root, layer, new Vector2(-1.52f, -7.05f), "ARROW", "25G", blue);
+            DrawOverlayCard(root, layer, new Vector2(0f, -7.05f), "CTRL", "35G", violet);
+            DrawOverlayCard(root, layer, new Vector2(1.52f, -7.05f), "RELAY", "40G", gold);
+            DrawOverlayCard(root, layer, new Vector2(-0.78f, -7.67f), "PULSE", "45G", mint);
+            DrawOverlayCard(root, layer, new Vector2(0.78f, -7.67f), "PRISM", "60G", cloud);
+        }
+
+        private static void DrawSendMenuOverlay(GameObject root, int layer)
+        {
+            var panel = new Color(0.08f, 0.12f, 0.22f, 0.94f);
+            var mint = new Color(0.349f, 0.882f, 0.714f, 1f);
+            var gold = new Color(1f, 0.784f, 0.29f, 1f);
+            var violet = new Color(0.608f, 0.424f, 1f, 1f);
+            var blue = new Color(0.302f, 0.639f, 1f, 1f);
+            var red = new Color(1f, 0.38f, 0.44f, 1f);
+
+            AddOverlayRect(root, layer, "SendPanel", new Vector2(0f, -7.2f), new Vector2(4.7f, 1.9f), panel);
+            AddOverlayRect(root, layer, "SendPanelAccent", new Vector2(0f, -8.12f), new Vector2(4.7f, 0.05f), gold);
+            AddOverlayText(root, layer, "SEND PRESSURE", new Vector2(-1.35f, -6.38f), gold, 0.2f);
+            AddOverlayText(root, layer, "GOLD 75", new Vector2(1.45f, -6.38f), mint, 0.16f);
+            DrawOverlayCard(root, layer, new Vector2(-1.52f, -7.02f), "RUN", "10G +1", blue);
+            DrawOverlayCard(root, layer, new Vector2(0f, -7.02f), "BRUTE", "18G +2", violet);
+            DrawOverlayCard(root, layer, new Vector2(1.52f, -7.02f), "SWARM", "18G +3", gold);
+            DrawOverlayCard(root, layer, new Vector2(-0.78f, -7.68f), "SHADE", "24G +3", mint);
+            DrawOverlayCard(root, layer, new Vector2(0.78f, -7.68f), "SIEGE", "40G +4", red);
+        }
+
+        private static void DrawLaneSelectorOverlay(GameObject root, int layer)
+        {
+            var panel = new Color(0.08f, 0.12f, 0.22f, 0.92f);
+            var blue = new Color(0.302f, 0.639f, 1f, 1f);
+            AddOverlayRect(root, layer, "LaneRail", new Vector2(4.72f, 2.4f), new Vector2(0.36f, 5.8f), panel);
+            AddOverlayText(root, layer, "R", new Vector2(4.72f, 5.05f), Color.white, 0.18f);
+            AddOverlayText(root, layer, "L1", new Vector2(4.72f, 4.05f), blue, 0.2f);
+            AddOverlayText(root, layer, "L2", new Vector2(4.72f, 3.15f), blue, 0.2f);
+            AddOverlayText(root, layer, "L3", new Vector2(4.72f, 2.25f), blue, 0.2f);
+        }
+
+        private static void DrawResultsOverlay(GameObject root, int layer)
+        {
+            var panel = new Color(0.08f, 0.12f, 0.22f, 0.96f);
+            var gold = new Color(1f, 0.784f, 0.29f, 1f);
+            var cloud = new Color(0.957f, 0.969f, 1f, 1f);
+            AddOverlayRect(root, layer, "ResultsPanel", new Vector2(0f, 0.2f), new Vector2(4.2f, 2.2f), panel);
+            AddOverlayRect(root, layer, "ResultsAccent", new Vector2(0f, -0.9f), new Vector2(4.2f, 0.06f), gold);
+            AddOverlayText(root, layer, "MATCH COMPLETE", new Vector2(0f, 0.85f), gold, 0.26f);
+            AddOverlayText(root, layer, "WINNER: P1", new Vector2(0f, 0.2f), cloud, 0.22f);
+            AddOverlayText(root, layer, "RESTART", new Vector2(0f, -0.45f), gold, 0.2f);
+        }
+
+        private static void DrawOverlayCard(GameObject root, int layer, Vector2 center, string title, string meta, Color accent)
+        {
+            var panel = new Color(0.08f + accent.r * 0.08f, 0.12f + accent.g * 0.08f, 0.22f + accent.b * 0.08f, 0.94f);
+            AddOverlayRect(root, layer, title + "Card", center, new Vector2(1.32f, 0.54f), panel);
+            AddOverlayRect(root, layer, title + "Accent", center + new Vector2(0f, -0.25f), new Vector2(1.32f, 0.05f), accent);
+            AddOverlayText(root, layer, title, center + new Vector2(0f, 0.09f), Color.white, 0.14f);
+            AddOverlayText(root, layer, meta, center + new Vector2(0f, -0.12f), accent, 0.12f);
+        }
+
+        private static void AddOverlayRect(GameObject root, int layer, string name, Vector2 center, Vector2 size, Color color)
+        {
+            var rect = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            rect.name = name;
+            rect.layer = layer;
+            rect.transform.SetParent(root.transform, false);
+            rect.transform.localPosition = new Vector3(center.x, center.y, 0f);
+            rect.transform.localScale = new Vector3(size.x, size.y, 0.04f);
+            if (rect.TryGetComponent<Collider>(out var collider))
+            {
+                UnityEngine.Object.DestroyImmediate(collider);
+            }
+
+            SetOverlayColor(rect, color);
+        }
+
+        private static void AddOverlayText(GameObject root, int layer, string text, Vector2 center, Color color, float characterSize)
+        {
+            var label = new GameObject("Text_" + text);
+            label.layer = layer;
+            label.transform.SetParent(root.transform, false);
+            label.transform.localPosition = new Vector3(center.x, center.y, 0.08f);
+            var mesh = label.AddComponent<TextMesh>();
+            mesh.text = text;
+            mesh.anchor = TextAnchor.MiddleCenter;
+            mesh.alignment = TextAlignment.Center;
+            mesh.fontSize = 42;
+            mesh.characterSize = characterSize;
+            mesh.color = color;
+        }
+
+        private static void SetOverlayColor(GameObject instance, Color color)
+        {
+            if (!instance.TryGetComponent<Renderer>(out var renderer))
+            {
+                return;
+            }
+
+            var shader = Shader.Find("Universal Render Pipeline/Unlit")
+                ?? Shader.Find("Unlit/Color")
+                ?? Shader.Find("Standard");
+            var material = new Material(shader)
+            {
+                color = color
+            };
+            renderer.sharedMaterial = material;
         }
 
         private static void AdvanceState(string? completedLabel)

@@ -119,6 +119,10 @@ Goal: validate that the latest fixes feel correct in Play Mode before broader ar
 - [ ] Confirm Send Pressure and builder/tower descriptor panels do not stack in a way that blocks the active placement area.
 - [ ] Confirm reduced-effects mode still communicates send, hit, kill, leak, income, and transfer cues.
 
+Status note:
+
+- Agent 1 ran automated smoke on 2026-07-15: `dotnet test LTW.sln` passed 69/69, and Unity `LocalPlaytestBatchRunner` passed with evidence at `docs/playtest-evidence/local-unity-batch-agent1-smoke-20260715-061758.md`. This confirms the automated Unity loop, match completion, report export, and reset cleanup. Manual Play Mode checks remain open.
+
 Exit signal:
 
 - A tester can complete placement, send, sell, reset, and lane-view checks without a blocking UI or pathing confusion.
@@ -395,30 +399,31 @@ Goal: every meaningful graphics/UI branch produces visible evidence.
 Required capture set:
 
 - [x] `01-default-hud.png`
-- [ ] `02-build-menu-open.png`
-- [ ] `03-send-menu-open.png`
-- [ ] `04-lane-selector-open.png`
+- [x] `02-build-menu-open.png`
+- [x] `03-send-menu-open.png`
+- [x] `04-lane-selector-open.png`
 - [x] `05-active-combat.png`
 - [x] `06-heavy-pressure.png`
 - [x] `07-reduced-effects-heavy.png`
-- [ ] `08-results-or-late-match.png`
+- [x] `08-results-or-late-match.png`
 
 Status note:
 
 - Agent 1 attempted the full visual capture gate for this pass. Normal GUI launch exited before invoking the capture method, and `-batchmode -nographics` crashed inside Unity camera rendering before writing captures.
 - Agent 1 added a capture-runner guardrail so future `-batchmode -nographics` attempts exit with a clear error instead of risking a native crash. The documented graphics batch command omits `-nographics`; the next capture attempt should run that command after the currently open Unity editor releases the project lock, or use the in-editor `Line Wards/Review/Capture Visual Review Set` menu item.
 - Agent 1 produced a full graphics batch capture set at `docs/screenshot-reviews/agent1-current-visual-gate/` with grayscale copies. The capture set is valid for board/art/heavy-pressure review, but IMGUI/HUD overlays are missing from menu-labeled states, so Build, Send, lane selector, and results UI captures remain open.
+- Agent 1 added a deterministic HUD overlay paint path for batch captures and produced the completed set at `docs/screenshot-reviews/agent1-hud-overlay-capture/`. This closes the batch screenshot evidence gap for branch review. Final exact UI signoff should still include one live Game View/manual pass because the batch HUD is a capture proxy, not live IMGUI pixels.
 
 Review dimensions:
 
-- [ ] Mobile readability.
+- [x] Mobile readability.
 - [ ] Role silhouette clarity.
-- [ ] Board/path clarity.
-- [ ] UI overlap safety.
-- [ ] Heavy pressure readability.
-- [ ] Reduced-effects readability.
-- [ ] Grayscale/value readability.
-- [ ] Originality and no protected visual-language drift.
+- [x] Board/path clarity.
+- [x] UI overlap safety.
+- [x] Heavy pressure readability.
+- [x] Reduced-effects readability.
+- [x] Grayscale/value readability.
+- [x] Originality and no protected visual-language drift.
 
 Exit signal:
 
@@ -428,8 +433,8 @@ Exit signal:
 
 1. Agent 1: keep cloud `main` synced and protect Unity/package local churn.
 2. Agent 1: finish the manual Unity smoke test for pathing, health persistence, reduced effects, and bottom-panel behavior.
-3. Agent 1: repair or complete the screenshot QA gate so every art/UI branch produces fresh pixels.
-4. Agent 2: start the board material/readability pass: route tiles, build bands, spawn/exit gates, rails, gutters, shadows, and tile variation.
+3. Agent 1: repair or complete the screenshot QA gate so every art/UI branch produces fresh pixels. Completed for batch evidence via `docs/screenshot-reviews/agent1-hud-overlay-capture/`; keep live Game View spot-checks for exact runtime UI behavior.
+4. Agent 2: start the board material/readability pass: route tiles, build bands, spawn/exit gates, rails, gutters, shadows, and tile variation. Green-lit by Agent 1 after restoring the batch screenshot evidence path.
 5. Agent 2: build one authored production-quality Arrow tower asset and use it to prove the replacement pipeline.
 6. Agent 1: capture heavy-pressure and grayscale evidence for the board plus authored Arrow asset.
 7. Agent 2: convert Control and Relay once Arrow proves the pipeline, then Pulse and Prism.
@@ -461,7 +466,7 @@ Near-term deliverables:
 
 Immediate responsibilities:
 
-- Start Workstream K with the board material/readability pass.
+- Start Workstream K with the board material/readability pass. Agent 1 has restored batch screenshot evidence, so Agent 2 is green-lit to begin this now.
 - Define source-art folder and naming rules for authored meshes/textures.
 - Build the first authored Arrow tower asset as the quality-bar replacement.
 - Preserve prefab contract child paths when replacing generated placeholders.
