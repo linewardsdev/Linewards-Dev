@@ -27,11 +27,25 @@ These glyphs are intentionally simple placeholders for final imported UI art. Ke
 
 | Role | Runtime text | Shape read | Final asset target |
 | --- | --- | --- | --- |
-| Runner | `RUN` | Narrow dart with tail line | `ui_icon_send_runner_v01` |
-| Brute | `BRUTE` | Wide armored block with side plates | `ui_icon_send_brute_v01` |
-| Swarm | `SWARM` | Cluster of small shard dots | `ui_icon_send_swarm_v01` |
-| Shade | `SHADE` | Offset echo body and small trailing shard | `ui_icon_send_shade_v01` |
-| Siege | `SIEGE` | Heavy ram block with forward pressure mass | `ui_icon_send_siege_v01` |
+| Runner | `RUN` | Narrow dagger/dart body, cross fins, tail wake | `ui_icon_send_runner_v01` |
+| Brute | `BRUTE` | Wide shield shell with side plates and bright core slit | `ui_icon_send_brute_v01` |
+| Swarm | `SWARM` | Five rotated shard dots plus a low trail line | `ui_icon_send_swarm_v01` |
+| Shade | `SHADE` | Split echo facets around a central shimmer line | `ui_icon_send_shade_v01` |
+| Siege | `SIEGE` | Heavy ram base, top pressure block, forward barrel | `ui_icon_send_siege_v01` |
+
+## Blink Creep Source Mapping
+
+Agent 2 source pass, 2026-07-15:
+
+| Send icon | Runtime source motif | Blink source candidate |
+| --- | --- | --- |
+| `ui_icon_send_runner_v01` | Dagger spine plus speed fins from `Creep_Runner` | `Dagger4_1_3` |
+| `ui_icon_send_brute_v01` | Shield shell plus armored side plates from `Creep_Brute` | `Shield2_1_2` |
+| `ui_icon_send_swarm_v01` | Repeated shard cluster from `Creep_Swarm` | `Sword3_1_3`, `Dagger4_1_3` |
+| `ui_icon_send_shade_v01` | Scythe echo and split shimmer facets from `Creep_Shade` | `Scythe1_3_2` |
+| `ui_icon_send_siege_v01` | Directional barrel/ram body from `Creep_Siege` | `Musket1_2_1` |
+
+The runtime IMGUI glyphs in `SendDockController` now follow these silhouettes. Final sprite exports should preserve these reads in enabled, disabled, and grayscale states.
 
 ## Replacement Rules
 

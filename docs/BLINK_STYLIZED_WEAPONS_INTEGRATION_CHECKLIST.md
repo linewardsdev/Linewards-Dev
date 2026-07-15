@@ -200,14 +200,14 @@ Owner: Agent 2
   - Shade: `Shimmer`, `EchoA`, `EchoB`
   - Siege: `Base`, `Barrel`, `Spike`
 - [x] Update `CreepVisualLibrary` if wrapper names or references change.
-- [ ] Verify damaged health bars/wound pips still sit correctly on each role.
-- [ ] Capture role roster normal and grayscale.
+- [x] Verify damaged health bars/wound pips still sit correctly on each role.
+- [x] Capture role roster normal and grayscale.
 
 Status note:
 
 - Agent 2 updated `CreepVisualPrefabGenerator` so generated Line Wards wrappers keep the procedural silhouettes as fallbacks and nest Blink source-art parts for Runner, Brute, Swarm, Shade, and Siege when the imported pack is present. Generated prefabs now include required `Body`, `GroundShadow`, and `RoleMarker` children plus role-specific child names from `docs/ART_PREFAB_CONTRACT.md`.
 - Unity regeneration updated `Assets/Prefabs/Creeps/Creep_*.prefab`, `Assets/Resources/CreepVisualLibrary.asset`, and `Assets/Art/Creeps/GeneratedPlaceholderReport.md`. File-side checks confirmed the required child names and Blink nested parts are present.
-- MCP Unity menu execution timed out after writing the assets, so the remaining Workstream D closeout is visual: run the local slice, inspect damaged health/wound placement, and capture normal/grayscale role-roster evidence.
+- Agent 2 captured role-lineup, pressure, damaged-transfer, reduced-effects, and grayscale evidence under `docs/screenshot-reviews/blink-stylized-integration/`. Review verdict is pass with one low-severity staged leak-text follow-up.
 
 Acceptance:
 
@@ -228,13 +228,13 @@ Agent 1:
 
 Agent 2:
 
-- [ ] Produce 5 creep/send icon candidates from creep silhouettes.
-- [ ] Keep send icons aligned with send dock pressure roles.
-- [ ] Confirm icons still read in disabled/affordability states.
+- [x] Produce 5 creep/send icon candidates from creep silhouettes.
+- [x] Keep send icons aligned with send dock pressure roles.
+- [x] Confirm icons still read in disabled/affordability states.
 
 Agent 2 note:
 
-- Creep wrapper silhouettes now have stable source shapes for icon extraction, but send-card icon candidates have not been produced yet.
+- Agent 2 updated `SendDockController` procedural glyphs and `Assets/Art/UI/Icons/README.md` so Runner, Brute, Swarm, Shade, and Siege send cards map back to the Blink-derived creep wrapper silhouettes. Disabled/affordability states keep the same silhouettes with reduced value.
 
 Shared acceptance:
 
@@ -254,13 +254,13 @@ Agent 1:
 
 Agent 2:
 
-- [ ] Attach Pulse splash source to Blink-derived Pulse wrapper.
-- [ ] Attach Shade reveal/resist source to Blink-derived Shade wrapper.
-- [ ] Attach Siege warning/leak source to Blink-derived Siege wrapper.
+- [x] Attach Pulse splash source to Blink-derived Pulse wrapper.
+- [x] Attach Shade reveal/resist source to Blink-derived Shade wrapper.
+- [x] Attach Siege warning/leak source to Blink-derived Siege wrapper.
 
 Agent 2 note:
 
-- Shade and Siege wrappers now include Blink source-art candidates (`BlinkScytheEcho`, `BlinkMusketBarrel`) that can serve as reveal/resist and warning/leak visual anchors. Runtime VFX attachment and reduced-effects verification remain open.
+- Agent 2 strengthened runtime feedback in `UnityVerticalSliceRenderer`: Pulse attacks get a brighter core/radial splash read, Shade hits/leaks get reveal/slip cues tied to the `BlinkScytheEcho` silhouette, and Siege hits/leaks get directional warning/breach cues tied to the `BlinkMusketBarrel` silhouette. Reduced-effects text cues are included for high-signal hit/leak events.
 
 Shared acceptance:
 
@@ -273,15 +273,19 @@ Shared acceptance:
 Owner: Agent 1 final integration, Agent 2 supplies creep-specific evidence
 
 - [ ] Capture full visual review set after tower wrappers.
-- [ ] Capture role lineup after creep wrappers.
-- [ ] Capture Runner x10 pressure.
-- [ ] Capture Swarm heavy pressure.
-- [ ] Capture Shade readability.
-- [ ] Capture damaged transfer with reduced health.
-- [ ] Capture reduced-effects combat.
-- [ ] Capture grayscale copies for all relevant frames.
-- [ ] Write review under `docs/screenshot-reviews/blink-stylized-integration/`.
-- [ ] Record any medium/high readability regressions in this checklist before merge.
+- [x] Capture role lineup after creep wrappers.
+- [x] Capture Runner x10 pressure.
+- [x] Capture Swarm heavy pressure.
+- [x] Capture Shade readability.
+- [x] Capture damaged transfer with reduced health.
+- [x] Capture reduced-effects combat.
+- [x] Capture grayscale copies for all relevant frames.
+- [x] Write review under `docs/screenshot-reviews/blink-stylized-integration/`.
+- [x] Record any medium/high readability regressions in this checklist before merge.
+
+Status note:
+
+- Agent 2 supplied the creep-specific evidence set at `docs/screenshot-reviews/blink-stylized-integration/review.md`. No medium/high readability regressions were found; one low-severity staged leak-text overlap remains for later capture/HUD polish.
 
 Acceptance:
 

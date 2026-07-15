@@ -221,39 +221,62 @@ namespace LTW.UnityClient.UI
             var cx = rect.x + rect.width * 0.5f;
             var cy = rect.y + rect.height * 0.52f;
             var line = Mathf.Max(2f * scale, 1f);
+            var dimAccent = new Color(accent.r, accent.g, accent.b, Mathf.Clamp01(accent.a * 0.48f));
 
             switch (iconKind)
             {
                 case CreepIconKind.Brute:
-                    GUI.DrawTexture(new Rect(cx - 10f * scale, cy - 7f * scale, 20f * scale, 14f * scale), Texture2D.whiteTexture);
-                    GUI.DrawTexture(new Rect(cx - 13f * scale, cy - 2f * scale, 5f * scale, 9f * scale), Texture2D.whiteTexture);
-                    GUI.DrawTexture(new Rect(cx + 8f * scale, cy - 2f * scale, 5f * scale, 9f * scale), Texture2D.whiteTexture);
+                    DrawIconRect(new Rect(cx - 11f * scale, cy - 8f * scale, 22f * scale, 16f * scale), accent);
+                    DrawIconRect(new Rect(cx - 15f * scale, cy - 4f * scale, 6f * scale, 12f * scale), accent);
+                    DrawIconRect(new Rect(cx + 9f * scale, cy - 4f * scale, 6f * scale, 12f * scale), accent);
+                    DrawIconRect(new Rect(cx - 5f * scale, cy - 2f * scale, 10f * scale, 4f * scale), Cloud);
                     break;
                 case CreepIconKind.Swarm:
-                    GUI.DrawTexture(new Rect(cx - 9f * scale, cy - 6f * scale, 5f * scale, 5f * scale), Texture2D.whiteTexture);
-                    GUI.DrawTexture(new Rect(cx - 1f * scale, cy - 11f * scale, 5f * scale, 5f * scale), Texture2D.whiteTexture);
-                    GUI.DrawTexture(new Rect(cx + 7f * scale, cy - 4f * scale, 5f * scale, 5f * scale), Texture2D.whiteTexture);
-                    GUI.DrawTexture(new Rect(cx - 5f * scale, cy + 4f * scale, 5f * scale, 5f * scale), Texture2D.whiteTexture);
-                    GUI.DrawTexture(new Rect(cx + 4f * scale, cy + 8f * scale, 5f * scale, 5f * scale), Texture2D.whiteTexture);
+                    DrawIconRect(new Rect(cx - 10f * scale, cy - 7f * scale, 7f * scale, 7f * scale), accent, -25f);
+                    DrawIconRect(new Rect(cx - 1f * scale, cy - 12f * scale, 7f * scale, 7f * scale), accent, 18f);
+                    DrawIconRect(new Rect(cx + 8f * scale, cy - 4f * scale, 7f * scale, 7f * scale), accent, -18f);
+                    DrawIconRect(new Rect(cx - 5f * scale, cy + 4f * scale, 7f * scale, 7f * scale), accent, 32f);
+                    DrawIconRect(new Rect(cx + 5f * scale, cy + 8f * scale, 6f * scale, 6f * scale), accent, -35f);
+                    DrawIconRect(new Rect(cx - 11f * scale, cy + 11f * scale, 23f * scale, line), dimAccent);
                     break;
                 case CreepIconKind.Shade:
-                    GUI.color = new Color(accent.r, accent.g, accent.b, 0.42f);
-                    GUI.DrawTexture(new Rect(cx - 7f * scale, cy - 8f * scale, 14f * scale, 15f * scale), Texture2D.whiteTexture);
-                    GUI.color = accent;
-                    GUI.DrawTexture(new Rect(cx - 3f * scale, cy - 5f * scale, 13f * scale, 13f * scale), Texture2D.whiteTexture);
-                    GUI.DrawTexture(new Rect(cx - 1f * scale, cy + 8f * scale, 5f * scale, 5f * scale), Texture2D.whiteTexture);
+                    DrawIconRect(new Rect(cx - 10f * scale, cy - 8f * scale, 9f * scale, 18f * scale), dimAccent, -16f);
+                    DrawIconRect(new Rect(cx + 2f * scale, cy - 9f * scale, 8f * scale, 18f * scale), dimAccent, 16f);
+                    DrawIconRect(new Rect(cx - 3f * scale, cy - 12f * scale, 7f * scale, 23f * scale), accent);
+                    DrawIconRect(new Rect(cx - 8f * scale, cy + 6f * scale, 18f * scale, line), accent);
                     break;
                 case CreepIconKind.Siege:
-                    GUI.DrawTexture(new Rect(cx - 11f * scale, cy - 6f * scale, 22f * scale, 12f * scale), Texture2D.whiteTexture);
-                    GUI.DrawTexture(new Rect(cx - 5f * scale, cy + 5f * scale, 10f * scale, 10f * scale), Texture2D.whiteTexture);
-                    GUI.DrawTexture(new Rect(cx - 14f * scale, cy - 1f * scale, 4f * scale, 9f * scale), Texture2D.whiteTexture);
-                    GUI.DrawTexture(new Rect(cx + 10f * scale, cy - 1f * scale, 4f * scale, 9f * scale), Texture2D.whiteTexture);
+                    DrawIconRect(new Rect(cx - 10f * scale, cy - 7f * scale, 20f * scale, 14f * scale), accent);
+                    DrawIconRect(new Rect(cx - 4f * scale, cy - 13f * scale, 8f * scale, 9f * scale), accent);
+                    DrawIconRect(new Rect(cx - 3f * scale, cy - 1f * scale, 6f * scale, 17f * scale), Cloud);
+                    DrawIconRect(new Rect(cx - 14f * scale, cy + 6f * scale, 28f * scale, line), accent);
                     break;
                 default:
-                    GUI.DrawTexture(new Rect(cx - 5f * scale, cy - 11f * scale, 10f * scale, 18f * scale), Texture2D.whiteTexture);
-                    GUI.DrawTexture(new Rect(cx - line * 0.5f, cy + 3f * scale, line, 13f * scale), Texture2D.whiteTexture);
-                    GUI.DrawTexture(new Rect(cx - 8f * scale, cy + 2f * scale, 16f * scale, line), Texture2D.whiteTexture);
+                    DrawIconRect(new Rect(cx - 4f * scale, cy - 13f * scale, 8f * scale, 21f * scale), accent);
+                    DrawIconRect(new Rect(cx - 9f * scale, cy + 1f * scale, 18f * scale, line), accent);
+                    DrawIconRect(new Rect(cx - 2f * scale, cy + 5f * scale, 4f * scale, 12f * scale), accent);
+                    DrawIconRect(new Rect(cx - 11f * scale, cy + 9f * scale, 22f * scale, line), dimAccent);
                     break;
+            }
+
+            GUI.color = previousColor;
+        }
+
+        private static void DrawIconRect(Rect rect, Color color, float rotationDegrees = 0f)
+        {
+            var previousColor = GUI.color;
+            GUI.color = color;
+            if (Mathf.Abs(rotationDegrees) > 0.01f)
+            {
+                var previousMatrix = GUI.matrix;
+                var pivot = new Vector2(rect.x + rect.width * 0.5f, rect.y + rect.height * 0.5f);
+                GUIUtility.RotateAroundPivot(rotationDegrees, pivot);
+                GUI.DrawTexture(rect, Texture2D.whiteTexture);
+                GUI.matrix = previousMatrix;
+            }
+            else
+            {
+                GUI.DrawTexture(rect, Texture2D.whiteTexture);
             }
 
             GUI.color = previousColor;

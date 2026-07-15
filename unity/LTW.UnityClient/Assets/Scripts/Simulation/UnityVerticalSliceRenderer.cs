@@ -442,10 +442,12 @@ namespace LTW.UnityClient.Simulation
                         break;
                     case CreepDamagedEvent damaged:
                         var hitPosition = PositionFor(damaged.CreepEntityId.Value.ToString());
+                        var damagedCreepId = CreepIdFor(damaged.CreepEntityId.Value.ToString());
                         var towerPosition = GridToWorld(damaged.TowerPosition, damaged.LaneId);
                         var towerRole = TowerRoleAt(damaged.TowerPosition, damaged.LaneId);
                         SpawnTowerAttackCue(towerPosition, hitPosition, towerRole, damaged.DamageDealt);
                         SpawnCreepHitCue(hitPosition, new Color(1f, 0.88f, 0.44f), damaged.DamageDealt);
+                        SpawnCreepRoleFeedbackCue(hitPosition, damagedCreepId, damaged.DamageDealt);
                         SpawnEffect(hitPosition, new Color(1f, 0.88f, 0.44f), 0.24f, 0.12f);
                         if (damaged.DamageDealt >= 5)
                         {
@@ -467,8 +469,11 @@ namespace LTW.UnityClient.Simulation
                         PlaySound(creepKilledClip);
                         break;
                     case LeakEvent leak:
-                        var position = PositionFor(leak.CreepEntityId.Value.ToString());
+                        var leakCreepKey = leak.CreepEntityId.Value.ToString();
+                        var position = PositionFor(leakCreepKey);
+                        var leakingCreepId = CreepIdFor(leakCreepKey);
                         SpawnLeakGateCue(leak.DefenderId.Value);
+                        SpawnCreepLeakRoleCue(position, leakingCreepId);
                         SpawnEffect(position, LeakRed, 0.86f, 0.42f);
                         SpawnFloatingText(position, $"-{leak.LivesLost.Amount} LIFE", LeakRed, 0.72f);
                         SpawnReducedEffectCue(position, "LEAK", LeakRed);
@@ -641,10 +646,13 @@ namespace LTW.UnityClient.Simulation
             if (IsPulseTower(towerId))
             {
                 SpawnEffect(towerPosition + Vector3.up * 0.28f, shotColor, 0.68f, 0.18f);
+                SpawnEffect(towerPosition + Vector3.up * 0.62f, SignalGold, 0.28f, 0.1f);
                 SpawnBeam(towerPosition + new Vector3(-0.54f, 0.34f, 0.54f), towerPosition + new Vector3(0.54f, 0.34f, 0.54f), shotColor, 0.14f);
                 SpawnBeam(towerPosition + new Vector3(-0.54f, 0.34f, -0.54f), towerPosition + new Vector3(0.54f, 0.34f, -0.54f), shotColor, 0.14f);
                 SpawnBeam(towerPosition + new Vector3(-0.54f, 0.34f, -0.54f), towerPosition + new Vector3(-0.54f, 0.34f, 0.54f), shotColor, 0.14f);
                 SpawnBeam(towerPosition + new Vector3(0.54f, 0.34f, -0.54f), towerPosition + new Vector3(0.54f, 0.34f, 0.54f), shotColor, 0.14f);
+                SpawnBeam(towerPosition + new Vector3(-0.36f, 0.42f, -0.36f), towerPosition + new Vector3(0.36f, 0.42f, 0.36f), SignalGold, 0.12f);
+                SpawnBeam(towerPosition + new Vector3(-0.36f, 0.42f, 0.36f), towerPosition + new Vector3(0.36f, 0.42f, -0.36f), SignalGold, 0.12f);
                 SpawnCellFrameCue(hitPosition, shotColor, 0.18f);
                 SpawnEffect(hitPosition, shotColor, damage >= 5 ? 0.5f : 0.36f, 0.16f);
                 return;
@@ -673,6 +681,48 @@ namespace LTW.UnityClient.Simulation
             var scale = damage >= 5 ? 0.44f : 0.3f;
             SpawnBeam(position + new Vector3(-scale, 0.2f, 0f), position + new Vector3(scale, 0.2f, 0f), color, 0.1f);
             SpawnBeam(position + new Vector3(0f, 0.2f, -scale), position + new Vector3(0f, 0.2f, scale), color, 0.1f);
+        }
+
+        private void SpawnCreepRoleFeedbackCue(Vector3 position, string creepId, int damage)
+        {
+            if (ContainsRole(creepId, "shade") || ContainsRole(creepId, "invisible") || ContainsRole(creepId, "stealth"))
+            {
+                var color = new Color(0.72f, 0.94f, 1f);
+                SpawnBeam(position + new Vector3(-0.28f, 0.3f, -0.34f), position + new Vector3(0.28f, 0.3f, 0.34f), color, 0.18f);
+                SpawnBeam(position + new Vector3(-0.28f, 0.2f, 0.34f), position + new Vector3(0.28f, 0.2f, -0.34f), new Color(0.36f, 0.5f, 0.58f), 0.18f);
+                if (damage >= 5)
+                {
+                    SpawnFloatingText(position + Vector3.right * 0.34f, "REVEAL", color, 0.38f);
+                    SpawnReducedEffectCue(position + Vector3.right * 0.2f, "REVEAL", color);
+                }
+
+                return;
+            }
+
+            if (ContainsRole(creepId, "siege") || ContainsRole(creepId, "attacker"))
+            {
+                SpawnBeam(position + new Vector3(0f, 0.24f, -0.5f), position + new Vector3(0f, 0.24f, 0.58f), LeakRed, 0.16f);
+                SpawnBeam(position + new Vector3(-0.34f, 0.18f, 0.32f), position + new Vector3(0.34f, 0.18f, 0.32f), SignalGold, 0.14f);
+                if (damage >= 5)
+                {
+                    SpawnReducedEffectCue(position, "SIEGE", LeakRed);
+                }
+            }
+        }
+
+        private void SpawnCreepLeakRoleCue(Vector3 position, string creepId)
+        {
+            if (ContainsRole(creepId, "siege") || ContainsRole(creepId, "attacker"))
+            {
+                SpawnBeam(position + new Vector3(-0.46f, 0.22f, -0.48f), position + new Vector3(0.46f, 0.22f, 0.48f), LeakRed, 0.24f);
+                SpawnBeam(position + new Vector3(0f, 0.28f, -0.62f), position + new Vector3(0f, 0.28f, 0.62f), SignalGold, 0.24f);
+                return;
+            }
+
+            if (ContainsRole(creepId, "shade") || ContainsRole(creepId, "invisible") || ContainsRole(creepId, "stealth"))
+            {
+                SpawnBeam(position + new Vector3(-0.32f, 0.22f, 0f), position + new Vector3(0.32f, 0.22f, 0f), new Color(0.72f, 0.94f, 1f), 0.22f);
+            }
         }
 
         private void SpawnCreepDeathCue(Vector3 position, Color color, string creepId, CreepVisualProfile visualProfile)
