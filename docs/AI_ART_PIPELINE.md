@@ -452,7 +452,8 @@ Current decision:
   - [x] 2026-07-16: Added procedural board polish for build-band edge lines, center-route inlay, and endpoint chevrons.
   - [x] 2026-07-16: Captured fresh UI/board screenshot QA for default HUD, build menu, send menu, lane selector, heavy pressure, and grayscale under `docs/screenshot-reviews/ui-board-art-pass-v01/`.
   - [x] 2026-07-16: Added the formal UI/game-board pipeline docs: `docs/art-pipeline/ui-board-art-pipeline.md`, `docs/art-pipeline/ui-board-contact-sheet-brief.md`, and `docs/art-pipeline/ui-board-pipeline-checklist.md`.
-  - [ ] Generate UI/board V02 contact sheets for HUD chrome, command cards, icon simplification, board materials, spawn/leak gates, and map/lane controls.
+  - [x] 2026-07-16: Generated UI/board V02 contact sheets for HUD chrome, command cards, icon simplification, board materials, spawn/leak gates, and map/lane controls under `docs/art-pipeline/ui-board/contact-sheets/`.
+  - [ ] Select UI/board V02 candidates and promote the first runtime slice.
 - [x] Run Unity prefab/library validation.
   - [x] 2026-07-15: `ValidateAiSourcePlateProofPrefabs` passed in Unity batchmode.
   - [x] 2026-07-15: `ValidateTowerPlaceholderPrefabs` passed in Unity batchmode.

@@ -28,12 +28,20 @@ Source of truth: `docs/art-pipeline/ui-board-art-pipeline.md`
 - [x] Create UI/board contact-sheet brief.
 - [x] Create UI/board execution checklist.
 - [x] Create UI/board component inventory.
-- [ ] Generate HUD chrome contact sheet.
-- [ ] Generate command card frame contact sheet.
-- [ ] Generate icon simplification contact sheet.
-- [ ] Generate board material kit contact sheet.
-- [ ] Generate spawn/leak gate contact sheet.
-- [ ] Generate map/lane toggle and status control contact sheet.
+- [x] Generate HUD chrome contact sheet.
+  - [x] `docs/art-pipeline/ui-board/contact-sheets/ui_board_hud_chrome_contact_sheet_v01.png`
+- [x] Generate command card frame contact sheet.
+  - [x] `docs/art-pipeline/ui-board/contact-sheets/ui_board_command_cards_contact_sheet_v01.png`
+- [x] Generate icon simplification contact sheet.
+  - [x] `docs/art-pipeline/ui-board/contact-sheets/ui_board_icon_simplification_contact_sheet_v01.png`
+- [x] Generate board material kit contact sheet.
+  - [x] `docs/art-pipeline/ui-board/contact-sheets/ui_board_material_kit_contact_sheet_v01.png`
+- [x] Generate spawn/leak gate contact sheet.
+  - [x] `docs/art-pipeline/ui-board/contact-sheets/ui_board_spawn_leak_gates_contact_sheet_v01.png`
+- [x] Generate map/lane toggle and status control contact sheet.
+  - [x] `docs/art-pipeline/ui-board/contact-sheets/ui_board_controls_contact_sheet_v01.png`
+- [x] Record first-pass contact sheet review notes.
+  - [x] `docs/art-pipeline/ui-board/contact-sheet-review-v01.md`
 - [ ] Record selected candidates and rejection notes.
 
 ## V0.2 Production

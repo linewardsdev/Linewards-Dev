@@ -313,6 +313,7 @@ Owner: Agent 1 final integration, Agent 2 supplies creep-specific evidence
   - [x] 2026-07-16: Added static review sheet `docs/art-pipeline/ui-board-pass-v01-icon-review.png` before live Unity capture.
   - [x] 2026-07-16: Captured V01 UI/board Unity screenshot review under `docs/screenshot-reviews/ui-board-art-pass-v01/`, including normal and grayscale build/send states.
 - [ ] Capture UI/board V02 authored direction after contact-sheet selection.
+  - [x] 2026-07-16: Generated contact sheets and preliminary review notes under `docs/art-pipeline/ui-board/`; final option selection remains open.
   - [ ] HUD/stat drawer chrome.
   - [ ] command card frames.
   - [ ] board material kit.
