@@ -64,6 +64,9 @@ unity/LTW.UnityClient/Assets/Art/Creeps/Production/
   Materials/
   SourceNotes/
 
+unity/LTW.UnityClient/Assets/Resources/Art/Builder/Production/
+  Sprites/
+
 unity/LTW.UnityClient/Assets/Prefabs/Towers/
 unity/LTW.UnityClient/Assets/Prefabs/Creeps/
 ```
@@ -72,6 +75,7 @@ Rules:
 
 - `AIStaging` is not runtime-facing.
 - Runtime prefabs stay in `Assets/Prefabs/...`.
+- Builder runtime sprites may live under `Assets/Resources/Art/Builder/...` because the current Builder avatar is procedural and loaded from code.
 - Production sprites/materials use Line Wards names, not generator prompt names.
 - Third-party assets stay in their own dependency folders.
 - Binary source images should use Git LFS if they become numerous or large.
@@ -222,7 +226,30 @@ Output:
 - `Assets/Art/AIStaging/SourcePlates/{role}_source_plate_v01.png`
 - Review note with prompt/tool/provenance.
 
-### Stage 3: Unity production token
+### Stage 3: Trimmed Production Candidate
+
+Do not feed square concept/source plates directly into runtime prefabs.
+
+For each selected role:
+
+- Regenerate or edit the role as a compact, forward-facing production sprite.
+- Remove baked VFX, trails, glow fields, UI framing, and background logic.
+- Remove the chroma key to alpha.
+- Trim to the visible silhouette and re-pad on a consistent transparent canvas.
+- Produce normal and grayscale copies.
+- Make a tiny-scale review sheet before opening Unity.
+
+Output:
+
+- `Assets/Art/Towers/Production/Sprites/{role}_candidate_v##_trimmed.png`
+- `Assets/Art/Creeps/Production/Sprites/{role}_candidate_v##_trimmed.png`
+- Review sheet under `docs/screenshot-reviews/{pass-name}/`.
+
+Gate:
+
+- If the tiny-scale review does not beat the current authored/source-kit baseline, stop and iterate the image. Do not build a runtime prefab.
+
+### Stage 4: Unity Proof Token
 
 Convert the source plate into a runtime object.
 
@@ -246,8 +273,10 @@ For creeps:
 - Keep `Body`, `GroundShadow`, and `RoleMarker`.
 - `Body` can be the sprite/card renderer if that is the real visual body.
 - Health/damage cues must align with the visible token.
+- Proof prefab generation must not mutate active runtime visual libraries.
+- Runtime promotion is a separate, intentional step after screenshots pass.
 
-### Stage 4: Icon extraction
+### Stage 5: Icon extraction
 
 Every implemented role must produce menu icons from the same approved art.
 
@@ -260,7 +289,7 @@ Required states:
 
 Icons should make tower/send menus match what appears in the lane.
 
-### Stage 5: Screenshot QA gate
+### Stage 6: Screenshot QA gate
 
 Run screenshot review before calling a role done.
 
@@ -327,21 +356,111 @@ After Arrow and Runner:
 - If it looks flat or cheap in motion, keep the approved concept sheets but move to authored simple meshes with AI-assisted texture/material passes.
 - If AI output is inconsistent, use the prompts only as concept art and commission/build a small coherent asset set manually.
 
+Current decision:
+
+- [x] 2026-07-15: Arrow v06 and Runner v07 established the V1 art benchmark. Continue with the 2.5D token pipeline for the remaining towers, creeps, and Builder using `docs/art-pipeline/v1-art-fast-track.md`.
+
 ## Implementation Checklist
 
-- [ ] Create `docs/art-pipeline/ai-art-generation-log.md`.
-- [ ] Create `docs/art-pipeline/prompt-library.md`.
-- [ ] Create `Assets/Art/AIStaging/` folder structure.
-- [ ] Create `Assets/Art/Towers/Production/` folder structure.
-- [ ] Create `Assets/Art/Creeps/Production/` folder structure.
-- [ ] Generate Arrow contact sheet.
-- [ ] Generate Runner contact sheet.
-- [ ] Implement Arrow token prefab.
-- [ ] Implement Runner token prefab.
+- [x] Create `docs/art-pipeline/ai-art-generation-log.md`.
+  - [x] 2026-07-15: Added generation log with asset record template and current Arrow/Runner source-kit proof records.
+- [x] Create `docs/art-pipeline/prompt-library.md`.
+  - [x] 2026-07-15: Added shared style, avoidance block, role prompts, contact-sheet pattern, and source-plate pattern.
+- [x] Create `Assets/Art/AIStaging/` folder structure.
+  - [x] 2026-07-15: Added `Concepts`, `SourcePlates`, and `Rejected` staging folders with README guardrails.
+- [x] Create `Assets/Art/Towers/Production/` folder structure.
+  - [x] 2026-07-15: Added production `Sprites`, `Materials`, and `SourceNotes` folders with README guardrails.
+- [x] Create `Assets/Art/Creeps/Production/` folder structure.
+  - [x] 2026-07-15: Added production `Sprites`, `Materials`, and `SourceNotes` folders with README guardrails.
+- [x] Generate Arrow contact sheet.
+  - [x] 2026-07-15: Added ready-to-run Arrow contact-sheet prompt brief in `docs/art-pipeline/arrow-runner-contact-sheet-brief.md`.
+  - [x] 2026-07-15: Generated `docs/art-pipeline/role-contact-sheets/tower_arrow_contact_sheet_v01.png` and staged review note.
+- [x] Generate Runner contact sheet.
+  - [x] 2026-07-15: Added ready-to-run Runner contact-sheet prompt brief in `docs/art-pipeline/arrow-runner-contact-sheet-brief.md`.
+  - [x] 2026-07-15: Generated `docs/art-pipeline/role-contact-sheets/creep_runner_contact_sheet_v01.png` and staged review note.
+- [x] Generate remaining tower contact sheets.
+  - [x] 2026-07-15: Generated Control, Relay, Pulse, and Prism contact sheets with staged review notes.
+- [x] Generate remaining creep contact sheets.
+  - [x] 2026-07-15: Generated Brute, Swarm, Shade, and Siege contact sheets with staged review notes.
+- [x] Generate Builder contact sheet.
+  - [x] 2026-07-15: Generated Builder contact sheet with staged review note.
+- [x] Select preferred contact-sheet candidates.
+  - [x] 2026-07-15: Recorded user-selected candidates in `docs/art-pipeline/selected-candidates-v01.md` and updated review notes.
+- [x] Produce first-pass selected source-plate crops.
+  - [x] 2026-07-15: Created 512x512 source-plate drafts for all selected candidates under `Assets/Art/AIStaging/SourcePlates/`.
+- [x] Produce clean transparent source plates.
+  - [x] 2026-07-15: Regenerated selected candidates on chroma-key backgrounds, removed key to alpha PNGs, normalized 1024x1024 `v03` source plates, and created grayscale review copies.
+- [x] Implement Arrow token prefab.
+  - [x] 2026-07-15: Generated `Assets/Prefabs/Towers/Tower_Arrow_AIPlate.prefab` from `tower_arrow_source_plate_v03.png` for proof review.
+- [x] Implement Runner token prefab.
+  - [x] 2026-07-15: Generated `Assets/Prefabs/Creeps/Creep_Runner_AIPlate.prefab` from `creep_runner_source_plate_v03.png` for proof review.
+- [x] Restore active runtime defaults after live review.
+  - [x] 2026-07-15: Restored `tower.arrow` and `creep.runner` visual library references to the cleaner authored/source-kit prefabs; AI source-plate prefabs remain staged proof assets only.
+- [x] Produce Arrow/Runner trimmed production candidates.
+  - [x] 2026-07-15: Generated compact `v04` Arrow and Runner candidates, removed chroma key, trimmed to real silhouette, wrote grayscale copies, and captured `docs/screenshot-reviews/ai-production-candidate-v04/candidate-v04-review-sheet.png`.
+- [x] Update proof generator to avoid accidental runtime promotion.
+  - [x] 2026-07-15: `AiSourcePlateProofGenerator` now reads the `v04` production sprites and generates proof prefabs without changing active visual libraries.
+- [x] Validate corrected v04 proof flow.
+  - [x] 2026-07-15: Batchmode generation confirmed: "Generated AI source plate proof prefabs. Runtime visual libraries were not changed."
+  - [x] 2026-07-15: `ValidateAiSourcePlateProofPrefabs`, `ValidateTowerPlaceholderPrefabs`, and `ValidateCreepVisualLibrary` passed.
+  - [x] 2026-07-15: Captured v04 Unity proof sheets under `docs/screenshot-reviews/ai-production-candidate-v04/unity-proof-captures/`.
+- [x] Tune v04 proof prefab scale.
+  - [x] 2026-07-15: Increased Arrow/Runner proof sprite scales and captured normal/grayscale scale-tuned contact sheets under `docs/screenshot-reviews/ai-production-candidate-v04/unity-proof-captures-scale-tuned/`.
+- [x] Run v04 active-lane review.
+  - [x] 2026-07-15: Added review-only cloned visual library override for gameplay captures, so active-lane proof screenshots can use AI proof prefabs without mutating runtime assets.
+  - [x] 2026-07-15: Captured active-lane normal, grayscale, and reduced-effects evidence under `docs/screenshot-reviews/ai-production-candidate-v04/active-lane-proof-captures/`.
+  - [x] 2026-07-15: Captured polished review-only active-lane evidence under `docs/screenshot-reviews/ai-production-candidate-v04/active-lane-proof-captures-polished-v2/`, including a zoom review sheet.
+  - [x] 2026-07-15: Verdict: v04 Arrow is promotion-worthy pending explicit approval. v04 Runner validates the proof pipeline and passes grayscale, but should get a v05 color/value pass before final runtime promotion.
+- [x] Promote reviewed Arrow/Runner proof assets to runtime.
+  - [x] 2026-07-15: User explicitly approved runtime deployment. `tower.arrow` now points at `Tower_Arrow_AIPlate.prefab`; `creep.runner` now points at `Creep_Runner_AIPlate.prefab` using the v07 Runner refinement sprite.
+  - [x] 2026-07-15: Promotion remained separate from proof generation/capture.
+- [x] Produce Runner v05/v06 color/value polish if the team wants a cleaner final creep read.
+  - [x] 2026-07-15: Generated Runner v05 and v06 candidates; v05 fixed color but became too chunky, while v06 restored a long/narrow fast-dart silhouette.
+  - [x] 2026-07-15: Added v06b/v06c local cleanup passes to remove magenta fringe and strengthen teal/cyan gameplay read.
+  - [x] 2026-07-15: Updated the proof generator so `Creep_Runner_AIPlate.prefab` uses `creep_runner_candidate_v06c_trimmed.png`.
+  - [x] 2026-07-15: Hardened the proof generator to force generated production PNGs to import as Unity sprites before prefab generation.
+  - [x] 2026-07-15: Captured v06 review evidence under `docs/screenshot-reviews/ai-production-candidate-v05/`.
+- [x] Review Runner active-lane overlay behavior before promotion.
+  - [x] 2026-07-15: Added review-only suppression for creep health/readability overlays, cleared stale prefab pools during AI proof capture, and changed the AI proof active-lane scenario to Runner-only pressure so combat/projectile effects do not mask the sprite.
+- [ ] Final Runner runtime scale/overlay pass.
+  - [x] 2026-07-15: Runner v07 is live, scaled down to reduce overlap, and primitive scaffold renderers are disabled.
 - [ ] Rebuild Arrow and Runner icons.
-- [ ] Run Unity prefab/library validation.
-- [ ] Run screenshot QA.
-- [ ] Update `PROPER_ART_REPLACEMENT_PASS_CHECKLIST.md` with the selected pipeline.
+- [x] Apply V1 fast-track to remaining roles.
+  - [x] Control
+    - [x] 2026-07-15: Generated Control v01 V1 production sprite, created `Tower_Control_AIPlate.prefab`, and promoted `tower.control` to the AI plate visual library entry.
+  - [x] Relay
+    - [x] 2026-07-15: Generated Relay v01 V1 production sprite, created `Tower_Relay_AIPlate.prefab`, and wired `tower.relay` to the AI plate visual library entry for active proof review.
+  - [x] Pulse
+    - [x] 2026-07-15: Promoted `tower_pulse_candidate_v01_trimmed.png` through `Tower_Pulse_AIPlate.prefab` and wired `tower.pulse` to the AI plate visual library entry.
+  - [x] Prism
+    - [x] 2026-07-15: Promoted `tower_prism_candidate_v01_trimmed.png` through `Tower_Prism_AIPlate.prefab` and wired `tower.prism` to the AI plate visual library entry.
+  - [x] Brute
+    - [x] 2026-07-15: Generated Brute v01, replaced it with Brute v02, then applied v02b to further mute the yellow-block armor read. `Creep_Brute_AIPlate.prefab` now uses `creep_brute_candidate_v02b_trimmed.png`.
+  - [x] Swarm
+    - [x] 2026-07-15: Generated Swarm v01 V1 production sprite, created `Creep_Swarm_AIPlate.prefab`, and wired `creep.swarm` to the AI plate visual library entry for active proof review.
+  - [x] Shade
+    - [x] 2026-07-15: Promoted `creep_shade_candidate_v01_trimmed.png` through `Creep_Shade_AIPlate.prefab`, wired `creep.shade`, and cleared old overlay tint paths.
+  - [x] Siege
+    - [x] 2026-07-15: Generated Siege v01 V1 production sprite, created `Creep_Siege_AIPlate.prefab`, and wired `creep.siege` to the AI plate visual library entry for active proof review.
+  - [x] Builder
+    - [x] 2026-07-15: Added `builder_candidate_v01_trimmed.png` as a Resources-loaded sprite layer over the procedural Builder avatar.
+- [x] Record V1 role coverage.
+  - [x] 2026-07-15: Added `docs/art-pipeline/v1-role-coverage-report.md` showing all five towers, all five creeps, and Builder mapped to their runtime assets.
+- [x] Run Unity prefab/library validation.
+  - [x] 2026-07-15: `ValidateAiSourcePlateProofPrefabs` passed in Unity batchmode.
+  - [x] 2026-07-15: `ValidateTowerPlaceholderPrefabs` passed in Unity batchmode.
+  - [x] 2026-07-15: `ValidateCreepVisualLibrary` passed in Unity batchmode.
+- [x] Run proof contact-sheet screenshot QA.
+  - [x] 2026-07-15: Captured normal and grayscale proof sheets under `docs/screenshot-reviews/ai-source-plate-proof/captures/`.
+  - [x] 2026-07-15: Result: Arrow/Runner AI plates render without breaking token footprint after scale correction, but they should remain proof assets until source-specific crop/pose cleanup and gameplay-pressure review beat the authored/source-kit silhouettes.
+- [ ] Run full gameplay screenshot QA.
+  - [ ] Runner x10 pressure.
+  - [ ] Arrow/Runner in active lane combat at phone-scale camera.
+  - [x] 2026-07-15: Captured Arrow/Runner proof active-lane zoom evidence for v04 under `docs/screenshot-reviews/ai-production-candidate-v04/active-lane-proof-captures-polished-v2/zoom-review-sheet.png`.
+  - [x] 2026-07-15: Captured Runner v06 Unity proof contact sheet and active-lane evidence under `docs/screenshot-reviews/ai-production-candidate-v05/`.
+  - [ ] Build/send icon match once icons are rebuilt.
+- [x] Update `PROPER_ART_REPLACEMENT_PASS_CHECKLIST.md` with the selected pipeline.
+  - [x] 2026-07-15: Added AI-assisted 2.5D token pipeline setup note and kept generation/implementation work open.
 - [ ] Push to cloud.
 
 ## Research Notes

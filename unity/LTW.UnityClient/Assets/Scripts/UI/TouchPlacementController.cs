@@ -13,6 +13,7 @@ namespace LTW.UnityClient.UI
     {
         private const int LaneWidth = 7;
         private const int LaneLength = 18;
+        private const string BuilderSpriteResourcePath = "Art/Builder/Production/Sprites/builder_candidate_v01_trimmed";
 
         private static readonly Color PanelInk = new(0.08f, 0.12f, 0.22f, 0.92f);
         private static readonly Color ArcaneBlue = new(0.302f, 0.639f, 1f, 1f);
@@ -49,6 +50,7 @@ namespace LTW.UnityClient.UI
         private GameObject ghost = null!;
 
         private GameObject builderAvatar = null!;
+        private SpriteRenderer? builderAvatarSprite;
 
         [SerializeField]
         private bool showPlacementReadout = true;
@@ -458,6 +460,7 @@ namespace LTW.UnityClient.UI
             CreateBuilderPart("Pack", PrimitiveType.Cube, new Vector3(0f, 0.38f, -0.2f), new Vector3(0.25f, 0.3f, 0.12f));
             CreateBuilderPart("Visor", PrimitiveType.Cube, new Vector3(0f, 0.53f, 0.18f), new Vector3(0.2f, 0.08f, 0.08f));
             CreateBuilderPart("FootMarker", PrimitiveType.Cylinder, new Vector3(0f, 0.015f, 0f), new Vector3(0.72f, 0.02f, 0.72f));
+            CreateBuilderSpriteVisual();
         }
 
         private void CreateBuilderPart(string partName, PrimitiveType primitiveType, Vector3 localPosition, Vector3 localScale)
@@ -481,6 +484,12 @@ namespace LTW.UnityClient.UI
             accent.a = 1f;
             foreach (var part in builderAvatar.GetComponentsInChildren<Renderer>(true))
             {
+                if (part == builderAvatarSprite)
+                {
+                    part.enabled = true;
+                    continue;
+                }
+
                 part.material.color = part.gameObject.name switch
                 {
                     "Body" => Cloud,
@@ -488,6 +497,33 @@ namespace LTW.UnityClient.UI
                     "FootMarker" => accent,
                     _ => accent
                 };
+            }
+        }
+
+        private void CreateBuilderSpriteVisual()
+        {
+            var sprite = Resources.Load<Sprite>(BuilderSpriteResourcePath);
+            if (sprite == null)
+            {
+                return;
+            }
+
+            var plate = new GameObject("AIPlateVisual");
+            plate.transform.SetParent(builderAvatar.transform, false);
+            plate.transform.localPosition = new Vector3(0f, 0.27f, 0.04f);
+            plate.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
+            plate.transform.localScale = new Vector3(0.145f, 0.145f, 1f);
+
+            builderAvatarSprite = plate.AddComponent<SpriteRenderer>();
+            builderAvatarSprite.sprite = sprite;
+            builderAvatarSprite.sortingOrder = 12;
+
+            foreach (var part in builderAvatar.GetComponentsInChildren<Renderer>(true))
+            {
+                if (part != builderAvatarSprite && part.gameObject.name != "FootMarker")
+                {
+                    part.enabled = false;
+                }
             }
         }
 

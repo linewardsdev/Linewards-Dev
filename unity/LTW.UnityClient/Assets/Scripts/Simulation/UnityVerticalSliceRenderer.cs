@@ -31,6 +31,7 @@ namespace LTW.UnityClient.Simulation
         [SerializeField] private int activeLaneCameraId = 1;
         [SerializeField] private TowerVisualLibrary towerVisualLibrary = null!;
         [SerializeField] private CreepVisualLibrary creepVisualLibrary = null!;
+        [SerializeField] private bool suppressCreepGameplayOverlays;
 
         private AudioSource feedbackAudioSource = null!;
         private AudioClip towerBuiltClip = null!;
@@ -289,11 +290,26 @@ namespace LTW.UnityClient.Simulation
                 var healthFraction = CreepHealthFraction(creep.CreepId.Value, creep.Health);
                 var isHitFlashing = creepHitFlashUntil.TryGetValue(key, out var flashUntil) && Time.time < flashUntil;
                 ApplyCreepColor(creepObject, creep.CreepId.Value, creep.SenderId.Value, visualProfile, healthFraction, isHitFlashing);
-                ConfigureCreepHealthBar(creepObject, creep.CreepId.Value, healthFraction);
-                ConfigureCreepReadabilityOverlay(creepObject, creep.CreepId.Value, creep.SenderId.Value, healthFraction, isHitFlashing);
-                if (visualProfile == null || visualProfile.Prefab == null)
+                if (suppressCreepGameplayOverlays)
                 {
-                    ConfigureCreepRoleMarker(creepObject, creep.CreepId.Value, creep.SenderId.Value, healthFraction, isHitFlashing);
+                    DeactivateCreepGameplayOverlays(creepObject);
+                }
+                else
+                {
+                    ConfigureCreepHealthBar(creepObject, creep.CreepId.Value, healthFraction);
+                    if (UsesAiPlateVisual(creepObject))
+                    {
+                        DeactivateRoleReadabilityOverlay(creepObject);
+                    }
+                    else
+                    {
+                        ConfigureCreepReadabilityOverlay(creepObject, creep.CreepId.Value, creep.SenderId.Value, healthFraction, isHitFlashing);
+                    }
+
+                    if (visualProfile == null || visualProfile.Prefab == null)
+                    {
+                        ConfigureCreepRoleMarker(creepObject, creep.CreepId.Value, creep.SenderId.Value, healthFraction, isHitFlashing);
+                    }
                 }
 
                 lastKnownPositions[key] = creepObject.transform.position;
@@ -1309,6 +1325,23 @@ namespace LTW.UnityClient.Simulation
             for (var index = 0; index < CreepReadabilityOverlayNames.Length; index++)
             {
                 var marker = creepObject.transform.Find(CreepReadabilityOverlayNames[index]);
+                if (marker != null)
+                {
+                    marker.gameObject.SetActive(false);
+                }
+            }
+        }
+
+        private static bool UsesAiPlateVisual(GameObject instance) =>
+            instance != null && instance.transform.Find("AIPlateVisual") != null;
+
+        private static void DeactivateCreepGameplayOverlays(GameObject creepObject)
+        {
+            DeactivateRoleReadabilityOverlay(creepObject);
+            DeactivateKnownCreepMarkers(creepObject);
+            for (var index = 0; index < CreepHealthOverlayNames.Length; index++)
+            {
+                var marker = creepObject.transform.Find(CreepHealthOverlayNames[index]);
                 if (marker != null)
                 {
                     marker.gameObject.SetActive(false);
@@ -2567,6 +2600,14 @@ namespace LTW.UnityClient.Simulation
             "RoleSiegeRamHead",
             "RoleSiegeWarningLeft",
             "RoleSiegeWarningRight"
+        };
+
+        private static readonly string[] CreepHealthOverlayNames =
+        {
+            "HealthBarBack",
+            "HealthBarFill",
+            "HealthBarMidTick",
+            "HealthWoundPip"
         };
 
         private static readonly Color NightInk = new Color(0.063f, 0.094f, 0.184f);

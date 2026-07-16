@@ -15,7 +15,7 @@ MonoBehaviour:
   profiles:
   - towerId: tower.arrow
     role: 0
-    prefab: {fileID: 7678135387116853247, guid: 3172e462b9fe044b98302e196fc6c432, type: 3}
+    prefab: {fileID: 6448180863021943805, guid: 46636812e5667b746b05b4bb996508f0, type: 3}
     scale: {x: 1.18, y: 1.28, z: 1.18}
     lift: 0.12
     bodyRendererPath: Body
@@ -24,7 +24,7 @@ MonoBehaviour:
     rangeHaloRendererPath: RangeHalo
   - towerId: tower.control
     role: 1
-    prefab: {fileID: 1318848987618607457, guid: 918588312f74d4a4d9999417371dd031, type: 3}
+    prefab: {fileID: 6448180863021943805, guid: 7cdfee6cb16a40589d20ca0810cb189f, type: 3}
     scale: {x: 1.05, y: 1, z: 1.05}
     lift: 0.12
     bodyRendererPath: Body
@@ -33,7 +33,7 @@ MonoBehaviour:
     rangeHaloRendererPath: RangeHalo
   - towerId: tower.relay
     role: 2
-    prefab: {fileID: 3162852669631556444, guid: fbd4746412774448f9fbcb2810d435d7, type: 3}
+    prefab: {fileID: 6448180863021943805, guid: 246b1939f9ac47f59ecbb1aeaa5eacee, type: 3}
     scale: {x: 1, y: 1.16, z: 1}
     lift: 0.16
     bodyRendererPath: Body
@@ -42,7 +42,7 @@ MonoBehaviour:
     rangeHaloRendererPath: RangeHalo
   - towerId: tower.pulse
     role: 3
-    prefab: {fileID: 7569793534906377364, guid: 6cc2ca20104314e5083f7a20dc97a625, type: 3}
+    prefab: {fileID: 6448180863021943805, guid: 626b3608aa534906b87f62c188e330b2, type: 3}
     scale: {x: 1.08, y: 1.02, z: 1.08}
     lift: 0.12
     bodyRendererPath: Body
@@ -51,7 +51,7 @@ MonoBehaviour:
     rangeHaloRendererPath: RangeHalo
   - towerId: tower.prism
     role: 4
-    prefab: {fileID: 4235222601657890710, guid: a3b449bc3546b40ddaec0f309c7670a0, type: 3}
+    prefab: {fileID: 6448180863021943805, guid: f29043be66a841a398e3e52059b86cc0, type: 3}
     scale: {x: 1, y: 1.22, z: 1}
     lift: 0.12
     bodyRendererPath: Body
