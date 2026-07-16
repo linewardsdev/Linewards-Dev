@@ -173,8 +173,8 @@ namespace LTW.UnityClient.Editor
             ValidateState(stateName);
             var directory = GetOutputDirectory(outputRoot, profileName);
             return grayscale
-                ? Path.Combine(directory, "grayscale", stateName + ".png")
-                : Path.Combine(directory, stateName + ".png");
+                ? Path.Combine(directory, "grayscale", GetCaptureFileName(stateName))
+                : Path.Combine(directory, GetCaptureFileName(stateName));
         }
 
         public string GetRelativeCapturePath(string profileName, string stateName, bool grayscale = false)
@@ -182,9 +182,17 @@ namespace LTW.UnityClient.Editor
             ValidateState(stateName);
             var profile = GetProfile(profileName);
             var parts = grayscale
-                ? new[] { RunId, PhaseName, profile.name, "grayscale", stateName + ".png" }
-                : new[] { RunId, PhaseName, profile.name, stateName + ".png" };
+                ? new[] { RunId, PhaseName, profile.name, "grayscale", GetCaptureFileName(stateName) }
+                : new[] { RunId, PhaseName, profile.name, GetCaptureFileName(stateName) };
             return string.Join("/", parts);
+        }
+
+        public string GetCaptureFileName(string stateName)
+        {
+            ValidateState(stateName);
+            var index = Array.FindIndex(CanonicalStateNames, candidate =>
+                string.Equals(candidate, stateName, StringComparison.OrdinalIgnoreCase));
+            return $"{index + 1:00}-{CanonicalStateNames[index]}.png";
         }
 
         public string PhaseName => Phase == VisualCapturePhase.Before ? "before" : "after";
