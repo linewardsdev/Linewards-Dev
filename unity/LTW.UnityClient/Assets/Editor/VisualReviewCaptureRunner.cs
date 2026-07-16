@@ -42,6 +42,9 @@ namespace LTW.UnityClient.Editor
         private static CaptureMode captureMode;
         private static bool roleLineupPrepared;
         private static bool aiProofGameplayPrepared;
+        private static string captureOutputRoot = DefaultOutputDirectory;
+        private static VisualCapturePlan? capturePlan;
+        private static VisualCaptureManifest? captureManifest;
 
         [MenuItem("Line Wards/Review/Capture Visual Review Set")]
         public static void CaptureVisualReviewSet()
@@ -72,7 +75,7 @@ namespace LTW.UnityClient.Editor
         {
             outputDirectory = ResolveOutputDirectory();
             Directory.CreateDirectory(outputDirectory);
-            writeGrayscaleCopies = HasArgument("-ltwCaptureGrayscale");
+            writeGrayscaleCopies = capturePlan != null || HasArgument("-ltwCaptureGrayscale");
 
             var exitCode = 0;
             try
@@ -139,7 +142,18 @@ namespace LTW.UnityClient.Editor
             }
 
             captureMode = mode;
-            outputDirectory = ResolveOutputDirectory();
+            captureOutputRoot = ResolveOutputDirectory();
+            capturePlan = mode == CaptureMode.FullReview ? ResolveCapturePlan() : null;
+            if (capturePlan != null && !InternalEditorUtility.inBatchMode)
+            {
+                throw new InvalidOperationException(
+                    "The multi-profile mobile capture plan must run in batch mode so every profile uses explicit render dimensions.");
+            }
+
+            captureManifest = capturePlan == null ? null : VisualCaptureManifest.Create(capturePlan);
+            outputDirectory = capturePlan == null
+                ? captureOutputRoot
+                : capturePlan.GetOutputDirectory(captureOutputRoot, capturePlan.Profiles[0].name);
             Directory.CreateDirectory(outputDirectory);
             captureIndex = 1;
             pendingCapturePath = null;
@@ -887,6 +901,45 @@ namespace LTW.UnityClient.Editor
 
         private static void QueueCapture(string label)
         {
+            if (capturePlan != null && captureManifest != null)
+            {
+                foreach (var profile in capturePlan.Profiles)
+                {
+                    var safeArea = new Rect(
+                        profile.safeAreaInsets.left,
+                        profile.safeAreaInsets.bottom,
+                        profile.width - profile.safeAreaInsets.left - profile.safeAreaInsets.right,
+                        profile.height - profile.safeAreaInsets.top - profile.safeAreaInsets.bottom);
+                    var path = capturePlan.GetCapturePath(captureOutputRoot, profile.name, label);
+                    try
+                    {
+                        MobileViewportLayout.SetCaptureViewportOverride(profile.width, profile.height, safeArea);
+                        WriteImmediateCapture(path, label, profile.width, profile.height);
+                        if (writeGrayscaleCopies)
+                        {
+                            WriteGrayscaleCopy(label, path);
+                        }
+
+                        captureManifest.MarkResult(profile.name, label, success: true);
+                    }
+                    catch (Exception exception)
+                    {
+                        captureManifest.MarkResult(profile.name, label, success: false, exception.Message);
+                        WriteManagedCaptureArtifacts();
+                        throw;
+                    }
+                    finally
+                    {
+                        MobileViewportLayout.ClearCaptureViewportOverride();
+                    }
+                }
+
+                WriteManagedCaptureArtifacts();
+                nextActionAt = EditorApplication.timeSinceStartup + 0.5d;
+                AdvanceState(label);
+                return;
+            }
+
             var path = Path.Combine(outputDirectory, $"{captureIndex:00}-{label}.png");
             captureIndex++;
             if (InternalEditorUtility.inBatchMode)
@@ -907,10 +960,14 @@ namespace LTW.UnityClient.Editor
             ScreenCapture.CaptureScreenshot(path);
         }
 
-        private static void WriteImmediateCapture(string path, string label)
+        private static void WriteImmediateCapture(
+            string path,
+            string label,
+            int? requestedWidth = null,
+            int? requestedHeight = null)
         {
-            var width = Math.Max(1080, Screen.width);
-            var height = Math.Max(1920, Screen.height);
+            var width = requestedWidth ?? Math.Max(1080, Screen.width);
+            var height = requestedHeight ?? Math.Max(1920, Screen.height);
             var renderTexture = new RenderTexture(width, height, 24, RenderTextureFormat.ARGB32);
             var texture = new Texture2D(width, height, TextureFormat.RGBA32, false);
             var previousActive = RenderTexture.active;
@@ -920,8 +977,8 @@ namespace LTW.UnityClient.Editor
                 RenderTexture.active = renderTexture;
                 GL.Clear(true, true, Color.black);
                 RenderActiveCameras(renderTexture);
+                RenderBatchHudOverlay(renderTexture, label);
                 texture.ReadPixels(new Rect(0, 0, width, height), 0, 0);
-                PaintBatchHudOverlay(texture, label);
                 texture.Apply();
                 Directory.CreateDirectory(Path.GetDirectoryName(path)!);
                 File.WriteAllBytes(path, ImageConversion.EncodeToPNG(texture));
@@ -1472,6 +1529,12 @@ namespace LTW.UnityClient.Editor
             PresentationPreferences.ReducedEffects = false;
             EditorSettings.enterPlayModeOptionsEnabled = previousEnterPlayModeOptionsEnabled;
             EditorSettings.enterPlayModeOptions = previousEnterPlayModeOptions;
+            MobileViewportLayout.ClearCaptureViewportOverride();
+            if (captureManifest != null)
+            {
+                WriteManagedCaptureArtifacts();
+            }
+
             if (error == null)
             {
                 Debug.Log($"LTW visual review screenshots captured in {outputDirectory}");
@@ -1583,6 +1646,38 @@ namespace LTW.UnityClient.Editor
             return DefaultOutputDirectory;
         }
 
+        private static VisualCapturePlan? ResolveCapturePlan()
+        {
+            var runId = ReadArgumentValue("-ltwCaptureRunId");
+            if (string.IsNullOrWhiteSpace(runId))
+            {
+                return null;
+            }
+
+            return VisualCapturePlan.FromValues(
+                runId,
+                ReadArgumentValue("-ltwCapturePhase") ?? "after",
+                ReadArgumentValue("-ltwCaptureSeed") ?? "1",
+                ReadArgumentValue("-ltwCaptureProfiles"));
+        }
+
+        private static void WriteManagedCaptureArtifacts()
+        {
+            if (capturePlan == null || captureManifest == null)
+            {
+                return;
+            }
+
+            var runDirectory = Path.Combine(captureOutputRoot, capturePlan.RunId);
+            Directory.CreateDirectory(runDirectory);
+            File.WriteAllText(
+                Path.Combine(runDirectory, "capture-manifest.json"),
+                captureManifest.ToJson());
+            File.WriteAllText(
+                Path.Combine(runDirectory, "review.md"),
+                captureManifest.GenerateReviewMarkdown());
+        }
+
         private static bool ShouldExitAfterRun() => HasArgument("-ltwExitAfterCapture");
 
         private static bool HasArgument(string name)
@@ -1639,7 +1734,7 @@ namespace LTW.UnityClient.Editor
             texture.SetPixels32(pixels);
             texture.Apply();
 
-            var grayscaleDirectory = Path.Combine(outputDirectory, "grayscale");
+            var grayscaleDirectory = Path.Combine(Path.GetDirectoryName(sourcePath)!, "grayscale");
             Directory.CreateDirectory(grayscaleDirectory);
             File.WriteAllBytes(Path.Combine(grayscaleDirectory, Path.GetFileName(sourcePath)), ImageConversion.EncodeToPNG(texture));
             UnityEngine.Object.DestroyImmediate(texture);
