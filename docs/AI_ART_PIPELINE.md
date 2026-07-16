@@ -1,6 +1,24 @@
 # AI-Assisted Art Pipeline
 
 Date created: 2026-07-15
+Status reconciled: 2026-07-16
+
+## Current Runtime Baseline
+
+The V1 AIPlate sprite pipeline is active for all five towers and all five creeps. Arrow, Control, Relay, Pulse, and Prism resolve through `Tower_*_AIPlate.prefab`; Runner, Brute, Swarm, Shade, and Siege resolve through `Creep_*_AIPlate.prefab`. The Builder uses `builder_candidate_v01_trimmed.png` as an authored layer over the procedural placement avatar.
+
+Generated placeholders, source-kit wrappers, and proof prefabs remain fallback or historical evidence. Proof generation must not mutate the active visual libraries, and promotion remains a separate intentional step.
+
+The genuinely open production work is:
+
+- rebuild the final simplified tower and send icon family from the active AIPlate silhouettes;
+- add or align specialized VFX landmarks beyond the generic tower `Muzzle` and `Lens` objects;
+- normalize sprite palette, brightness, and grayscale value separation;
+- certify Runner overlap plus Runner x10, heavy Swarm, Siege leak, all-tower combat, and reduced-effects pressure states;
+- certify Builder select, confirm-placement, and build-complete clarity;
+- rerun current-main prefab/library fallback validation.
+
+Final screenshot certification is gated on capture automation that produces deterministic before/after evidence for small, standard, tall, and safe-area portrait phones using the actual runtime UI. The current runner's eight states and grayscale output are useful, but one effective viewport, synthetic batch HUD painting, no declared seed, no safe-area injection, and no manifest are not sufficient for final certification.
 
 ## Purpose
 
@@ -291,6 +309,8 @@ Icons should make tower/send menus match what appears in the lane.
 
 ### Stage 6: Screenshot QA gate
 
+Capture automation is a prerequisite for final certification. A complete run must use the actual runtime UI, declared seeds, injectable safe-area insets, a machine-readable manifest, and matching before/after paths across the four portrait phone profiles. Manual and current batch captures remain provisional evidence until that harness exists.
+
 Run screenshot review before calling a role done.
 
 Minimum captures:
@@ -324,13 +344,13 @@ Goal:
 
 Tasks:
 
-- [ ] Generate Arrow contact sheet.
-- [ ] Select one silhouette.
-- [ ] Produce transparent source plate.
-- [ ] Build `Tower_Arrow` sprite/card prefab wrapper.
-- [ ] Preserve `Body`, `RoleMarker`, `OwnerTrim`, `RangeHalo`, `Muzzle`, and `Lens`.
-- [ ] Rebuild Arrow build icon from the same source.
-- [ ] Capture normal/grayscale screenshots.
+- [x] Generate Arrow contact sheet. Completed by the V1 AIPlate pipeline.
+- [x] Select one silhouette. Arrow v06 is the active benchmark.
+- [x] Produce transparent source plate. Preserved as production history.
+- [x] Build `Tower_Arrow_AIPlate.prefab` and promote it intentionally.
+- [x] Preserve `Body`, `RoleMarker`, `OwnerTrim`, `RangeHalo`, `Muzzle`, and `Lens`.
+- [ ] Rebuild the final simplified Arrow build icon from the active silhouette, including selected, disabled, and grayscale states.
+- [x] Capture initial normal/grayscale proof screenshots. Final mobile certification remains gated on capture automation.
 
 ### Slice B: Runner Creep
 
@@ -340,13 +360,13 @@ Goal:
 
 Tasks:
 
-- [ ] Generate Runner contact sheet.
-- [ ] Select one silhouette.
-- [ ] Produce transparent source plate.
-- [ ] Build `Creep_Runner` sprite/card prefab wrapper.
-- [ ] Preserve `Body`, `GroundShadow`, `RoleMarker`, and `Damage`.
-- [ ] Rebuild Runner send icon from the same source.
-- [ ] Capture Runner x10 pressure normal/grayscale screenshots.
+- [x] Generate Runner contact sheet. Completed by the V1 AIPlate pipeline.
+- [x] Select one silhouette. Runner v07 is the active benchmark.
+- [x] Produce transparent source plate. Preserved as production history.
+- [x] Build `Creep_Runner_AIPlate.prefab` and promote it intentionally.
+- [x] Preserve `Body`, `GroundShadow`, `RoleMarker`, and `Damage`.
+- [ ] Rebuild the final simplified Runner send icon from the active silhouette, including selected, disabled, and grayscale states.
+- [ ] Certify Runner x10 pressure and overlap in the deterministic four-profile capture matrix.
 
 ## Decision Gate
 
