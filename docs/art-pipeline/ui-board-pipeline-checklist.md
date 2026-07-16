@@ -51,12 +51,15 @@ Source of truth: `docs/art-pipeline/ui-board-art-pipeline.md`
 - [x] Promote selected command card frame art.
   - [x] Selected direction: contact-sheet option 4.
   - [x] 2026-07-16: Added shared runtime command-card chrome in `RuntimeUiChrome`, wired build/send cards, and captured review evidence under `docs/screenshot-reviews/ui-board-art-pass-v02-command-cards/`.
-- [ ] Promote selected HUD/stat drawer frame art.
-  - [ ] Selected direction: contact-sheet option 6.
-- [ ] Promote selected route/build-band board material art.
-  - [ ] Selected direction: contact-sheet option 11.
-- [ ] Promote selected spawn/leak gate art.
-  - [ ] Selected direction: contact-sheet option 11.
+- [x] Promote selected HUD/stat drawer frame art.
+  - [x] Selected direction: contact-sheet option 6.
+  - [x] 2026-07-16: Added first runtime compact HUD chrome pass in `HudView` and aligned deterministic screenshot overlays with the compact dropdown direction.
+- [x] Promote selected route/build-band board material art.
+  - [x] Selected direction: contact-sheet option 11.
+  - [x] 2026-07-16: Added first procedural option-11 board material slice: slate cell palette, quieter route band, bevel/seam emphasis, and triangular route cue language in `UnityVerticalSliceRenderer`.
+- [x] Promote selected spawn/leak gate art.
+  - [x] Selected direction: contact-sheet option 11.
+  - [x] 2026-07-16: Replaced bright rectangular endpoint blocks with compact circular spawn/leak platforms, spawn pylons/chevrons, and leak drain slats.
 - [x] Promote selected map/lane/status control art.
   - [x] Selected direction: contact-sheet option 1.
   - [x] 2026-07-16: Added shared persistent control chrome in `RuntimeUiChrome`, wired the lane selector, and captured review evidence under `docs/screenshot-reviews/ui-board-art-pass-v02-controls/`.
@@ -68,25 +71,29 @@ Source of truth: `docs/art-pipeline/ui-board-art-pipeline.md`
 
 ## V0.2 QA
 
-- [ ] Capture phone portrait default single-lane view.
+- [x] Capture phone portrait default single-lane view.
+  - [x] `docs/screenshot-reviews/ui-board-art-pass-v02/captures/01-default-hud.png`
 - [ ] Capture map view.
   - [ ] True map-camera behavior remains outside the current lane-selector-only control slice.
 - [x] Capture build menu open.
-  - [x] `docs/screenshot-reviews/ui-board-art-pass-v02-command-cards/captures/02-build-menu-open.png`
+  - [x] `docs/screenshot-reviews/ui-board-art-pass-v02/captures/02-build-menu-open.png`
 - [x] Capture send menu open.
-  - [x] `docs/screenshot-reviews/ui-board-art-pass-v02-command-cards/captures/03-send-menu-open.png`
+  - [x] `docs/screenshot-reviews/ui-board-art-pass-v02/captures/03-send-menu-open.png`
 - [ ] Capture selected command card.
 - [ ] Capture disabled/too-expensive command card.
 - [ ] Capture heavy Runner pressure.
 - [ ] Capture heavy Swarm pressure.
-- [ ] Capture leak/life-loss moment.
+- [x] Capture heavy pressure.
+  - [x] `docs/screenshot-reviews/ui-board-art-pass-v02/captures/06-heavy-pressure.png`
+- [x] Capture leak/life-loss moment.
+  - [x] `docs/screenshot-reviews/ui-board-art-pass-v02/captures/08-results-or-late-match.png`
 - [x] Capture grayscale set.
-  - [x] `docs/screenshot-reviews/ui-board-art-pass-v02-command-cards/captures/grayscale/`
+  - [x] `docs/screenshot-reviews/ui-board-art-pass-v02/captures/grayscale/`
 - [x] Write command-card slice review.
   - [x] `docs/screenshot-reviews/ui-board-art-pass-v02-command-cards/review.md`
 - [x] Write persistent-controls slice review.
   - [x] `docs/screenshot-reviews/ui-board-art-pass-v02-controls/review.md`
-- [ ] Write full V02 review under `docs/screenshot-reviews/ui-board-art-pass-v02/review.md`.
+- [x] Write full V02 review under `docs/screenshot-reviews/ui-board-art-pass-v02/review.md`.
 
 ## Done Criteria For UI/Board V1
 

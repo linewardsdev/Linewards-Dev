@@ -973,10 +973,14 @@ namespace LTW.UnityClient.Editor
             var red = new Color32(255, 97, 112, 255);
             var cloud = new Color32(244, 247, 255, 255);
 
-            PaintRect(texture, 150, 1782, 780, 70, panelStrong);
-            PaintRect(texture, 150, 1777, 780, 6, gold);
-            PaintText(texture, "STATS", 192, 1832, mint, 4);
-            PaintText(texture, "220V 75G +10 P0", 405, 1832, cloud, 4);
+            PaintRect(texture, 360, 1784, 360, 68, panelStrong);
+            PaintRect(texture, 380, 1779, 320, 5, gold);
+            PaintRect(texture, 378, 1800, 70, 34, new Color32(9, 22, 34, 238));
+            PaintRect(texture, 456, 1800, 190, 34, new Color32(9, 18, 32, 238));
+            PaintRect(texture, 654, 1800, 52, 34, new Color32(13, 39, 48, 238));
+            PaintText(texture, "LINE", 388, 1826, mint, 3);
+            PaintText(texture, "L220 G75 +10", 470, 1826, cloud, 3);
+            PaintText(texture, "P0", 668, 1826, blue, 3);
             PaintRect(texture, 890, 1744, 104, 54, mint);
             PaintText(texture, "PLAY", 914, 1780, panelStrong, 4);
 
@@ -1297,10 +1301,14 @@ namespace LTW.UnityClient.Editor
             var gold = new Color(1f, 0.784f, 0.29f, 1f);
             var cloud = new Color(0.957f, 0.969f, 1f, 1f);
 
-            AddOverlayRect(root, layer, "TopBar", new Vector2(0f, 8.64f), new Vector2(4.78f, 0.56f), panel);
-            AddOverlayRect(root, layer, "TopBarAccent", new Vector2(0f, 8.36f), new Vector2(4.78f, 0.05f), gold);
-            AddOverlayText(root, layer, "STATS", new Vector2(-1.75f, 8.64f), mint, 0.22f);
-            AddOverlayText(root, layer, "220♥ 75G +10 P0", new Vector2(0.15f, 8.64f), cloud, 0.22f);
+            AddOverlayRect(root, layer, "TopBar", new Vector2(0f, 8.64f), new Vector2(2.2f, 0.5f), panel);
+            AddOverlayRect(root, layer, "TopBarAccent", new Vector2(0f, 8.39f), new Vector2(1.96f, 0.04f), gold);
+            AddOverlayRect(root, layer, "TopLineCell", new Vector2(-0.78f, 8.64f), new Vector2(0.52f, 0.28f), panel);
+            AddOverlayRect(root, layer, "TopSummaryCell", new Vector2(0.06f, 8.64f), new Vector2(1.02f, 0.28f), panel);
+            AddOverlayRect(root, layer, "TopPressureCell", new Vector2(0.82f, 8.64f), new Vector2(0.34f, 0.28f), panel);
+            AddOverlayText(root, layer, "LINE", new Vector2(-0.78f, 8.64f), mint, 0.16f);
+            AddOverlayText(root, layer, "L220 G75 +10", new Vector2(0.06f, 8.64f), cloud, 0.15f);
+            AddOverlayText(root, layer, "P0", new Vector2(0.82f, 8.64f), blue, 0.15f);
             AddOverlayRect(root, layer, "PlayButton", new Vector2(3.76f, 8.06f), new Vector2(0.74f, 0.42f), mint);
             AddOverlayText(root, layer, "PLAY", new Vector2(3.76f, 8.06f), panel, 0.18f);
 

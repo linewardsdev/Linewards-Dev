@@ -316,12 +316,13 @@ Owner: Agent 1 final integration, Agent 2 supplies creep-specific evidence
   - [x] 2026-07-16: Generated contact sheets and preliminary review notes under `docs/art-pipeline/ui-board/`.
   - [x] 2026-07-16: Recorded selected UI/board V02 options in `docs/art-pipeline/ui-board/selected-candidates-v02.md`.
   - [x] 2026-07-16: Implemented the first V02 runtime command-card slice from selected option 4 and captured evidence under `docs/screenshot-reviews/ui-board-art-pass-v02-command-cards/`.
-  - [ ] HUD/stat drawer chrome.
+  - [x] HUD/stat drawer chrome.
   - [x] command card frames.
-  - [ ] board material kit.
-  - [ ] spawn/leak gates.
+  - [x] board material kit.
+  - [x] spawn/leak gates.
   - [x] map/lane toggle and status controls.
     - [x] 2026-07-16: Lane selector uses the selected option-1 persistent control chrome; true map-camera behavior remains a separate design/implementation decision.
+  - [x] 2026-07-16: Implemented the first full-screen V02 runtime slice for HUD option 6, board material option 11, and spawn/leak gates option 11, with evidence under `docs/screenshot-reviews/ui-board-art-pass-v02/`.
 - [ ] Write review under `docs/screenshot-reviews/proper-art-replacement-pass/`.
 - [ ] Record every medium/high issue before merge.
 

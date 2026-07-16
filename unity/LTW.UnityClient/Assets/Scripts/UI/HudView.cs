@@ -13,6 +13,8 @@ namespace LTW.UnityClient.UI
         private const long IncomeIntervalTicks = 50;
         private static readonly Color NightInk = new(0.063f, 0.094f, 0.184f, 0.9f);
         private static readonly Color PanelInk = new(0.08f, 0.12f, 0.22f, 0.94f);
+        private static readonly Color DeepInk = new(0.016f, 0.022f, 0.036f, 0.96f);
+        private static readonly Color SlateEdge = new(0.32f, 0.34f, 0.38f, 0.92f);
         private static readonly Color ArcaneBlue = new(0.302f, 0.639f, 1f, 1f);
         private static readonly Color SignalGold = new(1f, 0.784f, 0.29f, 1f);
         private static readonly Color MintSignal = new(0.349f, 0.882f, 0.714f, 1f);
@@ -127,8 +129,8 @@ namespace LTW.UnityClient.UI
             var headerHeight = 52f * scale;
             var drawerHeight = 78f * scale;
             var height = statsExpanded ? headerHeight + gap + drawerHeight : headerHeight;
-            var strip = MobileViewportLayout.TopHudRect(scale, height);
-            DrawPanel(strip, NightInk);
+            var strip = CompactTopHudRect(scale, height);
+            DrawHudFrame(strip, StateAccent(), scale);
             DrawHudHeader(strip, headerHeight, scale);
 
             if (!statsExpanded)
@@ -137,6 +139,8 @@ namespace LTW.UnityClient.UI
             }
 
             var drawer = new Rect(strip.x + gap, strip.y + headerHeight + gap, strip.width - gap * 2f, drawerHeight - gap);
+            DrawPanel(drawer, TintPanel(ArcaneBlue, 0.035f));
+            DrawAccent(new Rect(drawer.x + 8f * scale, drawer.y, drawer.width - 16f * scale, 2f * scale), SlateEdge);
             var cellWidth = (drawer.width - gap * 3f) / 4f;
             var rowHeight = 48f * scale;
             var x = strip.x + gap;
@@ -200,38 +204,49 @@ namespace LTW.UnityClient.UI
         private void DrawHudHeader(Rect strip, float headerHeight, float scale)
         {
             var header = new Rect(strip.x + 4f * scale, strip.y + 4f * scale, strip.width - 8f * scale, headerHeight - 8f * scale);
-            DrawPanel(header, TintPanel(ArcaneBlue, 0.05f));
-            DrawAccent(new Rect(header.x, header.yMax - 3f * scale, header.width, 3f * scale), ArcaneBlue);
+            DrawPanel(header, new Color(DeepInk.r, DeepInk.g, DeepInk.b, 0.62f));
 
             var gap = 5f * scale;
-            var leftWidth = Mathf.Min(104f * scale, header.width * 0.27f);
-            var centerWidth = Mathf.Max(92f * scale, header.width - leftWidth - gap - 6f * scale);
+            var leftWidth = Mathf.Min(76f * scale, header.width * 0.24f);
+            var stateWidth = Mathf.Min(60f * scale, header.width * 0.18f);
+            var centerWidth = Mathf.Max(92f * scale, header.width - leftWidth - stateWidth - gap * 2f - 6f * scale);
 
             var left = new Rect(header.x + 6f * scale, header.y + 4f * scale, leftWidth, header.height - 8f * scale);
             var center = new Rect(left.xMax + gap, left.y, centerWidth, left.height);
+            var state = new Rect(center.xMax + gap, left.y, stateWidth, left.height);
 
-            DrawPanel(left, TintPanel(ArcaneBlue, 0.08f));
-            DrawAccent(new Rect(left.x, left.yMax - 3f * scale, left.width, 3f * scale), ArcaneBlue);
+            DrawHudCell(left, ArcaneBlue, statsExpanded, scale);
             buttonStyle!.fontSize = Mathf.RoundToInt(10f * scale);
             buttonStyle.normal.textColor = ArcaneBlue;
-            if (GUI.Button(left, statsExpanded ? "HIDE" : "STATS ▼", buttonStyle))
+            if (GUI.Button(left, statsExpanded ? "HIDE" : "LINE", buttonStyle))
             {
                 statsExpanded = !statsExpanded;
             }
 
-            DrawPanel(center, TintPanel(SignalGold, 0.055f));
-            DrawAccent(new Rect(center.x, center.yMax - 3f * scale, center.width, 3f * scale), SignalGold);
+            DrawHudCell(center, SignalGold, true, scale);
             valueStyle!.fontSize = Mathf.RoundToInt(11f * scale);
             valueStyle.normal.textColor = Cloud;
-            var summary = $"{LivesText}♥  {GoldText}G  +{IncomeText}  P{PressureText}";
+            var summary = $"L{LivesText}  G{GoldText}  +{IncomeText}  P{PressureText}";
             GUI.Label(new Rect(center.x + 8f * scale, center.y, center.width - 16f * scale, center.height), summary, valueStyle);
+
+            DrawHudCell(state, StateAccent(), true, scale);
+            metaStyle!.fontSize = Mathf.RoundToInt(9f * scale);
+            metaStyle.normal.textColor = StateAccent();
+            var stateText = simulationDriver != null && simulationDriver.HasStarted ? "LIVE" : "READY";
+            GUI.Label(state, stateText, metaStyle);
+        }
+
+        private static Rect CompactTopHudRect(float scale, float height)
+        {
+            var full = MobileViewportLayout.TopHudRect(scale, height);
+            var width = Mathf.Min(full.width, 358f * scale);
+            return new Rect(full.x + (full.width - width) * 0.5f, full.y, width, height);
         }
 
         private static float DrawStatPill(float x, float y, float width, float height, string label, string value, Color accent, float scale)
         {
             var rect = new Rect(x, y, width, height);
-            DrawPanel(rect, TintPanel(accent, 0.045f));
-            DrawAccent(new Rect(rect.x, rect.yMax - 4f * scale, rect.width, 4f * scale), accent);
+            DrawHudCell(rect, accent, false, scale);
 
             labelStyle!.fontSize = Mathf.RoundToInt(9f * scale);
             valueStyle!.fontSize = Mathf.RoundToInt(16f * scale);
@@ -253,8 +268,7 @@ namespace LTW.UnityClient.UI
         {
             var accent = IncomeTickSoon ? MintSignal : SignalGold;
             var rect = new Rect(x, y, width, height);
-            DrawPanel(rect, TintPanel(accent, IncomeTickSoon ? 0.075f : 0.045f));
-            DrawAccent(new Rect(rect.x, rect.yMax - 4f * scale, rect.width, 4f * scale), accent);
+            DrawHudCell(rect, accent, IncomeTickSoon, scale);
 
             labelStyle!.fontSize = Mathf.RoundToInt(10f * scale);
             valueStyle!.fontSize = Mathf.RoundToInt(18f * scale);
@@ -271,6 +285,11 @@ namespace LTW.UnityClient.UI
             return rect.xMax;
         }
 
+        private Color StateAccent()
+        {
+            return simulationDriver != null && simulationDriver.HasStarted ? MintSignal : ArcaneBlue;
+        }
+
         private static void DrawPanel(Rect rect, Color color)
         {
             var previousColor = GUI.color;
@@ -279,7 +298,33 @@ namespace LTW.UnityClient.UI
             GUI.color = previousColor;
         }
 
+        private static void DrawHudFrame(Rect rect, Color accent, float scale)
+        {
+            Fill(rect, DeepInk);
+            Fill(new Rect(rect.x + 4f * scale, rect.y + 4f * scale, rect.width - 8f * scale, rect.height - 8f * scale), NightInk);
+            Fill(new Rect(rect.x + 10f * scale, rect.y + 3f * scale, rect.width - 20f * scale, 2f * scale), SlateEdge);
+            Fill(new Rect(rect.x + 10f * scale, rect.yMax - 5f * scale, rect.width - 20f * scale, 4f * scale), accent);
+            Fill(new Rect(rect.x + 6f * scale, rect.y + 10f * scale, 4f * scale, rect.height - 20f * scale), new Color(accent.r, accent.g, accent.b, 0.55f));
+            Fill(new Rect(rect.xMax - 10f * scale, rect.y + 10f * scale, 4f * scale, rect.height - 20f * scale), new Color(SignalGold.r, SignalGold.g, SignalGold.b, 0.52f));
+        }
+
+        private static void DrawHudCell(Rect rect, Color accent, bool active, float scale)
+        {
+            var edge = active ? accent : SlateEdge;
+            Fill(rect, new Color(0.006f, 0.009f, 0.014f, 0.78f));
+            Fill(new Rect(rect.x + 2f * scale, rect.y + 2f * scale, rect.width - 4f * scale, rect.height - 4f * scale), edge);
+            Fill(new Rect(rect.x + 4f * scale, rect.y + 4f * scale, rect.width - 8f * scale, rect.height - 8f * scale), TintPanel(accent, active ? 0.09f : 0.045f));
+            Fill(new Rect(rect.x + 8f * scale, rect.yMax - 7f * scale, rect.width - 16f * scale, 3f * scale), accent);
+            Fill(new Rect(rect.x + 7f * scale, rect.y + 7f * scale, 10f * scale, 2f * scale), accent);
+            Fill(new Rect(rect.xMax - 17f * scale, rect.y + 7f * scale, 10f * scale, 2f * scale), accent);
+        }
+
         private static void DrawAccent(Rect rect, Color color)
+        {
+            Fill(rect, color);
+        }
+
+        private static void Fill(Rect rect, Color color)
         {
             var previousColor = GUI.color;
             GUI.color = color;
