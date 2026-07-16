@@ -1,0 +1,276 @@
+[Licensing::Module] Trying to connect to existing licensing client channel...
+Built from '6000.5/staging' branch; Version is '6000.5.3f1 (c2eb47b3a2a9) revision 12774215'; Using compiler version '194234433'; Build Type 'Release'
+OS: 'Windows 11  (10.0.26200) Core' Language: 'en' Physical Memory: 7502 MB
+[Licensing::IpcConnector] Channel LicenseClient-engch doesn't exist
+BatchMode: 1, IsHumanControllingUs: 0, StartBugReporterOnCrash: 0, Is64bit: 1
+System  architecture: x64
+Process architecture: x64
+Date: 2026-07-16T19:48:24Z
+[Licensing::Module] Successfully launched the LicensingClient (PId: 20220)
+
+COMMAND LINE ARGUMENTS:
+C:\Program Files\Unity\Hub\Editor\6000.5.3f1\Editor\Unity.exe
+-batchmode
+-quit
+-projectPath
+C:\Voucher-Management\vouchermanagement\LTW\unity\LTW.UnityClient
+-logFile
+C:\Voucher-Management\vouchermanagement\LTW\docs\screenshot-reviews\ui-board-art-pass-v01\unity-import.log
+Successfully changed project path to: C:\Voucher-Management\vouchermanagement\LTW\unity\LTW.UnityClient
+C:/Voucher-Management/vouchermanagement/LTW/unity/LTW.UnityClient
+[UnityMemory] Configuration Parameters - Can be set up in boot.config
+    "memorysetup-temp-allocator-size-gi-baking-worker=262144"
+    "memorysetup-temp-allocator-size-gi-baking-worker=262144"
+    "memorysetup-temp-allocator-size-gi-baking-worker=262144"
+    "memorysetup-temp-allocator-size-gi-baking-worker=262144"
+    "memorysetup-temp-allocator-size-gi-baking-worker=262144"
+    "memorysetup-temp-allocator-size-nav-mesh-worker=65536"
+    "memorysetup-temp-allocator-size-audio-worker=65536"
+    "memorysetup-temp-allocator-size-cloud-worker=32768"
+    "memorysetup-temp-allocator-size-gfx=262144"
+    "memorysetup-temp-allocator-size-preload-manager=33554432"
+    "memorysetup-allocator-temp-initial-block-size-main=262144"
+    "memorysetup-allocator-temp-initial-block-size-worker=262144"
+    "memorysetup-temp-allocator-size-job-worker=262144"
+    "memorysetup-temp-allocator-size-background-worker=32768"
+    "memorysetup-bucket-allocator-granularity=16"
+    "memorysetup-bucket-allocator-bucket-count=8"
+    "memorysetup-bucket-allocator-block-size=33554432"
+    "memorysetup-bucket-allocator-block-count=8"
+    "memorysetup-main-allocator-block-size=16777216"
+    "memorysetup-thread-allocator-block-size=16777216"
+    "memorysetup-main-allocator-mimalloc-enabled=0"
+    "memorysetup-gfx-main-allocator-block-size=16777216"
+    "memorysetup-gfx-thread-allocator-block-size=16777216"
+    "memorysetup-cache-allocator-block-size=4194304"
+    "memorysetup-typetree-allocator-block-size=2097152"
+    "memorysetup-profiler-bucket-allocator-granularity=16"
+    "memorysetup-profiler-bucket-allocator-bucket-count=8"
+    "memorysetup-profiler-bucket-allocator-block-size=33554432"
+    "memorysetup-profiler-bucket-allocator-block-count=8"
+    "memorysetup-profiler-allocator-block-size=16777216"
+    "memorysetup-profiler-editor-allocator-block-size=1048576"
+    "memorysetup-temp-allocator-size-main=16777216"
+    "memorysetup-job-temp-allocator-block-size=2097152"
+    "memorysetup-job-temp-allocator-block-size-background=1048576"
+    "memorysetup-job-temp-allocator-reduction-small-platforms=262144"
+Logging is directed to a specific file, skipping project log.Player connection [16064]  Target information:
+
+Player connection [16064]  * "[IP] 100.67.115.86 [Port] 55504 [Flags] 2 [Guid] 1582148581 [EditorId] 1582148581 [Version] 1048832 [Id] WindowsEditor(7,nanc) [Debug] 1 [PackageName] WindowsEditor [ProjectName] Editor" 
+
+Player connection [16064]  * "[IP] 10.0.0.199 [Port] 55504 [Flags] 2 [Guid] 1582148581 [EditorId] 1582148581 [Version] 1048832 [Id] WindowsEditor(7,nanc) [Debug] 1 [PackageName] WindowsEditor [ProjectName] Editor" 
+
+Player connection [16064] Host joined multi-casting on [225.0.0.222:54997]...
+Player connection [16064] Host joined alternative multi-casting on [225.0.0.222:34997]...
+Input System module state changed to: Initialized.
+[Physics::Module] Initialized fallback backend.
+[Physics::Module] Id: 0xdecafbad
+[Package Manager] Connected to IPC stream "Upm-25836" after 0.2 seconds.
+[Licensing::Module] Licensing is not yet initialized.
+[Licensing::IpcConnector] Successfully connected to: "LicenseClient-engch" at "2026-07-16T19:48:29.4160475Z"
+[Licensing::Client] Code 10 while verifying Licensing Client signature (process Id: 20220, path: "C:/Program Files/Unity/Hub/Editor/6000.5.3f1/Editor/Data/Resources/Licensing/Client/Unity.Licensing.Client.exe")
+[Licensing::Module] LicensingClient has failed validation; ignoring
+[Licensing::Client] Handshaking with LicensingClient:
+  Version:                 1.18.1+9fbee8e
+  Session Id:              5f10383d6af841d585ed10b8caf7e0b8
+  Correlation Id:          daf7c423d5275eb2ba7c73b49bdf8603
+  External correlation Id: 288333046152218253
+  Machine Id:              XUUOHsR/oMOgT2KdiSe0eLiVyck=
+[Licensing::Module] Successfully connected to LicensingClient on channel: "LicenseClient-engch" (connect: 4.37s, validation: 0.58s, handshake: 0.05s)
+[Licensing::IpcConnector] Successfully connected to: "LicenseClient-engch-notifications" at "2026-07-16T19:48:30.0542711Z"
+[Licensing::Module] Connected to LicensingClient (PId: 20220, launch time: 0.05, total connection time: 5.01s)
+[Licensing::Module] Error: Access token is unavailable; failed to update
+[Licensing::Client] Successfully resolved entitlement details
+[Licensing::Module] License group:
+  Id: 1375967616012-UnityPersXXXX
+  Product: Unity Personal
+  Type: Assigned
+  Expiration: Unlimited
+[Licensing::Client] Successfully updated license, isAsync: True, time: 0.02
+[Licensing::Client] Successfully resolved entitlement details
+[Licensing::Module] Licensing Background thread has ended after 5.16s
+[Licensing::Module] Licensing is initialized (took 3.24s).
+[Licensing::Client] Successfully resolved entitlement details
+Library Redirect Path: Library/
+[Physics::Module] Selected backend.
+[Physics::Module] Name: PhysX
+[Physics::Module] Id: 0xf2b8ea05
+[Physics::Module] SDK Version: 4.1.2
+[Physics::Module] Integration Version: 1.0.0
+[Physics::Module] Threading Mode: Multi-Threaded
+Artifact Garbage Collection - Removed 7 unused hashed content files
+Initialize engine version: 6000.5.3f1 (c2eb47b3a2a9)
+[Subsystems] Discovering subsystems at path C:/Program Files/Unity/Hub/Editor/6000.5.3f1/Editor/Data/Resources/UnitySubsystems
+[Subsystems] Discovering subsystems at path C:/Voucher-Management/vouchermanagement/LTW/unity/LTW.UnityClient/Assets
+GfxDevice: creating device client; kGfxThreadingModeNonThreaded
+d3d12: failed to query info queue interface (0x80004002).
+Direct3D:
+    Version:         Direct3D 12 [level 12.1]
+    Renderer:        AMD Radeon(TM) Graphics (ID=0x164c)
+    Vendor:          ATI
+    VRAM:            3751 MB
+    App VRAM Budget: 3821 MB
+    Driver:          31.0.21914.8004
+    Unified Memory Architecture
+Initialize mono
+Mono path[0] = 'C:/Program Files/Unity/Hub/Editor/6000.5.3f1/Editor/Data/Managed'
+Mono path[1] = 'C:/Program Files/Unity/Hub/Editor/6000.5.3f1/Editor/Data/BCLExtensions/runtime/netstandard2.1'
+Mono path[2] = 'C:/Program Files/Unity/Hub/Editor/6000.5.3f1/Editor/Data/MonoBleedingEdge/lib/mono/unityjit-win32'
+Mono config path = 'C:/Program Files/Unity/Hub/Editor/6000.5.3f1/Editor/Data/MonoBleedingEdge/etc'
+Using monoOptions --debugger-agent=transport=dt_socket,embedding=1,server=y,suspend=n,address=127.0.0.1:56836
+CodeReloadManager initialized
+ImportWorker Server TCP listen port: 0
+AcceleratorClientConnectionCallback - disconnected - :0
+Begin MonoManager ReloadAssembly
+Registering precompiled unity dll's ...
+Register platform support module: C:/Program Files/Unity/Hub/Editor/6000.5.3f1/Editor/Data/PlaybackEngines/WebGLSupport/UnityEditor.WebGL.Extensions.dll
+Register platform support module: C:/Program Files/Unity/Hub/Editor/6000.5.3f1/Editor/Data/PlaybackEngines/WindowsStandaloneSupport/UnityEditor.WindowsStandalone.Extensions.dll
+Registered in 0.005816 seconds.
+Native extension for WindowsStandalone target not found
+Native extension for WebGL target not found
+Package Manager log level set to [2]
+ScheduleIndexationOnStartup MainProcess:False IndexOnStartup:True
+Mono: successfully reloaded assembly
+- Finished resetting the current domain, in  0.642 seconds
+Domain Reload Profiling: 1643ms
+	BeginReloadAssembly (219ms)
+		CreateAndSetChildDomain (17ms)
+	RebuildCommonClasses (11ms)
+	RebuildNativeTypeToScriptingClass (32ms)
+	initialDomainReloadingComplete (123ms)
+	LoadAllAssembliesAndSetupDomain (613ms)
+		LoadAssemblies (197ms)
+		AnalyzeDomain (497ms)
+			TypeCache.Refresh (494ms)
+				TypeCache.ScanAssembly (331ms)
+	FinalizeReload (646ms)
+		SetupLoadedEditorAssemblies (0ms)
+			InitializePlatformSupportModulesInManaged (5ms)
+			BeforeProcessingInitializeOnLoad (139ms)
+			ProcessInitializeOnLoadAttributes (163ms)
+			ProcessInitializeOnLoadMethodAttributes (236ms)
+[Licensing::Client] Successfully resolved entitlement details
+Application.AssetDatabase Initial Refresh Start
+[Package Manager] Restoring resolved packages state from cache
+[Licensing::Client] Successfully resolved entitlement details
+[Package Manager] Registered 8 packages:
+  Packages from [https://packages.unity.com]:
+    com.unity.nuget.newtonsoft-json@3.2.2 (location: C:\Voucher-Management\vouchermanagement\LTW\unity\LTW.UnityClient\Library\PackageCache\com.unity.nuget.newtonsoft-json@4dfd81071c64)
+    com.unity.editorcoroutines@1.1.0 (location: C:\Voucher-Management\vouchermanagement\LTW\unity\LTW.UnityClient\Library\PackageCache\com.unity.editorcoroutines@87a15ed012c2)
+  Built-in packages:
+    com.unity.modules.audio@1.0.0 (location: C:\Voucher-Management\vouchermanagement\LTW\unity\LTW.UnityClient\Library\PackageCache\com.unity.modules.audio)
+    com.unity.test-framework@1.7.0 (location: C:\Voucher-Management\vouchermanagement\LTW\unity\LTW.UnityClient\Library\PackageCache\com.unity.test-framework@1405238725ab)
+    com.unity.ext.nunit@2.1.0 (location: C:\Voucher-Management\vouchermanagement\LTW\unity\LTW.UnityClient\Library\PackageCache\com.unity.ext.nunit@44f7d31723bd)
+    com.unity.modules.imgui@1.0.0 (location: C:\Voucher-Management\vouchermanagement\LTW\unity\LTW.UnityClient\Library\PackageCache\com.unity.modules.imgui)
+    com.unity.modules.jsonserialize@1.0.0 (location: C:\Voucher-Management\vouchermanagement\LTW\unity\LTW.UnityClient\Library\PackageCache\com.unity.modules.jsonserialize)
+  Git packages:
+    com.gamelovers.mcp-unity@https://github.com/CoderGamester/mcp-unity.git (location: C:\Voucher-Management\vouchermanagement\LTW\unity\LTW.UnityClient\Library\PackageCache\com.gamelovers.mcp-unity@c35f184d7656)
+[Subsystems] No new subsystems found in resolved package list.
+[Package Manager] Done registering packages in 0.01 seconds
+Starting: C:\Program Files\Unity\Hub\Editor\6000.5.3f1\Editor\Data\Tools\BuildPipeline\bee_backend.exe --ipc --defer-dag-verification --dagfile="Library/Bee/1900b0aE.dag" --continue-on-failure --profile="Library/Bee/backend1.traceevents" ScriptAssemblies
+WorkingDir: C:/Voucher-Management/vouchermanagement/LTW/unity/LTW.UnityClient
+DisplayProgressbar: Compiling Scripts
+ExitCode: 4 Duration: 0s168ms
+Rebuilding DAG because FileSignature timestamp changed: Library/Bee/1900b0aE-inputdata.json
+*** Tundra requires additional run (0.11 seconds), 0 items updated, 203 evaluated
+Starting: C:\Program Files\Unity\Hub\Editor\6000.5.3f1\Editor\Data\netcorerun\netcorerun.exe "C:\Program Files\Unity\Hub\Editor\6000.5.3f1\Editor\Data\Tools\BuildPipeline\ScriptCompilationBuildProgram.exe" "Library/Bee/1900b0aE.dag.json" "Library/Bee/1900b0aE-inputdata.json" "Library\Bee\buildprogram0.traceevents"
+WorkingDir: C:/Voucher-Management/vouchermanagement/LTW/unity/LTW.UnityClient
+ExitCode: 0 Duration: 0s376ms
+Starting: C:\Program Files\Unity\Hub\Editor\6000.5.3f1\Editor\Data\Tools\BuildPipeline\bee_backend.exe --ipc --defer-dag-verification --dagfile="Library/Bee/1900b0aE.dag" --continue-on-failure --dagfilejson="Library\Bee\1900b0aE.dag.json" --profile="Library/Bee/backend2.traceevents" ScriptAssemblies
+WorkingDir: C:/Voucher-Management/vouchermanagement/LTW/unity/LTW.UnityClient
+ExitCode: 0 Duration: 0s94ms
+Finished compiling graph: 206 nodes, 1327 flattened edges (1271 ToBuild, 12 ToUse), maximum node priority 71
+*** Tundra build success (0.06 seconds), 0 items updated, 203 evaluated
+AssetDatabase: script compilation time: 1.602295s
+Begin MonoManager ReloadAssembly
+Total cache size 12124940
+Total cache size after purge 12124940, took 00:00:00.0947757
+Native extension for WindowsStandalone target not found
+Native extension for WebGL target not found
+ScheduleIndexationOnStartup MainProcess:True IndexOnStartup:True
+Mono: successfully reloaded assembly
+- Finished resetting the current domain, in  0.540 seconds
+Domain Reload Profiling: 1286ms
+	BeginReloadAssembly (351ms)
+		DisableScriptedObjects (84ms)
+		CreateAndSetChildDomain (59ms)
+	RebuildCommonClasses (11ms)
+	RebuildNativeTypeToScriptingClass (23ms)
+	initialDomainReloadingComplete (69ms)
+	LoadAllAssembliesAndSetupDomain (289ms)
+		LoadAssemblies (290ms)
+		AnalyzeDomain (41ms)
+			TypeCache.Refresh (31ms)
+				TypeCache.ScanAssembly (22ms)
+			BuildScriptInfoCaches (7ms)
+	FinalizeReload (544ms)
+		SetupLoadedEditorAssemblies (0ms)
+			InitializePlatformSupportModulesInManaged (3ms)
+			BeforeProcessingInitializeOnLoad (114ms)
+			ProcessInitializeOnLoadAttributes (97ms)
+			ProcessInitializeOnLoadMethodAttributes (112ms)
+			AfterProcessingInitializeOnLoad (10ms)
+		AwakeInstancesAfterBackupRestoration (31ms)
+Starting new worker id: 0 with log in C:/Voucher-Management/vouchermanagement/LTW/unity/LTW.UnityClient/Logs/AssetImportWorkerHW0.log
+
+Asset Pipeline Refresh (id=e21934825f73e9b4abf1c3207bc4960d): Total: 3.339 seconds - Initiated by InitialRefreshV2(ForceSynchronousImport)
+	(Values over 0.05ms)
+	Summary:
+		Imports: total=0 (actual=0, local cache=0, cache server=0)
+		Asset DB Process Time: managed=0 ms, native=855 ms
+		Asset DB Callback time: managed=31 ms, native=33 ms
+		Scripting: domain reloads=1, domain reload time=795 ms, compile time=1606 ms, other=17 ms
+		Project Asset Count: scripts=217, non-scripts=437
+		Asset File Changes: new=0, changed=0, moved=0, deleted=0
+		Scan Filter Count: 0
+	InvokePackagesCallback: 37.278ms
+	ApplyChangesToAssetFolders: 0.683ms
+	Scan: 51.087ms
+	Collect global state as custom dependencies: 0.824ms
+	CategorizeScriptCompilationAssets: 121.168ms
+	ProcessAssetsWithTransientArtifactChanges: 10.555ms
+	CategorizeAssets: 5.580ms
+	CompileScripts: 1606.068ms
+	ImportOutOfDateAssets: 569.149ms (547.865ms without children)
+		UnloadImportedAssets: 0.172ms
+		EnsureUptoDateAssetsAreRegisteredWithGuidPM: 0.166ms
+		ImportSchedulerStart: 20.944ms
+	PostProcessAllAssets: 31.410ms
+		MonoPostProcessAllAssets: 31.254ms
+			WindowAssetPostprocessingWatcher.OnPostprocessAllAssets 12.144ms
+			SyncVS.PostprocessSyncProject 2.131ms
+			EditModeScopePostprocessor.OnPostprocessAllAssets 1.194ms
+			SpeedTree9Postprocessor.OnPostprocessAllAssets 1.108ms
+			ReferencedClipsPostProcessor.OnPostprocessAllAssets 0.404ms
+			TerrainToolbarOverlayPostProcessor.OnPostprocessAllAssets 0.336ms
+			AssetDatabaseCallbacks.OnPostprocessAllAssets 0.241ms
+			RenderPipelineGlobalSettingsPostprocessor.OnPostprocessAllAssets 0.126ms
+	UnloadStreamsBegin: 1.909ms
+	Untracked: 891.239ms
+
+Application.AssetDatabase Initial Refresh End
+Launched and connected shader compiler UnityShaderCompiler.exe after 0.06 seconds
+Scanning for USB devices : 3.408ms
+Initializing Unity extensions:
+[MODES] ModeService[none].Initialize
+[MODES] ModeService[none].LoadModes
+[MODES] Loading mode Default (0) for mode-current-id-LTW.UnityClient
+Unloading 3 Unused Serialized files (Serialized files now loaded: 0)
+Unloading 494 unused Assets / (0.8 MB). Loaded Objects now: 1137.
+Memory consumption went from 195.3 MB to 194.5 MB.
+Total: 7.503900 ms (FindLiveObjects: 0.133700 ms CreateObjectMapping: 0.082100 ms MarkObjects: 6.218800 ms  DeleteObjects: 0.747400 ms)
+
+Batchmode quit successfully invoked - shutting down!
+Curl error 42: Callback aborted
+[Physics::Module] Cleanup current backend.
+[Physics::Module] Id: 0xf2b8ea05
+Input System module state changed to: ShutdownInProgress.
+Input Polling Thread exited.
+Input System module state changed to: Shutdown.
+[Licensing::IpcConnector] LicenseClient-engch-notifications channel disconnected successfully.
+[Licensing::IpcConnector] LicenseClient-engch channel disconnected successfully.
+AcceleratorClientConnectionCallback - disconnected - :0
+Cleanup mono
+CodeReloadManager destroyed
+Exiting batchmode successfully now!
+Exiting without the bug reporter. Application will terminate with return code 0

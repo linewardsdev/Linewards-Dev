@@ -1009,11 +1009,11 @@ namespace LTW.UnityClient.Editor
             PaintRect(texture, 160, 168, 760, 210, panel);
             PaintRect(texture, 160, 164, 760, 7, mint);
             PaintText(texture, "WARD PALETTE", 196, 350, mint, 4);
-            PaintCard(texture, 230, 260, "ARROW", "25G", blue);
-            PaintCard(texture, 390, 260, "CTRL", "35G", violet);
-            PaintCard(texture, 550, 260, "RELAY", "40G", gold);
-            PaintCard(texture, 310, 190, "PULSE", "45G", mint);
-            PaintCard(texture, 470, 190, "PRISM", "60G", cloud);
+            PaintCard(texture, 230, 260, "ARROW", "25G", blue, "ui_icon_tower_arrow_v01");
+            PaintCard(texture, 390, 260, "CTRL", "35G", violet, "ui_icon_tower_control_v01");
+            PaintCard(texture, 550, 260, "RELAY", "40G", gold, "ui_icon_tower_relay_v01");
+            PaintCard(texture, 310, 190, "PULSE", "45G", mint, "ui_icon_tower_pulse_v01");
+            PaintCard(texture, 470, 190, "PRISM", "60G", cloud, "ui_icon_tower_prism_v01");
         }
 
         private static void PaintSendMenuOverlay(Texture2D texture, Color32 panel, Color32 blue, Color32 mint, Color32 gold, Color32 violet, Color32 red)
@@ -1022,11 +1022,11 @@ namespace LTW.UnityClient.Editor
             PaintRect(texture, 160, 150, 760, 7, gold);
             PaintText(texture, "SEND PRESSURE", 196, 358, gold, 4);
             PaintText(texture, "GOLD 75", 690, 358, mint, 3);
-            PaintCard(texture, 230, 265, "RUN", "10G +1", blue);
-            PaintCard(texture, 390, 265, "BRUTE", "18G +2", violet);
-            PaintCard(texture, 550, 265, "SWARM", "18G +3", gold);
-            PaintCard(texture, 310, 190, "SHADE", "24G +3", mint);
-            PaintCard(texture, 470, 190, "SIEGE", "40G +4", red);
+            PaintCard(texture, 230, 265, "RUN", "10G +1", blue, "ui_icon_send_runner_v01");
+            PaintCard(texture, 390, 265, "BRUTE", "18G +2", violet, "ui_icon_send_brute_v01");
+            PaintCard(texture, 550, 265, "SWARM", "18G +3", gold, "ui_icon_send_swarm_v01");
+            PaintCard(texture, 310, 190, "SHADE", "24G +3", mint, "ui_icon_send_shade_v01");
+            PaintCard(texture, 470, 190, "SIEGE", "40G +4", red, "ui_icon_send_siege_v01");
         }
 
         private static void PaintLaneSelectorOverlay(Texture2D texture, Color32 panel, Color32 blue, Color32 cloud)
@@ -1047,7 +1047,7 @@ namespace LTW.UnityClient.Editor
             PaintText(texture, "RESTART", 432, 885, gold, 4);
         }
 
-        private static void PaintCard(Texture2D texture, int x, int y, string title, string meta, Color32 accent)
+        private static void PaintCard(Texture2D texture, int x, int y, string title, string meta, Color32 accent, string iconName)
         {
             var panel = new Color32(
                 (byte)Mathf.Clamp(22 + accent.r / 10, 0, 255),
@@ -1056,8 +1056,48 @@ namespace LTW.UnityClient.Editor
                 238);
             PaintRect(texture, x, y, 140, 58, panel);
             PaintRect(texture, x, y, 140, 6, accent);
-            PaintText(texture, title, x + 12, y + 47, new Color32(244, 247, 255, 255), 3);
-            PaintText(texture, meta, x + 12, y + 24, accent, 3);
+            PaintIcon(texture, iconName, x + 8, y + 12, 38);
+            PaintText(texture, title, x + 48, y + 47, new Color32(244, 247, 255, 255), 3);
+            PaintText(texture, meta, x + 48, y + 24, accent, 3);
+        }
+
+        private static void PaintIcon(Texture2D texture, string iconName, int x, int y, int size)
+        {
+            var path = Path.Combine(Application.dataPath, "Resources", "Art", "UI", "Icons", iconName + ".png");
+            if (!File.Exists(path))
+            {
+                return;
+            }
+
+            var icon = new Texture2D(2, 2, TextureFormat.RGBA32, false);
+            try
+            {
+                if (!ImageConversion.LoadImage(icon, File.ReadAllBytes(path)))
+                {
+                    return;
+                }
+
+                var pixels = icon.GetPixels32();
+                for (var py = 0; py < size; py++)
+                {
+                    var sourceY = Mathf.Clamp(py * icon.height / size, 0, icon.height - 1);
+                    for (var px = 0; px < size; px++)
+                    {
+                        var sourceX = Mathf.Clamp(px * icon.width / size, 0, icon.width - 1);
+                        var pixel = pixels[sourceY * icon.width + sourceX];
+                        if (pixel.a == 0)
+                        {
+                            continue;
+                        }
+
+                        BlendPixel(texture, x + px, y + py, pixel);
+                    }
+                }
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(icon);
+            }
         }
 
         private static void PaintRect(Texture2D texture, int x, int y, int width, int height, Color32 color)

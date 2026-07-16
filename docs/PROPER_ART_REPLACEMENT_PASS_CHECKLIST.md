@@ -84,6 +84,7 @@ Progress:
 - [x] 2026-07-15: Arrow v06 and Runner v07 now define the V1 2.5D token benchmark. Both use sprite-only painted plates with primitive contract children render-disabled and live-tuned scale.
 - [x] 2026-07-15: Added `docs/art-pipeline/v1-art-fast-track.md` to capture the repeatable path for the remaining towers, creeps, and Builder.
 - [x] 2026-07-15: Completed the remaining V1 role batch for Pulse, Prism, Shade, and Builder. Combat roles use AIPlate prefabs; Builder is now a Resources-loaded sprite layer over the procedural placement avatar.
+- [x] 2026-07-15: Replaced Shade v01 with Shade v02 after review found v01 too diagonal/projectile-like; v02 uses a compact vertical dark-crystal body with nearby echo facets.
 
 Acceptance:
 
@@ -104,7 +105,7 @@ Owner: Agent 1 towers/builder, Agent 2 creeps
   - [x] Runner: `Dagger4_1_3.prefab` promoted as the sharp dart/spine silhouette; old primitive body remains as a smaller contract/health anchor support.
   - [x] Brute: V1 AI source plate `creep_brute_candidate_v02b_trimmed.png` promoted as the heavy armored shell silhouette.
   - [x] Swarm: V1 AI source plate `creep_swarm_candidate_v01_trimmed.png` promoted as the clustered shardling silhouette.
-  - [x] Shade: V1 AI source plate `creep_shade_candidate_v01_trimmed.png` promoted as the echo/facet stealth silhouette.
+  - [x] Shade: V1 AI source plate `creep_shade_candidate_v02_trimmed.png` promoted as the echo/facet stealth silhouette after v01 was rejected as too VFX/projectile-like.
   - [x] Siege: V1 AI source plate `creep_siege_candidate_v01_trimmed.png` promoted as the ram/barrel pressure silhouette.
 - [x] Choose the primary mesh/tool prop for the builder.
 - [x] For each role, document:
@@ -168,6 +169,7 @@ Owner: Agent 2
   - [x] 2026-07-15 V1 batch: Generated `creep_swarm_candidate_v01_trimmed.png`, created `Creep_Swarm_AIPlate.prefab`, and wired `creep.swarm` to the sprite-only AI plate runtime proof with primitive role/damage overlays disabled.
 - [x] Replace Shade’s primitive-dominant body with authored echo/facet silhouette.
   - [x] 2026-07-15 V1 batch: Generated `creep_shade_candidate_v01_trimmed.png`, created `Creep_Shade_AIPlate.prefab`, and wired `creep.shade` to the sprite-only AI plate runtime proof with primitive role/damage overlays disabled.
+  - [x] 2026-07-15 correction: Replaced the active Shade sprite with `creep_shade_candidate_v02_trimmed.png` to remove the diagonal burst read and restore a compact creep silhouette.
 - [x] Replace Siege’s primitive-dominant body with authored ram/barrel silhouette.
   - [x] 2026-07-15 V1 batch: Generated `creep_siege_candidate_v01_trimmed.png`, created `Creep_Siege_AIPlate.prefab`, and wired `creep.siege` to the sprite-only AI plate runtime proof with primitive role/damage overlays disabled.
 - [x] Keep required children on every creep:
@@ -226,8 +228,12 @@ Acceptance:
 
 Owner: Shared
 
+- [x] Establish the UI/game-board pipeline.
+  - [x] 2026-07-16: Added `docs/art-pipeline/ui-board-art-pipeline.md`, `docs/art-pipeline/ui-board-contact-sheet-brief.md`, and `docs/art-pipeline/ui-board-pipeline-checklist.md` so UI chrome, command cards, board materials, endpoint gates, and screenshot QA have a repeatable path.
 - [ ] Rebuild tower build icons from final tower silhouettes.
+  - [x] 2026-07-16: Added V01 runtime Resources icons derived from current V1 tower production sprites and wired build cards to load them with procedural fallback.
 - [ ] Rebuild send icons from final creep silhouettes.
+  - [x] 2026-07-16: Added V01 runtime Resources icons derived from current V1 creep production sprites, including Shade v02, and wired send cards to load them with procedural fallback.
 - [ ] Confirm icons read in:
   - enabled state;
   - disabled/too-expensive state;
@@ -296,12 +302,22 @@ Owner: Agent 1 final integration, Agent 2 supplies creep-specific evidence
   - [x] 2026-07-15: `docs/screenshot-reviews/ai-source-plate-proof/captures/grayscale/01-role-contact-sheet.png`.
 - [ ] Capture Runner x10 pressure.
 - [ ] Capture Swarm heavy pressure.
-- [ ] Capture Shade readability.
+- [x] Capture Shade readability.
+  - [x] 2026-07-15: `docs/art-pipeline/shade-creep-review-current.png` showed v01 read as diagonal/projectile-like.
+  - [x] 2026-07-15: `docs/art-pipeline/shade-creep-v02-review.png` confirms v02 is more compact and creep-like for the next live Unity review.
 - [ ] Capture Siege leak/warning.
 - [ ] Capture active combat with all tower attack roles.
 - [ ] Capture reduced-effects combat.
 - [ ] Capture builder select/confirm/build-complete states.
 - [ ] Capture build menu and send menu with final icons.
+  - [x] 2026-07-16: Added static review sheet `docs/art-pipeline/ui-board-pass-v01-icon-review.png` before live Unity capture.
+  - [x] 2026-07-16: Captured V01 UI/board Unity screenshot review under `docs/screenshot-reviews/ui-board-art-pass-v01/`, including normal and grayscale build/send states.
+- [ ] Capture UI/board V02 authored direction after contact-sheet selection.
+  - [ ] HUD/stat drawer chrome.
+  - [ ] command card frames.
+  - [ ] board material kit.
+  - [ ] spawn/leak gates.
+  - [ ] map/lane toggle and status controls.
 - [ ] Write review under `docs/screenshot-reviews/proper-art-replacement-pass/`.
 - [ ] Record every medium/high issue before merge.
 

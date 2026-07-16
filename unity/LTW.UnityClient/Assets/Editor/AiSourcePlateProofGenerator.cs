@@ -24,7 +24,7 @@ namespace LTW.UnityClient.Editor
         private const string RunnerSpritePath = "Assets/Art/Creeps/Production/Sprites/creep_runner_candidate_v07_trimmed.png";
         private const string BruteSpritePath = "Assets/Art/Creeps/Production/Sprites/creep_brute_candidate_v02b_trimmed.png";
         private const string SwarmSpritePath = "Assets/Art/Creeps/Production/Sprites/creep_swarm_candidate_v01_trimmed.png";
-        private const string ShadeSpritePath = "Assets/Art/Creeps/Production/Sprites/creep_shade_candidate_v01_trimmed.png";
+        private const string ShadeSpritePath = "Assets/Art/Creeps/Production/Sprites/creep_shade_candidate_v02_trimmed.png";
         private const string SiegeSpritePath = "Assets/Art/Creeps/Production/Sprites/creep_siege_candidate_v01_trimmed.png";
         private const string ArrowPrefabPath = TowerPrefabFolder + "/Tower_Arrow_AIPlate.prefab";
         private const string ControlPrefabPath = TowerPrefabFolder + "/Tower_Control_AIPlate.prefab";

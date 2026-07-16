@@ -198,19 +198,34 @@ namespace LTW.UnityClient.UI
             GUI.color = previousColor;
 
             DrawAccent(new Rect(rect.x, rect.yMax - 4f * scale, rect.width, 4f * scale), displayAccent);
-            var iconRect = new Rect(rect.x + 7f * scale, rect.y + 9f * scale, 20f * scale, 27f * scale);
-            DrawCreepIcon(iconRect, iconKind, displayAccent, scale);
+            var iconRect = new Rect(rect.x + 6f * scale, rect.y + 8f * scale, 32f * scale, 32f * scale);
+            if (!RuntimeUiIconLibrary.DrawIcon(iconRect, CreepIconResourceName(iconKind), isAffordable))
+            {
+                DrawCreepIcon(iconRect, iconKind, displayAccent, scale);
+            }
 
             buttonStyle!.fontSize = Mathf.RoundToInt(12f * scale);
             buttonStyle.normal.textColor = isAffordable ? Cloud : DisabledText;
             buttonStyle.hover.textColor = buttonStyle.normal.textColor;
             buttonStyle.active.textColor = buttonStyle.normal.textColor;
-            GUI.Label(new Rect(rect.x + 26f * scale, rect.y + 9f * scale, rect.width - 28f * scale, 21f * scale), label, buttonStyle);
+            GUI.Label(new Rect(rect.x + 40f * scale, rect.y + 9f * scale, rect.width - 42f * scale, 21f * scale), label, buttonStyle);
 
             metaStyle!.fontSize = Mathf.RoundToInt(9f * scale);
             metaStyle.normal.textColor = displayAccent;
-            GUI.Label(new Rect(rect.x + 26f * scale, rect.y + 34f * scale, rect.width - 28f * scale, 17f * scale), meta, metaStyle);
+            GUI.Label(new Rect(rect.x + 40f * scale, rect.y + 34f * scale, rect.width - 42f * scale, 17f * scale), meta, metaStyle);
             return pressed;
+        }
+
+        private static string CreepIconResourceName(CreepIconKind iconKind)
+        {
+            return iconKind switch
+            {
+                CreepIconKind.Brute => "ui_icon_send_brute_v01",
+                CreepIconKind.Swarm => "ui_icon_send_swarm_v01",
+                CreepIconKind.Shade => "ui_icon_send_shade_v01",
+                CreepIconKind.Siege => "ui_icon_send_siege_v01",
+                _ => "ui_icon_send_runner_v01"
+            };
         }
 
         private static void DrawCreepIcon(Rect rect, CreepIconKind iconKind, Color accent, float scale)

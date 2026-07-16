@@ -4,6 +4,9 @@ Build, send, tower, creep, status, cooldown, and selected-state icon art belongs
 
 Use names such as `ui_icon_send_runner_v01` and `ui_icon_tower_control_v01`.
 
+Pipeline source of truth: `docs/art-pipeline/ui-board-art-pipeline.md`.
+The next icon pass should follow `docs/art-pipeline/ui-board-contact-sheet-brief.md` before replacing the V01 derived runtime icons.
+
 ## Current Runtime Icon Contract
 
 The current build and send cards draw small procedural IMGUI glyphs directly in:
@@ -46,6 +49,25 @@ Agent 2 source pass, 2026-07-15:
 | `ui_icon_send_siege_v01` | Directional barrel/ram body from `Creep_Siege` | `Musket1_2_1` |
 
 The runtime IMGUI glyphs in `SendDockController` now follow these silhouettes. Final sprite exports should preserve these reads in enabled, disabled, and grayscale states.
+
+## Runtime Resource Icon Pass V01
+
+The first imported icon pass now lives under `Assets/Resources/Art/UI/Icons/` so the IMGUI build/send docks can load sprites at runtime while keeping procedural glyphs as fallback.
+
+These icons are derived from the active V1 production tower and creep silhouettes:
+
+- `ui_icon_tower_arrow_v01`
+- `ui_icon_tower_control_v01`
+- `ui_icon_tower_relay_v01`
+- `ui_icon_tower_pulse_v01`
+- `ui_icon_tower_prism_v01`
+- `ui_icon_send_runner_v01`
+- `ui_icon_send_brute_v01`
+- `ui_icon_send_swarm_v01`
+- `ui_icon_send_shade_v01`
+- `ui_icon_send_siege_v01`
+
+Review sheet: `docs/art-pipeline/ui-board-pass-v01-icon-review.png`.
 
 ## Replacement Rules
 

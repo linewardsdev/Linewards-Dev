@@ -1472,6 +1472,11 @@ namespace LTW.UnityClient.Simulation
             CreateSurfaceBand($"Lane{laneId}CenterRouteBand", new Vector3(offset + CenterColumn, -0.248f, BoardCenterZ), new Vector3(1.08f, 0.04f, LaneLength - 0.55f), RouteBandColor(laneId));
             CreateSurfaceBand($"Lane{laneId}RouteLeftGuide", new Vector3(offset + CenterColumn - 0.58f, -0.236f, BoardCenterZ), new Vector3(0.055f, 0.045f, LaneLength - 0.72f), RouteGuideColor(laneId));
             CreateSurfaceBand($"Lane{laneId}RouteRightGuide", new Vector3(offset + CenterColumn + 0.58f, -0.236f, BoardCenterZ), new Vector3(0.055f, 0.045f, LaneLength - 0.72f), RouteGuideColor(laneId));
+            CreateSurfaceBand($"Lane{laneId}RouteCenterInlay", new Vector3(offset + CenterColumn, -0.229f, BoardCenterZ), new Vector3(0.18f, 0.026f, LaneLength - 1.1f), RouteInlayColor(laneId));
+            CreateSurfaceBand($"Lane{laneId}LeftBuildOuterEdge", new Vector3(offset + 0.08f, -0.226f, BoardCenterZ), new Vector3(0.035f, 0.028f, LaneLength - 1.45f), BuildBandEdgeColor(laneId));
+            CreateSurfaceBand($"Lane{laneId}LeftBuildInnerEdge", new Vector3(offset + 1.92f, -0.226f, BoardCenterZ), new Vector3(0.035f, 0.028f, LaneLength - 1.45f), BuildBandEdgeColor(laneId));
+            CreateSurfaceBand($"Lane{laneId}RightBuildInnerEdge", new Vector3(offset + 4.08f, -0.226f, BoardCenterZ), new Vector3(0.035f, 0.028f, LaneLength - 1.45f), BuildBandEdgeColor(laneId));
+            CreateSurfaceBand($"Lane{laneId}RightBuildOuterEdge", new Vector3(offset + 5.92f, -0.226f, BoardCenterZ), new Vector3(0.035f, 0.028f, LaneLength - 1.45f), BuildBandEdgeColor(laneId));
             CreateSurfaceBand($"Lane{laneId}NorthFlowWash", new Vector3(offset + BoardCenterX, -0.252f, LaneLength - 2.25f), new Vector3(LaneWidth - 0.7f, 0.032f, 2.2f), EndpointWashColor(MintSignal, laneId == 1));
             CreateSurfaceBand($"Lane{laneId}SouthFlowWash", new Vector3(offset + BoardCenterX, -0.252f, 1.25f), new Vector3(LaneWidth - 0.7f, 0.032f, 2.2f), EndpointWashColor(LeakRed, laneId == 1));
         }
@@ -1536,6 +1541,10 @@ namespace LTW.UnityClient.Simulation
             CreateSurfaceBand($"Lane{laneId}{label}PlateCoreMark", new Vector3(offset + CenterColumn, 0.012f, z + direction * 0.18f), new Vector3(0.58f, 0.014f, 0.13f), signal);
             CreateSurfaceBand($"Lane{laneId}{label}PlateLeftMark", new Vector3(offset + CenterColumn - 0.42f, 0.014f, z + direction * 0.02f), new Vector3(0.42f, 0.014f, 0.1f), signal);
             CreateSurfaceBand($"Lane{laneId}{label}PlateRightMark", new Vector3(offset + CenterColumn + 0.42f, 0.014f, z + direction * 0.02f), new Vector3(0.42f, 0.014f, 0.1f), signal);
+            var leftChevron = CreateSurfaceBand($"Lane{laneId}{label}PlateChevronLeft", new Vector3(offset + CenterColumn - 0.25f, 0.018f, z + direction * 0.34f), new Vector3(0.08f, 0.014f, 0.36f), signal);
+            leftChevron.transform.rotation = Quaternion.Euler(0f, direction * 32f, 0f);
+            var rightChevron = CreateSurfaceBand($"Lane{laneId}{label}PlateChevronRight", new Vector3(offset + CenterColumn + 0.25f, 0.018f, z + direction * 0.34f), new Vector3(0.08f, 0.014f, 0.36f), signal);
+            rightChevron.transform.rotation = Quaternion.Euler(0f, direction * -32f, 0f);
         }
 
         private GameObject CreateSurfaceBand(string name, Vector3 position, Vector3 scale, Color color)
@@ -2478,6 +2487,10 @@ namespace LTW.UnityClient.Simulation
         private static Color RouteBandColor(int laneId) => laneId == 1 ? new Color(0.1f, 0.3f, 0.5f) : new Color(0.065f, 0.2f, 0.34f);
 
         private static Color RouteGuideColor(int laneId) => laneId == 1 ? new Color(0.22f, 0.5f, 0.82f) : new Color(0.13f, 0.3f, 0.55f);
+
+        private static Color RouteInlayColor(int laneId) => laneId == 1 ? new Color(0.06f, 0.18f, 0.31f) : new Color(0.038f, 0.105f, 0.19f);
+
+        private static Color BuildBandEdgeColor(int laneId) => laneId == 1 ? new Color(0.09f, 0.2f, 0.2f) : new Color(0.045f, 0.095f, 0.105f);
 
         private static Color EndpointWashColor(Color color, bool isPlayerLane)
         {

@@ -494,3 +494,22 @@ Status: implemented, pending hands-on Unity scale/readability review.
 - Legal/IP notes: original ward-tech prompt with protected-game avoidance block.
 - Screenshot review: pending hands-on active-lane confirmation.
 - Status: active runtime proof
+
+### creep.shade.v1-correction-v02
+
+- Date: 2026-07-15
+- Owner: Codex
+- Role: Shade creep
+- Intended silhouette: compact stealth creep / dark glass body / nearby echo facets.
+- AI/tool used: built-in image generation tool, edited through local chroma-key removal.
+- Prompt/version: focused correction prompt after v01 reviewed as too diagonal and VFX/projectile-like, 2026-07-15.
+- Source image/model path: `unity/LTW.UnityClient/Assets/Art/AIStaging/SourcePlates/ProductionCandidates/creep_shade_candidate_v02_key.png`
+- Production candidate path: `unity/LTW.UnityClient/Assets/Art/AIStaging/SourcePlates/ProductionCandidates/creep_shade_candidate_v02_alpha.png`
+- Runtime sprite path: `unity/LTW.UnityClient/Assets/Art/Creeps/Production/Sprites/creep_shade_candidate_v02_trimmed.png`
+- Runtime prefab path: `unity/LTW.UnityClient/Assets/Prefabs/Creeps/Creep_Shade_AIPlate.prefab`
+- Human edits performed: green chroma-key removal with soft matte/despill; alpha crop/pad normalization to 920x920; grayscale copy; prefab sprite reference updated from v01 to v02.
+- Third-party inputs: none.
+- Player-facing AI disclosure needed: tbd if promoted to runtime/marketing.
+- Legal/IP notes: original ward-tech prompt with protected-game avoidance block.
+- Screenshot review: `docs/art-pipeline/shade-creep-v02-review.png`.
+- Status: active runtime proof

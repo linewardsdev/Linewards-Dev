@@ -440,12 +440,19 @@ Current decision:
     - [x] 2026-07-15: Generated Swarm v01 V1 production sprite, created `Creep_Swarm_AIPlate.prefab`, and wired `creep.swarm` to the AI plate visual library entry for active proof review.
   - [x] Shade
     - [x] 2026-07-15: Promoted `creep_shade_candidate_v01_trimmed.png` through `Creep_Shade_AIPlate.prefab`, wired `creep.shade`, and cleared old overlay tint paths.
+    - [x] 2026-07-15: Replaced active Shade art with `creep_shade_candidate_v02_trimmed.png` after review showed v01 read too much like a diagonal projectile/VFX burst.
   - [x] Siege
     - [x] 2026-07-15: Generated Siege v01 V1 production sprite, created `Creep_Siege_AIPlate.prefab`, and wired `creep.siege` to the AI plate visual library entry for active proof review.
   - [x] Builder
     - [x] 2026-07-15: Added `builder_candidate_v01_trimmed.png` as a Resources-loaded sprite layer over the procedural Builder avatar.
 - [x] Record V1 role coverage.
   - [x] 2026-07-15: Added `docs/art-pipeline/v1-role-coverage-report.md` showing all five towers, all five creeps, and Builder mapped to their runtime assets.
+- [x] Start UI and board art pass.
+  - [x] 2026-07-16: Added derived runtime build/send icon sprites under `Assets/Resources/Art/UI/Icons/`, wired them through `RuntimeUiIconLibrary`, and kept procedural glyph fallback.
+  - [x] 2026-07-16: Added procedural board polish for build-band edge lines, center-route inlay, and endpoint chevrons.
+  - [x] 2026-07-16: Captured fresh UI/board screenshot QA for default HUD, build menu, send menu, lane selector, heavy pressure, and grayscale under `docs/screenshot-reviews/ui-board-art-pass-v01/`.
+  - [x] 2026-07-16: Added the formal UI/game-board pipeline docs: `docs/art-pipeline/ui-board-art-pipeline.md`, `docs/art-pipeline/ui-board-contact-sheet-brief.md`, and `docs/art-pipeline/ui-board-pipeline-checklist.md`.
+  - [ ] Generate UI/board V02 contact sheets for HUD chrome, command cards, icon simplification, board materials, spawn/leak gates, and map/lane controls.
 - [x] Run Unity prefab/library validation.
   - [x] 2026-07-15: `ValidateAiSourcePlateProofPrefabs` passed in Unity batchmode.
   - [x] 2026-07-15: `ValidateTowerPlaceholderPrefabs` passed in Unity batchmode.

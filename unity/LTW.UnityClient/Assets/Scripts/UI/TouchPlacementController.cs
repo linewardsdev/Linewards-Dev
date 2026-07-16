@@ -778,18 +778,33 @@ namespace LTW.UnityClient.UI
             GUI.color = previousColor;
 
             DrawAccent(new Rect(rect.x, rect.yMax - 4f * scale, rect.width, 4f * scale), displayAccent);
-            var iconRect = new Rect(rect.x + 7f * scale, rect.y + 9f * scale, 19f * scale, 26f * scale);
-            DrawTowerIcon(iconRect, iconKind, displayAccent, scale);
+            var iconRect = new Rect(rect.x + 6f * scale, rect.y + 8f * scale, 32f * scale, 32f * scale);
+            if (!RuntimeUiIconLibrary.DrawIcon(iconRect, TowerIconResourceName(iconKind), isAffordable))
+            {
+                DrawTowerIcon(iconRect, iconKind, displayAccent, scale);
+            }
 
             buttonStyle!.fontSize = Mathf.RoundToInt(10f * scale);
             buttonStyle.normal.textColor = isAffordable ? Cloud : DisabledText;
-            GUI.Label(new Rect(rect.x + 25f * scale, rect.y + 8f * scale, rect.width - 27f * scale, 20f * scale), label, style);
+            GUI.Label(new Rect(rect.x + 40f * scale, rect.y + 8f * scale, rect.width - 42f * scale, 20f * scale), label, style);
 
             metaStyle!.fontSize = Mathf.RoundToInt(9f * scale);
             metaStyle.normal.textColor = displayAccent;
-            GUI.Label(new Rect(rect.x + 25f * scale, rect.y + 31f * scale, rect.width - 27f * scale, 16f * scale), meta, metaStyle);
+            GUI.Label(new Rect(rect.x + 40f * scale, rect.y + 31f * scale, rect.width - 42f * scale, 16f * scale), meta, metaStyle);
             DrawAccent(new Rect(rect.x + rect.width * 0.22f, rect.y + rect.height - 10f * scale, rect.width * 0.56f, 3f * scale), displayAccent);
             return pressed;
+        }
+
+        private static string TowerIconResourceName(TowerIconKind iconKind)
+        {
+            return iconKind switch
+            {
+                TowerIconKind.Control => "ui_icon_tower_control_v01",
+                TowerIconKind.Relay => "ui_icon_tower_relay_v01",
+                TowerIconKind.Pulse => "ui_icon_tower_pulse_v01",
+                TowerIconKind.Prism => "ui_icon_tower_prism_v01",
+                _ => "ui_icon_tower_arrow_v01"
+            };
         }
 
         private static void DrawTowerIcon(Rect rect, TowerIconKind iconKind, Color accent, float scale)

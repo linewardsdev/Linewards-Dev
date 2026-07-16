@@ -158,3 +158,14 @@ Pulse, Prism, Shade, and Builder were promoted from the selected `v03` source pl
 - Builder grayscale copy: `unity/LTW.UnityClient/Assets/Resources/Art/Builder/Production/Sprites/builder_candidate_v01_trimmed_grayscale.png`
 
 Pulse and Prism now use the same sprite-only AIPlate prefab pattern as Arrow, Control, and Relay. Shade now uses the creep AIPlate pattern with old sender/damage overlay paths cleared so the dark-glass silhouette is not flattened. Builder remains procedural but now loads a painted worker/tool sprite from `Resources` and keeps the placement `FootMarker` visible.
+
+## Shade Runtime Correction V02
+
+Live review found the first Shade production sprite too diagonal and VFX-like; it read more like a projectile burst than a lane creep. Shade v02 is now the active proof sprite:
+
+- Source key: `unity/LTW.UnityClient/Assets/Art/AIStaging/SourcePlates/ProductionCandidates/creep_shade_candidate_v02_key.png`
+- Alpha staging plate: `unity/LTW.UnityClient/Assets/Art/AIStaging/SourcePlates/ProductionCandidates/creep_shade_candidate_v02_alpha.png`
+- Runtime sprite: `unity/LTW.UnityClient/Assets/Art/Creeps/Production/Sprites/creep_shade_candidate_v02_trimmed.png`
+- Grayscale review copy: `unity/LTW.UnityClient/Assets/Art/Creeps/Production/Sprites/creep_shade_candidate_v02_trimmed_grayscale.png`
+
+V02 keeps the stealth/dark-glass role language but changes the read to a compact vertical crystalline body with nearby echo facets. V01 remains in the repo as rollback/reference evidence.
