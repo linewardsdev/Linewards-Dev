@@ -455,7 +455,8 @@ Current decision:
   - [x] 2026-07-16: Generated UI/board V02 contact sheets for HUD chrome, command cards, icon simplification, board materials, spawn/leak gates, and map/lane controls under `docs/art-pipeline/ui-board/contact-sheets/`.
   - [x] 2026-07-16: Recorded user-selected UI/board V02 candidates in `docs/art-pipeline/ui-board/selected-candidates-v02.md` and cropped selected previews under `docs/art-pipeline/ui-board/selected-candidates/`.
   - [x] 2026-07-16: Promoted the first UI/board V02 runtime slice for command cards, including `RuntimeUiChrome`, build/send card wiring, and screenshot review under `docs/screenshot-reviews/ui-board-art-pass-v02-command-cards/`.
-  - [ ] Promote persistent map/lane/status controls from selected option 1.
+  - [x] 2026-07-16: Promoted persistent lane-selector control chrome from selected option 1 and captured review evidence under `docs/screenshot-reviews/ui-board-art-pass-v02-controls/`.
+  - [ ] Decide and implement true map-camera behavior if the control is meant to be more than lane selection.
 - [x] Run Unity prefab/library validation.
   - [x] 2026-07-15: `ValidateAiSourcePlateProofPrefabs` passed in Unity batchmode.
   - [x] 2026-07-15: `ValidateTowerPlaceholderPrefabs` passed in Unity batchmode.

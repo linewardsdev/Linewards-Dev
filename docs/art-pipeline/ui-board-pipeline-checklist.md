@@ -57,6 +57,9 @@ Source of truth: `docs/art-pipeline/ui-board-art-pipeline.md`
   - [ ] Selected direction: contact-sheet option 11.
 - [ ] Promote selected spawn/leak gate art.
   - [ ] Selected direction: contact-sheet option 11.
+- [x] Promote selected map/lane/status control art.
+  - [x] Selected direction: contact-sheet option 1.
+  - [x] 2026-07-16: Added shared persistent control chrome in `RuntimeUiChrome`, wired the lane selector, and captured review evidence under `docs/screenshot-reviews/ui-board-art-pass-v02-controls/`.
 - [ ] Normalize crops, scale, alpha, and grayscale copies.
 - [ ] Add source notes for every promoted generated asset.
 - [ ] Add Unity import settings and `.meta` files.
@@ -67,6 +70,7 @@ Source of truth: `docs/art-pipeline/ui-board-art-pipeline.md`
 
 - [ ] Capture phone portrait default single-lane view.
 - [ ] Capture map view.
+  - [ ] True map-camera behavior remains outside the current lane-selector-only control slice.
 - [x] Capture build menu open.
   - [x] `docs/screenshot-reviews/ui-board-art-pass-v02-command-cards/captures/02-build-menu-open.png`
 - [x] Capture send menu open.
@@ -80,6 +84,8 @@ Source of truth: `docs/art-pipeline/ui-board-art-pipeline.md`
   - [x] `docs/screenshot-reviews/ui-board-art-pass-v02-command-cards/captures/grayscale/`
 - [x] Write command-card slice review.
   - [x] `docs/screenshot-reviews/ui-board-art-pass-v02-command-cards/review.md`
+- [x] Write persistent-controls slice review.
+  - [x] `docs/screenshot-reviews/ui-board-art-pass-v02-controls/review.md`
 - [ ] Write full V02 review under `docs/screenshot-reviews/ui-board-art-pass-v02/review.md`.
 
 ## Done Criteria For UI/Board V1

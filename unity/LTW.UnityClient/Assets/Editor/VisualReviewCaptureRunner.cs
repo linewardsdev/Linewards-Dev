@@ -1031,11 +1031,11 @@ namespace LTW.UnityClient.Editor
 
         private static void PaintLaneSelectorOverlay(Texture2D texture, Color32 panel, Color32 blue, Color32 cloud)
         {
-            PaintRect(texture, 1004, 760, 54, 740, panel);
-            PaintText(texture, "R", 1024, 1450, cloud, 4);
-            PaintText(texture, "L1", 1015, 1320, blue, 4);
-            PaintText(texture, "L2", 1015, 1190, blue, 4);
-            PaintText(texture, "L3", 1015, 1060, blue, 4);
+            PaintRect(texture, 980, 1080, 76, 276, panel);
+            PaintControlButton(texture, 996, 1292, 48, "L1", blue, true);
+            PaintControlButton(texture, 996, 1212, 48, "L2", blue, false);
+            PaintControlButton(texture, 996, 1132, 48, "L3", blue, false);
+            PaintControlButton(texture, 1000, 1002, 56, "L1", new Color32(88, 225, 182, 255), true);
         }
 
         private static void PaintResultsOverlay(Texture2D texture, Color32 panel, Color32 gold, Color32 cloud)
@@ -1070,6 +1070,23 @@ namespace LTW.UnityClient.Editor
             PaintIcon(texture, iconName, x + 12, y + 15, 42);
             PaintText(texture, title, x + 60, y + 53, new Color32(244, 247, 255, 255), 3);
             PaintText(texture, meta, x + 60, y + 28, accent, 3);
+        }
+
+        private static void PaintControlButton(Texture2D texture, int x, int y, int size, string label, Color32 accent, bool active)
+        {
+            var face = active
+                ? new Color32((byte)Mathf.Clamp(accent.r, 0, 255), (byte)Mathf.Clamp(accent.g, 0, 255), (byte)Mathf.Clamp(accent.b, 0, 255), 232)
+                : new Color32(20, 28, 42, 236);
+            var edge = active ? new Color32(220, 246, 255, 210) : new Color32(88, 94, 104, 220);
+            PaintRect(texture, x, y, size, size, new Color32(5, 7, 11, 232));
+            PaintRect(texture, x + 3, y + 3, size - 6, size - 6, edge);
+            PaintRect(texture, x + 7, y + 7, size - 14, size - 14, face);
+            var glyph = active ? new Color32(18, 28, 42, 160) : new Color32(accent.r, accent.g, accent.b, 160);
+            PaintRect(texture, x + 11, y + 13, 3, size - 26, glyph);
+            PaintRect(texture, x + 7, y + 14, 4, 4, glyph);
+            PaintRect(texture, x + 7, y + size / 2 - 2, 4, 4, glyph);
+            PaintRect(texture, x + 7, y + size - 18, 4, 4, glyph);
+            PaintText(texture, label, x + 18, y + size / 2 + 10, active ? new Color32(12, 22, 34, 255) : accent, 3);
         }
 
         private static void PaintIcon(Texture2D texture, string iconName, int x, int y, int size)
@@ -1338,11 +1355,12 @@ namespace LTW.UnityClient.Editor
         {
             var panel = new Color(0.08f, 0.12f, 0.22f, 0.92f);
             var blue = new Color(0.302f, 0.639f, 1f, 1f);
-            AddOverlayRect(root, layer, "LaneRail", new Vector2(4.72f, 2.4f), new Vector2(0.36f, 5.8f), panel);
-            AddOverlayText(root, layer, "R", new Vector2(4.72f, 5.05f), Color.white, 0.18f);
-            AddOverlayText(root, layer, "L1", new Vector2(4.72f, 4.05f), blue, 0.2f);
-            AddOverlayText(root, layer, "L2", new Vector2(4.72f, 3.15f), blue, 0.2f);
-            AddOverlayText(root, layer, "L3", new Vector2(4.72f, 2.25f), blue, 0.2f);
+            var mint = new Color(0.349f, 0.882f, 0.714f, 1f);
+            AddOverlayRect(root, layer, "LaneRail", new Vector2(4.58f, 2.85f), new Vector2(0.58f, 2.2f), panel);
+            DrawOverlayControl(root, layer, new Vector2(4.58f, 3.72f), "L1", blue, true);
+            DrawOverlayControl(root, layer, new Vector2(4.58f, 3.12f), "L2", blue, false);
+            DrawOverlayControl(root, layer, new Vector2(4.58f, 2.52f), "L3", blue, false);
+            DrawOverlayControl(root, layer, new Vector2(4.58f, 1.18f), "L1", mint, true);
         }
 
         private static void DrawResultsOverlay(GameObject root, int layer)
@@ -1369,6 +1387,20 @@ namespace LTW.UnityClient.Editor
             AddOverlayRect(root, layer, title + "RightCorner", center + new Vector2(0.62f, 0.2f), new Vector2(0.04f, 0.16f), accent);
             AddOverlayText(root, layer, title, center + new Vector2(0.12f, 0.11f), Color.white, 0.13f);
             AddOverlayText(root, layer, meta, center + new Vector2(0.12f, -0.14f), accent, 0.115f);
+        }
+
+        private static void DrawOverlayControl(GameObject root, int layer, Vector2 center, string label, Color accent, bool active)
+        {
+            var edge = active ? new Color(0.85f, 0.96f, 1f, 0.9f) : new Color(0.32f, 0.34f, 0.38f, 0.9f);
+            var face = active ? accent : new Color(0.08f + accent.r * 0.1f, 0.12f + accent.g * 0.1f, 0.2f + accent.b * 0.1f, 0.95f);
+            var text = active ? new Color(0.02f, 0.035f, 0.052f, 1f) : accent;
+            AddOverlayRect(root, layer, label + "ControlEdge" + center.y, center, new Vector2(0.42f, 0.42f), edge);
+            AddOverlayRect(root, layer, label + "ControlFace" + center.y, center, new Vector2(0.34f, 0.34f), face);
+            AddOverlayRect(root, layer, label + "ControlV" + center.y, center + new Vector2(-0.1f, 0f), new Vector2(0.025f, 0.22f), text);
+            AddOverlayRect(root, layer, label + "ControlA" + center.y, center + new Vector2(-0.15f, 0.09f), new Vector2(0.035f, 0.035f), text);
+            AddOverlayRect(root, layer, label + "ControlB" + center.y, center + new Vector2(-0.15f, 0f), new Vector2(0.035f, 0.035f), text);
+            AddOverlayRect(root, layer, label + "ControlC" + center.y, center + new Vector2(-0.15f, -0.09f), new Vector2(0.035f, 0.035f), text);
+            AddOverlayText(root, layer, label, center + new Vector2(0.045f, 0f), text, 0.14f);
         }
 
         private static void AddOverlayRect(GameObject root, int layer, string name, Vector2 center, Vector2 size, Color color)

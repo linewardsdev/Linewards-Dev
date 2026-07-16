@@ -320,7 +320,8 @@ Owner: Agent 1 final integration, Agent 2 supplies creep-specific evidence
   - [x] command card frames.
   - [ ] board material kit.
   - [ ] spawn/leak gates.
-  - [ ] map/lane toggle and status controls.
+  - [x] map/lane toggle and status controls.
+    - [x] 2026-07-16: Lane selector uses the selected option-1 persistent control chrome; true map-camera behavior remains a separate design/implementation decision.
 - [ ] Write review under `docs/screenshot-reviews/proper-art-replacement-pass/`.
 - [ ] Record every medium/high issue before merge.
 

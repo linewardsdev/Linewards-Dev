@@ -48,6 +48,25 @@ namespace LTW.UnityClient.UI
             return new Rect(rect.x + 52f * scale, rect.y + 34f * scale, rect.width - 58f * scale, 17f * scale);
         }
 
+        public static bool DrawControlButton(Rect rect, string label, Color accent, bool active, float scale, GUIStyle labelStyle)
+        {
+            DrawControlChrome(rect, accent, active, scale);
+
+            var previousTextColor = labelStyle.normal.textColor;
+            labelStyle.normal.textColor = active ? new Color(0.02f, 0.035f, 0.052f, 1f) : new Color(accent.r, accent.g, accent.b, 0.92f);
+            GUI.Label(rect, label, labelStyle);
+            labelStyle.normal.textColor = previousTextColor;
+
+            var currentEvent = Event.current;
+            if (currentEvent.type != EventType.MouseUp || !rect.Contains(currentEvent.mousePosition))
+            {
+                return false;
+            }
+
+            currentEvent.Use();
+            return true;
+        }
+
         private static void DrawCommandCardChrome(Rect rect, Color accent, CommandCardState state, float scale)
         {
             var stateAccent = StateAccent(accent, state);
@@ -106,6 +125,26 @@ namespace LTW.UnityClient.UI
             Fill(new Rect(rect.x + 5f * scale, rect.yMax - 5f * scale - corner, line, corner), hardware);
             Fill(new Rect(rect.xMax - 5f * scale - corner, rect.yMax - 7f * scale, corner, line), hardware);
             Fill(new Rect(rect.xMax - 7f * scale, rect.yMax - 5f * scale - corner, line, corner), hardware);
+        }
+
+        private static void DrawControlChrome(Rect rect, Color accent, bool active, float scale)
+        {
+            var outer = active ? accent : SlateEdge;
+            var face = active ? new Color(accent.r, accent.g, accent.b, 0.86f) : Tint(CardBack, accent, 0.12f);
+            var inner = active ? new Color(0.86f, 0.97f, 1f, 0.58f) : new Color(accent.r, accent.g, accent.b, 0.36f);
+            var pad = Mathf.Max(2f * scale, 2f);
+            var ring = Mathf.Max(3f * scale, 2f);
+
+            Fill(rect, DeepEdge);
+            Fill(Shrink(rect, pad), outer);
+            Fill(Shrink(rect, pad + ring), face);
+
+            var markWidth = Mathf.Max(3f * scale, 2f);
+            var railX = rect.x + rect.width * 0.22f;
+            Fill(new Rect(railX, rect.y + rect.height * 0.24f, markWidth, rect.height * 0.52f), inner);
+            Fill(new Rect(railX - markWidth * 1.2f, rect.y + rect.height * 0.28f, markWidth, markWidth), outer);
+            Fill(new Rect(railX - markWidth * 1.2f, rect.y + rect.height * 0.5f - markWidth * 0.5f, markWidth, markWidth), outer);
+            Fill(new Rect(railX - markWidth * 1.2f, rect.yMax - rect.height * 0.28f - markWidth, markWidth, markWidth), outer);
         }
 
         private static void DrawOutline(Rect rect, Color color, float thickness)
