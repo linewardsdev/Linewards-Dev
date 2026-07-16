@@ -1006,27 +1006,27 @@ namespace LTW.UnityClient.Editor
 
         private static void PaintBuildMenuOverlay(Texture2D texture, Color32 panel, Color32 blue, Color32 mint, Color32 gold, Color32 violet, Color32 cloud)
         {
-            PaintRect(texture, 160, 168, 760, 210, panel);
-            PaintRect(texture, 160, 164, 760, 7, mint);
-            PaintText(texture, "WARD PALETTE", 196, 350, mint, 4);
-            PaintCard(texture, 230, 260, "ARROW", "25G", blue, "ui_icon_tower_arrow_v01");
-            PaintCard(texture, 390, 260, "CTRL", "35G", violet, "ui_icon_tower_control_v01");
-            PaintCard(texture, 550, 260, "RELAY", "40G", gold, "ui_icon_tower_relay_v01");
-            PaintCard(texture, 310, 190, "PULSE", "45G", mint, "ui_icon_tower_pulse_v01");
-            PaintCard(texture, 470, 190, "PRISM", "60G", cloud, "ui_icon_tower_prism_v01");
+            PaintRect(texture, 150, 152, 780, 238, panel);
+            PaintRect(texture, 150, 148, 780, 7, mint);
+            PaintText(texture, "WARD PALETTE", 196, 362, mint, 4);
+            PaintCard(texture, 220, 270, "ARROW", "25G", blue, "ui_icon_tower_arrow_v01");
+            PaintCard(texture, 386, 270, "CTRL", "35G", violet, "ui_icon_tower_control_v01");
+            PaintCard(texture, 552, 270, "RELAY", "40G", gold, "ui_icon_tower_relay_v01");
+            PaintCard(texture, 302, 188, "PULSE", "45G", mint, "ui_icon_tower_pulse_v01");
+            PaintCard(texture, 468, 188, "PRISM", "60G", cloud, "ui_icon_tower_prism_v01");
         }
 
         private static void PaintSendMenuOverlay(Texture2D texture, Color32 panel, Color32 blue, Color32 mint, Color32 gold, Color32 violet, Color32 red)
         {
-            PaintRect(texture, 160, 155, 760, 232, panel);
-            PaintRect(texture, 160, 150, 760, 7, gold);
-            PaintText(texture, "SEND PRESSURE", 196, 358, gold, 4);
-            PaintText(texture, "GOLD 75", 690, 358, mint, 3);
-            PaintCard(texture, 230, 265, "RUN", "10G +1", blue, "ui_icon_send_runner_v01");
-            PaintCard(texture, 390, 265, "BRUTE", "18G +2", violet, "ui_icon_send_brute_v01");
-            PaintCard(texture, 550, 265, "SWARM", "18G +3", gold, "ui_icon_send_swarm_v01");
-            PaintCard(texture, 310, 190, "SHADE", "24G +3", mint, "ui_icon_send_shade_v01");
-            PaintCard(texture, 470, 190, "SIEGE", "40G +4", red, "ui_icon_send_siege_v01");
+            PaintRect(texture, 150, 140, 780, 250, panel);
+            PaintRect(texture, 150, 136, 780, 7, gold);
+            PaintText(texture, "SEND PRESSURE", 196, 362, gold, 4);
+            PaintText(texture, "GOLD 75", 690, 362, mint, 3);
+            PaintCard(texture, 220, 270, "RUN", "10G +1", blue, "ui_icon_send_runner_v01");
+            PaintCard(texture, 386, 270, "BRUTE", "18G +2", violet, "ui_icon_send_brute_v01");
+            PaintCard(texture, 552, 270, "SWARM", "18G +3", gold, "ui_icon_send_swarm_v01");
+            PaintCard(texture, 302, 188, "SHADE", "24G +3", mint, "ui_icon_send_shade_v01");
+            PaintCard(texture, 468, 188, "SIEGE", "40G +4", red, "ui_icon_send_siege_v01");
         }
 
         private static void PaintLaneSelectorOverlay(Texture2D texture, Color32 panel, Color32 blue, Color32 cloud)
@@ -1049,16 +1049,27 @@ namespace LTW.UnityClient.Editor
 
         private static void PaintCard(Texture2D texture, int x, int y, string title, string meta, Color32 accent, string iconName)
         {
+            const int width = 154;
+            const int height = 70;
             var panel = new Color32(
-                (byte)Mathf.Clamp(22 + accent.r / 10, 0, 255),
-                (byte)Mathf.Clamp(28 + accent.g / 10, 0, 255),
-                (byte)Mathf.Clamp(48 + accent.b / 10, 0, 255),
-                238);
-            PaintRect(texture, x, y, 140, 58, panel);
-            PaintRect(texture, x, y, 140, 6, accent);
-            PaintIcon(texture, iconName, x + 8, y + 12, 38);
-            PaintText(texture, title, x + 48, y + 47, new Color32(244, 247, 255, 255), 3);
-            PaintText(texture, meta, x + 48, y + 24, accent, 3);
+                (byte)Mathf.Clamp(18 + accent.r / 14, 0, 255),
+                (byte)Mathf.Clamp(23 + accent.g / 14, 0, 255),
+                (byte)Mathf.Clamp(34 + accent.b / 14, 0, 255),
+                242);
+            var edge = new Color32(78, 83, 88, 236);
+            PaintRect(texture, x, y, width, height, new Color32(5, 7, 11, 232));
+            PaintRect(texture, x + 3, y + 3, width - 6, height - 6, edge);
+            PaintRect(texture, x + 6, y + 6, width - 12, height - 12, panel);
+            PaintRect(texture, x + 12, y + height - 10, width - 24, 3, edge);
+            PaintRect(texture, x + 12, y + 7, width - 24, 3, edge);
+            PaintRect(texture, x + 7, y + height - 17, 3, 10, accent);
+            PaintRect(texture, x + width - 10, y + height - 17, 3, 10, accent);
+            PaintRect(texture, x + 7, y + 7, 12, 3, accent);
+            PaintRect(texture, x + width - 19, y + 7, 12, 3, accent);
+            PaintRect(texture, x + 20, y + 5, width - 40, 5, accent);
+            PaintIcon(texture, iconName, x + 12, y + 15, 42);
+            PaintText(texture, title, x + 60, y + 53, new Color32(244, 247, 255, 255), 3);
+            PaintText(texture, meta, x + 60, y + 28, accent, 3);
         }
 
         private static void PaintIcon(Texture2D texture, string iconName, int x, int y, int size)
@@ -1293,14 +1304,14 @@ namespace LTW.UnityClient.Editor
             var blue = new Color(0.302f, 0.639f, 1f, 1f);
             var cloud = new Color(0.957f, 0.969f, 1f, 1f);
 
-            AddOverlayRect(root, layer, "BuildPanel", new Vector2(0f, -7.2f), new Vector2(4.7f, 1.75f), panel);
-            AddOverlayRect(root, layer, "BuildPanelAccent", new Vector2(0f, -8.05f), new Vector2(4.7f, 0.05f), mint);
-            AddOverlayText(root, layer, "WARD PALETTE", new Vector2(-1.45f, -6.48f), mint, 0.2f);
-            DrawOverlayCard(root, layer, new Vector2(-1.52f, -7.05f), "ARROW", "25G", blue);
-            DrawOverlayCard(root, layer, new Vector2(0f, -7.05f), "CTRL", "35G", violet);
-            DrawOverlayCard(root, layer, new Vector2(1.52f, -7.05f), "RELAY", "40G", gold);
-            DrawOverlayCard(root, layer, new Vector2(-0.78f, -7.67f), "PULSE", "45G", mint);
-            DrawOverlayCard(root, layer, new Vector2(0.78f, -7.67f), "PRISM", "60G", cloud);
+            AddOverlayRect(root, layer, "BuildPanel", new Vector2(0f, -7.2f), new Vector2(4.85f, 1.95f), panel);
+            AddOverlayRect(root, layer, "BuildPanelAccent", new Vector2(0f, -8.14f), new Vector2(4.85f, 0.05f), mint);
+            AddOverlayText(root, layer, "WARD PALETTE", new Vector2(-1.45f, -6.36f), mint, 0.2f);
+            DrawOverlayCard(root, layer, new Vector2(-1.58f, -6.98f), "ARROW", "25G", blue);
+            DrawOverlayCard(root, layer, new Vector2(0f, -6.98f), "CTRL", "35G", violet);
+            DrawOverlayCard(root, layer, new Vector2(1.58f, -6.98f), "RELAY", "40G", gold);
+            DrawOverlayCard(root, layer, new Vector2(-0.8f, -7.74f), "PULSE", "45G", mint);
+            DrawOverlayCard(root, layer, new Vector2(0.8f, -7.74f), "PRISM", "60G", cloud);
         }
 
         private static void DrawSendMenuOverlay(GameObject root, int layer)
@@ -1312,15 +1323,15 @@ namespace LTW.UnityClient.Editor
             var blue = new Color(0.302f, 0.639f, 1f, 1f);
             var red = new Color(1f, 0.38f, 0.44f, 1f);
 
-            AddOverlayRect(root, layer, "SendPanel", new Vector2(0f, -7.2f), new Vector2(4.7f, 1.9f), panel);
-            AddOverlayRect(root, layer, "SendPanelAccent", new Vector2(0f, -8.12f), new Vector2(4.7f, 0.05f), gold);
-            AddOverlayText(root, layer, "SEND PRESSURE", new Vector2(-1.35f, -6.38f), gold, 0.2f);
-            AddOverlayText(root, layer, "GOLD 75", new Vector2(1.45f, -6.38f), mint, 0.16f);
-            DrawOverlayCard(root, layer, new Vector2(-1.52f, -7.02f), "RUN", "10G +1", blue);
-            DrawOverlayCard(root, layer, new Vector2(0f, -7.02f), "BRUTE", "18G +2", violet);
-            DrawOverlayCard(root, layer, new Vector2(1.52f, -7.02f), "SWARM", "18G +3", gold);
-            DrawOverlayCard(root, layer, new Vector2(-0.78f, -7.68f), "SHADE", "24G +3", mint);
-            DrawOverlayCard(root, layer, new Vector2(0.78f, -7.68f), "SIEGE", "40G +4", red);
+            AddOverlayRect(root, layer, "SendPanel", new Vector2(0f, -7.2f), new Vector2(4.85f, 2.04f), panel);
+            AddOverlayRect(root, layer, "SendPanelAccent", new Vector2(0f, -8.18f), new Vector2(4.85f, 0.05f), gold);
+            AddOverlayText(root, layer, "SEND PRESSURE", new Vector2(-1.35f, -6.32f), gold, 0.2f);
+            AddOverlayText(root, layer, "GOLD 75", new Vector2(1.45f, -6.32f), mint, 0.16f);
+            DrawOverlayCard(root, layer, new Vector2(-1.58f, -6.96f), "RUN", "10G +1", blue);
+            DrawOverlayCard(root, layer, new Vector2(0f, -6.96f), "BRUTE", "18G +2", violet);
+            DrawOverlayCard(root, layer, new Vector2(1.58f, -6.96f), "SWARM", "18G +3", gold);
+            DrawOverlayCard(root, layer, new Vector2(-0.8f, -7.74f), "SHADE", "24G +3", mint);
+            DrawOverlayCard(root, layer, new Vector2(0.8f, -7.74f), "SIEGE", "40G +4", red);
         }
 
         private static void DrawLaneSelectorOverlay(GameObject root, int layer)
@@ -1349,10 +1360,15 @@ namespace LTW.UnityClient.Editor
         private static void DrawOverlayCard(GameObject root, int layer, Vector2 center, string title, string meta, Color accent)
         {
             var panel = new Color(0.08f + accent.r * 0.08f, 0.12f + accent.g * 0.08f, 0.22f + accent.b * 0.08f, 0.94f);
-            AddOverlayRect(root, layer, title + "Card", center, new Vector2(1.32f, 0.54f), panel);
-            AddOverlayRect(root, layer, title + "Accent", center + new Vector2(0f, -0.25f), new Vector2(1.32f, 0.05f), accent);
-            AddOverlayText(root, layer, title, center + new Vector2(0f, 0.09f), Color.white, 0.14f);
-            AddOverlayText(root, layer, meta, center + new Vector2(0f, -0.12f), accent, 0.12f);
+            var edge = new Color(0.32f, 0.34f, 0.36f, 0.92f);
+            AddOverlayRect(root, layer, title + "CardEdge", center, new Vector2(1.46f, 0.68f), edge);
+            AddOverlayRect(root, layer, title + "Card", center, new Vector2(1.36f, 0.58f), panel);
+            AddOverlayRect(root, layer, title + "TopRail", center + new Vector2(0f, 0.24f), new Vector2(1.08f, 0.035f), edge);
+            AddOverlayRect(root, layer, title + "BottomRail", center + new Vector2(0f, -0.27f), new Vector2(1.08f, 0.035f), accent);
+            AddOverlayRect(root, layer, title + "LeftCorner", center + new Vector2(-0.62f, 0.2f), new Vector2(0.04f, 0.16f), accent);
+            AddOverlayRect(root, layer, title + "RightCorner", center + new Vector2(0.62f, 0.2f), new Vector2(0.04f, 0.16f), accent);
+            AddOverlayText(root, layer, title, center + new Vector2(0.12f, 0.11f), Color.white, 0.13f);
+            AddOverlayText(root, layer, meta, center + new Vector2(0.12f, -0.14f), accent, 0.115f);
         }
 
         private static void AddOverlayRect(GameObject root, int layer, string name, Vector2 center, Vector2 size, Color color)

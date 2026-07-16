@@ -48,8 +48,9 @@ Source of truth: `docs/art-pipeline/ui-board-art-pipeline.md`
 
 ## V0.2 Production
 
-- [ ] Promote selected command card frame art.
-  - [ ] Selected direction: contact-sheet option 4.
+- [x] Promote selected command card frame art.
+  - [x] Selected direction: contact-sheet option 4.
+  - [x] 2026-07-16: Added shared runtime command-card chrome in `RuntimeUiChrome`, wired build/send cards, and captured review evidence under `docs/screenshot-reviews/ui-board-art-pass-v02-command-cards/`.
 - [ ] Promote selected HUD/stat drawer frame art.
   - [ ] Selected direction: contact-sheet option 6.
 - [ ] Promote selected route/build-band board material art.
@@ -59,21 +60,27 @@ Source of truth: `docs/art-pipeline/ui-board-art-pipeline.md`
 - [ ] Normalize crops, scale, alpha, and grayscale copies.
 - [ ] Add source notes for every promoted generated asset.
 - [ ] Add Unity import settings and `.meta` files.
-- [ ] Wire first runtime slice behind safe fallback.
+- [x] Wire first runtime slice behind safe fallback.
+  - [x] Command cards use procedural V02 chrome and keep existing icon fallback behavior.
 
 ## V0.2 QA
 
 - [ ] Capture phone portrait default single-lane view.
 - [ ] Capture map view.
-- [ ] Capture build menu open.
-- [ ] Capture send menu open.
+- [x] Capture build menu open.
+  - [x] `docs/screenshot-reviews/ui-board-art-pass-v02-command-cards/captures/02-build-menu-open.png`
+- [x] Capture send menu open.
+  - [x] `docs/screenshot-reviews/ui-board-art-pass-v02-command-cards/captures/03-send-menu-open.png`
 - [ ] Capture selected command card.
 - [ ] Capture disabled/too-expensive command card.
 - [ ] Capture heavy Runner pressure.
 - [ ] Capture heavy Swarm pressure.
 - [ ] Capture leak/life-loss moment.
-- [ ] Capture grayscale set.
-- [ ] Write review under `docs/screenshot-reviews/ui-board-art-pass-v02/review.md`.
+- [x] Capture grayscale set.
+  - [x] `docs/screenshot-reviews/ui-board-art-pass-v02-command-cards/captures/grayscale/`
+- [x] Write command-card slice review.
+  - [x] `docs/screenshot-reviews/ui-board-art-pass-v02-command-cards/review.md`
+- [ ] Write full V02 review under `docs/screenshot-reviews/ui-board-art-pass-v02/review.md`.
 
 ## Done Criteria For UI/Board V1
 

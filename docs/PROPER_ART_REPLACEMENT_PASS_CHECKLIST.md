@@ -315,8 +315,9 @@ Owner: Agent 1 final integration, Agent 2 supplies creep-specific evidence
 - [ ] Capture UI/board V02 authored direction after contact-sheet selection.
   - [x] 2026-07-16: Generated contact sheets and preliminary review notes under `docs/art-pipeline/ui-board/`.
   - [x] 2026-07-16: Recorded selected UI/board V02 options in `docs/art-pipeline/ui-board/selected-candidates-v02.md`.
+  - [x] 2026-07-16: Implemented the first V02 runtime command-card slice from selected option 4 and captured evidence under `docs/screenshot-reviews/ui-board-art-pass-v02-command-cards/`.
   - [ ] HUD/stat drawer chrome.
-  - [ ] command card frames.
+  - [x] command card frames.
   - [ ] board material kit.
   - [ ] spawn/leak gates.
   - [ ] map/lane toggle and status controls.

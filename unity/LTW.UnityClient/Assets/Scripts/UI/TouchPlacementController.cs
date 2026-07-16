@@ -696,9 +696,9 @@ namespace LTW.UnityClient.UI
                 return;
             }
 
-            var buttonY = rect.y + 43f * scale;
-            var buttonHeight = 50f * scale;
-            var gap = 6f * scale;
+            var buttonY = rect.y + 46f * scale;
+            var buttonHeight = 58f * scale;
+            var gap = 8f * scale;
             var buttonWidth = (rect.width - 24f * scale - gap * 2f) / 3f;
             var x = rect.x + 12f * scale;
             var gold = CurrentPlayerGold();
@@ -766,19 +766,11 @@ namespace LTW.UnityClient.UI
         private static bool DrawPaletteButton(Rect rect, string label, string meta, TowerIconKind iconKind, Color accent, bool isAffordable, float scale)
         {
             var displayAccent = isAffordable ? accent : DisabledText;
-            var previousColor = GUI.color;
-            GUI.color = isAffordable
-                ? new Color(PanelInk.r + accent.r * 0.08f, PanelInk.g + accent.g * 0.08f, PanelInk.b + accent.b * 0.08f, PanelInk.a)
-                : DisabledInk;
+            var state = isAffordable ? CommandCardState.Normal : CommandCardState.Disabled;
             var style = buttonStyle ?? GUI.skin.button;
-            var previousEnabled = GUI.enabled;
-            GUI.enabled = isAffordable;
-            var pressed = GUI.Button(rect, GUIContent.none, style);
-            GUI.enabled = previousEnabled;
-            GUI.color = previousColor;
+            var pressed = RuntimeUiChrome.DrawCommandCard(rect, accent, state, scale);
 
-            DrawAccent(new Rect(rect.x, rect.yMax - 4f * scale, rect.width, 4f * scale), displayAccent);
-            var iconRect = new Rect(rect.x + 6f * scale, rect.y + 8f * scale, 32f * scale, 32f * scale);
+            var iconRect = RuntimeUiChrome.CommandCardIconRect(rect, scale);
             if (!RuntimeUiIconLibrary.DrawIcon(iconRect, TowerIconResourceName(iconKind), isAffordable))
             {
                 DrawTowerIcon(iconRect, iconKind, displayAccent, scale);
@@ -786,12 +778,13 @@ namespace LTW.UnityClient.UI
 
             buttonStyle!.fontSize = Mathf.RoundToInt(10f * scale);
             buttonStyle.normal.textColor = isAffordable ? Cloud : DisabledText;
-            GUI.Label(new Rect(rect.x + 40f * scale, rect.y + 8f * scale, rect.width - 42f * scale, 20f * scale), label, style);
+            buttonStyle.hover.textColor = buttonStyle.normal.textColor;
+            buttonStyle.active.textColor = buttonStyle.normal.textColor;
+            GUI.Label(RuntimeUiChrome.CommandCardLabelRect(rect, scale), label, style);
 
             metaStyle!.fontSize = Mathf.RoundToInt(9f * scale);
             metaStyle.normal.textColor = displayAccent;
-            GUI.Label(new Rect(rect.x + 40f * scale, rect.y + 31f * scale, rect.width - 42f * scale, 16f * scale), meta, metaStyle);
-            DrawAccent(new Rect(rect.x + rect.width * 0.22f, rect.y + rect.height - 10f * scale, rect.width * 0.56f, 3f * scale), displayAccent);
+            GUI.Label(RuntimeUiChrome.CommandCardMetaRect(rect, scale), meta, metaStyle);
             return pressed;
         }
 
@@ -1056,7 +1049,7 @@ namespace LTW.UnityClient.UI
         private static Rect TowerPalettePanelRect(float scale, Rect frame)
         {
             var width = Mathf.Min(frame.width - 16f * scale, 430f * scale);
-            var height = 172f * scale;
+            var height = 194f * scale;
             var launcherClearance = 66f * scale;
             return new Rect(frame.x + 8f * scale, frame.yMax - height - MobileViewportLayout.BottomMargin(scale) - launcherClearance, width, height);
         }

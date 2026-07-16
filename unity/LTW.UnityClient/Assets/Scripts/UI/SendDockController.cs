@@ -91,7 +91,7 @@ namespace LTW.UnityClient.UI
             }
 
             var width = Mathf.Min(frame.width - 16f * scale, 430f * scale);
-            var height = 172f * scale;
+            var height = 194f * scale;
             var launcherClearance = 66f * scale;
             var rect = new Rect(frame.xMax - width - 8f * scale, frame.yMax - height - MobileViewportLayout.BottomMargin(scale) - launcherClearance, width, height);
 
@@ -117,9 +117,9 @@ namespace LTW.UnityClient.UI
             metaStyle.normal.textColor = MintSignal;
             GUI.Label(new Rect(rect.x + 12f * scale, rect.y + 37f * scale, rect.width - 24f * scale, 18f * scale), $"GOLD {gold}", metaStyle);
 
-            var buttonY = rect.y + 54f * scale;
-            var buttonHeight = 50f * scale;
-            var gap = 6f * scale;
+            var buttonY = rect.y + 58f * scale;
+            var buttonHeight = 58f * scale;
+            var gap = 8f * scale;
             var buttonWidth = (rect.width - 24f * scale - gap * 2f) / 3f;
             var x = rect.x + 12f * scale;
 
@@ -189,16 +189,10 @@ namespace LTW.UnityClient.UI
         private static bool DrawSendButton(Rect rect, string label, string meta, CreepIconKind iconKind, Color accent, bool isAffordable, float scale)
         {
             var displayAccent = isAffordable ? accent : DisabledText;
-            var previousColor = GUI.color;
-            GUI.color = isAffordable ? TintPanel(accent, 0.08f) : DisabledInk;
-            var previousEnabled = GUI.enabled;
-            GUI.enabled = isAffordable;
-            var pressed = GUI.Button(rect, GUIContent.none, buttonStyle);
-            GUI.enabled = previousEnabled;
-            GUI.color = previousColor;
+            var state = isAffordable ? CommandCardState.Normal : CommandCardState.Disabled;
+            var pressed = RuntimeUiChrome.DrawCommandCard(rect, accent, state, scale);
 
-            DrawAccent(new Rect(rect.x, rect.yMax - 4f * scale, rect.width, 4f * scale), displayAccent);
-            var iconRect = new Rect(rect.x + 6f * scale, rect.y + 8f * scale, 32f * scale, 32f * scale);
+            var iconRect = RuntimeUiChrome.CommandCardIconRect(rect, scale);
             if (!RuntimeUiIconLibrary.DrawIcon(iconRect, CreepIconResourceName(iconKind), isAffordable))
             {
                 DrawCreepIcon(iconRect, iconKind, displayAccent, scale);
@@ -208,11 +202,11 @@ namespace LTW.UnityClient.UI
             buttonStyle.normal.textColor = isAffordable ? Cloud : DisabledText;
             buttonStyle.hover.textColor = buttonStyle.normal.textColor;
             buttonStyle.active.textColor = buttonStyle.normal.textColor;
-            GUI.Label(new Rect(rect.x + 40f * scale, rect.y + 9f * scale, rect.width - 42f * scale, 21f * scale), label, buttonStyle);
+            GUI.Label(RuntimeUiChrome.CommandCardLabelRect(rect, scale), label, buttonStyle);
 
             metaStyle!.fontSize = Mathf.RoundToInt(9f * scale);
             metaStyle.normal.textColor = displayAccent;
-            GUI.Label(new Rect(rect.x + 40f * scale, rect.y + 34f * scale, rect.width - 42f * scale, 17f * scale), meta, metaStyle);
+            GUI.Label(RuntimeUiChrome.CommandCardMetaRect(rect, scale), meta, metaStyle);
             return pressed;
         }
 
