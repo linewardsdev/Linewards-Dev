@@ -1,0 +1,369 @@
+# Mobile Art Direction Improvement Cycle
+
+## Purpose
+
+This document defines the repeatable graphics and art-direction improvement cycle for Line Wards.
+
+It coordinates the existing art pipelines into one mobile-only process that an implementation agent can run repeatedly. It does not replace the specialized pipeline documents. It establishes how to audit them, choose the next coherent visual package, capture evidence, evaluate results, update the correct checklists, and hand work off for implementation testing.
+
+Line Wards is a portrait mobile game. Every capture, review, and acceptance decision in this cycle must use portrait phone framing. Desktop layouts and desktop visual targets are out of scope.
+
+## Visual North Star
+
+Preserve the competitive readability inherited from classic Line Tower Wars while using original Line Wards art:
+
+- Long, skinny north-south defensive lanes dominate the screen.
+- The arena reads before the interface.
+- Persistent match information hugs the top edge.
+- Primary build/send actions use the bottom thumb zones.
+- Secondary controls use a restrained right-side rail.
+- Towers, creeps, and pressure states read by silhouette before color.
+- Board surfaces remain quieter than gameplay objects and feedback.
+- Effects explain events without hiding placement cells or leak moments.
+- Ward-tech fantasy remains original and does not copy Warcraft III assets, silhouettes, names, icons, sounds, factions, or UI chrome.
+
+## Source Documents
+
+Agents must review these sources before selecting work:
+
+| Source | Authority |
+| --- | --- |
+| `skill/line-wards-ltw-graphics-art-direction.md` | LTW lineage, mobile lane composition, visual priorities, legal boundary |
+| `docs/ART_THEME_AND_ROLE_GUIDE.md` | Tower, creep, icon, accent, silhouette, and phone-size role language |
+| `docs/GRAPHICS_2000_BASELINE_ROADMAP.md` | Overall graphics maturity stages and baseline definition of done |
+| `docs/GRAPHICS_THEME_WORK_BREAKDOWN.md` | Parallel work packages and package-level screenshot requirements |
+| `docs/AI_ART_PIPELINE.md` | Generated 2.5D source plates, proof assets, promotion rules, and provenance |
+| `docs/PROPER_ART_REPLACEMENT_PASS_CHECKLIST.md` | Production replacement, materials, icons, anchors, and final QA |
+| `docs/STYLIZED_WEAPON_KIT_INTEGRATION_CHECKLIST.md` | Third-party source isolation, wrappers, licensing, and kit-derived candidates |
+| `docs/art-pipeline/ui-board-art-pipeline.md` | UI chrome, command cards, board materials, gates, and integration stages |
+| `docs/art-pipeline/ui-board-contact-sheet-brief.md` | Approved contact-sheet construction and review requirements |
+| `docs/art-pipeline/ui-board-pipeline-checklist.md` | Current UI/board production and QA work |
+| `docs/art-pipeline/ui-board/selected-candidates-v02.md` | Selected V02 visual directions and implementation order |
+| `docs/GAMEPLAY_DEVELOPMENT_CHECKLIST.md` | Current presentation behavior and remaining gameplay-readability acceptance checks |
+| `docs/BRANDING_GUIDE.md` | Brand palette, voice, typography, and originality rules |
+
+## Pipeline Precedence
+
+Several pipelines overlap because the project has progressed from generated placeholders through source-kit experiments and AI-assisted production plates. An unchecked task in an older checklist is not automatically the next task.
+
+Use this precedence when records disagree:
+
+1. Inspect the active runtime visual-library mapping and current prefab or sprite references.
+2. Inspect the newest dated implementation note and screenshot review for that role or component.
+3. Treat the specialized current pipeline as authoritative for its component.
+4. Use older checklist items as historical requirements or validation reminders.
+5. Update stale checklist wording when current implementation has superseded it.
+6. Never replace a promoted runtime asset merely to satisfy an older unchecked source-kit task.
+
+Examples:
+
+- An active reviewed AI plate supersedes an older requirement to create a weapon-kit wrapper for the same role unless a new comparison proves the wrapper is better.
+- A promoted V02 command-card treatment supersedes the earlier procedural-card task, while its grayscale and phone-size acceptance checks remain valid.
+- A lane selector is not a true map-camera control. Do not mark map-view behavior complete until that behavior exists and is intentionally accepted.
+
+## Current Pipeline Baseline
+
+At the time this cycle was created:
+
+- V1 runtime art covers all five tower roles, all five creep roles, and the Builder.
+- AI-assisted plates are active for the current role set, with procedural fallbacks retained.
+- V02 command-card chrome and persistent lane-selector control chrome have been promoted.
+- Selected UI/board directions remain:
+  - HUD/stat drawer: option 6.
+  - Icon family: option 6.
+  - Board material: option 11.
+  - Spawn/leak gates: option 11.
+- Final silhouette-matched icon rebuilding remains incomplete.
+- Material normalization and grayscale value balancing remain incomplete.
+- Several authored VFX anchors and role-specific motion passes remain incomplete.
+- Full mobile gameplay screenshot certification remains incomplete.
+- Older source-kit checklist items must be reconciled against the active AI-plate mappings before implementation.
+
+Agents must verify this baseline against the repository at the start of every run.
+
+## Automated Improvement Loop
+
+### 1. Audit
+
+Create a branch from current `main`, then inspect:
+
+- Active `TowerVisualLibrary` and `CreepVisualLibrary` mappings.
+- Builder and runtime UI asset loading.
+- Existing prefab contracts and named anchors.
+- Selected UI/board candidates.
+- Every unchecked item in the relevant pipeline checklists.
+- The newest screenshot review for the affected component.
+- Existing fallback behavior and source/provenance notes.
+
+Write a short audit section in the run report before changing assets.
+
+### 2. Select One Work Package
+
+Choose one coherent gameplay read, not an isolated decorative object.
+
+Allowed package types:
+
+| Package | Typical Scope |
+| --- | --- |
+| `GD-Mobile-UI-Board` | HUD chrome, command cards, controls, board materials, gates |
+| `GD-Tower-Identity` | Tower silhouette, scale, materials, animation, icon, anchors |
+| `GD-Creep-Identity` | Creep silhouette, scale, materials, motion, icon, overlays |
+| `GD-Combat-Feedback` | Shots, hits, deaths, leak, send, income, specialist cues |
+| `GD-Lane-Readability` | Route/build-zone contrast, endpoints, ownership, pressure |
+| `GD-Mobile-Regression` | Capture-only certification after merged graphics work |
+| `GD-Art-Pipeline-Hygiene` | Checklist reconciliation, provenance, import settings, fallbacks |
+
+Do not combine unrelated packages merely to increase branch size.
+
+### 3. Capture The Baseline
+
+Run:
+
+`Line Wards/Review/Capture Visual Review Set`
+
+Batch runs may call:
+
+`LTW.UnityClient.Editor.VisualReviewCaptureRunner.CaptureVisualReviewSet`
+
+All captures must emulate portrait mobile screens.
+
+Required phone profiles:
+
+| Profile | Purpose |
+| --- | --- |
+| `phone-small-portrait` | Compact screen and minimum touch-clearance risk |
+| `phone-standard-portrait` | Primary reference composition |
+| `phone-tall-portrait` | Tall aspect ratio and vertical distribution |
+| `phone-safe-area-portrait` | Notch, status inset, and bottom gesture-area safety |
+
+Required visual states:
+
+1. `01-default-hud.png`
+2. `02-build-menu-open.png`
+3. `03-send-menu-open.png`
+4. `04-lane-selector-open.png`
+5. `05-active-combat.png`
+6. `06-heavy-pressure.png`
+7. `07-reduced-effects-heavy.png`
+8. `08-results-or-late-match.png`
+
+Add focused captures when relevant:
+
+- Tower lineup normal and grayscale.
+- Creep lineup normal and grayscale.
+- Runner x10 pressure.
+- Swarm heavy pressure.
+- Selected tower and range state.
+- Disabled or unaffordable card.
+- Placement preview states.
+- Builder select, confirm, and build-complete states.
+- Leak/life-loss moment.
+- Siege warning and Shade resist/reveal.
+- Income tick and outgoing send feedback.
+
+Every relevant frame needs a grayscale/value copy.
+
+### 4. Score The Baseline
+
+Score each category from 0 to 3:
+
+| Score | Meaning |
+| --- | --- |
+| 0 | Broken, absent, or misleading |
+| 1 | Functional but unclear or visibly placeholder |
+| 2 | Readable with low- or medium-severity polish issues |
+| 3 | Cohesive, mobile-readable, and ready to lock as baseline |
+
+Categories:
+
+- Mobile arena fit.
+- Long north-south lane readability.
+- Spawn, route, and leak-gate clarity.
+- UI edge discipline and touch clearance.
+- Tower silhouette and role identity.
+- Creep silhouette and threat identity.
+- Grayscale value separation.
+- Heavy-pressure readability.
+- Reduced-effects readability.
+- Combat signal priority.
+- Motion clarity.
+- Palette and material cohesion.
+- Icon-to-runtime silhouette match.
+- Original Line Wards identity.
+- Fallback and missing-asset behavior.
+
+A score of 0 in arena fit, lane readability, touch clearance, heavy pressure, reduced effects, or originality blocks promotion.
+
+### 5. Implement The Focused Pass
+
+Implementation rules:
+
+- Preserve simulation behavior unless the assigned package explicitly includes gameplay changes.
+- Preserve long, skinny north-south lane dimensions and vertical travel.
+- Keep runtime fallbacks until the replacement passes review.
+- Preserve prefab contracts and required child names.
+- Keep third-party source assets isolated from Line Wards runtime wrappers.
+- Keep generated source plates, trimmed production candidates, proof prefabs, and runtime promotion as separate stages.
+- Do not let proof generation silently change active runtime libraries.
+- Derive icons from the same role silhouette used in play.
+- Record source, generation, license, and promotion notes.
+- Prefer large readable shapes over detail that disappears at phone scale.
+- Avoid UI growth that reduces the arena or covers placement-critical cells.
+
+### 6. Re-Capture Identical Evidence
+
+Use the same profiles, state seeds, camera framing, presentation mode, and capture names used for the baseline.
+
+Store evidence under:
+
+`docs/screenshot-reviews/<branch-name>/`
+
+Recommended structure:
+
+```text
+docs/screenshot-reviews/<branch-name>/
+  before/
+    phone-small-portrait/
+    phone-standard-portrait/
+    phone-tall-portrait/
+    phone-safe-area-portrait/
+  after/
+    phone-small-portrait/
+    phone-standard-portrait/
+    phone-tall-portrait/
+    phone-safe-area-portrait/
+  grayscale/
+  contact-sheet.png
+  review.md
+```
+
+### 7. Compare And Decide
+
+The review must record:
+
+- Before and after score table.
+- Improvements visible in specific captures.
+- Regressions or unresolved risks.
+- Any difference between normal and grayscale readability.
+- Any pressure-state overlap, clipping, or obscured controls.
+- Whether fallbacks still work.
+- Whether the asset is approved for runtime promotion.
+- Exact medium- and high-severity issues.
+- Recommended next package.
+
+Allowed verdicts:
+
+- `Pass`
+- `Pass with low-severity polish follow-ups`
+- `Revise before promotion`
+- `Reject and retain current runtime asset`
+
+### 8. Update Documentation
+
+Before handoff:
+
+- Update the specialized pipeline checklist that owned the work.
+- Mark items complete only when evidence exists.
+- Add dated notes for partial completion.
+- Correct stale items that were superseded by a newer pipeline.
+- Update source/provenance records when assets changed.
+- Link the screenshot review from the owning checklist.
+- Update this document only when the process or baseline changes.
+
+## Report Template
+
+Create `docs/screenshot-reviews/<branch-name>/review.md`:
+
+```markdown
+# <Package Name> Mobile Art Review
+
+## Audit
+- Active runtime mapping:
+- Owning pipeline:
+- Relevant open items:
+- Previous evidence:
+
+## Scope
+- Intended gameplay read:
+- Assets and systems changed:
+- Explicit exclusions:
+
+## Capture Matrix
+- Phone profiles:
+- Visual states:
+- Seeds/presentation modes:
+
+## Scorecard
+| Category | Before | After | Evidence |
+| --- | ---: | ---: | --- |
+
+## Findings
+### High
+### Medium
+### Low
+
+## Pipeline Reconciliation
+- Items completed:
+- Items superseded or rewritten:
+- Items still open:
+
+## Verdict
+- Result:
+- Runtime promotion:
+- Fallback status:
+- Next package:
+```
+
+## Promotion Gate
+
+A visual asset or UI treatment may become the locked runtime baseline only when:
+
+- It improves or preserves the relevant score categories.
+- No blocking category scores 0.
+- It reads at normal phone scale without zooming.
+- It passes grayscale review.
+- It remains readable during heavy pressure.
+- Reduced-effects mode preserves critical information.
+- It does not cover active placement cells or essential controls.
+- Its icon matches its runtime silhouette where applicable.
+- Its source and license or generation record are documented.
+- Its fallback behavior is verified.
+- It preserves original Line Wards visual identity.
+- The owning checklist and screenshot review are updated.
+
+## Near-Term Automated Queue
+
+Use this order unless a new high-severity visual regression takes priority:
+
+1. Promote selected HUD/stat drawer option 6.
+2. Promote selected board material option 11.
+3. Promote selected spawn/leak gate option 11.
+4. Rebuild and promote simplified icon family option 6 from active silhouettes.
+5. Normalize tower and creep materials and grayscale values.
+6. Align VFX origins to authored role landmarks.
+7. Add role-specific tower and creep motion.
+8. Complete leak, send, income, Pulse, Prism, Shade, and Siege feedback.
+9. Run the full mobile screenshot certification pass.
+10. Reconcile and close superseded source-kit and earlier AI-pipeline checklist items.
+
+## Branch And Handoff Convention
+
+Recommended branch names:
+
+- `gd-mobile-ui-board-<date>`
+- `gd-tower-identity-<role>-<date>`
+- `gd-creep-identity-<role>-<date>`
+- `gd-combat-feedback-<event>-<date>`
+- `gd-mobile-visual-regression-<date>`
+
+The graphics agent hands off:
+
+- Branch name and commit.
+- Owning work package.
+- Changed assets and runtime mappings.
+- Screenshot review path.
+- Score changes and unresolved findings.
+- Required Unity validation.
+- Any simulation tests required because scope crossed presentation boundaries.
+
+Testing and tuning may be performed by a separate implementation agent, but the graphics branch is not complete without its mobile visual evidence and documentation updates.
