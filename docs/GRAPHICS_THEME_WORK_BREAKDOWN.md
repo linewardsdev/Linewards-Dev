@@ -10,24 +10,43 @@ Break the next Line Wards graphics work into parallel-friendly chunks that combi
 
 Use this as the coordination layer when multiple agents split the art/theme work.
 
+## Audit Reconciliation (2026-07-16)
+
+The active runtime baseline is the V1 **AIPlate sprite pipeline**, not the generated placeholders or stylized-weapon-kit wrappers. `TowerVisualLibrary` maps Arrow, Control, Relay, Pulse, and Prism to `Tower_*_AIPlate.prefab`; `CreepVisualLibrary` maps Runner, Brute, Swarm, Shade, and Siege to `Creep_*_AIPlate.prefab`. The Builder uses `builder_candidate_v01_trimmed.png` over its procedural placement avatar.
+
+Generated placeholders and weapon-kit wrappers remain useful fallback, provenance, and iteration history. They are not the target that new art packages should promote.
+
+Status language used below:
+
+- **Active baseline:** currently assigned by the runtime visual libraries.
+- **Open:** still requires implementation and mobile evidence.
+- **Superseded:** preserved history that must not be treated as current runtime work.
+- **Certification gate:** blocked until the mobile capture runner can produce deterministic, actual-runtime-UI evidence for the required phone profiles.
+
+Capture automation is the prerequisite gate for claiming final visual certification. The current runner covers the eight review states and grayscale output, but it does not yet provide the four-profile matrix, declared seeds, injectable safe areas, actual runtime UI in batch captures, or a machine-readable manifest.
+
 ## Current Baseline
 
 Completed:
 
-- 5 tower and 5 creep runtime roles exist.
-- Prefab-backed tower and creep visual libraries exist.
-- Generated placeholder prefabs/materials exist.
+- All five tower roles and all five creep roles use active AIPlate runtime prefabs.
+- Prefab-backed tower and creep visual libraries exist and preserve their required contracts.
+- The authored Builder sprite is active over the procedural placement avatar.
+- Generated placeholders and weapon-kit assets remain available as fallback/history.
 - The renderer falls back to procedural primitives when prefabs are missing.
-- Full screenshot capture works, including grayscale/value copies.
+- The existing capture runner covers the eight review states and grayscale/value copies.
 - The latest capture review is `docs/screenshot-reviews/art-2000-readability-pass/review.md`.
 
-Still not done:
+Still open:
 
-- Final or polished-prototype tower silhouettes.
-- Final or polished-prototype creep silhouettes.
-- Role icons for build/send cards.
+- Final simplified build/send icons matched to the active AIPlate silhouettes, including selected, disabled, and grayscale states.
+- Specialized VFX anchors and landmark alignment for Control, Relay, Pulse, Prism, Shade, and Siege.
+- Sprite palette, brightness, and grayscale-value normalization across the AIPlate set.
+- Runner overlap certification and full mobile pressure QA.
+- Builder select/confirm/build-complete clarity and touch-safety QA.
 - Right-side control rail cleanup.
 - Full role-specific VFX language.
+- Deterministic four-profile capture automation using the actual runtime UI, safe-area injection, seeds, and a capture manifest.
 
 ## Theme Source Of Truth
 
@@ -46,7 +65,7 @@ Especially:
 
 ### 1. `art-tower-silhouette-polish`
 
-Goal: replace generated tower placeholders with stronger low-poly prototype silhouettes.
+Goal: improve the active AIPlate tower silhouettes and value hierarchy without changing their runtime contracts. Generated and weapon-kit prefabs are fallback/history, not the promotion target.
 
 Source sections:
 
@@ -75,7 +94,7 @@ Acceptance:
 
 ### 2. `art-creep-silhouette-polish`
 
-Goal: replace generated creep placeholders with stronger low-poly prototype silhouettes.
+Goal: improve the active AIPlate creep silhouettes, scale, and pressure readability without changing their runtime contracts. Generated and weapon-kit prefabs are fallback/history, not the promotion target.
 
 Source sections:
 
@@ -175,6 +194,8 @@ Safe parallel split:
 Do `art-combat-vfx-role-pass` after tower/creep silhouettes settle, because VFX should attach to the final role shapes.
 
 ## Required Validation For Every Package
+
+Final certification is blocked until the capture-automation prerequisite above is implemented. Until then, captures are useful review evidence but must be labeled provisional because batch HUD evidence is synthetic and only one effective portrait profile is produced.
 
 Run or request:
 
