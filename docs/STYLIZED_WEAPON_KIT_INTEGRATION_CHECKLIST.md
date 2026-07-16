@@ -4,6 +4,19 @@ Date created: 2026-07-15
 Imported source kit: `FREE - Stylized Weapons`; vendor attribution is tracked in `docs/MVP_DEPENDENCIES.md`
 Source folder: `unity/LTW.UnityClient/Assets/ThirdParty/StylizedWeaponKit/Art/Weapons/Stylized/`
 Dependency record: `docs/MVP_DEPENDENCIES.md`
+Status reconciled: 2026-07-16
+
+## Runtime Status After AIPlate Promotion
+
+This checklist records a completed exploratory integration track. The active runtime baseline is now the V1 AIPlate sprite pipeline for all five towers and all five creeps, with an authored Builder sprite layer. Weapon-kit wrappers and generated placeholder assets remain isolated fallback/history; agents must not treat unfinished wrapper boxes below as current runtime requirements.
+
+Legend:
+
+- **Superseded:** historical requirement replaced by the active AIPlate implementation.
+- **Open QA:** still relevant against the AIPlate baseline.
+- **Capture-gated:** cannot be certified until deterministic four-profile portrait capture uses the actual runtime UI, declared seeds, injectable safe areas, and a manifest.
+
+The active follow-up work from this track is final icon production, specialized AIPlate VFX landmarks/attachment alignment, mobile pressure evidence, Builder placement-state QA, and fallback validation. Source-kit roughness/metallic/material normalization is not an active requirement; sprite palette, brightness, and grayscale value normalization owns that concern.
 
 ## Purpose
 
@@ -139,17 +152,15 @@ Owner: Agent 1
 - [x] Create `Tower_Arrow_WardPrototype.prefab` or replace `Tower_Arrow.prefab` through a safe wrapper branch.
 - [x] Create `Tower_Control_WardPrototype.prefab` or wrapper replacement.
 - [x] Create `Tower_Relay_WardPrototype.prefab` or wrapper replacement.
-- [ ] Create `Tower_Pulse_WardPrototype.prefab` or wrapper replacement.
-- [ ] Create `Tower_Prism_WardPrototype.prefab` or wrapper replacement.
-- [ ] Ensure required child names exist on every tower wrapper.
-  - [x] Arrow, Control, and Relay wrappers include `Body`, `RoleMarker`, `OwnerTrim`, and `RangeHalo`.
-  - [ ] Pulse and Prism pending.
-- [ ] Ensure optional role anchors exist where needed:
-  - [x] Arrow: `Muzzle`, `BowLeft`, `BowRight`, `Lens`
-  - [x] Control: `ControlRing`, `ControlCore`, `PulseEmitter`
-  - [x] Relay: `RelayMast`, `RelayCore`, `RelaySignal`
-  - Pulse: `PulseCore`, `PulseRingA`, `PulseEmitter`
-  - Prism: `PrismSpire`, `PrismLens`, `BeamAnchor`
+- [x] **Superseded:** do not create `Tower_Pulse_WardPrototype.prefab`; `Tower_Pulse_AIPlate.prefab` is active.
+- [x] **Superseded:** do not create `Tower_Prism_WardPrototype.prefab`; `Tower_Prism_AIPlate.prefab` is active.
+- [x] Required contract children exist on every active AIPlate tower prefab: `Body`, `RoleMarker`, `OwnerTrim`, and `RangeHalo`.
+- [ ] Add or align specialized role landmarks on the active AIPlate prefabs where needed:
+  - [x] Arrow retains generic `Muzzle` and `Lens` landmarks.
+  - [ ] Control: `ControlRing`, `ControlCore`, `PulseEmitter`
+  - [ ] Relay: `RelayMast`, `RelayCore`, `RelaySignal`
+  - [ ] Pulse: `PulseCore`, `PulseRingA`, `PulseEmitter`
+  - [ ] Prism: `PrismSpire`, `PrismLens`, `BeamAnchor`
 - [x] Update `TowerVisualLibrary` if wrapper names or references change.
 - [ ] Verify procedural fallback still works if a ward wrapper is missing.
 - [x] Capture tower lineup normal and grayscale.
@@ -171,9 +182,9 @@ Acceptance:
 
 Owner: Agent 1
 
-- [ ] Select one tool prop candidate: hammer, axe, dagger, or staff.
-- [ ] Add the prop to the current builder avatar wrapper without changing builder placement rules.
-- [ ] Keep builder always visible and distinct from creeps/towers.
+- [x] **Superseded:** weapon-kit prop selection was replaced by the authored `builder_candidate_v01_trimmed.png` design.
+- [x] **Superseded:** do not add a weapon-kit prop wrapper; the active Builder plate includes its construction tool.
+- [x] The active authored Builder remains layered over the procedural placement avatar and distinct from creeps/towers.
 - [ ] Ensure selected-tower/last-tower state is readable near the builder without creating accidental placement confusion.
 - [ ] Verify builder does not jump lanes or reset position when selecting a tower.
 - [ ] Capture default builder, selected tower, confirm placement, and build-complete states.
@@ -248,9 +259,9 @@ Owner: Shared
 
 Agent 1:
 
-- [ ] Attach Arrow muzzle/bolt origin to kit-derived tower wrapper.
-- [ ] Attach Relay signal/economy origin to kit-derived tower wrapper.
-- [ ] Attach Prism beam origin to kit-derived tower wrapper.
+- [ ] Verify Arrow shot alignment against the active AIPlate `Muzzle` landmark.
+- [ ] Add and attach Relay signal/economy feedback to an authored AIPlate landmark.
+- [ ] Add and attach Prism beam feedback to an authored AIPlate lens/spire landmark.
 
 Agent 2:
 
@@ -271,6 +282,8 @@ Shared acceptance:
 ## Workstream G: Screenshot QA Gate
 
 Owner: Agent 1 final integration, Agent 2 supplies creep-specific evidence
+
+This workstream is now capture-gated. Existing kit-era screenshots remain historical evidence; final AIPlate certification requires deterministic small, standard, tall, and safe-area portrait captures using the actual runtime UI.
 
 - [ ] Capture full visual review set after tower wrappers.
 - [x] Capture role lineup after creep wrappers.
@@ -316,12 +329,12 @@ Owner: Agent 1
 
 ## Definition Of Done
 
-- [ ] Every kit-derived runtime asset has a Line Wards wrapper prefab or documented rejection.
-- [ ] All five tower roles have improved silhouettes or a clear reason to defer.
-- [ ] All five creep roles have improved silhouettes or a clear reason to defer.
-- [ ] Builder avatar/tooling has a stronger intentional read.
-- [ ] Build/send icons have candidate source assets.
-- [ ] VFX attachment points are aligned with improved silhouettes.
-- [ ] Full screenshot review exists with grayscale evidence.
+- [x] **Superseded:** kit-derived wrapper completion is not required because AIPlate prefabs own the active baseline; kit assets remain isolated fallback/history.
+- [x] All five tower roles use improved active AIPlate silhouettes.
+- [x] All five creep roles use improved active AIPlate silhouettes.
+- [x] Builder avatar/tooling uses the active authored Builder plate.
+- [ ] Final build/send icons match the active silhouettes in normal, selected, disabled, and grayscale states.
+- [ ] VFX attachment points align with active AIPlate landmarks.
+- [ ] Full four-profile mobile screenshot review exists with grayscale evidence after capture automation is complete.
 - [ ] `docs/MVP_DEPENDENCIES.md` still records the asset source/license note.
 - [ ] `main` is synced to cloud after accepted implementation.
