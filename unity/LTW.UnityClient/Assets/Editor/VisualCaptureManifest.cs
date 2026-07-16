@@ -212,13 +212,13 @@ namespace LTW.UnityClient.Editor
             builder.AppendLine();
             builder.AppendLine("## Art Direction Scorecard");
             builder.AppendLine();
-            builder.AppendLine("Score each category from 1 (blocking) to 5 (production-ready).");
+            builder.AppendLine("Score each category from 0 (broken or absent) to 3 (cohesive and ready to lock).");
             builder.AppendLine();
             builder.AppendLine("| Category | Score | Notes |");
             builder.AppendLine("| --- | ---: | --- |");
             foreach (var category in ScoreCategories)
             {
-                builder.AppendLine($"| {category} | /5 | |");
+                builder.AppendLine($"| {category} | /3 | |");
             }
 
             builder.AppendLine();
@@ -252,15 +252,20 @@ namespace LTW.UnityClient.Editor
         private static readonly string[] ScoreCategories =
         {
             "Mobile arena fit",
-            "North-south lane readability",
-            "Touch target clarity",
-            "UI edge discipline",
+            "Long north-south lane readability",
+            "Spawn, route, and leak-gate clarity",
+            "UI edge discipline and touch clearance",
             "Tower silhouette and role identity",
             "Creep silhouette and threat identity",
+            "Grayscale value separation",
+            "Heavy-pressure readability",
+            "Reduced-effects readability",
             "Combat signal priority",
             "Motion clarity",
-            "Palette and value cohesion",
-            "LTW art-direction fit"
+            "Palette and material cohesion",
+            "Icon-to-runtime silhouette match",
+            "Original Line Wards identity",
+            "Fallback and missing-asset behavior"
         };
     }
 }
