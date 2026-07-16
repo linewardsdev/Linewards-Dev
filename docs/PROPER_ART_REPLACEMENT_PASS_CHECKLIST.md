@@ -1,6 +1,15 @@
 # Proper Art Replacement Pass Checklist
 
 Date created: 2026-07-15
+Status reconciled: 2026-07-16
+
+## Audit Reconciliation
+
+The current runtime baseline is the complete V1 AIPlate sprite set for all five towers and all five creeps, plus the authored Builder sprite layer. Earlier source-kit mesh promotion and generated-placeholder work is retained below as proof history and fallback context; it is not the current promotion target.
+
+Open work is limited to final silhouette-matched icons, specialized VFX landmarks and attachment alignment, sprite palette/brightness/grayscale normalization, Runner and heavy-pressure readability, Builder placement-state clarity, and current-main fallback validation.
+
+Final screenshot acceptance is blocked on deterministic mobile capture automation: four portrait phone profiles, safe-area injection, declared seeds, actual runtime UI capture, before/after pairing, and a manifest. Existing eight-state and grayscale captures remain useful provisional evidence.
 
 ## Purpose
 
@@ -186,25 +195,27 @@ Acceptance:
 - Heavy pressure does not become visual soup.
 - Shade is readable without relying only on transparency.
 
-## Workstream E: Material And Palette Pass
+## Workstream E: Sprite Palette And Value Pass
 
 Owner: Shared
 
-- [ ] Create Line Wards material instances for promoted art.
-- [ ] Reduce generic medieval/weapon reads through palette and value treatment.
-- [ ] Use ward-tech palette consistently:
+- [x] **Superseded:** creating source-kit material instances is not required for the active sprite-only AIPlate baseline.
+- [ ] Normalize palette and brightness across the production tower and creep sprites.
+- [ ] Use the ward-tech palette consistently:
   - blue/violet energy;
   - mint positive/valid cues;
   - gold economy/ownership accents;
   - restrained red/orange danger cues.
-- [ ] Normalize roughness/metallic/emissive values across towers and creeps.
-- [ ] Make grayscale value separation pass role-by-role.
-- [ ] Avoid over-bright source textures that fight HUD, path, or effects.
+- [ ] Normalize grayscale value separation between bodies, role landmarks, paths, and combat effects.
+- [ ] Reduce residual generic medieval/weapon reads through sprite paintover and value treatment where present.
+- [ ] Avoid over-bright sprites that fight HUD, path, or effects.
+- [ ] Record normal and grayscale comparisons for every changed sprite.
 
 Acceptance:
 
-- Source-kit parts feel like Line Wards assets.
-- Color supports role read but shape still carries the role.
+- AIPlate sprites feel like one Line Wards asset family.
+- Color supports role read but shape and value still carry the role.
+- No roughness/metallic requirement is applied unless a future role intentionally returns to 3D materials.
 
 ## Workstream F: Builder And Placement Art
 
@@ -265,6 +276,8 @@ Acceptance:
 ## Workstream I: Screenshot QA Gate
 
 Owner: Agent 1 final integration, Agent 2 supplies creep-specific evidence
+
+Prerequisite: implement the deterministic four-profile mobile capture harness and capture the actual runtime UI. Until safe areas, seeds, manifests, and before/after pairing are automated, unchecked captures below are review targets rather than certification evidence.
 
 - [ ] Capture tower lineup normal.
 - [ ] Capture tower lineup grayscale.
@@ -336,7 +349,7 @@ Owner: Agent 1
 
 - [ ] Keep source-kit assets isolated under `Assets/ThirdParty/StylizedWeaponKit/...`.
 - [ ] Keep Line Wards runtime wrappers under `Assets/Prefabs/...`.
-- [ ] Keep Line Wards material instances under `Assets/Art/...`.
+- [x] **Superseded for the active sprite baseline:** source-kit material-instance bookkeeping is not required. Keep production sprites and source notes under `Assets/Art/...`.
 - [ ] Do not commit Unity package/project churn unless intentional.
 - [x] Run Unity prefab/library validation.
   - [x] 2026-07-15: `ValidateTowerPlaceholderPrefabs` passed in Unity batchmode.
