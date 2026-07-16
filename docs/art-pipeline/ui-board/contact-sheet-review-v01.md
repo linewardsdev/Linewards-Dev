@@ -15,6 +15,20 @@ Purpose: record the first V0.2 contact-sheet batch for the UI/game-board art pip
 | Spawn/leak gates | `docs/art-pipeline/ui-board/contact-sheets/ui_board_spawn_leak_gates_contact_sheet_v01.png` | Generated, awaiting selection |
 | Map/lane/status controls | `docs/art-pipeline/ui-board/contact-sheets/ui_board_controls_contact_sheet_v01.png` | Generated, awaiting selection |
 
+## User Selections
+
+Selected on 2026-07-16:
+
+- HUD chrome/stat drawer: 6
+- Command card frames: 4
+- Icon simplification: 6
+- Board material kit: 11
+- Spawn/leak gates: 11
+- Map/lane/status controls: 1
+
+Selection handoff: `docs/art-pipeline/ui-board/selected-candidates-v02.md`.
+Cropped previews: `docs/art-pipeline/ui-board/selected-candidates/`.
+
 ## Preliminary Read
 
 These are not final selections. They are first-pass observations to make the next review faster.
@@ -107,12 +121,12 @@ Risks:
 
 Next review should pick one option number for each sheet:
 
-- HUD chrome/stat drawer:
-- Command card frames:
-- Icon simplification:
-- Board material kit:
-- Spawn/leak gates:
-- Map/lane/status controls:
+- HUD chrome/stat drawer: 6
+- Command card frames: 4
+- Icon simplification: 6
+- Board material kit: 11
+- Spawn/leak gates: 11
+- Map/lane/status controls: 1
 
 Once selected, V0.2 production should crop/normalize those options and implement the first runtime slice in this order:
 
@@ -122,4 +136,3 @@ Once selected, V0.2 production should crop/normalize those options and implement
 4. Board route/build-band material treatment.
 5. Spawn/leak gate treatment.
 6. Final simplified icons if V01 derived icons still feel too noisy.
-

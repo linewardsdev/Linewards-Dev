@@ -42,14 +42,20 @@ Source of truth: `docs/art-pipeline/ui-board-art-pipeline.md`
   - [x] `docs/art-pipeline/ui-board/contact-sheets/ui_board_controls_contact_sheet_v01.png`
 - [x] Record first-pass contact sheet review notes.
   - [x] `docs/art-pipeline/ui-board/contact-sheet-review-v01.md`
-- [ ] Record selected candidates and rejection notes.
+- [x] Record selected candidates and rejection notes.
+  - [x] `docs/art-pipeline/ui-board/selected-candidates-v02.md`
+  - [x] Cropped selected previews under `docs/art-pipeline/ui-board/selected-candidates/`.
 
 ## V0.2 Production
 
 - [ ] Promote selected command card frame art.
+  - [ ] Selected direction: contact-sheet option 4.
 - [ ] Promote selected HUD/stat drawer frame art.
+  - [ ] Selected direction: contact-sheet option 6.
 - [ ] Promote selected route/build-band board material art.
+  - [ ] Selected direction: contact-sheet option 11.
 - [ ] Promote selected spawn/leak gate art.
+  - [ ] Selected direction: contact-sheet option 11.
 - [ ] Normalize crops, scale, alpha, and grayscale copies.
 - [ ] Add source notes for every promoted generated asset.
 - [ ] Add Unity import settings and `.meta` files.
