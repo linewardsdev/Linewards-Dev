@@ -253,8 +253,12 @@ namespace LTW.UnityClient.Simulation
                 }
 
                 CreateLaneTileDetailPass(lane);
-                CreateLaneEndpointBox(lane, CenterColumn, 0, "SpawnBox", MintSignal);
-                CreateLaneEndpointBox(lane, CenterColumn, LaneLength - 1, "LifeLossBox", LeakRed);
+                if (!EndpointSpritesAvailable)
+                {
+                    CreateLaneEndpointBox(lane, CenterColumn, 0, "SpawnBox", MintSignal);
+                    CreateLaneEndpointBox(lane, CenterColumn, LaneLength - 1, "LifeLossBox", LeakRed);
+                }
+
                 CreateEndpointPlateDetails(lane, 0, MintSignal, lane == 1, true);
                 CreateEndpointPlateDetails(lane, LaneLength - 1, LeakRed, lane == 1, false);
                 CreateLaneFrame(lane);
@@ -1697,11 +1701,11 @@ namespace LTW.UnityClient.Simulation
             }
 
             var plate = new GameObject($"Lane{laneId}{label}ReferenceSpritePlate");
-            plate.transform.position = center + new Vector3(0f, 0.18f, isSpawn ? 0.02f : -0.05f);
+            plate.transform.position = center + new Vector3(0f, 0.18f, isSpawn ? 0.02f : 0.58f);
             plate.transform.rotation = Quaternion.Euler(90f, 0f, 0f);
             var scale = isPlayerLane
-                ? (isSpawn ? 1.02f : 0.94f)
-                : (isSpawn ? 0.86f : 0.8f);
+                ? (isSpawn ? 0.82f : 0.78f)
+                : (isSpawn ? 0.7f : 0.66f);
             plate.transform.localScale = new Vector3(scale, scale, 1f);
 
             var renderer = plate.AddComponent<SpriteRenderer>();

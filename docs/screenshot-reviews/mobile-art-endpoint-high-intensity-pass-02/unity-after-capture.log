@@ -1,0 +1,1347 @@
+[Licensing::Module] Trying to connect to existing licensing client channel...
+Built from '6000.5/staging' branch; Version is '6000.5.3f1 (c2eb47b3a2a9) revision 12774215'; Using compiler version '194234433'; Build Type 'Release'
+OS: 'Windows 11  (10.0.26200) Core' Language: 'en' Physical Memory: 7502 MB
+BatchMode: 1, IsHumanControllingUs: 0, StartBugReporterOnCrash: 0, Is64bit: 1
+[Licensing::IpcConnector] Channel LicenseClient-engch doesn't exist
+System  architecture: x64
+Process architecture: x64
+Date: 2026-07-17T19:29:51Z
+[Licensing::Module] Successfully launched the LicensingClient (PId: 16364)
+
+COMMAND LINE ARGUMENTS:
+C:\Program Files\Unity\Hub\Editor\6000.5.3f1\Editor\Unity.exe
+-batchmode
+-projectPath
+C:\Voucher-Management\vouchermanagement\LTW\unity\LTW.UnityClient
+-executeMethod
+LTW.UnityClient.Editor.VisualReviewCaptureRunner.CaptureMobileImprovementCycle
+-ltwCaptureOutputDir
+C:\Voucher-Management\vouchermanagement\LTW\docs\screenshot-reviews\mobile-art-endpoint-high-intensity-pass-02
+-ltwCaptureRunId
+mobile-art-endpoint-high-intensity-pass-02
+-ltwCapturePhase
+after
+-ltwCaptureSeed
+2
+-ltwCapturePackage
+GD-Mobile-UI-Board
+-ltwCaptureGrayscale
+-ltwIntensity
+aggressive
+-ltwExitAfterCapture
+-logFile
+C:\Voucher-Management\vouchermanagement\LTW\docs\screenshot-reviews\mobile-art-endpoint-high-intensity-pass-02\unity-after-capture.log
+Successfully changed project path to: C:\Voucher-Management\vouchermanagement\LTW\unity\LTW.UnityClient
+C:/Voucher-Management/vouchermanagement/LTW/unity/LTW.UnityClient
+[UnityMemory] Configuration Parameters - Can be set up in boot.config
+    "memorysetup-temp-allocator-size-gi-baking-worker=262144"
+    "memorysetup-temp-allocator-size-gi-baking-worker=262144"
+    "memorysetup-temp-allocator-size-gi-baking-worker=262144"
+    "memorysetup-temp-allocator-size-gi-baking-worker=262144"
+    "memorysetup-temp-allocator-size-gi-baking-worker=262144"
+    "memorysetup-temp-allocator-size-nav-mesh-worker=65536"
+    "memorysetup-temp-allocator-size-audio-worker=65536"
+    "memorysetup-temp-allocator-size-cloud-worker=32768"
+    "memorysetup-temp-allocator-size-gfx=262144"
+    "memorysetup-temp-allocator-size-preload-manager=33554432"
+    "memorysetup-allocator-temp-initial-block-size-main=262144"
+    "memorysetup-allocator-temp-initial-block-size-worker=262144"
+    "memorysetup-temp-allocator-size-job-worker=262144"
+    "memorysetup-temp-allocator-size-background-worker=32768"
+    "memorysetup-bucket-allocator-granularity=16"
+    "memorysetup-bucket-allocator-bucket-count=8"
+    "memorysetup-bucket-allocator-block-size=33554432"
+    "memorysetup-bucket-allocator-block-count=8"
+    "memorysetup-main-allocator-block-size=16777216"
+    "memorysetup-thread-allocator-block-size=16777216"
+    "memorysetup-main-allocator-mimalloc-enabled=0"
+    "memorysetup-gfx-main-allocator-block-size=16777216"
+    "memorysetup-gfx-thread-allocator-block-size=16777216"
+    "memorysetup-cache-allocator-block-size=4194304"
+    "memorysetup-typetree-allocator-block-size=2097152"
+    "memorysetup-profiler-bucket-allocator-granularity=16"
+    "memorysetup-profiler-bucket-allocator-bucket-count=8"
+    "memorysetup-profiler-bucket-allocator-block-size=33554432"
+    "memorysetup-profiler-bucket-allocator-block-count=8"
+    "memorysetup-profiler-allocator-block-size=16777216"
+    "memorysetup-profiler-editor-allocator-block-size=1048576"
+    "memorysetup-temp-allocator-size-main=16777216"
+    "memorysetup-job-temp-allocator-block-size=2097152"
+    "memorysetup-job-temp-allocator-block-size-background=1048576"
+    "memorysetup-job-temp-allocator-reduction-small-platforms=262144"
+Logging is directed to a specific file, skipping project log.Player connection [20092]  Target information:
+
+Player connection [20092]  * "[IP] 100.67.115.86 [Port] 55504 [Flags] 2 [Guid] 4090515090 [EditorId] 4090515090 [Version] 1048832 [Id] WindowsEditor(7,nanc) [Debug] 1 [PackageName] WindowsEditor [ProjectName] Editor" 
+
+Player connection [20092]  * "[IP] 10.0.0.199 [Port] 55504 [Flags] 2 [Guid] 4090515090 [EditorId] 4090515090 [Version] 1048832 [Id] WindowsEditor(7,nanc) [Debug] 1 [PackageName] WindowsEditor [ProjectName] Editor" 
+
+Player connection [20092] Host joined multi-casting on [225.0.0.222:54997]...
+Player connection [20092] Host joined alternative multi-casting on [225.0.0.222:34997]...
+Input System module state changed to: Initialized.
+[Physics::Module] Initialized fallback backend.
+[Physics::Module] Id: 0xdecafbad
+[Licensing::IpcConnector] Successfully connected to: "LicenseClient-engch" at "2026-07-17T19:29:52.4724974Z"
+[Licensing::Client] Code 10 while verifying Licensing Client signature (process Id: 16364, path: "C:/Program Files/Unity/Hub/Editor/6000.5.3f1/Editor/Data/Resources/Licensing/Client/Unity.Licensing.Client.exe")
+[Licensing::Module] LicensingClient has failed validation; ignoring
+[Package Manager] Connected to IPC stream "Upm-8008" after 0.4 seconds.
+[Licensing::Module] Licensing is not yet initialized.
+[Licensing::Client] Handshaking with LicensingClient:
+  Version:                 1.18.1+9fbee8e
+  Session Id:              9a1790c3008541b483b4f872fe4a3caa
+  Correlation Id:          fd21106ea681bd79e681ae0c88b60538
+  External correlation Id: 1345627945616911983
+  Machine Id:              XUUOHsR/oMOgT2KdiSe0eLiVyck=
+[Licensing::Module] Successfully connected to LicensingClient on channel: "LicenseClient-engch" (connect: 0.57s, validation: 0.21s, handshake: 0.07s)
+[Licensing::IpcConnector] Successfully connected to: "LicenseClient-engch-notifications" at "2026-07-17T19:29:52.7478143Z"
+[Licensing::Module] Connected to LicensingClient (PId: 16364, launch time: 0.01, total connection time: 0.84s)
+[Licensing::Module] Error: Access token is unavailable; failed to update
+[Licensing::Client] Successfully resolved entitlement details
+[Licensing::Module] License group:
+  Id: 1375967616012-UnityPersXXXX
+  Product: Unity Personal
+  Type: Assigned
+  Expiration: Unlimited
+[Licensing::Client] Successfully updated license, isAsync: True, time: 0.01
+[Licensing::Client] Successfully resolved entitlement details
+[Licensing::Module] Licensing Background thread has ended after 0.92s
+[Licensing::Module] Licensing is initialized (took 0.16s).
+[Licensing::Client] Successfully resolved entitlement details
+Library Redirect Path: Library/
+[Physics::Module] Selected backend.
+[Physics::Module] Name: PhysX
+[Physics::Module] Id: 0xf2b8ea05
+[Physics::Module] SDK Version: 4.1.2
+[Physics::Module] Integration Version: 1.0.0
+[Physics::Module] Threading Mode: Multi-Threaded
+Initialize engine version: 6000.5.3f1 (c2eb47b3a2a9)
+[Subsystems] Discovering subsystems at path C:/Program Files/Unity/Hub/Editor/6000.5.3f1/Editor/Data/Resources/UnitySubsystems
+[Subsystems] Discovering subsystems at path C:/Voucher-Management/vouchermanagement/LTW/unity/LTW.UnityClient/Assets
+GfxDevice: creating device client; kGfxThreadingModeNonThreaded
+d3d12: failed to query info queue interface (0x80004002).
+Direct3D:
+    Version:         Direct3D 12 [level 12.1]
+    Renderer:        AMD Radeon(TM) Graphics (ID=0x164c)
+    Vendor:          ATI
+    VRAM:            3751 MB
+    App VRAM Budget: 3821 MB
+    Driver:          31.0.21914.8004
+    Unified Memory Architecture
+Initialize mono
+Mono path[0] = 'C:/Program Files/Unity/Hub/Editor/6000.5.3f1/Editor/Data/Managed'
+Mono path[1] = 'C:/Program Files/Unity/Hub/Editor/6000.5.3f1/Editor/Data/BCLExtensions/runtime/netstandard2.1'
+Mono path[2] = 'C:/Program Files/Unity/Hub/Editor/6000.5.3f1/Editor/Data/MonoBleedingEdge/lib/mono/unityjit-win32'
+Mono config path = 'C:/Program Files/Unity/Hub/Editor/6000.5.3f1/Editor/Data/MonoBleedingEdge/etc'
+Using monoOptions --debugger-agent=transport=dt_socket,embedding=1,server=y,suspend=n,address=127.0.0.1:56008
+CodeReloadManager initialized
+ImportWorker Server TCP listen port: 0
+AcceleratorClientConnectionCallback - disconnected - :0
+Begin MonoManager ReloadAssembly
+Registering precompiled unity dll's ...
+Register platform support module: C:/Program Files/Unity/Hub/Editor/6000.5.3f1/Editor/Data/PlaybackEngines/WebGLSupport/UnityEditor.WebGL.Extensions.dll
+Register platform support module: C:/Program Files/Unity/Hub/Editor/6000.5.3f1/Editor/Data/PlaybackEngines/WindowsStandaloneSupport/UnityEditor.WindowsStandalone.Extensions.dll
+Registered in 0.004099 seconds.
+Native extension for WindowsStandalone target not found
+Native extension for WebGL target not found
+Package Manager log level set to [2]
+ScheduleIndexationOnStartup MainProcess:False IndexOnStartup:True
+Mono: successfully reloaded assembly
+- Finished resetting the current domain, in  0.627 seconds
+Domain Reload Profiling: 1466ms
+	BeginReloadAssembly (223ms)
+		CreateAndSetChildDomain (12ms)
+	RebuildCommonClasses (7ms)
+	RebuildNativeTypeToScriptingClass (24ms)
+	initialDomainReloadingComplete (113ms)
+	LoadAllAssembliesAndSetupDomain (468ms)
+		LoadAssemblies (207ms)
+		AnalyzeDomain (340ms)
+			TypeCache.Refresh (338ms)
+				TypeCache.ScanAssembly (313ms)
+	FinalizeReload (630ms)
+		SetupLoadedEditorAssemblies (0ms)
+			InitializePlatformSupportModulesInManaged (4ms)
+			BeforeProcessingInitializeOnLoad (144ms)
+			ProcessInitializeOnLoadAttributes (152ms)
+			ProcessInitializeOnLoadMethodAttributes (211ms)
+[Licensing::Client] Successfully resolved entitlement details
+Application.AssetDatabase Initial Refresh Start
+[Package Manager] Restoring resolved packages state from cache
+[Licensing::Client] Successfully resolved entitlement details
+[Package Manager] Registered 8 packages:
+  Packages from [https://packages.unity.com]:
+    com.unity.nuget.newtonsoft-json@3.2.2 (location: C:\Voucher-Management\vouchermanagement\LTW\unity\LTW.UnityClient\Library\PackageCache\com.unity.nuget.newtonsoft-json@4dfd81071c64)
+    com.unity.editorcoroutines@1.1.0 (location: C:\Voucher-Management\vouchermanagement\LTW\unity\LTW.UnityClient\Library\PackageCache\com.unity.editorcoroutines@87a15ed012c2)
+  Built-in packages:
+    com.unity.modules.audio@1.0.0 (location: C:\Voucher-Management\vouchermanagement\LTW\unity\LTW.UnityClient\Library\PackageCache\com.unity.modules.audio)
+    com.unity.test-framework@1.7.0 (location: C:\Voucher-Management\vouchermanagement\LTW\unity\LTW.UnityClient\Library\PackageCache\com.unity.test-framework@1405238725ab)
+    com.unity.ext.nunit@2.1.0 (location: C:\Voucher-Management\vouchermanagement\LTW\unity\LTW.UnityClient\Library\PackageCache\com.unity.ext.nunit@44f7d31723bd)
+    com.unity.modules.imgui@1.0.0 (location: C:\Voucher-Management\vouchermanagement\LTW\unity\LTW.UnityClient\Library\PackageCache\com.unity.modules.imgui)
+    com.unity.modules.jsonserialize@1.0.0 (location: C:\Voucher-Management\vouchermanagement\LTW\unity\LTW.UnityClient\Library\PackageCache\com.unity.modules.jsonserialize)
+  Git packages:
+    com.gamelovers.mcp-unity@https://github.com/CoderGamester/mcp-unity.git (location: C:\Voucher-Management\vouchermanagement\LTW\unity\LTW.UnityClient\Library\PackageCache\com.gamelovers.mcp-unity@c35f184d7656)
+[Subsystems] No new subsystems found in resolved package list.
+[Package Manager] Done registering packages in 0.01 seconds
+Starting: C:\Program Files\Unity\Hub\Editor\6000.5.3f1\Editor\Data\Tools\BuildPipeline\bee_backend.exe --ipc --defer-dag-verification --dagfile="Library/Bee/1900b0aE.dag" --continue-on-failure --profile="Library/Bee/backend1.traceevents" ScriptAssemblies
+WorkingDir: C:/Voucher-Management/vouchermanagement/LTW/unity/LTW.UnityClient
+DisplayProgressbar: Compiling Scripts
+ExitCode: 0 Duration: 0s141ms
+*** Tundra build success (0.08 seconds), 0 items updated, 203 evaluated
+AssetDatabase: script compilation time: 0.721943s
+Total cache size 12124940
+Total cache size after purge 12124940, took 00:00:00.0586030
+Begin MonoManager ReloadAssembly
+Native extension for WindowsStandalone target not found
+Native extension for WebGL target not found
+ScheduleIndexationOnStartup MainProcess:True IndexOnStartup:True
+Mono: successfully reloaded assembly
+- Finished resetting the current domain, in  0.675 seconds
+Domain Reload Profiling: 1373ms
+	BeginReloadAssembly (309ms)
+		DisableScriptedObjects (34ms)
+		CreateAndSetChildDomain (57ms)
+	RebuildCommonClasses (13ms)
+	RebuildNativeTypeToScriptingClass (23ms)
+	initialDomainReloadingComplete (68ms)
+	LoadAllAssembliesAndSetupDomain (282ms)
+		LoadAssemblies (292ms)
+		AnalyzeDomain (46ms)
+			TypeCache.Refresh (37ms)
+				TypeCache.ScanAssembly (27ms)
+			BuildScriptInfoCaches (7ms)
+	FinalizeReload (678ms)
+		SetupLoadedEditorAssemblies (0ms)
+			InitializePlatformSupportModulesInManaged (3ms)
+			BeforeProcessingInitializeOnLoad (146ms)
+			ProcessInitializeOnLoadAttributes (134ms)
+			ProcessInitializeOnLoadMethodAttributes (156ms)
+			AfterProcessingInitializeOnLoad (10ms)
+		AwakeInstancesAfterBackupRestoration (41ms)
+Importing 'GUID: 31254fc62cf540d4eab37f1f5e9a9ab9 - Path: Assets/Resources/Art/Board/Endpoints/board_leak_gate_option_11_v01.png' with importer (TextureImporter)
+Imported 'GUID: 31254fc62cf540d4eab37f1f5e9a9ab9' -> (Import Result ID: 'ff5fa1982525e3738f85d3f687c9b0c5') in 0.052 seconds [static and dynamic dependencies]. Details - ImportResultOutputID=e9a7ee5b4a59914bd30499cd7e6b43ce DependenciesID=ba7bcc8e4107c8d60d9d49dac76e8644 StaticDependenciesID=6e7080ae6f1fdb1da9bfbb782016eee6 
+Starting new worker id: 0 with log in C:/Voucher-Management/vouchermanagement/LTW/unity/LTW.UnityClient/Logs/AssetImportWorkerHW0.log
+
+Asset Pipeline Refresh (id=c272a425f51c4d44d97977086faf882d): Total: 2.560 seconds - Initiated by InitialRefreshV2(ForceSynchronousImport)
+	(Values over 0.05ms)
+	Summary:
+		Imports: total=1 (actual=1, local cache=0, cache server=0)
+		Asset DB Process Time: managed=9 ms, native=904 ms
+		Asset DB Callback time: managed=129 ms, native=25 ms
+		Scripting: domain reloads=1, domain reload time=745 ms, compile time=726 ms, other=18 ms
+		Project Asset Count: scripts=219, non-scripts=440
+		Asset File Changes: new=0, changed=1, moved=0, deleted=0
+		Scan Filter Count: 0
+	InvokePackagesCallback: 21.045ms
+	ApplyChangesToAssetFolders: 0.481ms
+	Scan: 35.583ms
+	Collect global state as custom dependencies: 0.949ms
+	OnSourceAssetsModified: 1.018ms
+	CategorizeScriptCompilationAssets: 5.373ms
+	ProcessAssetsWithTransientArtifactChanges: 11.184ms
+	CategorizeAssets: 11.801ms
+	CompileScripts: 726.471ms
+	ImportOutOfDateAssets: 759.873ms (682.422ms without children)
+		ImportManagerImport: 54.409ms (1.820ms without children)
+		UnloadImportedAssets: 0.180ms
+		EnsureUptoDateAssetsAreRegisteredWithGuidPM: 0.146ms
+		ImportSchedulerStart: 22.688ms
+	PostProcessAllAssets: 133.249ms
+		VCAutoAddAssetPostprocess 3.680ms
+		MonoPostProcessAllAssets: 128.122ms
+			AssetPostprocessor.OnPostprocessAllAssets 49.019ms
+			StyleCatalogPostProcessor.OnPostprocessAllAssets 25.589ms
+			WindowAssetPostprocessingWatcher.OnPostprocessAllAssets 13.923ms
+			BuilderAssetPostprocessor.OnPostprocessAllAssets 9.867ms
+			AssetChangedListener.OnPostprocessAllAssets 2.614ms
+			EditModeScopePostprocessor.OnPostprocessAllAssets 2.436ms
+			TextAssetPostProcessor.OnPostprocessAllAssets 2.308ms
+			SyncVS.PostprocessSyncProject 1.853ms
+			RetainedModeAssetPostprocessor.OnPostprocessAllAssets 1.655ms
+			SpeedTree9Postprocessor.OnPostprocessAllAssets 1.301ms
+			ArtifactBrowserPostProcessor.OnPostprocessAllAssets 0.628ms
+			AudioMixerPostprocessor.OnPostprocessAllAssets 0.521ms
+			ReferencedClipsPostProcessor.OnPostprocessAllAssets 0.474ms
+			AssetEvents.OnPostprocessAllAssets 0.384ms
+			TerrainToolbarOverlayPostProcessor.OnPostprocessAllAssets 0.333ms
+			AssetDatabaseCallbacks.OnPostprocessAllAssets 0.314ms
+			ConfigAssetsTracker.OnPostprocessAllAssets 0.264ms
+			SpeedTreePostProcessor.OnPostprocessAllAssets 0.256ms
+			ScenarioDriftAssetsTracker.OnPostprocessAllAssets 0.250ms
+			RenderPipelineGlobalSettingsPostprocessor.OnPostprocessAllAssets 0.132ms
+			AudioContainerPostProcessor.OnPostprocessAllAssets 0.099ms
+	PostAssetChangesProfiler: 5.124ms
+	UnloadStreamsBegin: 2.022ms
+	PersistCurrentRevisions: 0.207ms
+	Untracked: 834.495ms
+
+Application.AssetDatabase Initial Refresh End
+Launched and connected shader compiler UnityShaderCompiler.exe after 0.03 seconds
+Scanning for USB devices : 3.149ms
+Initializing Unity extensions:
+[MODES] ModeService[none].Initialize
+[MODES] ModeService[none].LoadModes
+[MODES] Loading mode Default (0) for mode-current-id-LTW.UnityClient
+Unloading 3 Unused Serialized files (Serialized files now loaded: 0)
+Unloading 499 unused Assets / (0.7 MB). Loaded Objects now: 1144.
+Memory consumption went from 196.4 MB to 195.6 MB.
+Total: 6.700600 ms (FindLiveObjects: 0.141700 ms CreateObjectMapping: 0.088400 ms MarkObjects: 5.953800 ms  DeleteObjects: 0.508800 ms)
+
+Opening scene 'Assets/Scenes/LocalVerticalSlice.unity'
+Unloading 0 Unused Serialized files (Serialized files now loaded: 0)
+Loaded scene 'Assets/Scenes/LocalVerticalSlice.unity'
+	Deserialize:            0.957 ms
+	Integration:            9.619 ms
+	Integration of assets:  0.010 ms
+	Thread Wait Time:       0.027 ms
+	Total Operation Time:   10.613 ms
+Unloading 1 unused Assets / (1.0 KB). Loaded Objects now: 1144.
+Memory consumption went from 189.9 MB to 189.9 MB.
+Total: 6.438800 ms (FindLiveObjects: 0.159800 ms CreateObjectMapping: 0.048700 ms MarkObjects: 6.199800 ms  DeleteObjects: 0.028200 ms)
+
+D3D11 device created for Microsoft Media Foundation video decoding.
+[Project] Loading completed in 6.540 seconds
+	Project init time: 				6.055 seconds
+		Template init time: 		0.000 seconds
+		Package Manager init time: 		0.606 seconds
+		Asset Database init time: 		0.682 seconds
+		Global illumination init time: 	0.004 seconds
+		Assemblies load time: 			1.552 seconds
+		Unity extensions init time: 	0.002 seconds
+		Asset Database refresh time: 	2.560 seconds
+	Scene opening time: 			0.182 seconds
+##utp:{"type":"ProjectInfo","version":2,"phase":"Immediate","time":1784316598428,"processId":8008,"projectLoad":6.5403525,"projectInit":6.0548011,"templateInit":0.0,"packageManagerInit":0.6057265,"assetDatabaseInit":0.6818889,"globalIlluminationInit":0.0036313,"assembliesLoad":1.5521191,"unityExtensionsInit":0.0021756,"assetDatabaseRefresh":2.5599692,"sceneOpening":0.1824657}
+##utp:{"type":"EditorInfo","version":2,"phase":"Immediate","time":1784316598428,"processId":8008,"editorVersion":"6000.5.3f1 (c2eb47b3a2a9)","branch":"6000.5/staging","buildType":"Release","platform":"Windows"}
+Entering Playmode with Reload Domain disabled.
+If you experience any issues, please disable "Enter Play Mode Options" in Editor Settings
+Loaded scene 'Temp/__Backupscenes/0.backup'
+	Deserialize:            0.635 ms
+	Integration:            241.749 ms
+	Integration of assets:  0.006 ms
+	Thread Wait Time:       0.018 ms
+	Total Operation Time:   242.408 ms
+[Licensing::Client] Successfully resolved entitlement details
+Saved visual review capture C:\Voucher-Management\vouchermanagement\LTW\docs\screenshot-reviews\mobile-art-endpoint-high-intensity-pass-02\mobile-art-endpoint-high-intensity-pass-02\after\phone-small-portrait\01-default-hud.png
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace ()
+UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)
+UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])
+UnityEngine.Logger:Log (UnityEngine.LogType,object)
+UnityEngine.Debug:Log (object)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:WriteImmediateCapture (string,string,System.Nullable`1<int>,System.Nullable`1<int>) (at Assets/Editor/VisualReviewCaptureRunner.cs:1063)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:QueueCapture (string) (at Assets/Editor/VisualReviewCaptureRunner.cs:986)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:Update () (at Assets/Editor/VisualReviewCaptureRunner.cs:273)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+(Filename: Assets/Editor/VisualReviewCaptureRunner.cs Line: 1063)
+
+Saved visual review capture C:\Voucher-Management\vouchermanagement\LTW\docs\screenshot-reviews\mobile-art-endpoint-high-intensity-pass-02\mobile-art-endpoint-high-intensity-pass-02\after\phone-standard-portrait\01-default-hud.png
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace ()
+UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)
+UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])
+UnityEngine.Logger:Log (UnityEngine.LogType,object)
+UnityEngine.Debug:Log (object)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:WriteImmediateCapture (string,string,System.Nullable`1<int>,System.Nullable`1<int>) (at Assets/Editor/VisualReviewCaptureRunner.cs:1063)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:QueueCapture (string) (at Assets/Editor/VisualReviewCaptureRunner.cs:986)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:Update () (at Assets/Editor/VisualReviewCaptureRunner.cs:273)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+(Filename: Assets/Editor/VisualReviewCaptureRunner.cs Line: 1063)
+
+Saved visual review capture C:\Voucher-Management\vouchermanagement\LTW\docs\screenshot-reviews\mobile-art-endpoint-high-intensity-pass-02\mobile-art-endpoint-high-intensity-pass-02\after\phone-tall-portrait\01-default-hud.png
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace ()
+UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)
+UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])
+UnityEngine.Logger:Log (UnityEngine.LogType,object)
+UnityEngine.Debug:Log (object)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:WriteImmediateCapture (string,string,System.Nullable`1<int>,System.Nullable`1<int>) (at Assets/Editor/VisualReviewCaptureRunner.cs:1063)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:QueueCapture (string) (at Assets/Editor/VisualReviewCaptureRunner.cs:986)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:Update () (at Assets/Editor/VisualReviewCaptureRunner.cs:273)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+(Filename: Assets/Editor/VisualReviewCaptureRunner.cs Line: 1063)
+
+Worker ready: AssetImportWorkerHW0 0
+Saved visual review capture C:\Voucher-Management\vouchermanagement\LTW\docs\screenshot-reviews\mobile-art-endpoint-high-intensity-pass-02\mobile-art-endpoint-high-intensity-pass-02\after\phone-safe-area-portrait\01-default-hud.png
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace ()
+UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)
+UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])
+UnityEngine.Logger:Log (UnityEngine.LogType,object)
+UnityEngine.Debug:Log (object)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:WriteImmediateCapture (string,string,System.Nullable`1<int>,System.Nullable`1<int>) (at Assets/Editor/VisualReviewCaptureRunner.cs:1063)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:QueueCapture (string) (at Assets/Editor/VisualReviewCaptureRunner.cs:986)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:Update () (at Assets/Editor/VisualReviewCaptureRunner.cs:273)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+(Filename: Assets/Editor/VisualReviewCaptureRunner.cs Line: 1063)
+
+Start Indexing on Editor startup
+[Indexing] Starting Initial Indexing for Assets
+Created GICache directory at C:/Users/engch/AppData/LocalLow/Unity/Caches/GiCache. Took: 0.024s, timestamps: [7.083 - 7.107]
+Saved visual review capture C:\Voucher-Management\vouchermanagement\LTW\docs\screenshot-reviews\mobile-art-endpoint-high-intensity-pass-02\mobile-art-endpoint-high-intensity-pass-02\after\phone-small-portrait\02-build-menu-open.png
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace ()
+UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)
+UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])
+UnityEngine.Logger:Log (UnityEngine.LogType,object)
+UnityEngine.Debug:Log (object)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:WriteImmediateCapture (string,string,System.Nullable`1<int>,System.Nullable`1<int>) (at Assets/Editor/VisualReviewCaptureRunner.cs:1063)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:QueueCapture (string) (at Assets/Editor/VisualReviewCaptureRunner.cs:986)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:Update () (at Assets/Editor/VisualReviewCaptureRunner.cs:231)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+(Filename: Assets/Editor/VisualReviewCaptureRunner.cs Line: 1063)
+
+Saved visual review capture C:\Voucher-Management\vouchermanagement\LTW\docs\screenshot-reviews\mobile-art-endpoint-high-intensity-pass-02\mobile-art-endpoint-high-intensity-pass-02\after\phone-standard-portrait\02-build-menu-open.png
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace ()
+UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)
+UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])
+UnityEngine.Logger:Log (UnityEngine.LogType,object)
+UnityEngine.Debug:Log (object)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:WriteImmediateCapture (string,string,System.Nullable`1<int>,System.Nullable`1<int>) (at Assets/Editor/VisualReviewCaptureRunner.cs:1063)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:QueueCapture (string) (at Assets/Editor/VisualReviewCaptureRunner.cs:986)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:Update () (at Assets/Editor/VisualReviewCaptureRunner.cs:231)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+(Filename: Assets/Editor/VisualReviewCaptureRunner.cs Line: 1063)
+
+Saved visual review capture C:\Voucher-Management\vouchermanagement\LTW\docs\screenshot-reviews\mobile-art-endpoint-high-intensity-pass-02\mobile-art-endpoint-high-intensity-pass-02\after\phone-tall-portrait\02-build-menu-open.png
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace ()
+UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)
+UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])
+UnityEngine.Logger:Log (UnityEngine.LogType,object)
+UnityEngine.Debug:Log (object)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:WriteImmediateCapture (string,string,System.Nullable`1<int>,System.Nullable`1<int>) (at Assets/Editor/VisualReviewCaptureRunner.cs:1063)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:QueueCapture (string) (at Assets/Editor/VisualReviewCaptureRunner.cs:986)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:Update () (at Assets/Editor/VisualReviewCaptureRunner.cs:231)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+(Filename: Assets/Editor/VisualReviewCaptureRunner.cs Line: 1063)
+
+Saved visual review capture C:\Voucher-Management\vouchermanagement\LTW\docs\screenshot-reviews\mobile-art-endpoint-high-intensity-pass-02\mobile-art-endpoint-high-intensity-pass-02\after\phone-safe-area-portrait\02-build-menu-open.png
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace ()
+UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)
+UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])
+UnityEngine.Logger:Log (UnityEngine.LogType,object)
+UnityEngine.Debug:Log (object)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:WriteImmediateCapture (string,string,System.Nullable`1<int>,System.Nullable`1<int>) (at Assets/Editor/VisualReviewCaptureRunner.cs:1063)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:QueueCapture (string) (at Assets/Editor/VisualReviewCaptureRunner.cs:986)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:Update () (at Assets/Editor/VisualReviewCaptureRunner.cs:231)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+(Filename: Assets/Editor/VisualReviewCaptureRunner.cs Line: 1063)
+
+Saved visual review capture C:\Voucher-Management\vouchermanagement\LTW\docs\screenshot-reviews\mobile-art-endpoint-high-intensity-pass-02\mobile-art-endpoint-high-intensity-pass-02\after\phone-small-portrait\03-build-card-selected.png
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace ()
+UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)
+UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])
+UnityEngine.Logger:Log (UnityEngine.LogType,object)
+UnityEngine.Debug:Log (object)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:WriteImmediateCapture (string,string,System.Nullable`1<int>,System.Nullable`1<int>) (at Assets/Editor/VisualReviewCaptureRunner.cs:1063)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:QueueCapture (string) (at Assets/Editor/VisualReviewCaptureRunner.cs:986)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:Update () (at Assets/Editor/VisualReviewCaptureRunner.cs:231)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+(Filename: Assets/Editor/VisualReviewCaptureRunner.cs Line: 1063)
+
+Saved visual review capture C:\Voucher-Management\vouchermanagement\LTW\docs\screenshot-reviews\mobile-art-endpoint-high-intensity-pass-02\mobile-art-endpoint-high-intensity-pass-02\after\phone-standard-portrait\03-build-card-selected.png
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace ()
+UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)
+UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])
+UnityEngine.Logger:Log (UnityEngine.LogType,object)
+UnityEngine.Debug:Log (object)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:WriteImmediateCapture (string,string,System.Nullable`1<int>,System.Nullable`1<int>) (at Assets/Editor/VisualReviewCaptureRunner.cs:1063)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:QueueCapture (string) (at Assets/Editor/VisualReviewCaptureRunner.cs:986)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:Update () (at Assets/Editor/VisualReviewCaptureRunner.cs:231)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+(Filename: Assets/Editor/VisualReviewCaptureRunner.cs Line: 1063)
+
+Saved visual review capture C:\Voucher-Management\vouchermanagement\LTW\docs\screenshot-reviews\mobile-art-endpoint-high-intensity-pass-02\mobile-art-endpoint-high-intensity-pass-02\after\phone-tall-portrait\03-build-card-selected.png
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace ()
+UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)
+UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])
+UnityEngine.Logger:Log (UnityEngine.LogType,object)
+UnityEngine.Debug:Log (object)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:WriteImmediateCapture (string,string,System.Nullable`1<int>,System.Nullable`1<int>) (at Assets/Editor/VisualReviewCaptureRunner.cs:1063)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:QueueCapture (string) (at Assets/Editor/VisualReviewCaptureRunner.cs:986)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:Update () (at Assets/Editor/VisualReviewCaptureRunner.cs:231)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+(Filename: Assets/Editor/VisualReviewCaptureRunner.cs Line: 1063)
+
+Saved visual review capture C:\Voucher-Management\vouchermanagement\LTW\docs\screenshot-reviews\mobile-art-endpoint-high-intensity-pass-02\mobile-art-endpoint-high-intensity-pass-02\after\phone-safe-area-portrait\03-build-card-selected.png
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace ()
+UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)
+UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])
+UnityEngine.Logger:Log (UnityEngine.LogType,object)
+UnityEngine.Debug:Log (object)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:WriteImmediateCapture (string,string,System.Nullable`1<int>,System.Nullable`1<int>) (at Assets/Editor/VisualReviewCaptureRunner.cs:1063)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:QueueCapture (string) (at Assets/Editor/VisualReviewCaptureRunner.cs:986)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:Update () (at Assets/Editor/VisualReviewCaptureRunner.cs:231)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+(Filename: Assets/Editor/VisualReviewCaptureRunner.cs Line: 1063)
+
+Saved visual review capture C:\Voucher-Management\vouchermanagement\LTW\docs\screenshot-reviews\mobile-art-endpoint-high-intensity-pass-02\mobile-art-endpoint-high-intensity-pass-02\after\phone-small-portrait\04-send-menu-open.png
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace ()
+UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)
+UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])
+UnityEngine.Logger:Log (UnityEngine.LogType,object)
+UnityEngine.Debug:Log (object)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:WriteImmediateCapture (string,string,System.Nullable`1<int>,System.Nullable`1<int>) (at Assets/Editor/VisualReviewCaptureRunner.cs:1063)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:QueueCapture (string) (at Assets/Editor/VisualReviewCaptureRunner.cs:986)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:Update () (at Assets/Editor/VisualReviewCaptureRunner.cs:231)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+(Filename: Assets/Editor/VisualReviewCaptureRunner.cs Line: 1063)
+
+Saved visual review capture C:\Voucher-Management\vouchermanagement\LTW\docs\screenshot-reviews\mobile-art-endpoint-high-intensity-pass-02\mobile-art-endpoint-high-intensity-pass-02\after\phone-standard-portrait\04-send-menu-open.png
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace ()
+UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)
+UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])
+UnityEngine.Logger:Log (UnityEngine.LogType,object)
+UnityEngine.Debug:Log (object)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:WriteImmediateCapture (string,string,System.Nullable`1<int>,System.Nullable`1<int>) (at Assets/Editor/VisualReviewCaptureRunner.cs:1063)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:QueueCapture (string) (at Assets/Editor/VisualReviewCaptureRunner.cs:986)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:Update () (at Assets/Editor/VisualReviewCaptureRunner.cs:231)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+(Filename: Assets/Editor/VisualReviewCaptureRunner.cs Line: 1063)
+
+Saved visual review capture C:\Voucher-Management\vouchermanagement\LTW\docs\screenshot-reviews\mobile-art-endpoint-high-intensity-pass-02\mobile-art-endpoint-high-intensity-pass-02\after\phone-tall-portrait\04-send-menu-open.png
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace ()
+UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)
+UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])
+UnityEngine.Logger:Log (UnityEngine.LogType,object)
+UnityEngine.Debug:Log (object)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:WriteImmediateCapture (string,string,System.Nullable`1<int>,System.Nullable`1<int>) (at Assets/Editor/VisualReviewCaptureRunner.cs:1063)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:QueueCapture (string) (at Assets/Editor/VisualReviewCaptureRunner.cs:986)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:Update () (at Assets/Editor/VisualReviewCaptureRunner.cs:231)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+(Filename: Assets/Editor/VisualReviewCaptureRunner.cs Line: 1063)
+
+Saved visual review capture C:\Voucher-Management\vouchermanagement\LTW\docs\screenshot-reviews\mobile-art-endpoint-high-intensity-pass-02\mobile-art-endpoint-high-intensity-pass-02\after\phone-safe-area-portrait\04-send-menu-open.png
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace ()
+UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)
+UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])
+UnityEngine.Logger:Log (UnityEngine.LogType,object)
+UnityEngine.Debug:Log (object)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:WriteImmediateCapture (string,string,System.Nullable`1<int>,System.Nullable`1<int>) (at Assets/Editor/VisualReviewCaptureRunner.cs:1063)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:QueueCapture (string) (at Assets/Editor/VisualReviewCaptureRunner.cs:986)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:Update () (at Assets/Editor/VisualReviewCaptureRunner.cs:231)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+(Filename: Assets/Editor/VisualReviewCaptureRunner.cs Line: 1063)
+
+Saved visual review capture C:\Voucher-Management\vouchermanagement\LTW\docs\screenshot-reviews\mobile-art-endpoint-high-intensity-pass-02\mobile-art-endpoint-high-intensity-pass-02\after\phone-small-portrait\05-send-card-disabled.png
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace ()
+UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)
+UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])
+UnityEngine.Logger:Log (UnityEngine.LogType,object)
+UnityEngine.Debug:Log (object)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:WriteImmediateCapture (string,string,System.Nullable`1<int>,System.Nullable`1<int>) (at Assets/Editor/VisualReviewCaptureRunner.cs:1063)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:QueueCapture (string) (at Assets/Editor/VisualReviewCaptureRunner.cs:986)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:Update () (at Assets/Editor/VisualReviewCaptureRunner.cs:231)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+(Filename: Assets/Editor/VisualReviewCaptureRunner.cs Line: 1063)
+
+Saved visual review capture C:\Voucher-Management\vouchermanagement\LTW\docs\screenshot-reviews\mobile-art-endpoint-high-intensity-pass-02\mobile-art-endpoint-high-intensity-pass-02\after\phone-standard-portrait\05-send-card-disabled.png
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace ()
+UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)
+UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])
+UnityEngine.Logger:Log (UnityEngine.LogType,object)
+UnityEngine.Debug:Log (object)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:WriteImmediateCapture (string,string,System.Nullable`1<int>,System.Nullable`1<int>) (at Assets/Editor/VisualReviewCaptureRunner.cs:1063)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:QueueCapture (string) (at Assets/Editor/VisualReviewCaptureRunner.cs:986)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:Update () (at Assets/Editor/VisualReviewCaptureRunner.cs:231)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+(Filename: Assets/Editor/VisualReviewCaptureRunner.cs Line: 1063)
+
+Saved visual review capture C:\Voucher-Management\vouchermanagement\LTW\docs\screenshot-reviews\mobile-art-endpoint-high-intensity-pass-02\mobile-art-endpoint-high-intensity-pass-02\after\phone-tall-portrait\05-send-card-disabled.png
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace ()
+UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)
+UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])
+UnityEngine.Logger:Log (UnityEngine.LogType,object)
+UnityEngine.Debug:Log (object)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:WriteImmediateCapture (string,string,System.Nullable`1<int>,System.Nullable`1<int>) (at Assets/Editor/VisualReviewCaptureRunner.cs:1063)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:QueueCapture (string) (at Assets/Editor/VisualReviewCaptureRunner.cs:986)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:Update () (at Assets/Editor/VisualReviewCaptureRunner.cs:231)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+(Filename: Assets/Editor/VisualReviewCaptureRunner.cs Line: 1063)
+
+Saved visual review capture C:\Voucher-Management\vouchermanagement\LTW\docs\screenshot-reviews\mobile-art-endpoint-high-intensity-pass-02\mobile-art-endpoint-high-intensity-pass-02\after\phone-safe-area-portrait\05-send-card-disabled.png
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace ()
+UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)
+UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])
+UnityEngine.Logger:Log (UnityEngine.LogType,object)
+UnityEngine.Debug:Log (object)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:WriteImmediateCapture (string,string,System.Nullable`1<int>,System.Nullable`1<int>) (at Assets/Editor/VisualReviewCaptureRunner.cs:1063)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:QueueCapture (string) (at Assets/Editor/VisualReviewCaptureRunner.cs:986)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:Update () (at Assets/Editor/VisualReviewCaptureRunner.cs:231)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+(Filename: Assets/Editor/VisualReviewCaptureRunner.cs Line: 1063)
+
+Saved visual review capture C:\Voucher-Management\vouchermanagement\LTW\docs\screenshot-reviews\mobile-art-endpoint-high-intensity-pass-02\mobile-art-endpoint-high-intensity-pass-02\after\phone-small-portrait\06-lane-selector-open.png
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace ()
+UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)
+UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])
+UnityEngine.Logger:Log (UnityEngine.LogType,object)
+UnityEngine.Debug:Log (object)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:WriteImmediateCapture (string,string,System.Nullable`1<int>,System.Nullable`1<int>) (at Assets/Editor/VisualReviewCaptureRunner.cs:1063)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:QueueCapture (string) (at Assets/Editor/VisualReviewCaptureRunner.cs:986)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:Update () (at Assets/Editor/VisualReviewCaptureRunner.cs:231)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+(Filename: Assets/Editor/VisualReviewCaptureRunner.cs Line: 1063)
+
+Saved visual review capture C:\Voucher-Management\vouchermanagement\LTW\docs\screenshot-reviews\mobile-art-endpoint-high-intensity-pass-02\mobile-art-endpoint-high-intensity-pass-02\after\phone-standard-portrait\06-lane-selector-open.png
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace ()
+UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)
+UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])
+UnityEngine.Logger:Log (UnityEngine.LogType,object)
+UnityEngine.Debug:Log (object)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:WriteImmediateCapture (string,string,System.Nullable`1<int>,System.Nullable`1<int>) (at Assets/Editor/VisualReviewCaptureRunner.cs:1063)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:QueueCapture (string) (at Assets/Editor/VisualReviewCaptureRunner.cs:986)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:Update () (at Assets/Editor/VisualReviewCaptureRunner.cs:231)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+(Filename: Assets/Editor/VisualReviewCaptureRunner.cs Line: 1063)
+
+Saved visual review capture C:\Voucher-Management\vouchermanagement\LTW\docs\screenshot-reviews\mobile-art-endpoint-high-intensity-pass-02\mobile-art-endpoint-high-intensity-pass-02\after\phone-tall-portrait\06-lane-selector-open.png
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace ()
+UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)
+UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])
+UnityEngine.Logger:Log (UnityEngine.LogType,object)
+UnityEngine.Debug:Log (object)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:WriteImmediateCapture (string,string,System.Nullable`1<int>,System.Nullable`1<int>) (at Assets/Editor/VisualReviewCaptureRunner.cs:1063)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:QueueCapture (string) (at Assets/Editor/VisualReviewCaptureRunner.cs:986)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:Update () (at Assets/Editor/VisualReviewCaptureRunner.cs:231)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+(Filename: Assets/Editor/VisualReviewCaptureRunner.cs Line: 1063)
+
+Saved visual review capture C:\Voucher-Management\vouchermanagement\LTW\docs\screenshot-reviews\mobile-art-endpoint-high-intensity-pass-02\mobile-art-endpoint-high-intensity-pass-02\after\phone-safe-area-portrait\06-lane-selector-open.png
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace ()
+UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)
+UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])
+UnityEngine.Logger:Log (UnityEngine.LogType,object)
+UnityEngine.Debug:Log (object)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:WriteImmediateCapture (string,string,System.Nullable`1<int>,System.Nullable`1<int>) (at Assets/Editor/VisualReviewCaptureRunner.cs:1063)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:QueueCapture (string) (at Assets/Editor/VisualReviewCaptureRunner.cs:986)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:Update () (at Assets/Editor/VisualReviewCaptureRunner.cs:231)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+(Filename: Assets/Editor/VisualReviewCaptureRunner.cs Line: 1063)
+
+LTW role lineup accepted: reduced effects Arrow tower
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace ()
+UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)
+UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])
+UnityEngine.Logger:Log (UnityEngine.LogType,object)
+UnityEngine.Debug:Log (object)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:LogCommandResult (string,LTW.Simulation.Bridge.VerticalSliceCommandResult) (at Assets/Editor/VisualReviewCaptureRunner.cs:948)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:StartCombat (LTW.UnityClient.Simulation.UnitySimulationDriver,LTW.UnityClient.Simulation.UnityCommandAdapter) (at Assets/Editor/VisualReviewCaptureRunner.cs:530)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:Update () (at Assets/Editor/VisualReviewCaptureRunner.cs:311)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+(Filename: Assets/Editor/VisualReviewCaptureRunner.cs Line: 948)
+
+LTW role lineup accepted: reduced effects Control tower
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace ()
+UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)
+UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])
+UnityEngine.Logger:Log (UnityEngine.LogType,object)
+UnityEngine.Debug:Log (object)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:LogCommandResult (string,LTW.Simulation.Bridge.VerticalSliceCommandResult) (at Assets/Editor/VisualReviewCaptureRunner.cs:948)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:StartCombat (LTW.UnityClient.Simulation.UnitySimulationDriver,LTW.UnityClient.Simulation.UnityCommandAdapter) (at Assets/Editor/VisualReviewCaptureRunner.cs:531)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:Update () (at Assets/Editor/VisualReviewCaptureRunner.cs:311)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+(Filename: Assets/Editor/VisualReviewCaptureRunner.cs Line: 948)
+
+LTW role lineup accepted: reduced effects Runner pressure
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace ()
+UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)
+UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])
+UnityEngine.Logger:Log (UnityEngine.LogType,object)
+UnityEngine.Debug:Log (object)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:LogCommandResult (string,LTW.Simulation.Bridge.VerticalSliceCommandResult) (at Assets/Editor/VisualReviewCaptureRunner.cs:948)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:StartCombat (LTW.UnityClient.Simulation.UnitySimulationDriver,LTW.UnityClient.Simulation.UnityCommandAdapter) (at Assets/Editor/VisualReviewCaptureRunner.cs:532)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:Update () (at Assets/Editor/VisualReviewCaptureRunner.cs:311)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+(Filename: Assets/Editor/VisualReviewCaptureRunner.cs Line: 948)
+
+LTW role lineup accepted: reduced effects Brute pressure
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace ()
+UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)
+UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])
+UnityEngine.Logger:Log (UnityEngine.LogType,object)
+UnityEngine.Debug:Log (object)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:LogCommandResult (string,LTW.Simulation.Bridge.VerticalSliceCommandResult) (at Assets/Editor/VisualReviewCaptureRunner.cs:948)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:StartCombat (LTW.UnityClient.Simulation.UnitySimulationDriver,LTW.UnityClient.Simulation.UnityCommandAdapter) (at Assets/Editor/VisualReviewCaptureRunner.cs:533)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:Update () (at Assets/Editor/VisualReviewCaptureRunner.cs:311)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+(Filename: Assets/Editor/VisualReviewCaptureRunner.cs Line: 948)
+
+LTW role lineup accepted: reduced effects Swarm pressure
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace ()
+UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)
+UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])
+UnityEngine.Logger:Log (UnityEngine.LogType,object)
+UnityEngine.Debug:Log (object)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:LogCommandResult (string,LTW.Simulation.Bridge.VerticalSliceCommandResult) (at Assets/Editor/VisualReviewCaptureRunner.cs:948)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:StartCombat (LTW.UnityClient.Simulation.UnitySimulationDriver,LTW.UnityClient.Simulation.UnityCommandAdapter) (at Assets/Editor/VisualReviewCaptureRunner.cs:534)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:Update () (at Assets/Editor/VisualReviewCaptureRunner.cs:311)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+(Filename: Assets/Editor/VisualReviewCaptureRunner.cs Line: 948)
+
+Saved visual review capture C:\Voucher-Management\vouchermanagement\LTW\docs\screenshot-reviews\mobile-art-endpoint-high-intensity-pass-02\mobile-art-endpoint-high-intensity-pass-02\after\phone-small-portrait\07-active-combat.png
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace ()
+UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)
+UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])
+UnityEngine.Logger:Log (UnityEngine.LogType,object)
+UnityEngine.Debug:Log (object)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:WriteImmediateCapture (string,string,System.Nullable`1<int>,System.Nullable`1<int>) (at Assets/Editor/VisualReviewCaptureRunner.cs:1063)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:QueueCapture (string) (at Assets/Editor/VisualReviewCaptureRunner.cs:986)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:Update () (at Assets/Editor/VisualReviewCaptureRunner.cs:231)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+(Filename: Assets/Editor/VisualReviewCaptureRunner.cs Line: 1063)
+
+Saved visual review capture C:\Voucher-Management\vouchermanagement\LTW\docs\screenshot-reviews\mobile-art-endpoint-high-intensity-pass-02\mobile-art-endpoint-high-intensity-pass-02\after\phone-standard-portrait\07-active-combat.png
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace ()
+UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)
+UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])
+UnityEngine.Logger:Log (UnityEngine.LogType,object)
+UnityEngine.Debug:Log (object)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:WriteImmediateCapture (string,string,System.Nullable`1<int>,System.Nullable`1<int>) (at Assets/Editor/VisualReviewCaptureRunner.cs:1063)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:QueueCapture (string) (at Assets/Editor/VisualReviewCaptureRunner.cs:986)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:Update () (at Assets/Editor/VisualReviewCaptureRunner.cs:231)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+(Filename: Assets/Editor/VisualReviewCaptureRunner.cs Line: 1063)
+
+Saved visual review capture C:\Voucher-Management\vouchermanagement\LTW\docs\screenshot-reviews\mobile-art-endpoint-high-intensity-pass-02\mobile-art-endpoint-high-intensity-pass-02\after\phone-tall-portrait\07-active-combat.png
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace ()
+UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)
+UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])
+UnityEngine.Logger:Log (UnityEngine.LogType,object)
+UnityEngine.Debug:Log (object)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:WriteImmediateCapture (string,string,System.Nullable`1<int>,System.Nullable`1<int>) (at Assets/Editor/VisualReviewCaptureRunner.cs:1063)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:QueueCapture (string) (at Assets/Editor/VisualReviewCaptureRunner.cs:986)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:Update () (at Assets/Editor/VisualReviewCaptureRunner.cs:231)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+(Filename: Assets/Editor/VisualReviewCaptureRunner.cs Line: 1063)
+
+Saved visual review capture C:\Voucher-Management\vouchermanagement\LTW\docs\screenshot-reviews\mobile-art-endpoint-high-intensity-pass-02\mobile-art-endpoint-high-intensity-pass-02\after\phone-safe-area-portrait\07-active-combat.png
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace ()
+UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)
+UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])
+UnityEngine.Logger:Log (UnityEngine.LogType,object)
+UnityEngine.Debug:Log (object)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:WriteImmediateCapture (string,string,System.Nullable`1<int>,System.Nullable`1<int>) (at Assets/Editor/VisualReviewCaptureRunner.cs:1063)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:QueueCapture (string) (at Assets/Editor/VisualReviewCaptureRunner.cs:986)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:Update () (at Assets/Editor/VisualReviewCaptureRunner.cs:231)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+(Filename: Assets/Editor/VisualReviewCaptureRunner.cs Line: 1063)
+
+LTW role lineup accepted: canonical runner x10
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace ()
+UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)
+UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])
+UnityEngine.Logger:Log (UnityEngine.LogType,object)
+UnityEngine.Debug:Log (object)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:LogCommandResult (string,LTW.Simulation.Bridge.VerticalSliceCommandResult) (at Assets/Editor/VisualReviewCaptureRunner.cs:948)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:Update () (at Assets/Editor/VisualReviewCaptureRunner.cs:319)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+(Filename: Assets/Editor/VisualReviewCaptureRunner.cs Line: 948)
+
+Saved visual review capture C:\Voucher-Management\vouchermanagement\LTW\docs\screenshot-reviews\mobile-art-endpoint-high-intensity-pass-02\mobile-art-endpoint-high-intensity-pass-02\after\phone-small-portrait\08-runner-10-pressure.png
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace ()
+UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)
+UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])
+UnityEngine.Logger:Log (UnityEngine.LogType,object)
+UnityEngine.Debug:Log (object)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:WriteImmediateCapture (string,string,System.Nullable`1<int>,System.Nullable`1<int>) (at Assets/Editor/VisualReviewCaptureRunner.cs:1063)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:QueueCapture (string) (at Assets/Editor/VisualReviewCaptureRunner.cs:986)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:Update () (at Assets/Editor/VisualReviewCaptureRunner.cs:231)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+(Filename: Assets/Editor/VisualReviewCaptureRunner.cs Line: 1063)
+
+Saved visual review capture C:\Voucher-Management\vouchermanagement\LTW\docs\screenshot-reviews\mobile-art-endpoint-high-intensity-pass-02\mobile-art-endpoint-high-intensity-pass-02\after\phone-standard-portrait\08-runner-10-pressure.png
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace ()
+UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)
+UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])
+UnityEngine.Logger:Log (UnityEngine.LogType,object)
+UnityEngine.Debug:Log (object)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:WriteImmediateCapture (string,string,System.Nullable`1<int>,System.Nullable`1<int>) (at Assets/Editor/VisualReviewCaptureRunner.cs:1063)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:QueueCapture (string) (at Assets/Editor/VisualReviewCaptureRunner.cs:986)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:Update () (at Assets/Editor/VisualReviewCaptureRunner.cs:231)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+(Filename: Assets/Editor/VisualReviewCaptureRunner.cs Line: 1063)
+
+Saved visual review capture C:\Voucher-Management\vouchermanagement\LTW\docs\screenshot-reviews\mobile-art-endpoint-high-intensity-pass-02\mobile-art-endpoint-high-intensity-pass-02\after\phone-tall-portrait\08-runner-10-pressure.png
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace ()
+UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)
+UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])
+UnityEngine.Logger:Log (UnityEngine.LogType,object)
+UnityEngine.Debug:Log (object)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:WriteImmediateCapture (string,string,System.Nullable`1<int>,System.Nullable`1<int>) (at Assets/Editor/VisualReviewCaptureRunner.cs:1063)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:QueueCapture (string) (at Assets/Editor/VisualReviewCaptureRunner.cs:986)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:Update () (at Assets/Editor/VisualReviewCaptureRunner.cs:231)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+(Filename: Assets/Editor/VisualReviewCaptureRunner.cs Line: 1063)
+
+Saved visual review capture C:\Voucher-Management\vouchermanagement\LTW\docs\screenshot-reviews\mobile-art-endpoint-high-intensity-pass-02\mobile-art-endpoint-high-intensity-pass-02\after\phone-safe-area-portrait\08-runner-10-pressure.png
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace ()
+UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)
+UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])
+UnityEngine.Logger:Log (UnityEngine.LogType,object)
+UnityEngine.Debug:Log (object)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:WriteImmediateCapture (string,string,System.Nullable`1<int>,System.Nullable`1<int>) (at Assets/Editor/VisualReviewCaptureRunner.cs:1063)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:QueueCapture (string) (at Assets/Editor/VisualReviewCaptureRunner.cs:986)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:Update () (at Assets/Editor/VisualReviewCaptureRunner.cs:231)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+(Filename: Assets/Editor/VisualReviewCaptureRunner.cs Line: 1063)
+
+LTW role lineup accepted: canonical swarm heavy
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace ()
+UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)
+UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])
+UnityEngine.Logger:Log (UnityEngine.LogType,object)
+UnityEngine.Debug:Log (object)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:LogCommandResult (string,LTW.Simulation.Bridge.VerticalSliceCommandResult) (at Assets/Editor/VisualReviewCaptureRunner.cs:948)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:Update () (at Assets/Editor/VisualReviewCaptureRunner.cs:327)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+(Filename: Assets/Editor/VisualReviewCaptureRunner.cs Line: 948)
+
+Saved visual review capture C:\Voucher-Management\vouchermanagement\LTW\docs\screenshot-reviews\mobile-art-endpoint-high-intensity-pass-02\mobile-art-endpoint-high-intensity-pass-02\after\phone-small-portrait\09-swarm-heavy-pressure.png
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace ()
+UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)
+UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])
+UnityEngine.Logger:Log (UnityEngine.LogType,object)
+UnityEngine.Debug:Log (object)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:WriteImmediateCapture (string,string,System.Nullable`1<int>,System.Nullable`1<int>) (at Assets/Editor/VisualReviewCaptureRunner.cs:1063)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:QueueCapture (string) (at Assets/Editor/VisualReviewCaptureRunner.cs:986)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:Update () (at Assets/Editor/VisualReviewCaptureRunner.cs:231)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+(Filename: Assets/Editor/VisualReviewCaptureRunner.cs Line: 1063)
+
+Saved visual review capture C:\Voucher-Management\vouchermanagement\LTW\docs\screenshot-reviews\mobile-art-endpoint-high-intensity-pass-02\mobile-art-endpoint-high-intensity-pass-02\after\phone-standard-portrait\09-swarm-heavy-pressure.png
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace ()
+UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)
+UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])
+UnityEngine.Logger:Log (UnityEngine.LogType,object)
+UnityEngine.Debug:Log (object)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:WriteImmediateCapture (string,string,System.Nullable`1<int>,System.Nullable`1<int>) (at Assets/Editor/VisualReviewCaptureRunner.cs:1063)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:QueueCapture (string) (at Assets/Editor/VisualReviewCaptureRunner.cs:986)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:Update () (at Assets/Editor/VisualReviewCaptureRunner.cs:231)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+(Filename: Assets/Editor/VisualReviewCaptureRunner.cs Line: 1063)
+
+Saved visual review capture C:\Voucher-Management\vouchermanagement\LTW\docs\screenshot-reviews\mobile-art-endpoint-high-intensity-pass-02\mobile-art-endpoint-high-intensity-pass-02\after\phone-tall-portrait\09-swarm-heavy-pressure.png
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace ()
+UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)
+UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])
+UnityEngine.Logger:Log (UnityEngine.LogType,object)
+UnityEngine.Debug:Log (object)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:WriteImmediateCapture (string,string,System.Nullable`1<int>,System.Nullable`1<int>) (at Assets/Editor/VisualReviewCaptureRunner.cs:1063)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:QueueCapture (string) (at Assets/Editor/VisualReviewCaptureRunner.cs:986)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:Update () (at Assets/Editor/VisualReviewCaptureRunner.cs:231)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+(Filename: Assets/Editor/VisualReviewCaptureRunner.cs Line: 1063)
+
+Saved visual review capture C:\Voucher-Management\vouchermanagement\LTW\docs\screenshot-reviews\mobile-art-endpoint-high-intensity-pass-02\mobile-art-endpoint-high-intensity-pass-02\after\phone-safe-area-portrait\09-swarm-heavy-pressure.png
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace ()
+UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)
+UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])
+UnityEngine.Logger:Log (UnityEngine.LogType,object)
+UnityEngine.Debug:Log (object)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:WriteImmediateCapture (string,string,System.Nullable`1<int>,System.Nullable`1<int>) (at Assets/Editor/VisualReviewCaptureRunner.cs:1063)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:QueueCapture (string) (at Assets/Editor/VisualReviewCaptureRunner.cs:986)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:Update () (at Assets/Editor/VisualReviewCaptureRunner.cs:231)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+(Filename: Assets/Editor/VisualReviewCaptureRunner.cs Line: 1063)
+
+TrimDiskCacheJob: Current cache size 0mb
+Saved visual review capture C:\Voucher-Management\vouchermanagement\LTW\docs\screenshot-reviews\mobile-art-endpoint-high-intensity-pass-02\mobile-art-endpoint-high-intensity-pass-02\after\phone-small-portrait\10-heavy-pressure.png
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace ()
+UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)
+UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])
+UnityEngine.Logger:Log (UnityEngine.LogType,object)
+UnityEngine.Debug:Log (object)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:WriteImmediateCapture (string,string,System.Nullable`1<int>,System.Nullable`1<int>) (at Assets/Editor/VisualReviewCaptureRunner.cs:1063)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:QueueCapture (string) (at Assets/Editor/VisualReviewCaptureRunner.cs:986)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:Update () (at Assets/Editor/VisualReviewCaptureRunner.cs:231)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+(Filename: Assets/Editor/VisualReviewCaptureRunner.cs Line: 1063)
+
+Saved visual review capture C:\Voucher-Management\vouchermanagement\LTW\docs\screenshot-reviews\mobile-art-endpoint-high-intensity-pass-02\mobile-art-endpoint-high-intensity-pass-02\after\phone-standard-portrait\10-heavy-pressure.png
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace ()
+UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)
+UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])
+UnityEngine.Logger:Log (UnityEngine.LogType,object)
+UnityEngine.Debug:Log (object)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:WriteImmediateCapture (string,string,System.Nullable`1<int>,System.Nullable`1<int>) (at Assets/Editor/VisualReviewCaptureRunner.cs:1063)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:QueueCapture (string) (at Assets/Editor/VisualReviewCaptureRunner.cs:986)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:Update () (at Assets/Editor/VisualReviewCaptureRunner.cs:231)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+(Filename: Assets/Editor/VisualReviewCaptureRunner.cs Line: 1063)
+
+Saved visual review capture C:\Voucher-Management\vouchermanagement\LTW\docs\screenshot-reviews\mobile-art-endpoint-high-intensity-pass-02\mobile-art-endpoint-high-intensity-pass-02\after\phone-tall-portrait\10-heavy-pressure.png
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace ()
+UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)
+UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])
+UnityEngine.Logger:Log (UnityEngine.LogType,object)
+UnityEngine.Debug:Log (object)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:WriteImmediateCapture (string,string,System.Nullable`1<int>,System.Nullable`1<int>) (at Assets/Editor/VisualReviewCaptureRunner.cs:1063)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:QueueCapture (string) (at Assets/Editor/VisualReviewCaptureRunner.cs:986)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:Update () (at Assets/Editor/VisualReviewCaptureRunner.cs:231)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+(Filename: Assets/Editor/VisualReviewCaptureRunner.cs Line: 1063)
+
+Saved visual review capture C:\Voucher-Management\vouchermanagement\LTW\docs\screenshot-reviews\mobile-art-endpoint-high-intensity-pass-02\mobile-art-endpoint-high-intensity-pass-02\after\phone-safe-area-portrait\10-heavy-pressure.png
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace ()
+UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)
+UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])
+UnityEngine.Logger:Log (UnityEngine.LogType,object)
+UnityEngine.Debug:Log (object)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:WriteImmediateCapture (string,string,System.Nullable`1<int>,System.Nullable`1<int>) (at Assets/Editor/VisualReviewCaptureRunner.cs:1063)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:QueueCapture (string) (at Assets/Editor/VisualReviewCaptureRunner.cs:986)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:Update () (at Assets/Editor/VisualReviewCaptureRunner.cs:231)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+(Filename: Assets/Editor/VisualReviewCaptureRunner.cs Line: 1063)
+
+Saved visual review capture C:\Voucher-Management\vouchermanagement\LTW\docs\screenshot-reviews\mobile-art-endpoint-high-intensity-pass-02\mobile-art-endpoint-high-intensity-pass-02\after\phone-small-portrait\11-reduced-effects-heavy.png
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace ()
+UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)
+UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])
+UnityEngine.Logger:Log (UnityEngine.LogType,object)
+UnityEngine.Debug:Log (object)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:WriteImmediateCapture (string,string,System.Nullable`1<int>,System.Nullable`1<int>) (at Assets/Editor/VisualReviewCaptureRunner.cs:1063)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:QueueCapture (string) (at Assets/Editor/VisualReviewCaptureRunner.cs:986)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:Update () (at Assets/Editor/VisualReviewCaptureRunner.cs:231)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+(Filename: Assets/Editor/VisualReviewCaptureRunner.cs Line: 1063)
+
+Saved visual review capture C:\Voucher-Management\vouchermanagement\LTW\docs\screenshot-reviews\mobile-art-endpoint-high-intensity-pass-02\mobile-art-endpoint-high-intensity-pass-02\after\phone-standard-portrait\11-reduced-effects-heavy.png
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace ()
+UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)
+UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])
+UnityEngine.Logger:Log (UnityEngine.LogType,object)
+UnityEngine.Debug:Log (object)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:WriteImmediateCapture (string,string,System.Nullable`1<int>,System.Nullable`1<int>) (at Assets/Editor/VisualReviewCaptureRunner.cs:1063)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:QueueCapture (string) (at Assets/Editor/VisualReviewCaptureRunner.cs:986)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:Update () (at Assets/Editor/VisualReviewCaptureRunner.cs:231)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+(Filename: Assets/Editor/VisualReviewCaptureRunner.cs Line: 1063)
+
+Saved visual review capture C:\Voucher-Management\vouchermanagement\LTW\docs\screenshot-reviews\mobile-art-endpoint-high-intensity-pass-02\mobile-art-endpoint-high-intensity-pass-02\after\phone-tall-portrait\11-reduced-effects-heavy.png
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace ()
+UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)
+UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])
+UnityEngine.Logger:Log (UnityEngine.LogType,object)
+UnityEngine.Debug:Log (object)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:WriteImmediateCapture (string,string,System.Nullable`1<int>,System.Nullable`1<int>) (at Assets/Editor/VisualReviewCaptureRunner.cs:1063)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:QueueCapture (string) (at Assets/Editor/VisualReviewCaptureRunner.cs:986)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:Update () (at Assets/Editor/VisualReviewCaptureRunner.cs:231)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+(Filename: Assets/Editor/VisualReviewCaptureRunner.cs Line: 1063)
+
+Saved visual review capture C:\Voucher-Management\vouchermanagement\LTW\docs\screenshot-reviews\mobile-art-endpoint-high-intensity-pass-02\mobile-art-endpoint-high-intensity-pass-02\after\phone-safe-area-portrait\11-reduced-effects-heavy.png
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace ()
+UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)
+UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])
+UnityEngine.Logger:Log (UnityEngine.LogType,object)
+UnityEngine.Debug:Log (object)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:WriteImmediateCapture (string,string,System.Nullable`1<int>,System.Nullable`1<int>) (at Assets/Editor/VisualReviewCaptureRunner.cs:1063)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:QueueCapture (string) (at Assets/Editor/VisualReviewCaptureRunner.cs:986)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:Update () (at Assets/Editor/VisualReviewCaptureRunner.cs:231)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+(Filename: Assets/Editor/VisualReviewCaptureRunner.cs Line: 1063)
+
+LTW camera framing -> BoardOverview
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace ()
+UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)
+UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])
+UnityEngine.Logger:Log (UnityEngine.LogType,object)
+UnityEngine.Debug:Log (object)
+LTW.UnityClient.Simulation.UnityVerticalSliceRenderer:SetCameraFraming (LTW.UnityClient.Simulation.LaneCameraFraming) (at Assets/Scripts/Simulation/UnityVerticalSliceRenderer.cs:144)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:SetRendererFraming (LTW.UnityClient.Simulation.LaneCameraFraming) (at Assets/Editor/VisualReviewCaptureRunner.cs:1680)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:Update () (at Assets/Editor/VisualReviewCaptureRunner.cs:346)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+(Filename: Assets/Scripts/Simulation/UnityVerticalSliceRenderer.cs Line: 144)
+
+Saved visual review capture C:\Voucher-Management\vouchermanagement\LTW\docs\screenshot-reviews\mobile-art-endpoint-high-intensity-pass-02\mobile-art-endpoint-high-intensity-pass-02\after\phone-small-portrait\12-board-overview.png
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace ()
+UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)
+UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])
+UnityEngine.Logger:Log (UnityEngine.LogType,object)
+UnityEngine.Debug:Log (object)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:WriteImmediateCapture (string,string,System.Nullable`1<int>,System.Nullable`1<int>) (at Assets/Editor/VisualReviewCaptureRunner.cs:1063)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:QueueCapture (string) (at Assets/Editor/VisualReviewCaptureRunner.cs:986)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:Update () (at Assets/Editor/VisualReviewCaptureRunner.cs:231)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+(Filename: Assets/Editor/VisualReviewCaptureRunner.cs Line: 1063)
+
+Saved visual review capture C:\Voucher-Management\vouchermanagement\LTW\docs\screenshot-reviews\mobile-art-endpoint-high-intensity-pass-02\mobile-art-endpoint-high-intensity-pass-02\after\phone-standard-portrait\12-board-overview.png
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace ()
+UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)
+UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])
+UnityEngine.Logger:Log (UnityEngine.LogType,object)
+UnityEngine.Debug:Log (object)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:WriteImmediateCapture (string,string,System.Nullable`1<int>,System.Nullable`1<int>) (at Assets/Editor/VisualReviewCaptureRunner.cs:1063)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:QueueCapture (string) (at Assets/Editor/VisualReviewCaptureRunner.cs:986)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:Update () (at Assets/Editor/VisualReviewCaptureRunner.cs:231)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+(Filename: Assets/Editor/VisualReviewCaptureRunner.cs Line: 1063)
+
+Saved visual review capture C:\Voucher-Management\vouchermanagement\LTW\docs\screenshot-reviews\mobile-art-endpoint-high-intensity-pass-02\mobile-art-endpoint-high-intensity-pass-02\after\phone-tall-portrait\12-board-overview.png
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace ()
+UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)
+UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])
+UnityEngine.Logger:Log (UnityEngine.LogType,object)
+UnityEngine.Debug:Log (object)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:WriteImmediateCapture (string,string,System.Nullable`1<int>,System.Nullable`1<int>) (at Assets/Editor/VisualReviewCaptureRunner.cs:1063)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:QueueCapture (string) (at Assets/Editor/VisualReviewCaptureRunner.cs:986)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:Update () (at Assets/Editor/VisualReviewCaptureRunner.cs:231)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+(Filename: Assets/Editor/VisualReviewCaptureRunner.cs Line: 1063)
+
+Saved visual review capture C:\Voucher-Management\vouchermanagement\LTW\docs\screenshot-reviews\mobile-art-endpoint-high-intensity-pass-02\mobile-art-endpoint-high-intensity-pass-02\after\phone-safe-area-portrait\12-board-overview.png
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace ()
+UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)
+UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])
+UnityEngine.Logger:Log (UnityEngine.LogType,object)
+UnityEngine.Debug:Log (object)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:WriteImmediateCapture (string,string,System.Nullable`1<int>,System.Nullable`1<int>) (at Assets/Editor/VisualReviewCaptureRunner.cs:1063)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:QueueCapture (string) (at Assets/Editor/VisualReviewCaptureRunner.cs:986)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:Update () (at Assets/Editor/VisualReviewCaptureRunner.cs:231)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+(Filename: Assets/Editor/VisualReviewCaptureRunner.cs Line: 1063)
+
+LTW camera framing -> SpawnGateFocus
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace ()
+UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)
+UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])
+UnityEngine.Logger:Log (UnityEngine.LogType,object)
+UnityEngine.Debug:Log (object)
+LTW.UnityClient.Simulation.UnityVerticalSliceRenderer:SetCameraFraming (LTW.UnityClient.Simulation.LaneCameraFraming) (at Assets/Scripts/Simulation/UnityVerticalSliceRenderer.cs:144)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:SetRendererFraming (LTW.UnityClient.Simulation.LaneCameraFraming) (at Assets/Editor/VisualReviewCaptureRunner.cs:1680)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:Update () (at Assets/Editor/VisualReviewCaptureRunner.cs:351)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+(Filename: Assets/Scripts/Simulation/UnityVerticalSliceRenderer.cs Line: 144)
+
+Saved visual review capture C:\Voucher-Management\vouchermanagement\LTW\docs\screenshot-reviews\mobile-art-endpoint-high-intensity-pass-02\mobile-art-endpoint-high-intensity-pass-02\after\phone-small-portrait\13-spawn-gate-focus.png
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace ()
+UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)
+UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])
+UnityEngine.Logger:Log (UnityEngine.LogType,object)
+UnityEngine.Debug:Log (object)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:WriteImmediateCapture (string,string,System.Nullable`1<int>,System.Nullable`1<int>) (at Assets/Editor/VisualReviewCaptureRunner.cs:1063)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:QueueCapture (string) (at Assets/Editor/VisualReviewCaptureRunner.cs:986)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:Update () (at Assets/Editor/VisualReviewCaptureRunner.cs:231)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+(Filename: Assets/Editor/VisualReviewCaptureRunner.cs Line: 1063)
+
+Saved visual review capture C:\Voucher-Management\vouchermanagement\LTW\docs\screenshot-reviews\mobile-art-endpoint-high-intensity-pass-02\mobile-art-endpoint-high-intensity-pass-02\after\phone-standard-portrait\13-spawn-gate-focus.png
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace ()
+UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)
+UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])
+UnityEngine.Logger:Log (UnityEngine.LogType,object)
+UnityEngine.Debug:Log (object)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:WriteImmediateCapture (string,string,System.Nullable`1<int>,System.Nullable`1<int>) (at Assets/Editor/VisualReviewCaptureRunner.cs:1063)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:QueueCapture (string) (at Assets/Editor/VisualReviewCaptureRunner.cs:986)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:Update () (at Assets/Editor/VisualReviewCaptureRunner.cs:231)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+(Filename: Assets/Editor/VisualReviewCaptureRunner.cs Line: 1063)
+
+Saved visual review capture C:\Voucher-Management\vouchermanagement\LTW\docs\screenshot-reviews\mobile-art-endpoint-high-intensity-pass-02\mobile-art-endpoint-high-intensity-pass-02\after\phone-tall-portrait\13-spawn-gate-focus.png
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace ()
+UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)
+UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])
+UnityEngine.Logger:Log (UnityEngine.LogType,object)
+UnityEngine.Debug:Log (object)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:WriteImmediateCapture (string,string,System.Nullable`1<int>,System.Nullable`1<int>) (at Assets/Editor/VisualReviewCaptureRunner.cs:1063)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:QueueCapture (string) (at Assets/Editor/VisualReviewCaptureRunner.cs:986)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:Update () (at Assets/Editor/VisualReviewCaptureRunner.cs:231)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+(Filename: Assets/Editor/VisualReviewCaptureRunner.cs Line: 1063)
+
+Saved visual review capture C:\Voucher-Management\vouchermanagement\LTW\docs\screenshot-reviews\mobile-art-endpoint-high-intensity-pass-02\mobile-art-endpoint-high-intensity-pass-02\after\phone-safe-area-portrait\13-spawn-gate-focus.png
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace ()
+UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)
+UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])
+UnityEngine.Logger:Log (UnityEngine.LogType,object)
+UnityEngine.Debug:Log (object)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:WriteImmediateCapture (string,string,System.Nullable`1<int>,System.Nullable`1<int>) (at Assets/Editor/VisualReviewCaptureRunner.cs:1063)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:QueueCapture (string) (at Assets/Editor/VisualReviewCaptureRunner.cs:986)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:Update () (at Assets/Editor/VisualReviewCaptureRunner.cs:231)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+(Filename: Assets/Editor/VisualReviewCaptureRunner.cs Line: 1063)
+
+LTW camera framing -> LeakGateFocus
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace ()
+UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)
+UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])
+UnityEngine.Logger:Log (UnityEngine.LogType,object)
+UnityEngine.Debug:Log (object)
+LTW.UnityClient.Simulation.UnityVerticalSliceRenderer:SetCameraFraming (LTW.UnityClient.Simulation.LaneCameraFraming) (at Assets/Scripts/Simulation/UnityVerticalSliceRenderer.cs:144)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:SetRendererFraming (LTW.UnityClient.Simulation.LaneCameraFraming) (at Assets/Editor/VisualReviewCaptureRunner.cs:1680)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:Update () (at Assets/Editor/VisualReviewCaptureRunner.cs:356)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+(Filename: Assets/Scripts/Simulation/UnityVerticalSliceRenderer.cs Line: 144)
+
+Saved visual review capture C:\Voucher-Management\vouchermanagement\LTW\docs\screenshot-reviews\mobile-art-endpoint-high-intensity-pass-02\mobile-art-endpoint-high-intensity-pass-02\after\phone-small-portrait\14-leak-gate-focus.png
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace ()
+UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)
+UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])
+UnityEngine.Logger:Log (UnityEngine.LogType,object)
+UnityEngine.Debug:Log (object)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:WriteImmediateCapture (string,string,System.Nullable`1<int>,System.Nullable`1<int>) (at Assets/Editor/VisualReviewCaptureRunner.cs:1063)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:QueueCapture (string) (at Assets/Editor/VisualReviewCaptureRunner.cs:986)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:Update () (at Assets/Editor/VisualReviewCaptureRunner.cs:231)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+(Filename: Assets/Editor/VisualReviewCaptureRunner.cs Line: 1063)
+
+Saved visual review capture C:\Voucher-Management\vouchermanagement\LTW\docs\screenshot-reviews\mobile-art-endpoint-high-intensity-pass-02\mobile-art-endpoint-high-intensity-pass-02\after\phone-standard-portrait\14-leak-gate-focus.png
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace ()
+UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)
+UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])
+UnityEngine.Logger:Log (UnityEngine.LogType,object)
+UnityEngine.Debug:Log (object)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:WriteImmediateCapture (string,string,System.Nullable`1<int>,System.Nullable`1<int>) (at Assets/Editor/VisualReviewCaptureRunner.cs:1063)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:QueueCapture (string) (at Assets/Editor/VisualReviewCaptureRunner.cs:986)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:Update () (at Assets/Editor/VisualReviewCaptureRunner.cs:231)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+(Filename: Assets/Editor/VisualReviewCaptureRunner.cs Line: 1063)
+
+Saved visual review capture C:\Voucher-Management\vouchermanagement\LTW\docs\screenshot-reviews\mobile-art-endpoint-high-intensity-pass-02\mobile-art-endpoint-high-intensity-pass-02\after\phone-tall-portrait\14-leak-gate-focus.png
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace ()
+UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)
+UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])
+UnityEngine.Logger:Log (UnityEngine.LogType,object)
+UnityEngine.Debug:Log (object)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:WriteImmediateCapture (string,string,System.Nullable`1<int>,System.Nullable`1<int>) (at Assets/Editor/VisualReviewCaptureRunner.cs:1063)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:QueueCapture (string) (at Assets/Editor/VisualReviewCaptureRunner.cs:986)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:Update () (at Assets/Editor/VisualReviewCaptureRunner.cs:231)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+(Filename: Assets/Editor/VisualReviewCaptureRunner.cs Line: 1063)
+
+Saved visual review capture C:\Voucher-Management\vouchermanagement\LTW\docs\screenshot-reviews\mobile-art-endpoint-high-intensity-pass-02\mobile-art-endpoint-high-intensity-pass-02\after\phone-safe-area-portrait\14-leak-gate-focus.png
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace ()
+UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)
+UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])
+UnityEngine.Logger:Log (UnityEngine.LogType,object)
+UnityEngine.Debug:Log (object)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:WriteImmediateCapture (string,string,System.Nullable`1<int>,System.Nullable`1<int>) (at Assets/Editor/VisualReviewCaptureRunner.cs:1063)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:QueueCapture (string) (at Assets/Editor/VisualReviewCaptureRunner.cs:986)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:Update () (at Assets/Editor/VisualReviewCaptureRunner.cs:231)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+(Filename: Assets/Editor/VisualReviewCaptureRunner.cs Line: 1063)
+
+LTW camera framing -> ActiveLane
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace ()
+UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)
+UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])
+UnityEngine.Logger:Log (UnityEngine.LogType,object)
+UnityEngine.Debug:Log (object)
+LTW.UnityClient.Simulation.UnityVerticalSliceRenderer:SetCameraFraming (LTW.UnityClient.Simulation.LaneCameraFraming) (at Assets/Scripts/Simulation/UnityVerticalSliceRenderer.cs:144)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:SetRendererFraming (LTW.UnityClient.Simulation.LaneCameraFraming) (at Assets/Editor/VisualReviewCaptureRunner.cs:1680)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:Update () (at Assets/Editor/VisualReviewCaptureRunner.cs:361)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+(Filename: Assets/Scripts/Simulation/UnityVerticalSliceRenderer.cs Line: 144)
+
+Saved visual review capture C:\Voucher-Management\vouchermanagement\LTW\docs\screenshot-reviews\mobile-art-endpoint-high-intensity-pass-02\mobile-art-endpoint-high-intensity-pass-02\after\phone-small-portrait\15-results-or-late-match.png
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace ()
+UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)
+UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])
+UnityEngine.Logger:Log (UnityEngine.LogType,object)
+UnityEngine.Debug:Log (object)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:WriteImmediateCapture (string,string,System.Nullable`1<int>,System.Nullable`1<int>) (at Assets/Editor/VisualReviewCaptureRunner.cs:1063)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:QueueCapture (string) (at Assets/Editor/VisualReviewCaptureRunner.cs:986)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:Update () (at Assets/Editor/VisualReviewCaptureRunner.cs:369)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+(Filename: Assets/Editor/VisualReviewCaptureRunner.cs Line: 1063)
+
+Saved visual review capture C:\Voucher-Management\vouchermanagement\LTW\docs\screenshot-reviews\mobile-art-endpoint-high-intensity-pass-02\mobile-art-endpoint-high-intensity-pass-02\after\phone-standard-portrait\15-results-or-late-match.png
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace ()
+UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)
+UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])
+UnityEngine.Logger:Log (UnityEngine.LogType,object)
+UnityEngine.Debug:Log (object)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:WriteImmediateCapture (string,string,System.Nullable`1<int>,System.Nullable`1<int>) (at Assets/Editor/VisualReviewCaptureRunner.cs:1063)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:QueueCapture (string) (at Assets/Editor/VisualReviewCaptureRunner.cs:986)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:Update () (at Assets/Editor/VisualReviewCaptureRunner.cs:369)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+(Filename: Assets/Editor/VisualReviewCaptureRunner.cs Line: 1063)
+
+Saved visual review capture C:\Voucher-Management\vouchermanagement\LTW\docs\screenshot-reviews\mobile-art-endpoint-high-intensity-pass-02\mobile-art-endpoint-high-intensity-pass-02\after\phone-tall-portrait\15-results-or-late-match.png
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace ()
+UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)
+UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])
+UnityEngine.Logger:Log (UnityEngine.LogType,object)
+UnityEngine.Debug:Log (object)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:WriteImmediateCapture (string,string,System.Nullable`1<int>,System.Nullable`1<int>) (at Assets/Editor/VisualReviewCaptureRunner.cs:1063)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:QueueCapture (string) (at Assets/Editor/VisualReviewCaptureRunner.cs:986)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:Update () (at Assets/Editor/VisualReviewCaptureRunner.cs:369)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+(Filename: Assets/Editor/VisualReviewCaptureRunner.cs Line: 1063)
+
+Saved visual review capture C:\Voucher-Management\vouchermanagement\LTW\docs\screenshot-reviews\mobile-art-endpoint-high-intensity-pass-02\mobile-art-endpoint-high-intensity-pass-02\after\phone-safe-area-portrait\15-results-or-late-match.png
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace ()
+UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)
+UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])
+UnityEngine.Logger:Log (UnityEngine.LogType,object)
+UnityEngine.Debug:Log (object)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:WriteImmediateCapture (string,string,System.Nullable`1<int>,System.Nullable`1<int>) (at Assets/Editor/VisualReviewCaptureRunner.cs:1063)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:QueueCapture (string) (at Assets/Editor/VisualReviewCaptureRunner.cs:986)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:Update () (at Assets/Editor/VisualReviewCaptureRunner.cs:369)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+(Filename: Assets/Editor/VisualReviewCaptureRunner.cs Line: 1063)
+
+LTW visual review screenshots captured in C:\Voucher-Management\vouchermanagement\LTW\docs\screenshot-reviews\mobile-art-endpoint-high-intensity-pass-02\mobile-art-endpoint-high-intensity-pass-02\after\phone-small-portrait
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace ()
+UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)
+UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])
+UnityEngine.Logger:Log (UnityEngine.LogType,object)
+UnityEngine.Debug:Log (object)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:Finish (string) (at Assets/Editor/VisualReviewCaptureRunner.cs:1726)
+LTW.UnityClient.Editor.VisualReviewCaptureRunner:Update () (at Assets/Editor/VisualReviewCaptureRunner.cs:373)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+(Filename: Assets/Editor/VisualReviewCaptureRunner.cs Line: 1726)
+
+MonoPathRemapper: Attempts to remap: 6975; Successful remaps: 986
+Serialized file version minimum: 23, current 23
+[Physics::Module] Cleanup current backend.
+[Physics::Module] Id: 0xf2b8ea05
+Input System module state changed to: ShutdownInProgress.
+Input Polling Thread exited.
+Input System module state changed to: Shutdown.
+[Licensing::IpcConnector] LicenseClient-engch-notifications channel disconnected successfully.
+[Licensing::IpcConnector] LicenseClient-engch channel disconnected successfully.
+AcceleratorClientConnectionCallback - disconnected - :0
+Cleanup mono
+CodeReloadManager destroyed
+Checking for leaked weakptr:
+  Found no leaked weakptrs.
+[Package Manager] Server process was shutdown
+##utp:{"type":"MemoryLeaks","version":2,"phase":"Immediate","time":1784316654624,"processId":8008,"allocatedMemory":12371378,"memoryLabels":[{"Default":290715},{"Permanent":15516},{"NewDelete":66659},{"Thread":4205176},{"Manager":31045},{"VertexData":8},{"Geometry":816},{"Texture":24},{"Shader":833490},{"Material":24},{"GfxDevice":57896},{"Animation":952},{"Audio":80},{"FreeType":8},{"FontEngine":736},{"Physics":2146},{"Physics2D":16},{"Serialization":1016},{"Input":42840},{"JobScheduler":256},{"TextLib":280},{"Mono":48},{"ScriptingNativeRuntime":674964},{"BaseObject":1623888},{"Resource":1208},{"Renderer":3080},{"Transform":4685},{"File":4013},{"WebCam":616},{"Culling":32},{"Terrain":11442},{"Wind":24},{"STL":40},{"String":19721},{"StaticString":3808},{"Utility":2672694},{"Curl":2559},{"PoolAlloc":2168},{"AI":80},{"TypeTree":17165},{"CodeReload":448},{"RuntimeInitializeOnLoadManager":64},{"Sprites":102},{"SpriteAtlas":120},{"GI":7816},{"Director":8296},{"CloudService":9400},{"WebRequest":552},{"VR":47114},{"SceneManager":608},{"Video":208},{"LazyScriptCache":32},{"Camera":17},{"Secure":2377},{"SerializationCache":1576},{"APIUpdating":10320},{"Subsystems":336},{"VirtualTexturing":57888},{"StaticSafetyDebugInfo":278528},{"Analytics":552},{"Hierarchy":1176},{"UIElements":72},{"CoreStats":13688},{"Identifiers":6768},{"Gui":128},{"EditorUtility":488079},{"VersionControl":8},{"Undo":931},{"AssetDatabase":785802},{"AssetImporter":40},{"EditorGi":328},{"UnityConnect":38929},{"Upm":1912},{"UpmDiagnostics":8},{"AssetCompliance":64},{"DrivenProperties":72},{"LocalIPC":211},{"ProfilerEditor":9746},{"CoreBusinessMetrics":3480},{"Windowing":456},{"Licensing":1232},{"AssetReference":32},{"IPCStream":32}]}

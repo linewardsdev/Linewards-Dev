@@ -86,6 +86,8 @@ Source of truth: `docs/art-pipeline/ui-board-art-pipeline.md`
 - [x] Promote selected endpoint reference art into runtime sprites.
   - [x] 2026-07-17: Cropped selected spawn/leak option 11 into `Assets/Resources/Art/Board/Endpoints/`, added endpoint sprite import settings, loaded the sprites in `UnityVerticalSliceRenderer`, and suppressed the primitive endpoint stack when reference sprites are available.
   - [x] 2026-07-17: Captured 60 color and 60 grayscale frames under `docs/screenshot-reviews/mobile-art-endpoint-sprite-promotion/`; endpoint target-reference usage is now real runtime art instead of procedural approximation.
+- [x] Run high-intensity endpoint sprite integration pass.
+  - [x] 2026-07-17: Removed fallback endpoint box discs when reference sprites load, tightened spawn/leak sprite scale, shifted the leak sprite inward, cleaned lower leak matte residue, and captured 60 color plus 60 grayscale frames under `docs/screenshot-reviews/mobile-art-endpoint-high-intensity-pass-02/`.
 - [ ] Normalize crops, scale, alpha, and grayscale copies.
 - [ ] Normalize remaining endpoint crop matte, lighting, and lane-scale fit.
 - [ ] Add source notes for every promoted generated asset.
