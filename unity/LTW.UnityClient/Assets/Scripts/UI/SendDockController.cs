@@ -93,8 +93,8 @@ namespace LTW.UnityClient.UI
             }
 
             var width = Mathf.Min(frame.width - 16f * scale, 430f * scale);
-            var height = 252f * scale;
-            var launcherClearance = 124f * scale;
+            var height = 282f * scale;
+            var launcherClearance = 136f * scale;
             var rect = new Rect(frame.xMax - width - 8f * scale, frame.yMax - height - MobileViewportLayout.BottomMargin(scale) - launcherClearance, width, height);
 
             DrawPanel(rect, PanelInk);
@@ -105,9 +105,9 @@ namespace LTW.UnityClient.UI
                 return;
             }
 
-            titleStyle!.fontSize = Mathf.RoundToInt(16f * scale);
+            titleStyle!.fontSize = Mathf.RoundToInt(12f * scale);
             titleStyle.normal.textColor = SignalGold;
-            GUI.Label(new Rect(rect.x + 12f * scale, rect.y + 8f * scale, rect.width - 86f * scale, 26f * scale), "SEND PRESSURE", titleStyle);
+            GUI.Label(new Rect(rect.x + 12f * scale, rect.y + 10f * scale, 120f * scale, 20f * scale), "SEND", titleStyle);
             if (GUI.Button(new Rect(rect.xMax - 72f * scale, rect.y + 8f * scale, 58f * scale, 32f * scale), "CLOSE", buttonStyle))
             {
                 isExpanded = false;
@@ -117,9 +117,9 @@ namespace LTW.UnityClient.UI
             var gold = CurrentPlayerGold();
             metaStyle!.fontSize = Mathf.RoundToInt(11f * scale);
             metaStyle.normal.textColor = MintSignal;
-            GUI.Label(new Rect(rect.x + 12f * scale, rect.y + 36f * scale, rect.width - 24f * scale, 18f * scale), $"GOLD {gold}", metaStyle);
+            GUI.Label(new Rect(rect.xMax - 132f * scale, rect.y + 12f * scale, 58f * scale, 18f * scale), $"G{gold}", metaStyle);
 
-            var buttonY = rect.y + 62f * scale;
+            var buttonY = rect.y + 84f * scale;
             var buttonHeight = 84f * scale;
             var gap = 8f * scale;
             var buttonWidth = (rect.width - 24f * scale - gap * 2f) / 3f;

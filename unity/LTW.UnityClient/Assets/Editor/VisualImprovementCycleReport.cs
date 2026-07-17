@@ -25,6 +25,9 @@ namespace LTW.UnityClient.Editor
         public int schemaVersion = 1;
         public string runId = string.Empty;
         public string packageName = string.Empty;
+        public string intensity = string.Empty;
+        public string expectedDelta = string.Empty;
+        public string actualDelta = string.Empty;
         public string phase = string.Empty;
         public int seed;
         public string generatedUtc = string.Empty;
@@ -59,7 +62,8 @@ namespace LTW.UnityClient.Editor
             VisualCapturePlan plan,
             VisualCaptureManifest manifest,
             string captureOutputRoot,
-            string packageName)
+            string packageName,
+            string intensity = "standard")
         {
             if (plan == null)
             {
@@ -79,7 +83,7 @@ namespace LTW.UnityClient.Editor
             var runDirectory = Path.Combine(captureOutputRoot, plan.RunId);
             Directory.CreateDirectory(runDirectory);
 
-            var document = CreateDocument(plan, manifest, runDirectory, packageName);
+            var document = CreateDocument(plan, manifest, runDirectory, packageName, NormalizeIntensity(intensity));
             File.WriteAllText(Path.Combine(runDirectory, "cycle-scorecard.json"), document.ToJson());
             File.WriteAllText(Path.Combine(runDirectory, "improvement-cycle-review.md"), GenerateMarkdown(document, manifest));
         }
@@ -88,7 +92,8 @@ namespace LTW.UnityClient.Editor
             VisualCapturePlan plan,
             VisualCaptureManifest manifest,
             string runDirectory,
-            string packageName)
+            string packageName,
+            string intensity)
         {
             var currentManifestName = $"{plan.PhaseName}-capture-manifest.json";
             var oppositePhaseName = plan.Phase == VisualCapturePhase.Before ? "after" : "before";
@@ -108,6 +113,9 @@ namespace LTW.UnityClient.Editor
             {
                 runId = plan.RunId,
                 packageName = string.IsNullOrWhiteSpace(packageName) ? "GD-Mobile-Regression" : packageName.Trim(),
+                intensity = intensity,
+                expectedDelta = ExpectedDeltaForIntensity(intensity),
+                actualDelta = "Pending agent visual scoring against the captured evidence.",
                 phase = plan.PhaseName,
                 seed = plan.Seed,
                 generatedUtc = DateTime.UtcNow.ToString("O"),
@@ -141,6 +149,12 @@ namespace LTW.UnityClient.Editor
             if (!document.comparisonManifestPresent)
             {
                 document.mediumFindings.Add("No opposite-phase manifest was found, so this run cannot yet compare before and after evidence.");
+            }
+
+            if (string.Equals(document.intensity, "aggressive", StringComparison.OrdinalIgnoreCase))
+            {
+                document.completedEvidence.Add("Aggressive intensity requested: this pass should favor visible runtime changes over low-risk polish.");
+                document.mediumFindings.Add("Aggressive mode accepts temporary polish debt, but the agent review must reject passes that are visually too subtle.");
             }
 
             foreach (var missing in manifest.entries.Where(entry => !entry.success))
@@ -205,6 +219,11 @@ namespace LTW.UnityClient.Editor
                 document.recommendedNextPackages.Add($"Run the opposite `{OppositePhase(document.phase)}` phase with the same run id and seed.");
             }
 
+            if (string.Equals(document.intensity, "aggressive", StringComparison.OrdinalIgnoreCase))
+            {
+                document.recommendedNextPackages.Add("GD-Mobile-UI-Board: prefer a visibly larger HUD typography/layout delta even if it creates medium polish issues.");
+            }
+
             document.recommendedNextPackages.Add("GD-Mobile-UI-Board: agent-score selected/disabled command states and continue HUD typography scale work.");
             document.recommendedNextPackages.Add("GD-Creep-Identity: agent-score Runner x10 and heavy Swarm pressure evidence, then tune silhouettes if needed.");
             document.recommendedNextPackages.Add("GD-Art-Pipeline-Hygiene: update the owning checklist with this report path after human scoring.");
@@ -233,6 +252,9 @@ namespace LTW.UnityClient.Editor
             builder.AppendLine();
             builder.AppendLine($"- Run ID: `{document.runId}`");
             builder.AppendLine($"- Package: `{document.packageName}`");
+            builder.AppendLine($"- Intensity: `{document.intensity}`");
+            builder.AppendLine($"- Expected delta: {document.expectedDelta}");
+            builder.AppendLine($"- Actual delta: {document.actualDelta}");
             builder.AppendLine($"- Phase: `{document.phase}`");
             builder.AppendLine($"- Seed: `{document.seed}`");
             builder.AppendLine($"- Current manifest: `{document.currentManifestPath}`");
@@ -374,6 +396,37 @@ namespace LTW.UnityClient.Editor
         private static string OppositePhase(string phase)
         {
             return string.Equals(phase, "before", StringComparison.OrdinalIgnoreCase) ? "after" : "before";
+        }
+
+        private static string NormalizeIntensity(string? intensity)
+        {
+            var value = intensity?.Trim().ToLowerInvariant();
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                value = "standard";
+            }
+
+            return value switch
+            {
+                "safe" => "safe",
+                "standard" => "standard",
+                "medium" => "medium",
+                "aggressive" => "aggressive",
+                "breakthrough" => "breakthrough",
+                _ => "standard"
+            };
+        }
+
+        private static string ExpectedDeltaForIntensity(string intensity)
+        {
+            return intensity switch
+            {
+                "safe" => "Small polish pass with minimal layout risk.",
+                "medium" => "Visible change in one focused subsystem with limited layout risk.",
+                "aggressive" => "Noticeable runtime visual/layout change; medium polish debt is acceptable if the pass is not subtle.",
+                "breakthrough" => "Large visual direction push that may temporarily break spacing or balance.",
+                _ => "Normal evidence-backed pass; visible changes preferred but not required."
+            };
         }
     }
 }

@@ -689,16 +689,16 @@ namespace LTW.UnityClient.UI
                 return;
             }
 
-            titleStyle!.fontSize = Mathf.RoundToInt(16f * scale);
+            titleStyle!.fontSize = Mathf.RoundToInt(12f * scale);
             titleStyle.normal.textColor = MintSignal;
-            GUI.Label(new Rect(rect.x + 12f * scale, rect.y + 8f * scale, rect.width - 86f * scale, 26f * scale), "WARD PALETTE", titleStyle);
+            GUI.Label(new Rect(rect.x + 12f * scale, rect.y + 10f * scale, 120f * scale, 20f * scale), "BUILD", titleStyle);
             if (GUI.Button(new Rect(rect.xMax - 72f * scale, rect.y + 8f * scale, 58f * scale, 32f * scale), "CLOSE", buttonStyle ?? GUI.skin.button))
             {
                 isPaletteExpanded = false;
                 return;
             }
 
-            var buttonY = rect.y + 52f * scale;
+            var buttonY = rect.y + 78f * scale;
             var buttonHeight = 84f * scale;
             var gap = 8f * scale;
             var buttonWidth = (rect.width - 24f * scale - gap * 2f) / 3f;
@@ -1053,8 +1053,8 @@ namespace LTW.UnityClient.UI
         private static Rect TowerPalettePanelRect(float scale, Rect frame)
         {
             var width = Mathf.Min(frame.width - 16f * scale, 430f * scale);
-            var height = 252f * scale;
-            var launcherClearance = 124f * scale;
+            var height = 282f * scale;
+            var launcherClearance = 136f * scale;
             return new Rect(frame.x + 8f * scale, frame.yMax - height - MobileViewportLayout.BottomMargin(scale) - launcherClearance, width, height);
         }
 

@@ -180,6 +180,13 @@ Add focused captures when relevant:
 
 Every relevant frame needs a grayscale/value copy.
 
+Optional intensity flag:
+
+- `-ltwIntensity safe`: small polish, minimal layout risk.
+- `-ltwIntensity medium`: visible focused subsystem change.
+- `-ltwIntensity aggressive`: noticeable runtime visual/layout change; medium polish debt is acceptable if the pass is not subtle.
+- `-ltwIntensity breakthrough`: large direction push that may temporarily break spacing or balance.
+
 ### 4. Score The Baseline
 
 Score each category from 0 to 3:

@@ -1124,7 +1124,7 @@ namespace LTW.UnityClient.Editor
         {
             PaintReferenceRect(texture, 140, 230, 800, 312, panel);
             PaintReferenceRect(texture, 140, 226, 800, 8, mint);
-            PaintReferenceText(texture, "WARD PALETTE", 184, 504, mint, 5);
+            PaintReferenceText(texture, "BUILD", 184, 504, mint, 4);
             PaintCard(texture, 196, 390, "ARROW", "25G", blue, "ui_icon_tower_arrow_v01", selectedArrow);
             PaintCard(texture, 390, 390, "CTRL", "35G", violet, "ui_icon_tower_control_v01");
             PaintCard(texture, 584, 390, "RELAY", "40G", gold, "ui_icon_tower_relay_v01");
@@ -1136,8 +1136,8 @@ namespace LTW.UnityClient.Editor
         {
             PaintReferenceRect(texture, 140, 220, 800, 322, panel);
             PaintReferenceRect(texture, 140, 216, 800, 8, gold);
-            PaintReferenceText(texture, "SEND PRESSURE", 184, 504, gold, 5);
-            PaintReferenceText(texture, disabled ? "GOLD 0" : "GOLD 75", 704, 504, mint, 4);
+            PaintReferenceText(texture, "SEND", 184, 504, gold, 4);
+            PaintReferenceText(texture, disabled ? "G0" : "G75", 760, 504, mint, 4);
             PaintCard(texture, 196, 390, "RUN", "10G +1", blue, "ui_icon_send_runner_v01", disabled: disabled);
             PaintCard(texture, 390, 390, "BRUTE", "18G +2", violet, "ui_icon_send_brute_v01", disabled: disabled);
             PaintCard(texture, 584, 390, "SWARM", "18G +3", gold, "ui_icon_send_swarm_v01", disabled: disabled);
@@ -1498,7 +1498,7 @@ namespace LTW.UnityClient.Editor
 
             AddOverlayRect(root, layer, "BuildPanel", new Vector2(0f, -7.2f), new Vector2(4.85f, 1.95f), panel);
             AddOverlayRect(root, layer, "BuildPanelAccent", new Vector2(0f, -8.14f), new Vector2(4.85f, 0.05f), mint);
-            AddOverlayText(root, layer, "WARD PALETTE", new Vector2(-1.45f, -6.36f), mint, 0.2f);
+            AddOverlayText(root, layer, "BUILD", new Vector2(-1.72f, -6.36f), mint, 0.17f);
             DrawOverlayCard(root, layer, new Vector2(-1.58f, -6.98f), "ARROW", "25G", blue);
             DrawOverlayCard(root, layer, new Vector2(0f, -6.98f), "CTRL", "35G", violet);
             DrawOverlayCard(root, layer, new Vector2(1.58f, -6.98f), "RELAY", "40G", gold);
@@ -1517,8 +1517,8 @@ namespace LTW.UnityClient.Editor
 
             AddOverlayRect(root, layer, "SendPanel", new Vector2(0f, -7.2f), new Vector2(4.85f, 2.04f), panel);
             AddOverlayRect(root, layer, "SendPanelAccent", new Vector2(0f, -8.18f), new Vector2(4.85f, 0.05f), gold);
-            AddOverlayText(root, layer, "SEND PRESSURE", new Vector2(-1.35f, -6.32f), gold, 0.2f);
-            AddOverlayText(root, layer, "GOLD 75", new Vector2(1.45f, -6.32f), mint, 0.16f);
+            AddOverlayText(root, layer, "SEND", new Vector2(-1.72f, -6.32f), gold, 0.17f);
+            AddOverlayText(root, layer, "G75", new Vector2(1.58f, -6.32f), mint, 0.15f);
             DrawOverlayCard(root, layer, new Vector2(-1.58f, -6.96f), "RUN", "10G +1", blue);
             DrawOverlayCard(root, layer, new Vector2(0f, -6.96f), "BRUTE", "18G +2", violet);
             DrawOverlayCard(root, layer, new Vector2(1.58f, -6.96f), "SWARM", "18G +3", gold);
@@ -1813,7 +1813,8 @@ namespace LTW.UnityClient.Editor
                 capturePlan,
                 captureManifest,
                 captureOutputRoot,
-                ReadArgumentValue("-ltwCapturePackage") ?? "GD-Mobile-Regression");
+                ReadArgumentValue("-ltwCapturePackage") ?? "GD-Mobile-Regression",
+                ReadArgumentValue("-ltwIntensity") ?? "standard");
         }
 
         private static bool ShouldExitAfterRun() => HasArgument("-ltwExitAfterCapture");
