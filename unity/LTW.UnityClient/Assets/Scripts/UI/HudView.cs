@@ -300,6 +300,14 @@ namespace LTW.UnityClient.UI
 
         private static void DrawHudFrame(Rect rect, Color accent, float scale)
         {
+            if (RuntimeUiArtLibrary.DrawChromeTexture(rect, "ui_hud_chrome_option_06", new Color(1f, 1f, 1f, 0.92f)))
+            {
+                Fill(new Rect(rect.x + 10f * scale, rect.yMax - 5f * scale, rect.width - 20f * scale, 4f * scale), accent);
+                Fill(new Rect(rect.x + 6f * scale, rect.y + 10f * scale, 4f * scale, rect.height - 20f * scale), new Color(accent.r, accent.g, accent.b, 0.42f));
+                Fill(new Rect(rect.xMax - 10f * scale, rect.y + 10f * scale, 4f * scale, rect.height - 20f * scale), new Color(SignalGold.r, SignalGold.g, SignalGold.b, 0.42f));
+                return;
+            }
+
             Fill(rect, DeepInk);
             Fill(new Rect(rect.x + 4f * scale, rect.y + 4f * scale, rect.width - 8f * scale, rect.height - 8f * scale), NightInk);
             Fill(new Rect(rect.x + 10f * scale, rect.y + 3f * scale, rect.width - 20f * scale, 2f * scale), SlateEdge);

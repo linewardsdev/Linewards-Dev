@@ -70,6 +70,26 @@ namespace LTW.UnityClient.UI
         private static void DrawCommandCardChrome(Rect rect, Color accent, CommandCardState state, float scale)
         {
             var stateAccent = StateAccent(accent, state);
+            if (RuntimeUiArtLibrary.DrawChromeTexture(rect, CommandCardTextureName(state), state == CommandCardState.Disabled ? new Color(0.78f, 0.82f, 0.9f, 0.72f) : Color.white))
+            {
+                var referenceIconRect = CommandCardIconRect(rect, scale);
+                var referenceIconWell = Shrink(referenceIconRect, -4f * scale);
+                Fill(referenceIconWell, new Color(0.006f, 0.01f, 0.016f, 0.42f));
+
+                if (state == CommandCardState.Selected)
+                {
+                    DrawOutline(Shrink(rect, 2f * scale), new Color(stateAccent.r, stateAccent.g, stateAccent.b, 0.78f), Mathf.Max(2f, 2f * scale));
+                }
+                else if (state == CommandCardState.Disabled)
+                {
+                    Fill(Shrink(rect, 5f * scale), new Color(0f, 0f, 0f, 0.32f));
+                }
+
+                var referenceCostStrip = new Rect(rect.x + rect.width * 0.2f, rect.yMax - 9f * scale, rect.width * 0.6f, 3f * scale);
+                Fill(referenceCostStrip, new Color(stateAccent.r, stateAccent.g, stateAccent.b, state == CommandCardState.Disabled ? 0.34f : 0.78f));
+                return;
+            }
+
             var edge = state == CommandCardState.Disabled ? DisabledEdge : SlateEdge;
             var fill = state == CommandCardState.Disabled
                 ? new Color(0.07f, 0.078f, 0.094f, 0.9f)
@@ -134,6 +154,16 @@ namespace LTW.UnityClient.UI
 
         private static void DrawControlChrome(Rect rect, Color accent, bool active, float scale)
         {
+            if (RuntimeUiArtLibrary.DrawChromeTexture(rect, "ui_control_button_option_01", active ? Color.white : new Color(0.78f, 0.86f, 1f, 0.84f), ScaleMode.ScaleToFit))
+            {
+                if (active)
+                {
+                    DrawOutline(Shrink(rect, 4f * scale), new Color(accent.r, accent.g, accent.b, 0.82f), Mathf.Max(2f, 2f * scale));
+                }
+
+                return;
+            }
+
             var outer = active ? accent : SlateEdge;
             var face = active ? new Color(accent.r, accent.g, accent.b, 0.86f) : Tint(CardBack, accent, 0.12f);
             var inner = active ? new Color(0.86f, 0.97f, 1f, 0.58f) : new Color(accent.r, accent.g, accent.b, 0.36f);
@@ -180,6 +210,17 @@ namespace LTW.UnityClient.UI
                 CommandCardState.Disabled => new Color(0.42f, 0.45f, 0.5f, 0.88f),
                 CommandCardState.Error => ErrorRed,
                 _ => accent
+            };
+        }
+
+        private static string CommandCardTextureName(CommandCardState state)
+        {
+            return state switch
+            {
+                CommandCardState.Selected => "ui_command_card_selected_option_04",
+                CommandCardState.Disabled => "ui_command_card_disabled_option_04",
+                CommandCardState.Error => "ui_command_card_error_option_04",
+                _ => "ui_command_card_normal_option_04"
             };
         }
 

@@ -92,6 +92,9 @@ Source of truth: `docs/art-pipeline/ui-board-art-pipeline.md`
   - [x] 2026-07-17: Generated purpose-built spawn and life-loss endpoint sprites from the selected option-11 direction, removed chroma backgrounds to alpha, normalized runtime canvases, wired `board_spawn_gate_v02` and `board_leak_gate_v02`, and captured evidence under `docs/screenshot-reviews/mobile-art-endpoint-v02-generation-pass/`.
 - [x] Generate v03 lower-profile endpoint replacement sprites.
   - [x] 2026-07-17: Generated lower-profile spawn and life-loss endpoint sprites, removed chroma backgrounds to alpha, normalized runtime canvases, wired `board_spawn_gate_v03` and `board_leak_gate_v03`, tuned sprite scale, and captured evidence under `docs/screenshot-reviews/mobile-art-endpoint-v03-scale-fit-pass/`.
+- [x] Promote selected UI and board references into runtime art slices.
+  - [x] 2026-07-17: Cropped command card option 4, controls option 1, HUD chrome option 6, and board material option 11 into `Assets/Resources/Art/UI/Chrome/` and `Assets/Resources/Art/Board/Materials/`.
+  - [x] 2026-07-17: Added `RuntimeUiArtLibrary`, wired command cards/control buttons/HUD chrome to draw selected-reference textures with procedural fallbacks, added board material texture overlays in `UnityVerticalSliceRenderer`, and captured evidence under `docs/screenshot-reviews/mobile-art-ui-board-reference-promotion-pass/`.
 - [ ] Normalize crops, scale, alpha, and grayscale copies.
 - [ ] Normalize remaining endpoint crop matte, lighting, and lane-scale fit.
 - [ ] Add source notes for every promoted generated asset.

@@ -26,6 +26,9 @@ namespace LTW.UnityClient.Simulation
         private const string DefaultCreepVisualLibraryResourcePath = "CreepVisualLibrary";
         private const string SpawnGateSpriteResourcePath = "Art/Board/Endpoints/board_spawn_gate_v03";
         private const string LeakGateSpriteResourcePath = "Art/Board/Endpoints/board_leak_gate_v03";
+        private const string BoardDeepFieldTextureResourcePath = "Art/Board/Materials/board_deep_field_option_11";
+        private const string BoardBuildBandTextureResourcePath = "Art/Board/Materials/board_build_band_option_11";
+        private const string BoardRouteCoreTextureResourcePath = "Art/Board/Materials/board_route_core_option_11";
 
         [SerializeField] private UnitySimulationDriver simulationDriver = null!;
         [SerializeField] private PresentationDetail presentationDetail = PresentationDetail.Full;
@@ -70,6 +73,9 @@ namespace LTW.UnityClient.Simulation
         private Camera presentationCamera = null!;
         private Sprite spawnGateSprite;
         private Sprite leakGateSprite;
+        private Texture2D boardDeepFieldTexture;
+        private Texture2D boardBuildBandTexture;
+        private Texture2D boardRouteCoreTexture;
         private bool laneCreated;
 
         public PresentationDetail Detail => presentationDetail;
@@ -109,6 +115,9 @@ namespace LTW.UnityClient.Simulation
 
             spawnGateSprite = Resources.Load<Sprite>(SpawnGateSpriteResourcePath);
             leakGateSprite = Resources.Load<Sprite>(LeakGateSpriteResourcePath);
+            boardDeepFieldTexture = Resources.Load<Texture2D>(BoardDeepFieldTextureResourcePath);
+            boardBuildBandTexture = Resources.Load<Texture2D>(BoardBuildBandTextureResourcePath);
+            boardRouteCoreTexture = Resources.Load<Texture2D>(BoardRouteCoreTextureResourcePath);
 
             feedbackAudioSource = gameObject.AddComponent<AudioSource>();
             feedbackAudioSource.playOnAwake = false;
@@ -252,6 +261,7 @@ namespace LTW.UnityClient.Simulation
                     }
                 }
 
+                CreateLaneReferenceMaterialOverlays(lane);
                 CreateLaneTileDetailPass(lane);
                 if (!EndpointSpritesAvailable)
                 {
@@ -1593,6 +1603,51 @@ namespace LTW.UnityClient.Simulation
             }
         }
 
+        private void CreateLaneReferenceMaterialOverlays(int laneId)
+        {
+            var offset = LaneOffset(laneId);
+            const float plateY = -0.178f;
+            if (boardDeepFieldTexture != null)
+            {
+                CreateReferenceBoardPlate($"Lane{laneId}LeftReferenceField", boardDeepFieldTexture, new Vector3(offset + 1.02f, plateY, BoardCenterZ), new Vector2(1.84f, LaneLength - 2.2f), 0.62f);
+                CreateReferenceBoardPlate($"Lane{laneId}RightReferenceField", boardDeepFieldTexture, new Vector3(offset + 4.98f, plateY, BoardCenterZ), new Vector2(1.84f, LaneLength - 2.2f), 0.62f);
+            }
+
+            if (boardBuildBandTexture != null)
+            {
+                CreateReferenceBoardPlate($"Lane{laneId}LeftReferenceBuildBand", boardBuildBandTexture, new Vector3(offset + 1f, plateY + 0.006f, BoardCenterZ), new Vector2(1.64f, LaneLength - 2.45f), 0.68f);
+                CreateReferenceBoardPlate($"Lane{laneId}RightReferenceBuildBand", boardBuildBandTexture, new Vector3(offset + 5f, plateY + 0.006f, BoardCenterZ), new Vector2(1.64f, LaneLength - 2.45f), 0.68f);
+            }
+
+            if (boardRouteCoreTexture != null)
+            {
+                CreateReferenceBoardPlate($"Lane{laneId}ReferenceRouteCore", boardRouteCoreTexture, new Vector3(offset + CenterColumn, plateY + 0.012f, BoardCenterZ), new Vector2(1.22f, LaneLength - 1.8f), 0.72f);
+            }
+        }
+
+        private void CreateReferenceBoardPlate(string name, Texture2D texture, Vector3 center, Vector2 size, float alpha)
+        {
+            var plate = CreatePrimitive(name, PrimitiveType.Quad);
+            plate.transform.position = center;
+            plate.transform.rotation = Quaternion.Euler(90f, 0f, 0f);
+            plate.transform.localScale = new Vector3(size.x, size.y, 1f);
+
+            var collider = plate.GetComponent("Collider");
+            if (collider != null)
+            {
+                Destroy(collider);
+            }
+
+            var shader = Shader.Find("Unlit/Transparent") ?? Shader.Find("Unlit/Texture") ?? Shader.Find("Standard");
+            var material = new Material(shader)
+            {
+                mainTexture = texture,
+                color = new Color(1f, 1f, 1f, alpha)
+            };
+            plate.GetComponent<Renderer>().material = material;
+            laneDecorations.Add(plate);
+        }
+
         private void CreateBoardPlateInset(int laneId, string name, Vector3 center, bool isPlayerLane, float width = 1.25f, float depth = 0.64f)
         {
             var inset = CreateSurfaceBand($"Lane{laneId}{name}Field", center + Vector3.down * 0.004f, new Vector3(width, 0.012f, depth), BoardPlateInsetColor(laneId));
@@ -1701,7 +1756,7 @@ namespace LTW.UnityClient.Simulation
             }
 
             var plate = new GameObject($"Lane{laneId}{label}ReferenceSpritePlate");
-            plate.transform.position = center + new Vector3(0f, 0.18f, isSpawn ? 0.02f : 0.58f);
+            plate.transform.position = center + new Vector3(0f, 0.18f, isSpawn ? 0.02f : -0.1f);
             plate.transform.rotation = Quaternion.Euler(90f, 0f, 0f);
             var scale = isPlayerLane
                 ? (isSpawn ? 0.54f : 0.5f)
