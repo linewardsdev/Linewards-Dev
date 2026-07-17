@@ -24,8 +24,8 @@ namespace LTW.UnityClient.Simulation
         private const string PrimitiveCreepPoolKey = "primitive-creep";
         private const string DefaultTowerVisualLibraryResourcePath = "TowerVisualLibrary";
         private const string DefaultCreepVisualLibraryResourcePath = "CreepVisualLibrary";
-        private const string SpawnGateSpriteResourcePath = "Art/Board/Endpoints/board_spawn_gate_option_11_v01";
-        private const string LeakGateSpriteResourcePath = "Art/Board/Endpoints/board_leak_gate_option_11_v01";
+        private const string SpawnGateSpriteResourcePath = "Art/Board/Endpoints/board_spawn_gate_v02";
+        private const string LeakGateSpriteResourcePath = "Art/Board/Endpoints/board_leak_gate_v02";
 
         [SerializeField] private UnitySimulationDriver simulationDriver = null!;
         [SerializeField] private PresentationDetail presentationDetail = PresentationDetail.Full;
@@ -1704,8 +1704,8 @@ namespace LTW.UnityClient.Simulation
             plate.transform.position = center + new Vector3(0f, 0.18f, isSpawn ? 0.02f : 0.58f);
             plate.transform.rotation = Quaternion.Euler(90f, 0f, 0f);
             var scale = isPlayerLane
-                ? (isSpawn ? 0.82f : 0.78f)
-                : (isSpawn ? 0.7f : 0.66f);
+                ? (isSpawn ? 0.62f : 0.58f)
+                : (isSpawn ? 0.52f : 0.48f);
             plate.transform.localScale = new Vector3(scale, scale, 1f);
 
             var renderer = plate.AddComponent<SpriteRenderer>();

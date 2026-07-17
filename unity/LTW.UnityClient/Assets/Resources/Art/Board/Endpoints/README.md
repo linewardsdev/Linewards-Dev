@@ -13,3 +13,9 @@ The current files are cropped from the selected option-11 reference so the runti
 - Runtime endpoint sprites now replace the fallback endpoint box discs when both sprites load.
 - The leak sprite has a targeted lower matte cleanup to reduce source-floor residue.
 - Final crop, lighting, and board-material blending are still expected in a later endpoint art pass.
+
+2026-07-17 v02 generation pass:
+
+- Runtime resources were advanced to `Art/Board/Endpoints/board_spawn_gate_v02` and `Art/Board/Endpoints/board_leak_gate_v02`.
+- v02 sprites are purpose-built generated endpoint assets, not contact-sheet crops.
+- Both were generated against the selected option-11 direction, chroma-keyed to alpha, cropped, and normalized to compact runtime canvases.
