@@ -162,7 +162,7 @@ namespace LTW.UnityClient.Editor
             document.completedEvidence.Add("Grayscale copies generated for value/readability review.");
             document.completedEvidence.Add("Machine-readable manifest generated for the current phase.");
 
-            document.lowFindings.Add("Machine scores only measure evidence coverage. A human reviewer still needs to assign visual quality scores.");
+            document.lowFindings.Add("Machine scores only measure evidence coverage. The working graphics or implementation agent must assign visual quality scores before handoff.");
             document.lowFindings.Add("Batch HUD overlays are deterministic approximations of runtime UI; live Game View checks remain useful before final lock.");
         }
 
@@ -221,7 +221,7 @@ namespace LTW.UnityClient.Editor
             }
 
             return document.comparisonManifestPresent
-                ? "Ready for human visual scoring"
+                ? "Ready for agent visual scoring"
                 : "Capture pass complete; before/after comparison pending";
         }
 
@@ -264,7 +264,7 @@ namespace LTW.UnityClient.Editor
             builder.AppendLine();
             builder.AppendLine("## Scorecard");
             builder.AppendLine();
-            builder.AppendLine("Machine coverage scores are not final art scores. Reviewer score must be filled during visual review.");
+            builder.AppendLine("Machine coverage scores are not final art scores. Agent reviewer score must be filled before handoff.");
             builder.AppendLine();
             builder.AppendLine("| Category | Machine Coverage | Reviewer Score | Evidence | Notes |");
             builder.AppendLine("| --- | ---: | ---: | --- | --- |");

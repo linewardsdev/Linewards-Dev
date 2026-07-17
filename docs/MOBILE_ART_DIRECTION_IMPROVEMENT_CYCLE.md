@@ -264,6 +264,8 @@ The managed improvement-cycle runner writes this compatible structure plus:
 
 ### 7. Compare And Decide
 
+The working graphics or implementation agent must complete scoring before handoff. Do not return a blank reviewer-score table to the user.
+
 The review must record:
 
 - Before and after score table.
