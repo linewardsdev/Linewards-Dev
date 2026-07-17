@@ -19,3 +19,9 @@ The current files are cropped from the selected option-11 reference so the runti
 - Runtime resources were advanced to `Art/Board/Endpoints/board_spawn_gate_v02` and `Art/Board/Endpoints/board_leak_gate_v02`.
 - v02 sprites are purpose-built generated endpoint assets, not contact-sheet crops.
 - Both were generated against the selected option-11 direction, chroma-keyed to alpha, cropped, and normalized to compact runtime canvases.
+
+2026-07-17 v03 lane-integration pass:
+
+- Runtime resources were advanced to `Art/Board/Endpoints/board_spawn_gate_v03` and `Art/Board/Endpoints/board_leak_gate_v03`.
+- v03 keeps the selected option-11 direction but lowers the silhouette profile so endpoint plates read as board-integrated landmarks instead of oversized props.
+- The spawn plate emphasizes mint route flow and side crystals; the life-loss plate emphasizes a red barred drain with a stronger downward danger cue.

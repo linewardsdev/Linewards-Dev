@@ -90,6 +90,8 @@ Source of truth: `docs/art-pipeline/ui-board-art-pipeline.md`
   - [x] 2026-07-17: Removed fallback endpoint box discs when reference sprites load, tightened spawn/leak sprite scale, shifted the leak sprite inward, cleaned lower leak matte residue, and captured 60 color plus 60 grayscale frames under `docs/screenshot-reviews/mobile-art-endpoint-high-intensity-pass-02/`.
 - [x] Generate v02 endpoint replacement sprites.
   - [x] 2026-07-17: Generated purpose-built spawn and life-loss endpoint sprites from the selected option-11 direction, removed chroma backgrounds to alpha, normalized runtime canvases, wired `board_spawn_gate_v02` and `board_leak_gate_v02`, and captured evidence under `docs/screenshot-reviews/mobile-art-endpoint-v02-generation-pass/`.
+- [x] Generate v03 lower-profile endpoint replacement sprites.
+  - [x] 2026-07-17: Generated lower-profile spawn and life-loss endpoint sprites, removed chroma backgrounds to alpha, normalized runtime canvases, wired `board_spawn_gate_v03` and `board_leak_gate_v03`, tuned sprite scale, and captured evidence under `docs/screenshot-reviews/mobile-art-endpoint-v03-scale-fit-pass/`.
 - [ ] Normalize crops, scale, alpha, and grayscale copies.
 - [ ] Normalize remaining endpoint crop matte, lighting, and lane-scale fit.
 - [ ] Add source notes for every promoted generated asset.
