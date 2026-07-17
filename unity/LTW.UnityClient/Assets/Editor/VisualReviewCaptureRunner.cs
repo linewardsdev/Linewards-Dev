@@ -278,13 +278,29 @@ namespace LTW.UnityClient.Editor
                     ScheduleCaptureThenAdvance("build-menu-open");
                     break;
 
+                case CaptureState.BuildCardSelected:
+                    SetPrivateBool(placement, "isPaletteExpanded", true);
+                    SetPrivateField(placement, "highlightedTowerRole", 0);
+                    ScheduleCaptureThenAdvance("build-card-selected");
+                    break;
+
                 case CaptureState.OpenSendMenu:
                     SetPrivateBool(placement, "isPaletteExpanded", false);
+                    SetPrivateField(sendDock, "reviewGoldOverride", -1);
                     SetPrivateBool(sendDock, "isExpanded", true);
                     ScheduleCaptureThenAdvance("send-menu-open");
                     break;
 
+                case CaptureState.SendCardDisabled:
+                    SetPrivateBool(placement, "isPaletteExpanded", false);
+                    SetPrivateBool(sendDock, "isExpanded", true);
+                    SetPrivateField(sendDock, "highlightedCreepRole", -1);
+                    SetPrivateField(sendDock, "reviewGoldOverride", 0);
+                    ScheduleCaptureThenAdvance("send-card-disabled");
+                    break;
+
                 case CaptureState.OpenLaneSelector:
+                    SetPrivateField(sendDock, "reviewGoldOverride", -1);
                     SetPrivateBool(sendDock, "isExpanded", false);
                     laneToggle.ToggleView();
                     ScheduleCaptureThenAdvance("lane-selector-open");
@@ -294,6 +310,22 @@ namespace LTW.UnityClient.Editor
                     laneToggle.ShowLaneView();
                     StartCombat(driver, commands);
                     ScheduleCaptureThenAdvance("active-combat");
+                    break;
+
+                case CaptureState.RunnerPressure:
+                    ResetChecklistScenario(commands, placement, sendDock, laneToggle, activeLaneId: 1);
+                    driver.StartMatch();
+                    GrantPlaytestGold(commands, 3, 5000);
+                    LogCommandResult("canonical runner x10", QueueVisibleLineupCreep(commands, SampleVerticalSliceContent.CreepId, 10));
+                    ScheduleCaptureThenAdvance("runner-10-pressure", 4.5d);
+                    break;
+
+                case CaptureState.SwarmPressure:
+                    ResetChecklistScenario(commands, placement, sendDock, laneToggle, activeLaneId: 1);
+                    driver.StartMatch();
+                    GrantPlaytestGold(commands, 3, 5000);
+                    LogCommandResult("canonical swarm heavy", QueueVisibleLineupCreep(commands, SampleVerticalSliceContent.SwarmCreepId, 24));
+                    ScheduleCaptureThenAdvance("swarm-heavy-pressure", 4.5d);
                     break;
 
                 case CaptureState.HeavyPressure:
@@ -343,6 +375,7 @@ namespace LTW.UnityClient.Editor
                 case CaptureState.OpenBuildMenu:
                     PresentationPreferences.ReducedEffects = true;
                     ScheduleCaptureThenAdvance("role-lineup-reduced-effects", 0.75d);
+                    state = CaptureState.Done;
                     break;
 
                 case CaptureState.OpenSendMenu:
@@ -378,6 +411,7 @@ namespace LTW.UnityClient.Editor
                     GrantPlaytestGold(commands, 3, 5000);
                     LogCommandResult("checklist swarm x24", QueueVisibleLineupCreep(commands, SampleVerticalSliceContent.SwarmCreepId, 24));
                     ScheduleCaptureThenAdvance("swarm-heavy-pressure", 4.5d);
+                    state = CaptureState.OpenSendMenu;
                     break;
 
                 case CaptureState.OpenSendMenu:
@@ -386,6 +420,7 @@ namespace LTW.UnityClient.Editor
                     GrantPlaytestGold(commands, 3, 5000);
                     LogCommandResult("checklist shade x6", QueueVisibleLineupCreep(commands, SampleVerticalSliceContent.ShadeCreepId, 6));
                     ScheduleCaptureThenAdvance("shade-readability", 4.5d);
+                    state = CaptureState.OpenLaneSelector;
                     break;
 
                 case CaptureState.OpenLaneSelector:
@@ -393,6 +428,7 @@ namespace LTW.UnityClient.Editor
                     driver.StartMatch();
                     LogCommandResult("checklist damaged transfer", commands.CreateDamagedTransferReviewCreep());
                     ScheduleCaptureThenAdvance("damaged-transfer-health", 0.2d);
+                    state = CaptureState.ActiveCombat;
                     break;
 
                 case CaptureState.ActiveCombat:
@@ -400,6 +436,7 @@ namespace LTW.UnityClient.Editor
                     PresentationPreferences.ReducedEffects = true;
                     StartCombat(driver, commands);
                     ScheduleCaptureThenAdvance("reduced-effects-critical-cues", 3d);
+                    state = CaptureState.HeavyPressure;
                     break;
 
                 case CaptureState.HeavyPressure:
@@ -434,6 +471,7 @@ namespace LTW.UnityClient.Editor
                 case CaptureState.OpenBuildMenu:
                     PresentationPreferences.ReducedEffects = true;
                     ScheduleCaptureThenAdvance("ai-v04-active-lane-reduced-effects", 1.25d);
+                    state = CaptureState.Done;
                     break;
 
                 case CaptureState.OpenSendMenu:
@@ -457,6 +495,7 @@ namespace LTW.UnityClient.Editor
             PresentationPreferences.ReducedEffects = false;
             SetPrivateBool(placement, "isPaletteExpanded", false);
             SetPrivateBool(sendDock, "isExpanded", false);
+            SetPrivateField(sendDock, "reviewGoldOverride", -1);
             laneToggle.ShowLaneView();
             var renderer = UnityEngine.Object.FindAnyObjectByType<UnityVerticalSliceRenderer>();
             renderer?.SetActiveLaneCameraId(activeLaneId);
@@ -1063,8 +1102,14 @@ namespace LTW.UnityClient.Editor
                 case "build-menu-open":
                     PaintBuildMenuOverlay(texture, panel, blue, mint, gold, violet, cloud);
                     break;
+                case "build-card-selected":
+                    PaintBuildMenuOverlay(texture, panel, blue, mint, gold, violet, cloud, selectedArrow: true);
+                    break;
                 case "send-menu-open":
                     PaintSendMenuOverlay(texture, panel, blue, mint, gold, violet, red);
+                    break;
+                case "send-card-disabled":
+                    PaintSendMenuOverlay(texture, panel, blue, mint, gold, violet, red, disabled: true);
                     break;
                 case "lane-selector-open":
                     PaintLaneSelectorOverlay(texture, panelStrong, blue, cloud);
@@ -1075,29 +1120,29 @@ namespace LTW.UnityClient.Editor
             }
         }
 
-        private static void PaintBuildMenuOverlay(Texture2D texture, Color32 panel, Color32 blue, Color32 mint, Color32 gold, Color32 violet, Color32 cloud)
+        private static void PaintBuildMenuOverlay(Texture2D texture, Color32 panel, Color32 blue, Color32 mint, Color32 gold, Color32 violet, Color32 cloud, bool selectedArrow = false)
         {
             PaintReferenceRect(texture, 140, 230, 800, 312, panel);
             PaintReferenceRect(texture, 140, 226, 800, 8, mint);
             PaintReferenceText(texture, "WARD PALETTE", 184, 504, mint, 5);
-            PaintCard(texture, 196, 390, "ARROW", "25G", blue, "ui_icon_tower_arrow_v01");
+            PaintCard(texture, 196, 390, "ARROW", "25G", blue, "ui_icon_tower_arrow_v01", selectedArrow);
             PaintCard(texture, 390, 390, "CTRL", "35G", violet, "ui_icon_tower_control_v01");
             PaintCard(texture, 584, 390, "RELAY", "40G", gold, "ui_icon_tower_relay_v01");
             PaintCard(texture, 292, 276, "PULSE", "45G", mint, "ui_icon_tower_pulse_v01");
             PaintCard(texture, 486, 276, "PRISM", "60G", cloud, "ui_icon_tower_prism_v01");
         }
 
-        private static void PaintSendMenuOverlay(Texture2D texture, Color32 panel, Color32 blue, Color32 mint, Color32 gold, Color32 violet, Color32 red)
+        private static void PaintSendMenuOverlay(Texture2D texture, Color32 panel, Color32 blue, Color32 mint, Color32 gold, Color32 violet, Color32 red, bool disabled = false)
         {
             PaintReferenceRect(texture, 140, 220, 800, 322, panel);
             PaintReferenceRect(texture, 140, 216, 800, 8, gold);
             PaintReferenceText(texture, "SEND PRESSURE", 184, 504, gold, 5);
-            PaintReferenceText(texture, "GOLD 75", 704, 504, mint, 4);
-            PaintCard(texture, 196, 390, "RUN", "10G +1", blue, "ui_icon_send_runner_v01");
-            PaintCard(texture, 390, 390, "BRUTE", "18G +2", violet, "ui_icon_send_brute_v01");
-            PaintCard(texture, 584, 390, "SWARM", "18G +3", gold, "ui_icon_send_swarm_v01");
-            PaintCard(texture, 292, 276, "SHADE", "24G +3", mint, "ui_icon_send_shade_v01");
-            PaintCard(texture, 486, 276, "SIEGE", "40G +4", red, "ui_icon_send_siege_v01");
+            PaintReferenceText(texture, disabled ? "GOLD 0" : "GOLD 75", 704, 504, mint, 4);
+            PaintCard(texture, 196, 390, "RUN", "10G +1", blue, "ui_icon_send_runner_v01", disabled: disabled);
+            PaintCard(texture, 390, 390, "BRUTE", "18G +2", violet, "ui_icon_send_brute_v01", disabled: disabled);
+            PaintCard(texture, 584, 390, "SWARM", "18G +3", gold, "ui_icon_send_swarm_v01", disabled: disabled);
+            PaintCard(texture, 292, 276, "SHADE", "24G +3", mint, "ui_icon_send_shade_v01", disabled: disabled);
+            PaintCard(texture, 486, 276, "SIEGE", "40G +4", red, "ui_icon_send_siege_v01", disabled: disabled);
         }
 
         private static void PaintLaneSelectorOverlay(Texture2D texture, Color32 panel, Color32 blue, Color32 cloud)
@@ -1118,30 +1163,49 @@ namespace LTW.UnityClient.Editor
             PaintReferenceText(texture, "RESTART", 432, 885, gold, 4);
         }
 
-        private static void PaintCard(Texture2D texture, int x, int y, string title, string meta, Color32 accent, string iconName)
+        private static void PaintCard(Texture2D texture, int x, int y, string title, string meta, Color32 accent, string iconName, bool selected = false, bool disabled = false)
         {
             const int width = 176;
             const int height = 98;
+            var displayAccent = disabled ? new Color32(106, 114, 128, 225) : accent;
             var panel = new Color32(
-                (byte)Mathf.Clamp(18 + accent.r / 14, 0, 255),
-                (byte)Mathf.Clamp(23 + accent.g / 14, 0, 255),
-                (byte)Mathf.Clamp(34 + accent.b / 14, 0, 255),
-                242);
-            var edge = new Color32(78, 83, 88, 236);
+                (byte)Mathf.Clamp(18 + displayAccent.r / 14, 0, 255),
+                (byte)Mathf.Clamp(23 + displayAccent.g / 14, 0, 255),
+                (byte)Mathf.Clamp(34 + displayAccent.b / 14, 0, 255),
+                disabled ? (byte)220 : (byte)242);
+            var edge = disabled ? new Color32(58, 62, 70, 220) : new Color32(78, 83, 88, 236);
+            var labelColor = disabled ? new Color32(140, 150, 168, 255) : new Color32(244, 247, 255, 255);
             PaintReferenceRect(texture, x, y, width, height, new Color32(5, 7, 11, 232));
             PaintReferenceRect(texture, x + 3, y + 3, width - 6, height - 6, edge);
             PaintReferenceRect(texture, x + 6, y + 6, width - 12, height - 12, panel);
             PaintReferenceRect(texture, x + 12, y + height - 10, width - 24, 3, edge);
             PaintReferenceRect(texture, x + 12, y + 7, width - 24, 3, edge);
-            PaintReferenceRect(texture, x + 7, y + height - 17, 3, 10, accent);
-            PaintReferenceRect(texture, x + width - 10, y + height - 17, 3, 10, accent);
-            PaintReferenceRect(texture, x + 7, y + 7, 12, 3, accent);
-            PaintReferenceRect(texture, x + width - 19, y + 7, 12, 3, accent);
-            PaintReferenceRect(texture, x + 20, y + 5, width - 40, 5, accent);
+            PaintReferenceRect(texture, x + 7, y + height - 17, 3, 10, displayAccent);
+            PaintReferenceRect(texture, x + width - 10, y + height - 17, 3, 10, displayAccent);
+            PaintReferenceRect(texture, x + 7, y + 7, 12, 3, displayAccent);
+            PaintReferenceRect(texture, x + width - 19, y + 7, 12, 3, displayAccent);
+            PaintReferenceRect(texture, x + 20, y + 5, width - 40, 5, displayAccent);
             PaintReferenceRect(texture, x + 59, y + 40, 58, 44, new Color32(6, 10, 16, 214));
             PaintReferenceIcon(texture, iconName, x + 62, y + 44, 52);
-            PaintReferenceText(texture, title, x + 34, y + 33, new Color32(244, 247, 255, 255), 4);
-            PaintReferenceText(texture, meta, x + 42, y + 15, accent, 3);
+            if (disabled)
+            {
+                PaintReferenceRect(texture, x + 59, y + 40, 58, 44, new Color32(30, 34, 42, 126));
+            }
+
+            if (selected)
+            {
+                PaintReferenceRect(texture, x + 3, y + height - 7, width - 6, 4, displayAccent);
+                PaintReferenceRect(texture, x + 3, y + 3, width - 6, 4, displayAccent);
+                PaintReferenceRect(texture, x + 3, y + 3, 4, height - 6, displayAccent);
+                PaintReferenceRect(texture, x + width - 7, y + 3, 4, height - 6, displayAccent);
+                PaintReferenceRect(texture, x + 31, y + height - 17, width - 62, 6, displayAccent);
+                PaintReferenceRect(texture, x + 11, y + 43, 6, 24, displayAccent);
+                PaintReferenceRect(texture, x + width - 17, y + 43, 6, 24, displayAccent);
+                PaintReferenceRect(texture, x + 66, y + 47, 44, 30, new Color32(displayAccent.r, displayAccent.g, displayAccent.b, 72));
+            }
+
+            PaintReferenceText(texture, title, x + 34, y + 33, labelColor, 4);
+            PaintReferenceText(texture, meta, x + 42, y + 15, displayAccent, 3);
         }
 
         private static void PaintControlButton(Texture2D texture, int x, int y, int size, string label, Color32 accent, bool active)
@@ -1369,7 +1433,13 @@ namespace LTW.UnityClient.Editor
                     case "build-menu-open":
                         DrawBuildMenuOverlay(root, overlayLayer);
                         break;
+                    case "build-card-selected":
+                        DrawBuildMenuOverlay(root, overlayLayer);
+                        break;
                     case "send-menu-open":
+                        DrawSendMenuOverlay(root, overlayLayer);
+                        break;
+                    case "send-card-disabled":
                         DrawSendMenuOverlay(root, overlayLayer);
                         break;
                     case "lane-selector-open":
@@ -1812,9 +1882,13 @@ namespace LTW.UnityClient.Editor
         {
             WaitForPlayMode,
             OpenBuildMenu,
+            BuildCardSelected,
             OpenSendMenu,
+            SendCardDisabled,
             OpenLaneSelector,
             ActiveCombat,
+            RunnerPressure,
+            SwarmPressure,
             HeavyPressure,
             ReducedEffects,
             Results,

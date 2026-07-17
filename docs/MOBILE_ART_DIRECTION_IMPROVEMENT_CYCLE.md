@@ -156,21 +156,22 @@ Required visual states:
 
 1. `01-default-hud.png`
 2. `02-build-menu-open.png`
-3. `03-send-menu-open.png`
-4. `04-lane-selector-open.png`
-5. `05-active-combat.png`
-6. `06-heavy-pressure.png`
-7. `07-reduced-effects-heavy.png`
-8. `08-results-or-late-match.png`
+3. `03-build-card-selected.png`
+4. `04-send-menu-open.png`
+5. `05-send-card-disabled.png`
+6. `06-lane-selector-open.png`
+7. `07-active-combat.png`
+8. `08-runner-10-pressure.png`
+9. `09-swarm-heavy-pressure.png`
+10. `10-heavy-pressure.png`
+11. `11-reduced-effects-heavy.png`
+12. `12-results-or-late-match.png`
 
 Add focused captures when relevant:
 
 - Tower lineup normal and grayscale.
 - Creep lineup normal and grayscale.
-- Runner x10 pressure.
-- Swarm heavy pressure.
 - Selected tower and range state.
-- Disabled or unaffordable card.
 - Placement preview states.
 - Builder select, confirm, and build-complete states.
 - Leak/life-loss moment.

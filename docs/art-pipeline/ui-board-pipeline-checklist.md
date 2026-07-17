@@ -65,6 +65,8 @@ Source of truth: `docs/art-pipeline/ui-board-art-pipeline.md`
   - [x] 2026-07-16: Added shared persistent control chrome in `RuntimeUiChrome`, wired the lane selector, and captured review evidence under `docs/screenshot-reviews/ui-board-art-pass-v02-controls/`.
 - [x] Improve command-card phone readability.
   - [x] 2026-07-16: Enlarged build/send command cards, centered role icons, increased label/meta text, lifted expanded drawers clear of bottom launchers, and captured scored evidence under `docs/screenshot-reviews/mobile-art-ui-readability-pass/`.
+- [x] Add command-state and focused pressure capture coverage.
+  - [x] 2026-07-16: Expanded the managed mobile capture matrix from 8 to 12 states with selected build card, disabled send card, Runner x10 pressure, and heavy Swarm pressure evidence under `docs/screenshot-reviews/mobile-art-state-coverage-pass/`.
 - [ ] Normalize crops, scale, alpha, and grayscale copies.
 - [ ] Add source notes for every promoted generated asset.
 - [ ] Add Unity import settings and `.meta` files.
@@ -81,10 +83,14 @@ Source of truth: `docs/art-pipeline/ui-board-art-pipeline.md`
   - [x] `docs/screenshot-reviews/ui-board-art-pass-v02/captures/02-build-menu-open.png`
 - [x] Capture send menu open.
   - [x] `docs/screenshot-reviews/ui-board-art-pass-v02/captures/03-send-menu-open.png`
-- [ ] Capture selected command card.
-- [ ] Capture disabled/too-expensive command card.
-- [ ] Capture heavy Runner pressure.
-- [ ] Capture heavy Swarm pressure.
+- [x] Capture selected command card.
+  - [x] `docs/screenshot-reviews/mobile-art-state-coverage-pass/mobile-art-state-coverage-pass/after/phone-standard-portrait/03-build-card-selected.png`
+- [x] Capture disabled/too-expensive command card.
+  - [x] `docs/screenshot-reviews/mobile-art-state-coverage-pass/mobile-art-state-coverage-pass/after/phone-standard-portrait/05-send-card-disabled.png`
+- [x] Capture heavy Runner pressure.
+  - [x] `docs/screenshot-reviews/mobile-art-state-coverage-pass/mobile-art-state-coverage-pass/after/phone-standard-portrait/08-runner-10-pressure.png`
+- [x] Capture heavy Swarm pressure.
+  - [x] `docs/screenshot-reviews/mobile-art-state-coverage-pass/mobile-art-state-coverage-pass/after/phone-standard-portrait/09-swarm-heavy-pressure.png`
 - [x] Capture heavy pressure.
   - [x] `docs/screenshot-reviews/ui-board-art-pass-v02/captures/06-heavy-pressure.png`
 - [x] Capture leak/life-loss moment.

@@ -93,9 +93,13 @@ namespace LTW.UnityClient.Editor
         {
             "default-hud",
             "build-menu-open",
+            "build-card-selected",
             "send-menu-open",
+            "send-card-disabled",
             "lane-selector-open",
             "active-combat",
+            "runner-10-pressure",
+            "swarm-heavy-pressure",
             "heavy-pressure",
             "reduced-effects-heavy",
             "results-or-late-match"

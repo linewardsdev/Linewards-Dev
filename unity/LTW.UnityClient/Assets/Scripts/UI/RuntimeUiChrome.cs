@@ -96,6 +96,10 @@ namespace LTW.UnityClient.UI
             {
                 DrawOutline(Shrink(rect, 1f * scale), new Color(stateAccent.r, stateAccent.g, stateAccent.b, 0.92f), Mathf.Max(2f, 2f * scale));
                 Fill(new Rect(rect.x + 11f * scale, rect.y + 4f * scale, rect.width - 22f * scale, 2f * scale), stateAccent);
+                Fill(new Rect(rect.x + rect.width * 0.18f, rect.y + 9f * scale, rect.width * 0.64f, 5f * scale), new Color(stateAccent.r, stateAccent.g, stateAccent.b, 0.9f));
+                Fill(new Rect(rect.x + 8f * scale, rect.y + rect.height * 0.38f, 5f * scale, rect.height * 0.24f), stateAccent);
+                Fill(new Rect(rect.xMax - 13f * scale, rect.y + rect.height * 0.38f, 5f * scale, rect.height * 0.24f), stateAccent);
+                Fill(Shrink(iconWell, 5f * scale), new Color(stateAccent.r, stateAccent.g, stateAccent.b, 0.16f));
             }
             else if (state == CommandCardState.Error)
             {

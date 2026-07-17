@@ -18,7 +18,7 @@ The genuinely open production work is:
 - certify Builder select, confirm-placement, and build-complete clarity;
 - rerun current-main prefab/library fallback validation.
 
-Final screenshot certification is gated on capture automation that produces deterministic before/after evidence for small, standard, tall, and safe-area portrait phones using the actual runtime UI. The current managed runner now provides declared seeds, four portrait profiles, safe-area injection, grayscale copies, phase-specific manifests, and improvement-cycle review artifacts. Remaining certification gaps are focused role/UI states beyond the canonical eight-state matrix and human visual scoring of the generated evidence.
+Final screenshot certification is gated on capture automation that produces deterministic before/after evidence for small, standard, tall, and safe-area portrait phones using the actual runtime UI. The current managed runner now provides declared seeds, four portrait profiles, safe-area injection, grayscale copies, phase-specific manifests, improvement-cycle review artifacts, and a 12-state canonical matrix that includes selected/disabled command cards plus focused Runner and Swarm pressure states. Remaining certification gaps are agent visual scoring of generated evidence and any package-specific states outside that matrix.
 
 ## Purpose
 

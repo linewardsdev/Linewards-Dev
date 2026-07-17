@@ -52,10 +52,6 @@ namespace LTW.UnityClient.Editor
     {
         private static readonly string[] FocusedUiBoardGaps =
         {
-            "selected command card",
-            "disabled or too-expensive command card",
-            "Runner x10 pressure",
-            "heavy Swarm pressure",
             "true map-camera view, if the package touches map/lane behavior"
         };
 
@@ -158,7 +154,8 @@ namespace LTW.UnityClient.Editor
             }
 
             document.completedEvidence.Add("Four portrait phone profiles captured: small, standard, tall, and safe-area.");
-            document.completedEvidence.Add("Eight canonical visual states captured for every selected profile.");
+            document.completedEvidence.Add($"{VisualCapturePlan.States.Count} canonical visual states captured for every selected profile.");
+            document.completedEvidence.Add("Selected command-card, disabled command-card, Runner x10 pressure, and heavy Swarm pressure states are included in the canonical matrix.");
             document.completedEvidence.Add("Grayscale copies generated for value/readability review.");
             document.completedEvidence.Add("Machine-readable manifest generated for the current phase.");
 
@@ -208,8 +205,8 @@ namespace LTW.UnityClient.Editor
                 document.recommendedNextPackages.Add($"Run the opposite `{OppositePhase(document.phase)}` phase with the same run id and seed.");
             }
 
-            document.recommendedNextPackages.Add("GD-Mobile-UI-Board: add selected-card and disabled-card captures.");
-            document.recommendedNextPackages.Add("GD-Creep-Identity: run focused Runner x10 and heavy Swarm pressure evidence.");
+            document.recommendedNextPackages.Add("GD-Mobile-UI-Board: agent-score selected/disabled command states and continue HUD typography scale work.");
+            document.recommendedNextPackages.Add("GD-Creep-Identity: agent-score Runner x10 and heavy Swarm pressure evidence, then tune silhouettes if needed.");
             document.recommendedNextPackages.Add("GD-Art-Pipeline-Hygiene: update the owning checklist with this report path after human scoring.");
         }
 
@@ -316,9 +313,7 @@ namespace LTW.UnityClient.Editor
         private static bool NeedsFocusedReview(string category)
         {
             return category.IndexOf("Tower silhouette", StringComparison.OrdinalIgnoreCase) >= 0
-                || category.IndexOf("Creep silhouette", StringComparison.OrdinalIgnoreCase) >= 0
                 || category.IndexOf("Motion", StringComparison.OrdinalIgnoreCase) >= 0
-                || category.IndexOf("Icon-to-runtime", StringComparison.OrdinalIgnoreCase) >= 0
                 || category.IndexOf("Fallback", StringComparison.OrdinalIgnoreCase) >= 0;
         }
 
@@ -331,7 +326,7 @@ namespace LTW.UnityClient.Editor
 
             if (category.IndexOf("Heavy", StringComparison.OrdinalIgnoreCase) >= 0)
             {
-                return EvidenceLinks(manifest, "heavy-pressure");
+                return EvidenceLinks(manifest, "runner-10-pressure", "swarm-heavy-pressure", "heavy-pressure");
             }
 
             if (category.IndexOf("Reduced", StringComparison.OrdinalIgnoreCase) >= 0)
@@ -342,6 +337,16 @@ namespace LTW.UnityClient.Editor
             if (category.IndexOf("Combat", StringComparison.OrdinalIgnoreCase) >= 0)
             {
                 return EvidenceLinks(manifest, "active-combat", "heavy-pressure");
+            }
+
+            if (category.IndexOf("Creep silhouette", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                return EvidenceLinks(manifest, "runner-10-pressure", "swarm-heavy-pressure", "active-combat");
+            }
+
+            if (category.IndexOf("Icon-to-runtime", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                return EvidenceLinks(manifest, "build-card-selected", "send-card-disabled", "active-combat");
             }
 
             if (category.IndexOf("Spawn", StringComparison.OrdinalIgnoreCase) >= 0)

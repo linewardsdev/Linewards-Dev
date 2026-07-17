@@ -38,6 +38,8 @@ namespace LTW.UnityClient.UI
         private bool showRuntimeDock = true;
 
         private bool isExpanded;
+        private int highlightedCreepRole = -1;
+        private int reviewGoldOverride = -1;
 
         public bool IsExpanded => isExpanded;
 
@@ -49,15 +51,15 @@ namespace LTW.UnityClient.UI
             feedbackView = feedback;
         }
 
-        public void SendRunner() => Send(commandAdapter.SendSampleCreep(), "Runner sent", 10);
+        public void SendRunner() => Send(commandAdapter.SendSampleCreep(), "Runner sent", 10, 0);
 
-        public void SendBrute() => Send(commandAdapter.SendBruteCreep(), "Brute sent", 18);
+        public void SendBrute() => Send(commandAdapter.SendBruteCreep(), "Brute sent", 18, 1);
 
-        public void SendSwarm() => Send(commandAdapter.SendSwarmCreep(), "Swarm sent", 18);
+        public void SendSwarm() => Send(commandAdapter.SendSwarmCreep(), "Swarm sent", 18, 2);
 
-        public void SendShade() => Send(commandAdapter.SendShadeCreep(), "Shade sent", 24);
+        public void SendShade() => Send(commandAdapter.SendShadeCreep(), "Shade sent", 24, 3);
 
-        public void SendSiege() => Send(commandAdapter.SendSiegeCreep(), "Siege sent", 40);
+        public void SendSiege() => Send(commandAdapter.SendSiegeCreep(), "Siege sent", 40, 4);
 
         private void OnGUI()
         {
@@ -123,19 +125,19 @@ namespace LTW.UnityClient.UI
             var buttonWidth = (rect.width - 24f * scale - gap * 2f) / 3f;
             var x = rect.x + 12f * scale;
 
-            if (DrawSendButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "RUN", "10G  +1", CreepIconKind.Runner, ArcaneBlue, gold >= 10, scale))
+            if (DrawSendButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "RUN", "10G  +1", CreepIconKind.Runner, ArcaneBlue, gold >= 10, highlightedCreepRole == 0, scale))
             {
                 SendRunner();
             }
 
             x += buttonWidth + gap;
-            if (DrawSendButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "BRUTE", "18G  +2", CreepIconKind.Brute, WardViolet, gold >= 18, scale))
+            if (DrawSendButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "BRUTE", "18G  +2", CreepIconKind.Brute, WardViolet, gold >= 18, highlightedCreepRole == 1, scale))
             {
                 SendBrute();
             }
 
             x += buttonWidth + gap;
-            if (DrawSendButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "SWARM", "18G  +3", CreepIconKind.Swarm, SignalGold, gold >= 18, scale))
+            if (DrawSendButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "SWARM", "18G  +3", CreepIconKind.Swarm, SignalGold, gold >= 18, highlightedCreepRole == 2, scale))
             {
                 SendSwarm();
             }
@@ -143,13 +145,13 @@ namespace LTW.UnityClient.UI
             var secondRowY = buttonY + buttonHeight + gap;
             var secondRowWidth = (rect.width - 24f * scale - gap) / 2f;
             x = rect.x + 12f * scale;
-            if (DrawSendButton(new Rect(x, secondRowY, secondRowWidth, buttonHeight), "SHADE", "24G  +3", CreepIconKind.Shade, MintSignal, gold >= 24, scale))
+            if (DrawSendButton(new Rect(x, secondRowY, secondRowWidth, buttonHeight), "SHADE", "24G  +3", CreepIconKind.Shade, MintSignal, gold >= 24, highlightedCreepRole == 3, scale))
             {
                 SendShade();
             }
 
             x += secondRowWidth + gap;
-            if (DrawSendButton(new Rect(x, secondRowY, secondRowWidth, buttonHeight), "SIEGE", "40G  +4", CreepIconKind.Siege, new Color(1f, 0.62f, 0.26f), gold >= 40, scale))
+            if (DrawSendButton(new Rect(x, secondRowY, secondRowWidth, buttonHeight), "SIEGE", "40G  +4", CreepIconKind.Siege, new Color(1f, 0.62f, 0.26f), gold >= 40, highlightedCreepRole == 4, scale))
             {
                 SendSiege();
             }
@@ -168,10 +170,11 @@ namespace LTW.UnityClient.UI
             }
         }
 
-        private void Send(LTW.Simulation.Bridge.VerticalSliceCommandResult result, string successMessage, int cost)
+        private void Send(LTW.Simulation.Bridge.VerticalSliceCommandResult result, string successMessage, int cost, int creepRole)
         {
             if (result.Accepted)
             {
+                highlightedCreepRole = creepRole;
                 feedbackView.ShowEconomy(successMessage);
                 return;
             }
@@ -186,10 +189,12 @@ namespace LTW.UnityClient.UI
             }
         }
 
-        private static bool DrawSendButton(Rect rect, string label, string meta, CreepIconKind iconKind, Color accent, bool isAffordable, float scale)
+        private static bool DrawSendButton(Rect rect, string label, string meta, CreepIconKind iconKind, Color accent, bool isAffordable, bool isSelected, float scale)
         {
             var displayAccent = isAffordable ? accent : DisabledText;
-            var state = isAffordable ? CommandCardState.Normal : CommandCardState.Disabled;
+            var state = isAffordable
+                ? isSelected ? CommandCardState.Selected : CommandCardState.Normal
+                : CommandCardState.Disabled;
             var pressed = RuntimeUiChrome.DrawCommandCard(rect, accent, state, scale);
 
             var iconRect = RuntimeUiChrome.CommandCardIconRect(rect, scale);
@@ -363,6 +368,11 @@ namespace LTW.UnityClient.UI
 
         private int CurrentPlayerGold()
         {
+            if (reviewGoldOverride >= 0)
+            {
+                return reviewGoldOverride;
+            }
+
             if (commandAdapter == null)
             {
                 commandAdapter = Object.FindAnyObjectByType<UnityCommandAdapter>();

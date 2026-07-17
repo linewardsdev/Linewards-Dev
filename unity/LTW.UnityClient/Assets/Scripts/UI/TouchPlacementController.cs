@@ -61,6 +61,7 @@ namespace LTW.UnityClient.UI
         private bool isPaletteExpanded;
         private int selectedTowerRole;
         private int lastSelectedTowerRole;
+        private int highlightedTowerRole = -1;
         private Vector2Int selectedCell;
         private TowerCombatState? selectedTower;
         private VerticalSliceCommandResult placementPreview = VerticalSliceCommandResult.Reject(CommandRejectionReason.InvalidLane);
@@ -98,6 +99,7 @@ namespace LTW.UnityClient.UI
             isPaletteExpanded = false;
             selectedTowerRole = towerRole;
             lastSelectedTowerRole = towerRole;
+            highlightedTowerRole = towerRole;
             ghost.SetActive(true);
             builderAvatar.SetActive(true);
             MoveGhost();
@@ -703,21 +705,21 @@ namespace LTW.UnityClient.UI
             var x = rect.x + 12f * scale;
             var gold = CurrentPlayerGold();
 
-            if (DrawPaletteButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "ARROW", "25G", TowerIconKind.Arrow, ArcaneBlue, gold >= 25, scale))
+            if (DrawPaletteButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "ARROW", "25G", TowerIconKind.Arrow, ArcaneBlue, gold >= 25, highlightedTowerRole == 0, scale))
             {
                 selectedTower = null;
                 BeginTowerPlacement();
             }
 
             x += buttonWidth + gap;
-            if (DrawPaletteButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "CTRL", "35G", TowerIconKind.Control, WardViolet, gold >= 35, scale))
+            if (DrawPaletteButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "CTRL", "35G", TowerIconKind.Control, WardViolet, gold >= 35, highlightedTowerRole == 1, scale))
             {
                 selectedTower = null;
                 BeginControlTowerPlacement();
             }
 
             x += buttonWidth + gap;
-            if (DrawPaletteButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "RELAY", "40G", TowerIconKind.Relay, SignalGold, gold >= 40, scale))
+            if (DrawPaletteButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "RELAY", "40G", TowerIconKind.Relay, SignalGold, gold >= 40, highlightedTowerRole == 2, scale))
             {
                 selectedTower = null;
                 BeginUtilityTowerPlacement();
@@ -726,14 +728,14 @@ namespace LTW.UnityClient.UI
             var secondRowY = buttonY + buttonHeight + gap;
             var secondRowWidth = (rect.width - 24f * scale - gap) / 2f;
             x = rect.x + 12f * scale;
-            if (DrawPaletteButton(new Rect(x, secondRowY, secondRowWidth, buttonHeight), "PULSE", "45G", TowerIconKind.Pulse, MintSignal, gold >= 45, scale))
+            if (DrawPaletteButton(new Rect(x, secondRowY, secondRowWidth, buttonHeight), "PULSE", "45G", TowerIconKind.Pulse, MintSignal, gold >= 45, highlightedTowerRole == 3, scale))
             {
                 selectedTower = null;
                 BeginPulseTowerPlacement();
             }
 
             x += secondRowWidth + gap;
-            if (DrawPaletteButton(new Rect(x, secondRowY, secondRowWidth, buttonHeight), "PRISM", "60G", TowerIconKind.Prism, new Color(0.72f, 0.94f, 1f), gold >= 60, scale))
+            if (DrawPaletteButton(new Rect(x, secondRowY, secondRowWidth, buttonHeight), "PRISM", "60G", TowerIconKind.Prism, new Color(0.72f, 0.94f, 1f), gold >= 60, highlightedTowerRole == 4, scale))
             {
                 selectedTower = null;
                 BeginPrismTowerPlacement();
@@ -763,10 +765,12 @@ namespace LTW.UnityClient.UI
             }
         }
 
-        private static bool DrawPaletteButton(Rect rect, string label, string meta, TowerIconKind iconKind, Color accent, bool isAffordable, float scale)
+        private static bool DrawPaletteButton(Rect rect, string label, string meta, TowerIconKind iconKind, Color accent, bool isAffordable, bool isSelected, float scale)
         {
             var displayAccent = isAffordable ? accent : DisabledText;
-            var state = isAffordable ? CommandCardState.Normal : CommandCardState.Disabled;
+            var state = isAffordable
+                ? isSelected ? CommandCardState.Selected : CommandCardState.Normal
+                : CommandCardState.Disabled;
             var style = buttonStyle ?? GUI.skin.button;
             var pressed = RuntimeUiChrome.DrawCommandCard(rect, accent, state, scale);
 
