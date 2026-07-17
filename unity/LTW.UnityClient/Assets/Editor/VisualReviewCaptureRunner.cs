@@ -338,7 +338,27 @@ namespace LTW.UnityClient.Editor
                     ScheduleCaptureThenAdvance("reduced-effects-heavy", 2d);
                     break;
 
+                case CaptureState.BoardOverview:
+                    SetPrivateBool(stress, "running", false);
+                    ResetChecklistScenario(commands, placement, sendDock, laneToggle, activeLaneId: 1);
+                    HidePlacementReviewObjects(placement);
+                    driver.RefreshSnapshot(drainEvents: true);
+                    SetRendererFraming(LaneCameraFraming.BoardOverview);
+                    ScheduleCaptureThenAdvance("board-overview", 1.0d);
+                    break;
+
+                case CaptureState.SpawnGateFocus:
+                    SetRendererFraming(LaneCameraFraming.SpawnGateFocus);
+                    ScheduleCaptureThenAdvance("spawn-gate-focus", 0.75d);
+                    break;
+
+                case CaptureState.LeakGateFocus:
+                    SetRendererFraming(LaneCameraFraming.LeakGateFocus);
+                    ScheduleCaptureThenAdvance("leak-gate-focus", 0.75d);
+                    break;
+
                 case CaptureState.Results:
+                    SetRendererFraming(LaneCameraFraming.ActiveLane);
                     TryAccelerateMatch(driver);
                     if (driver.LatestMatchSummary == null && EditorApplication.timeSinceStartup - startedAt < 80d)
                     {
@@ -499,6 +519,7 @@ namespace LTW.UnityClient.Editor
             laneToggle.ShowLaneView();
             var renderer = UnityEngine.Object.FindAnyObjectByType<UnityVerticalSliceRenderer>();
             renderer?.SetActiveLaneCameraId(activeLaneId);
+            ClearRendererPresentation(renderer);
         }
 
         private static void StartCombat(UnitySimulationDriver driver, UnityCommandAdapter commands)
@@ -1025,9 +1046,17 @@ namespace LTW.UnityClient.Editor
                 RenderTexture.active = renderTexture;
                 GL.Clear(true, true, Color.black);
                 RenderActiveCameras(renderTexture);
-                RenderBatchHudOverlay(renderTexture, label);
+                if (!IsBoardFocusLabel(label))
+                {
+                    RenderBatchHudOverlay(renderTexture, label);
+                }
+
                 texture.ReadPixels(new Rect(0, 0, width, height), 0, 0);
-                PaintBatchHudOverlay(texture, label);
+                if (!IsBoardFocusLabel(label))
+                {
+                    PaintBatchHudOverlay(texture, label);
+                }
+
                 texture.Apply();
                 Directory.CreateDirectory(Path.GetDirectoryName(path)!);
                 File.WriteAllBytes(path, ImageConversion.EncodeToPNG(texture));
@@ -1062,6 +1091,11 @@ namespace LTW.UnityClient.Editor
                 camera.aspect = previousAspect;
             }
         }
+
+        private static bool IsBoardFocusLabel(string label) =>
+            string.Equals(label, "board-overview", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(label, "spawn-gate-focus", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(label, "leak-gate-focus", StringComparison.OrdinalIgnoreCase);
 
         private static void PaintBatchHudOverlay(Texture2D texture, string label)
         {
@@ -1640,6 +1674,40 @@ namespace LTW.UnityClient.Editor
             }
         }
 
+        private static void SetRendererFraming(LaneCameraFraming framing)
+        {
+            var renderer = UnityEngine.Object.FindAnyObjectByType<UnityVerticalSliceRenderer>();
+            renderer?.SetCameraFraming(framing);
+        }
+
+        private static void ClearRendererPresentation(UnityVerticalSliceRenderer? renderer)
+        {
+            if (renderer == null)
+            {
+                return;
+            }
+
+            var method = typeof(UnityVerticalSliceRenderer).GetMethod("ReleaseAllActiveObjects", BindingFlags.Instance | BindingFlags.NonPublic);
+            method?.Invoke(renderer, Array.Empty<object>());
+        }
+
+        private static void HidePlacementReviewObjects(TouchPlacementController placement)
+        {
+            SetPrivateBool(placement, "isPlacing", false);
+            HidePrivateGameObject(placement, "ghost");
+            HidePrivateGameObject(placement, "builderAvatar");
+            HidePrivateGameObject(placement, "selectionRing");
+        }
+
+        private static void HidePrivateGameObject(object target, string fieldName)
+        {
+            var field = target.GetType().GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic);
+            if (field?.GetValue(target) is GameObject gameObject)
+            {
+                gameObject.SetActive(false);
+            }
+        }
+
         private static void Finish(string? error)
         {
             EditorApplication.update -= Update;
@@ -1892,6 +1960,9 @@ namespace LTW.UnityClient.Editor
             SwarmPressure,
             HeavyPressure,
             ReducedEffects,
+            BoardOverview,
+            SpawnGateFocus,
+            LeakGateFocus,
             Results,
             Done
         }

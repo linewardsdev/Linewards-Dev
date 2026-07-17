@@ -170,6 +170,7 @@ namespace LTW.UnityClient.Editor
             document.completedEvidence.Add("Four portrait phone profiles captured: small, standard, tall, and safe-area.");
             document.completedEvidence.Add($"{VisualCapturePlan.States.Count} canonical visual states captured for every selected profile.");
             document.completedEvidence.Add("Selected command-card, disabled command-card, Runner x10 pressure, and heavy Swarm pressure states are included in the canonical matrix.");
+            document.completedEvidence.Add("Board overview, spawn-gate focus, and leak-gate focus states are included for endpoint review.");
             document.completedEvidence.Add("Grayscale copies generated for value/readability review.");
             document.completedEvidence.Add("Machine-readable manifest generated for the current phase.");
 
@@ -373,7 +374,7 @@ namespace LTW.UnityClient.Editor
 
             if (category.IndexOf("Spawn", StringComparison.OrdinalIgnoreCase) >= 0)
             {
-                return EvidenceLinks(manifest, "default-hud", "results-or-late-match");
+                return EvidenceLinks(manifest, "board-overview", "spawn-gate-focus", "leak-gate-focus", "results-or-late-match");
             }
 
             return EvidenceLinks(manifest, "default-hud", "active-combat");

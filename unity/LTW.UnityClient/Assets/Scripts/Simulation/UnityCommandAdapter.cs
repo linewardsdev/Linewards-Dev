@@ -9,7 +9,7 @@ namespace LTW.UnityClient.Simulation
     public sealed class UnityCommandAdapter : MonoBehaviour
     {
         private const int LaneWidth = 7;
-        private const int LaneLength = 18;
+        private const int LaneLength = 16;
 
         private LocalVerticalSlice simulation;
         private UnitySimulationDriver simulationDriver;

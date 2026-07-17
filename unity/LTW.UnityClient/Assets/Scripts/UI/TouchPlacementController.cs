@@ -12,7 +12,7 @@ namespace LTW.UnityClient.UI
     public sealed class TouchPlacementController : MonoBehaviour
     {
         private const int LaneWidth = 7;
-        private const int LaneLength = 18;
+        private const int LaneLength = 16;
         private const string BuilderSpriteResourcePath = "Art/Builder/Production/Sprites/builder_candidate_v01_trimmed";
 
         private static readonly Color PanelInk = new(0.08f, 0.12f, 0.22f, 0.92f);
@@ -228,7 +228,7 @@ namespace LTW.UnityClient.UI
             }
 
             var hit = ray.GetPoint(distance);
-            var hitCell = ClampToLane(new Vector2Int(Mathf.RoundToInt(hit.x), 17 - Mathf.RoundToInt(hit.z)));
+            var hitCell = ClampToLane(new Vector2Int(Mathf.RoundToInt(hit.x), WorldZToGridY(hit.z)));
             if (isPlacing)
             {
                 selectedCell = hitCell;
@@ -380,9 +380,13 @@ namespace LTW.UnityClient.UI
                 Mathf.Clamp(cell.x, 0, LaneWidth - 1),
                 Mathf.Clamp(cell.y, 0, LaneLength - 1));
 
+        private static int WorldZToGridY(float z) => LaneLength - 1 - Mathf.RoundToInt(z);
+
+        private static Vector3 GridToWorld(Vector2Int cell, float y) => new(cell.x, y, LaneLength - 1 - cell.y);
+
         private void MoveGhost()
         {
-            ghost.transform.position = new Vector3(selectedCell.x, 0.6f, 17 - selectedCell.y);
+            ghost.transform.position = GridToWorld(selectedCell, 0.6f);
             UpdateBuilderAvatar();
             ghost.transform.localScale = SelectedTowerGhostScale();
             ConfigurePlacementGhostVisual();
@@ -481,7 +485,7 @@ namespace LTW.UnityClient.UI
                 return;
             }
 
-            builderAvatar.transform.position = new Vector3(selectedCell.x - 0.48f, 0.02f, 17 - selectedCell.y + 0.24f);
+            builderAvatar.transform.position = GridToWorld(selectedCell, 0.02f) + new Vector3(-0.48f, 0f, 0.24f);
             var accent = SelectedTowerAccent();
             accent.a = 1f;
             foreach (var part in builderAvatar.GetComponentsInChildren<Renderer>(true))
@@ -567,7 +571,7 @@ namespace LTW.UnityClient.UI
             }
 
             selectionRing.SetActive(true);
-            selectionRing.transform.position = new Vector3(tower.Position.X, 0.06f, 17 - tower.Position.Y);
+            selectionRing.transform.position = GridToWorld(new Vector2Int(tower.Position.X, tower.Position.Y), 0.06f);
             selectionRing.transform.localScale = TowerSelectionRingScale(tower.TowerId.Value);
             selectionRing.GetComponent<Renderer>().material.color = TowerAccent(tower.TowerId.Value);
         }

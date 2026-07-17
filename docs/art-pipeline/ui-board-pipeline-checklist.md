@@ -71,6 +71,8 @@ Source of truth: `docs/art-pipeline/ui-board-art-pipeline.md`
   - [x] 2026-07-16: Added `-ltwIntensity aggressive`, replaced long build/send drawer headers with compact tabs, increased drawer spacing, and captured evidence under `docs/screenshot-reviews/mobile-art-aggressive-ui-spacing-pass/`.
 - [x] Run aggressive command-card icon-first pass.
   - [x] 2026-07-16: Enlarged command icon wells, switched command cards to compact role codes, reduced card label/meta scale, and captured evidence under `docs/screenshot-reviews/mobile-art-aggressive-command-card-pass/`.
+- [x] Add targeted spawn/leak board automation pass.
+  - [x] 2026-07-16: Added 15-state mobile capture coverage with board overview, spawn-gate focus, and leak-gate focus states; trimmed the lane to 16 rows; strengthened procedural endpoint plates; captured scored evidence under `docs/screenshot-reviews/mobile-art-spawn-leak-board-pass/`.
 - [ ] Normalize crops, scale, alpha, and grayscale copies.
 - [ ] Add source notes for every promoted generated asset.
 - [ ] Add Unity import settings and `.meta` files.
@@ -99,6 +101,10 @@ Source of truth: `docs/art-pipeline/ui-board-art-pipeline.md`
   - [x] `docs/screenshot-reviews/ui-board-art-pass-v02/captures/06-heavy-pressure.png`
 - [x] Capture leak/life-loss moment.
   - [x] `docs/screenshot-reviews/ui-board-art-pass-v02/captures/08-results-or-late-match.png`
+- [x] Capture board-only spawn/leak focus states.
+  - [x] `docs/screenshot-reviews/mobile-art-spawn-leak-board-pass/mobile-art-spawn-leak-board-pass/after/phone-standard-portrait/12-board-overview.png`
+  - [x] `docs/screenshot-reviews/mobile-art-spawn-leak-board-pass/mobile-art-spawn-leak-board-pass/after/phone-standard-portrait/13-spawn-gate-focus.png`
+  - [x] `docs/screenshot-reviews/mobile-art-spawn-leak-board-pass/mobile-art-spawn-leak-board-pass/after/phone-standard-portrait/14-leak-gate-focus.png`
 - [x] Capture grayscale set.
   - [x] `docs/screenshot-reviews/ui-board-art-pass-v02/captures/grayscale/`
 - [x] Write command-card slice review.

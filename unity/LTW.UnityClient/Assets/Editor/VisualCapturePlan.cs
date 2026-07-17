@@ -102,6 +102,9 @@ namespace LTW.UnityClient.Editor
             "swarm-heavy-pressure",
             "heavy-pressure",
             "reduced-effects-heavy",
+            "board-overview",
+            "spawn-gate-focus",
+            "leak-gate-focus",
             "results-or-late-match"
         };
 

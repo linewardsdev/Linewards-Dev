@@ -15,7 +15,7 @@ namespace LTW.UnityClient.Simulation
     public sealed class UnityVerticalSliceRenderer : MonoBehaviour
     {
         private const int LaneWidth = 7;
-        private const int LaneLength = 18;
+        private const int LaneLength = 16;
         private const int LaneSpacing = 9;
         private const int CenterColumn = 3;
         private const float BoardCenterX = (LaneWidth - 1) * 0.5f;
@@ -161,15 +161,28 @@ namespace LTW.UnityClient.Simulation
             }
 
             var clampedLane = Mathf.Clamp(activeLaneCameraId, 1, 3);
-            var boardCenter = cameraFraming == LaneCameraFraming.ActiveLane
-                ? LaneCenter(clampedLane)
-                : new Vector3(LaneOffset(2) + BoardCenterX, 0f, BoardCenterZ);
+            var boardCenter = cameraFraming switch
+            {
+                LaneCameraFraming.AllLanes => new Vector3(LaneOffset(2) + BoardCenterX, 0f, BoardCenterZ),
+                LaneCameraFraming.BoardOverview => LaneCenter(clampedLane),
+                LaneCameraFraming.SpawnGateFocus => GridToWorld(new GridPosition(CenterColumn, 0), new LaneId(clampedLane)) + new Vector3(0f, 0f, -1.15f),
+                LaneCameraFraming.LeakGateFocus => GridToWorld(new GridPosition(CenterColumn, LaneLength - 1), new LaneId(clampedLane)) + new Vector3(0f, 0f, 1.15f),
+                _ => LaneCenter(clampedLane)
+            };
             camera.orthographic = true;
-            camera.orthographicSize = cameraFraming == LaneCameraFraming.ActiveLane ? 9.2f : 11.4f;
+            camera.orthographicSize = cameraFraming switch
+            {
+                LaneCameraFraming.AllLanes => 11.4f,
+                LaneCameraFraming.BoardOverview => 8.2f,
+                LaneCameraFraming.SpawnGateFocus => 3.05f,
+                LaneCameraFraming.LeakGateFocus => 3.05f,
+                _ => 9.2f
+            };
             camera.rect = cameraFraming == LaneCameraFraming.ActiveLane
                 ? MobileViewportLayout.CameraRect()
                 : new Rect(0f, 0f, 1f, 1f);
-            camera.transform.position = boardCenter + new Vector3(0f, 17.5f, cameraFraming == LaneCameraFraming.ActiveLane ? -6.2f : -7.4f);
+            var cameraDistance = cameraFraming == LaneCameraFraming.ActiveLane ? -6.2f : -5.8f;
+            camera.transform.position = boardCenter + new Vector3(0f, 17.5f, cameraDistance);
             camera.transform.LookAt(boardCenter);
         }
 
@@ -1533,38 +1546,46 @@ namespace LTW.UnityClient.Simulation
             var label = isSpawn ? "Spawn" : "Leak";
             var center = new Vector3(offset + CenterColumn, -0.03f, z);
 
-            CreateEndpointDisc($"Lane{laneId}{label}StoneRing", center + Vector3.down * 0.02f, isPlayerLane ? 1.92f : 1.72f, 0.045f, EndpointStoneRingColor(isSpawn, isPlayerLane));
-            CreateEndpointDisc($"Lane{laneId}{label}InnerPlate", center + Vector3.up * 0.018f, isPlayerLane ? 1.24f : 1.08f, 0.038f, EndpointInnerPlateColor(isSpawn, isPlayerLane));
-            CreateEndpointDisc($"Lane{laneId}{label}SignalCore", center + new Vector3(0f, 0.05f, direction * 0.08f), isSpawn ? 0.34f : 0.46f, 0.045f, signal);
+            CreateEndpointDisc($"Lane{laneId}{label}FoundationShadow", center + Vector3.down * 0.055f, isPlayerLane ? 2.62f : 2.3f, 0.032f, BoardContactShadowColor(laneId));
+            CreateEndpointDisc($"Lane{laneId}{label}OuterStoneRing", center + Vector3.down * 0.025f, isPlayerLane ? 2.34f : 2.04f, 0.05f, EndpointStoneRingColor(isSpawn, isPlayerLane));
+            CreateEndpointDisc($"Lane{laneId}{label}StoneRing", center + Vector3.up * 0.008f, isPlayerLane ? 1.96f : 1.72f, 0.045f, EndpointOuterRingColor(isSpawn, isPlayerLane));
+            CreateEndpointDisc($"Lane{laneId}{label}InnerPlate", center + Vector3.up * 0.04f, isPlayerLane ? 1.28f : 1.08f, 0.04f, EndpointInnerPlateColor(isSpawn, isPlayerLane));
+            CreateEndpointDisc($"Lane{laneId}{label}SignalCore", center + new Vector3(0f, 0.074f, direction * 0.08f), isSpawn ? 0.42f : 0.56f, 0.05f, signal);
 
-            CreateSurfaceBand($"Lane{laneId}{label}PlateWestShadow", new Vector3(offset + CenterColumn - 1.28f, -0.004f, z), new Vector3(0.08f, 0.014f, 1.16f), shadow);
-            CreateSurfaceBand($"Lane{laneId}{label}PlateEastShadow", new Vector3(offset + CenterColumn + 1.28f, -0.004f, z), new Vector3(0.08f, 0.014f, 1.16f), shadow);
-            CreateSurfaceBand($"Lane{laneId}{label}PlateNorthShadow", new Vector3(offset + CenterColumn, -0.004f, z + 0.55f), new Vector3(2.46f, 0.014f, 0.07f), shadow);
-            CreateSurfaceBand($"Lane{laneId}{label}PlateSouthShadow", new Vector3(offset + CenterColumn, -0.004f, z - 0.55f), new Vector3(2.46f, 0.014f, 0.07f), shadow);
-            CreateSurfaceBand($"Lane{laneId}{label}PlateCoreMark", new Vector3(offset + CenterColumn, 0.058f, z + direction * 0.18f), new Vector3(0.58f, 0.014f, 0.13f), signal);
-            CreateSurfaceBand($"Lane{laneId}{label}PlateLeftMark", new Vector3(offset + CenterColumn - 0.42f, 0.014f, z + direction * 0.02f), new Vector3(0.42f, 0.014f, 0.1f), signal);
-            CreateSurfaceBand($"Lane{laneId}{label}PlateRightMark", new Vector3(offset + CenterColumn + 0.42f, 0.014f, z + direction * 0.02f), new Vector3(0.42f, 0.014f, 0.1f), signal);
-            var leftChevron = CreateSurfaceBand($"Lane{laneId}{label}PlateChevronLeft", new Vector3(offset + CenterColumn - 0.25f, 0.018f, z + direction * 0.34f), new Vector3(0.08f, 0.014f, 0.36f), signal);
+            CreateSurfaceBand($"Lane{laneId}{label}PlateWestButtress", new Vector3(offset + CenterColumn - 1.38f, 0.018f, z), new Vector3(0.18f, 0.05f, 1.34f), EndpointOuterRingColor(isSpawn, isPlayerLane));
+            CreateSurfaceBand($"Lane{laneId}{label}PlateEastButtress", new Vector3(offset + CenterColumn + 1.38f, 0.018f, z), new Vector3(0.18f, 0.05f, 1.34f), EndpointOuterRingColor(isSpawn, isPlayerLane));
+            CreateSurfaceBand($"Lane{laneId}{label}PlateNorthButtress", new Vector3(offset + CenterColumn, 0.012f, z + 0.68f), new Vector3(2.5f, 0.048f, 0.16f), EndpointOuterRingColor(isSpawn, isPlayerLane));
+            CreateSurfaceBand($"Lane{laneId}{label}PlateSouthButtress", new Vector3(offset + CenterColumn, 0.012f, z - 0.68f), new Vector3(2.5f, 0.048f, 0.16f), EndpointOuterRingColor(isSpawn, isPlayerLane));
+            CreateSurfaceBand($"Lane{laneId}{label}PlateWestShadow", new Vector3(offset + CenterColumn - 1.52f, -0.004f, z), new Vector3(0.08f, 0.014f, 1.34f), shadow);
+            CreateSurfaceBand($"Lane{laneId}{label}PlateEastShadow", new Vector3(offset + CenterColumn + 1.52f, -0.004f, z), new Vector3(0.08f, 0.014f, 1.34f), shadow);
+            CreateSurfaceBand($"Lane{laneId}{label}PlateNorthShadow", new Vector3(offset + CenterColumn, -0.004f, z + 0.76f), new Vector3(2.68f, 0.014f, 0.07f), shadow);
+            CreateSurfaceBand($"Lane{laneId}{label}PlateSouthShadow", new Vector3(offset + CenterColumn, -0.004f, z - 0.76f), new Vector3(2.68f, 0.014f, 0.07f), shadow);
+            CreateSurfaceBand($"Lane{laneId}{label}PlateCoreMark", new Vector3(offset + CenterColumn, 0.082f, z + direction * 0.18f), new Vector3(0.68f, 0.016f, 0.15f), signal);
+            CreateSurfaceBand($"Lane{laneId}{label}PlateLeftMark", new Vector3(offset + CenterColumn - 0.48f, 0.04f, z + direction * 0.02f), new Vector3(0.48f, 0.016f, 0.11f), signal);
+            CreateSurfaceBand($"Lane{laneId}{label}PlateRightMark", new Vector3(offset + CenterColumn + 0.48f, 0.04f, z + direction * 0.02f), new Vector3(0.48f, 0.016f, 0.11f), signal);
+            var leftChevron = CreateSurfaceBand($"Lane{laneId}{label}PlateChevronLeft", new Vector3(offset + CenterColumn - 0.29f, 0.05f, z + direction * 0.42f), new Vector3(0.095f, 0.016f, 0.44f), signal);
             leftChevron.transform.rotation = Quaternion.Euler(0f, direction * 32f, 0f);
-            var rightChevron = CreateSurfaceBand($"Lane{laneId}{label}PlateChevronRight", new Vector3(offset + CenterColumn + 0.25f, 0.018f, z + direction * 0.34f), new Vector3(0.08f, 0.014f, 0.36f), signal);
+            var rightChevron = CreateSurfaceBand($"Lane{laneId}{label}PlateChevronRight", new Vector3(offset + CenterColumn + 0.29f, 0.05f, z + direction * 0.42f), new Vector3(0.095f, 0.016f, 0.44f), signal);
             rightChevron.transform.rotation = Quaternion.Euler(0f, direction * -32f, 0f);
 
             if (isSpawn)
             {
-                CreateSurfaceBand($"Lane{laneId}{label}ChevronForwardA", new Vector3(offset + CenterColumn, 0.065f, z - 0.72f), new Vector3(0.1f, 0.014f, 0.34f), signal).transform.rotation = Quaternion.Euler(0f, 42f, 0f);
-                CreateSurfaceBand($"Lane{laneId}{label}ChevronForwardB", new Vector3(offset + CenterColumn, 0.065f, z - 0.72f), new Vector3(0.1f, 0.014f, 0.34f), signal).transform.rotation = Quaternion.Euler(0f, -42f, 0f);
-                CreateEndpointPylon(laneId, $"{label}WestPylon", new Vector3(offset + CenterColumn - 0.88f, 0.08f, z + 0.18f), signal, isPlayerLane);
-                CreateEndpointPylon(laneId, $"{label}EastPylon", new Vector3(offset + CenterColumn + 0.88f, 0.08f, z + 0.18f), signal, isPlayerLane);
+                CreateEndpointDisc($"Lane{laneId}{label}PortalGlow", center + new Vector3(0f, 0.092f, -0.14f), isPlayerLane ? 0.72f : 0.58f, 0.026f, EndpointPortalColor(isPlayerLane));
+                CreateSurfaceBand($"Lane{laneId}{label}ChevronForwardA", new Vector3(offset + CenterColumn, 0.074f, z - 0.82f), new Vector3(0.115f, 0.016f, 0.42f), signal).transform.rotation = Quaternion.Euler(0f, 42f, 0f);
+                CreateSurfaceBand($"Lane{laneId}{label}ChevronForwardB", new Vector3(offset + CenterColumn, 0.074f, z - 0.82f), new Vector3(0.115f, 0.016f, 0.42f), signal).transform.rotation = Quaternion.Euler(0f, -42f, 0f);
+                CreateEndpointPylon(laneId, $"{label}WestPylon", new Vector3(offset + CenterColumn - 1.02f, 0.11f, z + 0.28f), signal, isPlayerLane);
+                CreateEndpointPylon(laneId, $"{label}EastPylon", new Vector3(offset + CenterColumn + 1.02f, 0.11f, z + 0.28f), signal, isPlayerLane);
             }
             else
             {
-                for (var i = -2; i <= 2; i++)
+                CreateEndpointDisc($"Lane{laneId}{label}DrainGlow", center + new Vector3(0f, 0.09f, -0.05f), isPlayerLane ? 0.82f : 0.68f, 0.026f, EndpointDrainGlowColor(isPlayerLane));
+                for (var i = -3; i <= 3; i++)
                 {
-                    CreateSurfaceBand($"Lane{laneId}{label}DrainSlat{i}", new Vector3(offset + CenterColumn + i * 0.15f, 0.072f, z + 0.02f), new Vector3(0.055f, 0.016f, 0.64f), signal);
+                    CreateSurfaceBand($"Lane{laneId}{label}DrainSlat{i}", new Vector3(offset + CenterColumn + i * 0.13f, 0.088f, z + 0.02f), new Vector3(0.06f, 0.018f, 0.76f), signal);
                 }
 
-                CreateSurfaceBand($"Lane{laneId}{label}DrainArrowLeft", new Vector3(offset + CenterColumn - 0.17f, 0.075f, z - 0.72f), new Vector3(0.1f, 0.014f, 0.38f), signal).transform.rotation = Quaternion.Euler(0f, -36f, 0f);
-                CreateSurfaceBand($"Lane{laneId}{label}DrainArrowRight", new Vector3(offset + CenterColumn + 0.17f, 0.075f, z - 0.72f), new Vector3(0.1f, 0.014f, 0.38f), signal).transform.rotation = Quaternion.Euler(0f, 36f, 0f);
+                CreateSurfaceBand($"Lane{laneId}{label}DrainArrowLeft", new Vector3(offset + CenterColumn - 0.22f, 0.092f, z - 0.88f), new Vector3(0.12f, 0.016f, 0.48f), signal).transform.rotation = Quaternion.Euler(0f, -36f, 0f);
+                CreateSurfaceBand($"Lane{laneId}{label}DrainArrowRight", new Vector3(offset + CenterColumn + 0.22f, 0.092f, z - 0.88f), new Vector3(0.12f, 0.016f, 0.48f), signal).transform.rotation = Quaternion.Euler(0f, 36f, 0f);
             }
         }
 
@@ -2558,7 +2579,7 @@ namespace LTW.UnityClient.Simulation
 
         private static Color EndpointPlateSignalColor(Color color, bool isPlayerLane)
         {
-            var strength = isPlayerLane ? 0.58f : 0.36f;
+            var strength = isPlayerLane ? 0.72f : 0.45f;
             return new Color(color.r * strength, color.g * strength, color.b * strength);
         }
 
@@ -2575,17 +2596,31 @@ namespace LTW.UnityClient.Simulation
         {
             var laneLift = isPlayerLane ? 0.018f : 0f;
             return isSpawn
-                ? new Color(0.11f + laneLift, 0.13f + laneLift, 0.14f + laneLift)
-                : new Color(0.13f + laneLift, 0.075f + laneLift * 0.4f, 0.07f + laneLift * 0.4f);
+                ? new Color(0.145f + laneLift, 0.162f + laneLift, 0.172f + laneLift)
+                : new Color(0.172f + laneLift, 0.092f + laneLift * 0.4f, 0.086f + laneLift * 0.4f);
+        }
+
+        private static Color EndpointOuterRingColor(bool isSpawn, bool isPlayerLane)
+        {
+            var laneLift = isPlayerLane ? 0.022f : 0f;
+            return isSpawn
+                ? new Color(0.088f + laneLift, 0.108f + laneLift, 0.122f + laneLift)
+                : new Color(0.115f + laneLift, 0.056f + laneLift * 0.35f, 0.054f + laneLift * 0.3f);
         }
 
         private static Color EndpointInnerPlateColor(bool isSpawn, bool isPlayerLane)
         {
             var laneLift = isPlayerLane ? 0.02f : 0f;
             return isSpawn
-                ? new Color(0.058f + laneLift, 0.085f + laneLift, 0.096f + laneLift)
-                : new Color(0.062f + laneLift, 0.032f + laneLift * 0.35f, 0.03f + laneLift * 0.35f);
+                ? new Color(0.072f + laneLift, 0.112f + laneLift, 0.124f + laneLift)
+                : new Color(0.092f + laneLift, 0.038f + laneLift * 0.35f, 0.034f + laneLift * 0.35f);
         }
+
+        private static Color EndpointPortalColor(bool isPlayerLane) =>
+            isPlayerLane ? new Color(0.21f, 0.78f, 0.68f) : new Color(0.09f, 0.4f, 0.36f);
+
+        private static Color EndpointDrainGlowColor(bool isPlayerLane) =>
+            isPlayerLane ? new Color(0.78f, 0.12f, 0.09f) : new Color(0.4f, 0.05f, 0.04f);
 
         private static float TileVariation(int laneId, int x, int y)
         {
@@ -2802,5 +2837,8 @@ namespace LTW.UnityClient.Simulation
     {
         AllLanes,
         ActiveLane,
+        BoardOverview,
+        SpawnGateFocus,
+        LeakGateFocus,
     }
 }

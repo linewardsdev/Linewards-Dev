@@ -1,0 +1,155 @@
+{
+    "schemaVersion": 1,
+    "runId": "mobile-art-spawn-leak-board-pass",
+    "packageName": "GD-Mobile-UI-Board-SpawnLeak",
+    "intensity": "aggressive",
+    "expectedDelta": "Noticeable runtime visual/layout change; medium polish debt is acceptable if the pass is not subtle.",
+    "actualDelta": "Pending agent visual scoring against the captured evidence.",
+    "phase": "after",
+    "seed": 1,
+    "generatedUtc": "2026-07-17T02:12:15.5796493Z",
+    "currentManifestPath": "after-capture-manifest.json",
+    "comparisonManifestPath": "",
+    "captureSuccessCount": 60,
+    "captureTotalCount": 60,
+    "grayscaleSuccessCount": 60,
+    "grayscaleTotalCount": 60,
+    "canonicalMatrixComplete": true,
+    "comparisonManifestPresent": false,
+    "verdict": "Capture pass complete; before/after comparison pending",
+    "completedEvidence": [
+        "Aggressive intensity requested: this pass should favor visible runtime changes over low-risk polish.",
+        "Four portrait phone profiles captured: small, standard, tall, and safe-area.",
+        "15 canonical visual states captured for every selected profile.",
+        "Selected command-card, disabled command-card, Runner x10 pressure, and heavy Swarm pressure states are included in the canonical matrix.",
+        "Board overview, spawn-gate focus, and leak-gate focus states are included for endpoint review.",
+        "Grayscale copies generated for value/readability review.",
+        "Machine-readable manifest generated for the current phase."
+    ],
+    "openEvidenceGaps": [
+        "true map-camera view, if the package touches map/lane behavior"
+    ],
+    "highFindings": [],
+    "mediumFindings": [
+        "No opposite-phase manifest was found, so this run cannot yet compare before and after evidence.",
+        "Aggressive mode accepts temporary polish debt, but the agent review must reject passes that are visually too subtle."
+    ],
+    "lowFindings": [
+        "Machine scores only measure evidence coverage. The working graphics or implementation agent must assign visual quality scores before handoff.",
+        "Batch HUD overlays are deterministic approximations of runtime UI; live Game View checks remain useful before final lock."
+    ],
+    "recommendedNextPackages": [
+        "Run the opposite `before` phase with the same run id and seed.",
+        "GD-Mobile-UI-Board: prefer a visibly larger HUD typography/layout delta even if it creates medium polish issues.",
+        "GD-Mobile-UI-Board: agent-score selected/disabled command states and continue HUD typography scale work.",
+        "GD-Creep-Identity: agent-score Runner x10 and heavy Swarm pressure evidence, then tune silhouettes if needed.",
+        "GD-Art-Pipeline-Hygiene: update the owning checklist with this report path after human scoring."
+    ],
+    "scorecard": [
+        {
+            "category": "Mobile arena fit",
+            "machineCoverageScore": 2,
+            "reviewerScore": "",
+            "evidence": "[default-hud](after/phone-standard-portrait/01-default-hud.png), [active-combat](after/phone-standard-portrait/07-active-combat.png)",
+            "notes": "Canonical evidence exists; assign the final visual score during review."
+        },
+        {
+            "category": "Long north-south lane readability",
+            "machineCoverageScore": 2,
+            "reviewerScore": "",
+            "evidence": "[default-hud](after/phone-standard-portrait/01-default-hud.png), [active-combat](after/phone-standard-portrait/07-active-combat.png)",
+            "notes": "Canonical evidence exists; assign the final visual score during review."
+        },
+        {
+            "category": "Spawn, route, and leak-gate clarity",
+            "machineCoverageScore": 2,
+            "reviewerScore": "",
+            "evidence": "[board-overview](after/phone-standard-portrait/12-board-overview.png), [spawn-gate-focus](after/phone-standard-portrait/13-spawn-gate-focus.png), [leak-gate-focus](after/phone-standard-portrait/14-leak-gate-focus.png), [results-or-late-match](after/phone-standard-portrait/15-results-or-late-match.png)",
+            "notes": "Canonical evidence exists; assign the final visual score during review."
+        },
+        {
+            "category": "UI edge discipline and touch clearance",
+            "machineCoverageScore": 2,
+            "reviewerScore": "",
+            "evidence": "[default-hud](after/phone-standard-portrait/01-default-hud.png), [build-menu-open](after/phone-standard-portrait/02-build-menu-open.png), [send-menu-open](after/phone-standard-portrait/04-send-menu-open.png), [lane-selector-open](after/phone-standard-portrait/06-lane-selector-open.png)",
+            "notes": "Canonical evidence exists; assign the final visual score during review."
+        },
+        {
+            "category": "Tower silhouette and role identity",
+            "machineCoverageScore": 1,
+            "reviewerScore": "",
+            "evidence": "[default-hud](after/phone-standard-portrait/01-default-hud.png), [active-combat](after/phone-standard-portrait/07-active-combat.png)",
+            "notes": "Canonical evidence exists, but this category requires one or more focused captures before lock."
+        },
+        {
+            "category": "Creep silhouette and threat identity",
+            "machineCoverageScore": 2,
+            "reviewerScore": "",
+            "evidence": "[active-combat](after/phone-standard-portrait/07-active-combat.png), [runner-10-pressure](after/phone-standard-portrait/08-runner-10-pressure.png), [swarm-heavy-pressure](after/phone-standard-portrait/09-swarm-heavy-pressure.png)",
+            "notes": "Canonical evidence exists; assign the final visual score during review."
+        },
+        {
+            "category": "Grayscale value separation",
+            "machineCoverageScore": 2,
+            "reviewerScore": "",
+            "evidence": "[default-hud](after/phone-standard-portrait/01-default-hud.png), [active-combat](after/phone-standard-portrait/07-active-combat.png)",
+            "notes": "Canonical evidence exists; assign the final visual score during review."
+        },
+        {
+            "category": "Heavy-pressure readability",
+            "machineCoverageScore": 2,
+            "reviewerScore": "",
+            "evidence": "[runner-10-pressure](after/phone-standard-portrait/08-runner-10-pressure.png), [swarm-heavy-pressure](after/phone-standard-portrait/09-swarm-heavy-pressure.png), [heavy-pressure](after/phone-standard-portrait/10-heavy-pressure.png)",
+            "notes": "Canonical evidence exists; assign the final visual score during review."
+        },
+        {
+            "category": "Reduced-effects readability",
+            "machineCoverageScore": 2,
+            "reviewerScore": "",
+            "evidence": "[reduced-effects-heavy](after/phone-standard-portrait/11-reduced-effects-heavy.png)",
+            "notes": "Canonical evidence exists; assign the final visual score during review."
+        },
+        {
+            "category": "Combat signal priority",
+            "machineCoverageScore": 2,
+            "reviewerScore": "",
+            "evidence": "[active-combat](after/phone-standard-portrait/07-active-combat.png), [heavy-pressure](after/phone-standard-portrait/10-heavy-pressure.png)",
+            "notes": "Canonical evidence exists; assign the final visual score during review."
+        },
+        {
+            "category": "Motion clarity",
+            "machineCoverageScore": 1,
+            "reviewerScore": "",
+            "evidence": "[default-hud](after/phone-standard-portrait/01-default-hud.png), [active-combat](after/phone-standard-portrait/07-active-combat.png)",
+            "notes": "Canonical evidence exists, but this category requires one or more focused captures before lock."
+        },
+        {
+            "category": "Palette and material cohesion",
+            "machineCoverageScore": 2,
+            "reviewerScore": "",
+            "evidence": "[default-hud](after/phone-standard-portrait/01-default-hud.png), [active-combat](after/phone-standard-portrait/07-active-combat.png)",
+            "notes": "Canonical evidence exists; assign the final visual score during review."
+        },
+        {
+            "category": "Icon-to-runtime silhouette match",
+            "machineCoverageScore": 2,
+            "reviewerScore": "",
+            "evidence": "[build-card-selected](after/phone-standard-portrait/03-build-card-selected.png), [send-card-disabled](after/phone-standard-portrait/05-send-card-disabled.png), [active-combat](after/phone-standard-portrait/07-active-combat.png)",
+            "notes": "Canonical evidence exists; assign the final visual score during review."
+        },
+        {
+            "category": "Original Line Wards identity",
+            "machineCoverageScore": 2,
+            "reviewerScore": "",
+            "evidence": "[default-hud](after/phone-standard-portrait/01-default-hud.png), [active-combat](after/phone-standard-portrait/07-active-combat.png)",
+            "notes": "Canonical evidence exists; assign the final visual score during review."
+        },
+        {
+            "category": "Fallback and missing-asset behavior",
+            "machineCoverageScore": 1,
+            "reviewerScore": "",
+            "evidence": "[default-hud](after/phone-standard-portrait/01-default-hud.png), [active-combat](after/phone-standard-portrait/07-active-combat.png)",
+            "notes": "Canonical evidence exists, but this category requires one or more focused captures before lock."
+        }
+    ]
+}

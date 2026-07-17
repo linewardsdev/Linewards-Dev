@@ -47,7 +47,7 @@ public static class SampleVerticalSliceContent
                 new CreepDefinition(SiegeCreepId, "Siege", new Gold(40), new Income(4), new Gold(4), new Gold(6), maxHealth: 48, speedPerSecond: 1)
             },
             Array.Empty<TechDefinition>(),
-            new[] { new MapDefinition(new ContentId("map.vertical-slice"), "Vertical Slice", width: 7, height: 18, new GridPosition(3, 0), new GridPosition(3, 17), Array.Empty<GridPosition>()) },
+            new[] { new MapDefinition(new ContentId("map.vertical-slice"), "Vertical Slice", width: 7, height: 16, new GridPosition(3, 0), new GridPosition(3, 15), Array.Empty<GridPosition>()) },
             Array.Empty<BotProfileDefinition>());
     }
 }
