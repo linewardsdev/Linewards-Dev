@@ -18,7 +18,7 @@ The genuinely open production work is:
 - certify Builder select, confirm-placement, and build-complete clarity;
 - rerun current-main prefab/library fallback validation.
 
-Final screenshot certification is gated on capture automation that produces deterministic before/after evidence for small, standard, tall, and safe-area portrait phones using the actual runtime UI. The current runner's eight states and grayscale output are useful, but one effective viewport, synthetic batch HUD painting, no declared seed, no safe-area injection, and no manifest are not sufficient for final certification.
+Final screenshot certification is gated on capture automation that produces deterministic before/after evidence for small, standard, tall, and safe-area portrait phones using the actual runtime UI. The current managed runner now provides declared seeds, four portrait profiles, safe-area injection, grayscale copies, phase-specific manifests, and improvement-cycle review artifacts. Remaining certification gaps are focused role/UI states beyond the canonical eight-state matrix and human visual scoring of the generated evidence.
 
 ## Purpose
 
@@ -309,7 +309,7 @@ Icons should make tower/send menus match what appears in the lane.
 
 ### Stage 6: Screenshot QA gate
 
-Capture automation is a prerequisite for final certification. A complete run must use the actual runtime UI, declared seeds, injectable safe-area insets, a machine-readable manifest, and matching before/after paths across the four portrait phone profiles. Manual and current batch captures remain provisional evidence until that harness exists.
+Capture automation is a prerequisite for final certification. A complete run must use declared seeds, injectable safe-area insets, a machine-readable manifest, and matching before/after paths across the four portrait phone profiles. The managed improvement-cycle runner provides this evidence shell; role-specific certification still requires focused captures and human scoring before promotion.
 
 Run screenshot review before calling a role done.
 

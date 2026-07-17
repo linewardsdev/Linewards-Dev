@@ -146,7 +146,7 @@ namespace LTW.UnityClient.Editor
 
             var requestedProfiles = string.IsNullOrWhiteSpace(profileFilter)
                 ? null
-                : profileFilter.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries)
+                : profileFilter!.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries)
                     .Select(value => value.Trim());
 
             return new VisualCapturePlan(runId, parsedPhase, parsedSeed, requestedProfiles);
@@ -182,8 +182,8 @@ namespace LTW.UnityClient.Editor
             ValidateState(stateName);
             var profile = GetProfile(profileName);
             var parts = grayscale
-                ? new[] { RunId, PhaseName, profile.name, "grayscale", GetCaptureFileName(stateName) }
-                : new[] { RunId, PhaseName, profile.name, GetCaptureFileName(stateName) };
+                ? new[] { PhaseName, profile.name, "grayscale", GetCaptureFileName(stateName) }
+                : new[] { PhaseName, profile.name, GetCaptureFileName(stateName) };
             return string.Join("/", parts);
         }
 
@@ -192,6 +192,13 @@ namespace LTW.UnityClient.Editor
             ValidateState(stateName);
             var index = Array.FindIndex(CanonicalStateNames, candidate =>
                 string.Equals(candidate, stateName, StringComparison.OrdinalIgnoreCase));
+            if (index < 0)
+            {
+                throw new ArgumentException(
+                    $"Unknown capture state '{stateName}'. Expected: {string.Join(", ", CanonicalStateNames)}.",
+                    nameof(stateName));
+            }
+
             return $"{index + 1:00}-{CanonicalStateNames[index]}.png";
         }
 

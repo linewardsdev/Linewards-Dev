@@ -125,6 +125,22 @@ Batch runs may call:
 
 `LTW.UnityClient.Editor.VisualReviewCaptureRunner.CaptureVisualReviewSet`
 
+Improvement-cycle batch runs should call:
+
+`LTW.UnityClient.Editor.VisualReviewCaptureRunner.CaptureMobileImprovementCycle`
+
+Recommended arguments:
+
+```text
+-ltwCaptureOutputDir docs/screenshot-reviews/<run-name>
+-ltwCaptureRunId <run-name>
+-ltwCapturePhase before|after
+-ltwCaptureSeed 1
+-ltwCapturePackage GD-Mobile-UI-Board
+-ltwCaptureGrayscale
+-ltwExitAfterCapture
+```
+
 All captures must emulate portrait mobile screens.
 
 Required phone profiles:
@@ -237,6 +253,15 @@ docs/screenshot-reviews/<branch-name>/
   review.md
 ```
 
+The managed improvement-cycle runner writes this compatible structure plus:
+
+- `before-capture-manifest.json` or `after-capture-manifest.json`
+- `before-review.md` or `after-review.md`
+- `cycle-scorecard.json`
+- `improvement-cycle-review.md`
+
+`capture-manifest.json` and `review.md` remain as current-phase compatibility outputs. The phase-specific manifest files are the before/after comparison source of truth.
+
 ### 7. Compare And Decide
 
 The review must record:
@@ -272,7 +297,7 @@ Before handoff:
 
 ## Report Template
 
-Create `docs/screenshot-reviews/<branch-name>/review.md`:
+Create or review `docs/screenshot-reviews/<branch-name>/<run-id>/improvement-cycle-review.md`:
 
 ```markdown
 # <Package Name> Mobile Art Review

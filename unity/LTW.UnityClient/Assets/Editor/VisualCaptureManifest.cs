@@ -267,5 +267,7 @@ namespace LTW.UnityClient.Editor
             "Original Line Wards identity",
             "Fallback and missing-asset behavior"
         };
+
+        public static IReadOnlyList<string> ArtDirectionScoreCategories => ScoreCategories;
     }
 }

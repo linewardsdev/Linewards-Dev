@@ -45,10 +45,19 @@ namespace LTW.UnityClient.Editor
         private static string captureOutputRoot = DefaultOutputDirectory;
         private static VisualCapturePlan? capturePlan;
         private static VisualCaptureManifest? captureManifest;
+        private static bool requireManagedImprovementCycle;
 
         [MenuItem("Line Wards/Review/Capture Visual Review Set")]
         public static void CaptureVisualReviewSet()
         {
+            requireManagedImprovementCycle = false;
+            BeginCapture(CaptureMode.FullReview);
+        }
+
+        [MenuItem("Line Wards/Review/Capture Mobile Improvement Cycle")]
+        public static void CaptureMobileImprovementCycle()
+        {
+            requireManagedImprovementCycle = true;
             BeginCapture(CaptureMode.FullReview);
         }
 
@@ -1689,11 +1698,16 @@ namespace LTW.UnityClient.Editor
             var runId = ReadArgumentValue("-ltwCaptureRunId");
             if (string.IsNullOrWhiteSpace(runId))
             {
-                return null;
+                if (!requireManagedImprovementCycle)
+                {
+                    return null;
+                }
+
+                runId = "mobile-improvement-cycle";
             }
 
             return VisualCapturePlan.FromValues(
-                runId,
+                runId!,
                 ReadArgumentValue("-ltwCapturePhase") ?? "after",
                 ReadArgumentValue("-ltwCaptureSeed") ?? "1",
                 ReadArgumentValue("-ltwCaptureProfiles"));
@@ -1708,12 +1722,27 @@ namespace LTW.UnityClient.Editor
 
             var runDirectory = Path.Combine(captureOutputRoot, capturePlan.RunId);
             Directory.CreateDirectory(runDirectory);
+            var phaseManifestName = $"{capturePlan.PhaseName}-capture-manifest.json";
+            var phaseReviewName = $"{capturePlan.PhaseName}-review.md";
+            var manifestJson = captureManifest.ToJson();
+            var reviewMarkdown = captureManifest.GenerateReviewMarkdown();
             File.WriteAllText(
                 Path.Combine(runDirectory, "capture-manifest.json"),
-                captureManifest.ToJson());
+                manifestJson);
+            File.WriteAllText(
+                Path.Combine(runDirectory, phaseManifestName),
+                manifestJson);
             File.WriteAllText(
                 Path.Combine(runDirectory, "review.md"),
-                captureManifest.GenerateReviewMarkdown());
+                reviewMarkdown);
+            File.WriteAllText(
+                Path.Combine(runDirectory, phaseReviewName),
+                reviewMarkdown);
+            VisualImprovementCycleReport.WriteArtifacts(
+                capturePlan,
+                captureManifest,
+                captureOutputRoot,
+                ReadArgumentValue("-ltwCapturePackage") ?? "GD-Mobile-Regression");
         }
 
         private static bool ShouldExitAfterRun() => HasArgument("-ltwExitAfterCapture");
