@@ -136,7 +136,7 @@ Recommended arguments:
 -ltwCaptureRunId <run-name>
 -ltwCapturePhase before|after
 -ltwCaptureSeed 1
--ltwPackageName GD-Mobile-UI-Board
+-ltwCapturePackage GD-Mobile-UI-Board
 -ltwCaptureGrayscale
 -ltwExitAfterCapture
 ```

@@ -1,0 +1,970 @@
+{
+    "schemaVersion": 1,
+    "runId": "mobile-art-target-ref-spawn-leak-pass",
+    "phase": "after",
+    "seed": 1,
+    "generatedUtc": "2026-07-17T02:33:14.1903167Z",
+    "commitSha": "",
+    "entries": [
+        {
+            "profile": "phone-small-portrait",
+            "state": "default-hud",
+            "width": 720,
+            "height": 1280,
+            "safeAreaInsets": {
+                "left": 0,
+                "top": 24,
+                "right": 0,
+                "bottom": 24
+            },
+            "outputPath": "after/phone-small-portrait/01-default-hud.png",
+            "grayscalePath": "after/phone-small-portrait/grayscale/01-default-hud.png",
+            "success": true,
+            "error": ""
+        },
+        {
+            "profile": "phone-small-portrait",
+            "state": "build-menu-open",
+            "width": 720,
+            "height": 1280,
+            "safeAreaInsets": {
+                "left": 0,
+                "top": 24,
+                "right": 0,
+                "bottom": 24
+            },
+            "outputPath": "after/phone-small-portrait/02-build-menu-open.png",
+            "grayscalePath": "after/phone-small-portrait/grayscale/02-build-menu-open.png",
+            "success": true,
+            "error": ""
+        },
+        {
+            "profile": "phone-small-portrait",
+            "state": "build-card-selected",
+            "width": 720,
+            "height": 1280,
+            "safeAreaInsets": {
+                "left": 0,
+                "top": 24,
+                "right": 0,
+                "bottom": 24
+            },
+            "outputPath": "after/phone-small-portrait/03-build-card-selected.png",
+            "grayscalePath": "after/phone-small-portrait/grayscale/03-build-card-selected.png",
+            "success": true,
+            "error": ""
+        },
+        {
+            "profile": "phone-small-portrait",
+            "state": "send-menu-open",
+            "width": 720,
+            "height": 1280,
+            "safeAreaInsets": {
+                "left": 0,
+                "top": 24,
+                "right": 0,
+                "bottom": 24
+            },
+            "outputPath": "after/phone-small-portrait/04-send-menu-open.png",
+            "grayscalePath": "after/phone-small-portrait/grayscale/04-send-menu-open.png",
+            "success": true,
+            "error": ""
+        },
+        {
+            "profile": "phone-small-portrait",
+            "state": "send-card-disabled",
+            "width": 720,
+            "height": 1280,
+            "safeAreaInsets": {
+                "left": 0,
+                "top": 24,
+                "right": 0,
+                "bottom": 24
+            },
+            "outputPath": "after/phone-small-portrait/05-send-card-disabled.png",
+            "grayscalePath": "after/phone-small-portrait/grayscale/05-send-card-disabled.png",
+            "success": true,
+            "error": ""
+        },
+        {
+            "profile": "phone-small-portrait",
+            "state": "lane-selector-open",
+            "width": 720,
+            "height": 1280,
+            "safeAreaInsets": {
+                "left": 0,
+                "top": 24,
+                "right": 0,
+                "bottom": 24
+            },
+            "outputPath": "after/phone-small-portrait/06-lane-selector-open.png",
+            "grayscalePath": "after/phone-small-portrait/grayscale/06-lane-selector-open.png",
+            "success": true,
+            "error": ""
+        },
+        {
+            "profile": "phone-small-portrait",
+            "state": "active-combat",
+            "width": 720,
+            "height": 1280,
+            "safeAreaInsets": {
+                "left": 0,
+                "top": 24,
+                "right": 0,
+                "bottom": 24
+            },
+            "outputPath": "after/phone-small-portrait/07-active-combat.png",
+            "grayscalePath": "after/phone-small-portrait/grayscale/07-active-combat.png",
+            "success": true,
+            "error": ""
+        },
+        {
+            "profile": "phone-small-portrait",
+            "state": "runner-10-pressure",
+            "width": 720,
+            "height": 1280,
+            "safeAreaInsets": {
+                "left": 0,
+                "top": 24,
+                "right": 0,
+                "bottom": 24
+            },
+            "outputPath": "after/phone-small-portrait/08-runner-10-pressure.png",
+            "grayscalePath": "after/phone-small-portrait/grayscale/08-runner-10-pressure.png",
+            "success": true,
+            "error": ""
+        },
+        {
+            "profile": "phone-small-portrait",
+            "state": "swarm-heavy-pressure",
+            "width": 720,
+            "height": 1280,
+            "safeAreaInsets": {
+                "left": 0,
+                "top": 24,
+                "right": 0,
+                "bottom": 24
+            },
+            "outputPath": "after/phone-small-portrait/09-swarm-heavy-pressure.png",
+            "grayscalePath": "after/phone-small-portrait/grayscale/09-swarm-heavy-pressure.png",
+            "success": true,
+            "error": ""
+        },
+        {
+            "profile": "phone-small-portrait",
+            "state": "heavy-pressure",
+            "width": 720,
+            "height": 1280,
+            "safeAreaInsets": {
+                "left": 0,
+                "top": 24,
+                "right": 0,
+                "bottom": 24
+            },
+            "outputPath": "after/phone-small-portrait/10-heavy-pressure.png",
+            "grayscalePath": "after/phone-small-portrait/grayscale/10-heavy-pressure.png",
+            "success": true,
+            "error": ""
+        },
+        {
+            "profile": "phone-small-portrait",
+            "state": "reduced-effects-heavy",
+            "width": 720,
+            "height": 1280,
+            "safeAreaInsets": {
+                "left": 0,
+                "top": 24,
+                "right": 0,
+                "bottom": 24
+            },
+            "outputPath": "after/phone-small-portrait/11-reduced-effects-heavy.png",
+            "grayscalePath": "after/phone-small-portrait/grayscale/11-reduced-effects-heavy.png",
+            "success": true,
+            "error": ""
+        },
+        {
+            "profile": "phone-small-portrait",
+            "state": "board-overview",
+            "width": 720,
+            "height": 1280,
+            "safeAreaInsets": {
+                "left": 0,
+                "top": 24,
+                "right": 0,
+                "bottom": 24
+            },
+            "outputPath": "after/phone-small-portrait/12-board-overview.png",
+            "grayscalePath": "after/phone-small-portrait/grayscale/12-board-overview.png",
+            "success": true,
+            "error": ""
+        },
+        {
+            "profile": "phone-small-portrait",
+            "state": "spawn-gate-focus",
+            "width": 720,
+            "height": 1280,
+            "safeAreaInsets": {
+                "left": 0,
+                "top": 24,
+                "right": 0,
+                "bottom": 24
+            },
+            "outputPath": "after/phone-small-portrait/13-spawn-gate-focus.png",
+            "grayscalePath": "after/phone-small-portrait/grayscale/13-spawn-gate-focus.png",
+            "success": true,
+            "error": ""
+        },
+        {
+            "profile": "phone-small-portrait",
+            "state": "leak-gate-focus",
+            "width": 720,
+            "height": 1280,
+            "safeAreaInsets": {
+                "left": 0,
+                "top": 24,
+                "right": 0,
+                "bottom": 24
+            },
+            "outputPath": "after/phone-small-portrait/14-leak-gate-focus.png",
+            "grayscalePath": "after/phone-small-portrait/grayscale/14-leak-gate-focus.png",
+            "success": true,
+            "error": ""
+        },
+        {
+            "profile": "phone-small-portrait",
+            "state": "results-or-late-match",
+            "width": 720,
+            "height": 1280,
+            "safeAreaInsets": {
+                "left": 0,
+                "top": 24,
+                "right": 0,
+                "bottom": 24
+            },
+            "outputPath": "after/phone-small-portrait/15-results-or-late-match.png",
+            "grayscalePath": "after/phone-small-portrait/grayscale/15-results-or-late-match.png",
+            "success": true,
+            "error": ""
+        },
+        {
+            "profile": "phone-standard-portrait",
+            "state": "default-hud",
+            "width": 1080,
+            "height": 1920,
+            "safeAreaInsets": {
+                "left": 0,
+                "top": 48,
+                "right": 0,
+                "bottom": 48
+            },
+            "outputPath": "after/phone-standard-portrait/01-default-hud.png",
+            "grayscalePath": "after/phone-standard-portrait/grayscale/01-default-hud.png",
+            "success": true,
+            "error": ""
+        },
+        {
+            "profile": "phone-standard-portrait",
+            "state": "build-menu-open",
+            "width": 1080,
+            "height": 1920,
+            "safeAreaInsets": {
+                "left": 0,
+                "top": 48,
+                "right": 0,
+                "bottom": 48
+            },
+            "outputPath": "after/phone-standard-portrait/02-build-menu-open.png",
+            "grayscalePath": "after/phone-standard-portrait/grayscale/02-build-menu-open.png",
+            "success": true,
+            "error": ""
+        },
+        {
+            "profile": "phone-standard-portrait",
+            "state": "build-card-selected",
+            "width": 1080,
+            "height": 1920,
+            "safeAreaInsets": {
+                "left": 0,
+                "top": 48,
+                "right": 0,
+                "bottom": 48
+            },
+            "outputPath": "after/phone-standard-portrait/03-build-card-selected.png",
+            "grayscalePath": "after/phone-standard-portrait/grayscale/03-build-card-selected.png",
+            "success": true,
+            "error": ""
+        },
+        {
+            "profile": "phone-standard-portrait",
+            "state": "send-menu-open",
+            "width": 1080,
+            "height": 1920,
+            "safeAreaInsets": {
+                "left": 0,
+                "top": 48,
+                "right": 0,
+                "bottom": 48
+            },
+            "outputPath": "after/phone-standard-portrait/04-send-menu-open.png",
+            "grayscalePath": "after/phone-standard-portrait/grayscale/04-send-menu-open.png",
+            "success": true,
+            "error": ""
+        },
+        {
+            "profile": "phone-standard-portrait",
+            "state": "send-card-disabled",
+            "width": 1080,
+            "height": 1920,
+            "safeAreaInsets": {
+                "left": 0,
+                "top": 48,
+                "right": 0,
+                "bottom": 48
+            },
+            "outputPath": "after/phone-standard-portrait/05-send-card-disabled.png",
+            "grayscalePath": "after/phone-standard-portrait/grayscale/05-send-card-disabled.png",
+            "success": true,
+            "error": ""
+        },
+        {
+            "profile": "phone-standard-portrait",
+            "state": "lane-selector-open",
+            "width": 1080,
+            "height": 1920,
+            "safeAreaInsets": {
+                "left": 0,
+                "top": 48,
+                "right": 0,
+                "bottom": 48
+            },
+            "outputPath": "after/phone-standard-portrait/06-lane-selector-open.png",
+            "grayscalePath": "after/phone-standard-portrait/grayscale/06-lane-selector-open.png",
+            "success": true,
+            "error": ""
+        },
+        {
+            "profile": "phone-standard-portrait",
+            "state": "active-combat",
+            "width": 1080,
+            "height": 1920,
+            "safeAreaInsets": {
+                "left": 0,
+                "top": 48,
+                "right": 0,
+                "bottom": 48
+            },
+            "outputPath": "after/phone-standard-portrait/07-active-combat.png",
+            "grayscalePath": "after/phone-standard-portrait/grayscale/07-active-combat.png",
+            "success": true,
+            "error": ""
+        },
+        {
+            "profile": "phone-standard-portrait",
+            "state": "runner-10-pressure",
+            "width": 1080,
+            "height": 1920,
+            "safeAreaInsets": {
+                "left": 0,
+                "top": 48,
+                "right": 0,
+                "bottom": 48
+            },
+            "outputPath": "after/phone-standard-portrait/08-runner-10-pressure.png",
+            "grayscalePath": "after/phone-standard-portrait/grayscale/08-runner-10-pressure.png",
+            "success": true,
+            "error": ""
+        },
+        {
+            "profile": "phone-standard-portrait",
+            "state": "swarm-heavy-pressure",
+            "width": 1080,
+            "height": 1920,
+            "safeAreaInsets": {
+                "left": 0,
+                "top": 48,
+                "right": 0,
+                "bottom": 48
+            },
+            "outputPath": "after/phone-standard-portrait/09-swarm-heavy-pressure.png",
+            "grayscalePath": "after/phone-standard-portrait/grayscale/09-swarm-heavy-pressure.png",
+            "success": true,
+            "error": ""
+        },
+        {
+            "profile": "phone-standard-portrait",
+            "state": "heavy-pressure",
+            "width": 1080,
+            "height": 1920,
+            "safeAreaInsets": {
+                "left": 0,
+                "top": 48,
+                "right": 0,
+                "bottom": 48
+            },
+            "outputPath": "after/phone-standard-portrait/10-heavy-pressure.png",
+            "grayscalePath": "after/phone-standard-portrait/grayscale/10-heavy-pressure.png",
+            "success": true,
+            "error": ""
+        },
+        {
+            "profile": "phone-standard-portrait",
+            "state": "reduced-effects-heavy",
+            "width": 1080,
+            "height": 1920,
+            "safeAreaInsets": {
+                "left": 0,
+                "top": 48,
+                "right": 0,
+                "bottom": 48
+            },
+            "outputPath": "after/phone-standard-portrait/11-reduced-effects-heavy.png",
+            "grayscalePath": "after/phone-standard-portrait/grayscale/11-reduced-effects-heavy.png",
+            "success": true,
+            "error": ""
+        },
+        {
+            "profile": "phone-standard-portrait",
+            "state": "board-overview",
+            "width": 1080,
+            "height": 1920,
+            "safeAreaInsets": {
+                "left": 0,
+                "top": 48,
+                "right": 0,
+                "bottom": 48
+            },
+            "outputPath": "after/phone-standard-portrait/12-board-overview.png",
+            "grayscalePath": "after/phone-standard-portrait/grayscale/12-board-overview.png",
+            "success": true,
+            "error": ""
+        },
+        {
+            "profile": "phone-standard-portrait",
+            "state": "spawn-gate-focus",
+            "width": 1080,
+            "height": 1920,
+            "safeAreaInsets": {
+                "left": 0,
+                "top": 48,
+                "right": 0,
+                "bottom": 48
+            },
+            "outputPath": "after/phone-standard-portrait/13-spawn-gate-focus.png",
+            "grayscalePath": "after/phone-standard-portrait/grayscale/13-spawn-gate-focus.png",
+            "success": true,
+            "error": ""
+        },
+        {
+            "profile": "phone-standard-portrait",
+            "state": "leak-gate-focus",
+            "width": 1080,
+            "height": 1920,
+            "safeAreaInsets": {
+                "left": 0,
+                "top": 48,
+                "right": 0,
+                "bottom": 48
+            },
+            "outputPath": "after/phone-standard-portrait/14-leak-gate-focus.png",
+            "grayscalePath": "after/phone-standard-portrait/grayscale/14-leak-gate-focus.png",
+            "success": true,
+            "error": ""
+        },
+        {
+            "profile": "phone-standard-portrait",
+            "state": "results-or-late-match",
+            "width": 1080,
+            "height": 1920,
+            "safeAreaInsets": {
+                "left": 0,
+                "top": 48,
+                "right": 0,
+                "bottom": 48
+            },
+            "outputPath": "after/phone-standard-portrait/15-results-or-late-match.png",
+            "grayscalePath": "after/phone-standard-portrait/grayscale/15-results-or-late-match.png",
+            "success": true,
+            "error": ""
+        },
+        {
+            "profile": "phone-tall-portrait",
+            "state": "default-hud",
+            "width": 1080,
+            "height": 2340,
+            "safeAreaInsets": {
+                "left": 0,
+                "top": 54,
+                "right": 0,
+                "bottom": 72
+            },
+            "outputPath": "after/phone-tall-portrait/01-default-hud.png",
+            "grayscalePath": "after/phone-tall-portrait/grayscale/01-default-hud.png",
+            "success": true,
+            "error": ""
+        },
+        {
+            "profile": "phone-tall-portrait",
+            "state": "build-menu-open",
+            "width": 1080,
+            "height": 2340,
+            "safeAreaInsets": {
+                "left": 0,
+                "top": 54,
+                "right": 0,
+                "bottom": 72
+            },
+            "outputPath": "after/phone-tall-portrait/02-build-menu-open.png",
+            "grayscalePath": "after/phone-tall-portrait/grayscale/02-build-menu-open.png",
+            "success": true,
+            "error": ""
+        },
+        {
+            "profile": "phone-tall-portrait",
+            "state": "build-card-selected",
+            "width": 1080,
+            "height": 2340,
+            "safeAreaInsets": {
+                "left": 0,
+                "top": 54,
+                "right": 0,
+                "bottom": 72
+            },
+            "outputPath": "after/phone-tall-portrait/03-build-card-selected.png",
+            "grayscalePath": "after/phone-tall-portrait/grayscale/03-build-card-selected.png",
+            "success": true,
+            "error": ""
+        },
+        {
+            "profile": "phone-tall-portrait",
+            "state": "send-menu-open",
+            "width": 1080,
+            "height": 2340,
+            "safeAreaInsets": {
+                "left": 0,
+                "top": 54,
+                "right": 0,
+                "bottom": 72
+            },
+            "outputPath": "after/phone-tall-portrait/04-send-menu-open.png",
+            "grayscalePath": "after/phone-tall-portrait/grayscale/04-send-menu-open.png",
+            "success": true,
+            "error": ""
+        },
+        {
+            "profile": "phone-tall-portrait",
+            "state": "send-card-disabled",
+            "width": 1080,
+            "height": 2340,
+            "safeAreaInsets": {
+                "left": 0,
+                "top": 54,
+                "right": 0,
+                "bottom": 72
+            },
+            "outputPath": "after/phone-tall-portrait/05-send-card-disabled.png",
+            "grayscalePath": "after/phone-tall-portrait/grayscale/05-send-card-disabled.png",
+            "success": true,
+            "error": ""
+        },
+        {
+            "profile": "phone-tall-portrait",
+            "state": "lane-selector-open",
+            "width": 1080,
+            "height": 2340,
+            "safeAreaInsets": {
+                "left": 0,
+                "top": 54,
+                "right": 0,
+                "bottom": 72
+            },
+            "outputPath": "after/phone-tall-portrait/06-lane-selector-open.png",
+            "grayscalePath": "after/phone-tall-portrait/grayscale/06-lane-selector-open.png",
+            "success": true,
+            "error": ""
+        },
+        {
+            "profile": "phone-tall-portrait",
+            "state": "active-combat",
+            "width": 1080,
+            "height": 2340,
+            "safeAreaInsets": {
+                "left": 0,
+                "top": 54,
+                "right": 0,
+                "bottom": 72
+            },
+            "outputPath": "after/phone-tall-portrait/07-active-combat.png",
+            "grayscalePath": "after/phone-tall-portrait/grayscale/07-active-combat.png",
+            "success": true,
+            "error": ""
+        },
+        {
+            "profile": "phone-tall-portrait",
+            "state": "runner-10-pressure",
+            "width": 1080,
+            "height": 2340,
+            "safeAreaInsets": {
+                "left": 0,
+                "top": 54,
+                "right": 0,
+                "bottom": 72
+            },
+            "outputPath": "after/phone-tall-portrait/08-runner-10-pressure.png",
+            "grayscalePath": "after/phone-tall-portrait/grayscale/08-runner-10-pressure.png",
+            "success": true,
+            "error": ""
+        },
+        {
+            "profile": "phone-tall-portrait",
+            "state": "swarm-heavy-pressure",
+            "width": 1080,
+            "height": 2340,
+            "safeAreaInsets": {
+                "left": 0,
+                "top": 54,
+                "right": 0,
+                "bottom": 72
+            },
+            "outputPath": "after/phone-tall-portrait/09-swarm-heavy-pressure.png",
+            "grayscalePath": "after/phone-tall-portrait/grayscale/09-swarm-heavy-pressure.png",
+            "success": true,
+            "error": ""
+        },
+        {
+            "profile": "phone-tall-portrait",
+            "state": "heavy-pressure",
+            "width": 1080,
+            "height": 2340,
+            "safeAreaInsets": {
+                "left": 0,
+                "top": 54,
+                "right": 0,
+                "bottom": 72
+            },
+            "outputPath": "after/phone-tall-portrait/10-heavy-pressure.png",
+            "grayscalePath": "after/phone-tall-portrait/grayscale/10-heavy-pressure.png",
+            "success": true,
+            "error": ""
+        },
+        {
+            "profile": "phone-tall-portrait",
+            "state": "reduced-effects-heavy",
+            "width": 1080,
+            "height": 2340,
+            "safeAreaInsets": {
+                "left": 0,
+                "top": 54,
+                "right": 0,
+                "bottom": 72
+            },
+            "outputPath": "after/phone-tall-portrait/11-reduced-effects-heavy.png",
+            "grayscalePath": "after/phone-tall-portrait/grayscale/11-reduced-effects-heavy.png",
+            "success": true,
+            "error": ""
+        },
+        {
+            "profile": "phone-tall-portrait",
+            "state": "board-overview",
+            "width": 1080,
+            "height": 2340,
+            "safeAreaInsets": {
+                "left": 0,
+                "top": 54,
+                "right": 0,
+                "bottom": 72
+            },
+            "outputPath": "after/phone-tall-portrait/12-board-overview.png",
+            "grayscalePath": "after/phone-tall-portrait/grayscale/12-board-overview.png",
+            "success": true,
+            "error": ""
+        },
+        {
+            "profile": "phone-tall-portrait",
+            "state": "spawn-gate-focus",
+            "width": 1080,
+            "height": 2340,
+            "safeAreaInsets": {
+                "left": 0,
+                "top": 54,
+                "right": 0,
+                "bottom": 72
+            },
+            "outputPath": "after/phone-tall-portrait/13-spawn-gate-focus.png",
+            "grayscalePath": "after/phone-tall-portrait/grayscale/13-spawn-gate-focus.png",
+            "success": true,
+            "error": ""
+        },
+        {
+            "profile": "phone-tall-portrait",
+            "state": "leak-gate-focus",
+            "width": 1080,
+            "height": 2340,
+            "safeAreaInsets": {
+                "left": 0,
+                "top": 54,
+                "right": 0,
+                "bottom": 72
+            },
+            "outputPath": "after/phone-tall-portrait/14-leak-gate-focus.png",
+            "grayscalePath": "after/phone-tall-portrait/grayscale/14-leak-gate-focus.png",
+            "success": true,
+            "error": ""
+        },
+        {
+            "profile": "phone-tall-portrait",
+            "state": "results-or-late-match",
+            "width": 1080,
+            "height": 2340,
+            "safeAreaInsets": {
+                "left": 0,
+                "top": 54,
+                "right": 0,
+                "bottom": 72
+            },
+            "outputPath": "after/phone-tall-portrait/15-results-or-late-match.png",
+            "grayscalePath": "after/phone-tall-portrait/grayscale/15-results-or-late-match.png",
+            "success": true,
+            "error": ""
+        },
+        {
+            "profile": "phone-safe-area-portrait",
+            "state": "default-hud",
+            "width": 1179,
+            "height": 2556,
+            "safeAreaInsets": {
+                "left": 0,
+                "top": 141,
+                "right": 0,
+                "bottom": 102
+            },
+            "outputPath": "after/phone-safe-area-portrait/01-default-hud.png",
+            "grayscalePath": "after/phone-safe-area-portrait/grayscale/01-default-hud.png",
+            "success": true,
+            "error": ""
+        },
+        {
+            "profile": "phone-safe-area-portrait",
+            "state": "build-menu-open",
+            "width": 1179,
+            "height": 2556,
+            "safeAreaInsets": {
+                "left": 0,
+                "top": 141,
+                "right": 0,
+                "bottom": 102
+            },
+            "outputPath": "after/phone-safe-area-portrait/02-build-menu-open.png",
+            "grayscalePath": "after/phone-safe-area-portrait/grayscale/02-build-menu-open.png",
+            "success": true,
+            "error": ""
+        },
+        {
+            "profile": "phone-safe-area-portrait",
+            "state": "build-card-selected",
+            "width": 1179,
+            "height": 2556,
+            "safeAreaInsets": {
+                "left": 0,
+                "top": 141,
+                "right": 0,
+                "bottom": 102
+            },
+            "outputPath": "after/phone-safe-area-portrait/03-build-card-selected.png",
+            "grayscalePath": "after/phone-safe-area-portrait/grayscale/03-build-card-selected.png",
+            "success": true,
+            "error": ""
+        },
+        {
+            "profile": "phone-safe-area-portrait",
+            "state": "send-menu-open",
+            "width": 1179,
+            "height": 2556,
+            "safeAreaInsets": {
+                "left": 0,
+                "top": 141,
+                "right": 0,
+                "bottom": 102
+            },
+            "outputPath": "after/phone-safe-area-portrait/04-send-menu-open.png",
+            "grayscalePath": "after/phone-safe-area-portrait/grayscale/04-send-menu-open.png",
+            "success": true,
+            "error": ""
+        },
+        {
+            "profile": "phone-safe-area-portrait",
+            "state": "send-card-disabled",
+            "width": 1179,
+            "height": 2556,
+            "safeAreaInsets": {
+                "left": 0,
+                "top": 141,
+                "right": 0,
+                "bottom": 102
+            },
+            "outputPath": "after/phone-safe-area-portrait/05-send-card-disabled.png",
+            "grayscalePath": "after/phone-safe-area-portrait/grayscale/05-send-card-disabled.png",
+            "success": true,
+            "error": ""
+        },
+        {
+            "profile": "phone-safe-area-portrait",
+            "state": "lane-selector-open",
+            "width": 1179,
+            "height": 2556,
+            "safeAreaInsets": {
+                "left": 0,
+                "top": 141,
+                "right": 0,
+                "bottom": 102
+            },
+            "outputPath": "after/phone-safe-area-portrait/06-lane-selector-open.png",
+            "grayscalePath": "after/phone-safe-area-portrait/grayscale/06-lane-selector-open.png",
+            "success": true,
+            "error": ""
+        },
+        {
+            "profile": "phone-safe-area-portrait",
+            "state": "active-combat",
+            "width": 1179,
+            "height": 2556,
+            "safeAreaInsets": {
+                "left": 0,
+                "top": 141,
+                "right": 0,
+                "bottom": 102
+            },
+            "outputPath": "after/phone-safe-area-portrait/07-active-combat.png",
+            "grayscalePath": "after/phone-safe-area-portrait/grayscale/07-active-combat.png",
+            "success": true,
+            "error": ""
+        },
+        {
+            "profile": "phone-safe-area-portrait",
+            "state": "runner-10-pressure",
+            "width": 1179,
+            "height": 2556,
+            "safeAreaInsets": {
+                "left": 0,
+                "top": 141,
+                "right": 0,
+                "bottom": 102
+            },
+            "outputPath": "after/phone-safe-area-portrait/08-runner-10-pressure.png",
+            "grayscalePath": "after/phone-safe-area-portrait/grayscale/08-runner-10-pressure.png",
+            "success": true,
+            "error": ""
+        },
+        {
+            "profile": "phone-safe-area-portrait",
+            "state": "swarm-heavy-pressure",
+            "width": 1179,
+            "height": 2556,
+            "safeAreaInsets": {
+                "left": 0,
+                "top": 141,
+                "right": 0,
+                "bottom": 102
+            },
+            "outputPath": "after/phone-safe-area-portrait/09-swarm-heavy-pressure.png",
+            "grayscalePath": "after/phone-safe-area-portrait/grayscale/09-swarm-heavy-pressure.png",
+            "success": true,
+            "error": ""
+        },
+        {
+            "profile": "phone-safe-area-portrait",
+            "state": "heavy-pressure",
+            "width": 1179,
+            "height": 2556,
+            "safeAreaInsets": {
+                "left": 0,
+                "top": 141,
+                "right": 0,
+                "bottom": 102
+            },
+            "outputPath": "after/phone-safe-area-portrait/10-heavy-pressure.png",
+            "grayscalePath": "after/phone-safe-area-portrait/grayscale/10-heavy-pressure.png",
+            "success": true,
+            "error": ""
+        },
+        {
+            "profile": "phone-safe-area-portrait",
+            "state": "reduced-effects-heavy",
+            "width": 1179,
+            "height": 2556,
+            "safeAreaInsets": {
+                "left": 0,
+                "top": 141,
+                "right": 0,
+                "bottom": 102
+            },
+            "outputPath": "after/phone-safe-area-portrait/11-reduced-effects-heavy.png",
+            "grayscalePath": "after/phone-safe-area-portrait/grayscale/11-reduced-effects-heavy.png",
+            "success": true,
+            "error": ""
+        },
+        {
+            "profile": "phone-safe-area-portrait",
+            "state": "board-overview",
+            "width": 1179,
+            "height": 2556,
+            "safeAreaInsets": {
+                "left": 0,
+                "top": 141,
+                "right": 0,
+                "bottom": 102
+            },
+            "outputPath": "after/phone-safe-area-portrait/12-board-overview.png",
+            "grayscalePath": "after/phone-safe-area-portrait/grayscale/12-board-overview.png",
+            "success": true,
+            "error": ""
+        },
+        {
+            "profile": "phone-safe-area-portrait",
+            "state": "spawn-gate-focus",
+            "width": 1179,
+            "height": 2556,
+            "safeAreaInsets": {
+                "left": 0,
+                "top": 141,
+                "right": 0,
+                "bottom": 102
+            },
+            "outputPath": "after/phone-safe-area-portrait/13-spawn-gate-focus.png",
+            "grayscalePath": "after/phone-safe-area-portrait/grayscale/13-spawn-gate-focus.png",
+            "success": true,
+            "error": ""
+        },
+        {
+            "profile": "phone-safe-area-portrait",
+            "state": "leak-gate-focus",
+            "width": 1179,
+            "height": 2556,
+            "safeAreaInsets": {
+                "left": 0,
+                "top": 141,
+                "right": 0,
+                "bottom": 102
+            },
+            "outputPath": "after/phone-safe-area-portrait/14-leak-gate-focus.png",
+            "grayscalePath": "after/phone-safe-area-portrait/grayscale/14-leak-gate-focus.png",
+            "success": true,
+            "error": ""
+        },
+        {
+            "profile": "phone-safe-area-portrait",
+            "state": "results-or-late-match",
+            "width": 1179,
+            "height": 2556,
+            "safeAreaInsets": {
+                "left": 0,
+                "top": 141,
+                "right": 0,
+                "bottom": 102
+            },
+            "outputPath": "after/phone-safe-area-portrait/15-results-or-late-match.png",
+            "grayscalePath": "after/phone-safe-area-portrait/grayscale/15-results-or-late-match.png",
+            "success": true,
+            "error": ""
+        }
+    ]
+}

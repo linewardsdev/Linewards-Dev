@@ -75,6 +75,8 @@ Source of truth: `docs/art-pipeline/ui-board-art-pipeline.md`
   - [x] 2026-07-16: Added 15-state mobile capture coverage with board overview, spawn-gate focus, and leak-gate focus states; trimmed the lane to 16 rows; strengthened procedural endpoint plates; captured scored evidence under `docs/screenshot-reviews/mobile-art-spawn-leak-board-pass/`.
 - [x] Anchor automation passes to selected target references.
   - [x] 2026-07-16: Added package-aware target-reference resolution in `VisualImprovementCycleReport`, copied selected UI/board refs into the spawn/leak evidence package, and added mandatory reference-match scoring to the improvement-cycle report.
+- [x] Run target-reference anchored spawn/leak board pass.
+  - [x] 2026-07-16: Captured `docs/screenshot-reviews/mobile-art-target-ref-spawn-leak-pass/` with 60 color captures, 60 grayscale captures, 6 selected target references, and agent-scored target match review.
 - [ ] Normalize crops, scale, alpha, and grayscale copies.
 - [ ] Add source notes for every promoted generated asset.
 - [ ] Add Unity import settings and `.meta` files.
