@@ -83,11 +83,16 @@ Source of truth: `docs/art-pipeline/ui-board-art-pipeline.md`
   - [x] 2026-07-16: Replaced the full owner-blue board outline with low-profile dark stone/metal trim and small owner-accent chips; captured focused standard-phone evidence under `docs/screenshot-reviews/mobile-art-frame-replacement-check/`.
 - [x] Run aggressive focused board/spawn/life-loss endpoint pass.
   - [x] 2026-07-17: Added route recesses/ribs, stronger endpoint approach plates, a more architectural spawn portal, and a darker leak drain/jaw treatment; captured 60 color and 60 grayscale frames under `docs/screenshot-reviews/mobile-art-aggressive-board-endpoint-pass/` with board/endpoints held at `2/3` target match and a stronger procedural baseline.
+- [x] Promote selected endpoint reference art into runtime sprites.
+  - [x] 2026-07-17: Cropped selected spawn/leak option 11 into `Assets/Resources/Art/Board/Endpoints/`, added endpoint sprite import settings, loaded the sprites in `UnityVerticalSliceRenderer`, and suppressed the primitive endpoint stack when reference sprites are available.
+  - [x] 2026-07-17: Captured 60 color and 60 grayscale frames under `docs/screenshot-reviews/mobile-art-endpoint-sprite-promotion/`; endpoint target-reference usage is now real runtime art instead of procedural approximation.
 - [ ] Normalize crops, scale, alpha, and grayscale copies.
+- [ ] Normalize remaining endpoint crop matte, lighting, and lane-scale fit.
 - [ ] Add source notes for every promoted generated asset.
-- [ ] Add Unity import settings and `.meta` files.
+- [x] Add Unity import settings and `.meta` files for promoted endpoint sprites.
 - [x] Wire first runtime slice behind safe fallback.
   - [x] Command cards use procedural V02 chrome and keep existing icon fallback behavior.
+  - [x] Endpoint sprites load through `Resources`; if either sprite is missing, the procedural endpoint landmarks/gates remain the fallback path.
 
 ## V0.2 QA
 

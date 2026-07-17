@@ -24,6 +24,8 @@ namespace LTW.UnityClient.Simulation
         private const string PrimitiveCreepPoolKey = "primitive-creep";
         private const string DefaultTowerVisualLibraryResourcePath = "TowerVisualLibrary";
         private const string DefaultCreepVisualLibraryResourcePath = "CreepVisualLibrary";
+        private const string SpawnGateSpriteResourcePath = "Art/Board/Endpoints/board_spawn_gate_option_11_v01";
+        private const string LeakGateSpriteResourcePath = "Art/Board/Endpoints/board_leak_gate_option_11_v01";
 
         [SerializeField] private UnitySimulationDriver simulationDriver = null!;
         [SerializeField] private PresentationDetail presentationDetail = PresentationDetail.Full;
@@ -66,6 +68,8 @@ namespace LTW.UnityClient.Simulation
         private readonly List<TimedPresentation> timedPresentations = new List<TimedPresentation>();
 
         private Camera presentationCamera = null!;
+        private Sprite spawnGateSprite;
+        private Sprite leakGateSprite;
         private bool laneCreated;
 
         public PresentationDetail Detail => presentationDetail;
@@ -77,6 +81,8 @@ namespace LTW.UnityClient.Simulation
         public int ActivePresentationObjectCount => activeTowers.Count + activeCreeps.Count + timedPresentations.Count;
 
         public int PooledPresentationObjectCount => towerPool.Count + PooledTowerPrefabCount() + creepPool.Count + PooledCreepPrefabCount() + effectPool.Count + textPool.Count;
+
+        private bool EndpointSpritesAvailable => spawnGateSprite != null && leakGateSprite != null;
 
         public void Initialize(UnitySimulationDriver driver)
         {
@@ -100,6 +106,9 @@ namespace LTW.UnityClient.Simulation
             {
                 creepVisualLibrary = Resources.Load<CreepVisualLibrary>(DefaultCreepVisualLibraryResourcePath);
             }
+
+            spawnGateSprite = Resources.Load<Sprite>(SpawnGateSpriteResourcePath);
+            leakGateSprite = Resources.Load<Sprite>(LeakGateSpriteResourcePath);
 
             feedbackAudioSource = gameObject.AddComponent<AudioSource>();
             feedbackAudioSource.playOnAwake = false;
@@ -250,10 +259,14 @@ namespace LTW.UnityClient.Simulation
                 CreateEndpointPlateDetails(lane, LaneLength - 1, LeakRed, lane == 1, false);
                 CreateLaneFrame(lane);
                 CreateLaneFlowCues(lane);
-                CreateLaneLandmark(lane, CenterColumn, 0, "Spawn", MintSignal, 0.28f);
-                CreateLaneLandmark(lane, CenterColumn, LaneLength - 1, "LifeLoss", LeakRed, 0.34f);
-                CreateLaneGate(lane, 0, MintSignal, "ENTRY");
-                CreateLaneGate(lane, LaneLength - 1, LeakRed, "LEAK");
+                if (!EndpointSpritesAvailable)
+                {
+                    CreateLaneLandmark(lane, CenterColumn, 0, "Spawn", MintSignal, 0.28f);
+                    CreateLaneLandmark(lane, CenterColumn, LaneLength - 1, "LifeLoss", LeakRed, 0.34f);
+                    CreateLaneGate(lane, 0, MintSignal, "ENTRY");
+                    CreateLaneGate(lane, LaneLength - 1, LeakRed, "LEAK");
+                }
+
                 CreateLaneLabel(lane);
                 CreateLaneOwnershipBadge(lane);
             }
@@ -1600,6 +1613,13 @@ namespace LTW.UnityClient.Simulation
             var direction = isSpawn ? -1f : 1f;
             var label = isSpawn ? "Spawn" : "Leak";
             var center = new Vector3(offset + CenterColumn, -0.03f, z);
+            var hasEndpointSprite = isSpawn ? spawnGateSprite != null : leakGateSprite != null;
+
+            if (hasEndpointSprite)
+            {
+                CreateEndpointSpritePlate(laneId, label, center, isSpawn, isPlayerLane);
+                return;
+            }
 
             CreateEndpointDisc($"Lane{laneId}{label}FoundationShadow", center + Vector3.down * 0.055f, isPlayerLane ? 2.62f : 2.3f, 0.032f, BoardContactShadowColor(laneId));
             CreateEndpointDisc($"Lane{laneId}{label}OuterStoneRing", center + Vector3.down * 0.025f, isPlayerLane ? 2.34f : 2.04f, 0.05f, EndpointStoneRingColor(isSpawn, isPlayerLane));
@@ -1664,6 +1684,31 @@ namespace LTW.UnityClient.Simulation
                 CreateSurfaceBand($"Lane{laneId}{label}DrainArrowLeft", new Vector3(offset + CenterColumn - 0.22f, 0.132f, z - 0.88f), new Vector3(0.13f, 0.018f, 0.52f), signal).transform.rotation = Quaternion.Euler(0f, -36f, 0f);
                 CreateSurfaceBand($"Lane{laneId}{label}DrainArrowRight", new Vector3(offset + CenterColumn + 0.22f, 0.132f, z - 0.88f), new Vector3(0.13f, 0.018f, 0.52f), signal).transform.rotation = Quaternion.Euler(0f, 36f, 0f);
             }
+
+            CreateEndpointSpritePlate(laneId, label, center, isSpawn, isPlayerLane);
+        }
+
+        private void CreateEndpointSpritePlate(int laneId, string label, Vector3 center, bool isSpawn, bool isPlayerLane)
+        {
+            var sprite = isSpawn ? spawnGateSprite : leakGateSprite;
+            if (sprite == null)
+            {
+                return;
+            }
+
+            var plate = new GameObject($"Lane{laneId}{label}ReferenceSpritePlate");
+            plate.transform.position = center + new Vector3(0f, 0.18f, isSpawn ? 0.02f : -0.05f);
+            plate.transform.rotation = Quaternion.Euler(90f, 0f, 0f);
+            var scale = isPlayerLane
+                ? (isSpawn ? 1.02f : 0.94f)
+                : (isSpawn ? 0.86f : 0.8f);
+            plate.transform.localScale = new Vector3(scale, scale, 1f);
+
+            var renderer = plate.AddComponent<SpriteRenderer>();
+            renderer.sprite = sprite;
+            renderer.sortingOrder = 3;
+            renderer.color = Color.white;
+            laneDecorations.Add(plate);
         }
 
         private void CreateEndpointStoneSegments(int laneId, string label, Vector3 center, bool isSpawn, bool isPlayerLane)
