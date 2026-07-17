@@ -69,6 +69,8 @@ Source of truth: `docs/art-pipeline/ui-board-art-pipeline.md`
   - [x] 2026-07-16: Expanded the managed mobile capture matrix from 8 to 12 states with selected build card, disabled send card, Runner x10 pressure, and heavy Swarm pressure evidence under `docs/screenshot-reviews/mobile-art-state-coverage-pass/`.
 - [x] Run first aggressive UI spacing automation pass.
   - [x] 2026-07-16: Added `-ltwIntensity aggressive`, replaced long build/send drawer headers with compact tabs, increased drawer spacing, and captured evidence under `docs/screenshot-reviews/mobile-art-aggressive-ui-spacing-pass/`.
+- [x] Run aggressive command-card icon-first pass.
+  - [x] 2026-07-16: Enlarged command icon wells, switched command cards to compact role codes, reduced card label/meta scale, and captured evidence under `docs/screenshot-reviews/mobile-art-aggressive-command-card-pass/`.
 - [ ] Normalize crops, scale, alpha, and grayscale copies.
 - [ ] Add source notes for every promoted generated asset.
 - [ ] Add Unity import settings and `.meta` files.

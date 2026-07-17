@@ -34,18 +34,18 @@ namespace LTW.UnityClient.UI
 
         public static Rect CommandCardIconRect(Rect rect, float scale)
         {
-            var size = Mathf.Min(48f * scale, rect.height - 30f * scale);
-            return new Rect(rect.x + (rect.width - size) * 0.5f, rect.y + 10f * scale, size, size);
+            var size = Mathf.Min(52f * scale, rect.height - 28f * scale);
+            return new Rect(rect.x + (rect.width - size) * 0.5f, rect.y + 8f * scale, size, size);
         }
 
         public static Rect CommandCardLabelRect(Rect rect, float scale)
         {
-            return new Rect(rect.x + 7f * scale, rect.yMax - 38f * scale, rect.width - 14f * scale, 18f * scale);
+            return new Rect(rect.x + 7f * scale, rect.yMax - 32f * scale, rect.width - 14f * scale, 15f * scale);
         }
 
         public static Rect CommandCardMetaRect(Rect rect, float scale)
         {
-            return new Rect(rect.x + 7f * scale, rect.yMax - 20f * scale, rect.width - 14f * scale, 15f * scale);
+            return new Rect(rect.x + 7f * scale, rect.yMax - 17f * scale, rect.width - 14f * scale, 12f * scale);
         }
 
         public static bool DrawControlButton(Rect rect, string label, Color accent, bool active, float scale, GUIStyle labelStyle)

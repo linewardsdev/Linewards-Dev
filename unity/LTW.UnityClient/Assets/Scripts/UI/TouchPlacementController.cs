@@ -780,16 +780,28 @@ namespace LTW.UnityClient.UI
                 DrawTowerIcon(iconRect, iconKind, displayAccent, scale);
             }
 
-            buttonStyle!.fontSize = Mathf.RoundToInt(12f * scale);
+            buttonStyle!.fontSize = Mathf.RoundToInt(10f * scale);
             buttonStyle.normal.textColor = isAffordable ? Cloud : DisabledText;
             buttonStyle.hover.textColor = buttonStyle.normal.textColor;
             buttonStyle.active.textColor = buttonStyle.normal.textColor;
-            GUI.Label(RuntimeUiChrome.CommandCardLabelRect(rect, scale), label, style);
+            GUI.Label(RuntimeUiChrome.CommandCardLabelRect(rect, scale), CompactTowerLabel(label), style);
 
-            metaStyle!.fontSize = Mathf.RoundToInt(11f * scale);
+            metaStyle!.fontSize = Mathf.RoundToInt(9f * scale);
             metaStyle.normal.textColor = displayAccent;
             GUI.Label(RuntimeUiChrome.CommandCardMetaRect(rect, scale), meta, metaStyle);
             return pressed;
+        }
+
+        private static string CompactTowerLabel(string label)
+        {
+            return label switch
+            {
+                "ARROW" => "ARW",
+                "RELAY" => "RLY",
+                "PULSE" => "PLS",
+                "PRISM" => "PRM",
+                _ => label
+            };
         }
 
         private static string TowerIconResourceName(TowerIconKind iconKind)
