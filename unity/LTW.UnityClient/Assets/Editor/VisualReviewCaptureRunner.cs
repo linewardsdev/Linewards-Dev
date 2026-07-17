@@ -910,14 +910,14 @@ namespace LTW.UnityClient.Editor
                         profile.safeAreaInsets.bottom,
                         profile.width - profile.safeAreaInsets.left - profile.safeAreaInsets.right,
                         profile.height - profile.safeAreaInsets.top - profile.safeAreaInsets.bottom);
-                    var path = capturePlan.GetCapturePath(captureOutputRoot, profile.name, label);
+                    var capturePath = capturePlan.GetCapturePath(captureOutputRoot, profile.name, label);
                     try
                     {
                         MobileViewportLayout.SetCaptureViewportOverride(profile.width, profile.height, safeArea);
-                        WriteImmediateCapture(path, label, profile.width, profile.height);
+                        WriteImmediateCapture(capturePath, label, profile.width, profile.height);
                         if (writeGrayscaleCopies)
                         {
-                            WriteGrayscaleCopy(label, path);
+                            WriteGrayscaleCopy(label, capturePath);
                         }
 
                         captureManifest.MarkResult(profile.name, label, success: true);
@@ -979,6 +979,7 @@ namespace LTW.UnityClient.Editor
                 RenderActiveCameras(renderTexture);
                 RenderBatchHudOverlay(renderTexture, label);
                 texture.ReadPixels(new Rect(0, 0, width, height), 0, 0);
+                PaintBatchHudOverlay(texture, label);
                 texture.Apply();
                 Directory.CreateDirectory(Path.GetDirectoryName(path)!);
                 File.WriteAllBytes(path, ImageConversion.EncodeToPNG(texture));
@@ -1030,23 +1031,23 @@ namespace LTW.UnityClient.Editor
             var red = new Color32(255, 97, 112, 255);
             var cloud = new Color32(244, 247, 255, 255);
 
-            PaintRect(texture, 360, 1784, 360, 68, panelStrong);
-            PaintRect(texture, 380, 1779, 320, 5, gold);
-            PaintRect(texture, 378, 1800, 70, 34, new Color32(9, 22, 34, 238));
-            PaintRect(texture, 456, 1800, 190, 34, new Color32(9, 18, 32, 238));
-            PaintRect(texture, 654, 1800, 52, 34, new Color32(13, 39, 48, 238));
-            PaintText(texture, "LINE", 388, 1826, mint, 3);
-            PaintText(texture, "L220 G75 +10", 470, 1826, cloud, 3);
-            PaintText(texture, "P0", 668, 1826, blue, 3);
-            PaintRect(texture, 890, 1744, 104, 54, mint);
-            PaintText(texture, "PLAY", 914, 1780, panelStrong, 4);
+            PaintReferenceRect(texture, 360, 1784, 360, 68, panelStrong);
+            PaintReferenceRect(texture, 380, 1779, 320, 5, gold);
+            PaintReferenceRect(texture, 378, 1800, 70, 34, new Color32(9, 22, 34, 238));
+            PaintReferenceRect(texture, 456, 1800, 190, 34, new Color32(9, 18, 32, 238));
+            PaintReferenceRect(texture, 654, 1800, 52, 34, new Color32(13, 39, 48, 238));
+            PaintReferenceText(texture, "LINE", 388, 1826, mint, 3);
+            PaintReferenceText(texture, "L220 G75 +10", 470, 1826, cloud, 3);
+            PaintReferenceText(texture, "P0", 668, 1826, blue, 3);
+            PaintReferenceRect(texture, 890, 1744, 104, 54, mint);
+            PaintReferenceText(texture, "PLAY", 914, 1780, panelStrong, 4);
 
-            PaintRect(texture, 158, 62, 112, 84, panelStrong);
-            PaintRect(texture, 158, 58, 112, 7, mint);
-            PaintText(texture, "BUILD", 176, 116, mint, 3);
-            PaintRect(texture, 810, 62, 112, 84, panelStrong);
-            PaintRect(texture, 810, 58, 112, 7, gold);
-            PaintText(texture, "SEND", 838, 116, gold, 3);
+            PaintReferenceRect(texture, 158, 62, 112, 84, panelStrong);
+            PaintReferenceRect(texture, 158, 58, 112, 7, mint);
+            PaintReferenceText(texture, "BUILD", 176, 116, mint, 3);
+            PaintReferenceRect(texture, 810, 62, 112, 84, panelStrong);
+            PaintReferenceRect(texture, 810, 58, 112, 7, gold);
+            PaintReferenceText(texture, "SEND", 838, 116, gold, 3);
 
             switch (label)
             {
@@ -1067,9 +1068,9 @@ namespace LTW.UnityClient.Editor
 
         private static void PaintBuildMenuOverlay(Texture2D texture, Color32 panel, Color32 blue, Color32 mint, Color32 gold, Color32 violet, Color32 cloud)
         {
-            PaintRect(texture, 150, 152, 780, 238, panel);
-            PaintRect(texture, 150, 148, 780, 7, mint);
-            PaintText(texture, "WARD PALETTE", 196, 362, mint, 4);
+            PaintReferenceRect(texture, 150, 152, 780, 238, panel);
+            PaintReferenceRect(texture, 150, 148, 780, 7, mint);
+            PaintReferenceText(texture, "WARD PALETTE", 196, 362, mint, 4);
             PaintCard(texture, 220, 270, "ARROW", "25G", blue, "ui_icon_tower_arrow_v01");
             PaintCard(texture, 386, 270, "CTRL", "35G", violet, "ui_icon_tower_control_v01");
             PaintCard(texture, 552, 270, "RELAY", "40G", gold, "ui_icon_tower_relay_v01");
@@ -1079,10 +1080,10 @@ namespace LTW.UnityClient.Editor
 
         private static void PaintSendMenuOverlay(Texture2D texture, Color32 panel, Color32 blue, Color32 mint, Color32 gold, Color32 violet, Color32 red)
         {
-            PaintRect(texture, 150, 140, 780, 250, panel);
-            PaintRect(texture, 150, 136, 780, 7, gold);
-            PaintText(texture, "SEND PRESSURE", 196, 362, gold, 4);
-            PaintText(texture, "GOLD 75", 690, 362, mint, 3);
+            PaintReferenceRect(texture, 150, 140, 780, 250, panel);
+            PaintReferenceRect(texture, 150, 136, 780, 7, gold);
+            PaintReferenceText(texture, "SEND PRESSURE", 196, 362, gold, 4);
+            PaintReferenceText(texture, "GOLD 75", 690, 362, mint, 3);
             PaintCard(texture, 220, 270, "RUN", "10G +1", blue, "ui_icon_send_runner_v01");
             PaintCard(texture, 386, 270, "BRUTE", "18G +2", violet, "ui_icon_send_brute_v01");
             PaintCard(texture, 552, 270, "SWARM", "18G +3", gold, "ui_icon_send_swarm_v01");
@@ -1092,7 +1093,7 @@ namespace LTW.UnityClient.Editor
 
         private static void PaintLaneSelectorOverlay(Texture2D texture, Color32 panel, Color32 blue, Color32 cloud)
         {
-            PaintRect(texture, 980, 1080, 76, 276, panel);
+            PaintReferenceRect(texture, 980, 1080, 76, 276, panel);
             PaintControlButton(texture, 996, 1292, 48, "L1", blue, true);
             PaintControlButton(texture, 996, 1212, 48, "L2", blue, false);
             PaintControlButton(texture, 996, 1132, 48, "L3", blue, false);
@@ -1101,11 +1102,11 @@ namespace LTW.UnityClient.Editor
 
         private static void PaintResultsOverlay(Texture2D texture, Color32 panel, Color32 gold, Color32 cloud)
         {
-            PaintRect(texture, 210, 820, 660, 280, panel);
-            PaintRect(texture, 210, 815, 660, 8, gold);
-            PaintText(texture, "MATCH COMPLETE", 298, 1040, gold, 5);
-            PaintText(texture, "WINNER P1", 380, 960, cloud, 5);
-            PaintText(texture, "RESTART", 432, 885, gold, 4);
+            PaintReferenceRect(texture, 210, 820, 660, 280, panel);
+            PaintReferenceRect(texture, 210, 815, 660, 8, gold);
+            PaintReferenceText(texture, "MATCH COMPLETE", 298, 1040, gold, 5);
+            PaintReferenceText(texture, "WINNER P1", 380, 960, cloud, 5);
+            PaintReferenceText(texture, "RESTART", 432, 885, gold, 4);
         }
 
         private static void PaintCard(Texture2D texture, int x, int y, string title, string meta, Color32 accent, string iconName)
@@ -1118,19 +1119,19 @@ namespace LTW.UnityClient.Editor
                 (byte)Mathf.Clamp(34 + accent.b / 14, 0, 255),
                 242);
             var edge = new Color32(78, 83, 88, 236);
-            PaintRect(texture, x, y, width, height, new Color32(5, 7, 11, 232));
-            PaintRect(texture, x + 3, y + 3, width - 6, height - 6, edge);
-            PaintRect(texture, x + 6, y + 6, width - 12, height - 12, panel);
-            PaintRect(texture, x + 12, y + height - 10, width - 24, 3, edge);
-            PaintRect(texture, x + 12, y + 7, width - 24, 3, edge);
-            PaintRect(texture, x + 7, y + height - 17, 3, 10, accent);
-            PaintRect(texture, x + width - 10, y + height - 17, 3, 10, accent);
-            PaintRect(texture, x + 7, y + 7, 12, 3, accent);
-            PaintRect(texture, x + width - 19, y + 7, 12, 3, accent);
-            PaintRect(texture, x + 20, y + 5, width - 40, 5, accent);
-            PaintIcon(texture, iconName, x + 12, y + 15, 42);
-            PaintText(texture, title, x + 60, y + 53, new Color32(244, 247, 255, 255), 3);
-            PaintText(texture, meta, x + 60, y + 28, accent, 3);
+            PaintReferenceRect(texture, x, y, width, height, new Color32(5, 7, 11, 232));
+            PaintReferenceRect(texture, x + 3, y + 3, width - 6, height - 6, edge);
+            PaintReferenceRect(texture, x + 6, y + 6, width - 12, height - 12, panel);
+            PaintReferenceRect(texture, x + 12, y + height - 10, width - 24, 3, edge);
+            PaintReferenceRect(texture, x + 12, y + 7, width - 24, 3, edge);
+            PaintReferenceRect(texture, x + 7, y + height - 17, 3, 10, accent);
+            PaintReferenceRect(texture, x + width - 10, y + height - 17, 3, 10, accent);
+            PaintReferenceRect(texture, x + 7, y + 7, 12, 3, accent);
+            PaintReferenceRect(texture, x + width - 19, y + 7, 12, 3, accent);
+            PaintReferenceRect(texture, x + 20, y + 5, width - 40, 5, accent);
+            PaintReferenceIcon(texture, iconName, x + 12, y + 15, 42);
+            PaintReferenceText(texture, title, x + 60, y + 53, new Color32(244, 247, 255, 255), 3);
+            PaintReferenceText(texture, meta, x + 60, y + 28, accent, 3);
         }
 
         private static void PaintControlButton(Texture2D texture, int x, int y, int size, string label, Color32 accent, bool active)
@@ -1139,15 +1140,44 @@ namespace LTW.UnityClient.Editor
                 ? new Color32((byte)Mathf.Clamp(accent.r, 0, 255), (byte)Mathf.Clamp(accent.g, 0, 255), (byte)Mathf.Clamp(accent.b, 0, 255), 232)
                 : new Color32(20, 28, 42, 236);
             var edge = active ? new Color32(220, 246, 255, 210) : new Color32(88, 94, 104, 220);
-            PaintRect(texture, x, y, size, size, new Color32(5, 7, 11, 232));
-            PaintRect(texture, x + 3, y + 3, size - 6, size - 6, edge);
-            PaintRect(texture, x + 7, y + 7, size - 14, size - 14, face);
+            PaintReferenceRect(texture, x, y, size, size, new Color32(5, 7, 11, 232));
+            PaintReferenceRect(texture, x + 3, y + 3, size - 6, size - 6, edge);
+            PaintReferenceRect(texture, x + 7, y + 7, size - 14, size - 14, face);
             var glyph = active ? new Color32(18, 28, 42, 160) : new Color32(accent.r, accent.g, accent.b, 160);
-            PaintRect(texture, x + 11, y + 13, 3, size - 26, glyph);
-            PaintRect(texture, x + 7, y + 14, 4, 4, glyph);
-            PaintRect(texture, x + 7, y + size / 2 - 2, 4, 4, glyph);
-            PaintRect(texture, x + 7, y + size - 18, 4, 4, glyph);
-            PaintText(texture, label, x + 18, y + size / 2 + 10, active ? new Color32(12, 22, 34, 255) : accent, 3);
+            PaintReferenceRect(texture, x + 11, y + 13, 3, size - 26, glyph);
+            PaintReferenceRect(texture, x + 7, y + 14, 4, 4, glyph);
+            PaintReferenceRect(texture, x + 7, y + size / 2 - 2, 4, 4, glyph);
+            PaintReferenceRect(texture, x + 7, y + size - 18, 4, 4, glyph);
+            PaintReferenceText(texture, label, x + 18, y + size / 2 + 10, active ? new Color32(12, 22, 34, 255) : accent, 3);
+        }
+
+        private static void PaintReferenceRect(Texture2D texture, int x, int y, int width, int height, Color32 color)
+        {
+            PaintRect(texture, ReferenceX(texture, x), ReferenceY(texture, y), ReferenceWidth(texture, width), ReferenceHeight(texture, height), color);
+        }
+
+        private static void PaintReferenceText(Texture2D texture, string text, int x, int baselineY, Color32 color, int scale)
+        {
+            PaintText(texture, text, ReferenceX(texture, x), ReferenceY(texture, baselineY), color, ReferenceScale(texture, scale));
+        }
+
+        private static void PaintReferenceIcon(Texture2D texture, string iconName, int x, int y, int size)
+        {
+            PaintIcon(texture, iconName, ReferenceX(texture, x), ReferenceY(texture, y), ReferenceScale(texture, size));
+        }
+
+        private static int ReferenceX(Texture2D texture, int value) => Mathf.RoundToInt(value * texture.width / 1080f);
+
+        private static int ReferenceY(Texture2D texture, int value) => Mathf.RoundToInt(value * texture.height / 1920f);
+
+        private static int ReferenceWidth(Texture2D texture, int value) => Mathf.Max(1, Mathf.RoundToInt(value * texture.width / 1080f));
+
+        private static int ReferenceHeight(Texture2D texture, int value) => Mathf.Max(1, Mathf.RoundToInt(value * texture.height / 1920f));
+
+        private static int ReferenceScale(Texture2D texture, int value)
+        {
+            var scale = Mathf.Min(texture.width / 1080f, texture.height / 1920f);
+            return Mathf.Max(1, Mathf.RoundToInt(value * scale));
         }
 
         private static void PaintIcon(Texture2D texture, string iconName, int x, int y, int size)

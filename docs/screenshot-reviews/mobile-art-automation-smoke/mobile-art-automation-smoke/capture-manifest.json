@@ -1,0 +1,522 @@
+{
+    "schemaVersion": 1,
+    "runId": "mobile-art-automation-smoke",
+    "phase": "after",
+    "seed": 1,
+    "generatedUtc": "2026-07-17T00:07:16.7510818Z",
+    "commitSha": "",
+    "entries": [
+        {
+            "profile": "phone-small-portrait",
+            "state": "default-hud",
+            "width": 720,
+            "height": 1280,
+            "safeAreaInsets": {
+                "left": 0,
+                "top": 24,
+                "right": 0,
+                "bottom": 24
+            },
+            "outputPath": "mobile-art-automation-smoke/after/phone-small-portrait/01-default-hud.png",
+            "grayscalePath": "mobile-art-automation-smoke/after/phone-small-portrait/grayscale/01-default-hud.png",
+            "success": true,
+            "error": ""
+        },
+        {
+            "profile": "phone-small-portrait",
+            "state": "build-menu-open",
+            "width": 720,
+            "height": 1280,
+            "safeAreaInsets": {
+                "left": 0,
+                "top": 24,
+                "right": 0,
+                "bottom": 24
+            },
+            "outputPath": "mobile-art-automation-smoke/after/phone-small-portrait/02-build-menu-open.png",
+            "grayscalePath": "mobile-art-automation-smoke/after/phone-small-portrait/grayscale/02-build-menu-open.png",
+            "success": true,
+            "error": ""
+        },
+        {
+            "profile": "phone-small-portrait",
+            "state": "send-menu-open",
+            "width": 720,
+            "height": 1280,
+            "safeAreaInsets": {
+                "left": 0,
+                "top": 24,
+                "right": 0,
+                "bottom": 24
+            },
+            "outputPath": "mobile-art-automation-smoke/after/phone-small-portrait/03-send-menu-open.png",
+            "grayscalePath": "mobile-art-automation-smoke/after/phone-small-portrait/grayscale/03-send-menu-open.png",
+            "success": true,
+            "error": ""
+        },
+        {
+            "profile": "phone-small-portrait",
+            "state": "lane-selector-open",
+            "width": 720,
+            "height": 1280,
+            "safeAreaInsets": {
+                "left": 0,
+                "top": 24,
+                "right": 0,
+                "bottom": 24
+            },
+            "outputPath": "mobile-art-automation-smoke/after/phone-small-portrait/04-lane-selector-open.png",
+            "grayscalePath": "mobile-art-automation-smoke/after/phone-small-portrait/grayscale/04-lane-selector-open.png",
+            "success": true,
+            "error": ""
+        },
+        {
+            "profile": "phone-small-portrait",
+            "state": "active-combat",
+            "width": 720,
+            "height": 1280,
+            "safeAreaInsets": {
+                "left": 0,
+                "top": 24,
+                "right": 0,
+                "bottom": 24
+            },
+            "outputPath": "mobile-art-automation-smoke/after/phone-small-portrait/05-active-combat.png",
+            "grayscalePath": "mobile-art-automation-smoke/after/phone-small-portrait/grayscale/05-active-combat.png",
+            "success": true,
+            "error": ""
+        },
+        {
+            "profile": "phone-small-portrait",
+            "state": "heavy-pressure",
+            "width": 720,
+            "height": 1280,
+            "safeAreaInsets": {
+                "left": 0,
+                "top": 24,
+                "right": 0,
+                "bottom": 24
+            },
+            "outputPath": "mobile-art-automation-smoke/after/phone-small-portrait/06-heavy-pressure.png",
+            "grayscalePath": "mobile-art-automation-smoke/after/phone-small-portrait/grayscale/06-heavy-pressure.png",
+            "success": true,
+            "error": ""
+        },
+        {
+            "profile": "phone-small-portrait",
+            "state": "reduced-effects-heavy",
+            "width": 720,
+            "height": 1280,
+            "safeAreaInsets": {
+                "left": 0,
+                "top": 24,
+                "right": 0,
+                "bottom": 24
+            },
+            "outputPath": "mobile-art-automation-smoke/after/phone-small-portrait/07-reduced-effects-heavy.png",
+            "grayscalePath": "mobile-art-automation-smoke/after/phone-small-portrait/grayscale/07-reduced-effects-heavy.png",
+            "success": true,
+            "error": ""
+        },
+        {
+            "profile": "phone-small-portrait",
+            "state": "results-or-late-match",
+            "width": 720,
+            "height": 1280,
+            "safeAreaInsets": {
+                "left": 0,
+                "top": 24,
+                "right": 0,
+                "bottom": 24
+            },
+            "outputPath": "mobile-art-automation-smoke/after/phone-small-portrait/08-results-or-late-match.png",
+            "grayscalePath": "mobile-art-automation-smoke/after/phone-small-portrait/grayscale/08-results-or-late-match.png",
+            "success": true,
+            "error": ""
+        },
+        {
+            "profile": "phone-standard-portrait",
+            "state": "default-hud",
+            "width": 1080,
+            "height": 1920,
+            "safeAreaInsets": {
+                "left": 0,
+                "top": 48,
+                "right": 0,
+                "bottom": 48
+            },
+            "outputPath": "mobile-art-automation-smoke/after/phone-standard-portrait/01-default-hud.png",
+            "grayscalePath": "mobile-art-automation-smoke/after/phone-standard-portrait/grayscale/01-default-hud.png",
+            "success": true,
+            "error": ""
+        },
+        {
+            "profile": "phone-standard-portrait",
+            "state": "build-menu-open",
+            "width": 1080,
+            "height": 1920,
+            "safeAreaInsets": {
+                "left": 0,
+                "top": 48,
+                "right": 0,
+                "bottom": 48
+            },
+            "outputPath": "mobile-art-automation-smoke/after/phone-standard-portrait/02-build-menu-open.png",
+            "grayscalePath": "mobile-art-automation-smoke/after/phone-standard-portrait/grayscale/02-build-menu-open.png",
+            "success": true,
+            "error": ""
+        },
+        {
+            "profile": "phone-standard-portrait",
+            "state": "send-menu-open",
+            "width": 1080,
+            "height": 1920,
+            "safeAreaInsets": {
+                "left": 0,
+                "top": 48,
+                "right": 0,
+                "bottom": 48
+            },
+            "outputPath": "mobile-art-automation-smoke/after/phone-standard-portrait/03-send-menu-open.png",
+            "grayscalePath": "mobile-art-automation-smoke/after/phone-standard-portrait/grayscale/03-send-menu-open.png",
+            "success": true,
+            "error": ""
+        },
+        {
+            "profile": "phone-standard-portrait",
+            "state": "lane-selector-open",
+            "width": 1080,
+            "height": 1920,
+            "safeAreaInsets": {
+                "left": 0,
+                "top": 48,
+                "right": 0,
+                "bottom": 48
+            },
+            "outputPath": "mobile-art-automation-smoke/after/phone-standard-portrait/04-lane-selector-open.png",
+            "grayscalePath": "mobile-art-automation-smoke/after/phone-standard-portrait/grayscale/04-lane-selector-open.png",
+            "success": true,
+            "error": ""
+        },
+        {
+            "profile": "phone-standard-portrait",
+            "state": "active-combat",
+            "width": 1080,
+            "height": 1920,
+            "safeAreaInsets": {
+                "left": 0,
+                "top": 48,
+                "right": 0,
+                "bottom": 48
+            },
+            "outputPath": "mobile-art-automation-smoke/after/phone-standard-portrait/05-active-combat.png",
+            "grayscalePath": "mobile-art-automation-smoke/after/phone-standard-portrait/grayscale/05-active-combat.png",
+            "success": true,
+            "error": ""
+        },
+        {
+            "profile": "phone-standard-portrait",
+            "state": "heavy-pressure",
+            "width": 1080,
+            "height": 1920,
+            "safeAreaInsets": {
+                "left": 0,
+                "top": 48,
+                "right": 0,
+                "bottom": 48
+            },
+            "outputPath": "mobile-art-automation-smoke/after/phone-standard-portrait/06-heavy-pressure.png",
+            "grayscalePath": "mobile-art-automation-smoke/after/phone-standard-portrait/grayscale/06-heavy-pressure.png",
+            "success": true,
+            "error": ""
+        },
+        {
+            "profile": "phone-standard-portrait",
+            "state": "reduced-effects-heavy",
+            "width": 1080,
+            "height": 1920,
+            "safeAreaInsets": {
+                "left": 0,
+                "top": 48,
+                "right": 0,
+                "bottom": 48
+            },
+            "outputPath": "mobile-art-automation-smoke/after/phone-standard-portrait/07-reduced-effects-heavy.png",
+            "grayscalePath": "mobile-art-automation-smoke/after/phone-standard-portrait/grayscale/07-reduced-effects-heavy.png",
+            "success": true,
+            "error": ""
+        },
+        {
+            "profile": "phone-standard-portrait",
+            "state": "results-or-late-match",
+            "width": 1080,
+            "height": 1920,
+            "safeAreaInsets": {
+                "left": 0,
+                "top": 48,
+                "right": 0,
+                "bottom": 48
+            },
+            "outputPath": "mobile-art-automation-smoke/after/phone-standard-portrait/08-results-or-late-match.png",
+            "grayscalePath": "mobile-art-automation-smoke/after/phone-standard-portrait/grayscale/08-results-or-late-match.png",
+            "success": true,
+            "error": ""
+        },
+        {
+            "profile": "phone-tall-portrait",
+            "state": "default-hud",
+            "width": 1080,
+            "height": 2340,
+            "safeAreaInsets": {
+                "left": 0,
+                "top": 54,
+                "right": 0,
+                "bottom": 72
+            },
+            "outputPath": "mobile-art-automation-smoke/after/phone-tall-portrait/01-default-hud.png",
+            "grayscalePath": "mobile-art-automation-smoke/after/phone-tall-portrait/grayscale/01-default-hud.png",
+            "success": true,
+            "error": ""
+        },
+        {
+            "profile": "phone-tall-portrait",
+            "state": "build-menu-open",
+            "width": 1080,
+            "height": 2340,
+            "safeAreaInsets": {
+                "left": 0,
+                "top": 54,
+                "right": 0,
+                "bottom": 72
+            },
+            "outputPath": "mobile-art-automation-smoke/after/phone-tall-portrait/02-build-menu-open.png",
+            "grayscalePath": "mobile-art-automation-smoke/after/phone-tall-portrait/grayscale/02-build-menu-open.png",
+            "success": true,
+            "error": ""
+        },
+        {
+            "profile": "phone-tall-portrait",
+            "state": "send-menu-open",
+            "width": 1080,
+            "height": 2340,
+            "safeAreaInsets": {
+                "left": 0,
+                "top": 54,
+                "right": 0,
+                "bottom": 72
+            },
+            "outputPath": "mobile-art-automation-smoke/after/phone-tall-portrait/03-send-menu-open.png",
+            "grayscalePath": "mobile-art-automation-smoke/after/phone-tall-portrait/grayscale/03-send-menu-open.png",
+            "success": true,
+            "error": ""
+        },
+        {
+            "profile": "phone-tall-portrait",
+            "state": "lane-selector-open",
+            "width": 1080,
+            "height": 2340,
+            "safeAreaInsets": {
+                "left": 0,
+                "top": 54,
+                "right": 0,
+                "bottom": 72
+            },
+            "outputPath": "mobile-art-automation-smoke/after/phone-tall-portrait/04-lane-selector-open.png",
+            "grayscalePath": "mobile-art-automation-smoke/after/phone-tall-portrait/grayscale/04-lane-selector-open.png",
+            "success": true,
+            "error": ""
+        },
+        {
+            "profile": "phone-tall-portrait",
+            "state": "active-combat",
+            "width": 1080,
+            "height": 2340,
+            "safeAreaInsets": {
+                "left": 0,
+                "top": 54,
+                "right": 0,
+                "bottom": 72
+            },
+            "outputPath": "mobile-art-automation-smoke/after/phone-tall-portrait/05-active-combat.png",
+            "grayscalePath": "mobile-art-automation-smoke/after/phone-tall-portrait/grayscale/05-active-combat.png",
+            "success": true,
+            "error": ""
+        },
+        {
+            "profile": "phone-tall-portrait",
+            "state": "heavy-pressure",
+            "width": 1080,
+            "height": 2340,
+            "safeAreaInsets": {
+                "left": 0,
+                "top": 54,
+                "right": 0,
+                "bottom": 72
+            },
+            "outputPath": "mobile-art-automation-smoke/after/phone-tall-portrait/06-heavy-pressure.png",
+            "grayscalePath": "mobile-art-automation-smoke/after/phone-tall-portrait/grayscale/06-heavy-pressure.png",
+            "success": true,
+            "error": ""
+        },
+        {
+            "profile": "phone-tall-portrait",
+            "state": "reduced-effects-heavy",
+            "width": 1080,
+            "height": 2340,
+            "safeAreaInsets": {
+                "left": 0,
+                "top": 54,
+                "right": 0,
+                "bottom": 72
+            },
+            "outputPath": "mobile-art-automation-smoke/after/phone-tall-portrait/07-reduced-effects-heavy.png",
+            "grayscalePath": "mobile-art-automation-smoke/after/phone-tall-portrait/grayscale/07-reduced-effects-heavy.png",
+            "success": true,
+            "error": ""
+        },
+        {
+            "profile": "phone-tall-portrait",
+            "state": "results-or-late-match",
+            "width": 1080,
+            "height": 2340,
+            "safeAreaInsets": {
+                "left": 0,
+                "top": 54,
+                "right": 0,
+                "bottom": 72
+            },
+            "outputPath": "mobile-art-automation-smoke/after/phone-tall-portrait/08-results-or-late-match.png",
+            "grayscalePath": "mobile-art-automation-smoke/after/phone-tall-portrait/grayscale/08-results-or-late-match.png",
+            "success": true,
+            "error": ""
+        },
+        {
+            "profile": "phone-safe-area-portrait",
+            "state": "default-hud",
+            "width": 1179,
+            "height": 2556,
+            "safeAreaInsets": {
+                "left": 0,
+                "top": 141,
+                "right": 0,
+                "bottom": 102
+            },
+            "outputPath": "mobile-art-automation-smoke/after/phone-safe-area-portrait/01-default-hud.png",
+            "grayscalePath": "mobile-art-automation-smoke/after/phone-safe-area-portrait/grayscale/01-default-hud.png",
+            "success": true,
+            "error": ""
+        },
+        {
+            "profile": "phone-safe-area-portrait",
+            "state": "build-menu-open",
+            "width": 1179,
+            "height": 2556,
+            "safeAreaInsets": {
+                "left": 0,
+                "top": 141,
+                "right": 0,
+                "bottom": 102
+            },
+            "outputPath": "mobile-art-automation-smoke/after/phone-safe-area-portrait/02-build-menu-open.png",
+            "grayscalePath": "mobile-art-automation-smoke/after/phone-safe-area-portrait/grayscale/02-build-menu-open.png",
+            "success": true,
+            "error": ""
+        },
+        {
+            "profile": "phone-safe-area-portrait",
+            "state": "send-menu-open",
+            "width": 1179,
+            "height": 2556,
+            "safeAreaInsets": {
+                "left": 0,
+                "top": 141,
+                "right": 0,
+                "bottom": 102
+            },
+            "outputPath": "mobile-art-automation-smoke/after/phone-safe-area-portrait/03-send-menu-open.png",
+            "grayscalePath": "mobile-art-automation-smoke/after/phone-safe-area-portrait/grayscale/03-send-menu-open.png",
+            "success": true,
+            "error": ""
+        },
+        {
+            "profile": "phone-safe-area-portrait",
+            "state": "lane-selector-open",
+            "width": 1179,
+            "height": 2556,
+            "safeAreaInsets": {
+                "left": 0,
+                "top": 141,
+                "right": 0,
+                "bottom": 102
+            },
+            "outputPath": "mobile-art-automation-smoke/after/phone-safe-area-portrait/04-lane-selector-open.png",
+            "grayscalePath": "mobile-art-automation-smoke/after/phone-safe-area-portrait/grayscale/04-lane-selector-open.png",
+            "success": true,
+            "error": ""
+        },
+        {
+            "profile": "phone-safe-area-portrait",
+            "state": "active-combat",
+            "width": 1179,
+            "height": 2556,
+            "safeAreaInsets": {
+                "left": 0,
+                "top": 141,
+                "right": 0,
+                "bottom": 102
+            },
+            "outputPath": "mobile-art-automation-smoke/after/phone-safe-area-portrait/05-active-combat.png",
+            "grayscalePath": "mobile-art-automation-smoke/after/phone-safe-area-portrait/grayscale/05-active-combat.png",
+            "success": true,
+            "error": ""
+        },
+        {
+            "profile": "phone-safe-area-portrait",
+            "state": "heavy-pressure",
+            "width": 1179,
+            "height": 2556,
+            "safeAreaInsets": {
+                "left": 0,
+                "top": 141,
+                "right": 0,
+                "bottom": 102
+            },
+            "outputPath": "mobile-art-automation-smoke/after/phone-safe-area-portrait/06-heavy-pressure.png",
+            "grayscalePath": "mobile-art-automation-smoke/after/phone-safe-area-portrait/grayscale/06-heavy-pressure.png",
+            "success": true,
+            "error": ""
+        },
+        {
+            "profile": "phone-safe-area-portrait",
+            "state": "reduced-effects-heavy",
+            "width": 1179,
+            "height": 2556,
+            "safeAreaInsets": {
+                "left": 0,
+                "top": 141,
+                "right": 0,
+                "bottom": 102
+            },
+            "outputPath": "mobile-art-automation-smoke/after/phone-safe-area-portrait/07-reduced-effects-heavy.png",
+            "grayscalePath": "mobile-art-automation-smoke/after/phone-safe-area-portrait/grayscale/07-reduced-effects-heavy.png",
+            "success": true,
+            "error": ""
+        },
+        {
+            "profile": "phone-safe-area-portrait",
+            "state": "results-or-late-match",
+            "width": 1179,
+            "height": 2556,
+            "safeAreaInsets": {
+                "left": 0,
+                "top": 141,
+                "right": 0,
+                "bottom": 102
+            },
+            "outputPath": "mobile-art-automation-smoke/after/phone-safe-area-portrait/08-results-or-late-match.png",
+            "grayscalePath": "mobile-art-automation-smoke/after/phone-safe-area-portrait/grayscale/08-results-or-late-match.png",
+            "success": true,
+            "error": ""
+        }
+    ]
+}
