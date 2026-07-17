@@ -81,6 +81,8 @@ Source of truth: `docs/art-pipeline/ui-board-art-pipeline.md`
   - [x] 2026-07-16: Added stronger board slab insets, segmented endpoint rings, brighter spawn portal structure, and deeper leak grate structure; captured scored evidence under `docs/screenshot-reviews/mobile-art-breakthrough-spawn-leak-board-pass/` with board and endpoint target match improved to 2/3.
 - [x] Replace bright blue lane frame treatment.
   - [x] 2026-07-16: Replaced the full owner-blue board outline with low-profile dark stone/metal trim and small owner-accent chips; captured focused standard-phone evidence under `docs/screenshot-reviews/mobile-art-frame-replacement-check/`.
+- [x] Run aggressive focused board/spawn/life-loss endpoint pass.
+  - [x] 2026-07-17: Added route recesses/ribs, stronger endpoint approach plates, a more architectural spawn portal, and a darker leak drain/jaw treatment; captured 60 color and 60 grayscale frames under `docs/screenshot-reviews/mobile-art-aggressive-board-endpoint-pass/` with board/endpoints held at `2/3` target match and a stronger procedural baseline.
 - [ ] Normalize crops, scale, alpha, and grayscale copies.
 - [ ] Add source notes for every promoted generated asset.
 - [ ] Add Unity import settings and `.meta` files.
