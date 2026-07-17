@@ -1077,27 +1077,27 @@ namespace LTW.UnityClient.Editor
 
         private static void PaintBuildMenuOverlay(Texture2D texture, Color32 panel, Color32 blue, Color32 mint, Color32 gold, Color32 violet, Color32 cloud)
         {
-            PaintReferenceRect(texture, 150, 152, 780, 238, panel);
-            PaintReferenceRect(texture, 150, 148, 780, 7, mint);
-            PaintReferenceText(texture, "WARD PALETTE", 196, 362, mint, 4);
-            PaintCard(texture, 220, 270, "ARROW", "25G", blue, "ui_icon_tower_arrow_v01");
-            PaintCard(texture, 386, 270, "CTRL", "35G", violet, "ui_icon_tower_control_v01");
-            PaintCard(texture, 552, 270, "RELAY", "40G", gold, "ui_icon_tower_relay_v01");
-            PaintCard(texture, 302, 188, "PULSE", "45G", mint, "ui_icon_tower_pulse_v01");
-            PaintCard(texture, 468, 188, "PRISM", "60G", cloud, "ui_icon_tower_prism_v01");
+            PaintReferenceRect(texture, 140, 230, 800, 312, panel);
+            PaintReferenceRect(texture, 140, 226, 800, 8, mint);
+            PaintReferenceText(texture, "WARD PALETTE", 184, 504, mint, 5);
+            PaintCard(texture, 196, 390, "ARROW", "25G", blue, "ui_icon_tower_arrow_v01");
+            PaintCard(texture, 390, 390, "CTRL", "35G", violet, "ui_icon_tower_control_v01");
+            PaintCard(texture, 584, 390, "RELAY", "40G", gold, "ui_icon_tower_relay_v01");
+            PaintCard(texture, 292, 276, "PULSE", "45G", mint, "ui_icon_tower_pulse_v01");
+            PaintCard(texture, 486, 276, "PRISM", "60G", cloud, "ui_icon_tower_prism_v01");
         }
 
         private static void PaintSendMenuOverlay(Texture2D texture, Color32 panel, Color32 blue, Color32 mint, Color32 gold, Color32 violet, Color32 red)
         {
-            PaintReferenceRect(texture, 150, 140, 780, 250, panel);
-            PaintReferenceRect(texture, 150, 136, 780, 7, gold);
-            PaintReferenceText(texture, "SEND PRESSURE", 196, 362, gold, 4);
-            PaintReferenceText(texture, "GOLD 75", 690, 362, mint, 3);
-            PaintCard(texture, 220, 270, "RUN", "10G +1", blue, "ui_icon_send_runner_v01");
-            PaintCard(texture, 386, 270, "BRUTE", "18G +2", violet, "ui_icon_send_brute_v01");
-            PaintCard(texture, 552, 270, "SWARM", "18G +3", gold, "ui_icon_send_swarm_v01");
-            PaintCard(texture, 302, 188, "SHADE", "24G +3", mint, "ui_icon_send_shade_v01");
-            PaintCard(texture, 468, 188, "SIEGE", "40G +4", red, "ui_icon_send_siege_v01");
+            PaintReferenceRect(texture, 140, 220, 800, 322, panel);
+            PaintReferenceRect(texture, 140, 216, 800, 8, gold);
+            PaintReferenceText(texture, "SEND PRESSURE", 184, 504, gold, 5);
+            PaintReferenceText(texture, "GOLD 75", 704, 504, mint, 4);
+            PaintCard(texture, 196, 390, "RUN", "10G +1", blue, "ui_icon_send_runner_v01");
+            PaintCard(texture, 390, 390, "BRUTE", "18G +2", violet, "ui_icon_send_brute_v01");
+            PaintCard(texture, 584, 390, "SWARM", "18G +3", gold, "ui_icon_send_swarm_v01");
+            PaintCard(texture, 292, 276, "SHADE", "24G +3", mint, "ui_icon_send_shade_v01");
+            PaintCard(texture, 486, 276, "SIEGE", "40G +4", red, "ui_icon_send_siege_v01");
         }
 
         private static void PaintLaneSelectorOverlay(Texture2D texture, Color32 panel, Color32 blue, Color32 cloud)
@@ -1120,8 +1120,8 @@ namespace LTW.UnityClient.Editor
 
         private static void PaintCard(Texture2D texture, int x, int y, string title, string meta, Color32 accent, string iconName)
         {
-            const int width = 154;
-            const int height = 70;
+            const int width = 176;
+            const int height = 98;
             var panel = new Color32(
                 (byte)Mathf.Clamp(18 + accent.r / 14, 0, 255),
                 (byte)Mathf.Clamp(23 + accent.g / 14, 0, 255),
@@ -1138,9 +1138,10 @@ namespace LTW.UnityClient.Editor
             PaintReferenceRect(texture, x + 7, y + 7, 12, 3, accent);
             PaintReferenceRect(texture, x + width - 19, y + 7, 12, 3, accent);
             PaintReferenceRect(texture, x + 20, y + 5, width - 40, 5, accent);
-            PaintReferenceIcon(texture, iconName, x + 12, y + 15, 42);
-            PaintReferenceText(texture, title, x + 60, y + 53, new Color32(244, 247, 255, 255), 3);
-            PaintReferenceText(texture, meta, x + 60, y + 28, accent, 3);
+            PaintReferenceRect(texture, x + 59, y + 40, 58, 44, new Color32(6, 10, 16, 214));
+            PaintReferenceIcon(texture, iconName, x + 62, y + 44, 52);
+            PaintReferenceText(texture, title, x + 34, y + 33, new Color32(244, 247, 255, 255), 4);
+            PaintReferenceText(texture, meta, x + 42, y + 15, accent, 3);
         }
 
         private static void PaintControlButton(Texture2D texture, int x, int y, int size, string label, Color32 accent, bool active)

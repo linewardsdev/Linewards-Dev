@@ -687,17 +687,17 @@ namespace LTW.UnityClient.UI
                 return;
             }
 
-            titleStyle!.fontSize = Mathf.RoundToInt(14f * scale);
+            titleStyle!.fontSize = Mathf.RoundToInt(16f * scale);
             titleStyle.normal.textColor = MintSignal;
-            GUI.Label(new Rect(rect.x + 12f * scale, rect.y + 8f * scale, rect.width - 72f * scale, 22f * scale), "WARD PALETTE", titleStyle);
-            if (GUI.Button(new Rect(rect.xMax - 58f * scale, rect.y + 8f * scale, 44f * scale, 28f * scale), "CLOSE", buttonStyle ?? GUI.skin.button))
+            GUI.Label(new Rect(rect.x + 12f * scale, rect.y + 8f * scale, rect.width - 86f * scale, 26f * scale), "WARD PALETTE", titleStyle);
+            if (GUI.Button(new Rect(rect.xMax - 72f * scale, rect.y + 8f * scale, 58f * scale, 32f * scale), "CLOSE", buttonStyle ?? GUI.skin.button))
             {
                 isPaletteExpanded = false;
                 return;
             }
 
-            var buttonY = rect.y + 46f * scale;
-            var buttonHeight = 58f * scale;
+            var buttonY = rect.y + 52f * scale;
+            var buttonHeight = 84f * scale;
             var gap = 8f * scale;
             var buttonWidth = (rect.width - 24f * scale - gap * 2f) / 3f;
             var x = rect.x + 12f * scale;
@@ -776,13 +776,13 @@ namespace LTW.UnityClient.UI
                 DrawTowerIcon(iconRect, iconKind, displayAccent, scale);
             }
 
-            buttonStyle!.fontSize = Mathf.RoundToInt(10f * scale);
+            buttonStyle!.fontSize = Mathf.RoundToInt(12f * scale);
             buttonStyle.normal.textColor = isAffordable ? Cloud : DisabledText;
             buttonStyle.hover.textColor = buttonStyle.normal.textColor;
             buttonStyle.active.textColor = buttonStyle.normal.textColor;
             GUI.Label(RuntimeUiChrome.CommandCardLabelRect(rect, scale), label, style);
 
-            metaStyle!.fontSize = Mathf.RoundToInt(9f * scale);
+            metaStyle!.fontSize = Mathf.RoundToInt(11f * scale);
             metaStyle.normal.textColor = displayAccent;
             GUI.Label(RuntimeUiChrome.CommandCardMetaRect(rect, scale), meta, metaStyle);
             return pressed;
@@ -1049,8 +1049,8 @@ namespace LTW.UnityClient.UI
         private static Rect TowerPalettePanelRect(float scale, Rect frame)
         {
             var width = Mathf.Min(frame.width - 16f * scale, 430f * scale);
-            var height = 194f * scale;
-            var launcherClearance = 66f * scale;
+            var height = 252f * scale;
+            var launcherClearance = 124f * scale;
             return new Rect(frame.x + 8f * scale, frame.yMax - height - MobileViewportLayout.BottomMargin(scale) - launcherClearance, width, height);
         }
 

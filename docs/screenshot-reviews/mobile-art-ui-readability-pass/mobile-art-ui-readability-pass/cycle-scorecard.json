@@ -1,0 +1,153 @@
+{
+  "schemaVersion": 1,
+  "runId": "mobile-art-ui-readability-pass",
+  "packageName": "GD-Mobile-UI-Board",
+  "phase": "after",
+  "seed": 1,
+  "generatedUtc": "2026-07-17T00:45:48.4769375Z",
+  "currentManifestPath": "after-capture-manifest.json",
+  "comparisonManifestPath": "before-capture-manifest.json",
+  "captureSuccessCount": 32,
+  "captureTotalCount": 32,
+  "grayscaleSuccessCount": 32,
+  "grayscaleTotalCount": 32,
+  "canonicalMatrixComplete": true,
+  "comparisonManifestPresent": true,
+  "verdict": "Pass with medium-severity follow-ups",
+  "completedEvidence": [
+    "Four portrait phone profiles captured: small, standard, tall, and safe-area.",
+    "Eight canonical visual states captured for every selected profile.",
+    "Grayscale copies generated for value/readability review.",
+    "Machine-readable manifest generated for the current phase."
+  ],
+  "openEvidenceGaps": [
+    "selected command card",
+    "disabled or too-expensive command card",
+    "Runner x10 pressure",
+    "heavy Swarm pressure",
+    "true map-camera view, if the package touches map/lane behavior"
+  ],
+  "highFindings": [],
+  "mediumFindings": [
+    "Selected-card and disabled/too-expensive command states remain uncaptured, so command-card QA is not complete.",
+    "Creep role identity still needs focused Runner x10 and heavy Swarm pressure evidence.",
+    "HUD/action label typography remains small and should receive a separate scale pass."
+  ],
+  "lowFindings": [
+    "Larger card icons and centered labels are a clear improvement over the previous compact horizontal card layout.",
+    "Drawer offset now keeps bottom launchers readable.",
+    "Batch HUD overlays are deterministic approximations of runtime UI; live Game View checks remain useful before final lock."
+  ],
+  "recommendedNextPackages": [
+    "GD-Mobile-UI-Board: add selected-card and disabled-card captures.",
+    "GD-Creep-Identity: run focused Runner x10 and heavy Swarm pressure evidence.",
+    "GD-Art-Pipeline-Hygiene: update the owning checklist with this report path after human scoring."
+  ],
+  "scorecard": [
+    {
+      "category": "Mobile arena fit",
+      "machineCoverageScore": 2,
+      "reviewerScore": "2/3",
+      "evidence": "[default-hud](after/phone-standard-portrait/01-default-hud.png), [active-combat](after/phone-standard-portrait/05-active-combat.png)",
+      "notes": "Larger drawers preserve the lane view."
+    },
+    {
+      "category": "Long north-south lane readability",
+      "machineCoverageScore": 2,
+      "reviewerScore": "3/3",
+      "evidence": "[default-hud](after/phone-standard-portrait/01-default-hud.png), [active-combat](after/phone-standard-portrait/05-active-combat.png)",
+      "notes": "Lane readability is preserved."
+    },
+    {
+      "category": "Spawn, route, and leak-gate clarity",
+      "machineCoverageScore": 2,
+      "reviewerScore": "2/3",
+      "evidence": "[default-hud](after/phone-standard-portrait/01-default-hud.png), [results-or-late-match](after/phone-standard-portrait/08-results-or-late-match.png)",
+      "notes": "Unchanged; endpoint landmarks still need a later pass."
+    },
+    {
+      "category": "UI edge discipline and touch clearance",
+      "machineCoverageScore": 2,
+      "reviewerScore": "2/3",
+      "evidence": "[default-hud](after/phone-standard-portrait/01-default-hud.png), [build-menu-open](after/phone-standard-portrait/02-build-menu-open.png), [send-menu-open](after/phone-standard-portrait/03-send-menu-open.png), [lane-selector-open](after/phone-standard-portrait/04-lane-selector-open.png)",
+      "notes": "Improved card scale and drawer placement."
+    },
+    {
+      "category": "Tower silhouette and role identity",
+      "machineCoverageScore": 1,
+      "reviewerScore": "2/3",
+      "evidence": "[default-hud](after/phone-standard-portrait/01-default-hud.png), [active-combat](after/phone-standard-portrait/05-active-combat.png)",
+      "notes": "Tower card icons are clearer, but role-lineup proof is still needed."
+    },
+    {
+      "category": "Creep silhouette and threat identity",
+      "machineCoverageScore": 1,
+      "reviewerScore": "1/3",
+      "evidence": "[default-hud](after/phone-standard-portrait/01-default-hud.png), [active-combat](after/phone-standard-portrait/05-active-combat.png)",
+      "notes": "Send cards improved, in-lane creep identity remains weak."
+    },
+    {
+      "category": "Grayscale value separation",
+      "machineCoverageScore": 2,
+      "reviewerScore": "2/3",
+      "evidence": "[default-hud](after/phone-standard-portrait/01-default-hud.png), [active-combat](after/phone-standard-portrait/05-active-combat.png)",
+      "notes": "Cards remain readable in grayscale."
+    },
+    {
+      "category": "Heavy-pressure readability",
+      "machineCoverageScore": 2,
+      "reviewerScore": "2/3",
+      "evidence": "[heavy-pressure](after/phone-standard-portrait/06-heavy-pressure.png)",
+      "notes": "Unchanged; pressure remains readable."
+    },
+    {
+      "category": "Reduced-effects readability",
+      "machineCoverageScore": 2,
+      "reviewerScore": "2/3",
+      "evidence": "[reduced-effects-heavy](after/phone-standard-portrait/07-reduced-effects-heavy.png)",
+      "notes": "Unchanged and acceptable for this pass."
+    },
+    {
+      "category": "Combat signal priority",
+      "machineCoverageScore": 2,
+      "reviewerScore": "2/3",
+      "evidence": "[active-combat](after/phone-standard-portrait/05-active-combat.png), [heavy-pressure](after/phone-standard-portrait/06-heavy-pressure.png)",
+      "notes": "Unchanged."
+    },
+    {
+      "category": "Motion clarity",
+      "machineCoverageScore": 1,
+      "reviewerScore": "1/3",
+      "evidence": "[default-hud](after/phone-standard-portrait/01-default-hud.png), [active-combat](after/phone-standard-portrait/05-active-combat.png)",
+      "notes": "Not certified by still captures."
+    },
+    {
+      "category": "Palette and material cohesion",
+      "machineCoverageScore": 2,
+      "reviewerScore": "2/3",
+      "evidence": "[default-hud](after/phone-standard-portrait/01-default-hud.png), [active-combat](after/phone-standard-portrait/05-active-combat.png)",
+      "notes": "New cards stay within the existing palette."
+    },
+    {
+      "category": "Icon-to-runtime silhouette match",
+      "machineCoverageScore": 1,
+      "reviewerScore": "2/3",
+      "evidence": "[default-hud](after/phone-standard-portrait/01-default-hud.png), [active-combat](after/phone-standard-portrait/05-active-combat.png)",
+      "notes": "Larger card icons improve reviewability, selected/disabled proof still missing."
+    },
+    {
+      "category": "Original Line Wards identity",
+      "machineCoverageScore": 2,
+      "reviewerScore": "2/3",
+      "evidence": "[default-hud](after/phone-standard-portrait/01-default-hud.png), [active-combat](after/phone-standard-portrait/05-active-combat.png)",
+      "notes": "Slightly stronger UI identity."
+    },
+    {
+      "category": "Fallback and missing-asset behavior",
+      "machineCoverageScore": 1,
+      "reviewerScore": "1/3",
+      "evidence": "[default-hud](after/phone-standard-portrait/01-default-hud.png), [active-combat](after/phone-standard-portrait/05-active-combat.png)",
+      "notes": "Not intentionally tested."
+    }
+  ]
+}

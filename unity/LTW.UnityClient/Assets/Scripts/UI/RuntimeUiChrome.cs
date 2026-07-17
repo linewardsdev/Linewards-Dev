@@ -34,18 +34,18 @@ namespace LTW.UnityClient.UI
 
         public static Rect CommandCardIconRect(Rect rect, float scale)
         {
-            var size = Mathf.Min(38f * scale, rect.height - 18f * scale);
-            return new Rect(rect.x + 9f * scale, rect.y + (rect.height - size) * 0.5f, size, size);
+            var size = Mathf.Min(48f * scale, rect.height - 30f * scale);
+            return new Rect(rect.x + (rect.width - size) * 0.5f, rect.y + 10f * scale, size, size);
         }
 
         public static Rect CommandCardLabelRect(Rect rect, float scale)
         {
-            return new Rect(rect.x + 52f * scale, rect.y + 9f * scale, rect.width - 58f * scale, 20f * scale);
+            return new Rect(rect.x + 7f * scale, rect.yMax - 38f * scale, rect.width - 14f * scale, 18f * scale);
         }
 
         public static Rect CommandCardMetaRect(Rect rect, float scale)
         {
-            return new Rect(rect.x + 52f * scale, rect.y + 34f * scale, rect.width - 58f * scale, 17f * scale);
+            return new Rect(rect.x + 7f * scale, rect.yMax - 20f * scale, rect.width - 14f * scale, 15f * scale);
         }
 
         public static bool DrawControlButton(Rect rect, string label, Color accent, bool active, float scale, GUIStyle labelStyle)
@@ -79,14 +79,15 @@ namespace LTW.UnityClient.UI
             Fill(Shrink(rect, 2f * scale), edge);
             Fill(Shrink(rect, 4f * scale), fill);
 
-            var inset = new Rect(rect.x + 9f * scale, rect.y + 8f * scale, rect.width - 18f * scale, rect.height - 17f * scale);
+            var inset = new Rect(rect.x + 7f * scale, rect.y + 7f * scale, rect.width - 14f * scale, rect.height - 14f * scale);
             Fill(inset, CardInset);
             DrawMetalRails(rect, edge, scale);
             DrawCornerHardware(rect, stateAccent, scale);
 
             var iconRect = CommandCardIconRect(rect, scale);
-            Fill(Shrink(iconRect, -2f * scale), new Color(0.012f, 0.018f, 0.026f, 0.72f));
-            DrawOutline(Shrink(iconRect, -2f * scale), new Color(stateAccent.r, stateAccent.g, stateAccent.b, 0.48f), Mathf.Max(1f, 1f * scale));
+            var iconWell = Shrink(iconRect, -5f * scale);
+            Fill(iconWell, new Color(0.012f, 0.018f, 0.026f, 0.82f));
+            DrawOutline(iconWell, new Color(stateAccent.r, stateAccent.g, stateAccent.b, 0.58f), Mathf.Max(1f, 1f * scale));
 
             var costStrip = new Rect(rect.x + rect.width * 0.18f, rect.yMax - 8f * scale, rect.width * 0.64f, 3f * scale);
             Fill(costStrip, new Color(stateAccent.r, stateAccent.g, stateAccent.b, state == CommandCardState.Disabled ? 0.42f : 0.92f));

@@ -63,6 +63,8 @@ Source of truth: `docs/art-pipeline/ui-board-art-pipeline.md`
 - [x] Promote selected map/lane/status control art.
   - [x] Selected direction: contact-sheet option 1.
   - [x] 2026-07-16: Added shared persistent control chrome in `RuntimeUiChrome`, wired the lane selector, and captured review evidence under `docs/screenshot-reviews/ui-board-art-pass-v02-controls/`.
+- [x] Improve command-card phone readability.
+  - [x] 2026-07-16: Enlarged build/send command cards, centered role icons, increased label/meta text, lifted expanded drawers clear of bottom launchers, and captured scored evidence under `docs/screenshot-reviews/mobile-art-ui-readability-pass/`.
 - [ ] Normalize crops, scale, alpha, and grayscale copies.
 - [ ] Add source notes for every promoted generated asset.
 - [ ] Add Unity import settings and `.meta` files.
