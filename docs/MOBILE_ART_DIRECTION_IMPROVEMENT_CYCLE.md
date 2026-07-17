@@ -136,7 +136,7 @@ Recommended arguments:
 -ltwCaptureRunId <run-name>
 -ltwCapturePhase before|after
 -ltwCaptureSeed 1
--ltwCapturePackage GD-Mobile-UI-Board
+-ltwPackageName GD-Mobile-UI-Board
 -ltwCaptureGrayscale
 -ltwExitAfterCapture
 ```
@@ -165,7 +165,29 @@ Required visual states:
 9. `09-swarm-heavy-pressure.png`
 10. `10-heavy-pressure.png`
 11. `11-reduced-effects-heavy.png`
-12. `12-results-or-late-match.png`
+12. `12-board-overview.png`
+13. `13-spawn-gate-focus.png`
+14. `14-leak-gate-focus.png`
+15. `15-results-or-late-match.png`
+
+### Target Reference Requirement
+
+Every improvement-cycle pass must declare the selected target art it is trying to approach. The report generator resolves known package names through `VisualTargetReferenceCatalog` and copies those references into:
+
+`docs/screenshot-reviews/<run-name>/<run-name>/target-references/`
+
+The generated `improvement-cycle-review.md` must include a Target References table before the capture matrix. A pass is not ready for approval unless the agent review assigns both:
+
+- a visual/readability score for the runtime capture;
+- a target-reference match score against the selected image.
+
+For UI/board work, the canonical targets are the cropped selections in:
+
+`docs/art-pipeline/ui-board/selected-candidates/`
+
+For tower, creep, and builder identity work, the canonical targets are the current promoted V1 production sprites recorded in:
+
+`docs/art-pipeline/v1-role-coverage-report.md`
 
 Add focused captures when relevant:
 

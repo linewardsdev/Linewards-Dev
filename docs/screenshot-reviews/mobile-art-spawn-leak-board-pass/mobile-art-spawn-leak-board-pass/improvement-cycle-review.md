@@ -18,6 +18,19 @@
 - Assets and systems changed: recorded by the implementation branch; this report covers capture evidence.
 - Explicit exclusions: automated visual taste judgment, final promotion approval, and live manual play feel.
 
+## Target References
+
+Every visual score in this run must compare the captured runtime output to these selected targets, not just to general taste.
+
+| Target | Track | Selected Option | Reference | Runtime Translation Target | Required Evidence | Match Score |
+| --- | --- | --- | --- | --- | --- | ---: |
+| `ui-command-cards-option-04` | Command Cards | Option 4 | [view](target-references/ui-command-cards-option-04.png) | Use simple readable command-card chrome with clear selected, disabled, and normal states. | build-menu-open, build-card-selected, send-menu-open, send-card-disabled | /3 |
+| `ui-controls-option-01` | Map/Lane/Status Controls | Option 1 | [view](target-references/ui-controls-option-01.png) | Keep persistent map/lane controls icon-first, reachable, and visually separate from temporary status panels. | default-hud, lane-selector-open | /3 |
+| `ui-hud-chrome-option-06` | HUD Chrome | Option 6 | [view](target-references/ui-hud-chrome-option-06.png) | Translate the dimensional HUD module into compact portrait-safe stat chrome without overlapping lane action. | default-hud, active-combat, grayscale default-hud | /3 |
+| `ui-icon-family-option-06` | Icon Family | Option 6 | [view](target-references/ui-icon-family-option-06.png) | Use simplified role silhouettes for command readability after card sizing is stable. | build-card-selected, send-card-disabled, grayscale command states | /3 |
+| `board-material-option-11` | Board Material | Option 11 | [view](target-references/board-material-option-11.png) | Use restrained slate board materials and triangular route cues that support units instead of overpowering them. | board-overview, active-combat, grayscale board-overview | /3 |
+| `spawn-leak-gates-option-11` | Endpoint Gates | Option 11 | [view](target-references/spawn-leak-gates-option-11.png) | Translate the compact circular spawn platform and drain-like leak gate into readable endpoint art at lane scale. | spawn-gate-focus, leak-gate-focus, board-overview, grayscale endpoint focus | /3 |
+
 ## Capture Matrix
 
 - Captures passed: `60/60`
@@ -120,7 +133,7 @@ Machine coverage scores are not final art scores. Agent reviewer score must be f
 
 ## Low
 
-- Machine scores only measure evidence coverage. The working graphics or implementation agent must assign visual quality scores before handoff.
+- Machine scores measure evidence coverage and target-reference presence. The working graphics or implementation agent must assign visual quality and reference-match scores before handoff.
 - Batch HUD overlays are deterministic approximations of runtime UI; live Game View checks remain useful before final lock.
 
 ## Pipeline Reconciliation
@@ -131,6 +144,7 @@ Machine coverage scores are not final art scores. Agent reviewer score must be f
 - 15 canonical visual states captured for every selected profile.
 - Selected command-card, disabled command-card, Runner x10 pressure, and heavy Swarm pressure states are included in the canonical matrix.
 - Board overview, spawn-gate focus, and leak-gate focus states are included for endpoint review.
+- 6 selected target reference image(s) copied into this run for direct visual comparison.
 - Grayscale copies generated for value/readability review.
 - Machine-readable manifest generated for the current phase.
 
@@ -142,7 +156,7 @@ Machine coverage scores are not final art scores. Agent reviewer score must be f
 - GD-Mobile-UI-Board: prefer a visibly larger HUD typography/layout delta even if it creates medium polish issues.
 - GD-Mobile-UI-Board: agent-score selected/disabled command states and continue HUD typography scale work.
 - GD-Creep-Identity: agent-score Runner x10 and heavy Swarm pressure evidence, then tune silhouettes if needed.
-- GD-Art-Pipeline-Hygiene: update the owning checklist with this report path after human scoring.
+- GD-Art-Pipeline-Hygiene: update the owning checklist with this report path and target-reference match scores after agent scoring.
 
 ## Verdict
 

@@ -20,6 +20,19 @@ namespace LTW.UnityClient.Editor
     }
 
     [Serializable]
+    public sealed class VisualTargetReference
+    {
+        public string id = string.Empty;
+        public string track = string.Empty;
+        public string selectedOption = string.Empty;
+        public string sourcePath = string.Empty;
+        public string evidencePath = string.Empty;
+        public string intendedTranslation = string.Empty;
+        public string requiredEvidence = string.Empty;
+        public string referenceMatchScore = string.Empty;
+    }
+
+    [Serializable]
     public sealed class VisualImprovementCycleReportDocument
     {
         public int schemaVersion = 1;
@@ -47,6 +60,7 @@ namespace LTW.UnityClient.Editor
         public List<string> lowFindings = new List<string>();
         public List<string> recommendedNextPackages = new List<string>();
         public List<VisualImprovementCycleScorecardItem> scorecard = new List<VisualImprovementCycleScorecardItem>();
+        public List<VisualTargetReference> targetReferences = new List<VisualTargetReference>();
 
         public string ToJson(bool prettyPrint = true) => JsonUtility.ToJson(this, prettyPrint);
     }
@@ -129,11 +143,58 @@ namespace LTW.UnityClient.Editor
                 comparisonManifestPresent = File.Exists(comparisonPath)
             };
 
+            document.targetReferences.AddRange(VisualTargetReferenceCatalog.Resolve(document.packageName, plan.RunId));
+            AttachTargetReferences(document, runDirectory);
             AddFindings(document, manifest, allCapturesComplete);
             AddScorecard(document, manifest, allCapturesComplete);
             AddRecommendations(document);
             document.verdict = BuildVerdict(document);
             return document;
+        }
+
+        private static void AttachTargetReferences(
+            VisualImprovementCycleReportDocument document,
+            string runDirectory)
+        {
+            if (document.targetReferences.Count == 0)
+            {
+                document.mediumFindings.Add("No target reference set was resolved for this package. Add the package to VisualTargetReferenceCatalog before using this run for art-direction approval.");
+                return;
+            }
+
+            var repositoryRoot = ResolveRepositoryRoot();
+            var outputDirectory = Path.Combine(runDirectory, "target-references");
+            Directory.CreateDirectory(outputDirectory);
+            var copiedCount = 0;
+
+            foreach (var target in document.targetReferences)
+            {
+                if (string.IsNullOrWhiteSpace(target.sourcePath))
+                {
+                    document.mediumFindings.Add($"Target reference `{target.id}` has no source path.");
+                    continue;
+                }
+
+                var normalizedSource = target.sourcePath.Replace('/', Path.DirectorySeparatorChar);
+                var absoluteSource = Path.Combine(repositoryRoot, normalizedSource);
+                if (!File.Exists(absoluteSource))
+                {
+                    document.mediumFindings.Add($"Target reference `{target.id}` is missing: `{target.sourcePath}`.");
+                    continue;
+                }
+
+                var extension = Path.GetExtension(absoluteSource);
+                var fileName = SanitizeFileName(target.id) + (string.IsNullOrWhiteSpace(extension) ? ".png" : extension);
+                var destination = Path.Combine(outputDirectory, fileName);
+                File.Copy(absoluteSource, destination, overwrite: true);
+                target.evidencePath = "target-references/" + fileName.Replace('\\', '/');
+                copiedCount++;
+            }
+
+            if (copiedCount > 0)
+            {
+                document.completedEvidence.Add($"{copiedCount} selected target reference image(s) copied into this run for direct visual comparison.");
+            }
         }
 
         private static void AddFindings(
@@ -174,7 +235,7 @@ namespace LTW.UnityClient.Editor
             document.completedEvidence.Add("Grayscale copies generated for value/readability review.");
             document.completedEvidence.Add("Machine-readable manifest generated for the current phase.");
 
-            document.lowFindings.Add("Machine scores only measure evidence coverage. The working graphics or implementation agent must assign visual quality scores before handoff.");
+            document.lowFindings.Add("Machine scores measure evidence coverage and target-reference presence. The working graphics or implementation agent must assign visual quality scores before handoff.");
             document.lowFindings.Add("Batch HUD overlays are deterministic approximations of runtime UI; live Game View checks remain useful before final lock.");
         }
 
@@ -227,7 +288,7 @@ namespace LTW.UnityClient.Editor
 
             document.recommendedNextPackages.Add("GD-Mobile-UI-Board: agent-score selected/disabled command states and continue HUD typography scale work.");
             document.recommendedNextPackages.Add("GD-Creep-Identity: agent-score Runner x10 and heavy Swarm pressure evidence, then tune silhouettes if needed.");
-            document.recommendedNextPackages.Add("GD-Art-Pipeline-Hygiene: update the owning checklist with this report path after human scoring.");
+            document.recommendedNextPackages.Add("GD-Art-Pipeline-Hygiene: update the owning checklist with this report path and target-reference match scores after agent scoring.");
         }
 
         private static string BuildVerdict(VisualImprovementCycleReportDocument document)
@@ -266,6 +327,29 @@ namespace LTW.UnityClient.Editor
             builder.AppendLine("- Intended gameplay read: mobile portrait art-direction evidence for the selected package.");
             builder.AppendLine("- Assets and systems changed: recorded by the implementation branch; this report covers capture evidence.");
             builder.AppendLine("- Explicit exclusions: automated visual taste judgment, final promotion approval, and live manual play feel.");
+            builder.AppendLine();
+            builder.AppendLine("## Target References");
+            builder.AppendLine();
+            if (document.targetReferences.Count == 0)
+            {
+                builder.AppendLine("- No target references resolved for this package.");
+            }
+            else
+            {
+                builder.AppendLine("Every visual score in this run must compare the captured runtime output to these selected targets, not just to general taste.");
+                builder.AppendLine();
+                builder.AppendLine("| Target | Track | Selected Option | Reference | Runtime Translation Target | Required Evidence | Match Score |");
+                builder.AppendLine("| --- | --- | --- | --- | --- | --- | ---: |");
+                foreach (var target in document.targetReferences)
+                {
+                    var source = string.IsNullOrWhiteSpace(target.evidencePath)
+                        ? $"missing: `{target.sourcePath}`"
+                        : $"[view]({target.evidencePath})";
+                    var option = string.IsNullOrWhiteSpace(target.selectedOption) ? "active production ref" : target.selectedOption;
+                    builder.AppendLine($"| `{target.id}` | {target.track} | {option} | {source} | {target.intendedTranslation} | {target.requiredEvidence} | /3 |");
+                }
+            }
+
             builder.AppendLine();
             builder.AppendLine("## Capture Matrix");
             builder.AppendLine();
@@ -394,6 +478,28 @@ namespace LTW.UnityClient.Editor
             return Path.Combine(runDirectory, relativePath.Replace('/', Path.DirectorySeparatorChar));
         }
 
+        private static string ResolveRepositoryRoot()
+        {
+            var assetsDirectory = Application.dataPath;
+            var projectDirectory = Directory.GetParent(assetsDirectory)?.FullName
+                ?? throw new InvalidOperationException("Unable to resolve Unity project directory.");
+            var unityDirectory = Directory.GetParent(projectDirectory)?.FullName
+                ?? throw new InvalidOperationException("Unable to resolve Unity parent directory.");
+            return Directory.GetParent(unityDirectory)?.FullName
+                ?? throw new InvalidOperationException("Unable to resolve repository root.");
+        }
+
+        private static string SanitizeFileName(string value)
+        {
+            var builder = new StringBuilder(value.Length);
+            foreach (var character in value)
+            {
+                builder.Append(char.IsLetterOrDigit(character) || character == '-' || character == '_' ? character : '-');
+            }
+
+            return builder.Length == 0 ? "target-reference" : builder.ToString();
+        }
+
         private static string OppositePhase(string phase)
         {
             return string.Equals(phase, "before", StringComparison.OrdinalIgnoreCase) ? "after" : "before";
@@ -428,6 +534,171 @@ namespace LTW.UnityClient.Editor
                 "breakthrough" => "Large visual direction push that may temporarily break spacing or balance.",
                 _ => "Normal evidence-backed pass; visible changes preferred but not required."
             };
+        }
+    }
+
+    internal static class VisualTargetReferenceCatalog
+    {
+        public static IReadOnlyList<VisualTargetReference> Resolve(string packageName, string runId)
+        {
+            var package = (packageName ?? string.Empty).ToLowerInvariant();
+            var run = (runId ?? string.Empty).ToLowerInvariant();
+            var targets = new List<VisualTargetReference>();
+
+            if (ContainsAny(package, run, "ui-board", "spawnleak", "spawn-leak", "board"))
+            {
+                AddUiBoardTargets(targets, package, run);
+            }
+
+            if (ContainsAny(package, run, "tower", "role", "identity"))
+            {
+                AddTowerTargets(targets);
+            }
+
+            if (ContainsAny(package, run, "creep", "role", "identity"))
+            {
+                AddCreepTargets(targets);
+            }
+
+            if (ContainsAny(package, run, "builder", "role", "identity"))
+            {
+                targets.Add(new VisualTargetReference
+                {
+                    id = "builder-v1-production",
+                    track = "Builder",
+                    sourcePath = "unity/LTW.UnityClient/Assets/Resources/Art/Builder/Production/Sprites/builder_candidate_v01_trimmed.png",
+                    intendedTranslation = "Keep the friendly worker/tool silhouette readable during placement without confusing it for a tower or creep.",
+                    requiredEvidence = "default-hud, build-card-selected, active-combat"
+                });
+            }
+
+            return targets
+                .GroupBy(target => target.id, StringComparer.OrdinalIgnoreCase)
+                .Select(group => group.First())
+                .ToArray();
+        }
+
+        private static void AddUiBoardTargets(List<VisualTargetReference> targets, string package, string run)
+        {
+            if (ContainsAny(package, run, "command", "ui-board"))
+            {
+                targets.Add(new VisualTargetReference
+                {
+                    id = "ui-command-cards-option-04",
+                    track = "Command Cards",
+                    selectedOption = "Option 4",
+                    sourcePath = "docs/art-pipeline/ui-board/selected-candidates/command_cards_option_04.png",
+                    intendedTranslation = "Use simple readable command-card chrome with clear selected, disabled, and normal states.",
+                    requiredEvidence = "build-menu-open, build-card-selected, send-menu-open, send-card-disabled"
+                });
+            }
+
+            if (ContainsAny(package, run, "controls", "map", "lane", "ui-board"))
+            {
+                targets.Add(new VisualTargetReference
+                {
+                    id = "ui-controls-option-01",
+                    track = "Map/Lane/Status Controls",
+                    selectedOption = "Option 1",
+                    sourcePath = "docs/art-pipeline/ui-board/selected-candidates/controls_option_01.png",
+                    intendedTranslation = "Keep persistent map/lane controls icon-first, reachable, and visually separate from temporary status panels.",
+                    requiredEvidence = "default-hud, lane-selector-open"
+                });
+            }
+
+            if (ContainsAny(package, run, "hud", "ui-board"))
+            {
+                targets.Add(new VisualTargetReference
+                {
+                    id = "ui-hud-chrome-option-06",
+                    track = "HUD Chrome",
+                    selectedOption = "Option 6",
+                    sourcePath = "docs/art-pipeline/ui-board/selected-candidates/hud_chrome_option_06.png",
+                    intendedTranslation = "Translate the dimensional HUD module into compact portrait-safe stat chrome without overlapping lane action.",
+                    requiredEvidence = "default-hud, active-combat, grayscale default-hud"
+                });
+            }
+
+            if (ContainsAny(package, run, "icon", "command", "ui-board"))
+            {
+                targets.Add(new VisualTargetReference
+                {
+                    id = "ui-icon-family-option-06",
+                    track = "Icon Family",
+                    selectedOption = "Option 6",
+                    sourcePath = "docs/art-pipeline/ui-board/selected-candidates/icon_family_option_06.png",
+                    intendedTranslation = "Use simplified role silhouettes for command readability after card sizing is stable.",
+                    requiredEvidence = "build-card-selected, send-card-disabled, grayscale command states"
+                });
+            }
+
+            if (ContainsAny(package, run, "board", "spawn", "leak", "ui-board"))
+            {
+                targets.Add(new VisualTargetReference
+                {
+                    id = "board-material-option-11",
+                    track = "Board Material",
+                    selectedOption = "Option 11",
+                    sourcePath = "docs/art-pipeline/ui-board/selected-candidates/board_material_option_11.png",
+                    intendedTranslation = "Use restrained slate board materials and triangular route cues that support units instead of overpowering them.",
+                    requiredEvidence = "board-overview, active-combat, grayscale board-overview"
+                });
+            }
+
+            if (ContainsAny(package, run, "spawn", "leak", "gate", "ui-board"))
+            {
+                targets.Add(new VisualTargetReference
+                {
+                    id = "spawn-leak-gates-option-11",
+                    track = "Endpoint Gates",
+                    selectedOption = "Option 11",
+                    sourcePath = "docs/art-pipeline/ui-board/selected-candidates/spawn_leak_gates_option_11.png",
+                    intendedTranslation = "Translate the compact circular spawn platform and drain-like leak gate into readable endpoint art at lane scale.",
+                    requiredEvidence = "spawn-gate-focus, leak-gate-focus, board-overview, grayscale endpoint focus"
+                });
+            }
+        }
+
+        private static void AddTowerTargets(List<VisualTargetReference> targets)
+        {
+            targets.Add(RoleTarget("tower-arrow-v1-production", "Tower: Arrow", "unity/LTW.UnityClient/Assets/Art/Towers/Production/Sprites/tower_arrow_candidate_v06_trimmed.png", "crossbow/bolt rail silhouette with strong horizontal limbs", "default-hud, active-combat, build-card-selected"));
+            targets.Add(RoleTarget("tower-control-v1-production", "Tower: Control", "unity/LTW.UnityClient/Assets/Art/Towers/Production/Sprites/tower_control_candidate_v01_trimmed.png", "wide containment ring/dish and suspended core", "active-combat, build-card-selected"));
+            targets.Add(RoleTarget("tower-relay-v1-production", "Tower: Relay", "unity/LTW.UnityClient/Assets/Art/Towers/Production/Sprites/tower_relay_candidate_v01_trimmed.png", "beacon mast, antenna crown, support/economy read", "active-combat, build-card-selected"));
+            targets.Add(RoleTarget("tower-pulse-v1-production", "Tower: Pulse", "unity/LTW.UnityClient/Assets/Art/Towers/Production/Sprites/tower_pulse_candidate_v01_trimmed.png", "heavy drum/reactor silhouette with pressure core", "active-combat, build-card-selected"));
+            targets.Add(RoleTarget("tower-prism-v1-production", "Tower: Prism", "unity/LTW.UnityClient/Assets/Art/Towers/Production/Sprites/tower_prism_candidate_v01_trimmed.png", "tall crystal/lens spire and focused beam aperture", "active-combat, build-card-selected"));
+        }
+
+        private static void AddCreepTargets(List<VisualTargetReference> targets)
+        {
+            targets.Add(RoleTarget("creep-runner-v1-production", "Creep: Runner", "unity/LTW.UnityClient/Assets/Art/Creeps/Production/Sprites/creep_runner_candidate_v07_trimmed.png", "fast dart body with readable side fins and motion intent", "runner-10-pressure, active-combat, send-card-disabled"));
+            targets.Add(RoleTarget("creep-brute-v1-production", "Creep: Brute", "unity/LTW.UnityClient/Assets/Art/Creeps/Production/Sprites/creep_brute_candidate_v02b_trimmed.png", "chunky armored shell, muted gold blocks, heavy core", "active-combat, heavy-pressure"));
+            targets.Add(RoleTarget("creep-swarm-v1-production", "Creep: Swarm", "unity/LTW.UnityClient/Assets/Art/Creeps/Production/Sprites/creep_swarm_candidate_v01_trimmed.png", "clustered shardlings that read as multiple small bodies", "swarm-heavy-pressure, heavy-pressure"));
+            targets.Add(RoleTarget("creep-shade-v1-production", "Creep: Shade", "unity/LTW.UnityClient/Assets/Art/Creeps/Production/Sprites/creep_shade_candidate_v02_trimmed.png", "compact dark crystalline body with echo facets", "active-combat, heavy-pressure"));
+            targets.Add(RoleTarget("creep-siege-v1-production", "Creep: Siege", "unity/LTW.UnityClient/Assets/Art/Creeps/Production/Sprites/creep_siege_candidate_v01_trimmed.png", "directional ram/barrel body with forward impact nose", "active-combat, heavy-pressure"));
+        }
+
+        private static VisualTargetReference RoleTarget(
+            string id,
+            string track,
+            string path,
+            string translation,
+            string evidence)
+        {
+            return new VisualTargetReference
+            {
+                id = id,
+                track = track,
+                sourcePath = path,
+                intendedTranslation = translation,
+                requiredEvidence = evidence
+            };
+        }
+
+        private static bool ContainsAny(string package, string run, params string[] values)
+        {
+            return values.Any(value =>
+                package.IndexOf(value, StringComparison.OrdinalIgnoreCase) >= 0
+                || run.IndexOf(value, StringComparison.OrdinalIgnoreCase) >= 0);
         }
     }
 }

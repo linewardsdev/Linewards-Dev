@@ -73,6 +73,8 @@ Source of truth: `docs/art-pipeline/ui-board-art-pipeline.md`
   - [x] 2026-07-16: Enlarged command icon wells, switched command cards to compact role codes, reduced card label/meta scale, and captured evidence under `docs/screenshot-reviews/mobile-art-aggressive-command-card-pass/`.
 - [x] Add targeted spawn/leak board automation pass.
   - [x] 2026-07-16: Added 15-state mobile capture coverage with board overview, spawn-gate focus, and leak-gate focus states; trimmed the lane to 16 rows; strengthened procedural endpoint plates; captured scored evidence under `docs/screenshot-reviews/mobile-art-spawn-leak-board-pass/`.
+- [x] Anchor automation passes to selected target references.
+  - [x] 2026-07-16: Added package-aware target-reference resolution in `VisualImprovementCycleReport`, copied selected UI/board refs into the spawn/leak evidence package, and added mandatory reference-match scoring to the improvement-cycle report.
 - [ ] Normalize crops, scale, alpha, and grayscale copies.
 - [ ] Add source notes for every promoted generated asset.
 - [ ] Add Unity import settings and `.meta` files.
