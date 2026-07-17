@@ -1405,13 +1405,32 @@ namespace LTW.UnityClient.Simulation
         {
             var offset = LaneOffset(laneId);
             var accent = OwnerAccent(laneId);
-            var railHeight = laneId == 1 ? 0.22f : 0.14f;
-            var longRailWidth = laneId == 1 ? 0.18f : 0.1f;
-            var endRailWidth = laneId == 1 ? 0.18f : 0.1f;
-            CreateBoardRail($"Lane{laneId}NorthRail", new Vector3(offset + BoardCenterX, -0.06f, LaneLength - 0.38f), new Vector3(LaneWidth + 0.35f, railHeight, longRailWidth), accent);
-            CreateBoardRail($"Lane{laneId}SouthRail", new Vector3(offset + BoardCenterX, -0.06f, -0.62f), new Vector3(LaneWidth + 0.35f, railHeight, longRailWidth), accent);
-            CreateBoardRail($"Lane{laneId}WestRail", new Vector3(offset - 0.62f, -0.06f, BoardCenterZ), new Vector3(endRailWidth, railHeight, LaneLength + 0.35f), accent);
-            CreateBoardRail($"Lane{laneId}EastRail", new Vector3(offset + LaneWidth - 0.38f, -0.06f, BoardCenterZ), new Vector3(endRailWidth, railHeight, LaneLength + 0.35f), accent);
+            var trimColor = LaneFrameTrimColor(laneId);
+            var highlight = LaneFrameHighlightColor(laneId);
+            var shadow = BoardContactShadowColor(laneId);
+            var railHeight = laneId == 1 ? 0.11f : 0.075f;
+            var longRailWidth = laneId == 1 ? 0.11f : 0.075f;
+            var sideRailWidth = laneId == 1 ? 0.105f : 0.07f;
+
+            CreateBoardRail($"Lane{laneId}NorthRailShadow", new Vector3(offset + BoardCenterX, -0.075f, LaneLength - 0.12f), new Vector3(LaneWidth + 0.18f, 0.035f, 0.16f), shadow);
+            CreateBoardRail($"Lane{laneId}SouthRailShadow", new Vector3(offset + BoardCenterX, -0.075f, -0.88f), new Vector3(LaneWidth + 0.18f, 0.035f, 0.16f), shadow);
+            CreateBoardRail($"Lane{laneId}NorthRail", new Vector3(offset + BoardCenterX, -0.045f, LaneLength - 0.18f), new Vector3(LaneWidth + 0.05f, railHeight, longRailWidth), trimColor);
+            CreateBoardRail($"Lane{laneId}SouthRail", new Vector3(offset + BoardCenterX, -0.045f, -0.82f), new Vector3(LaneWidth + 0.05f, railHeight, longRailWidth), trimColor);
+            CreateBoardRail($"Lane{laneId}WestRail", new Vector3(offset - 0.46f, -0.045f, BoardCenterZ), new Vector3(sideRailWidth, railHeight, LaneLength - 0.18f), trimColor);
+            CreateBoardRail($"Lane{laneId}EastRail", new Vector3(offset + LaneWidth - 0.54f, -0.045f, BoardCenterZ), new Vector3(sideRailWidth, railHeight, LaneLength - 0.18f), trimColor);
+            CreateBoardRail($"Lane{laneId}NorthRailHighlight", new Vector3(offset + BoardCenterX, 0.004f, LaneLength - 0.24f), new Vector3(LaneWidth - 0.18f, 0.018f, 0.026f), highlight);
+            CreateBoardRail($"Lane{laneId}SouthRailHighlight", new Vector3(offset + BoardCenterX, 0.004f, -0.76f), new Vector3(LaneWidth - 0.18f, 0.018f, 0.026f), highlight);
+
+            CreateLaneFrameAccentChip(laneId, "NorthWest", new Vector3(offset - 0.48f, 0.018f, LaneLength - 0.22f), accent);
+            CreateLaneFrameAccentChip(laneId, "NorthEast", new Vector3(offset + LaneWidth - 0.52f, 0.018f, LaneLength - 0.22f), accent);
+            CreateLaneFrameAccentChip(laneId, "SouthWest", new Vector3(offset - 0.48f, 0.018f, -0.78f), accent);
+            CreateLaneFrameAccentChip(laneId, "SouthEast", new Vector3(offset + LaneWidth - 0.52f, 0.018f, -0.78f), accent);
+        }
+
+        private void CreateLaneFrameAccentChip(int laneId, string name, Vector3 position, Color accent)
+        {
+            var chip = CreateBoardRail($"Lane{laneId}{name}RailAccent", position, new Vector3(0.2f, 0.018f, 0.055f), LaneFrameAccentColor(accent, laneId == 1));
+            chip.transform.rotation = Quaternion.Euler(0f, name.Contains("West", StringComparison.OrdinalIgnoreCase) ? 22f : -22f, 0f);
         }
 
         private void CreateLaneBackplate(int laneId)
@@ -1724,13 +1743,14 @@ namespace LTW.UnityClient.Simulation
             laneDecorations.Add(triangleBase);
         }
 
-        private void CreateBoardRail(string name, Vector3 position, Vector3 scale, Color color)
+        private GameObject CreateBoardRail(string name, Vector3 position, Vector3 scale, Color color)
         {
             var rail = CreatePrimitive(name, PrimitiveType.Cube);
             rail.transform.position = position;
             rail.transform.localScale = scale;
             SetColor(rail, color);
             laneDecorations.Add(rail);
+            return rail;
         }
 
         private void CreateLaneLandmark(int laneId, int x, int y, string landmarkName, Color color, float scale)
@@ -2649,6 +2669,16 @@ namespace LTW.UnityClient.Simulation
         private static Color BoardPlateDarkBevelColor(int laneId) => laneId == 1 ? new Color(0.012f, 0.018f, 0.026f) : new Color(0.006f, 0.01f, 0.016f);
 
         private static Color BoardContactShadowColor(int laneId) => laneId == 1 ? new Color(0.008f, 0.014f, 0.02f) : new Color(0.004f, 0.008f, 0.014f);
+
+        private static Color LaneFrameTrimColor(int laneId) => laneId == 1 ? new Color(0.065f, 0.078f, 0.088f) : new Color(0.034f, 0.042f, 0.052f);
+
+        private static Color LaneFrameHighlightColor(int laneId) => laneId == 1 ? new Color(0.18f, 0.19f, 0.18f) : new Color(0.086f, 0.094f, 0.1f);
+
+        private static Color LaneFrameAccentColor(Color accent, bool isPlayerLane)
+        {
+            var strength = isPlayerLane ? 0.38f : 0.18f;
+            return new Color(0.035f + accent.r * strength, 0.04f + accent.g * strength, 0.045f + accent.b * strength);
+        }
 
         private static Color EndpointPlateSignalColor(Color color, bool isPlayerLane)
         {
