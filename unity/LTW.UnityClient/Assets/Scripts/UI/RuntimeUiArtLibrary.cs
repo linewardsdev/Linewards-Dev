@@ -32,8 +32,16 @@ namespace LTW.UnityClient.UI
                 return cached;
             }
 
-            var texture = Resources.Load<Texture2D>(ChromeRoot + resourceName);
-            TextureCache[resourceName] = texture;
+            var resourcePath = ChromeRoot + resourceName;
+            var texture = Resources.Load<Texture2D>(resourcePath);
+#if UNITY_EDITOR
+            texture ??= UnityEditor.AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Resources/" + resourcePath + ".png");
+#endif
+            if (texture != null)
+            {
+                TextureCache[resourceName] = texture;
+            }
+
             return texture;
         }
     }

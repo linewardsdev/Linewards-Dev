@@ -72,8 +72,9 @@ namespace LTW.UnityClient.UI
 
             var scale = MobileViewportLayout.UiScale();
             var frame = MobileViewportLayout.ScreenRect();
-            var launcherSize = 56f * scale;
-            var launcherRect = new Rect(frame.xMax - launcherSize - 12f * scale, frame.yMax - launcherSize - MobileViewportLayout.BottomMargin(scale), launcherSize, launcherSize);
+            var launcherWidth = 76f * scale;
+            var launcherHeight = 44f * scale;
+            var launcherRect = new Rect(frame.xMax - launcherWidth - 12f * scale, frame.yMax - launcherHeight - MobileViewportLayout.BottomMargin(scale), launcherWidth, launcherHeight);
             var touchPlacement = TouchPlacement;
             if (touchPlacement?.IsTowerPaletteExpanded == true)
             {
@@ -108,7 +109,8 @@ namespace LTW.UnityClient.UI
             titleStyle!.fontSize = Mathf.RoundToInt(12f * scale);
             titleStyle.normal.textColor = SignalGold;
             GUI.Label(new Rect(rect.x + 12f * scale, rect.y + 10f * scale, 120f * scale, 20f * scale), "SEND", titleStyle);
-            if (GUI.Button(new Rect(rect.xMax - 72f * scale, rect.y + 8f * scale, 58f * scale, 32f * scale), "CLOSE", buttonStyle))
+            buttonStyle!.fontSize = Mathf.RoundToInt(10f * scale);
+            if (RuntimeUiChrome.DrawPanelButton(new Rect(rect.xMax - 72f * scale, rect.y + 8f * scale, 58f * scale, 32f * scale), "CLOSE", SignalGold, scale, buttonStyle))
             {
                 isExpanded = false;
                 return;
@@ -310,16 +312,10 @@ namespace LTW.UnityClient.UI
 
         private static bool DrawLauncherButton(Rect rect, string label, Color accent, float scale)
         {
-            var previousColor = GUI.color;
-            GUI.color = TintPanel(accent, 0.12f);
-            var pressed = GUI.Button(rect, GUIContent.none, buttonStyle);
-            GUI.color = previousColor;
-
-            DrawAccent(new Rect(rect.x, rect.yMax - 4f * scale, rect.width, 4f * scale), accent);
             buttonStyle!.fontSize = Mathf.RoundToInt(12f * scale);
-            buttonStyle.normal.textColor = accent;
-            GUI.Label(rect, label, buttonStyle);
-            return pressed;
+            return rect.width > rect.height * 1.35f
+                ? RuntimeUiChrome.DrawPanelButton(rect, label, accent, scale, buttonStyle)
+                : RuntimeUiChrome.DrawLauncherButton(rect, label, accent, scale, buttonStyle);
         }
 
         private static void EnsureStyles()

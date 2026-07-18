@@ -20,6 +20,8 @@ namespace LTW.UnityClient.UI
         private static readonly Color DeepEdge = new(0.012f, 0.016f, 0.022f, 0.92f);
         private static readonly Color DisabledEdge = new(0.24f, 0.25f, 0.28f, 0.84f);
         private static readonly Color ErrorRed = new(0.94f, 0.24f, 0.18f, 1f);
+        private static Texture2D? generatedPanelButton;
+        private static Texture2D? generatedRoundButton;
 
         public static bool DrawCommandCard(Rect rect, Color accent, CommandCardState state, float scale)
         {
@@ -52,11 +54,61 @@ namespace LTW.UnityClient.UI
         {
             DrawControlChrome(rect, accent, active, scale);
 
-            var previousTextColor = labelStyle.normal.textColor;
-            labelStyle.normal.textColor = active ? new Color(0.02f, 0.035f, 0.052f, 1f) : new Color(accent.r, accent.g, accent.b, 0.92f);
-            GUI.Label(rect, label, labelStyle);
-            labelStyle.normal.textColor = previousTextColor;
+            DrawChromeLabel(rect, label, active ? new Color(0.95f, 1f, 0.98f, 1f) : new Color(accent.r, accent.g, accent.b, 0.92f), labelStyle);
 
+            return TransparentButton(rect);
+        }
+
+        public static bool DrawLauncherButton(Rect rect, string label, Color accent, float scale, GUIStyle labelStyle)
+        {
+            var tint = new Color(
+                Mathf.Lerp(0.78f, accent.r, 0.18f),
+                Mathf.Lerp(0.86f, accent.g, 0.18f),
+                Mathf.Lerp(1f, accent.b, 0.18f),
+                0.96f);
+            if (!RuntimeUiArtLibrary.DrawChromeTexture(rect, "ui_panel_button_option_04_v03", tint, ScaleMode.StretchToFill))
+            {
+                DrawGeneratedPanelButton(rect, accent, scale);
+            }
+            DrawButtonAccent(rect, accent, scale);
+
+            DrawChromeLabel(rect, label, new Color(accent.r, accent.g, accent.b, 0.96f), labelStyle);
+
+            return TransparentButton(rect);
+        }
+
+        public static bool DrawPanelButton(Rect rect, string label, Color accent, float scale, GUIStyle labelStyle)
+        {
+            if (!RuntimeUiArtLibrary.DrawChromeTexture(rect, "ui_panel_button_option_04_v03", Color.white))
+            {
+                DrawGeneratedPanelButton(rect, accent, scale);
+            }
+            DrawButtonAccent(rect, accent, scale);
+
+            DrawChromeLabel(rect, label, new Color(accent.r, accent.g, accent.b, 0.96f), labelStyle);
+
+            return TransparentButton(rect);
+        }
+
+        private static void DrawChromeLabel(Rect rect, string label, Color color, GUIStyle sourceStyle)
+        {
+            var style = new GUIStyle(GUI.skin.label)
+            {
+                alignment = sourceStyle.alignment,
+                clipping = sourceStyle.clipping,
+                font = sourceStyle.font,
+                fontSize = sourceStyle.fontSize,
+                fontStyle = sourceStyle.fontStyle,
+                margin = ZeroOffset(),
+                padding = ZeroOffset(),
+                wordWrap = sourceStyle.wordWrap
+            };
+            style.normal.textColor = color;
+            GUI.Label(rect, label, style);
+        }
+
+        private static bool TransparentButton(Rect rect)
+        {
             var currentEvent = Event.current;
             if (currentEvent.type != EventType.MouseUp || !rect.Contains(currentEvent.mousePosition))
             {
@@ -154,32 +206,148 @@ namespace LTW.UnityClient.UI
 
         private static void DrawControlChrome(Rect rect, Color accent, bool active, float scale)
         {
-            if (RuntimeUiArtLibrary.DrawChromeTexture(rect, "ui_control_button_option_01", active ? Color.white : new Color(0.78f, 0.86f, 1f, 0.84f), ScaleMode.ScaleToFit))
+            var tint = active ? Color.white : new Color(0.78f, 0.86f, 1f, 0.78f);
+            if (RuntimeUiArtLibrary.DrawChromeTexture(rect, "ui_round_button_option_01_v03", tint, ScaleMode.ScaleToFit))
             {
                 if (active)
                 {
-                    DrawOutline(Shrink(rect, 4f * scale), new Color(accent.r, accent.g, accent.b, 0.82f), Mathf.Max(2f, 2f * scale));
+                    var pulseRect = Shrink(rect, rect.width * 0.2f);
+                    Fill(new Rect(pulseRect.x, pulseRect.y + pulseRect.height * 0.46f, pulseRect.width, Mathf.Max(2f, 2f * scale)), new Color(accent.r, accent.g, accent.b, 0.72f));
+                    Fill(new Rect(pulseRect.x + pulseRect.width * 0.46f, pulseRect.y, Mathf.Max(2f, 2f * scale), pulseRect.height), new Color(accent.r, accent.g, accent.b, 0.72f));
                 }
 
                 return;
             }
 
-            var outer = active ? accent : SlateEdge;
-            var face = active ? new Color(accent.r, accent.g, accent.b, 0.86f) : Tint(CardBack, accent, 0.12f);
-            var inner = active ? new Color(0.86f, 0.97f, 1f, 0.58f) : new Color(accent.r, accent.g, accent.b, 0.36f);
-            var pad = Mathf.Max(2f * scale, 2f);
-            var ring = Mathf.Max(3f * scale, 2f);
+            DrawGeneratedRoundButton(rect, accent, active, scale);
+            return;
+        }
 
-            Fill(rect, DeepEdge);
-            Fill(Shrink(rect, pad), outer);
-            Fill(Shrink(rect, pad + ring), face);
+        private static void DrawGeneratedPanelButton(Rect rect, Color accent, float scale)
+        {
+            var previousColor = GUI.color;
+            GUI.color = Color.white;
+            GUI.DrawTexture(rect, GeneratedPanelButton(), ScaleMode.StretchToFill, true);
+            GUI.color = previousColor;
 
-            var markWidth = Mathf.Max(3f * scale, 2f);
-            var railX = rect.x + rect.width * 0.22f;
-            Fill(new Rect(railX, rect.y + rect.height * 0.24f, markWidth, rect.height * 0.52f), inner);
-            Fill(new Rect(railX - markWidth * 1.2f, rect.y + rect.height * 0.28f, markWidth, markWidth), outer);
-            Fill(new Rect(railX - markWidth * 1.2f, rect.y + rect.height * 0.5f - markWidth * 0.5f, markWidth, markWidth), outer);
-            Fill(new Rect(railX - markWidth * 1.2f, rect.yMax - rect.height * 0.28f - markWidth, markWidth, markWidth), outer);
+            var inset = Mathf.Max(4f, 4f * scale);
+            DrawOutline(Shrink(rect, inset), new Color(accent.r, accent.g, accent.b, 0.42f), Mathf.Max(1f, 1f * scale));
+        }
+
+        private static void DrawButtonAccent(Rect rect, Color accent, float scale)
+        {
+            var height = Mathf.Max(3f, 3f * scale);
+            var width = rect.width * 0.78f;
+            Fill(new Rect(rect.x + (rect.width - width) * 0.5f, rect.yMax - height - 3f * scale, width, height), new Color(accent.r, accent.g, accent.b, 0.92f));
+        }
+
+        private static void DrawGeneratedRoundButton(Rect rect, Color accent, bool active, float scale)
+        {
+            var drawRect = rect.width > rect.height
+                ? new Rect(rect.x + (rect.width - rect.height) * 0.5f, rect.y, rect.height, rect.height)
+                : new Rect(rect.x, rect.y + (rect.height - rect.width) * 0.5f, rect.width, rect.width);
+            var previousColor = GUI.color;
+            GUI.color = Color.white;
+            GUI.DrawTexture(drawRect, GeneratedRoundButton(), ScaleMode.StretchToFill, true);
+            GUI.color = previousColor;
+
+            if (active)
+            {
+                var pulseRect = Shrink(drawRect, drawRect.width * 0.24f);
+                Fill(new Rect(pulseRect.x, pulseRect.y + pulseRect.height * 0.46f, pulseRect.width, Mathf.Max(2f, 2f * scale)), new Color(accent.r, accent.g, accent.b, 0.7f));
+                Fill(new Rect(pulseRect.x + pulseRect.width * 0.46f, pulseRect.y, Mathf.Max(2f, 2f * scale), pulseRect.height), new Color(accent.r, accent.g, accent.b, 0.7f));
+            }
+
+            DrawOutline(Shrink(drawRect, drawRect.width * 0.14f), new Color(accent.r, accent.g, accent.b, 0.36f), Mathf.Max(1f, scale));
+        }
+
+        private static Texture2D GeneratedPanelButton()
+        {
+            if (generatedPanelButton != null)
+            {
+                return generatedPanelButton;
+            }
+
+            const int width = 128;
+            const int height = 48;
+            var texture = new Texture2D(width, height, TextureFormat.RGBA32, false)
+            {
+                filterMode = FilterMode.Bilinear,
+                wrapMode = TextureWrapMode.Clamp
+            };
+
+            for (var y = 0; y < height; y++)
+            {
+                for (var x = 0; x < width; x++)
+                {
+                    var cut = 12;
+                    var outsideCut =
+                        x + y < cut ||
+                        width - 1 - x + y < cut ||
+                        x + height - 1 - y < cut ||
+                        width - 1 - x + height - 1 - y < cut;
+                    if (outsideCut || x < 2 || x > width - 3 || y < 2 || y > height - 3)
+                    {
+                        texture.SetPixel(x, y, new Color(0f, 0f, 0f, 0f));
+                        continue;
+                    }
+
+                    var edge = x < 8 || x > width - 9 || y < 8 || y > height - 9 || x + y < cut + 9 || width - 1 - x + y < cut + 9 || x + height - 1 - y < cut + 9 || width - 1 - x + height - 1 - y < cut + 9;
+                    var inner = new Color(0.018f, 0.028f, 0.043f, 0.94f);
+                    var bevel = new Color(0.34f, 0.36f, 0.34f, 0.86f);
+                    texture.SetPixel(x, y, edge ? bevel : inner);
+                }
+            }
+
+            texture.Apply(false, true);
+            generatedPanelButton = texture;
+            return generatedPanelButton;
+        }
+
+        private static Texture2D GeneratedRoundButton()
+        {
+            if (generatedRoundButton != null)
+            {
+                return generatedRoundButton;
+            }
+
+            const int size = 96;
+            var texture = new Texture2D(size, size, TextureFormat.RGBA32, false)
+            {
+                filterMode = FilterMode.Bilinear,
+                wrapMode = TextureWrapMode.Clamp
+            };
+            var center = (size - 1) * 0.5f;
+            for (var y = 0; y < size; y++)
+            {
+                for (var x = 0; x < size; x++)
+                {
+                    var dx = x - center;
+                    var dy = y - center;
+                    var dist = Mathf.Sqrt(dx * dx + dy * dy) / center;
+                    if (dist > 1f)
+                    {
+                        texture.SetPixel(x, y, new Color(0f, 0f, 0f, 0f));
+                    }
+                    else if (dist > 0.78f)
+                    {
+                        texture.SetPixel(x, y, new Color(0.48f, 0.43f, 0.32f, 0.9f));
+                    }
+                    else if (dist > 0.66f)
+                    {
+                        texture.SetPixel(x, y, new Color(0.05f, 0.065f, 0.075f, 0.96f));
+                    }
+                    else
+                    {
+                        var glow = Mathf.Clamp01(1f - dist);
+                        texture.SetPixel(x, y, new Color(0.012f + glow * 0.04f, 0.023f + glow * 0.05f, 0.035f + glow * 0.06f, 0.95f));
+                    }
+                }
+            }
+
+            texture.Apply(false, true);
+            generatedRoundButton = texture;
+            return generatedRoundButton;
         }
 
         private static void DrawOutline(Rect rect, Color color, float thickness)
@@ -201,6 +369,11 @@ namespace LTW.UnityClient.UI
         private static Rect Shrink(Rect rect, float amount)
         {
             return new Rect(rect.x + amount, rect.y + amount, rect.width - amount * 2f, rect.height - amount * 2f);
+        }
+
+        private static RectOffset ZeroOffset()
+        {
+            return new RectOffset(0, 0, 0, 0);
         }
 
         private static Color StateAccent(Color accent, CommandCardState state)

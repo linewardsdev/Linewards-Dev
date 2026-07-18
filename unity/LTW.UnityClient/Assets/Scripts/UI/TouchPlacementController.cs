@@ -355,7 +355,8 @@ namespace LTW.UnityClient.UI
             GUI.Label(new Rect(rect.x + 12f * scale, rect.y + 51f * scale, rect.width - 24f * scale, 18f * scale), $"CELL {selectedTower.Position.X}, {selectedTower.Position.Y}  OWNER P{selectedTower.OwnerId.Value}", bodyStyle);
             GUI.Label(new Rect(rect.x + 12f * scale, rect.y + 70f * scale, rect.width - 108f * scale, 18f * scale), "Tap another tower or sell this one", bodyStyle);
 
-            if (GUI.Button(new Rect(rect.x + rect.width - 86f * scale, rect.y + 36f * scale, 70f * scale, 42f * scale), "SELL", buttonStyle ?? GUI.skin.button))
+            buttonStyle!.fontSize = Mathf.RoundToInt(11f * scale);
+            if (RuntimeUiChrome.DrawPanelButton(new Rect(rect.x + rect.width - 86f * scale, rect.y + 36f * scale, 70f * scale, 42f * scale), "SELL", Danger, scale, buttonStyle))
             {
                 SellLastTower();
             }
@@ -696,7 +697,8 @@ namespace LTW.UnityClient.UI
             titleStyle!.fontSize = Mathf.RoundToInt(12f * scale);
             titleStyle.normal.textColor = MintSignal;
             GUI.Label(new Rect(rect.x + 12f * scale, rect.y + 10f * scale, 120f * scale, 20f * scale), "BUILD", titleStyle);
-            if (GUI.Button(new Rect(rect.xMax - 72f * scale, rect.y + 8f * scale, 58f * scale, 32f * scale), "CLOSE", buttonStyle ?? GUI.skin.button))
+            buttonStyle!.fontSize = Mathf.RoundToInt(10f * scale);
+            if (RuntimeUiChrome.DrawPanelButton(new Rect(rect.xMax - 72f * scale, rect.y + 8f * scale, 58f * scale, 32f * scale), "CLOSE", MintSignal, scale, buttonStyle))
             {
                 isPaletteExpanded = false;
                 return;
@@ -868,17 +870,11 @@ namespace LTW.UnityClient.UI
 
         private static bool DrawLauncherButton(Rect rect, string label, Color accent, float scale)
         {
-            var previousColor = GUI.color;
-            GUI.color = new Color(PanelInk.r + accent.r * 0.12f, PanelInk.g + accent.g * 0.12f, PanelInk.b + accent.b * 0.12f, PanelInk.a);
             var style = buttonStyle ?? GUI.skin.button;
-            var pressed = GUI.Button(rect, GUIContent.none, style);
-            GUI.color = previousColor;
-
-            DrawAccent(new Rect(rect.x, rect.yMax - 4f * scale, rect.width, 4f * scale), accent);
             buttonStyle!.fontSize = Mathf.RoundToInt(11f * scale);
-            buttonStyle.normal.textColor = accent;
-            GUI.Label(rect, label, style);
-            return pressed;
+            return rect.width > rect.height * 1.35f
+                ? RuntimeUiChrome.DrawPanelButton(rect, label, accent, scale, style)
+                : RuntimeUiChrome.DrawLauncherButton(rect, label, accent, scale, style);
         }
 
         private string PlacementPreviewText()
@@ -1062,8 +1058,9 @@ namespace LTW.UnityClient.UI
 
         private static Rect TowerPaletteLauncherRect(float scale, Rect frame)
         {
-            var launcherSize = 56f * scale;
-            return new Rect(frame.x + 12f * scale, frame.yMax - launcherSize - MobileViewportLayout.BottomMargin(scale), launcherSize, launcherSize);
+            var launcherWidth = 76f * scale;
+            var launcherHeight = 44f * scale;
+            return new Rect(frame.x + 12f * scale, frame.yMax - launcherHeight - MobileViewportLayout.BottomMargin(scale), launcherWidth, launcherHeight);
         }
 
         private static Rect TowerPalettePanelRect(float scale, Rect frame)

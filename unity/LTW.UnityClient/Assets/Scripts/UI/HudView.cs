@@ -217,8 +217,7 @@ namespace LTW.UnityClient.UI
 
             DrawHudCell(left, ArcaneBlue, statsExpanded, scale);
             buttonStyle!.fontSize = Mathf.RoundToInt(10f * scale);
-            buttonStyle.normal.textColor = ArcaneBlue;
-            if (GUI.Button(left, statsExpanded ? "HIDE" : "LINE", buttonStyle))
+            if (RuntimeUiChrome.DrawPanelButton(left, statsExpanded ? "HIDE" : "LINE", ArcaneBlue, scale, buttonStyle))
             {
                 statsExpanded = !statsExpanded;
             }

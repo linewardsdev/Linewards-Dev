@@ -8,9 +8,6 @@ namespace LTW.UnityClient.Simulation
     public sealed class LocalSessionFlowOverlay : MonoBehaviour
     {
         private static readonly Color Cloud = new Color(0.957f, 0.969f, 1f, 1f);
-        private static readonly Color Ink = new Color(0.035f, 0.045f, 0.075f, 1f);
-        private static readonly Color PanelInk = new Color(0.08f, 0.12f, 0.22f, 0.92f);
-        private static readonly Color PanelEdge = new Color(0.70f, 0.88f, 1f, 1f);
         private static readonly Color MintSignal = new Color(0.349f, 0.882f, 0.714f, 1f);
         private static readonly Color SignalGold = new Color(1f, 0.784f, 0.29f, 1f);
 
@@ -39,10 +36,10 @@ namespace LTW.UnityClient.Simulation
             EnsureStyle();
             var scale = MobileViewportLayout.UiScale();
             var frame = MobileViewportLayout.ScreenRect();
-            var buttonWidth = 48f * scale;
-            var buttonHeight = 24f * scale;
-            var resetWidth = 28f * scale;
-            var resetHeight = 20f * scale;
+            var buttonWidth = 62f * scale;
+            var buttonHeight = 26f * scale;
+            var resetWidth = 34f * scale;
+            var resetHeight = 24f * scale;
             var gap = 4f * scale;
             var y = frame.y + 58f * scale;
             var x = frame.xMax - buttonWidth - MobileViewportLayout.EdgeMargin(scale);
@@ -51,13 +48,13 @@ namespace LTW.UnityClient.Simulation
 
             var playLabel = simulationDriver.HasStarted && !simulationDriver.IsPaused ? "PAUSE" : "PLAY";
             var playColor = simulationDriver.HasStarted && !simulationDriver.IsPaused ? SignalGold : MintSignal;
-            if (DrawFlatButton(new Rect(x, y, buttonWidth, buttonHeight), playLabel, playColor, Ink, buttonStyle))
+            if (RuntimeUiChrome.DrawPanelButton(new Rect(x, y, buttonWidth, buttonHeight), playLabel, playColor, scale, buttonStyle))
             {
                 simulationDriver.TogglePause();
             }
 
             buttonStyle.fontSize = Mathf.RoundToInt(10f * scale);
-            if (DrawFlatButton(new Rect(x + buttonWidth - resetWidth, y + buttonHeight + gap, resetWidth, resetHeight), "R", PanelInk, Cloud, buttonStyle))
+            if (RuntimeUiChrome.DrawPanelButton(new Rect(x + buttonWidth - resetWidth, y + buttonHeight + gap, resetWidth, resetHeight), "R", Cloud, scale, buttonStyle))
             {
                 simulationDriver.ResetMatch();
                 playtestRecorder?.ResetRecorder();
@@ -70,41 +67,8 @@ namespace LTW.UnityClient.Simulation
             {
                 alignment = TextAnchor.MiddleCenter,
                 fontStyle = FontStyle.Bold,
-                normal = { textColor = Ink }
+                normal = { textColor = Cloud }
             };
-        }
-
-        private static bool DrawFlatButton(Rect rect, string label, Color fill, Color text, GUIStyle style)
-        {
-            DrawRect(Inflate(rect, 1f), PanelEdge);
-            DrawRect(rect, fill);
-
-            var previousTextColor = style.normal.textColor;
-            style.normal.textColor = text;
-            GUI.Label(rect, label, style);
-            style.normal.textColor = previousTextColor;
-
-            var currentEvent = Event.current;
-            if (currentEvent.type != EventType.MouseUp || !rect.Contains(currentEvent.mousePosition))
-            {
-                return false;
-            }
-
-            currentEvent.Use();
-            return true;
-        }
-
-        private static Rect Inflate(Rect rect, float amount)
-        {
-            return new Rect(rect.x - amount, rect.y - amount, rect.width + amount * 2f, rect.height + amount * 2f);
-        }
-
-        private static void DrawRect(Rect rect, Color color)
-        {
-            var previousColor = GUI.color;
-            GUI.color = color;
-            GUI.DrawTexture(rect, Texture2D.whiteTexture);
-            GUI.color = previousColor;
         }
     }
 }

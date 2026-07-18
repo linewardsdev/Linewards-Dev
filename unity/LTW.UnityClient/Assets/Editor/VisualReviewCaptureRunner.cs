@@ -1121,15 +1121,10 @@ namespace LTW.UnityClient.Editor
             PaintReferenceText(texture, "LINE", 388, 1826, mint, 3);
             PaintReferenceText(texture, "L220 G75 +10", 470, 1826, cloud, 3);
             PaintReferenceText(texture, "P0", 668, 1826, blue, 3);
-            PaintReferenceRect(texture, 890, 1744, 104, 54, mint);
-            PaintReferenceText(texture, "PLAY", 914, 1780, panelStrong, 4);
+            PaintReferenceActionButton(texture, 866, 1746, 146, 54, "PLAY", 900, 1781, mint, mint, 4);
 
-            PaintReferenceRect(texture, 158, 62, 112, 84, panelStrong);
-            PaintReferenceRect(texture, 158, 58, 112, 7, mint);
-            PaintReferenceText(texture, "BUILD", 176, 116, mint, 3);
-            PaintReferenceRect(texture, 810, 62, 112, 84, panelStrong);
-            PaintReferenceRect(texture, 810, 58, 112, 7, gold);
-            PaintReferenceText(texture, "SEND", 838, 116, gold, 3);
+            PaintReferenceActionButton(texture, 132, 68, 160, 64, "BUILD", 170, 112, mint, mint, 3);
+            PaintReferenceActionButton(texture, 788, 68, 160, 64, "SEND", 832, 112, gold, gold, 3);
 
             switch (label)
             {
@@ -1248,15 +1243,28 @@ namespace LTW.UnityClient.Editor
                 ? new Color32((byte)Mathf.Clamp(accent.r, 0, 255), (byte)Mathf.Clamp(accent.g, 0, 255), (byte)Mathf.Clamp(accent.b, 0, 255), 232)
                 : new Color32(20, 28, 42, 236);
             var edge = active ? new Color32(220, 246, 255, 210) : new Color32(88, 94, 104, 220);
-            PaintReferenceRect(texture, x, y, size, size, new Color32(5, 7, 11, 232));
-            PaintReferenceRect(texture, x + 3, y + 3, size - 6, size - 6, edge);
-            PaintReferenceRect(texture, x + 7, y + 7, size - 14, size - 14, face);
+            PaintReferenceCircleButton(texture, x, y, size, face, edge, accent);
             var glyph = active ? new Color32(18, 28, 42, 160) : new Color32(accent.r, accent.g, accent.b, 160);
             PaintReferenceRect(texture, x + 11, y + 13, 3, size - 26, glyph);
             PaintReferenceRect(texture, x + 7, y + 14, 4, 4, glyph);
             PaintReferenceRect(texture, x + 7, y + size / 2 - 2, 4, 4, glyph);
             PaintReferenceRect(texture, x + 7, y + size - 18, 4, 4, glyph);
             PaintReferenceText(texture, label, x + 18, y + size / 2 + 10, active ? new Color32(12, 22, 34, 255) : accent, 3);
+        }
+
+        private static void PaintReferenceActionButton(Texture2D texture, int x, int y, int width, int height, string label, int textX, int baselineY, Color32 accent, Color32 textColor, int textScale)
+        {
+            var px = ReferenceX(texture, x);
+            var py = ReferenceY(texture, y);
+            var w = ReferenceWidth(texture, width);
+            var h = ReferenceHeight(texture, height);
+            PaintChamferedButton(texture, px, py, w, h, new Color32(9, 14, 28, 236), new Color32(124, 130, 124, 190), accent);
+            PaintReferenceText(texture, label, textX, baselineY, textColor, textScale);
+        }
+
+        private static void PaintReferenceCircleButton(Texture2D texture, int x, int y, int size, Color32 face, Color32 edge, Color32 accent)
+        {
+            PaintCircleButton(texture, ReferenceX(texture, x), ReferenceY(texture, y), ReferenceScale(texture, size), face, edge, accent);
         }
 
         private static void PaintReferenceRect(Texture2D texture, int x, int y, int width, int height, Color32 color)
@@ -1340,6 +1348,83 @@ namespace LTW.UnityClient.Editor
                     BlendPixel(texture, px, py, color);
                 }
             }
+        }
+
+        private static void PaintChamferedButton(Texture2D texture, int x, int y, int width, int height, Color32 face, Color32 edge, Color32 accent)
+        {
+            var cut = Mathf.Max(4, Mathf.RoundToInt(Mathf.Min(width, height) * 0.22f));
+            for (var py = y; py < y + height; py++)
+            {
+                for (var px = x; px < x + width; px++)
+                {
+                    var localX = px - x;
+                    var localY = py - y;
+                    var outside =
+                        localX + localY < cut ||
+                        width - 1 - localX + localY < cut ||
+                        localX + height - 1 - localY < cut ||
+                        width - 1 - localX + height - 1 - localY < cut;
+                    if (outside)
+                    {
+                        continue;
+                    }
+
+                    var border =
+                        localX < 4 ||
+                        localX >= width - 4 ||
+                        localY < 4 ||
+                        localY >= height - 4 ||
+                        localX + localY < cut + 5 ||
+                        width - 1 - localX + localY < cut + 5 ||
+                        localX + height - 1 - localY < cut + 5 ||
+                        width - 1 - localX + height - 1 - localY < cut + 5;
+                    BlendPixel(texture, px, py, border ? edge : face);
+                }
+            }
+
+            var railY = y + Mathf.Max(4, height / 10);
+            var railX = x + width / 8;
+            PaintRect(texture, railX, railY, width - width / 4, Mathf.Max(3, height / 13), new Color32(accent.r, accent.g, accent.b, 238));
+            PaintRect(texture, x + 8, y + height / 2 - 2, 14, 4, new Color32(60, 121, 150, 130));
+            PaintRect(texture, x + width - 22, y + height / 2 - 2, 14, 4, new Color32(60, 121, 150, 130));
+        }
+
+        private static void PaintCircleButton(Texture2D texture, int x, int y, int size, Color32 face, Color32 edge, Color32 accent)
+        {
+            var center = (size - 1) * 0.5f;
+            for (var py = y; py < y + size; py++)
+            {
+                for (var px = x; px < x + size; px++)
+                {
+                    var dx = px - x - center;
+                    var dy = py - y - center;
+                    var distance = Mathf.Sqrt(dx * dx + dy * dy) / center;
+                    if (distance > 1f)
+                    {
+                        continue;
+                    }
+
+                    if (distance > 0.78f)
+                    {
+                        BlendPixel(texture, px, py, edge);
+                    }
+                    else if (distance > 0.64f)
+                    {
+                        BlendPixel(texture, px, py, new Color32(6, 8, 12, 235));
+                    }
+                    else
+                    {
+                        BlendPixel(texture, px, py, face);
+                    }
+                }
+            }
+
+            var tick = Mathf.Max(2, size / 14);
+            var glow = new Color32(accent.r, accent.g, accent.b, 170);
+            PaintRect(texture, x + size / 2 - tick / 2, y + size - size / 5, tick, tick * 2, glow);
+            PaintRect(texture, x + size / 2 - tick / 2, y + size / 5 - tick * 2, tick, tick * 2, glow);
+            PaintRect(texture, x + size / 5 - tick * 2, y + size / 2 - tick / 2, tick * 2, tick, glow);
+            PaintRect(texture, x + size - size / 5, y + size / 2 - tick / 2, tick * 2, tick, glow);
         }
 
         private static void PaintText(Texture2D texture, string text, int x, int baselineY, Color32 color, int scale)
@@ -1510,15 +1595,13 @@ namespace LTW.UnityClient.Editor
             AddOverlayText(root, layer, "LINE", new Vector2(-0.78f, 8.64f), mint, 0.16f);
             AddOverlayText(root, layer, "L220 G75 +10", new Vector2(0.06f, 8.64f), cloud, 0.15f);
             AddOverlayText(root, layer, "P0", new Vector2(0.82f, 8.64f), blue, 0.15f);
-            AddOverlayRect(root, layer, "PlayButton", new Vector2(3.76f, 8.06f), new Vector2(0.74f, 0.42f), mint);
-            AddOverlayText(root, layer, "PLAY", new Vector2(3.76f, 8.06f), panel, 0.18f);
+            AddOverlayTexture(root, layer, "PlayButton", "Art/UI/Chrome/ui_panel_button_option_04_v03", new Vector2(3.76f, 8.06f), new Vector2(0.86f, 0.34f), Color.white);
+            AddOverlayText(root, layer, "PLAY", new Vector2(3.76f, 8.06f), mint, 0.15f);
 
-            AddOverlayRect(root, layer, "BuildButton", new Vector2(-4.35f, -8.55f), new Vector2(0.74f, 0.64f), panel);
-            AddOverlayRect(root, layer, "BuildAccent", new Vector2(-4.35f, -8.86f), new Vector2(0.74f, 0.05f), mint);
-            AddOverlayText(root, layer, "BUILD", new Vector2(-4.35f, -8.55f), mint, 0.16f);
-            AddOverlayRect(root, layer, "SendButton", new Vector2(4.35f, -8.55f), new Vector2(0.74f, 0.64f), panel);
-            AddOverlayRect(root, layer, "SendAccent", new Vector2(4.35f, -8.86f), new Vector2(0.74f, 0.05f), gold);
-            AddOverlayText(root, layer, "SEND", new Vector2(4.35f, -8.55f), gold, 0.16f);
+            AddOverlayTexture(root, layer, "BuildButton", "Art/UI/Chrome/ui_panel_button_option_04_v03", new Vector2(-4.28f, -8.55f), new Vector2(0.9f, 0.42f), Color.white);
+            AddOverlayText(root, layer, "BUILD", new Vector2(-4.28f, -8.55f), mint, 0.16f);
+            AddOverlayTexture(root, layer, "SendButton", "Art/UI/Chrome/ui_panel_button_option_04_v03", new Vector2(4.28f, -8.55f), new Vector2(0.9f, 0.42f), Color.white);
+            AddOverlayText(root, layer, "SEND", new Vector2(4.28f, -8.55f), gold, 0.16f);
         }
 
         private static void DrawBuildMenuOverlay(GameObject root, int layer)
@@ -1586,25 +1669,16 @@ namespace LTW.UnityClient.Editor
 
         private static void DrawOverlayCard(GameObject root, int layer, Vector2 center, string title, string meta, Color accent)
         {
-            var panel = new Color(0.08f + accent.r * 0.08f, 0.12f + accent.g * 0.08f, 0.22f + accent.b * 0.08f, 0.94f);
-            var edge = new Color(0.32f, 0.34f, 0.36f, 0.92f);
-            AddOverlayRect(root, layer, title + "CardEdge", center, new Vector2(1.46f, 0.68f), edge);
-            AddOverlayRect(root, layer, title + "Card", center, new Vector2(1.36f, 0.58f), panel);
-            AddOverlayRect(root, layer, title + "TopRail", center + new Vector2(0f, 0.24f), new Vector2(1.08f, 0.035f), edge);
-            AddOverlayRect(root, layer, title + "BottomRail", center + new Vector2(0f, -0.27f), new Vector2(1.08f, 0.035f), accent);
-            AddOverlayRect(root, layer, title + "LeftCorner", center + new Vector2(-0.62f, 0.2f), new Vector2(0.04f, 0.16f), accent);
-            AddOverlayRect(root, layer, title + "RightCorner", center + new Vector2(0.62f, 0.2f), new Vector2(0.04f, 0.16f), accent);
+            AddOverlayTexture(root, layer, title + "Card", "Art/UI/Chrome/ui_command_card_normal_option_04", center, new Vector2(1.36f, 0.82f), Color.white);
+            AddOverlayRect(root, layer, title + "BottomRail", center + new Vector2(0f, -0.34f), new Vector2(1.08f, 0.035f), accent);
             AddOverlayText(root, layer, title, center + new Vector2(0.12f, 0.11f), Color.white, 0.11f);
             AddOverlayText(root, layer, meta, center + new Vector2(0.12f, -0.14f), accent, 0.09f);
         }
 
         private static void DrawOverlayControl(GameObject root, int layer, Vector2 center, string label, Color accent, bool active)
         {
-            var edge = active ? new Color(0.85f, 0.96f, 1f, 0.9f) : new Color(0.32f, 0.34f, 0.38f, 0.9f);
-            var face = active ? accent : new Color(0.08f + accent.r * 0.1f, 0.12f + accent.g * 0.1f, 0.2f + accent.b * 0.1f, 0.95f);
-            var text = active ? new Color(0.02f, 0.035f, 0.052f, 1f) : accent;
-            AddOverlayRect(root, layer, label + "ControlEdge" + center.y, center, new Vector2(0.42f, 0.42f), edge);
-            AddOverlayRect(root, layer, label + "ControlFace" + center.y, center, new Vector2(0.34f, 0.34f), face);
+            var text = active ? Color.white : accent;
+            AddOverlayTexture(root, layer, label + "ControlChrome" + center.y, "Art/UI/Chrome/ui_round_button_option_01_v03", center, new Vector2(0.48f, 0.48f), active ? Color.white : new Color(0.75f, 0.82f, 0.92f, 0.8f));
             AddOverlayRect(root, layer, label + "ControlV" + center.y, center + new Vector2(-0.1f, 0f), new Vector2(0.025f, 0.22f), text);
             AddOverlayRect(root, layer, label + "ControlA" + center.y, center + new Vector2(-0.15f, 0.09f), new Vector2(0.035f, 0.035f), text);
             AddOverlayRect(root, layer, label + "ControlB" + center.y, center + new Vector2(-0.15f, 0f), new Vector2(0.035f, 0.035f), text);
@@ -1626,6 +1700,32 @@ namespace LTW.UnityClient.Editor
             }
 
             SetOverlayColor(rect, color);
+        }
+
+        private static void AddOverlayTexture(GameObject root, int layer, string name, string resourcePath, Vector2 center, Vector2 size, Color tint)
+        {
+            var texture = Resources.Load<Texture2D>(resourcePath)
+                ?? AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Resources/" + resourcePath + ".png");
+            if (texture == null)
+            {
+                AddOverlayRect(root, layer, name + "Fallback", center, size, tint);
+                return;
+            }
+
+            var spriteObject = new GameObject(name);
+            spriteObject.layer = layer;
+            spriteObject.transform.SetParent(root.transform, false);
+            spriteObject.transform.localPosition = new Vector3(center.x, center.y, 0.02f);
+            var sprite = Sprite.Create(texture, new Rect(0f, 0f, texture.width, texture.height), new Vector2(0.5f, 0.5f), 100f);
+            var renderer = spriteObject.AddComponent<SpriteRenderer>();
+            renderer.sprite = sprite;
+            renderer.color = tint;
+            renderer.sortingOrder = 50;
+            var spriteSize = renderer.bounds.size;
+            spriteObject.transform.localScale = new Vector3(
+                spriteSize.x > 0f ? size.x / spriteSize.x : 1f,
+                spriteSize.y > 0f ? size.y / spriteSize.y : 1f,
+                1f);
         }
 
         private static void AddOverlayText(GameObject root, int layer, string text, Vector2 center, Color color, float characterSize)

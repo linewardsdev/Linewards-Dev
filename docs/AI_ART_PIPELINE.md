@@ -477,6 +477,7 @@ Current decision:
   - [x] 2026-07-16: Promoted the first UI/board V02 runtime slice for command cards, including `RuntimeUiChrome`, build/send card wiring, and screenshot review under `docs/screenshot-reviews/ui-board-art-pass-v02-command-cards/`.
   - [x] 2026-07-16: Promoted persistent lane-selector control chrome from selected option 1 and captured review evidence under `docs/screenshot-reviews/ui-board-art-pass-v02-controls/`.
   - [x] 2026-07-16: Promoted the first full-screen UI/board V02 slice for HUD option 6, board material option 11, and spawn/leak gate option 11, with review evidence under `docs/screenshot-reviews/ui-board-art-pass-v02/`.
+  - [x] 2026-07-17: Ran automated button chrome polish pass: BUILD/SEND/PLAY now use chamfered action-button chrome, lane controls use circular chrome, and batch screenshot stamps match runtime direction under `docs/screenshot-reviews/mobile-art-button-chrome-polish-pass-09/`.
   - [ ] Decide and implement true map-camera behavior if the control is meant to be more than lane selection.
 - [x] Run Unity prefab/library validation.
   - [x] 2026-07-15: `ValidateAiSourcePlateProofPrefabs` passed in Unity batchmode.

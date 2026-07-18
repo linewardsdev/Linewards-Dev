@@ -95,6 +95,9 @@ Source of truth: `docs/art-pipeline/ui-board-art-pipeline.md`
 - [x] Promote selected UI and board references into runtime art slices.
   - [x] 2026-07-17: Cropped command card option 4, controls option 1, HUD chrome option 6, and board material option 11 into `Assets/Resources/Art/UI/Chrome/` and `Assets/Resources/Art/Board/Materials/`.
   - [x] 2026-07-17: Added `RuntimeUiArtLibrary`, wired command cards/control buttons/HUD chrome to draw selected-reference textures with procedural fallbacks, added board material texture overlays in `UnityVerticalSliceRenderer`, and captured evidence under `docs/screenshot-reviews/mobile-art-ui-board-reference-promotion-pass/`.
+- [x] Run automated button chrome polish pass.
+  - [x] 2026-07-17: Generated stronger V03 action/control button chrome, widened BUILD/SEND launchers, removed `GUI.skin.button` label background bleed, added retry-safe runtime texture loading, and replaced batch screenshot square button stamps with chamfered action buttons plus circular lane controls.
+  - [x] 2026-07-17: Captured 60 color and 60 grayscale frames under `docs/screenshot-reviews/mobile-art-button-chrome-polish-pass-09/`.
 - [ ] Normalize crops, scale, alpha, and grayscale copies.
 - [ ] Normalize remaining endpoint crop matte, lighting, and lane-scale fit.
 - [ ] Add source notes for every promoted generated asset.
@@ -129,6 +132,9 @@ Source of truth: `docs/art-pipeline/ui-board-art-pipeline.md`
   - [x] `docs/screenshot-reviews/mobile-art-spawn-leak-board-pass/mobile-art-spawn-leak-board-pass/after/phone-standard-portrait/12-board-overview.png`
   - [x] `docs/screenshot-reviews/mobile-art-spawn-leak-board-pass/mobile-art-spawn-leak-board-pass/after/phone-standard-portrait/13-spawn-gate-focus.png`
   - [x] `docs/screenshot-reviews/mobile-art-spawn-leak-board-pass/mobile-art-spawn-leak-board-pass/after/phone-standard-portrait/14-leak-gate-focus.png`
+- [x] Capture polished button chrome.
+  - [x] `docs/screenshot-reviews/mobile-art-button-chrome-polish-pass-09/mobile-art-button-chrome-polish-pass-09/after/phone-safe-area-portrait/01-default-hud.png`
+  - [x] `docs/screenshot-reviews/mobile-art-button-chrome-polish-pass-09/mobile-art-button-chrome-polish-pass-09/after/phone-safe-area-portrait/06-lane-selector-open.png`
 - [x] Capture grayscale set.
   - [x] `docs/screenshot-reviews/ui-board-art-pass-v02/captures/grayscale/`
 - [x] Write command-card slice review.
@@ -145,6 +151,7 @@ Source of truth: `docs/art-pipeline/ui-board-art-pipeline.md`
 - [ ] Selected and disabled states are readable in grayscale.
 - [ ] Board route, build zones, spawn gate, and leak gate are understandable without labels.
 - [ ] Heavy creep pressure remains readable.
-- [ ] Map/lane toggle is always onscreen and visually consistent.
+- [x] Map/lane toggle is always onscreen and visually consistent.
+  - [x] 2026-07-17: Lane selector and automated review controls now share circular button treatment in `mobile-art-button-chrome-polish-pass-09`.
 - [ ] No protected-game UI chrome or copied compositions are used.
 - [ ] Screenshot QA records a `Pass` or `Pass with low-severity polish follow-ups`.
