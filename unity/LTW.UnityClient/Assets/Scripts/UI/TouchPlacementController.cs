@@ -77,7 +77,8 @@ namespace LTW.UnityClient.UI
             feedbackView = feedback;
             ghost = placementGhost;
             selectedCell = DefaultBuilderCell();
-            HideBuilderAvatar();
+            EnsureBuilderAvatar();
+            UpdateBuilderAvatar();
         }
 
         public void BeginTowerPlacement() => BeginTowerPlacement(lastSelectedTowerRole);
@@ -132,7 +133,7 @@ namespace LTW.UnityClient.UI
         {
             isPlacing = false;
             ghost.SetActive(false);
-            HideBuilderAvatar();
+            UpdateBuilderAvatar();
             if (clearFeedback)
             {
                 feedbackView.Clear();
@@ -495,10 +496,11 @@ namespace LTW.UnityClient.UI
         {
             if (builderAvatar == null)
             {
-                return;
+                EnsureBuilderAvatar();
             }
 
             builderAvatar.transform.position = GridToWorld(selectedCell, 0.02f) + new Vector3(-0.48f, 0f, 0.24f);
+            builderAvatar.SetActive(true);
             var accent = SelectedTowerAccent();
             accent.a = 1f;
             foreach (var part in builderAvatar.GetComponentsInChildren<Renderer>(true))

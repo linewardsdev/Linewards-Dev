@@ -1,0 +1,23 @@
+{
+    "asset": "1673ce3608dd1be4581267b2a655c799",
+    "fileName": "019f7632-1bce-7e98-89b5-c1c393814e3a.fbx",
+    "prompt": "A stylized automatic arrow tower defensive turret structure, matching the reference image. High quality, clean stylized geometry, PBR textures.",
+    "negativePrompt": "",
+    "model": "model3d-tripo3-1",
+    "modelName": "Tripo 3.1",
+    "customSeed": -1,
+    "w3CTraceId": "",
+    "feedback": 0,
+    "refinementMode": "Generation",
+    "promptImageReferenceGuid": "af75f5731a744d6eab3d409437074d33",
+    "modelReferenceGuid": "",
+    "multiviewFrontGuid": "",
+    "multiviewBackGuid": "",
+    "multiviewLeftGuid": "",
+    "multiviewRightGuid": "",
+    "multiviewTopGuid": "",
+    "multiviewBottomGuid": "",
+    "multiviewLeftFrontGuid": "",
+    "multiviewRightFrontGuid": "",
+    "faceLimit": -1
+}

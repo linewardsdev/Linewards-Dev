@@ -69,7 +69,7 @@ public sealed class LocalVerticalSlice
         var map = content.Maps[0];
         grids = new Dictionary<LaneId, LaneGrid>();
         routes = new Dictionary<LaneId, IReadOnlyList<GridPosition>>();
-        for (var lane = 1; lane <= 3; lane++)
+        for (var lane = 1; lane <= options.LaneCount; lane++)
         {
             var laneId = new LaneId(lane);
             grids[laneId] = new LaneGrid(map);
@@ -78,21 +78,10 @@ public sealed class LocalVerticalSlice
         combatContent = new CombatContent(
             content.Creeps,
             content.Towers,
-            new Dictionary<LaneId, PlayerId> { [new LaneId(1)] = new PlayerId(1), [new LaneId(2)] = new PlayerId(2), [new LaneId(3)] = new PlayerId(3) });
-        players = new EconomyPlayerSet(new[]
-        {
-            new PlayerEconomyState(new PlayerId(1), new Gold(100), new Income(10), new Lives(StartingLives)),
-            new PlayerEconomyState(new PlayerId(2), new Gold(100), new Income(10), new Lives(StartingLives)),
-            new PlayerEconomyState(new PlayerId(3), new Gold(100), new Income(10), new Lives(StartingLives))
-        });
+            CreateLaneOwners(options.LaneCount));
+        players = CreateStartingPlayers(options.LaneCount);
         combatState = new CombatState(Enumerable.Empty<CreepCombatState>(), Enumerable.Empty<TowerCombatState>());
-        bots = enableBots
-            ? new Dictionary<PlayerId, BotController>
-            {
-                [new PlayerId(2)] = new BotController(options.Player2Profile, options.Player2PrimaryCreepId ?? content.Creeps[0].Id),
-                [new PlayerId(3)] = new BotController(options.Player3Profile, options.Player3PrimaryCreepId ?? content.Creeps[0].Id)
-            }
-            : new Dictionary<PlayerId, BotController>();
+        bots = enableBots ? CreateBots(options.LaneCount) : new Dictionary<PlayerId, BotController>();
         tick = new SimulationTick(0);
     }
 
@@ -306,12 +295,7 @@ public sealed class LocalVerticalSlice
 
     public void Reset()
     {
-        players = new EconomyPlayerSet(new[]
-        {
-            new PlayerEconomyState(new PlayerId(1), new Gold(100), new Income(10), new Lives(StartingLives)),
-            new PlayerEconomyState(new PlayerId(2), new Gold(100), new Income(10), new Lives(StartingLives)),
-            new PlayerEconomyState(new PlayerId(3), new Gold(100), new Income(10), new Lives(StartingLives))
-        });
+        players = CreateStartingPlayers(options.LaneCount);
         combatState = new CombatState(Enumerable.Empty<CreepCombatState>(), Enumerable.Empty<TowerCombatState>());
         var map = content.Maps[0];
         foreach (var laneId in grids.Keys.ToArray())
@@ -326,6 +310,29 @@ public sealed class LocalVerticalSlice
         MatchSummary = null;
         acceptedCommands.Clear();
         botDecisionRecords.Clear();
+    }
+
+    private static IReadOnlyDictionary<LaneId, PlayerId> CreateLaneOwners(int laneCount)
+    {
+        return Enumerable.Range(1, laneCount)
+            .ToDictionary(lane => new LaneId(lane), lane => new PlayerId(lane));
+    }
+
+    private static EconomyPlayerSet CreateStartingPlayers(int laneCount)
+    {
+        return new EconomyPlayerSet(Enumerable.Range(1, laneCount)
+            .Select(playerId => new PlayerEconomyState(new PlayerId(playerId), new Gold(100), new Income(10), new Lives(StartingLives))));
+    }
+
+    private Dictionary<PlayerId, BotController> CreateBots(int laneCount)
+    {
+        return Enumerable.Range(2, laneCount - 1)
+            .Select(playerId => new PlayerId(playerId))
+            .ToDictionary(
+                playerId => playerId,
+                playerId => new BotController(
+                    options.BotProfileFor(playerId),
+                    options.PrimaryCreepFor(playerId) ?? content.Creeps[0].Id));
     }
 
     private void TryPlaceBotTower(PlayerId playerId, BotController bot)

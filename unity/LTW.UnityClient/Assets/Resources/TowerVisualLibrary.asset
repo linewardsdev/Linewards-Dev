@@ -15,10 +15,10 @@ MonoBehaviour:
   profiles:
   - towerId: tower.arrow
     role: 0
-    prefab: {fileID: 6448180863021943805, guid: 46636812e5667b746b05b4bb996508f0, type: 3}
-    scale: {x: 1.18, y: 1.28, z: 1.18}
-    lift: 0.12
-    bodyRendererPath: Body
+    prefab: {fileID: 9064727781167026979, guid: 039af61179c58114eb927ddbdc2d4aba, type: 3}
+    scale: {x: 1.36, y: 1.36, z: 1.36}
+    lift: 0.16
+    bodyRendererPath: BodyTintAnchor
     roleMarkerRendererPath: RoleMarker
     ownerTrimRendererPath: OwnerTrim
     rangeHaloRendererPath: RangeHalo

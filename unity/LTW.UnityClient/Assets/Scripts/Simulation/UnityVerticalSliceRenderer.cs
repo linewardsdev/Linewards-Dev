@@ -16,6 +16,7 @@ namespace LTW.UnityClient.Simulation
     {
         private const int LaneWidth = 7;
         private const int LaneLength = 16;
+        private const int LaneCount = 8;
         private const int LaneSpacing = 9;
         private const int CenterColumn = 3;
         private const float BoardCenterX = (LaneWidth - 1) * 0.5f;
@@ -69,6 +70,7 @@ namespace LTW.UnityClient.Simulation
         private readonly Queue<GameObject> effectPool = new Queue<GameObject>();
         private readonly Queue<GameObject> textPool = new Queue<GameObject>();
         private readonly List<TimedPresentation> timedPresentations = new List<TimedPresentation>();
+        private readonly List<SpawnGatePulseElement> spawnGatePulseElements = new List<SpawnGatePulseElement>();
 
         private Camera presentationCamera = null!;
         private Sprite spawnGateSprite;
@@ -82,7 +84,7 @@ namespace LTW.UnityClient.Simulation
 
         public LaneCameraFraming CameraFraming => cameraFraming;
 
-        public int ActiveLaneCameraId => Mathf.Clamp(activeLaneCameraId, 1, 3);
+        public int ActiveLaneCameraId => Mathf.Clamp(activeLaneCameraId, 1, LaneCount);
 
         public int ActivePresentationObjectCount => activeTowers.Count + activeCreeps.Count + timedPresentations.Count;
 
@@ -143,7 +145,7 @@ namespace LTW.UnityClient.Simulation
 
         public void ToggleCameraFraming()
         {
-            SetActiveLaneCameraId(ActiveLaneCameraId % 3 + 1);
+            SetActiveLaneCameraId(ActiveLaneCameraId % LaneCount + 1);
         }
 
         public void SetCameraFraming(LaneCameraFraming framing)
@@ -159,7 +161,7 @@ namespace LTW.UnityClient.Simulation
 
         public void SetActiveLaneCameraId(int laneId)
         {
-            var nextLane = Mathf.Clamp(laneId, 1, 3);
+            var nextLane = Mathf.Clamp(laneId, 1, LaneCount);
             if (activeLaneCameraId != nextLane || cameraFraming != LaneCameraFraming.ActiveLane)
             {
                 Debug.Log($"LTW active lane camera -> {nextLane}");
@@ -178,10 +180,10 @@ namespace LTW.UnityClient.Simulation
                 return;
             }
 
-            var clampedLane = Mathf.Clamp(activeLaneCameraId, 1, 3);
+            var clampedLane = Mathf.Clamp(activeLaneCameraId, 1, LaneCount);
             var boardCenter = cameraFraming switch
             {
-                LaneCameraFraming.AllLanes => new Vector3(LaneOffset(2) + BoardCenterX, 0f, BoardCenterZ),
+                LaneCameraFraming.AllLanes => AllLaneCenter(),
                 LaneCameraFraming.BoardOverview => LaneCenter(clampedLane),
                 LaneCameraFraming.SpawnGateFocus => GridToWorld(new GridPosition(CenterColumn, 0), new LaneId(clampedLane)) + new Vector3(0f, 0f, -1.15f),
                 LaneCameraFraming.LeakGateFocus => GridToWorld(new GridPosition(CenterColumn, LaneLength - 1), new LaneId(clampedLane)) + new Vector3(0f, 0f, 1.15f),
@@ -190,7 +192,7 @@ namespace LTW.UnityClient.Simulation
             camera.orthographic = true;
             camera.orthographicSize = cameraFraming switch
             {
-                LaneCameraFraming.AllLanes => 11.4f,
+                LaneCameraFraming.AllLanes => 34f,
                 LaneCameraFraming.BoardOverview => 8.2f,
                 LaneCameraFraming.SpawnGateFocus => 3.05f,
                 LaneCameraFraming.LeakGateFocus => 3.05f,
@@ -229,6 +231,7 @@ namespace LTW.UnityClient.Simulation
             }
 
             EnsureLane();
+            UpdateSpawnGatePulse();
             RenderSnapshot(snapshot);
             if (presentationDetail == PresentationDetail.Full)
             {
@@ -243,7 +246,7 @@ namespace LTW.UnityClient.Simulation
                 return;
             }
 
-            for (var lane = 1; lane <= 3; lane++)
+            for (var lane = 1; lane <= LaneCount; lane++)
             {
                 CreateLaneBackplate(lane);
                 CreateLaneEnvironmentTrim(lane);
@@ -311,7 +314,7 @@ namespace LTW.UnityClient.Simulation
 
             ReleaseMissingTowers();
             visibleKeys.Clear();
-            var pressureByLane = new int[4];
+            var pressureByLane = new int[LaneCount + 1];
             foreach (var creep in snapshot.Creeps)
             {
                 var key = creep.EntityId.Value.ToString();
@@ -365,7 +368,7 @@ namespace LTW.UnityClient.Simulation
 
         private void UpdateLanePressureIndicators(IReadOnlyList<int> pressureByLane)
         {
-            for (var laneId = 1; laneId <= 3; laneId++)
+            for (var laneId = 1; laneId <= LaneCount; laneId++)
             {
                 var pressure = pressureByLane[laneId];
                 var meter = GetLanePressureMeter(laneId);
@@ -885,6 +888,8 @@ namespace LTW.UnityClient.Simulation
         private static string SpawnEventKey(SimulationTick tick, PlayerId senderId, PlayerId defenderId, string creepId) => $"{tick.Value}:{senderId.Value}:{defenderId.Value}:{creepId}";
 
         private static Vector3 SpawnPosition(int laneId) => GridToWorld(new GridPosition(CenterColumn, 0), new LaneId(laneId));
+
+        private static Vector3 AllLaneCenter() => new Vector3((LaneOffset(1) + LaneOffset(LaneCount)) * 0.5f + BoardCenterX, 0f, BoardCenterZ);
 
         private static Vector3 IncomePosition(int playerId) => new Vector3(LaneOffset(playerId) + 1.2f, 1.25f, WorldZ(1));
 
@@ -1677,6 +1682,11 @@ namespace LTW.UnityClient.Simulation
             if (hasEndpointSprite)
             {
                 CreateEndpointSpritePlate(laneId, label, center, isSpawn, isPlayerLane);
+                if (isSpawn)
+                {
+                    CreateSpawnGateSpriteCompanionDetails(laneId, center, signal, isPlayerLane);
+                }
+
                 return;
             }
 
@@ -1768,6 +1778,74 @@ namespace LTW.UnityClient.Simulation
             renderer.sortingOrder = 3;
             renderer.color = Color.white;
             laneDecorations.Add(plate);
+        }
+
+        private void CreateSpawnGateSpriteCompanionDetails(int laneId, Vector3 center, Color signal, bool isPlayerLane)
+        {
+            var offset = LaneOffset(laneId);
+            var z = center.z;
+            var pulseColor = EndpointPortalBrightColor(isPlayerLane);
+            var rimColor = EndpointRimHighlightColor(true, isPlayerLane);
+            var recessColor = EndpointDeepRecessColor(true, isPlayerLane);
+            var routeColor = EndpointPortalColor(isPlayerLane);
+            var scale = isPlayerLane ? 1f : 0.82f;
+
+            CreateSurfaceBand($"Lane{laneId}SpawnSocketShadow", center + new Vector3(0f, 0.042f, -0.03f), new Vector3(2.36f * scale, 0.018f, 1.48f * scale), BoardContactShadowColor(laneId));
+            CreateSurfaceBand($"Lane{laneId}SpawnInsetWest", new Vector3(offset + CenterColumn - 1.12f * scale, 0.122f, z - 0.04f), new Vector3(0.12f, 0.026f, 1.38f * scale), recessColor);
+            CreateSurfaceBand($"Lane{laneId}SpawnInsetEast", new Vector3(offset + CenterColumn + 1.12f * scale, 0.122f, z - 0.04f), new Vector3(0.12f, 0.026f, 1.38f * scale), recessColor);
+            CreateSurfaceBand($"Lane{laneId}SpawnSocketNorthLip", new Vector3(offset + CenterColumn, 0.13f, z + 0.78f * scale), new Vector3(2.08f * scale, 0.024f, 0.1f), rimColor);
+            CreateSurfaceBand($"Lane{laneId}SpawnSocketSouthLip", new Vector3(offset + CenterColumn, 0.13f, z - 0.84f * scale), new Vector3(2.08f * scale, 0.024f, 0.1f), rimColor);
+
+            CreateSpawnGatePulseBand(laneId, "OuterPulse", center + new Vector3(0f, 0.205f, -0.04f), new Vector3(1.52f * scale, 0.012f, 0.075f), pulseColor, 0f, 0.12f, 0.012f);
+            CreateSpawnGatePulseBand(laneId, "InnerPulse", center + new Vector3(0f, 0.216f, -0.04f), new Vector3(0.86f * scale, 0.014f, 0.06f), pulseColor, 0.47f, 0.1f, 0.014f);
+
+            var intakeA = CreateSpawnGatePulseBand(laneId, "IntakeChevronA", new Vector3(offset + CenterColumn - 0.22f * scale, 0.224f, z - 1.02f * scale), new Vector3(0.1f, 0.018f, 0.56f * scale), signal, 0.16f, 0.08f, 0.018f);
+            intakeA.transform.rotation = Quaternion.Euler(0f, 35f, 0f);
+            var intakeB = CreateSpawnGatePulseBand(laneId, "IntakeChevronB", new Vector3(offset + CenterColumn + 0.22f * scale, 0.224f, z - 1.02f * scale), new Vector3(0.1f, 0.018f, 0.56f * scale), signal, 0.16f, 0.08f, 0.018f);
+            intakeB.transform.rotation = Quaternion.Euler(0f, -35f, 0f);
+
+            for (var index = -2; index <= 2; index++)
+            {
+                var rune = CreateSpawnGatePulseBand(
+                    laneId,
+                    $"RouteRune{index}",
+                    new Vector3(offset + CenterColumn + index * 0.26f * scale, 0.182f, z - 1.42f * scale),
+                    new Vector3(0.12f, 0.012f, 0.045f),
+                    index == 0 ? pulseColor : routeColor,
+                    0.25f + index * 0.09f,
+                    0.05f,
+                    0.01f);
+                rune.transform.rotation = Quaternion.Euler(0f, index * -8f, 0f);
+            }
+        }
+
+        private GameObject CreateSpawnGatePulseBand(int laneId, string name, Vector3 position, Vector3 scale, Color color, float phase, float scalePulse, float liftPulse)
+        {
+            var band = CreateSurfaceBand($"Lane{laneId}Spawn{name}", position, scale, color);
+            spawnGatePulseElements.Add(new SpawnGatePulseElement(band, position, scale, phase, scalePulse, liftPulse));
+            return band;
+        }
+
+        private void UpdateSpawnGatePulse()
+        {
+            if (spawnGatePulseElements.Count == 0)
+            {
+                return;
+            }
+
+            var time = Time.time * 1.8f;
+            foreach (var element in spawnGatePulseElements)
+            {
+                if (element.Object == null)
+                {
+                    continue;
+                }
+
+                var wave = (Mathf.Sin(time + element.Phase * Mathf.PI * 2f) + 1f) * 0.5f;
+                var scale = 1f + wave * element.ScalePulse;
+                element.Object.transform.localScale = new Vector3(element.BaseScale.x * scale, element.BaseScale.y, element.BaseScale.z * scale);
+                element.Object.transform.position = element.BasePosition + Vector3.up * (wave * element.LiftPulse);
+            }
         }
 
         private void CreateEndpointStoneSegments(int laneId, string label, Vector3 center, bool isSpawn, bool isPlayerLane)
@@ -3094,6 +3172,26 @@ namespace LTW.UnityClient.Simulation
             public GameObject Object { get; }
             public float ReleaseAt { get; }
             public Queue<GameObject> Pool { get; }
+        }
+
+        private readonly struct SpawnGatePulseElement
+        {
+            public SpawnGatePulseElement(GameObject @object, Vector3 basePosition, Vector3 baseScale, float phase, float scalePulse, float liftPulse)
+            {
+                Object = @object;
+                BasePosition = basePosition;
+                BaseScale = baseScale;
+                Phase = phase;
+                ScalePulse = scalePulse;
+                LiftPulse = liftPulse;
+            }
+
+            public GameObject Object { get; }
+            public Vector3 BasePosition { get; }
+            public Vector3 BaseScale { get; }
+            public float Phase { get; }
+            public float ScalePulse { get; }
+            public float LiftPulse { get; }
         }
     }
 

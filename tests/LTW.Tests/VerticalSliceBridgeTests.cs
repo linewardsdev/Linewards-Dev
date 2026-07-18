@@ -151,7 +151,7 @@ public sealed class VerticalSliceBridgeTests
     [Fact]
     public void Bot_diagnostics_expose_profiles_and_recent_decisions()
     {
-        var simulation = new LocalVerticalSlice(SampleVerticalSliceContent.Create());
+        var simulation = new LocalVerticalSlice(SampleVerticalSliceContent.Create(), ThreeLaneOptions());
 
         var initial = simulation.GetBotDiagnostics();
         Assert.Contains(initial.Profiles, profile => profile.PlayerId.Equals(new PlayerId(2)) && profile.Profile == LTW.Simulation.Bots.BotDecisionProfile.Balanced);
@@ -309,7 +309,7 @@ public sealed class VerticalSliceBridgeTests
     [Fact]
     public void Tower_attacks_emit_damage_feedback_events()
     {
-        var simulation = new LocalVerticalSlice(SampleVerticalSliceContent.Create(), enableBots: false);
+        var simulation = new LocalVerticalSlice(SampleVerticalSliceContent.Create(), ThreeLaneOptions(), enableBots: false);
         Assert.True(simulation.PlaceTower(new PlayerId(1), new LaneId(1), SampleVerticalSliceContent.TowerId, new GridPosition(2, 1)).Accepted);
         Assert.True(simulation.QueueSend(new PlayerId(3), SampleVerticalSliceContent.CreepId).Accepted);
 
@@ -326,10 +326,10 @@ public sealed class VerticalSliceBridgeTests
     [Fact]
     public void Leaked_creeps_continue_into_the_next_lane()
     {
-        var simulation = new LocalVerticalSlice(SampleVerticalSliceContent.Create(), enableBots: false);
+        var simulation = new LocalVerticalSlice(SampleVerticalSliceContent.Create(), ThreeLaneOptions(), enableBots: false);
         Assert.True(simulation.QueueSend(new PlayerId(1), SampleVerticalSliceContent.CreepId).Accepted);
 
-        for (var tick = 0; tick < 17; tick++)
+        for (var tick = 0; tick < 15; tick++)
         {
             simulation.AdvanceOneTick();
         }
@@ -350,11 +350,11 @@ public sealed class VerticalSliceBridgeTests
     [Fact]
     public void Leaked_creeps_keep_current_health_when_entering_next_lane()
     {
-        var simulation = new LocalVerticalSlice(SampleVerticalSliceContent.Create(), enableBots: false);
+        var simulation = new LocalVerticalSlice(SampleVerticalSliceContent.Create(), ThreeLaneOptions(), enableBots: false);
         Assert.True(simulation.PlaceTower(new PlayerId(2), new LaneId(2), SampleVerticalSliceContent.UtilityTowerId, new GridPosition(2, 8)).Accepted);
         Assert.True(simulation.QueueSend(new PlayerId(1), SampleVerticalSliceContent.CreepId).Accepted);
 
-        for (var tick = 0; tick < 17; tick++)
+        for (var tick = 0; tick < 15; tick++)
         {
             simulation.AdvanceOneTick();
         }
@@ -398,7 +398,7 @@ public sealed class VerticalSliceBridgeTests
     [Fact]
     public void Sent_creeps_cycle_through_active_opponent_lanes_until_killed()
     {
-        var simulation = new LocalVerticalSlice(SampleVerticalSliceContent.Create(), enableBots: false);
+        var simulation = new LocalVerticalSlice(SampleVerticalSliceContent.Create(), ThreeLaneOptions(), enableBots: false);
         Assert.True(simulation.QueueSend(new PlayerId(1), SampleVerticalSliceContent.CreepId).Accepted);
 
         for (var tick = 0; tick < 36; tick++)
@@ -458,4 +458,54 @@ public sealed class VerticalSliceBridgeTests
         Assert.Empty(snapshot.Towers);
         Assert.Equal(87, snapshot.Players.Get(new PlayerId(1)).Gold.Amount);
     }
+
+    [Fact]
+    public void Default_local_vertical_slice_uses_eight_player_lanes()
+    {
+        var simulation = new LocalVerticalSlice(SampleVerticalSliceContent.Create());
+
+        var snapshot = simulation.GetSnapshot();
+        var diagnostics = simulation.GetBotDiagnostics();
+
+        Assert.Equal(8, snapshot.Players.Players.Count);
+        Assert.Equal(7, diagnostics.Profiles.Count);
+        Assert.True(simulation.QueueSend(new PlayerId(8), SampleVerticalSliceContent.CreepId).Accepted);
+        Assert.Contains(simulation.DrainEvents(), simulationEvent =>
+            simulationEvent is CreepQueuedEvent queued &&
+            queued.SenderId.Equals(new PlayerId(8)) &&
+            queued.DefenderId.Equals(new PlayerId(1)));
+    }
+
+    [Fact]
+    public void Eight_lane_match_options_configure_each_bot_lane()
+    {
+        var options = new LocalMatchOptions(
+            player2Profile: BotDecisionProfile.Greedy,
+            player3Profile: BotDecisionProfile.Balanced,
+            player4Profile: BotDecisionProfile.Defensive,
+            player5Profile: BotDecisionProfile.Greedy,
+            player6Profile: BotDecisionProfile.Balanced,
+            player7Profile: BotDecisionProfile.Defensive,
+            player8Profile: BotDecisionProfile.Greedy,
+            player2PrimaryCreepId: SampleVerticalSliceContent.BruteCreepId,
+            player3PrimaryCreepId: SampleVerticalSliceContent.SwarmCreepId,
+            player4PrimaryCreepId: SampleVerticalSliceContent.ShadeCreepId,
+            player5PrimaryCreepId: SampleVerticalSliceContent.SiegeCreepId,
+            player6PrimaryCreepId: SampleVerticalSliceContent.CreepId,
+            player7PrimaryCreepId: SampleVerticalSliceContent.BruteCreepId,
+            player8PrimaryCreepId: SampleVerticalSliceContent.ShadeCreepId);
+        var simulation = new LocalVerticalSlice(SampleVerticalSliceContent.Create(), options);
+
+        var diagnostics = simulation.GetBotDiagnostics();
+
+        Assert.Contains(diagnostics.Profiles, profile => profile.PlayerId.Equals(new PlayerId(2)) && profile.Profile == BotDecisionProfile.Greedy && profile.PrimaryCreepId.Equals(SampleVerticalSliceContent.BruteCreepId));
+        Assert.Contains(diagnostics.Profiles, profile => profile.PlayerId.Equals(new PlayerId(3)) && profile.Profile == BotDecisionProfile.Balanced && profile.PrimaryCreepId.Equals(SampleVerticalSliceContent.SwarmCreepId));
+        Assert.Contains(diagnostics.Profiles, profile => profile.PlayerId.Equals(new PlayerId(4)) && profile.Profile == BotDecisionProfile.Defensive && profile.PrimaryCreepId.Equals(SampleVerticalSliceContent.ShadeCreepId));
+        Assert.Contains(diagnostics.Profiles, profile => profile.PlayerId.Equals(new PlayerId(5)) && profile.Profile == BotDecisionProfile.Greedy && profile.PrimaryCreepId.Equals(SampleVerticalSliceContent.SiegeCreepId));
+        Assert.Contains(diagnostics.Profiles, profile => profile.PlayerId.Equals(new PlayerId(6)) && profile.Profile == BotDecisionProfile.Balanced && profile.PrimaryCreepId.Equals(SampleVerticalSliceContent.CreepId));
+        Assert.Contains(diagnostics.Profiles, profile => profile.PlayerId.Equals(new PlayerId(7)) && profile.Profile == BotDecisionProfile.Defensive && profile.PrimaryCreepId.Equals(SampleVerticalSliceContent.BruteCreepId));
+        Assert.Contains(diagnostics.Profiles, profile => profile.PlayerId.Equals(new PlayerId(8)) && profile.Profile == BotDecisionProfile.Greedy && profile.PrimaryCreepId.Equals(SampleVerticalSliceContent.ShadeCreepId));
+    }
+
+    private static LocalMatchOptions ThreeLaneOptions() => new(laneCount: 3);
 }

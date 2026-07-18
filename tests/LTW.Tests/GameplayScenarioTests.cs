@@ -20,7 +20,7 @@ public sealed class GameplayScenarioTests
     [Fact]
     public void Low_pressure_scenario_records_stable_opening_defense()
     {
-        var slice = new LocalVerticalSlice(SampleVerticalSliceContent.Create(), enableBots: false);
+        var slice = new LocalVerticalSlice(SampleVerticalSliceContent.Create(), ThreeLaneOptions(), enableBots: false);
         Assert.True(slice.PlaceTower(new PlayerId(1), new LaneId(1), SampleVerticalSliceContent.TowerId, new GridPosition(2, 8)).Accepted);
         Assert.True(slice.QueueSend(new PlayerId(3), SampleVerticalSliceContent.CreepId).Accepted);
 
@@ -39,7 +39,7 @@ public sealed class GameplayScenarioTests
     [Fact]
     public void Normal_pressure_scenario_records_income_and_active_combat()
     {
-        var slice = new LocalVerticalSlice(SampleVerticalSliceContent.Create(), enableBots: false);
+        var slice = new LocalVerticalSlice(SampleVerticalSliceContent.Create(), ThreeLaneOptions(), enableBots: false);
         Assert.True(slice.PlaceTower(new PlayerId(1), new LaneId(1), SampleVerticalSliceContent.TowerId, new GridPosition(2, 8)).Accepted);
         Assert.True(slice.PlaceTower(new PlayerId(1), new LaneId(1), SampleVerticalSliceContent.ControlTowerId, new GridPosition(4, 8)).Accepted);
         Assert.True(slice.QueueSend(new PlayerId(3), SampleVerticalSliceContent.CreepId).Accepted);
@@ -117,10 +117,13 @@ public sealed class GameplayScenarioTests
             player2Profile: playerTwoProfile,
             player3Profile: playerThreeProfile,
             player2PrimaryCreepId: playerTwoPrimaryCreepId,
-            player3PrimaryCreepId: playerThreePrimaryCreepId);
+            player3PrimaryCreepId: playerThreePrimaryCreepId,
+            laneCount: 3);
 
         return new LocalVerticalSlice(SampleVerticalSliceContent.Create(), options);
     }
+
+    private static LocalMatchOptions ThreeLaneOptions() => new(laneCount: 3);
 
     private static void RunTicks(LocalVerticalSlice slice, int ticks)
     {

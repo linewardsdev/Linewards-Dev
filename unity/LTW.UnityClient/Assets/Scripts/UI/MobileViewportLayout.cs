@@ -77,10 +77,14 @@ namespace LTW.UnityClient.UI
             return Intersect(ScreenRect(), guiSafeArea);
         }
 
-        public static float UiScale() => Mathf.Clamp(
-            Mathf.Min(ViewportWidth / 1080f, ViewportHeight / 720f),
-            0.78f,
-            1.08f);
+        public static float UiScale()
+        {
+            var frame = ScreenRect();
+            return Mathf.Clamp(
+                Mathf.Min(frame.width / 430f, frame.height / 932f),
+                0.78f,
+                2.35f);
+        }
 
         public static float EdgeMargin(float scale) => Mathf.Max(8f * scale, ViewportWidth * 0.008f);
 

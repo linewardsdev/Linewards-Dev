@@ -7,6 +7,8 @@ namespace LTW.UnityClient.UI
 {
     public sealed class LaneViewToggleController : MonoBehaviour
     {
+        private const int LaneCount = 8;
+
         private static readonly Color PanelInk = new Color(0.08f, 0.12f, 0.20f, 0.86f);
         private static readonly Color InactiveLane = new Color(0.46f, 0.57f, 0.72f, 1f);
         private static readonly Color ActiveLane = new Color(0.22f, 0.72f, 1f, 1f);
@@ -98,10 +100,10 @@ namespace LTW.UnityClient.UI
                 panelX - 4f * scale,
                 rect.y - 4f * scale,
                 panelWidth + 8f * scale,
-                buttonSize * 3f + gap * 2f + 8f * scale);
+                buttonSize * LaneCount + gap * (LaneCount - 1) + 8f * scale);
             DrawPanel(panelRect, PanelInk);
 
-            for (var lane = 1; lane <= 3; lane++)
+            for (var lane = 1; lane <= LaneCount; lane++)
             {
                 var laneRect = new Rect(panelX, rect.y + (lane - 1) * (buttonSize + gap), panelWidth, buttonSize);
                 var isActive = renderer.ActiveLaneCameraId == lane;
@@ -130,14 +132,9 @@ namespace LTW.UnityClient.UI
             };
         }
 
-        private static string LaneShortLabel(int laneId) => $"L{Mathf.Clamp(laneId, 1, 3)}";
+        private static string LaneShortLabel(int laneId) => $"L{Mathf.Clamp(laneId, 1, LaneCount)}";
 
-        private static string LaneButtonLabel(int laneId) => laneId switch
-        {
-            2 => "L2",
-            3 => "L3",
-            _ => "L1"
-        };
+        private static string LaneButtonLabel(int laneId) => $"L{Mathf.Clamp(laneId, 1, LaneCount)}";
 
         private static void DrawPanel(Rect rect, Color color)
         {
