@@ -4,7 +4,7 @@
 
 Break the next Line Wards graphics work into parallel-friendly chunks that combine:
 
-- the implementation roadmap in `GRAPHICS_2000_BASELINE_ROADMAP.md`;
+- the archived implementation roadmap in `archive/2026-07-planning/GRAPHICS_2000_BASELINE_ROADMAP.md`;
 - the silhouette and theme rules in `ART_THEME_AND_ROLE_GUIDE.md`;
 - the current visual evidence in `docs/screenshot-reviews/art-2000-readability-pass/`.
 
@@ -99,7 +99,7 @@ Goal: improve the active AIPlate creep silhouettes, scale, and pressure readabil
 Source sections:
 
 - `ART_THEME_AND_ROLE_GUIDE.md` → Creep Role Guide
-- `CREEP_GRAPHICS_ART_TRACKING.md`
+- `archive/2026-07-planning/CREEP_GRAPHICS_ART_TRACKING.md`
 
 Scope:
 
@@ -122,7 +122,7 @@ Goal: make build/send cards feel intentional by adding simple role glyphs.
 Source sections:
 
 - `ART_THEME_AND_ROLE_GUIDE.md` → Build/Send Icon Direction
-- `GRAPHICS_2000_BASELINE_ROADMAP.md` → Stage 5
+- `archive/2026-07-planning/GRAPHICS_2000_BASELINE_ROADMAP.md` → Stage 5
 
 Scope:
 
@@ -164,7 +164,7 @@ Goal: move from generic combat cues to role-specific combat language.
 Source sections:
 
 - `ART_THEME_AND_ROLE_GUIDE.md` → Global Shape Rules
-- `GRAPHICS_2000_BASELINE_ROADMAP.md` → Stage 4
+- `archive/2026-07-planning/GRAPHICS_2000_BASELINE_ROADMAP.md` → Stage 4
 
 Scope:
 

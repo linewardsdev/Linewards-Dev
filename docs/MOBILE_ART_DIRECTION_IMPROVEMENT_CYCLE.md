@@ -30,7 +30,7 @@ Agents must review these sources before selecting work:
 | --- | --- |
 | `skill/line-wards-ltw-graphics-art-direction.md` | LTW lineage, mobile lane composition, visual priorities, legal boundary |
 | `docs/ART_THEME_AND_ROLE_GUIDE.md` | Tower, creep, icon, accent, silhouette, and phone-size role language |
-| `docs/GRAPHICS_2000_BASELINE_ROADMAP.md` | Overall graphics maturity stages and baseline definition of done |
+| `docs/archive/2026-07-planning/GRAPHICS_2000_BASELINE_ROADMAP.md` | Archived graphics maturity stages and baseline definition of done |
 | `docs/GRAPHICS_THEME_WORK_BREAKDOWN.md` | Parallel work packages and package-level screenshot requirements |
 | `docs/AI_ART_PIPELINE.md` | Generated 2.5D source plates, proof assets, promotion rules, and provenance |
 | `docs/PROPER_ART_REPLACEMENT_PASS_CHECKLIST.md` | Production replacement, materials, icons, anchors, and final QA |

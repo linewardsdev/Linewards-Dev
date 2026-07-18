@@ -77,9 +77,7 @@ namespace LTW.UnityClient.UI
             feedbackView = feedback;
             ghost = placementGhost;
             selectedCell = DefaultBuilderCell();
-            EnsureBuilderAvatar();
-            builderAvatar.SetActive(true);
-            UpdateBuilderAvatar();
+            HideBuilderAvatar();
         }
 
         public void BeginTowerPlacement() => BeginTowerPlacement(lastSelectedTowerRole);
@@ -101,10 +99,10 @@ namespace LTW.UnityClient.UI
             lastSelectedTowerRole = towerRole;
             highlightedTowerRole = towerRole;
             ghost.SetActive(true);
-            builderAvatar.SetActive(true);
             MoveGhost();
             selectedTower = null;
             HideSelectionRing();
+            HideBuilderAvatar();
             feedbackView.Clear();
         }
 
@@ -134,9 +132,7 @@ namespace LTW.UnityClient.UI
         {
             isPlacing = false;
             ghost.SetActive(false);
-            EnsureBuilderAvatar();
-            builderAvatar.SetActive(true);
-            UpdateBuilderAvatar();
+            HideBuilderAvatar();
             if (clearFeedback)
             {
                 feedbackView.Clear();
@@ -317,6 +313,8 @@ namespace LTW.UnityClient.UI
                 {
                     selectedTower = tower;
                     UpdateSelectionRing(tower);
+                    HideBuilderAvatar();
+                    ghost.SetActive(false);
                     feedbackView.ShowAccepted(TowerRoleName(tower.TowerId.Value) + " selected");
                     return true;
                 }
@@ -343,12 +341,18 @@ namespace LTW.UnityClient.UI
             bodyStyle!.fontSize = Mathf.RoundToInt(12f * scale);
             bodyStyle.normal.textColor = Cloud;
 
-            GUI.Label(new Rect(rect.x + 12f * scale, rect.y + 8f * scale, rect.width - 116f * scale, 22f * scale), TowerRoleName(selectedTower.TowerId.Value).ToUpperInvariant(), titleStyle);
-            if (DrawLauncherButton(new Rect(rect.xMax - 96f * scale, rect.y + 7f * scale, 80f * scale, 30f * scale), "MENU", SignalGold, scale))
+            GUI.Label(new Rect(rect.x + 12f * scale, rect.y + 8f * scale, rect.width - 156f * scale, 22f * scale), TowerRoleName(selectedTower.TowerId.Value).ToUpperInvariant(), titleStyle);
+            if (DrawLauncherButton(new Rect(rect.xMax - 142f * scale, rect.y + 7f * scale, 78f * scale, 30f * scale), "BUILD", SignalGold, scale))
             {
                 selectedTower = null;
                 HideSelectionRing();
                 OpenTowerPalette();
+                return;
+            }
+            if (RuntimeUiChrome.DrawPanelButton(new Rect(rect.xMax - 56f * scale, rect.y + 7f * scale, 40f * scale, 30f * scale), "X", accent, scale, buttonStyle ?? GUI.skin.button))
+            {
+                selectedTower = null;
+                HideSelectionRing();
                 return;
             }
             GUI.Label(new Rect(rect.x + 12f * scale, rect.y + 32f * scale, rect.width - 24f * scale, 18f * scale), TowerPurpose(selectedTower.TowerId.Value), bodyStyle);
@@ -388,7 +392,7 @@ namespace LTW.UnityClient.UI
         private void MoveGhost()
         {
             ghost.transform.position = GridToWorld(selectedCell, 0.6f);
-            UpdateBuilderAvatar();
+            HideBuilderAvatar();
             ghost.transform.localScale = SelectedTowerGhostScale();
             ConfigurePlacementGhostVisual();
             RefreshPlacementPreview();
@@ -468,6 +472,14 @@ namespace LTW.UnityClient.UI
             CreateBuilderPart("Visor", PrimitiveType.Cube, new Vector3(0f, 0.53f, 0.18f), new Vector3(0.2f, 0.08f, 0.08f));
             CreateBuilderPart("FootMarker", PrimitiveType.Cylinder, new Vector3(0f, 0.015f, 0f), new Vector3(0.72f, 0.02f, 0.72f));
             CreateBuilderSpriteVisual();
+        }
+
+        private void HideBuilderAvatar()
+        {
+            if (builderAvatar != null)
+            {
+                builderAvatar.SetActive(false);
+            }
         }
 
         private void CreateBuilderPart(string partName, PrimitiveType primitiveType, Vector3 localPosition, Vector3 localScale)

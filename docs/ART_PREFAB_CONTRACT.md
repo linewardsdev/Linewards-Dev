@@ -6,7 +6,7 @@ This document defines stable child names for tower, creep, and UI prefabs. Rende
 
 ## General Rules
 
-- Prefab root names should match the asset naming rules in `docs/ART_ASSET_PIPELINE.md`.
+- Prefab root names should match the asset naming rules in `docs/AI_ART_PIPELINE.md`.
 - Required children must exist on every prefab of that category.
 - Optional children may exist only for relevant roles.
 - Missing optional children should never break gameplay.
