@@ -25,6 +25,7 @@ public sealed class LocalVerticalSlice
     private readonly Dictionary<LaneId, IReadOnlyList<GridPosition>> routes;
     private readonly CombatContent combatContent;
     private readonly LocalMatchOptions options;
+    private readonly LocalMatchTopology topology;
     private readonly List<ISimulationEvent> pendingEvents = new();
     private readonly Dictionary<PlayerId, BotController> bots;
     private readonly List<AcceptedCommandRecord> acceptedCommands = new();
@@ -34,6 +35,7 @@ public sealed class LocalVerticalSlice
     private CombatState combatState;
     private SimulationTick tick;
     private long nextEntityId = 1;
+    private bool matchStarted;
     private bool matchEnded;
 
     public MatchSummary? MatchSummary { get; private set; }
@@ -61,6 +63,7 @@ public sealed class LocalVerticalSlice
     {
         this.content = content;
         this.options = options;
+        topology = new LocalMatchTopology(options.LaneCount);
         economy = new EconomyService(new EconomyRules(incomeIntervalTicks: 50, sendCooldownTicks: 30, sellRefundPercent: 50, leakLifeLoss: 1));
         pathService = new GridPathService();
         combat = new CombatService();
@@ -69,19 +72,18 @@ public sealed class LocalVerticalSlice
         var map = content.Maps[0];
         grids = new Dictionary<LaneId, LaneGrid>();
         routes = new Dictionary<LaneId, IReadOnlyList<GridPosition>>();
-        for (var lane = 1; lane <= options.LaneCount; lane++)
+        foreach (var laneId in topology.Lanes)
         {
-            var laneId = new LaneId(lane);
             grids[laneId] = new LaneGrid(map);
             routes[laneId] = pathService.FindRoute(grids[laneId]).Route;
         }
         combatContent = new CombatContent(
             content.Creeps,
             content.Towers,
-            CreateLaneOwners(options.LaneCount));
-        players = CreateStartingPlayers(options.LaneCount);
+            topology.LaneOwners);
+        players = CreateStartingPlayers(topology.Players);
         combatState = new CombatState(Enumerable.Empty<CreepCombatState>(), Enumerable.Empty<TowerCombatState>());
-        bots = enableBots ? CreateBots(options.LaneCount) : new Dictionary<PlayerId, BotController>();
+        bots = enableBots ? CreateBots(topology.Players) : new Dictionary<PlayerId, BotController>();
         tick = new SimulationTick(0);
     }
 
@@ -170,14 +172,20 @@ public sealed class LocalVerticalSlice
         }
 
         var creep = content.Creeps.First(definition => definition.Id.Equals(creepId));
-        var send = economy.QueueSend(players, playerId, creep, quantity, tick);
+        var targetPlayerId = topology.NextActiveOpponent(playerId, candidate => !players.Get(candidate).IsEliminated);
+        if (targetPlayerId is null)
+        {
+            return VerticalSliceCommandResult.Reject(CommandRejectionReason.PlayerEliminated);
+        }
+
+        var send = economy.QueueSend(players, playerId, creep, quantity, tick, targetPlayerId.Value);
         if (!send.Accepted)
         {
             return VerticalSliceCommandResult.Reject(send.RejectionReason);
         }
 
         players = send.Players;
-        var laneId = new LaneId(send.TargetPlayerId!.Value.Value);
+        var laneId = topology.HomeLaneFor(send.TargetPlayerId!.Value);
         var spawned = Enumerable.Range(0, quantity).Select(_ => combat.SpawnCreep(NextEntityId(), creep, playerId, laneId)).ToArray();
         combatState = new CombatState(combatState.Creeps.Concat(spawned), combatState.Towers);
         acceptedCommands.Add(new AcceptedCommandRecord(tick, playerId, creepId, quantity));
@@ -223,6 +231,8 @@ public sealed class LocalVerticalSlice
         {
             return;
         }
+
+        StartMatch();
 
         foreach (var bot in bots)
         {
@@ -295,7 +305,7 @@ public sealed class LocalVerticalSlice
 
     public void Reset()
     {
-        players = CreateStartingPlayers(options.LaneCount);
+        players = CreateStartingPlayers(topology.Players);
         combatState = new CombatState(Enumerable.Empty<CreepCombatState>(), Enumerable.Empty<TowerCombatState>());
         var map = content.Maps[0];
         foreach (var laneId in grids.Keys.ToArray())
@@ -306,33 +316,57 @@ public sealed class LocalVerticalSlice
         pendingEvents.Clear();
         tick = new SimulationTick(0);
         nextEntityId = 1;
+        matchStarted = false;
         matchEnded = false;
         MatchSummary = null;
         acceptedCommands.Clear();
         botDecisionRecords.Clear();
     }
 
-    private static IReadOnlyDictionary<LaneId, PlayerId> CreateLaneOwners(int laneCount)
+    public void StartMatch()
     {
-        return Enumerable.Range(1, laneCount)
-            .ToDictionary(lane => new LaneId(lane), lane => new PlayerId(lane));
+        if (matchStarted)
+        {
+            return;
+        }
+
+        matchStarted = true;
+        SeedExpandedLaneBotOpeners();
     }
 
-    private static EconomyPlayerSet CreateStartingPlayers(int laneCount)
+    private static EconomyPlayerSet CreateStartingPlayers(IReadOnlyList<PlayerId> playerIds)
     {
-        return new EconomyPlayerSet(Enumerable.Range(1, laneCount)
-            .Select(playerId => new PlayerEconomyState(new PlayerId(playerId), new Gold(100), new Income(10), new Lives(StartingLives))));
+        return new EconomyPlayerSet(playerIds
+            .Select(playerId => new PlayerEconomyState(playerId, new Gold(100), new Income(10), new Lives(StartingLives))));
     }
 
-    private Dictionary<PlayerId, BotController> CreateBots(int laneCount)
+    private Dictionary<PlayerId, BotController> CreateBots(IReadOnlyList<PlayerId> playerIds)
     {
-        return Enumerable.Range(2, laneCount - 1)
-            .Select(playerId => new PlayerId(playerId))
+        return playerIds
+            .Where(playerId => playerId.Value != 1)
             .ToDictionary(
                 playerId => playerId,
                 playerId => new BotController(
                     options.BotProfileFor(playerId),
                     options.PrimaryCreepFor(playerId) ?? content.Creeps[0].Id));
+    }
+
+    private void SeedExpandedLaneBotOpeners()
+    {
+        if (options.LaneCount <= 3 || bots.Count == 0)
+        {
+            return;
+        }
+
+        foreach (var bot in bots.OrderBy(bot => bot.Key.Value))
+        {
+            TryPlaceBotTower(bot.Key, bot.Value);
+            var sendResult = QueueSend(bot.Key, bot.Value.PrimaryCreepId, quantity: 1);
+            if (sendResult.Accepted)
+            {
+                botDecisionRecords.Add(new BotDecisionRecord(tick, bot.Key, bot.Value.Profile, bot.Value.PrimaryCreepId, quantity: 1));
+            }
+        }
     }
 
     private void TryPlaceBotTower(PlayerId playerId, BotController bot)
@@ -351,7 +385,7 @@ public sealed class LocalVerticalSlice
         }
 
         var towerId = BotTowerForSlot(bot.Profile, ownedTowerCount);
-        var laneId = new LaneId(playerId.Value);
+        var laneId = topology.HomeLaneFor(playerId);
         var candidates = BotPlacementCandidates(bot.Profile, ownedTowerCount);
 
         foreach (var position in candidates)
@@ -443,17 +477,10 @@ public sealed class LocalVerticalSlice
 
     private LaneId? NextActiveOpponentLaneId(LaneId currentLaneId, PlayerId senderId)
     {
-        for (var offset = 1; offset <= routes.Count; offset++)
-        {
-            var laneId = new LaneId((currentLaneId.Value - 1 + offset) % routes.Count + 1);
-            var defenderId = combatContent.GetLaneOwner(laneId);
-            if (!defenderId.Equals(senderId) && !players.Get(defenderId).IsEliminated)
-            {
-                return laneId;
-            }
-        }
-
-        return null;
+        return topology.NextActiveOpponentLaneAfterLeak(
+            currentLaneId,
+            senderId,
+            defenderId => !players.Get(defenderId).IsEliminated);
     }
 
     private static CommandRejectionReason ToCommandRejection(PlacementRejectionReason reason)

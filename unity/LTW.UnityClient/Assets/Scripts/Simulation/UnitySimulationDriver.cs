@@ -81,8 +81,10 @@ namespace LTW.UnityClient.Simulation
 
         public void StartMatch()
         {
+            simulation?.StartMatch();
             HasStarted = true;
             IsPaused = false;
+            RefreshSnapshot(drainEvents: true);
         }
 
         public void PauseMatch()

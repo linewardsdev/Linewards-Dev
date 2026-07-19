@@ -13,9 +13,11 @@ public sealed class ScenarioReplayTests
     {
         var runner = CreateRunner();
 
-        var result = runner.RunThreeBotMatch(seed: 1234, maxTicks: 80);
+        var result = runner.RunThreeBotMatch(seed: 1234, maxTicks: 400);
 
         Assert.NotEmpty(result.Replay.AcceptedCommands);
+        Assert.Equal(8, result.Replay.Players.Count);
+        Assert.Contains(result.Replay.AcceptedCommands, command => command.PlayerId.Equals(new PlayerId(8)));
         Assert.Single(result.Players.ActivePlayers);
         Assert.All(result.Players.Players, player =>
         {

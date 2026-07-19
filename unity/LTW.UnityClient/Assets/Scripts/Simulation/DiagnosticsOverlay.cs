@@ -1,6 +1,8 @@
 #nullable enable
 
+using System.Linq;
 using System.Text;
+using LTW.Simulation.Primitives;
 using UnityEngine;
 
 namespace LTW.UnityClient.Simulation
@@ -17,8 +19,22 @@ namespace LTW.UnityClient.Simulation
 
         public string LatestText { get; private set; } = string.Empty;
 
+        public void Initialize(UnitySimulationDriver driver)
+        {
+            simulationDriver = driver;
+        }
+
         private void Update()
         {
+            if (simulationDriver == null)
+            {
+                simulationDriver = Object.FindAnyObjectByType<UnitySimulationDriver>();
+                if (simulationDriver == null)
+                {
+                    return;
+                }
+            }
+
             var snapshot = simulationDriver.LatestSnapshot;
             if (snapshot is null)
             {
@@ -27,36 +43,51 @@ namespace LTW.UnityClient.Simulation
 
             var builder = new StringBuilder();
             builder.Append("Tick: ").Append(snapshot.Tick.Value);
+            builder.Append("  Towers: ").Append(snapshot.Towers.Count)
+                .Append("  Creeps: ").Append(snapshot.Creeps.Count);
+
+            builder.Append("\nLane activity:");
             foreach (var player in snapshot.Players.Players)
             {
-                builder.Append("\nP").Append(player.PlayerId.Value)
-                    .Append(" Gold:").Append(player.Gold.Amount)
-                    .Append(" Income:").Append(player.Income.Amount)
-                    .Append(" Lives:").Append(player.Lives.Amount);
+                var playerId = player.PlayerId;
+                var towerCount = snapshot.Towers.Count(tower => tower.OwnerId.Equals(playerId));
+                var sentCreepCount = snapshot.Creeps.Count(creep => creep.SenderId.Equals(playerId));
+                builder.Append("\nP").Append(playerId.Value)
+                    .Append(" T").Append(towerCount)
+                    .Append(" S").Append(sentCreepCount)
+                    .Append(" G").Append(player.Gold.Amount)
+                    .Append(" I+").Append(player.Income.Amount);
             }
 
-            builder.Append("\nTowers: ").Append(snapshot.Towers.Count)
-                .Append(" Creeps: ").Append(snapshot.Creeps.Count)
-                .Append("\nFX: ").Append(PresentationPreferences.ReducedEffects ? "reduced" : "full")
-                .Append(" Audio: ").Append(PresentationPreferences.AudioMuted ? "muted" : Mathf.RoundToInt(PresentationPreferences.FeedbackVolume * 100f) + "%");
+            builder.Append("\nLane flow:");
+            var laneCount = snapshot.Players.Players.Count;
+            for (var laneId = 1; laneId <= laneCount; laneId++)
+            {
+                var lane = new LaneId(laneId);
+                var towerCount = snapshot.Towers.Count(tower => tower.LaneId.Equals(lane));
+                var creeps = snapshot.Creeps.Where(creep => creep.LaneId.Equals(lane)).ToArray();
+                builder.Append("\nL").Append(laneId)
+                    .Append(" T").Append(towerCount)
+                    .Append(" C").Append(creeps.Length);
+
+                if (creeps.Length > 0)
+                {
+                    var senders = creeps.Select(creep => creep.SenderId.Value).Distinct().OrderBy(senderId => senderId);
+                    builder.Append(" <-P").Append(string.Join(",P", senders));
+                }
+            }
 
             if (simulationDriver.LatestBotDiagnostics is { } diagnostics)
             {
-                builder.Append("\nBots:");
-                foreach (var profile in diagnostics.Profiles)
-                {
-                    builder.Append("\n  P").Append(profile.PlayerId.Value)
-                        .Append(" ").Append(profile.Profile)
-                        .Append(" sends ").Append(profile.PrimaryCreepId.Value);
-                }
-
                 if (diagnostics.RecentDecisions.Count > 0)
                 {
-                    var latest = diagnostics.RecentDecisions[diagnostics.RecentDecisions.Count - 1];
-                    builder.Append("\nLast bot send: P").Append(latest.PlayerId.Value)
-                        .Append(" x").Append(latest.Quantity)
-                        .Append(" ").Append(latest.ContentId.Value)
-                        .Append(" @").Append(latest.Tick.Value);
+                    builder.Append("\nBot sends:");
+                    foreach (var decision in diagnostics.RecentDecisions)
+                    {
+                        builder.Append(" P").Append(decision.PlayerId.Value)
+                            .Append("x").Append(decision.Quantity)
+                            .Append("@").Append(decision.Tick.Value);
+                    }
                 }
             }
 
@@ -83,7 +114,7 @@ namespace LTW.UnityClient.Simulation
                 wordWrap = false
             };
 
-            GUILayout.BeginArea(new Rect(12f, 12f, 360f, 230f), GUI.skin.box);
+            GUILayout.BeginArea(new Rect(12f, 12f, 420f, 420f), GUI.skin.box);
             GUILayout.Label(LatestText, overlayStyle);
             GUILayout.EndArea();
         }

@@ -14,30 +14,30 @@ namespace LTW.Simulation.Scenarios;
 
 public sealed class ScenarioRunner
 {
+    private const int MinPlayerCount = 2;
+    private const int MaxPlayerCount = 8;
+
     private readonly ContentCatalog content;
     private readonly EconomyService economy;
     private readonly CommandContentValidator commandValidator;
     private readonly CreepDefinition sendCreep;
     private readonly ContentId mapId;
+    private readonly int playerCount;
 
-    public ScenarioRunner(ContentCatalog content, EconomyService economy, ContentId mapId, ContentId sendCreepId)
+    public ScenarioRunner(ContentCatalog content, EconomyService economy, ContentId mapId, ContentId sendCreepId, int playerCount = MaxPlayerCount)
     {
         this.content = content;
         this.economy = economy;
         this.mapId = mapId;
+        this.playerCount = Math.Clamp(playerCount, MinPlayerCount, MaxPlayerCount);
         commandValidator = new CommandContentValidator();
         sendCreep = content.Creeps.First(creep => creep.Id.Equals(sendCreepId));
     }
 
     public ScenarioResult RunThreeBotMatch(int seed, int maxTicks)
     {
-        var players = CreatePlayers();
-        var bots = new Dictionary<PlayerId, BotController>
-        {
-            [new PlayerId(1)] = new BotController(BotDecisionProfile.Greedy, sendCreep.Id),
-            [new PlayerId(2)] = new BotController(BotDecisionProfile.Balanced, sendCreep.Id),
-            [new PlayerId(3)] = new BotController(BotDecisionProfile.Defensive, sendCreep.Id)
-        };
+        var players = CreatePlayers(playerCount);
+        var bots = CreateBots(playerCount);
         var commands = new List<AcceptedCommandRecord>();
         var completedAtTick = new SimulationTick(maxTicks);
 
@@ -69,7 +69,7 @@ public sealed class ScenarioRunner
 
     public ScenarioResult Replay(ReplayRecord replay)
     {
-        var players = CreatePlayers();
+        var players = CreatePlayers(replay.Players.Count);
         var commandsByTick = replay.AcceptedCommands
             .GroupBy(command => command.Tick)
             .ToDictionary(group => group.Key, group => group.ToArray());
@@ -138,13 +138,24 @@ public sealed class ScenarioRunner
         return economy.ApplyLeak(players, richest.PlayerId, target, sendCreep).Players;
     }
 
-    private static EconomyPlayerSet CreatePlayers() =>
-        new EconomyPlayerSet(new[]
+    private Dictionary<PlayerId, BotController> CreateBots(int count) =>
+        Enumerable.Range(1, count)
+            .Select(playerId => new PlayerId(playerId))
+            .ToDictionary(
+                playerId => playerId,
+                playerId => new BotController(BotProfileFor(playerId), sendCreep.Id));
+
+    private static BotDecisionProfile BotProfileFor(PlayerId playerId) =>
+        (playerId.Value % 3) switch
         {
-            new PlayerEconomyState(new PlayerId(1), new Gold(100), new Income(10), new Lives(5)),
-            new PlayerEconomyState(new PlayerId(2), new Gold(100), new Income(10), new Lives(5)),
-            new PlayerEconomyState(new PlayerId(3), new Gold(100), new Income(10), new Lives(5))
-        });
+            1 => BotDecisionProfile.Greedy,
+            2 => BotDecisionProfile.Balanced,
+            _ => BotDecisionProfile.Defensive
+        };
+
+    private static EconomyPlayerSet CreatePlayers(int count) =>
+        new EconomyPlayerSet(Enumerable.Range(1, Math.Clamp(count, MinPlayerCount, MaxPlayerCount))
+            .Select(playerId => new PlayerEconomyState(new PlayerId(playerId), new Gold(100), new Income(10), new Lives(5))));
 
     private static string HashPlayers(EconomyPlayerSet players)
     {

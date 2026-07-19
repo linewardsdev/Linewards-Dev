@@ -471,7 +471,6 @@ namespace LTW.UnityClient.UI
             CreateBuilderPart("Body", PrimitiveType.Capsule, new Vector3(0f, 0.34f, 0f), new Vector3(0.28f, 0.34f, 0.28f));
             CreateBuilderPart("Pack", PrimitiveType.Cube, new Vector3(0f, 0.38f, -0.2f), new Vector3(0.25f, 0.3f, 0.12f));
             CreateBuilderPart("Visor", PrimitiveType.Cube, new Vector3(0f, 0.53f, 0.18f), new Vector3(0.2f, 0.08f, 0.08f));
-            CreateBuilderPart("FootMarker", PrimitiveType.Cylinder, new Vector3(0f, 0.015f, 0f), new Vector3(0.72f, 0.02f, 0.72f));
             CreateBuilderSpriteVisual();
         }
 
@@ -511,11 +510,16 @@ namespace LTW.UnityClient.UI
                     continue;
                 }
 
+                if (builderAvatarSprite != null)
+                {
+                    part.enabled = false;
+                    continue;
+                }
+
                 part.material.color = part.gameObject.name switch
                 {
                     "Body" => Cloud,
                     "Pack" => PanelInk,
-                    "FootMarker" => accent,
                     _ => accent
                 };
             }
@@ -541,7 +545,7 @@ namespace LTW.UnityClient.UI
 
             foreach (var part in builderAvatar.GetComponentsInChildren<Renderer>(true))
             {
-                if (part != builderAvatarSprite && part.gameObject.name != "FootMarker")
+                if (part != builderAvatarSprite)
                 {
                     part.enabled = false;
                 }

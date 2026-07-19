@@ -234,7 +234,12 @@ namespace LTW.UnityClient.Editor
             var player3Profile = ReadEnumArgument("-ltwP3", BotDecisionProfile.Defensive);
             var player2Creep = ReadContentIdArgument("-ltwP2Creep");
             var player3Creep = ReadContentIdArgument("-ltwP3Creep");
-            return new LocalMatchOptions(seed, player2Profile, player3Profile, player2Creep, player3Creep);
+            return new LocalMatchOptions(
+                seed: seed,
+                player2Profile: player2Profile,
+                player3Profile: player3Profile,
+                player2PrimaryCreepId: player2Creep,
+                player3PrimaryCreepId: player3Creep);
         }
 
         private static string? ReadStringArgument(string name)

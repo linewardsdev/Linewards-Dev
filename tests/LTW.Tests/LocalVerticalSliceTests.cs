@@ -9,7 +9,7 @@ public sealed class LocalVerticalSliceTests
     [Fact]
     public void Player_one_send_spawns_in_player_twos_lane_and_is_recorded_for_replay()
     {
-        var slice = new LocalVerticalSlice(SampleVerticalSliceContent.Create());
+        var slice = new LocalVerticalSlice(SampleVerticalSliceContent.Create(), enableBots: false);
 
         var result = slice.QueueSend(new PlayerId(1), SampleVerticalSliceContent.CreepId);
 
@@ -25,7 +25,7 @@ public sealed class LocalVerticalSliceTests
     [Fact]
     public void Reset_clears_recorded_commands()
     {
-        var slice = new LocalVerticalSlice(SampleVerticalSliceContent.Create());
+        var slice = new LocalVerticalSlice(SampleVerticalSliceContent.Create(), enableBots: false);
         slice.QueueSend(new PlayerId(1), SampleVerticalSliceContent.CreepId);
 
         slice.Reset();

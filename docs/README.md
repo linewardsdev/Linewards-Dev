@@ -14,6 +14,7 @@ This folder contains the durable project documentation for Line Wards, the mobil
 - [MVP dependencies](MVP_DEPENDENCIES.md)
 - [MVP implementation checklist](MVP_IMPLEMENTATION_CHECKLIST.md)
 - [Gameplay development checklist](GAMEPLAY_DEVELOPMENT_CHECKLIST.md)
+- [Game menu and runtime flow](GAME_MENU_AND_RUNTIME_FLOW.md)
 - [Content roster expansion plan](CONTENT_ROSTER_EXPANSION_PLAN.md)
 - [Builder placement concept](BUILDER_PLACEMENT_CONCEPT.md)
 - [Graphics theme work breakdown](GRAPHICS_THEME_WORK_BREAKDOWN.md)

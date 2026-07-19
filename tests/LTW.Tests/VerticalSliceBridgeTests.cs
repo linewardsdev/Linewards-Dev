@@ -41,7 +41,7 @@ public sealed class VerticalSliceBridgeTests
     [Fact]
     public void Bridge_rejects_invalid_path_or_affordability_without_duplicate_rules_in_unity()
     {
-        var simulation = new LocalVerticalSlice(SampleVerticalSliceContent.Create());
+        var simulation = new LocalVerticalSlice(SampleVerticalSliceContent.Create(), enableBots: false);
 
         var blocking = simulation.PlaceTower(new PlayerId(1), new LaneId(1), SampleVerticalSliceContent.TowerId, new GridPosition(3, 0));
 
@@ -65,7 +65,7 @@ public sealed class VerticalSliceBridgeTests
     [Fact]
     public void Placement_preview_reports_rules_without_mutating_match_state()
     {
-        var simulation = new LocalVerticalSlice(SampleVerticalSliceContent.Create());
+        var simulation = new LocalVerticalSlice(SampleVerticalSliceContent.Create(), enableBots: false);
 
         var ready = simulation.PreviewPlaceTower(new PlayerId(1), new LaneId(1), SampleVerticalSliceContent.TowerId, new GridPosition(1, 1));
         var blocked = simulation.PreviewPlaceTower(new PlayerId(1), new LaneId(1), SampleVerticalSliceContent.TowerId, new GridPosition(3, 0));
@@ -100,7 +100,7 @@ public sealed class VerticalSliceBridgeTests
     [Fact]
     public void Bots_place_profile_towers_before_creating_send_pressure()
     {
-        var simulation = new LocalVerticalSlice(SampleVerticalSliceContent.Create());
+        var simulation = new LocalVerticalSlice(SampleVerticalSliceContent.Create(), ThreeLaneOptions());
 
         for (var tick = 0; tick < 60; tick++)
         {
@@ -113,6 +113,72 @@ public sealed class VerticalSliceBridgeTests
         Assert.Contains(snapshot.Towers, tower => tower.OwnerId.Equals(new PlayerId(2)) && tower.TowerId.Equals(SampleVerticalSliceContent.PulseTowerId));
         Assert.True(snapshot.Towers.Count(tower => tower.OwnerId.Equals(new PlayerId(2))) >= 3);
         Assert.True(snapshot.Towers.Count(tower => tower.OwnerId.Equals(new PlayerId(3))) >= 3);
+    }
+
+    [Fact]
+    public void Default_eight_lane_match_stays_clean_until_started()
+    {
+        var simulation = new LocalVerticalSlice(SampleVerticalSliceContent.Create());
+
+        var snapshot = simulation.GetSnapshot();
+        var diagnostics = simulation.GetBotDiagnostics();
+        var events = simulation.DrainEvents();
+
+        Assert.Equal(8, snapshot.Players.Players.Count);
+        Assert.Empty(snapshot.Towers);
+        Assert.Empty(snapshot.Creeps);
+        Assert.Empty(diagnostics.RecentDecisions);
+        Assert.DoesNotContain(events, simulationEvent => simulationEvent is TowerPlacedEvent or CreepQueuedEvent or CreepSpawnedEvent);
+    }
+
+    [Fact]
+    public void Eight_lane_bots_build_and_send_from_lanes_two_through_eight_at_match_start()
+    {
+        var simulation = new LocalVerticalSlice(SampleVerticalSliceContent.Create());
+        simulation.StartMatch();
+
+        var snapshot = simulation.GetSnapshot();
+        var diagnostics = simulation.GetBotDiagnostics();
+        var events = simulation.DrainEvents();
+
+        for (var playerId = 2; playerId <= 8; playerId++)
+        {
+            var expectedDefenderId = playerId == 8 ? 1 : playerId + 1;
+            Assert.Contains(snapshot.Towers, tower => tower.OwnerId.Equals(new PlayerId(playerId)) && tower.LaneId.Equals(new LaneId(playerId)));
+            Assert.Contains(snapshot.Creeps, creep => creep.SenderId.Equals(new PlayerId(playerId)) && creep.LaneId.Equals(new LaneId(expectedDefenderId)));
+            Assert.Contains(diagnostics.RecentDecisions, decision => decision.PlayerId.Equals(new PlayerId(playerId)));
+            Assert.Contains(events, simulationEvent =>
+                simulationEvent is CreepQueuedEvent queued &&
+                queued.SenderId.Equals(new PlayerId(playerId)) &&
+                queued.DefenderId.Equals(new PlayerId(expectedDefenderId)));
+        }
+    }
+
+    [Fact]
+    public void Eight_lane_send_targets_follow_carousel_topology()
+    {
+        var simulation = new LocalVerticalSlice(SampleVerticalSliceContent.Create(), enableBots: false);
+
+        for (var playerId = 1; playerId <= 8; playerId++)
+        {
+            Assert.True(simulation.QueueSend(new PlayerId(playerId), SampleVerticalSliceContent.CreepId).Accepted);
+        }
+
+        var snapshot = simulation.GetSnapshot();
+        var events = simulation.DrainEvents();
+
+        for (var playerId = 1; playerId <= 8; playerId++)
+        {
+            var expectedDefenderId = playerId == 8 ? 1 : playerId + 1;
+            Assert.Contains(snapshot.Creeps, creep =>
+                creep.SenderId.Equals(new PlayerId(playerId)) &&
+                creep.LaneId.Equals(new LaneId(expectedDefenderId)) &&
+                creep.Position.Equals(new GridPosition(3, 0)));
+            Assert.Contains(events, simulationEvent =>
+                simulationEvent is CreepSpawnedEvent spawned &&
+                spawned.SenderId.Equals(new PlayerId(playerId)) &&
+                spawned.DefenderId.Equals(new PlayerId(expectedDefenderId)));
+        }
     }
 
     [Fact]
@@ -170,7 +236,7 @@ public sealed class VerticalSliceBridgeTests
     [Fact]
     public void Bridge_reset_clears_bot_decision_diagnostics()
     {
-        var simulation = new LocalVerticalSlice(SampleVerticalSliceContent.Create());
+        var simulation = new LocalVerticalSlice(SampleVerticalSliceContent.Create(), ThreeLaneOptions());
         for (var tick = 0; tick < 500; tick++)
         {
             simulation.AdvanceOneTick();
@@ -369,6 +435,37 @@ public sealed class VerticalSliceBridgeTests
     }
 
     [Fact]
+    public void Eight_lane_leaked_creeps_flow_across_expanded_opponent_lanes()
+    {
+        var simulation = new LocalVerticalSlice(SampleVerticalSliceContent.Create(), enableBots: false);
+        Assert.True(simulation.QueueSend(new PlayerId(1), SampleVerticalSliceContent.CreepId).Accepted);
+
+        for (var tick = 0; tick < 15; tick++)
+        {
+            simulation.AdvanceOneTick();
+        }
+
+        Assert.Contains(simulation.GetSnapshot().Creeps, creep =>
+            creep.SenderId.Equals(new PlayerId(1)) &&
+            creep.LaneId.Equals(new LaneId(3)) &&
+            creep.Position.Equals(new GridPosition(3, 0)));
+
+        for (var tick = 0; tick < 15; tick++)
+        {
+            simulation.AdvanceOneTick();
+        }
+
+        var snapshot = simulation.GetSnapshot();
+        var events = simulation.DrainEvents();
+        Assert.Contains(snapshot.Creeps, creep =>
+            creep.SenderId.Equals(new PlayerId(1)) &&
+            creep.LaneId.Equals(new LaneId(4)) &&
+            creep.Position.Equals(new GridPosition(3, 0)));
+        Assert.Contains(events, simulationEvent => simulationEvent is LeakEvent leak && leak.SenderId.Equals(new PlayerId(1)) && leak.DefenderId.Equals(new PlayerId(3)));
+        Assert.Contains(events, simulationEvent => simulationEvent is CreepSpawnedEvent spawned && spawned.SenderId.Equals(new PlayerId(1)) && spawned.DefenderId.Equals(new PlayerId(4)));
+    }
+
+    [Fact]
     public void Sent_creeps_do_not_wrap_back_into_the_senders_own_lane()
     {
         var simulation = new LocalVerticalSlice(SampleVerticalSliceContent.Create(), enableBots: false);
@@ -393,6 +490,26 @@ public sealed class VerticalSliceBridgeTests
             simulationEvent is LeakEvent leak &&
             leak.SenderId.Equals(new PlayerId(1)) &&
             leak.DefenderId.Equals(new PlayerId(1)));
+    }
+
+    [Fact]
+    public void Eight_lane_sends_never_reenter_their_senders_home_lane()
+    {
+        var simulation = new LocalVerticalSlice(SampleVerticalSliceContent.Create(), enableBots: false);
+        for (var playerId = 1; playerId <= 8; playerId++)
+        {
+            Assert.True(simulation.QueueSend(new PlayerId(playerId), SampleVerticalSliceContent.CreepId).Accepted);
+        }
+
+        AssertNoSenderHomeLaneCreeps(simulation.GetSnapshot());
+        AssertNoSenderHomeLaneEvents(simulation.DrainEvents());
+
+        for (var tick = 0; tick < 120; tick++)
+        {
+            simulation.AdvanceOneTick();
+            AssertNoSenderHomeLaneCreeps(simulation.GetSnapshot());
+            AssertNoSenderHomeLaneEvents(simulation.DrainEvents());
+        }
     }
 
     [Fact]
@@ -432,7 +549,7 @@ public sealed class VerticalSliceBridgeTests
     [Fact]
     public void Bridge_reset_restores_development_slice_state()
     {
-        var simulation = new LocalVerticalSlice(SampleVerticalSliceContent.Create());
+        var simulation = new LocalVerticalSlice(SampleVerticalSliceContent.Create(), enableBots: false);
         Assert.True(simulation.QueueSend(new PlayerId(1), SampleVerticalSliceContent.CreepId).Accepted);
         simulation.AdvanceOneTick();
 
@@ -448,7 +565,7 @@ public sealed class VerticalSliceBridgeTests
     [Fact]
     public void Bridge_sells_last_tower_and_refunds_gold()
     {
-        var simulation = new LocalVerticalSlice(SampleVerticalSliceContent.Create());
+        var simulation = new LocalVerticalSlice(SampleVerticalSliceContent.Create(), enableBots: false);
         Assert.True(simulation.PlaceTower(new PlayerId(1), new LaneId(1), SampleVerticalSliceContent.TowerId, new GridPosition(1, 1)).Accepted);
 
         var sell = simulation.SellLastTower(new PlayerId(1));
@@ -505,6 +622,21 @@ public sealed class VerticalSliceBridgeTests
         Assert.Contains(diagnostics.Profiles, profile => profile.PlayerId.Equals(new PlayerId(6)) && profile.Profile == BotDecisionProfile.Balanced && profile.PrimaryCreepId.Equals(SampleVerticalSliceContent.CreepId));
         Assert.Contains(diagnostics.Profiles, profile => profile.PlayerId.Equals(new PlayerId(7)) && profile.Profile == BotDecisionProfile.Defensive && profile.PrimaryCreepId.Equals(SampleVerticalSliceContent.BruteCreepId));
         Assert.Contains(diagnostics.Profiles, profile => profile.PlayerId.Equals(new PlayerId(8)) && profile.Profile == BotDecisionProfile.Greedy && profile.PrimaryCreepId.Equals(SampleVerticalSliceContent.ShadeCreepId));
+    }
+
+    private static void AssertNoSenderHomeLaneCreeps(VerticalSliceSnapshot snapshot)
+    {
+        Assert.DoesNotContain(snapshot.Creeps, creep => creep.LaneId.Value == creep.SenderId.Value);
+    }
+
+    private static void AssertNoSenderHomeLaneEvents(IReadOnlyList<ISimulationEvent> events)
+    {
+        Assert.DoesNotContain(events, simulationEvent =>
+            simulationEvent is CreepSpawnedEvent spawned &&
+            spawned.SenderId.Equals(spawned.DefenderId));
+        Assert.DoesNotContain(events, simulationEvent =>
+            simulationEvent is LeakEvent leak &&
+            leak.SenderId.Equals(leak.DefenderId));
     }
 
     private static LocalMatchOptions ThreeLaneOptions() => new(laneCount: 3);

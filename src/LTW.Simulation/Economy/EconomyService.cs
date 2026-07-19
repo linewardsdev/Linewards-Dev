@@ -42,6 +42,18 @@ public sealed class EconomyService
         int quantity,
         SimulationTick requestedTick)
     {
+        var targetId = players.GetCarouselTarget(senderId);
+        return QueueSend(players, senderId, creep, quantity, requestedTick, targetId);
+    }
+
+    public SendResult QueueSend(
+        EconomyPlayerSet players,
+        PlayerId senderId,
+        CreepDefinition creep,
+        int quantity,
+        SimulationTick requestedTick,
+        PlayerId targetId)
+    {
         if (quantity <= 0)
         {
             return SendResult.Reject(players, CommandRejectionReason.InvalidQuantity);
@@ -51,6 +63,11 @@ public sealed class EconomyService
         if (sender.IsEliminated)
         {
             return SendResult.Reject(players, CommandRejectionReason.PlayerEliminated);
+        }
+
+        if (targetId.Equals(senderId) || players.Get(targetId).IsEliminated)
+        {
+            return SendResult.Reject(players, CommandRejectionReason.InvalidPlayer);
         }
 
         var cost = creep.Cost.Amount * quantity;
@@ -63,7 +80,6 @@ public sealed class EconomyService
             .WithGold(new Gold(sender.Gold.Amount - cost))
             .WithIncome(new Income(sender.Income.Amount + creep.IncomeGain.Amount * quantity));
 
-        var targetId = players.GetCarouselTarget(senderId);
         return SendResult.Accept(players.Replace(updatedSender), targetId);
     }
 

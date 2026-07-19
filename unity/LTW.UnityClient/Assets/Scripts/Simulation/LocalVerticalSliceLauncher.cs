@@ -28,6 +28,7 @@ namespace LTW.UnityClient.Simulation
             var stressHarness = matchObject.AddComponent<HeavySendStressHarness>();
             var results = new GameObject("Match Results").AddComponent<MatchResultsBillboard>();
             var sessionOverlay = matchObject.AddComponent<LocalSessionFlowOverlay>();
+            var diagnosticsOverlay = matchObject.AddComponent<DiagnosticsOverlay>();
             var controls = matchObject.AddComponent<LocalVerticalSliceDevelopmentControls>();
             var feedback = matchObject.AddComponent<PlacementFeedbackView>();
             var hud = matchObject.AddComponent<HudView>();
@@ -47,6 +48,7 @@ namespace LTW.UnityClient.Simulation
             stressHarness.Initialize(commands, performanceSampler);
             results.Initialize(driver);
             sessionOverlay.Initialize(driver, playtestRecorder);
+            diagnosticsOverlay.Initialize(driver);
             controls.Initialize(commands, driver, renderer, replayExporter, playtestRecorder, stressHarness, placement, laneViewToggle, feedback);
             bootstrapper.Initialize(driver, commands);
             renderer.SetCameraFraming(renderer.CameraFraming);
