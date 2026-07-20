@@ -20,11 +20,16 @@ This doc does not cover:
 
 ## Current Prototype Boundary
 
-The current local Unity prototype starts directly in `Assets/Scenes/LocalVerticalSlice.unity`.
+The current local Unity prototype still starts directly in `Assets/Scenes/LocalVerticalSlice.unity`, but the scene now has a lightweight menu shell in `Assets/Scripts/Simulation/LocalSessionFlowOverlay.cs`.
 
-There is no dedicated title screen or full app shell yet. The current "game menu" is the runtime HUD layered over the local match:
+This is not a dedicated standalone title scene yet. It is an overlay-based app shell layered over the local match:
 
+- Title menu with Start Game, How To Play, Settings, and Quit.
+- READY / pre-match panel before simulation pressure begins.
+- Opening BUILD countdown of at least 30 seconds that lets the player place towers before live pressure starts.
 - PLAY / PAUSE / RESET controls.
+- Pause flow with Resume, Settings, Reset, and Menu.
+- Results action bar with Rematch, Settings, and Menu.
 - Lane selector.
 - BUILD drawer.
 - SEND drawer.
@@ -62,15 +67,16 @@ The app should eventually use these top-level states:
 
 | State | Purpose | Gameplay ticking? | Expected UI |
 | --- | --- | --- | --- |
-| Title | First app entry | No | Game logo, Continue, New Match, Settings |
+| Title | First app entry | No | Game logo, Start Game, How To Play, Settings |
 | Pre-Match | Local setup | No | Bot count/difficulty later, seed/replay later, Start |
 | Ready | Match scene loaded but not started | No | Board, HUD, PLAY, no bot activity |
+| Build Countdown | Opening build window | No | Board, minimum 30-second countdown, build drawer, SEND blocked |
 | Live | Active match | Yes | HUD, BUILD, SEND, lane selector, pause/reset affordance |
 | Paused | Temporary stop | No | Resume, Restart, Settings, Exit to Title |
 | Results | Match complete | No | Winner, summary, replay/export later, Rematch, Exit |
 | Settings | App/match options | No while modal | Audio, reduced effects, text scale, safe area/debug toggles |
 
-For the MVP, Title and Pre-Match can be deferred. Ready, Live, Paused, Results, and Settings/presentation toggles are the priority.
+For the MVP, Title and Pre-Match can remain overlay-driven inside `LocalVerticalSlice`. A separate scene can wait until the game has more durable mode selection, save/load, and campaign/tutorial needs.
 
 ## Runtime Flow
 
@@ -78,14 +84,21 @@ For the MVP, Title and Pre-Match can be deferred. Ready, Live, Paused, Results, 
 Open LocalVerticalSlice scene
     |
     v
-READY
-    - Board visible
-    - HUD visible
-    - PLAY available
-    - No bots build/send
-    - No creep/combat effects
+TITLE
+    - Start Game
+    - How To Play
+    - Settings
+    - Quit
     |
-    | player taps PLAY
+    | player taps Start Game
+    v
+BUILD COUNTDOWN
+    - Minimum 30-second opening countdown
+    - Player can place towers
+    - SEND remains blocked
+    - Bots do not build/send yet
+    |
+    | countdown expires or player taps START NOW
     v
 LIVE
     - Simulation starts
@@ -99,11 +112,40 @@ LIVE
 PAUSED or RESULTS
 ```
 
+READY remains available as a pre-match/inspection state after reset or from secondary menu paths:
+
+```text
+READY
+    - Board visible
+    - HUD visible
+    - PLAY available
+    - No bots build/send
+    - No creep/combat effects
+    |
+    | player taps PLAY
+    v
+BUILD COUNTDOWN
+    - Minimum 30-second opening countdown
+    - Player can place towers
+    - SEND remains blocked
+    - Bots do not build/send yet
+    |
+    | countdown expires or player taps START NOW
+    v
+LIVE
+    - Simulation starts
+    - Bot openers build/send
+    - Tick loop runs
+    - Build/send drawers available
+    - Lane selector available
+```
+
 ## Runtime HUD
 
 The runtime HUD should show:
 
 - Current match state: READY, LIVE, PAUSED, or RESULTS.
+- Opening build state: BUILD when the countdown is active.
 - Player lives.
 - Player gold.
 - Player income.
@@ -209,7 +251,7 @@ Recommended MVP options:
 - Resume.
 - Restart match.
 - Settings.
-- Exit to title once a title screen exists.
+- Menu.
 
 Pause behavior:
 
@@ -228,9 +270,9 @@ Recommended MVP settings:
 - Text scale.
 - Safe area/debug overlay toggles for development builds.
 
-Settings should be accessible from pause first. A title-screen settings entry can come later.
+Settings are currently accessible from the title shell, pause menu, and results action bar.
 
-Current development shortcuts already exist for some presentation toggles, but they are not a player-facing settings menu yet.
+Current development shortcuts already exist for some presentation toggles. The overlay settings panel now exposes the player-facing subset.
 
 ## Results Menu
 
@@ -241,22 +283,24 @@ Recommended MVP contents:
 - Winner.
 - Player lives/gold/income summary.
 - Rematch.
-- Exit to title once a title screen exists.
+- Menu.
 - Replay/export button only for development or later UX polish.
 
 Current implementation references:
 
+- `Assets/Scripts/Simulation/LocalSessionFlowOverlay.cs`
 - `Assets/Scripts/Simulation/MatchResultsBillboard.cs`
 - `LTW.Simulation.Economy.MatchSummary`
 
 ## Main Menu Roadmap
 
-The title/main menu can wait until the local match loop is stable, but the target structure should be:
+The current title/menu shell is overlay-driven inside the local vertical slice. A later standalone title scene should use the same structure once the game needs durable mode selection, save/load, campaign, or tutorial routing:
 
 ```text
 Title
-  Continue
-  New Local Match
+  Continue later
+  New Local Match / Start Game
+  How To Play
   Settings
   Credits / Legal later
 
@@ -278,7 +322,10 @@ Avoid adding account, matchmaking, cloud save, store, or monetization entries du
 Before calling menu/runtime flow healthy:
 
 - [ ] READY state shows no pre-start bot towers, creep sends, send text, leak text, or combat FX.
-- [ ] PLAY starts the simulation once and only once.
+- [ ] PLAY starts the opening build countdown once and only once.
+- [ ] BUILD countdown runs for at least 30 seconds.
+- [ ] BUILD countdown allows tower placement while blocking sends and simulation ticks.
+- [ ] Countdown expiry starts the simulation once and only once.
 - [ ] RESET returns to clean READY state.
 - [ ] BUILD opens/closes without spending gold or placing a tower.
 - [ ] Tower selection enters placement mode with a visible close/cancel affordance.

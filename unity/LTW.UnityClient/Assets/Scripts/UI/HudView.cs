@@ -231,7 +231,9 @@ namespace LTW.UnityClient.UI
             DrawHudCell(state, StateAccent(), true, scale);
             metaStyle!.fontSize = Mathf.RoundToInt(9f * scale);
             metaStyle.normal.textColor = StateAccent();
-            var stateText = simulationDriver != null && simulationDriver.HasStarted ? "LIVE" : "READY";
+            var stateText = simulationDriver != null && simulationDriver.IsOpeningBuildCountdown
+                ? "BUILD"
+                : simulationDriver != null && simulationDriver.HasStarted ? "LIVE" : "READY";
             GUI.Label(state, stateText, metaStyle);
         }
 
@@ -286,6 +288,11 @@ namespace LTW.UnityClient.UI
 
         private Color StateAccent()
         {
+            if (simulationDriver != null && simulationDriver.IsOpeningBuildCountdown)
+            {
+                return SignalGold;
+            }
+
             return simulationDriver != null && simulationDriver.HasStarted ? MintSignal : ArcaneBlue;
         }
 

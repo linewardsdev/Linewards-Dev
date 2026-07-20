@@ -14,10 +14,20 @@ namespace LTW.UnityClient.Simulation
         [SerializeField]
         private float ticksPerSecond = 4f;
 
+        [SerializeField]
+        private float openingBuildCountdownSeconds = 30f;
+
         private LocalVerticalSlice simulation = null!;
         private float accumulator;
+        private float openingBuildCountdownEndsAt;
 
         public bool HasStarted { get; private set; }
+
+        public bool IsOpeningBuildCountdown { get; private set; }
+
+        public float OpeningBuildCountdownRemaining { get; private set; }
+
+        public float OpeningBuildCountdownDuration => openingBuildCountdownSeconds;
 
         public bool IsPaused { get; private set; } = true;
 
@@ -45,6 +55,15 @@ namespace LTW.UnityClient.Simulation
             if (simulation is null)
             {
                 return;
+            }
+
+            if (IsOpeningBuildCountdown)
+            {
+                OpeningBuildCountdownRemaining = Mathf.Max(0f, openingBuildCountdownEndsAt - Time.unscaledTime);
+                if (OpeningBuildCountdownRemaining <= 0f)
+                {
+                    StartMatch();
+                }
             }
 
             if (HasStarted && !IsPaused && LatestMatchSummary is null)
@@ -79,8 +98,31 @@ namespace LTW.UnityClient.Simulation
             LatestBotDiagnostics = simulation.GetBotDiagnostics();
         }
 
+        public void BeginOpeningBuildCountdown()
+        {
+            if (simulation is null)
+            {
+                return;
+            }
+
+            if (LatestMatchSummary is not null)
+            {
+                ResetMatch();
+            }
+
+            accumulator = 0f;
+            HasStarted = false;
+            IsPaused = true;
+            IsOpeningBuildCountdown = true;
+            OpeningBuildCountdownRemaining = Mathf.Max(1f, openingBuildCountdownSeconds);
+            openingBuildCountdownEndsAt = Time.unscaledTime + OpeningBuildCountdownRemaining;
+            RefreshSnapshot(drainEvents: true);
+        }
+
         public void StartMatch()
         {
+            IsOpeningBuildCountdown = false;
+            OpeningBuildCountdownRemaining = 0f;
             simulation?.StartMatch();
             HasStarted = true;
             IsPaused = false;
@@ -97,6 +139,12 @@ namespace LTW.UnityClient.Simulation
 
         public void TogglePause()
         {
+            if (IsOpeningBuildCountdown)
+            {
+                StartMatch();
+                return;
+            }
+
             if (!HasStarted)
             {
                 StartMatch();
@@ -110,6 +158,9 @@ namespace LTW.UnityClient.Simulation
         {
             simulation?.Reset();
             accumulator = 0f;
+            openingBuildCountdownEndsAt = 0f;
+            IsOpeningBuildCountdown = false;
+            OpeningBuildCountdownRemaining = 0f;
             HasStarted = false;
             IsPaused = true;
             if (simulation is not null)

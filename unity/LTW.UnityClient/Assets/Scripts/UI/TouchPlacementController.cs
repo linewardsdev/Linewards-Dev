@@ -166,8 +166,9 @@ namespace LTW.UnityClient.UI
             if (result.Accepted)
             {
                 feedbackView.ShowAccepted(SelectedTowerName() + " placed");
-                // Keep the builder active with the last selected tower for fast repeat placement.
                 lastSelectedTowerRole = selectedTowerRole;
+                // Keep placement active with the selected tower so the compact tower-specific panel
+                // remains available. Players can tap ALL there to swap tower types.
                 MoveGhost();
                 return;
             }
@@ -485,6 +486,11 @@ namespace LTW.UnityClient.UI
         private void CreateBuilderPart(string partName, PrimitiveType primitiveType, Vector3 localPosition, Vector3 localScale)
         {
             var part = GameObject.CreatePrimitive(primitiveType);
+            if (part == null || builderAvatar == null)
+            {
+                return;
+            }
+
             part.name = partName;
             part.transform.SetParent(builderAvatar.transform, false);
             part.transform.localPosition = localPosition;
@@ -496,6 +502,11 @@ namespace LTW.UnityClient.UI
             if (builderAvatar == null)
             {
                 EnsureBuilderAvatar();
+            }
+
+            if (builderAvatar == null)
+            {
+                return;
             }
 
             builderAvatar.transform.position = GridToWorld(selectedCell, 0.02f) + new Vector3(-0.48f, 0f, 0.24f);

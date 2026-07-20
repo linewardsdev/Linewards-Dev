@@ -72,7 +72,12 @@ namespace LTW.UnityClient.UI
 
             titleStyle!.fontSize = Mathf.RoundToInt(13f * scale);
             titleStyle.normal.textColor = StateAccent();
-            var state = simulationDriver!.LatestMatchSummary is not null ? "RESULTS" : !simulationDriver.HasStarted ? "READY" : simulationDriver.IsPaused ? "PAUSED" : "LIVE";
+            var state = simulationDriver!.LatestMatchSummary is not null
+                ? "RESULTS"
+                : simulationDriver.IsOpeningBuildCountdown ? "BUILD"
+                : !simulationDriver.HasStarted ? "READY"
+                : simulationDriver.IsPaused ? "PAUSED"
+                : "LIVE";
             GUI.Label(new Rect(rect.xMax - 116f * scale, rect.y + 11f * scale, 100f * scale, 22f * scale), state, titleStyle);
 
             metaStyle!.fontSize = Mathf.RoundToInt(10f * scale);
@@ -90,6 +95,11 @@ namespace LTW.UnityClient.UI
             }
 
             if (simulationDriver.LatestMatchSummary is not null)
+            {
+                return SignalGold;
+            }
+
+            if (simulationDriver.IsOpeningBuildCountdown)
             {
                 return SignalGold;
             }

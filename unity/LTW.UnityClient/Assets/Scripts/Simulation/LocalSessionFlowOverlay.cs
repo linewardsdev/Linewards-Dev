@@ -25,6 +25,14 @@ namespace LTW.UnityClient.Simulation
         private GUIStyle? smallStyle;
         private Texture2D? whiteTexture;
         private bool showSettings;
+        private PreMatchScreen preMatchScreen = PreMatchScreen.Title;
+
+        private enum PreMatchScreen
+        {
+            Title,
+            Ready,
+            HowTo
+        }
 
         public void Initialize(UnitySimulationDriver driver, LocalPlaytestRecorder recorder)
         {
@@ -48,6 +56,12 @@ namespace LTW.UnityClient.Simulation
                 return;
             }
 
+            if (simulationDriver.IsOpeningBuildCountdown)
+            {
+                DrawBuildCountdownPanel(scale);
+                return;
+            }
+
             if (simulationDriver.LatestMatchSummary is not null)
             {
                 DrawResultsPanel(scale);
@@ -56,6 +70,18 @@ namespace LTW.UnityClient.Simulation
 
             if (!simulationDriver.HasStarted)
             {
+                if (preMatchScreen == PreMatchScreen.Title)
+                {
+                    DrawTitlePanel(scale);
+                    return;
+                }
+
+                if (preMatchScreen == PreMatchScreen.HowTo)
+                {
+                    DrawHowToPanel(scale);
+                    return;
+                }
+
                 DrawReadyPanel(scale);
                 return;
             }
@@ -67,6 +93,88 @@ namespace LTW.UnityClient.Simulation
             }
 
             DrawLiveRail(scale);
+        }
+
+        private void DrawTitlePanel(float scale)
+        {
+            var panel = CenteredPanel(scale, 348f, 284f);
+            DrawPanel(panel, scale);
+
+            DrawLabel(panel.x + 22f * scale, panel.y + 20f * scale, panel.width - 44f * scale, 32f * scale, "LINE WARDS", titleStyle!, TextAnchor.MiddleCenter);
+            DrawLabel(panel.x + 22f * scale, panel.y + 54f * scale, panel.width - 44f * scale, 22f * scale, "EIGHT-LANE TOWER DUEL", subtitleStyle!, TextAnchor.MiddleCenter);
+            DrawLabel(
+                panel.x + 30f * scale,
+                panel.y + 88f * scale,
+                panel.width - 60f * scale,
+                48f * scale,
+                "Build defenses, send pressure, and read the rotating lane war before it overruns you.",
+                bodyStyle!,
+                TextAnchor.MiddleCenter);
+
+            var buttonWidth = 126f * scale;
+            var buttonHeight = 30f * scale;
+            var gap = 8f * scale;
+            var leftX = panel.center.x - buttonWidth - gap * 0.5f;
+            var rightX = panel.center.x + gap * 0.5f;
+            var topY = panel.yMax - 108f * scale;
+
+            if (DrawButton(new Rect(leftX, topY, buttonWidth, buttonHeight), "START GAME", MintSignal, scale))
+            {
+                ResetToReady();
+                simulationDriver.BeginOpeningBuildCountdown();
+            }
+
+            if (DrawButton(new Rect(rightX, topY, buttonWidth, buttonHeight), "HOW TO PLAY", SignalGold, scale, 10f))
+            {
+                preMatchScreen = PreMatchScreen.HowTo;
+            }
+
+            if (DrawButton(new Rect(leftX, topY + buttonHeight + gap, buttonWidth, buttonHeight), "SETTINGS", ArcaneBlue, scale))
+            {
+                showSettings = true;
+            }
+
+            if (DrawButton(new Rect(rightX, topY + buttonHeight + gap, buttonWidth, buttonHeight), "QUIT", WarningRose, scale))
+            {
+                QuitGame();
+            }
+
+            DrawLabel(panel.x + 22f * scale, panel.yMax - 26f * scale, panel.width - 44f * scale, 16f * scale, "Prototype local vertical slice", smallStyle!, TextAnchor.MiddleCenter);
+        }
+
+        private void DrawHowToPanel(float scale)
+        {
+            var panel = CenteredPanel(scale, 348f, 292f);
+            DrawPanel(panel, scale);
+
+            DrawLabel(panel.x + 22f * scale, panel.y + 18f * scale, panel.width - 44f * scale, 28f * scale, "HOW TO PLAY", titleStyle!, TextAnchor.MiddleCenter);
+            DrawLabel(panel.x + 26f * scale, panel.y + 50f * scale, panel.width - 52f * scale, 24f * scale, "The current prototype is a fast eight-lane systems test.", bodyStyle!, TextAnchor.MiddleCenter);
+
+            var textX = panel.x + 30f * scale;
+            var textY = panel.y + 86f * scale;
+            var textWidth = panel.width - 60f * scale;
+            var lineHeight = 30f * scale;
+
+            DrawLabel(textX, textY, textWidth, lineHeight, "1. Build towers on your lane platforms.", smallStyle!, TextAnchor.MiddleLeft);
+            DrawLabel(textX, textY + lineHeight, textWidth, lineHeight, "2. Send creeps to pressure the next opponent.", smallStyle!, TextAnchor.MiddleLeft);
+            DrawLabel(textX, textY + lineHeight * 2f, textWidth, lineHeight, "3. Survive leaks as pressure rotates across enemy lanes.", smallStyle!, TextAnchor.MiddleLeft);
+            DrawLabel(textX, textY + lineHeight * 3f, textWidth, lineHeight, "4. Bots on lanes 2-8 should build and send from the start.", smallStyle!, TextAnchor.MiddleLeft);
+
+            var buttonWidth = 118f * scale;
+            var buttonHeight = 30f * scale;
+            var gap = 8f * scale;
+            var rowY = panel.yMax - 46f * scale;
+            var startX = panel.center.x - buttonWidth - gap * 0.5f;
+
+            if (DrawButton(new Rect(startX, rowY, buttonWidth, buttonHeight), "READY", MintSignal, scale))
+            {
+                ResetToReady();
+            }
+
+            if (DrawButton(new Rect(startX + buttonWidth + gap, rowY, buttonWidth, buttonHeight), "BACK", ArcaneBlue, scale))
+            {
+                preMatchScreen = PreMatchScreen.Title;
+            }
         }
 
         private void DrawReadyPanel(float scale)
@@ -81,7 +189,7 @@ namespace LTW.UnityClient.Simulation
                 panel.y + 82f * scale,
                 panel.width - 56f * scale,
                 44f * scale,
-                "Build towers. Send pressure. Survive the carousel.",
+                $"Tap PLAY to begin an {Mathf.RoundToInt(simulationDriver.OpeningBuildCountdownDuration)} second build window.",
                 bodyStyle!,
                 TextAnchor.MiddleCenter);
 
@@ -94,7 +202,7 @@ namespace LTW.UnityClient.Simulation
             if (DrawButton(new Rect(startX, buttonY, buttonWidth, buttonHeight), "PLAY", MintSignal, scale))
             {
                 showSettings = false;
-                simulationDriver.StartMatch();
+                simulationDriver.BeginOpeningBuildCountdown();
             }
 
             if (DrawButton(new Rect(startX + buttonWidth + gap, buttonY, buttonWidth, buttonHeight), "SETTINGS", ArcaneBlue, scale))
@@ -103,15 +211,15 @@ namespace LTW.UnityClient.Simulation
             }
 
             var resetWidth = 84f * scale;
-            if (DrawButton(new Rect(panel.center.x - resetWidth * 0.5f, buttonY + buttonHeight + gap, resetWidth, 24f * scale), "RESET", Cloud, scale, 10f))
+            if (DrawButton(new Rect(panel.center.x - resetWidth * 0.5f, buttonY + buttonHeight + gap, resetWidth, 24f * scale), "MENU", Cloud, scale, 10f))
             {
-                ResetToReady();
+                ResetToTitle();
             }
         }
 
         private void DrawPausePanel(float scale)
         {
-            var panel = CenteredPanel(scale, 300f, 196f);
+            var panel = CenteredPanel(scale, 316f, 224f);
             DrawPanel(panel, scale);
 
             DrawLabel(panel.x + 22f * scale, panel.y + 20f * scale, panel.width - 44f * scale, 28f * scale, "PAUSED", titleStyle!, TextAnchor.MiddleCenter);
@@ -133,10 +241,47 @@ namespace LTW.UnityClient.Simulation
                 showSettings = true;
             }
 
-            var resetWidth = 84f * scale;
-            if (DrawButton(new Rect(panel.center.x - resetWidth * 0.5f, rowY + buttonHeight + gap, resetWidth, 24f * scale), "RESET", WarningRose, scale, 10f))
+            var lowerWidth = 92f * scale;
+            var lowerY = rowY + buttonHeight + gap;
+            if (DrawButton(new Rect(panel.center.x - lowerWidth - gap * 0.5f, lowerY, lowerWidth, 24f * scale), "RESET", WarningRose, scale, 10f))
             {
                 ResetToReady();
+            }
+
+            if (DrawButton(new Rect(panel.center.x + gap * 0.5f, lowerY, lowerWidth, 24f * scale), "MENU", Cloud, scale, 10f))
+            {
+                ResetToTitle();
+            }
+        }
+
+        private void DrawBuildCountdownPanel(float scale)
+        {
+            var frame = MobileViewportLayout.ScreenRect();
+            var margin = MobileViewportLayout.EdgeMargin(scale);
+            var width = Mathf.Min(318f * scale, frame.width - margin * 2f);
+            var height = 112f * scale;
+            var panel = new Rect(frame.center.x - width * 0.5f, frame.y + 132f * scale, width, height);
+            DrawPanel(panel, scale);
+
+            var seconds = Mathf.CeilToInt(simulationDriver.OpeningBuildCountdownRemaining);
+            DrawLabel(panel.x + 18f * scale, panel.y + 10f * scale, panel.width - 36f * scale, 20f * scale, "BUILD PHASE", subtitleStyle!, TextAnchor.MiddleCenter);
+            DrawLabel(panel.x + 24f * scale, panel.y + 31f * scale, panel.width - 48f * scale, 32f * scale, seconds.ToString(), titleStyle!, TextAnchor.MiddleCenter);
+            DrawLabel(panel.x + 22f * scale, panel.y + 62f * scale, panel.width - 44f * scale, 18f * scale, "Place opening towers. Sends unlock when LIVE begins.", bodyStyle!, TextAnchor.MiddleCenter);
+
+            var buttonWidth = 96f * scale;
+            var buttonHeight = 24f * scale;
+            var gap = 8f * scale;
+            var rowY = panel.yMax - 30f * scale;
+            var startX = panel.center.x - buttonWidth - gap * 0.5f;
+
+            if (DrawButton(new Rect(startX, rowY, buttonWidth, buttonHeight), "START NOW", MintSignal, scale, 9f))
+            {
+                simulationDriver.StartMatch();
+            }
+
+            if (DrawButton(new Rect(startX + buttonWidth + gap, rowY, buttonWidth, buttonHeight), "MENU", Cloud, scale, 9f))
+            {
+                ResetToTitle();
             }
         }
 
@@ -152,21 +297,26 @@ namespace LTW.UnityClient.Simulation
             DrawLabel(panel.x + 18f * scale, panel.y + 10f * scale, panel.width - 36f * scale, 22f * scale, "MATCH COMPLETE", subtitleStyle!, TextAnchor.MiddleCenter);
             DrawLabel(panel.x + 22f * scale, panel.y + 30f * scale, panel.width - 44f * scale, 18f * scale, "Use the scoreboard above, then choose the next run.", bodyStyle!, TextAnchor.MiddleCenter);
 
-            var buttonWidth = 118f * scale;
+            var buttonWidth = 84f * scale;
             var buttonHeight = 30f * scale;
-            var gap = 8f * scale;
+            var gap = 6f * scale;
             var rowY = panel.yMax - 38f * scale;
-            var startX = panel.center.x - buttonWidth - gap * 0.5f;
+            var startX = panel.center.x - buttonWidth * 1.5f - gap;
 
             if (DrawButton(new Rect(startX, rowY, buttonWidth, buttonHeight), "REMATCH", MintSignal, scale))
             {
                 ResetToReady();
-                simulationDriver.StartMatch();
+                simulationDriver.BeginOpeningBuildCountdown();
             }
 
             if (DrawButton(new Rect(startX + buttonWidth + gap, rowY, buttonWidth, buttonHeight), "SETTINGS", ArcaneBlue, scale))
             {
                 showSettings = true;
+            }
+
+            if (DrawButton(new Rect(startX + (buttonWidth + gap) * 2f, rowY, buttonWidth, buttonHeight), "MENU", Cloud, scale))
+            {
+                ResetToTitle();
             }
         }
 
@@ -296,8 +446,26 @@ namespace LTW.UnityClient.Simulation
         private void ResetToReady()
         {
             showSettings = false;
+            preMatchScreen = PreMatchScreen.Ready;
             simulationDriver.ResetMatch();
             playtestRecorder?.ResetRecorder();
+        }
+
+        private void ResetToTitle()
+        {
+            showSettings = false;
+            preMatchScreen = PreMatchScreen.Title;
+            simulationDriver.ResetMatch();
+            playtestRecorder?.ResetRecorder();
+        }
+
+        private static void QuitGame()
+        {
+#if UNITY_EDITOR
+            UnityEditor.EditorApplication.isPlaying = false;
+#else
+            Application.Quit();
+#endif
         }
 
         private Texture2D WhiteTexture
