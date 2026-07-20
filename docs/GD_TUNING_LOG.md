@@ -30,9 +30,9 @@ This log records the first gameplay pacing targets for the local vertical slice.
 
 | Content | Role | Current Intent | Tuning Risk |
 | --- | --- | --- | --- |
-| Arrow Ward | Reliable single-target | Cheap baseline damage. | May become the only rational defense if special roles are too situational. |
+| Arrow Ward | Reliable single-target | Cheap rapid baseline damage, reduced from the prior high-DPS opener. | Could feel underpowered if specialized roles are too expensive or too situational. |
 | Control Ward | Area/control placeholder | Lower damage, slower cadence, counters Shade resistance. | Needs real slow/control behavior before final balance. |
-| Relay Ward | Utility/economy placeholder | Expensive support-looking tower with minimal damage. | Needs a gameplay payoff or disabled-state framing. |
+| Relay Ward | Utility/economy support | Low damage, improved cadence/range, and +1 gold whenever it hits. | Gold-on-hit could become too efficient during dense waves or too weak without steady pressure. |
 | Pulse Ward | Dense-pressure answer | Short-range splash damages nearby creeps. | Can erase Swarm too efficiently if splash count/damage is too high. |
 | Prism Ward | Long-range specialist | Prioritizes Shade/high-health pressure and bypasses Shade resistance. | High range plus high damage may become mandatory against Brute/Siege. |
 | Runner | Basic speed pressure | Cheap opener with modest income. | Could feel bland without speed/readability tuning. |
@@ -45,7 +45,7 @@ This log records the first gameplay pacing targets for the local vertical slice.
 
 - Does the global 30-tick send cooldown create enough breathing room once bots and humans send together?
 - Does 220 lives give enough room for defense corrections without making local matches drag?
-- Should Economy Relay Ward remain placeable before it has an economy/support effect?
+- Is Relay's +1 gold-on-hit support effect enough to justify its cost without becoming mandatory economy scaling?
 - Should Swarm quantity stay at 3, or should the unit be cheaper with a lower income reward?
 - Are kill bounties large enough to make defense feel rewarding without defeating send-for-income pressure?
 - Does Pulse splash need a stricter target cap or lower splash damage?

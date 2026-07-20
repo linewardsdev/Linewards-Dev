@@ -15,6 +15,7 @@ namespace LTW.Simulation.Bridge;
 public sealed class LocalVerticalSlice
 {
     private const int StartingLives = 220;
+    private const int RelaySignalGoldPerHit = 1;
 
     private readonly ContentCatalog content;
     private readonly EconomyService economy;
@@ -263,6 +264,11 @@ public sealed class LocalVerticalSlice
         combatState = result.State;
         foreach (var simulationEvent in result.Events)
         {
+            if (simulationEvent is CreepDamagedEvent damaged)
+            {
+                ApplyRelaySignalGold(damaged);
+            }
+
             if (simulationEvent is CreepKilledEvent killed && creepsBeforeCombat.TryGetValue(killed.CreepEntityId, out var killedCreep))
                 players = economy.ApplyKillBounty(players, killed.DefenderId, content.Creeps.First(creep => creep.Id.Equals(killedCreep.CreepId))).Players;
             if (simulationEvent is LeakEvent leak && creepsBeforeCombat.TryGetValue(leak.CreepEntityId, out var leakedCreep))
@@ -475,6 +481,23 @@ public sealed class LocalVerticalSlice
 
     private EntityId NextEntityId() => new EntityId(nextEntityId++);
 
+    private void ApplyRelaySignalGold(CreepDamagedEvent damaged)
+    {
+        var tower = combatState.Towers.FirstOrDefault(candidate => candidate.EntityId.Equals(damaged.TowerEntityId));
+        if (tower is null || !IsRelayTower(tower.TowerId))
+        {
+            return;
+        }
+
+        var player = players.Get(tower.OwnerId);
+        if (player.IsEliminated)
+        {
+            return;
+        }
+
+        players = players.Replace(player.WithGold(new Gold(player.Gold.Amount + RelaySignalGoldPerHit)));
+    }
+
     private LaneId? NextActiveOpponentLaneId(LaneId currentLaneId, PlayerId senderId)
     {
         return topology.NextActiveOpponentLaneAfterLeak(
@@ -493,6 +516,11 @@ public sealed class LocalVerticalSlice
             _ => CommandRejectionReason.PathBlocked
         };
     }
+
+    private static bool IsRelayTower(ContentId towerId) =>
+        towerId.Value.IndexOf("relay", System.StringComparison.OrdinalIgnoreCase) >= 0 ||
+        towerId.Value.IndexOf("utility", System.StringComparison.OrdinalIgnoreCase) >= 0 ||
+        towerId.Value.IndexOf("economy", System.StringComparison.OrdinalIgnoreCase) >= 0;
 
     private sealed class TowerPlacementValidation
     {

@@ -91,7 +91,7 @@ public sealed class BotController
         return profile switch
         {
             BotDecisionProfile.Greedy => 0,
-            BotDecisionProfile.Balanced => tick.Value < 120 ? 70 : 35,
+            BotDecisionProfile.Balanced => tick.Value < 120 ? 80 : 35,
             BotDecisionProfile.Defensive => tick.Value < 180 ? 85 : 30,
             _ => 20
         };

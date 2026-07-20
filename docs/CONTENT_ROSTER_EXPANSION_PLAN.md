@@ -116,7 +116,7 @@ Example compact labels:
 
 | Button | Label | Cost |
 | --- | --- | --- |
-| Arrow | `ARROW` | `25G` |
+| Arrow | `ARROW` | `20G` |
 | Control | `CTRL` | `35G` |
 | Relay | `RELAY` | `40G` |
 | Pulse | `PULSE` | `45G` |
@@ -158,9 +158,9 @@ These numbers are starting points for implementation, not final balance.
 
 | Id | Cost | Range | Damage | Cooldown | Intent |
 | --- | ---: | ---: | ---: | ---: | --- |
-| `tower.arrow` | 25 | 2 | 5 | 2 | Baseline early defense |
+| `tower.arrow` | 20 | 2 | 3 | 2 | Fast low-cost baseline defense |
 | `tower.control` | 35 | 2 | 3 | 3 | Control placeholder |
-| `tower.relay` | 40 | 1 | 1 | 5 | Utility/economy placeholder |
+| `tower.relay` | 40 | 2 | 2 | 4 | Low-damage signal support; +1G on hit |
 | `tower.pulse` | 45 | 1 | 8 | 4 | Splash placeholder until true AOE |
 | `tower.prism` | 60 | 4 | 12 | 6 | Long-range heavy hitter |
 

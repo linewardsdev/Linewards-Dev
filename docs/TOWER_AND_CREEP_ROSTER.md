@@ -23,9 +23,9 @@ Source of truth:
 
 | Tower | ID | Weaponry / role | Cost | Range | Damage / shot | Cooldown ticks | Cooldown sec | Shots/sec | Baseline DPS | Special behavior |
 | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |
-| Arrow Tower | `tower.arrow` | Direct arrow shot; baseline single-target damage | 25 | 2 | 5 | 2 | 0.50 | 2.00 | 10.00 | Targets the front-most creep. Shade takes reduced damage from this tower. |
+| Arrow Tower | `tower.arrow` | Direct arrow shot; low-cost rapid single-target damage | 20 | 2 | 3 | 2 | 0.50 | 2.00 | 6.00 | Targets the front-most creep. Shade takes reduced damage from this tower. |
 | Control Ward | `tower.control` | Control beam; anti-shade single-target utility | 35 | 2 | 3 | 3 | 0.75 | 1.33 | 4.00 | Targets the front-most creep and deals full damage to Shade. |
-| Relay Ward | `tower.relay` | Relay spark; low-damage utility/economy-flavored placeholder | 40 | 1 | 1 | 5 | 1.25 | 0.80 | 0.80 | No special combat effect yet. |
+| Relay Ward | `tower.relay` | Relay spark; low-damage signal economy support | 40 | 2 | 2 | 4 | 1.00 | 1.00 | 2.00 | Generates +1 gold for its owner whenever it hits a creep. |
 | Pulse Ward | `tower.pulse` | Pulse burst; short-range splash weapon | 45 | 1 | 8 | 4 | 1.00 | 1.00 | 8.00 | Splashes half damage to up to 2 nearby creeps within 1 cell of the target. Shade reduces non-control/non-prism damage. |
 | Prism Ward | `tower.prism` | Prism beam; long-range priority weapon | 60 | 4 | 12 | 6 | 1.50 | 0.67 | 8.00 | Prioritizes Shade first, then higher-health and farther-forward targets. Deals full damage to Shade. |
 
@@ -35,9 +35,9 @@ Source of truth:
 flowchart LR
     towers["Tower roster"]
 
-    towers --> arrow["Arrow Tower<br/>Baseline single-target<br/>25G / 10 DPS"]
+    towers --> arrow["Arrow Tower<br/>Rapid low-cost single-target<br/>20G / 6 DPS"]
     towers --> control["Control Ward<br/>Anti-shade single-target<br/>35G / 4 DPS"]
-    towers --> relay["Relay Ward<br/>Utility placeholder<br/>40G / 0.8 DPS"]
+    towers --> relay["Relay Ward<br/>Signal economy support<br/>40G / 2 DPS / +1G on hit"]
     towers --> pulse["Pulse Ward<br/>Short-range splash<br/>45G / 8 DPS baseline"]
     towers --> prism["Prism Ward<br/>Long-range priority beam<br/>60G / 8 DPS"]
 
@@ -45,6 +45,7 @@ flowchart LR
     shade --> full["Full damage from Control / Prism"]
     pulse --> splash["Splash: up to 2 nearby creeps<br/>half base damage"]
     prism --> priority["Priority: Shade, then high-health,<br/>then farther-forward target"]
+    relay --> signal["Signal gold: +1G<br/>for owner on hit"]
 ```
 
 ## Creep Roster
@@ -78,14 +79,15 @@ flowchart LR
 
 ```mermaid
 flowchart TB
-    arrow["Arrow<br/>high baseline DPS"] --> runner["Runner"]
+    arrow["Arrow<br/>rapid baseline damage"] --> runner["Runner"]
     arrow --> brute["Brute"]
     arrow -. "reduced damage" .-> shade["Shade"]
 
     control["Control<br/>anti-shade"] --> shade
     control --> runner
 
-    relay["Relay<br/>low-damage utility placeholder"] --> runner
+    relay["Relay<br/>low damage + signal gold"] --> runner
+    relay --> economy["Owner gains +1G on hit"]
 
     pulse["Pulse<br/>splash burst"] --> swarm["Swarm"]
     pulse --> runner
@@ -102,9 +104,9 @@ flowchart TB
 
 | Observation | Why it matters |
 | --- | --- |
-| Arrow has the highest baseline single-target DPS for the lowest cost. | It is currently the default efficient opening tower unless Shade pressure appears. |
+| Arrow is now a low-cost rapid baseline tower, not the dominant raw DPS option. | It should remain useful as an opener without crowding out specialized towers. |
 | Control has low DPS but ignores the Shade reduction rule. | It is the dedicated answer to Shade rather than a general damage upgrade. |
-| Relay has very low current combat value. | If Relay is intended as economy/support, it still needs a real non-damage mechanic. |
+| Relay now has low damage plus +1 gold on hit. | Its value should come from sustained signal economy during pressure, not direct kills. |
 | Pulse is the best swarm answer when targets are clustered. | Its real value depends on creep density near the target. |
 | Prism is expensive but has long range, high damage, and Shade priority. | It is the premium answer to Shade, Siege, and high-health threats. |
 | Swarm's button value is bundle-based. | Balance should compare the 18G / +3 income button, not just the 6G unit. |

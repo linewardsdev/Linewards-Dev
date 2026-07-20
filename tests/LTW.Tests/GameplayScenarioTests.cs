@@ -32,7 +32,7 @@ public sealed class GameplayScenarioTests
         Assert.True(evidence.AcceptedCommands >= 1);
         Assert.True(evidence.PlayerOneLives >= 219);
         Assert.True(evidence.DamageEvents >= 1);
-        Assert.True(evidence.TotalLives >= 659);
+        Assert.True(evidence.TotalLives >= 658);
         Assert.Null(slice.MatchSummary);
     }
 

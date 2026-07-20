@@ -32,7 +32,7 @@ public sealed class VerticalSliceBridgeTests
             tower.OwnerId.Equals(new PlayerId(1)) &&
             tower.LaneId.Equals(new LaneId(1)) &&
             tower.Position.Equals(new GridPosition(1, 1)));
-        Assert.Equal(65, snapshot.Players.Get(new PlayerId(1)).Gold.Amount);
+        Assert.Equal(70, snapshot.Players.Get(new PlayerId(1)).Gold.Amount);
         Assert.Equal(11, snapshot.Players.Get(new PlayerId(1)).Income.Amount);
         Assert.Contains(events, simulationEvent => simulationEvent is TowerPlacedEvent);
         Assert.Contains(events, simulationEvent => simulationEvent is CreepSpawnedEvent);
@@ -284,7 +284,12 @@ public sealed class VerticalSliceBridgeTests
         var shade = content.Creeps.Single(creep => creep.Id.Equals(SampleVerticalSliceContent.ShadeCreepId));
         var siege = content.Creeps.Single(creep => creep.Id.Equals(SampleVerticalSliceContent.SiegeCreepId));
 
-        Assert.True(arrow.Damage > control.Damage);
+        Assert.Equal(3, arrow.Damage);
+        Assert.Equal(2, arrow.AttackCooldownTicks);
+        Assert.Equal(2, relay.Damage);
+        Assert.Equal(2, relay.RangeCells);
+        Assert.Equal(4, relay.AttackCooldownTicks);
+        Assert.True(arrow.AttackCooldownTicks < control.AttackCooldownTicks);
         Assert.True(control.AttackCooldownTicks > arrow.AttackCooldownTicks);
         Assert.True(relay.Cost.Amount > arrow.Cost.Amount);
         Assert.True(pulse.Damage > control.Damage);
@@ -297,6 +302,23 @@ public sealed class VerticalSliceBridgeTests
         Assert.True(shade.IncomeGain.Amount > brute.IncomeGain.Amount);
         Assert.True(siege.MaxHealth > brute.MaxHealth);
         Assert.True(siege.Cost.Amount > shade.Cost.Amount);
+    }
+
+    [Fact]
+    public void Relay_ward_generates_signal_gold_when_it_hits_creeps()
+    {
+        var simulation = new LocalVerticalSlice(SampleVerticalSliceContent.Create(), enableBots: false);
+        var playerOne = new PlayerId(1);
+
+        Assert.True(simulation.PlaceTower(playerOne, new LaneId(1), SampleVerticalSliceContent.UtilityTowerId, new GridPosition(1, 1)).Accepted);
+        var goldBeforeCombat = simulation.GetSnapshot().Players.Get(playerOne).Gold.Amount;
+
+        Assert.True(simulation.QueueSend(new PlayerId(8), SampleVerticalSliceContent.CreepId).Accepted);
+        simulation.AdvanceOneTick();
+        var events = simulation.DrainEvents();
+
+        Assert.Contains(events, simulationEvent => simulationEvent is CreepDamagedEvent damaged && damaged.DefenderId.Equals(playerOne));
+        Assert.Equal(goldBeforeCombat + 1, simulation.GetSnapshot().Players.Get(playerOne).Gold.Amount);
     }
 
     [Fact]
@@ -431,7 +453,7 @@ public sealed class VerticalSliceBridgeTests
             creep.LaneId.Equals(new LaneId(3)) &&
             creep.Position.Equals(new GridPosition(3, 0)));
 
-        Assert.Equal(9, transferred.Health);
+        Assert.Equal(8, transferred.Health);
     }
 
     [Fact]
@@ -573,7 +595,7 @@ public sealed class VerticalSliceBridgeTests
 
         Assert.True(sell.Accepted);
         Assert.Empty(snapshot.Towers);
-        Assert.Equal(87, snapshot.Players.Get(new PlayerId(1)).Gold.Amount);
+        Assert.Equal(90, snapshot.Players.Get(new PlayerId(1)).Gold.Amount);
     }
 
     [Fact]

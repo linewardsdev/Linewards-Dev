@@ -809,7 +809,7 @@ namespace LTW.UnityClient.UI
             var x = rect.x + 12f * scale;
             var gold = CurrentPlayerGold();
 
-            if (DrawPaletteButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "ARROW", "25G", TowerIconKind.Arrow, ArcaneBlue, gold >= 25, highlightedTowerRole == 0, scale))
+            if (DrawPaletteButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "ARROW", "20G", TowerIconKind.Arrow, ArcaneBlue, gold >= 20, highlightedTowerRole == 0, scale))
             {
                 selectedTower = null;
                 BeginTowerPlacement(0);

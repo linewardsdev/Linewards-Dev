@@ -1154,7 +1154,7 @@ namespace LTW.UnityClient.Editor
             PaintReferenceRect(texture, 140, 230, 800, 312, panel);
             PaintReferenceRect(texture, 140, 226, 800, 8, mint);
             PaintReferenceText(texture, "BUILD", 184, 504, mint, 4);
-            PaintCard(texture, 196, 390, "ARW", "25G", blue, "ui_icon_tower_arrow_v01", selectedArrow);
+            PaintCard(texture, 196, 390, "ARW", "20G", blue, "ui_icon_tower_arrow_v01", selectedArrow);
             PaintCard(texture, 390, 390, "CTRL", "35G", violet, "ui_icon_tower_control_v01");
             PaintCard(texture, 584, 390, "RLY", "40G", gold, "ui_icon_tower_relay_v01");
             PaintCard(texture, 292, 276, "PLS", "45G", mint, "ui_icon_tower_pulse_v01");
@@ -1616,7 +1616,7 @@ namespace LTW.UnityClient.Editor
             AddOverlayRect(root, layer, "BuildPanel", new Vector2(0f, -7.2f), new Vector2(4.85f, 1.95f), panel);
             AddOverlayRect(root, layer, "BuildPanelAccent", new Vector2(0f, -8.14f), new Vector2(4.85f, 0.05f), mint);
             AddOverlayText(root, layer, "BUILD", new Vector2(-1.72f, -6.36f), mint, 0.17f);
-            DrawOverlayCard(root, layer, new Vector2(-1.58f, -6.98f), "ARW", "25G", blue);
+            DrawOverlayCard(root, layer, new Vector2(-1.58f, -6.98f), "ARW", "20G", blue);
             DrawOverlayCard(root, layer, new Vector2(0f, -6.98f), "CTRL", "35G", violet);
             DrawOverlayCard(root, layer, new Vector2(1.58f, -6.98f), "RLY", "40G", gold);
             DrawOverlayCard(root, layer, new Vector2(-0.8f, -7.74f), "PLS", "45G", mint);
