@@ -280,18 +280,87 @@ namespace LTW.UnityClient.UI
             bodyStyle!.fontSize = Mathf.RoundToInt(12f * scale);
             bodyStyle.normal.textColor = Cloud;
 
-            GUI.Label(new Rect(rect.x + 12f * scale, rect.y + 9f * scale, rect.width - 116f * scale, 24f * scale), $"{SelectedTowerName().ToUpperInvariant()}  {SelectedTowerCost()}G", titleStyle);
-            if (DrawLauncherButton(new Rect(rect.xMax - 96f * scale, rect.y + 7f * scale, 80f * scale, 30f * scale), "ALL", SignalGold, scale))
+            GUI.Label(new Rect(rect.x + 12f * scale, rect.y + 9f * scale, rect.width - 24f * scale, 24f * scale), $"{SelectedTowerName().ToUpperInvariant()}  {SelectedTowerCost()}G", titleStyle);
+
+            var placementLine = placementPreview.Accepted ? $"CELL {selectedCell.x}, {selectedCell.y} READY" : PlacementPreviewText();
+            GUI.Label(new Rect(rect.x + 12f * scale, rect.y + 35f * scale, rect.width - 24f * scale, 20f * scale), placementLine, bodyStyle);
+            var actionHint = placementPreview.Accepted ? "BUILDER ONLINE  •  TAP BUILD" : PlacementRecoveryText();
+            GUI.Label(new Rect(rect.x + 12f * scale, rect.y + 57f * scale, rect.width - 24f * scale, 20f * scale), actionHint, bodyStyle);
+
+            var switchY = rect.y + 82f * scale;
+            var switchHeight = 24f * scale;
+            var switchGap = 4f * scale;
+            var switchWidth = (rect.width - 24f * scale - switchGap * 4f) / 5f;
+            var switchX = rect.x + 12f * scale;
+            if (DrawPlacementSwitchButton(new Rect(switchX, switchY, switchWidth, switchHeight), "ARW", 0, ArcaneBlue, scale))
+            {
+                BeginTowerPlacement(0);
+                return;
+            }
+
+            switchX += switchWidth + switchGap;
+            if (DrawPlacementSwitchButton(new Rect(switchX, switchY, switchWidth, switchHeight), "CTRL", 1, WardViolet, scale))
+            {
+                BeginControlTowerPlacement();
+                return;
+            }
+
+            switchX += switchWidth + switchGap;
+            if (DrawPlacementSwitchButton(new Rect(switchX, switchY, switchWidth, switchHeight), "RLY", 2, SignalGold, scale))
+            {
+                BeginUtilityTowerPlacement();
+                return;
+            }
+
+            switchX += switchWidth + switchGap;
+            if (DrawPlacementSwitchButton(new Rect(switchX, switchY, switchWidth, switchHeight), "PLS", 3, MintSignal, scale))
+            {
+                BeginPulseTowerPlacement();
+                return;
+            }
+
+            switchX += switchWidth + switchGap;
+            if (DrawPlacementSwitchButton(new Rect(switchX, switchY, switchWidth, switchHeight), "PRM", 4, new Color(0.72f, 0.94f, 1f), scale))
+            {
+                BeginPrismTowerPlacement();
+                return;
+            }
+
+            var buttonHeight = 30f * scale;
+            var gap = 6f * scale;
+            var allWidth = 64f * scale;
+            var buildWidth = 104f * scale;
+            var cancelWidth = 86f * scale;
+            var totalWidth = allWidth + buildWidth + cancelWidth + gap * 2f;
+            var buttonY = rect.yMax - 38f * scale;
+            var buttonX = rect.center.x - totalWidth * 0.5f;
+
+            if (DrawLauncherButton(new Rect(buttonX, buttonY, allWidth, buttonHeight), "ALL", SignalGold, scale))
             {
                 CancelPlacement(false);
                 OpenTowerPalette();
                 return;
             }
 
-            var placementLine = placementPreview.Accepted ? $"CELL {selectedCell.x}, {selectedCell.y} READY" : PlacementPreviewText();
-            GUI.Label(new Rect(rect.x + 12f * scale, rect.y + 35f * scale, rect.width - 24f * scale, 20f * scale), placementLine, bodyStyle);
-            var actionHint = placementPreview.Accepted ? "BUILDER ONLINE  •  CONFIRM TO BUILD" : PlacementRecoveryText();
-            GUI.Label(new Rect(rect.x + 12f * scale, rect.y + 57f * scale, rect.width - 24f * scale, 20f * scale), actionHint, bodyStyle);
+            buttonX += allWidth + gap;
+            if (DrawLauncherButton(new Rect(buttonX, buttonY, buildWidth, buttonHeight), "BUILD", placementPreview.Accepted ? MintSignal : Danger, scale))
+            {
+                ConfirmPlacement();
+                return;
+            }
+
+            buttonX += buildWidth + gap;
+            if (DrawLauncherButton(new Rect(buttonX, buttonY, cancelWidth, buttonHeight), "CANCEL", Danger, scale))
+            {
+                CancelPlacement();
+                return;
+            }
+        }
+
+        private bool DrawPlacementSwitchButton(Rect rect, string label, int towerRole, Color accent, float scale)
+        {
+            buttonStyle!.fontSize = Mathf.RoundToInt(9f * scale);
+            return RuntimeUiChrome.DrawControlButton(rect, label, accent, selectedTowerRole == towerRole, scale, buttonStyle);
         }
 
         private bool SelectTowerAt(Vector2Int cell)
@@ -743,7 +812,7 @@ namespace LTW.UnityClient.UI
             if (DrawPaletteButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "ARROW", "25G", TowerIconKind.Arrow, ArcaneBlue, gold >= 25, highlightedTowerRole == 0, scale))
             {
                 selectedTower = null;
-                BeginTowerPlacement();
+                BeginTowerPlacement(0);
             }
 
             x += buttonWidth + gap;
@@ -805,7 +874,7 @@ namespace LTW.UnityClient.UI
             var displayAccent = isAffordable ? accent : DisabledText;
             var state = isAffordable
                 ? isSelected ? CommandCardState.Selected : CommandCardState.Normal
-                : CommandCardState.Disabled;
+                : isSelected ? CommandCardState.Selected : CommandCardState.Normal;
             var style = buttonStyle ?? GUI.skin.button;
             var pressed = RuntimeUiChrome.DrawCommandCard(rect, accent, state, scale);
 
@@ -1103,7 +1172,7 @@ namespace LTW.UnityClient.UI
         private static Rect PlacementPanelRect(float scale, Rect frame)
         {
             var width = Mathf.Min(frame.width - 16f * scale, 360f * scale);
-            var height = 92f * scale;
+            var height = 160f * scale;
             return new Rect(frame.x + 8f * scale, frame.yMax - height - MobileViewportLayout.BottomMargin(scale), width, height);
         }
 

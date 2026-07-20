@@ -185,7 +185,8 @@ Behavior:
 
 - Tapping BUILD opens the drawer.
 - Tapping a tower selects that tower and enters placement mode.
-- Placement mode shows the builder/ghost, selected cell, validity, and confirm/cancel controls.
+- Tower type selection should always be possible; affordability is enforced when the player taps BUILD.
+- Placement mode shows the builder/ghost, selected cell, validity, direct tower-type switch buttons, and explicit ALL / BUILD / CANCEL controls.
 - A close/cancel affordance must always be available while the drawer or placement mode is open.
 - Closing the drawer must not place a tower or spend gold.
 - Invalid placement should explain the reason without a blocking dialog.
@@ -328,7 +329,7 @@ Before calling menu/runtime flow healthy:
 - [ ] Countdown expiry starts the simulation once and only once.
 - [ ] RESET returns to clean READY state.
 - [ ] BUILD opens/closes without spending gold or placing a tower.
-- [ ] Tower selection enters placement mode with a visible close/cancel affordance.
+- [ ] Tower selection enters placement mode with visible tower-switch, ALL, BUILD, and CANCEL touch controls.
 - [ ] SEND opens/closes without queueing creeps.
 - [ ] SEND actions are rejected or clearly blocked before LIVE state.
 - [ ] Lane selector changes camera only.

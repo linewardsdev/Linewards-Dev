@@ -1,0 +1,111 @@
+# Tower And Creep Roster
+
+This is the current code-derived gameplay roster for the local vertical-slice build.
+
+Source of truth:
+
+- `src/LTW.Simulation/Bridge/SampleVerticalSliceContent.cs`
+- `src/LTW.Simulation/Combat/CombatService.cs`
+- `unity/LTW.UnityClient/Assets/Scripts/Simulation/UnitySimulationDriver.cs`
+- `unity/LTW.UnityClient/Assets/Scripts/Simulation/UnityCommandAdapter.cs`
+
+## Balance Math Assumptions
+
+- Unity local client tick rate: `4` simulation ticks per second.
+- Tower cooldown seconds: `AttackCooldownTicks / 4`.
+- Tower shots per second: `4 / AttackCooldownTicks`.
+- Listed tower DPS is single-target baseline DPS before special target rules.
+- Tower range uses Manhattan grid distance.
+- Creep `SpeedPerSecond` is currently applied once per simulation tick, so current local-client cells/sec is `SpeedPerSecond * 4`.
+- Swarm is sent as a bundle of `3` units from the current Unity send drawer.
+
+## Tower Roster
+
+| Tower | ID | Weaponry / role | Cost | Range | Damage / shot | Cooldown ticks | Cooldown sec | Shots/sec | Baseline DPS | Special behavior |
+| --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |
+| Arrow Tower | `tower.arrow` | Direct arrow shot; baseline single-target damage | 25 | 2 | 5 | 2 | 0.50 | 2.00 | 10.00 | Targets the front-most creep. Shade takes reduced damage from this tower. |
+| Control Ward | `tower.control` | Control beam; anti-shade single-target utility | 35 | 2 | 3 | 3 | 0.75 | 1.33 | 4.00 | Targets the front-most creep and deals full damage to Shade. |
+| Relay Ward | `tower.relay` | Relay spark; low-damage utility/economy-flavored placeholder | 40 | 1 | 1 | 5 | 1.25 | 0.80 | 0.80 | No special combat effect yet. |
+| Pulse Ward | `tower.pulse` | Pulse burst; short-range splash weapon | 45 | 1 | 8 | 4 | 1.00 | 1.00 | 8.00 | Splashes half damage to up to 2 nearby creeps within 1 cell of the target. Shade reduces non-control/non-prism damage. |
+| Prism Ward | `tower.prism` | Prism beam; long-range priority weapon | 60 | 4 | 12 | 6 | 1.50 | 0.67 | 8.00 | Prioritizes Shade first, then higher-health and farther-forward targets. Deals full damage to Shade. |
+
+## Tower Role Map
+
+```mermaid
+flowchart LR
+    towers["Tower roster"]
+
+    towers --> arrow["Arrow Tower<br/>Baseline single-target<br/>25G / 10 DPS"]
+    towers --> control["Control Ward<br/>Anti-shade single-target<br/>35G / 4 DPS"]
+    towers --> relay["Relay Ward<br/>Utility placeholder<br/>40G / 0.8 DPS"]
+    towers --> pulse["Pulse Ward<br/>Short-range splash<br/>45G / 8 DPS baseline"]
+    towers --> prism["Prism Ward<br/>Long-range priority beam<br/>60G / 8 DPS"]
+
+    shade["Shade creep"] --> reduced["Reduced damage from Arrow / Relay / Pulse"]
+    shade --> full["Full damage from Control / Prism"]
+    pulse --> splash["Splash: up to 2 nearby creeps<br/>half base damage"]
+    prism --> priority["Priority: Shade, then high-health,<br/>then farther-forward target"]
+```
+
+## Creep Roster
+
+| Creep | ID | Role / pressure type | Button bundle | Unit cost | Button cost | Income gain / unit | Button income gain | Health / unit | Speed stat | Current cells/sec | Kill bounty / unit | Leak bounty / unit | Lives lost on leak | Special behavior |
+| --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |
+| Runner | `creep.runner` | Baseline pressure runner | 1 | 10 | 10 | +1 | +1 | 10 | 1 | 4 | 1 | 2 | 1 | Simple baseline creep. |
+| Brute | `creep.brute` | Durable tank pressure | 1 | 18 | 18 | +2 | +2 | 24 | 1 | 4 | 2 | 3 | 1 | High health for its cost tier. |
+| Swarm | `creep.swarm` | Fast multi-unit pressure | 3 | 6 | 18 | +1 | +3 | 5 | 2 | 8 | 1 | 1 | 1 each | Current send button creates 3 low-health fast units. |
+| Shade | `creep.shade` | Fast stealth/resistance pressure | 1 | 24 | 24 | +3 | +3 | 14 | 2 | 8 | 2 | 4 | 1 | Takes reduced damage from non-Control and non-Prism towers. |
+| Siege | `creep.siege` | Heavy leak-threat tank | 1 | 40 | 40 | +4 | +4 | 48 | 1 | 4 | 4 | 6 | 2 | Leaking Siege costs the defender 2 lives. |
+
+## Creep Role Map
+
+```mermaid
+flowchart LR
+    creeps["Creep roster"]
+
+    creeps --> runner["Runner<br/>Baseline<br/>10G / 10 HP / speed 1"]
+    creeps --> brute["Brute<br/>Tank<br/>18G / 24 HP / speed 1"]
+    creeps --> swarm["Swarm<br/>Fast bundle<br/>3x 6G / 5 HP / speed 2"]
+    creeps --> shade["Shade<br/>Fast resistant threat<br/>24G / 14 HP / speed 2"]
+    creeps --> siege["Siege<br/>Heavy leak threat<br/>40G / 48 HP / speed 1"]
+
+    shade --> armor["Damage rule<br/>Half damage from non-Control/non-Prism"]
+    siege --> leak["Leak rule<br/>2 lives lost"]
+    swarm --> bundle["Send rule<br/>Button sends 3 units"]
+```
+
+## Tower Matchups Against Creeps
+
+```mermaid
+flowchart TB
+    arrow["Arrow<br/>high baseline DPS"] --> runner["Runner"]
+    arrow --> brute["Brute"]
+    arrow -. "reduced damage" .-> shade["Shade"]
+
+    control["Control<br/>anti-shade"] --> shade
+    control --> runner
+
+    relay["Relay<br/>low-damage utility placeholder"] --> runner
+
+    pulse["Pulse<br/>splash burst"] --> swarm["Swarm"]
+    pulse --> runner
+    pulse -. "reduced damage" .-> shade
+
+    prism["Prism<br/>long-range priority"] --> shade
+    prism --> siege["Siege"]
+    prism --> brute
+
+    siege --> leak["2-life leak threat"]
+```
+
+## Quick Balance Read
+
+| Observation | Why it matters |
+| --- | --- |
+| Arrow has the highest baseline single-target DPS for the lowest cost. | It is currently the default efficient opening tower unless Shade pressure appears. |
+| Control has low DPS but ignores the Shade reduction rule. | It is the dedicated answer to Shade rather than a general damage upgrade. |
+| Relay has very low current combat value. | If Relay is intended as economy/support, it still needs a real non-damage mechanic. |
+| Pulse is the best swarm answer when targets are clustered. | Its real value depends on creep density near the target. |
+| Prism is expensive but has long range, high damage, and Shade priority. | It is the premium answer to Shade, Siege, and high-health threats. |
+| Swarm's button value is bundle-based. | Balance should compare the 18G / +3 income button, not just the 6G unit. |
+| Siege is the largest defensive failure threat. | Its 2-life leak loss means it should be visually and mechanically distinct. |
