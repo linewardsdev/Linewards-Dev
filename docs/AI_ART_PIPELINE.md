@@ -12,6 +12,7 @@ Generated placeholders, source-kit wrappers, and proof prefabs remain fallback o
 The genuinely open production work is:
 
 - rebuild the final simplified tower and send icon family from the active AIPlate silhouettes;
+- complete the [Tower 3D cohesion pass](art-pipeline/tower-3d-cohesion-pass.md) so Arrow, Control, Relay, Pulse, and Prism share one 3D production path instead of a mixed 3D/sprite tower set;
 - add or align specialized VFX landmarks beyond the generic tower `Muzzle` and `Lens` objects;
 - normalize sprite palette, brightness, and grayscale value separation;
 - certify Runner overlap plus Runner x10, heavy Swarm, Siege leak, all-tower combat, and reduced-effects pressure states;

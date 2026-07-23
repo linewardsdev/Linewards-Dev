@@ -21,6 +21,7 @@ This folder contains the durable project documentation for Line Wards, the mobil
 - [Graphics theme work breakdown](GRAPHICS_THEME_WORK_BREAKDOWN.md)
 - [Mobile art direction improvement cycle](MOBILE_ART_DIRECTION_IMPROVEMENT_CYCLE.md)
 - [AI-assisted art pipeline](AI_ART_PIPELINE.md)
+- [Tower 3D cohesion pass](art-pipeline/tower-3d-cohesion-pass.md)
 - [Unity MCP Codex workflow](UNITY_MCP_CODEX_WORKFLOW.md)
 - [iOS device validation](IOS_DEVICE_VALIDATION.md)
 
