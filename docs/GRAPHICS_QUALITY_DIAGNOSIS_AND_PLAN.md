@@ -171,8 +171,10 @@ Expected to account for most of the visible gap. Small, reversible changes.
 
 14. **Re-export the Meshy drops with normal maps** and extend
     `blender_prepare_tower_source.py` to extract them.
-15. **Wire the five 3D creeps into `CreepVisualLibrary`**, retiring the 2D plate prefabs
-    and the 126 MB `SourcePlates` folder.
+15. ~~**Wire the five 3D creeps into `CreepVisualLibrary`**~~ — done 2026-07-25 via
+    `Creep3DImportPipeline` and `Creep3DProofSetGenerator`. The `_AIPlate` prefabs and the
+    126 MB `SourcePlates` folder are now unreferenced by the libraries and can be retired
+    once the 3D creeps have been reviewed in a real match.
 16. **Run a silhouette pass at true game scale.** Towers occupy roughly 100 px on a
     phone; confirm all ten read distinctly at that size in grayscale.
 17. **Lower `maxTextureSize` to 1024 and stop committing 4096 sources.**
@@ -198,6 +200,18 @@ Fold it into the intake so future drops arrive already converted.
 Outstanding from Tier 1: the board and UI tints were authored against the gamma response
 and need a retune pass now that the project renders linear. Expect them to read brighter
 and more saturated until that lands.
+
+### Creep 3D wiring, 2026-07-25
+
+All five creep meshes now load through `CreepVisualLibrary`. Two notes for whoever picks
+this up next:
+
+- **Runtime scales are estimates.** They come from the prepared model heights in the
+  intake reports, not from play testing, and place creeps at roughly three quarters of
+  arrow tower height. Check them against the real board.
+- **Runner reads as a low blade.** Its prepared bounds are 0.90 long by 0.23 tall, so it
+  sits much flatter than the other four. That is the mesh, not the wrapper. Either accept
+  it as the silhouette or re-source the model.
 
 ## Working note
 
