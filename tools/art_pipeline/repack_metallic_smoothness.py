@@ -1,0 +1,123 @@
+#!/usr/bin/env python3
+"""Repack glTF metallic-roughness maps into Unity Standard metallic-smoothness maps.
+
+AI 3D generators export the glTF convention, where one texture packs occlusion in R,
+roughness in G and metallic in B. Unity's Standard shader reads a different layout from
+_MetallicGlossMap: metallic in R and smoothness in A, where smoothness is the inverse of
+roughness. Binding the source map directly therefore samples the wrong channels and
+produces wrong metal and gloss response.
+
+This script rewrites each Baked_MetallicRoughness.png as a sibling
+Baked_MetallicSmoothness.png in Unity's layout:
+
+    R = source B          (metallic)
+    G = 0
+    B = 0
+    A = 1 - source G      (smoothness)
+
+Run under Blender's bundled Python, which provides numpy:
+
+    /Applications/Blender.app/Contents/MacOS/Blender --background \
+        --python tools/art_pipeline/repack_metallic_smoothness.py -- --root <models dir>
+
+The source map is left in place; the repacked sibling is what materials should bind.
+"""
+
+from __future__ import annotations
+
+import argparse
+import sys
+from pathlib import Path
+
+import bpy
+import numpy as np
+
+SOURCE_NAME = "Baked_MetallicRoughness.png"
+OUTPUT_NAME = "Baked_MetallicSmoothness.png"
+
+
+def parse_args() -> argparse.Namespace:
+    argv = sys.argv[sys.argv.index("--") + 1 :] if "--" in sys.argv else []
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--root", required=True, help="Directory searched recursively for source maps.")
+    parser.add_argument(
+        "--max-size",
+        type=int,
+        default=1024,
+        help="Downsample the output to at most this many pixels per side. Metallic and smoothness "
+        "are low-frequency data, so the source resolution is rarely worth keeping.",
+    )
+    parser.add_argument("--dry-run", action="store_true", help="Report what would be written and exit.")
+    return parser.parse_args(argv)
+
+
+def box_downsample(pixels: np.ndarray, width: int, height: int, max_size: int) -> tuple[np.ndarray, int, int]:
+    """Average square blocks down to max_size per side, when it divides evenly."""
+    factor = min(width, height) // max_size
+    if factor < 2:
+        return pixels, width, height
+
+    target_width, target_height = width // factor, height // factor
+    if target_width * factor != width or target_height * factor != height:
+        return pixels, width, height
+
+    blocks = pixels.reshape(target_height, factor, target_width, factor, 4)
+    return blocks.mean(axis=(1, 3)).reshape(-1, 4), target_width, target_height
+
+
+def repack(source_path: Path, max_size: int) -> tuple[int, int]:
+    """Write the Unity-layout sibling for one source map and return its dimensions."""
+    image = bpy.data.images.load(str(source_path))
+    try:
+        width, height = image.size
+        pixels = np.array(image.pixels[:], dtype=np.float32).reshape(height, width, 4)
+
+        packed = np.zeros_like(pixels)
+        packed[:, :, 0] = pixels[:, :, 2]          # metallic   <- source blue
+        packed[:, :, 3] = 1.0 - pixels[:, :, 1]    # smoothness <- inverse of source green
+
+        packed, width, height = box_downsample(packed.reshape(-1, 4), width, height, max_size)
+
+        output = bpy.data.images.new(OUTPUT_NAME, width=width, height=height, alpha=True)
+        try:
+            # The source maps are linear data, so keep them out of the sRGB transfer path.
+            output.colorspace_settings.name = "Non-Color"
+            output.alpha_mode = "CHANNEL_PACKED"
+            output.pixels = packed.reshape(-1).tolist()
+            output.filepath_raw = str(source_path.with_name(OUTPUT_NAME))
+            output.file_format = "PNG"
+            output.save()
+        finally:
+            bpy.data.images.remove(output)
+
+        return width, height
+    finally:
+        bpy.data.images.remove(image)
+
+
+def main() -> int:
+    args = parse_args()
+    root = Path(args.root).resolve()
+    if not root.is_dir():
+        print(f"error: {root} is not a directory", file=sys.stderr)
+        return 1
+
+    sources = sorted(root.rglob(SOURCE_NAME))
+    if not sources:
+        print(f"error: no {SOURCE_NAME} found under {root}", file=sys.stderr)
+        return 1
+
+    for source in sources:
+        relative = source.relative_to(root)
+        if args.dry_run:
+            print(f"would repack {relative}")
+            continue
+        width, height = repack(source, args.max_size)
+        print(f"repacked {relative} ({width}x{height}) -> {OUTPUT_NAME}")
+
+    print(f"done: {len(sources)} map(s)")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
