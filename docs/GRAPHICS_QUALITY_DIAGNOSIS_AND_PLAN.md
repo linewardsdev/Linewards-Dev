@@ -73,7 +73,24 @@ level, with `antiAliasing: 0`, `shadows: 1`, `shadowCascades: 1`, and
 `realtimeReflectionProbes: 0`. The editor previews at level 5. Device output is therefore
 worse than anything reviewed on desktop.
 
-### 6. Supporting observations
+### 6. The tower body materials were configured as transparent
+
+Found while implementing Tier 1. Each `*_3d_body_runtime_v01` material carried
+`m_CustomRenderQueue: 3000`, `RenderType: Transparent`, `_SrcBlend: 5`, `_DstBlend: 10`
+and `_ZWrite: 0`, plus a `_SURFACE_TYPE_TRANSPARENT` entry under `m_InvalidKeywords` —
+a URP keyword that has no meaning to the Built-in Standard shader it actually uses.
+
+Solid tower meshes were therefore drawn alpha-blended with depth writes disabled, which
+costs both their form and their sort order against the board.
+
+### 7. Materials were bound to textures inside the .fbm importer cache
+
+The `_MainTex` slots referenced texture GUIDs living in `*.fbm/` folders. Unity generates
+those folders when it unpacks FBX-embedded media and regenerates them — with fresh GUIDs
+— on reimport, so the bindings could not survive an import cycle. They now point at the
+stable `*_Textures/` sets the intake writes.
+
+### 8. Supporting observations
 
 - **No normal maps.** The intake extracts BaseColor, MetallicRoughness and Emit only, so
   all surface detail is flattened into albedo. See `tools/art_pipeline/blender_prepare_tower_source.py`.
@@ -141,6 +158,26 @@ Expected to account for most of the visible gap. Small, reversible changes.
 17. **Lower `maxTextureSize` to 1024 and stop committing 4096 sources.**
 18. **Tint team colour through `_Color` on the owner material** instead of separate
     texture sets, so the treatment stays consistent as the roster grows.
+
+## Status
+
+Tier 1 was implemented on 2026-07-25.
+
+| Item | State | Where |
+| --- | --- | --- |
+| 1. Three-point light rig | done | `LocalVerticalSliceLauncher.CreateLightRig` |
+| 2. Linear colour space | done | `ProjectSettings.asset`, `m_ActiveColorSpace: 1` |
+| 3. Bind metallic and emission, restore opaque shading | done | `mat_tower_*_3d_body_runtime_v01.mat` |
+| 4. Linear import for data maps | done | `Baked_Metallic*.png.meta`, `sRGBTexture: 0` |
+| 5. Gradient ambient | done | `LocalVerticalSliceLauncher.ApplyGradientAmbient` |
+
+Supporting change: `tools/art_pipeline/repack_metallic_smoothness.py` converts the glTF
+metallic-roughness packing into Unity's metallic-smoothness layout, at 1024 by default.
+Fold it into the intake so future drops arrive already converted.
+
+Outstanding from Tier 1: the board and UI tints were authored against the gamma response
+and need a retune pass now that the project renders linear. Expect them to read brighter
+and more saturated until that lands.
 
 ## Working note
 
