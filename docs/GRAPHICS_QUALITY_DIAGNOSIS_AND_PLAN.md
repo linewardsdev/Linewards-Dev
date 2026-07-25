@@ -240,9 +240,20 @@ turned night stone into pale concrete and made the buildable slots read as holes
 helper blends part of the way via `BoardSurfaceLift`, currently 0.35. That constant is the
 single dial for board brightness; raise to brighten, lower to darken.
 
-**Runner remains an outlier.** Width-capped, it lands at 0.29 tall against 0.64 or more
-for every other creep. Scale cannot fix a flat mesh. It needs an art decision or a
-re-source.
+**Runner** was resolved by pitching the imported mesh 35 degrees nose-up rather than by
+scale, which could not help once width was capped at the lane. Measured height went from
+0.230 to 0.448 with width unchanged. Set the spec's `ImportEulerAngles` back to
+`Vector3.zero` to return it flat, or re-source the model if the banked read is unwanted.
+
+Rotating about the model base swings geometry below the board, so
+`Creep3DImportPipeline.SeatOnGround` now reseats each imported mesh on y = 0 from its
+measured bounds. Any future spec can request a rotation without sinking.
+
+**The send banner z-order defect** is fixed. Floating text is a world-space `TextMesh`
+whose renderer defaults to sorting order 0, while endpoint gate plates draw through
+`SpriteRenderer`s at sorting order 3. Both live in the transparent queue, so the gate drew
+last and covered the banner. Floating text now sorts at `FloatingTextSortingOrder`, above
+all board decoration.
 
 ### Creep 3D wiring, 2026-07-25
 
