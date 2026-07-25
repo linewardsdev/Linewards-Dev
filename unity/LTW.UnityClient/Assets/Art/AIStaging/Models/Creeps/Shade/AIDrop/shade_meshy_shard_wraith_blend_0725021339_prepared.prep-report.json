@@ -1,0 +1,54 @@
+{
+  "role": "shade",
+  "input": "/Users/admin/Downloads/Meshy_AI_Shard_Wraith_Gameread_0725021339_texture.blend",
+  "output": "/Users/admin/LTW/unity/LTW.UnityClient/Assets/Art/AIStaging/Models/Creeps/Shade/AIDrop/shade_meshy_shard_wraith_blend_0725021339_prepared.fbx",
+  "target_height": 0.75,
+  "max_footprint": 0.9,
+  "mesh_count": 1,
+  "exported_textures": [
+    "/Users/admin/LTW/unity/LTW.UnityClient/Assets/Art/AIStaging/Models/Creeps/Shade/AIDrop/shade_meshy_shard_wraith_blend_0725021339_prepared_Textures/Baked_BaseColor.png",
+    "/Users/admin/LTW/unity/LTW.UnityClient/Assets/Art/AIStaging/Models/Creeps/Shade/AIDrop/shade_meshy_shard_wraith_blend_0725021339_prepared_Textures/Baked_Emit.png",
+    "/Users/admin/LTW/unity/LTW.UnityClient/Assets/Art/AIStaging/Models/Creeps/Shade/AIDrop/shade_meshy_shard_wraith_blend_0725021339_prepared_Textures/Baked_MetallicRoughness.png"
+  ],
+  "normalization": {
+    "scale_factor": 0.3951609327157101,
+    "initial_bounds": {
+      "min": [
+        -0.6340529322624207,
+        -0.669861912727356,
+        -0.950080931186676
+      ],
+      "max": [
+        0.6331509947776794,
+        0.6711730360984802,
+        0.9478799700737
+      ],
+      "size": [
+        1.2672039270401,
+        1.3410348892211914,
+        1.897960901260376
+      ]
+    },
+    "final_bounds": {
+      "min": [
+        -0.2503747344017029,
+        -0.2649623155593872,
+        0.0
+      ],
+      "max": [
+        0.25037476420402527,
+        0.2649623155593872,
+        0.75
+      ],
+      "size": [
+        0.5007494688034058,
+        0.5299246311187744,
+        0.75
+      ]
+    }
+  },
+  "notes": [
+    "Prepared by Blender source cleanup script.",
+    "This is a source/staging export only; Unity promotion remains separate."
+  ]
+}

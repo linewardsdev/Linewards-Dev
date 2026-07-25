@@ -1,0 +1,43 @@
+{
+  "input": "/Users/admin/Downloads/Portal Shrine FBX.fbx",
+  "mesh_count": 1,
+  "object_count": 1,
+  "triangle_count": 14963,
+  "vertex_count": 7444,
+  "material_slot_count": 1,
+  "unique_material_count": 1,
+  "transparent_material_count": 1,
+  "transparent_materials": [
+    "Material.001"
+  ],
+  "texture_count": 4,
+  "texture_paths": [
+    "/Users/admin/Downloads/model.fbm/Baked_BaseColor.png",
+    "/Users/admin/Downloads/model.fbm/Baked_Emit.png",
+    "/Users/admin/Downloads/model.fbm/texture_0_metallic.png",
+    "/Users/admin/Downloads/model.fbm/texture_0_roughness.png"
+  ],
+  "bounds": {
+    "min": [
+      -1.0,
+      -0.9999499917030334,
+      -0.6569631099700928
+    ],
+    "max": [
+      0.9999999403953552,
+      0.9999499917030334,
+      0.6569631099700928
+    ],
+    "size": [
+      2.0,
+      1.999899983406067,
+      1.3139262199401855
+    ]
+  },
+  "object_name_sample": [
+    "Mesh1.0"
+  ],
+  "material_names": [
+    "Material.001"
+  ]
+}

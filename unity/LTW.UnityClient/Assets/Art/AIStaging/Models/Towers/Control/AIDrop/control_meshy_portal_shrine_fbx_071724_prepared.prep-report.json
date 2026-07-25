@@ -1,0 +1,49 @@
+{
+  "role": "control",
+  "input": "/Users/admin/Downloads/Portal Shrine FBX.fbx",
+  "output": "/Users/admin/LTW/unity/LTW.UnityClient/Assets/Art/AIStaging/Models/Towers/Control/AIDrop/control_meshy_portal_shrine_fbx_071724_prepared.fbx",
+  "target_height": 1.25,
+  "max_footprint": 1.45,
+  "mesh_count": 1,
+  "normalization": {
+    "scale_factor": 0.725,
+    "initial_bounds": {
+      "min": [
+        -1.0,
+        -0.9999499917030334,
+        -0.6569631099700928
+      ],
+      "max": [
+        0.9999999403953552,
+        0.9999499917030334,
+        0.6569631099700928
+      ],
+      "size": [
+        2.0,
+        1.999899983406067,
+        1.3139262199401855
+      ]
+    },
+    "final_bounds": {
+      "min": [
+        -0.7250000238418579,
+        -0.7249637842178345,
+        -1.886849787524625e-09
+      ],
+      "max": [
+        0.7249999642372131,
+        0.7249637842178345,
+        0.9525964856147766
+      ],
+      "size": [
+        1.4500000476837158,
+        1.449927568435669,
+        0.9525964856147766
+      ]
+    }
+  },
+  "notes": [
+    "Prepared by Blender source cleanup script.",
+    "This is a source/staging export only; Unity promotion remains separate."
+  ]
+}

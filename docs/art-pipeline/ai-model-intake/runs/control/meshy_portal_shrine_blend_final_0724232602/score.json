@@ -1,0 +1,49 @@
+{
+  "date": "2026-07-24T23:28:56.113227+00:00",
+  "asset_id": "tower.control",
+  "role": "control",
+  "kind": "tower",
+  "candidate": "meshy_portal_shrine_blend_final_0724232602",
+  "source": "/Users/admin/Downloads/Meshy_AI_Portal_Shrine_Gamerea_0724232602_texture.blend",
+  "prepared_fbx": "/Users/admin/LTW/unity/LTW.UnityClient/Assets/Art/AIStaging/Models/Towers/Control/AIDrop/control_meshy_portal_shrine_blend_final_0724232602_prepared.fbx",
+  "preview_png": "/Users/admin/LTW/docs/art-pipeline/ai-model-intake/runs/control/meshy_portal_shrine_blend_final_0724232602/preview.png",
+  "audit_json": "/Users/admin/LTW/docs/art-pipeline/ai-model-intake/runs/control/meshy_portal_shrine_blend_final_0724232602/audit.json",
+  "prep_report_json": "/Users/admin/LTW/unity/LTW.UnityClient/Assets/Art/AIStaging/Models/Towers/Control/AIDrop/control_meshy_portal_shrine_blend_final_0724232602_prepared.prep-report.json",
+  "score": {
+    "status": "pass",
+    "passed_checks": 6,
+    "total_checks": 6,
+    "checks": [
+      {
+        "id": "has_meshes",
+        "pass": true,
+        "detail": "1 mesh object(s)"
+      },
+      {
+        "id": "triangle_budget",
+        "pass": true,
+        "detail": "14963 / 30000 triangles"
+      },
+      {
+        "id": "material_budget",
+        "pass": true,
+        "detail": "1 / 16 unique materials"
+      },
+      {
+        "id": "transparent_material_budget",
+        "pass": true,
+        "detail": "1 / 2 transparent materials"
+      },
+      {
+        "id": "has_textures_or_materials",
+        "pass": true,
+        "detail": "3 texture(s), 1 material(s)"
+      },
+      {
+        "id": "prepared_footprint",
+        "pass": true,
+        "detail": "1.450 / 1.450 footprint after prepare"
+      }
+    ]
+  }
+}

@@ -2,13 +2,15 @@
 
 Date: 2026-07-23
 Owner: Codex + Unity AI Assistant
-Status: ready for Control/Relay/Pulse/Prism Unity AI generation
+Status: Unity/procedural shortcut rejected; Control/Relay/Pulse/Prism pending polished external/source 3D assets
 
 ## Purpose
 
 Bring the tower lineup into one cohesive 3D art family. Arrow already has a Unity-AI-generated 3D proof and is currently promoted through `Tower_Arrow_3D.prefab`. Control, Relay, Pulse, and Prism still use `Tower_*_AIPlate.prefab` sprite/token visuals, so the set reads as mixed media.
 
-This pass converts the remaining four towers through the same sprite-to-3D workflow, then promotes all five 3D towers together only if the lineup is visually cohesive and mobile-readable.
+This pass converts the remaining four towers through the same runtime intake and wrapper workflow, then promotes all five 3D towers together only if the lineup is visually cohesive and mobile-readable.
+
+Important correction: this is not a sprite-to-3D auto-generation pass anymore. The Control tests proved that procedural geometry and sprite-card hybrids are visual downgrades. The required input is now a real 3D source asset created or cleaned outside the runtime wrapper.
 
 ## Active Baseline
 
@@ -20,9 +22,9 @@ This pass converts the remaining four towers through the same sprite-to-3D workf
 | Pulse | `Assets/Prefabs/Towers/Tower_Pulse_AIPlate.prefab` | `Assets/Prefabs/Towers/Tower_Pulse_3D.prefab` | `Assets/Art/AIStaging/SourcePlates/tower_pulse_source_plate_v03.png` |
 | Prism | `Assets/Prefabs/Towers/Tower_Prism_AIPlate.prefab` | `Assets/Prefabs/Towers/Tower_Prism_3D.prefab` | `Assets/Art/AIStaging/SourcePlates/tower_prism_source_plate_v03.png` |
 
-## Staging Paths For Unity AI Output
+## Staging Paths For Source 3D Output
 
-Unity AI generated prefabs should be saved here before Codex wraps/promotes them:
+External generated, kitbashed, Blender-authored, or otherwise source-cleaned 3D prefabs should be saved here before Codex wraps/promotes them:
 
 | Role | Expected Raw Generated Prefab |
 | --- | --- |
@@ -31,11 +33,16 @@ Unity AI generated prefabs should be saved here before Codex wraps/promotes them
 | Pulse | `Assets/Art/AIStaging/Models/Towers/Pulse/tower_pulse_3d.prefab` |
 | Prism | `Assets/Art/AIStaging/Models/Towers/Prism/tower_prism_3d.prefab` |
 
-Keep raw generated files in staging until the full set passes review.
+Keep raw generated/source files in staging until the full set passes review.
 
-## Shared Unity AI Prompt Block
+## Source Asset Brief
 
-Attach the role source plate and use this shared block for every tower:
+Use the role source plate as visual reference, but do not expect Unity/editor tooling to invent final art quality. Produce or acquire a real mesh first, then run it through the shared wrapper.
+
+First vertical-slice brief:
+
+- `docs/art-pipeline/source-asset-briefs/control-3d-source-brief-v01.md`
+- Blender cleanup utility: `tools/art_pipeline/blender_prepare_tower_source.py`
 
 ```text
 Create a Unity-ready 3D model for Line Wards, an original mobile tower-wars game.
@@ -56,8 +63,22 @@ Shared art direction:
 - no text, no UI frame, no watermark
 - no copied game silhouette, no Warcraft, no Blizzard, no Horde, no Alliance, no Night Elf, no Undead, no Orc, no Human faction
 
-Create 3 distinct variants and save the best candidate as a prefab in the requested staging folder.
+Create 3 distinct variants where possible. Select the one that reads best in the actual board camera, then clean it in Blender/source tooling before staging it for Unity wrapping.
 ```
+
+Acceptable source routes:
+
+- External image/text-to-3D service export to `.glb` or `.fbx`, then cleanup.
+- Blender-authored mesh using the approved source plate as reference.
+- Asset-pack kitbash that is renamed, simplified, re-materialed, and documented.
+- Human-authored mesh.
+
+Rejected source routes:
+
+- Pure Unity primitive/procedural geometry as the final art.
+- Flat sprite cards marketed as the final 3D pass.
+- One-click promotion of raw AI output without cleanup.
+- Any candidate that is not clearly better in-game than the active AIPlate fallback.
 
 ## Role Prompts
 
@@ -135,15 +156,15 @@ Assets/Art/AIStaging/Models/Towers/Prism/tower_prism_3d.prefab
 
 ## Codex Wrapper Workflow
 
-After Unity AI creates the raw prefabs:
+After an approved source creates the raw prefabs:
 
 1. Run `Line Wards > Art > Generate Available Tower 3D Proof Wrappers`.
 2. Inspect `Assets/Prefabs/Towers/Tower_*_3D.prefab`.
 3. Run `Line Wards > Art > Validate Tower 3D Proof Wrappers`.
-4. If all five 3D tower wrappers exist and pass review, run `Line Wards > Art > Promote Complete Tower 3D Set`.
+4. If all five 3D tower wrappers exist, are marked promotable, and pass review, run `Line Wards > Art > Promote Complete Tower 3D Set`.
 5. Capture role lineup and active-lane gameplay review.
 
-The promotion command intentionally fails if any 3D tower wrapper is missing. Do not promote one tower at a time.
+The promotion command intentionally fails if any 3D tower wrapper is missing or marked non-promotable. Do not promote one tower at a time.
 
 ## Required Prefab Contract
 
@@ -163,14 +184,21 @@ All generated 3D tower wrappers must keep:
 
 ## Acceptance
 
-- [ ] Control 3D raw prefab generated and staged.
-- [ ] Relay 3D raw prefab generated and staged.
-- [ ] Pulse 3D raw prefab generated and staged.
-- [ ] Prism 3D raw prefab generated and staged.
+- [ ] Control polished source 3D prefab generated/cleaned and staged.
+- [ ] Relay polished source 3D prefab generated/cleaned and staged.
+- [ ] Pulse polished source 3D prefab generated/cleaned and staged.
+- [ ] Prism polished source 3D prefab generated/cleaned and staged.
 - [ ] Codex wrapper prefabs generated for all five towers.
+- [ ] Each wrapper is marked promotable only after visual approval.
 - [ ] Full 3D tower set promoted together.
 - [ ] Tower lineup normal/grayscale capture passes.
 - [ ] Active lane combat capture passes.
 - [ ] Tower scale and material treatment feel cohesive as a family.
 - [ ] Towers do not hide cells, path state, creeps, builder, or HUD.
 - [ ] Runtime prefab validation passes.
+
+Rejected:
+
+- [x] Procedural Control raw/proof was generated and tested, but rejected because it read as straight polygons and was a visual downgrade from the active AIPlate art.
+- [x] Hybrid mesh-card Control raw/proof was generated and tested, but rejected because it still read less detailed than the active AIPlate art.
+- [x] One-click Unity/procedural/sprite-card generation is retired as a production path. It may remain only as staging evidence or scaffold tooling.

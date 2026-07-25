@@ -1,0 +1,43 @@
+{
+  "input": "/Users/admin/Downloads/Meshy_AI_Bastion_Dome_Gameread_0725015104_texture.blend",
+  "mesh_count": 1,
+  "object_count": 1,
+  "triangle_count": 14752,
+  "vertex_count": 7329,
+  "material_slot_count": 1,
+  "unique_material_count": 1,
+  "transparent_material_count": 1,
+  "transparent_materials": [
+    "Material_0.001"
+  ],
+  "texture_count": 3,
+  "texture_paths": [],
+  "packed_texture_names": [
+    "Baked_BaseColor",
+    "Baked_Emit",
+    "Baked_MetallicRoughness"
+  ],
+  "bounds": {
+    "min": [
+      -0.9498390555381775,
+      -0.9438139796257019,
+      -0.43080297112464905
+    ],
+    "max": [
+      0.9472879767417908,
+      0.9455819725990295,
+      0.4274980127811432
+    ],
+    "size": [
+      1.8971270322799683,
+      1.8893959522247314,
+      0.8583009839057922
+    ]
+  },
+  "object_name_sample": [
+    "Mesh1.0"
+  ],
+  "material_names": [
+    "Material_0.001"
+  ]
+}

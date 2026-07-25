@@ -1,0 +1,54 @@
+{
+  "role": "pulse",
+  "input": "/Users/admin/Downloads/Meshy_AI_Bastion_Dome_Gameread_0725015104_texture.blend",
+  "output": "/Users/admin/LTW/unity/LTW.UnityClient/Assets/Art/AIStaging/Models/Towers/Pulse/AIDrop/pulse_meshy_bastion_dome_blend_0725015104_prepared.fbx",
+  "target_height": 1.25,
+  "max_footprint": 1.45,
+  "mesh_count": 1,
+  "exported_textures": [
+    "/Users/admin/LTW/unity/LTW.UnityClient/Assets/Art/AIStaging/Models/Towers/Pulse/AIDrop/pulse_meshy_bastion_dome_blend_0725015104_prepared_Textures/Baked_BaseColor.png",
+    "/Users/admin/LTW/unity/LTW.UnityClient/Assets/Art/AIStaging/Models/Towers/Pulse/AIDrop/pulse_meshy_bastion_dome_blend_0725015104_prepared_Textures/Baked_Emit.png",
+    "/Users/admin/LTW/unity/LTW.UnityClient/Assets/Art/AIStaging/Models/Towers/Pulse/AIDrop/pulse_meshy_bastion_dome_blend_0725015104_prepared_Textures/Baked_MetallicRoughness.png"
+  ],
+  "normalization": {
+    "scale_factor": 0.7643136043754483,
+    "initial_bounds": {
+      "min": [
+        -0.9498390555381775,
+        -0.9438139796257019,
+        -0.43080297112464905
+      ],
+      "max": [
+        0.9472879767417908,
+        0.9455819725990295,
+        0.4274980127811432
+      ],
+      "size": [
+        1.8971270322799683,
+        1.8893959522247314,
+        0.8583009839057922
+      ]
+    },
+    "final_bounds": {
+      "min": [
+        -0.7250000238418579,
+        -0.7220455408096313,
+        0.0
+      ],
+      "max": [
+        0.7249999642372131,
+        0.7220454812049866,
+        0.6560111045837402
+      ],
+      "size": [
+        1.4500000476837158,
+        1.4440910816192627,
+        0.6560111045837402
+      ]
+    }
+  },
+  "notes": [
+    "Prepared by Blender source cleanup script.",
+    "This is a source/staging export only; Unity promotion remains separate."
+  ]
+}

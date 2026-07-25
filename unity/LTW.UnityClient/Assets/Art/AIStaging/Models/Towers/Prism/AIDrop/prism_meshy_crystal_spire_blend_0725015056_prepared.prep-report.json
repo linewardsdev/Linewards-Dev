@@ -1,0 +1,54 @@
+{
+  "role": "prism",
+  "input": "/Users/admin/Downloads/Meshy_AI_Crystal_Spire_Gamerea_0725015056_texture.blend",
+  "output": "/Users/admin/LTW/unity/LTW.UnityClient/Assets/Art/AIStaging/Models/Towers/Prism/AIDrop/prism_meshy_crystal_spire_blend_0725015056_prepared.fbx",
+  "target_height": 1.25,
+  "max_footprint": 1.45,
+  "mesh_count": 1,
+  "exported_textures": [
+    "/Users/admin/LTW/unity/LTW.UnityClient/Assets/Art/AIStaging/Models/Towers/Prism/AIDrop/prism_meshy_crystal_spire_blend_0725015056_prepared_Textures/Baked_BaseColor.png",
+    "/Users/admin/LTW/unity/LTW.UnityClient/Assets/Art/AIStaging/Models/Towers/Prism/AIDrop/prism_meshy_crystal_spire_blend_0725015056_prepared_Textures/Baked_Emit.png",
+    "/Users/admin/LTW/unity/LTW.UnityClient/Assets/Art/AIStaging/Models/Towers/Prism/AIDrop/prism_meshy_crystal_spire_blend_0725015056_prepared_Textures/Baked_MetallicRoughness.png"
+  ],
+  "normalization": {
+    "scale_factor": 0.6586539282954054,
+    "initial_bounds": {
+      "min": [
+        -0.8135070204734802,
+        -0.8137780427932739,
+        -0.9506589770317078
+      ],
+      "max": [
+        0.810854971408844,
+        0.8161539435386658,
+        0.9471510648727417
+      ],
+      "size": [
+        1.6243619918823242,
+        1.629931926727295,
+        1.8978099822998047
+      ]
+    },
+    "final_bounds": {
+      "min": [
+        -0.5349462032318115,
+        -0.5367805361747742,
+        0.0
+      ],
+      "max": [
+        0.5349462032318115,
+        0.5367805361747742,
+        1.25
+      ],
+      "size": [
+        1.069892406463623,
+        1.0735610723495483,
+        1.25
+      ]
+    }
+  },
+  "notes": [
+    "Prepared by Blender source cleanup script.",
+    "This is a source/staging export only; Unity promotion remains separate."
+  ]
+}

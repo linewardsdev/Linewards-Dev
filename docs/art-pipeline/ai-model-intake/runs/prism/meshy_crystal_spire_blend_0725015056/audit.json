@@ -1,0 +1,43 @@
+{
+  "input": "/Users/admin/Downloads/Meshy_AI_Crystal_Spire_Gamerea_0725015056_texture.blend",
+  "mesh_count": 1,
+  "object_count": 1,
+  "triangle_count": 15255,
+  "vertex_count": 7636,
+  "material_slot_count": 1,
+  "unique_material_count": 1,
+  "transparent_material_count": 1,
+  "transparent_materials": [
+    "Material_0.001"
+  ],
+  "texture_count": 3,
+  "texture_paths": [],
+  "packed_texture_names": [
+    "Baked_BaseColor",
+    "Baked_Emit",
+    "Baked_MetallicRoughness"
+  ],
+  "bounds": {
+    "min": [
+      -0.8135070204734802,
+      -0.8137780427932739,
+      -0.9506589770317078
+    ],
+    "max": [
+      0.810854971408844,
+      0.8161539435386658,
+      0.9471510648727417
+    ],
+    "size": [
+      1.6243619918823242,
+      1.629931926727295,
+      1.8978099822998047
+    ]
+  },
+  "object_name_sample": [
+    "Mesh1.0"
+  ],
+  "material_names": [
+    "Material_0.001"
+  ]
+}

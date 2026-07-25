@@ -1,0 +1,43 @@
+{
+  "input": "/Users/admin/Downloads/Meshy_AI_Beast_Hybrid_Gameread_0725021332_texture.blend",
+  "mesh_count": 1,
+  "object_count": 1,
+  "triangle_count": 15276,
+  "vertex_count": 7629,
+  "material_slot_count": 1,
+  "unique_material_count": 1,
+  "transparent_material_count": 1,
+  "transparent_materials": [
+    "Material_0.001"
+  ],
+  "texture_count": 3,
+  "texture_paths": [],
+  "packed_texture_names": [
+    "Baked_BaseColor",
+    "Baked_Emit",
+    "Baked_MetallicRoughness"
+  ],
+  "bounds": {
+    "min": [
+      -0.9497638940811157,
+      -0.48943400382995605,
+      -0.5338420271873474
+    ],
+    "max": [
+      0.94815993309021,
+      0.49160492420196533,
+      0.5328419208526611
+    ],
+    "size": [
+      1.8979238271713257,
+      0.9810389280319214,
+      1.0666840076446533
+    ]
+  },
+  "object_name_sample": [
+    "Mesh1.0"
+  ],
+  "material_names": [
+    "Material_0.001"
+  ]
+}

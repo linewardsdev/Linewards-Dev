@@ -96,3 +96,32 @@ Create 12 distinct silhouette variations for [role prompt]. Show each as a separ
 Create one cleaned production source plate from candidate [candidate id] for [role]. Transparent background, centered token, consistent top-down three-quarter camera, simple shadow removed, no text, no watermark, strong silhouette, readable in grayscale.
 ```
 
+## AI 3D Candidate Prompt Pattern
+
+Use this only for external AI 3D generation. The output should be a real mesh export, not another source plate.
+
+```text
+Create a polished Unity-ready 3D model for an original mobile tower-wars game called Line Wards.
+
+Asset: [role].
+
+Use the attached source image only as a style and silhouette reference. Make a real 3D board-game miniature, not a flat card.
+
+Visual design:
+- compact one-cell unit for a top-down three-quarter mobile board camera
+- strong large silhouette first, surface detail second
+- dark slate/blue-black body material
+- restrained amber-gold bevel accents
+- cyan/blue/violet energy elements
+- chunky readable bevels and planes
+- pivot centered at base
+- low-to-moderate poly count for mobile
+
+Style:
+original ward-tech fantasy, polished early-2000s strategy-board miniature, clean readable forms, not realistic military, not medieval, not generic sci-fi turret.
+
+Avoid:
+[required avoidance block], no flat card, no UI frame, no text, no watermark, no tiny noisy greebles, no full transparent glass bubble, no excessive alpha layers.
+
+Export as FBX or GLB with textures. Keep materials separated enough to identify body, trim, and energy regions.
+```

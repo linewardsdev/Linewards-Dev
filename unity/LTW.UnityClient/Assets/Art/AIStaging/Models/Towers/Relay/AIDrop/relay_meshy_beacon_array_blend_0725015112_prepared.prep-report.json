@@ -1,0 +1,54 @@
+{
+  "role": "relay",
+  "input": "/Users/admin/Downloads/Meshy_AI_Beacon_Array_Gameread_0725015112_texture.blend",
+  "output": "/Users/admin/LTW/unity/LTW.UnityClient/Assets/Art/AIStaging/Models/Towers/Relay/AIDrop/relay_meshy_beacon_array_blend_0725015112_prepared.fbx",
+  "target_height": 1.25,
+  "max_footprint": 1.45,
+  "mesh_count": 1,
+  "exported_textures": [
+    "/Users/admin/LTW/unity/LTW.UnityClient/Assets/Art/AIStaging/Models/Towers/Relay/AIDrop/relay_meshy_beacon_array_blend_0725015112_prepared_Textures/Baked_BaseColor.png",
+    "/Users/admin/LTW/unity/LTW.UnityClient/Assets/Art/AIStaging/Models/Towers/Relay/AIDrop/relay_meshy_beacon_array_blend_0725015112_prepared_Textures/Baked_Emit.png",
+    "/Users/admin/LTW/unity/LTW.UnityClient/Assets/Art/AIStaging/Models/Towers/Relay/AIDrop/relay_meshy_beacon_array_blend_0725015112_prepared_Textures/Baked_MetallicRoughness.png"
+  ],
+  "normalization": {
+    "scale_factor": 0.6586032091781969,
+    "initial_bounds": {
+      "min": [
+        -0.7513640522956848,
+        -0.7319380640983582,
+        -0.9507170915603638
+      ],
+      "max": [
+        0.7494800090789795,
+        0.7333009243011475,
+        0.9472390413284302
+      ],
+      "size": [
+        1.5008440017700195,
+        1.4652390480041504,
+        1.897956132888794
+      ]
+    },
+    "final_bounds": {
+      "min": [
+        -0.49423032999038696,
+        -0.48250553011894226,
+        0.0
+      ],
+      "max": [
+        0.49423035979270935,
+        0.48250553011894226,
+        1.25
+      ],
+      "size": [
+        0.9884606599807739,
+        0.9650110602378845,
+        1.25
+      ]
+    }
+  },
+  "notes": [
+    "Prepared by Blender source cleanup script.",
+    "This is a source/staging export only; Unity promotion remains separate."
+  ]
+}

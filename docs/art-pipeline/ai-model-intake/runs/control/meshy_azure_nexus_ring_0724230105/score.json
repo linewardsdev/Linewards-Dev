@@ -1,0 +1,49 @@
+{
+  "date": "2026-07-24T23:03:14.935704+00:00",
+  "asset_id": "tower.control",
+  "role": "control",
+  "kind": "tower",
+  "candidate": "meshy_azure_nexus_ring_0724230105",
+  "source": "/Users/admin/Downloads/Meshy_AI_Azure_Nexus_Ring_0724230105_generate.fbx",
+  "prepared_fbx": "/Users/admin/LTW/unity/LTW.UnityClient/Assets/Art/AIStaging/Models/Towers/Control/AIDrop/control_meshy_azure_nexus_ring_0724230105_prepared.fbx",
+  "preview_png": "/Users/admin/LTW/docs/art-pipeline/ai-model-intake/runs/control/meshy_azure_nexus_ring_0724230105/preview.png",
+  "audit_json": "/Users/admin/LTW/docs/art-pipeline/ai-model-intake/runs/control/meshy_azure_nexus_ring_0724230105/audit.json",
+  "prep_report_json": "/Users/admin/LTW/unity/LTW.UnityClient/Assets/Art/AIStaging/Models/Towers/Control/AIDrop/control_meshy_azure_nexus_ring_0724230105_prepared.prep-report.json",
+  "score": {
+    "status": "needs_review",
+    "passed_checks": 4,
+    "total_checks": 6,
+    "checks": [
+      {
+        "id": "has_meshes",
+        "pass": true,
+        "detail": "1 mesh object(s)"
+      },
+      {
+        "id": "triangle_budget",
+        "pass": false,
+        "detail": "712746 / 25000 triangles"
+      },
+      {
+        "id": "material_budget",
+        "pass": true,
+        "detail": "0 / 12 unique materials"
+      },
+      {
+        "id": "transparent_material_budget",
+        "pass": true,
+        "detail": "0 / 2 transparent materials"
+      },
+      {
+        "id": "has_textures_or_materials",
+        "pass": false,
+        "detail": "0 texture(s), 0 material(s)"
+      },
+      {
+        "id": "prepared_footprint",
+        "pass": true,
+        "detail": "1.450 / 1.450 footprint after prepare"
+      }
+    ]
+  }
+}

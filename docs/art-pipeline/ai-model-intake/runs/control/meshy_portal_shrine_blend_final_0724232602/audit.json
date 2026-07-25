@@ -1,0 +1,43 @@
+{
+  "input": "/Users/admin/Downloads/Meshy_AI_Portal_Shrine_Gamerea_0724232602_texture.blend",
+  "mesh_count": 1,
+  "object_count": 1,
+  "triangle_count": 14963,
+  "vertex_count": 7444,
+  "material_slot_count": 1,
+  "unique_material_count": 1,
+  "transparent_material_count": 1,
+  "transparent_materials": [
+    "Material_0.001"
+  ],
+  "texture_count": 3,
+  "texture_paths": [],
+  "packed_texture_names": [
+    "Baked_BaseColor",
+    "Baked_Emit",
+    "Baked_MetallicRoughness"
+  ],
+  "bounds": {
+    "min": [
+      -0.9501110315322876,
+      -0.9486861228942871,
+      -0.6249849796295166
+    ],
+    "max": [
+      0.9482590556144714,
+      0.9495890140533447,
+      0.6221740245819092
+    ],
+    "size": [
+      1.8983700275421143,
+      1.8982751369476318,
+      1.2471590042114258
+    ]
+  },
+  "object_name_sample": [
+    "Mesh1.0"
+  ],
+  "material_names": [
+    "Material_0.001"
+  ]
+}

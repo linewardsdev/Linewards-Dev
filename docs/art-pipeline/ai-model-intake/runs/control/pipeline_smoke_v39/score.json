@@ -1,0 +1,49 @@
+{
+  "date": "2026-07-24T13:33:52.632391+00:00",
+  "asset_id": "tower.control",
+  "role": "control",
+  "kind": "tower",
+  "candidate": "pipeline_smoke_v39",
+  "source": "/Users/admin/LTW/unity/LTW.UnityClient/Assets/Art/AIStaging/Models/Towers/Control/SourceDrop/tower_control_prepared_v39_clear_read.fbx",
+  "prepared_fbx": "/Users/admin/LTW/unity/LTW.UnityClient/Assets/Art/AIStaging/Models/Towers/Control/AIDrop/control_pipeline_smoke_v39_prepared.fbx",
+  "preview_png": "/Users/admin/LTW/docs/art-pipeline/ai-model-intake/runs/control/pipeline_smoke_v39/preview.png",
+  "audit_json": "/Users/admin/LTW/docs/art-pipeline/ai-model-intake/runs/control/pipeline_smoke_v39/audit.json",
+  "prep_report_json": "/Users/admin/LTW/unity/LTW.UnityClient/Assets/Art/AIStaging/Models/Towers/Control/AIDrop/control_pipeline_smoke_v39_prepared.prep-report.json",
+  "score": {
+    "status": "needs_review",
+    "passed_checks": 3,
+    "total_checks": 6,
+    "checks": [
+      {
+        "id": "has_meshes",
+        "pass": true,
+        "detail": "426 mesh object(s)"
+      },
+      {
+        "id": "triangle_budget",
+        "pass": false,
+        "detail": "141496 / 25000 triangles"
+      },
+      {
+        "id": "material_budget",
+        "pass": false,
+        "detail": "14 / 12 unique materials"
+      },
+      {
+        "id": "transparent_material_budget",
+        "pass": false,
+        "detail": "14 / 2 transparent materials"
+      },
+      {
+        "id": "has_textures_or_materials",
+        "pass": true,
+        "detail": "0 texture(s), 14 material(s)"
+      },
+      {
+        "id": "prepared_footprint",
+        "pass": true,
+        "detail": "1.450 / 1.450 footprint after prepare"
+      }
+    ]
+  }
+}

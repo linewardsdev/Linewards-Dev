@@ -1,0 +1,54 @@
+{
+  "role": "swarm",
+  "input": "/Users/admin/Downloads/Meshy_AI_Crystal_Swarm_Gamerea_0725021324_texture.blend",
+  "output": "/Users/admin/LTW/unity/LTW.UnityClient/Assets/Art/AIStaging/Models/Creeps/Swarm/AIDrop/swarm_meshy_crystal_swarm_blend_0725021324_prepared.fbx",
+  "target_height": 0.75,
+  "max_footprint": 0.9,
+  "mesh_count": 1,
+  "exported_textures": [
+    "/Users/admin/LTW/unity/LTW.UnityClient/Assets/Art/AIStaging/Models/Creeps/Swarm/AIDrop/swarm_meshy_crystal_swarm_blend_0725021324_prepared_Textures/Baked_BaseColor.png",
+    "/Users/admin/LTW/unity/LTW.UnityClient/Assets/Art/AIStaging/Models/Creeps/Swarm/AIDrop/swarm_meshy_crystal_swarm_blend_0725021324_prepared_Textures/Baked_Emit.png",
+    "/Users/admin/LTW/unity/LTW.UnityClient/Assets/Art/AIStaging/Models/Creeps/Swarm/AIDrop/swarm_meshy_crystal_swarm_blend_0725021324_prepared_Textures/Baked_MetallicRoughness.png"
+  ],
+  "normalization": {
+    "scale_factor": 0.3951340547895839,
+    "initial_bounds": {
+      "min": [
+        -0.8504210710525513,
+        -0.901544988155365,
+        -0.9502829909324646
+      ],
+      "max": [
+        0.8489720821380615,
+        0.9024170637130737,
+        0.9478070139884949
+      ],
+      "size": [
+        1.6993931531906128,
+        1.803961992263794,
+        1.8980900049209595
+      ]
+    },
+    "final_bounds": {
+      "min": [
+        -0.33574405312538147,
+        -0.3564034104347229,
+        0.0
+      ],
+      "max": [
+        0.33574408292770386,
+        0.3564034402370453,
+        0.75
+      ],
+      "size": [
+        0.6714881658554077,
+        0.7128068208694458,
+        0.75
+      ]
+    }
+  },
+  "notes": [
+    "Prepared by Blender source cleanup script.",
+    "This is a source/staging export only; Unity promotion remains separate."
+  ]
+}

@@ -1,0 +1,43 @@
+{
+  "input": "/Users/admin/Downloads/Meshy_AI_Shard_Wraith_Gameread_0725021339_texture.blend",
+  "mesh_count": 1,
+  "object_count": 1,
+  "triangle_count": 14789,
+  "vertex_count": 7387,
+  "material_slot_count": 1,
+  "unique_material_count": 1,
+  "transparent_material_count": 1,
+  "transparent_materials": [
+    "Material_0.001"
+  ],
+  "texture_count": 3,
+  "texture_paths": [],
+  "packed_texture_names": [
+    "Baked_BaseColor",
+    "Baked_Emit",
+    "Baked_MetallicRoughness"
+  ],
+  "bounds": {
+    "min": [
+      -0.6340529322624207,
+      -0.669861912727356,
+      -0.950080931186676
+    ],
+    "max": [
+      0.6331509947776794,
+      0.6711730360984802,
+      0.9478799700737
+    ],
+    "size": [
+      1.2672039270401,
+      1.3410348892211914,
+      1.897960901260376
+    ]
+  },
+  "object_name_sample": [
+    "Mesh1.0"
+  ],
+  "material_names": [
+    "Material_0.001"
+  ]
+}

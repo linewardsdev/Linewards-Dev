@@ -1,0 +1,49 @@
+{
+  "date": "2026-07-25T02:24:41.738319+00:00",
+  "asset_id": "creep.shade",
+  "role": "shade",
+  "kind": "creep",
+  "candidate": "meshy_shard_wraith_blend_0725021339",
+  "source": "/Users/admin/Downloads/Meshy_AI_Shard_Wraith_Gameread_0725021339_texture.blend",
+  "prepared_fbx": "/Users/admin/LTW/unity/LTW.UnityClient/Assets/Art/AIStaging/Models/Creeps/Shade/AIDrop/shade_meshy_shard_wraith_blend_0725021339_prepared.fbx",
+  "preview_png": "/Users/admin/LTW/docs/art-pipeline/ai-model-intake/runs/shade/meshy_shard_wraith_blend_0725021339/preview.png",
+  "audit_json": "/Users/admin/LTW/docs/art-pipeline/ai-model-intake/runs/shade/meshy_shard_wraith_blend_0725021339/audit.json",
+  "prep_report_json": "/Users/admin/LTW/unity/LTW.UnityClient/Assets/Art/AIStaging/Models/Creeps/Shade/AIDrop/shade_meshy_shard_wraith_blend_0725021339_prepared.prep-report.json",
+  "score": {
+    "status": "pass",
+    "passed_checks": 6,
+    "total_checks": 6,
+    "checks": [
+      {
+        "id": "has_meshes",
+        "pass": true,
+        "detail": "1 mesh object(s)"
+      },
+      {
+        "id": "triangle_budget",
+        "pass": true,
+        "detail": "14789 / 30000 triangles"
+      },
+      {
+        "id": "material_budget",
+        "pass": true,
+        "detail": "1 / 16 unique materials"
+      },
+      {
+        "id": "transparent_material_budget",
+        "pass": true,
+        "detail": "1 / 2 transparent materials"
+      },
+      {
+        "id": "has_textures_or_materials",
+        "pass": true,
+        "detail": "3 texture(s), 1 material(s)"
+      },
+      {
+        "id": "prepared_footprint",
+        "pass": true,
+        "detail": "0.530 / 0.900 footprint after prepare"
+      }
+    ]
+  }
+}

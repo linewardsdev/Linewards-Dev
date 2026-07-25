@@ -1,0 +1,43 @@
+{
+  "input": "/Users/admin/Downloads/Meshy_AI_Crescent_Cannon_Gamer_0725015047_texture.blend",
+  "mesh_count": 1,
+  "object_count": 1,
+  "triangle_count": 15323,
+  "vertex_count": 7649,
+  "material_slot_count": 1,
+  "unique_material_count": 1,
+  "transparent_material_count": 1,
+  "transparent_materials": [
+    "Material_0.001"
+  ],
+  "texture_count": 3,
+  "texture_paths": [],
+  "packed_texture_names": [
+    "Baked_BaseColor",
+    "Baked_Emit",
+    "Baked_MetallicRoughness"
+  ],
+  "bounds": {
+    "min": [
+      -0.9506049752235413,
+      -0.5570129752159119,
+      -0.5607950091362
+    ],
+    "max": [
+      0.9470119476318359,
+      0.5577338933944702,
+      0.5593219995498657
+    ],
+    "size": [
+      1.8976168632507324,
+      1.1147468090057373,
+      1.120116949081421
+    ]
+  },
+  "object_name_sample": [
+    "Mesh1.0"
+  ],
+  "material_names": [
+    "Material_0.001"
+  ]
+}

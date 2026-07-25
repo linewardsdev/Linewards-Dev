@@ -1,0 +1,43 @@
+{
+  "input": "/Users/admin/Downloads/Meshy_AI_Rock_Golem_Gameready_0725021355_texture.blend",
+  "mesh_count": 1,
+  "object_count": 1,
+  "triangle_count": 15334,
+  "vertex_count": 7682,
+  "material_slot_count": 1,
+  "unique_material_count": 1,
+  "transparent_material_count": 1,
+  "transparent_materials": [
+    "Material_0.001"
+  ],
+  "texture_count": 3,
+  "texture_paths": [],
+  "packed_texture_names": [
+    "Baked_BaseColor",
+    "Baked_Emit",
+    "Baked_MetallicRoughness"
+  ],
+  "bounds": {
+    "min": [
+      -0.8670330047607422,
+      -0.9433779716491699,
+      -0.5586969256401062
+    ],
+    "max": [
+      0.8623409867286682,
+      0.9465349316596985,
+      0.5570319890975952
+    ],
+    "size": [
+      1.7293739318847656,
+      1.8899128437042236,
+      1.1157288551330566
+    ]
+  },
+  "object_name_sample": [
+    "Mesh1.0"
+  ],
+  "material_names": [
+    "Material_0.001"
+  ]
+}

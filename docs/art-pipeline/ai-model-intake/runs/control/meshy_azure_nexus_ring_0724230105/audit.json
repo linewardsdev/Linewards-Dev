@@ -1,0 +1,34 @@
+{
+  "input": "/Users/admin/Downloads/Meshy_AI_Azure_Nexus_Ring_0724230105_generate.fbx",
+  "mesh_count": 1,
+  "object_count": 1,
+  "triangle_count": 712746,
+  "vertex_count": 356358,
+  "material_slot_count": 0,
+  "unique_material_count": 0,
+  "transparent_material_count": 0,
+  "transparent_materials": [],
+  "texture_count": 0,
+  "texture_paths": [],
+  "bounds": {
+    "min": [
+      -0.9501286745071411,
+      -0.9488949775695801,
+      -0.5888341069221497
+    ],
+    "max": [
+      0.9482948780059814,
+      0.9506298899650574,
+      0.5881097912788391
+    ],
+    "size": [
+      1.8984235525131226,
+      1.8995249271392822,
+      1.1769438982009888
+    ]
+  },
+  "object_name_sample": [
+    "mesh_node"
+  ],
+  "material_names": []
+}

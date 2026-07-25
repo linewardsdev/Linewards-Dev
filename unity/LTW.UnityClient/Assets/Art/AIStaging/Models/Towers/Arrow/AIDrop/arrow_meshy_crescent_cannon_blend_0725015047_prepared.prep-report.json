@@ -1,0 +1,54 @@
+{
+  "role": "arrow",
+  "input": "/Users/admin/Downloads/Meshy_AI_Crescent_Cannon_Gamer_0725015047_texture.blend",
+  "output": "/Users/admin/LTW/unity/LTW.UnityClient/Assets/Art/AIStaging/Models/Towers/Arrow/AIDrop/arrow_meshy_crescent_cannon_blend_0725015047_prepared.fbx",
+  "target_height": 1.25,
+  "max_footprint": 1.45,
+  "mesh_count": 1,
+  "exported_textures": [
+    "/Users/admin/LTW/unity/LTW.UnityClient/Assets/Art/AIStaging/Models/Towers/Arrow/AIDrop/arrow_meshy_crescent_cannon_blend_0725015047_prepared_Textures/Baked_BaseColor.png",
+    "/Users/admin/LTW/unity/LTW.UnityClient/Assets/Art/AIStaging/Models/Towers/Arrow/AIDrop/arrow_meshy_crescent_cannon_blend_0725015047_prepared_Textures/Baked_Emit.png",
+    "/Users/admin/LTW/unity/LTW.UnityClient/Assets/Art/AIStaging/Models/Towers/Arrow/AIDrop/arrow_meshy_crescent_cannon_blend_0725015047_prepared_Textures/Baked_MetallicRoughness.png"
+  ],
+  "normalization": {
+    "scale_factor": 0.7641163124552246,
+    "initial_bounds": {
+      "min": [
+        -0.9506049752235413,
+        -0.5570129752159119,
+        -0.5607950091362
+      ],
+      "max": [
+        0.9470119476318359,
+        0.5577338933944702,
+        0.5593219995498657
+      ],
+      "size": [
+        1.8976168632507324,
+        1.1147468090057373,
+        1.120116949081421
+      ]
+    },
+    "final_bounds": {
+      "min": [
+        -0.7249999642372131,
+        -0.42589810490608215,
+        0.0
+      ],
+      "max": [
+        0.7250000238418579,
+        0.42589810490608215,
+        0.8558996915817261
+      ],
+      "size": [
+        1.4500000476837158,
+        0.8517962098121643,
+        0.8558996915817261
+      ]
+    }
+  },
+  "notes": [
+    "Prepared by Blender source cleanup script.",
+    "This is a source/staging export only; Unity promotion remains separate."
+  ]
+}

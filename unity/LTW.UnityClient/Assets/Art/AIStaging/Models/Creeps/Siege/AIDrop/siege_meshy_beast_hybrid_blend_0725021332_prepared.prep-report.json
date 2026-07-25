@@ -1,0 +1,54 @@
+{
+  "role": "siege",
+  "input": "/Users/admin/Downloads/Meshy_AI_Beast_Hybrid_Gameread_0725021332_texture.blend",
+  "output": "/Users/admin/LTW/unity/LTW.UnityClient/Assets/Art/AIStaging/Models/Creeps/Siege/AIDrop/siege_meshy_beast_hybrid_blend_0725021332_prepared.fbx",
+  "target_height": 0.75,
+  "max_footprint": 0.9,
+  "mesh_count": 1,
+  "exported_textures": [
+    "/Users/admin/LTW/unity/LTW.UnityClient/Assets/Art/AIStaging/Models/Creeps/Siege/AIDrop/siege_meshy_beast_hybrid_blend_0725021332_prepared_Textures/Baked_BaseColor.png",
+    "/Users/admin/LTW/unity/LTW.UnityClient/Assets/Art/AIStaging/Models/Creeps/Siege/AIDrop/siege_meshy_beast_hybrid_blend_0725021332_prepared_Textures/Baked_Emit.png",
+    "/Users/admin/LTW/unity/LTW.UnityClient/Assets/Art/AIStaging/Models/Creeps/Siege/AIDrop/siege_meshy_beast_hybrid_blend_0725021332_prepared_Textures/Baked_MetallicRoughness.png"
+  ],
+  "normalization": {
+    "scale_factor": 0.47420238215848953,
+    "initial_bounds": {
+      "min": [
+        -0.9497638940811157,
+        -0.48943400382995605,
+        -0.5338420271873474
+      ],
+      "max": [
+        0.94815993309021,
+        0.49160492420196533,
+        0.5328419208526611
+      ],
+      "size": [
+        1.8979238271713257,
+        0.9810389280319214,
+        1.0666840076446533
+      ]
+    },
+    "final_bounds": {
+      "min": [
+        -0.45000001788139343,
+        -0.23260550200939178,
+        -2.9802322387695312e-08
+      ],
+      "max": [
+        0.45000001788139343,
+        0.23260550200939178,
+        0.505824089050293
+      ],
+      "size": [
+        0.9000000357627869,
+        0.46521100401878357,
+        0.505824089050293
+      ]
+    }
+  },
+  "notes": [
+    "Prepared by Blender source cleanup script.",
+    "This is a source/staging export only; Unity promotion remains separate."
+  ]
+}

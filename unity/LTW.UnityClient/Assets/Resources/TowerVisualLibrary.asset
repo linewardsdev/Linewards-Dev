@@ -16,45 +16,45 @@ MonoBehaviour:
   - towerId: tower.arrow
     role: 0
     prefab: {fileID: 9064727781167026979, guid: 039af61179c58114eb927ddbdc2d4aba, type: 3}
-    scale: {x: 1.36, y: 1.36, z: 1.36}
-    lift: 0.16
+    scale: {x: 0.78, y: 0.78, z: 0.78}
+    lift: 0.1
     bodyRendererPath: BodyTintAnchor
     roleMarkerRendererPath: RoleMarker
     ownerTrimRendererPath: OwnerTrim
     rangeHaloRendererPath: RangeHalo
   - towerId: tower.control
     role: 1
-    prefab: {fileID: 6448180863021943805, guid: 7cdfee6cb16a40589d20ca0810cb189f, type: 3}
-    scale: {x: 1.05, y: 1, z: 1.05}
-    lift: 0.12
-    bodyRendererPath: Body
+    prefab: {fileID: 9202368460950008800, guid: 30374dc784fd34f66b3eeed0b2383b15, type: 3}
+    scale: {x: 0.74, y: 0.74, z: 0.74}
+    lift: 0.1
+    bodyRendererPath: BodyTintAnchor
     roleMarkerRendererPath: RoleMarker
     ownerTrimRendererPath: OwnerTrim
     rangeHaloRendererPath: RangeHalo
   - towerId: tower.relay
     role: 2
-    prefab: {fileID: 6448180863021943805, guid: 246b1939f9ac47f59ecbb1aeaa5eacee, type: 3}
-    scale: {x: 1, y: 1.16, z: 1}
-    lift: 0.16
-    bodyRendererPath: Body
+    prefab: {fileID: 2164388632969021273, guid: 6685df9c0a2124b5e84dd655857a866c, type: 3}
+    scale: {x: 0.66, y: 0.66, z: 0.66}
+    lift: 0.1
+    bodyRendererPath: BodyTintAnchor
     roleMarkerRendererPath: RoleMarker
     ownerTrimRendererPath: OwnerTrim
     rangeHaloRendererPath: RangeHalo
   - towerId: tower.pulse
     role: 3
-    prefab: {fileID: 6448180863021943805, guid: 626b3608aa534906b87f62c188e330b2, type: 3}
-    scale: {x: 1.08, y: 1.02, z: 1.08}
-    lift: 0.12
-    bodyRendererPath: Body
+    prefab: {fileID: 5790834266410992208, guid: a623adc13e3734243be03cef0246b51e, type: 3}
+    scale: {x: 0.76, y: 0.76, z: 0.76}
+    lift: 0.1
+    bodyRendererPath: BodyTintAnchor
     roleMarkerRendererPath: RoleMarker
     ownerTrimRendererPath: OwnerTrim
     rangeHaloRendererPath: RangeHalo
   - towerId: tower.prism
     role: 4
-    prefab: {fileID: 6448180863021943805, guid: f29043be66a841a398e3e52059b86cc0, type: 3}
-    scale: {x: 1, y: 1.22, z: 1}
-    lift: 0.12
-    bodyRendererPath: Body
+    prefab: {fileID: 1891049805039902047, guid: ddff33573a97a4937948f0dd9c01a640, type: 3}
+    scale: {x: 0.62, y: 0.62, z: 0.62}
+    lift: 0.1
+    bodyRendererPath: BodyTintAnchor
     roleMarkerRendererPath: RoleMarker
     ownerTrimRendererPath: OwnerTrim
     rangeHaloRendererPath: RangeHalo

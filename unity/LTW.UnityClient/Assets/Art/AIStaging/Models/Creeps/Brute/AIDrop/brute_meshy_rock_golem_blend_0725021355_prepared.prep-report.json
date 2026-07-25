@@ -1,0 +1,54 @@
+{
+  "role": "brute",
+  "input": "/Users/admin/Downloads/Meshy_AI_Rock_Golem_Gameready_0725021355_texture.blend",
+  "output": "/Users/admin/LTW/unity/LTW.UnityClient/Assets/Art/AIStaging/Models/Creeps/Brute/AIDrop/brute_meshy_rock_golem_blend_0725021355_prepared.fbx",
+  "target_height": 0.75,
+  "max_footprint": 0.9,
+  "mesh_count": 1,
+  "exported_textures": [
+    "/Users/admin/LTW/unity/LTW.UnityClient/Assets/Art/AIStaging/Models/Creeps/Brute/AIDrop/brute_meshy_rock_golem_blend_0725021355_prepared_Textures/Baked_BaseColor.png",
+    "/Users/admin/LTW/unity/LTW.UnityClient/Assets/Art/AIStaging/Models/Creeps/Brute/AIDrop/brute_meshy_rock_golem_blend_0725021355_prepared_Textures/Baked_Emit.png",
+    "/Users/admin/LTW/unity/LTW.UnityClient/Assets/Art/AIStaging/Models/Creeps/Brute/AIDrop/brute_meshy_rock_golem_blend_0725021355_prepared_Textures/Baked_MetallicRoughness.png"
+  ],
+  "normalization": {
+    "scale_factor": 0.47621243646135697,
+    "initial_bounds": {
+      "min": [
+        -0.8670330047607422,
+        -0.9433779716491699,
+        -0.5586969256401062
+      ],
+      "max": [
+        0.8623409867286682,
+        0.9465349316596985,
+        0.5570319890975952
+      ],
+      "size": [
+        1.7293739318847656,
+        1.8899128437042236,
+        1.1157288551330566
+      ]
+    },
+    "final_bounds": {
+      "min": [
+        -0.4117746949195862,
+        -0.45000001788139343,
+        0.0
+      ],
+      "max": [
+        0.4117746949195862,
+        0.45000001788139343,
+        0.5313239693641663
+      ],
+      "size": [
+        0.8235493898391724,
+        0.9000000357627869,
+        0.5313239693641663
+      ]
+    }
+  },
+  "notes": [
+    "Prepared by Blender source cleanup script.",
+    "This is a source/staging export only; Unity promotion remains separate."
+  ]
+}

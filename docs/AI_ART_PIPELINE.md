@@ -13,6 +13,7 @@ The genuinely open production work is:
 
 - rebuild the final simplified tower and send icon family from the active AIPlate silhouettes;
 - complete the [Tower 3D cohesion pass](art-pipeline/tower-3d-cohesion-pass.md) so Arrow, Control, Relay, Pulse, and Prism share one 3D production path instead of a mixed 3D/sprite tower set;
+- use the [Arrow-derived 3D tower pipeline](art-pipeline/arrow-derived-3d-tower-pipeline.md) as a source-asset intake, cleanup, wrapper, animation, and promotion process, not as a Unity/procedural art generator;
 - add or align specialized VFX landmarks beyond the generic tower `Muzzle` and `Lens` objects;
 - normalize sprite palette, brightness, and grayscale value separation;
 - certify Runner overlap plus Runner x10, heavy Swarm, Siege leak, all-tower combat, and reduced-effects pressure states;
@@ -29,11 +30,60 @@ This is not a plan to blindly drop raw AI 3D output into Unity. The near-term go
 
 ## Pipeline Thesis
 
-For the current Line Wards camera and gameplay scale, a polished 2.5D board-token pipeline is more likely to succeed than raw AI-generated 3D models.
+For the current Line Wards camera and gameplay scale, a polished 2.5D board-token pipeline remains the safe runtime baseline. To move past that baseline into detailed animated 3D, the project needs real source 3D assets first, then Unity intake and review.
 
-Use AI to generate consistent concept sheets and rendered source plates. Then convert approved role art into Unity-ready sprites, billboard/card tokens, icons, and eventually authored meshes only where needed.
+Use AI to generate consistent concept sheets, rendered source plates, texture/material direction, and candidate 3D exports. Then convert approved role art into Unity-ready sprites, billboard/card tokens, icons, or source-cleaned meshes as appropriate.
 
-This should give the game a stronger early-2000s polished mobile/board-game read without fighting topology, rigging, UV cleanup, and tiny high-detail meshes that disappear at gameplay zoom.
+This should give the game a stronger early-2000s polished mobile/board-game read without pretending topology, rigging, UV cleanup, animation, and gameplay-scale review can be skipped.
+
+## 3D Art Direction Update
+
+The project has retired this broken process:
+
+```text
+source plate
+  -> Unity/procedural/sprite-card auto-generation
+  -> immediate runtime promotion
+```
+
+It repeatedly produced worse in-game results than the AIPlate fallback. Those outputs can remain as rejected evidence, but they are not a production path.
+
+The active 3D path is:
+
+```text
+approved concept/source plate
+  -> external or hand-authored 3D source asset
+  -> Blender/source cleanup
+  -> Unity runtime wrapper
+  -> animation hooks
+  -> screenshot and gameplay review
+  -> intentional promotion
+```
+
+Practical implications:
+
+- Unity editor scripts normalize assets; they do not create final art quality.
+- Procedural geometry is acceptable for anchors, halos, owner trim, and temporary scaffolds only.
+- A 3D candidate must be a real mesh source such as `.glb`, `.fbx`, `.blend`, curated kitbash, or human-authored model.
+- Towers should receive idle/attack animation through separated moving parts or Unity animation clips.
+- Creeps need rigged or otherwise animation-ready assets before they can become the detailed moving characters we want.
+- The AIPlate fallback stays active until a 3D candidate is clearly better in-game.
+
+First source-asset trial:
+
+- `art-pipeline/source-asset-briefs/control-3d-source-brief-v01.md`
+
+## No-Human-Design 3D Update
+
+The Control v01-v39 scripted Blender loop exposed a second ceiling: Codex-authored procedural primitives are useful for technical proofs, but they are not a reliable path to polished final 3D art. More local variants tended to add grain, fuzz, overdraw, and noise faster than they added real fidelity.
+
+The active no-human-design path is now documented here:
+
+- [No-Human-Design AI 3D Asset Pipeline](art-pipeline/no-human-design-ai-3d-asset-pipeline.md)
+
+In this path, the AI 3D generator is the designer. Codex may prompt, batch ingest, audit, normalize, preview, score, reject, and promote. Codex should not hand-model corrective geometry into generated candidates. Failed art candidates are rejected and regenerated.
+
+The first automated intake smoke test intentionally ran against the current v39 Control proof and flagged it as `needs_review` because it is too complex/noisy by the new gates. That is useful evidence: v39 remains a runtime technical placeholder, not the final target.
 
 ## Non-Negotiables
 
@@ -54,8 +104,8 @@ This should give the game a stronger early-2000s polished mobile/board-game read
 | In-game role art | AI-rendered 2.5D source plates | Clean transparent sprite/card token in Unity. |
 | Icons | AI/rendered role crop from same approved art | Manual crop, contrast, disabled/selected states. |
 | Materials/textures | AI texture ideation or Substance-style text-to-texture | Manual palette/value normalization. |
-| 3D props | AI/static 3D only for simple props | Manual scale, topology, UV, LOD, material cleanup. |
-| Characters/animated units | Avoid full AI 3D for now | Use sprite/card token or authored simple mesh. |
+| 3D tower meshes | External 3D generation, Blender, kitbash, or hand modeling | Source cleanup, material regions, wrapper, idle/attack animation. |
+| Characters/animated creeps | Rigged/animation-ready external mesh or authored simple mesh | Rig cleanup, locomotion/hit/death clips, Unity import certification. |
 
 ## Folder Structure
 

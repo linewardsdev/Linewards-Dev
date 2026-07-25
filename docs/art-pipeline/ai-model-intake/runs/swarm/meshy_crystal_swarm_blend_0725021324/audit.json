@@ -1,0 +1,43 @@
+{
+  "input": "/Users/admin/Downloads/Meshy_AI_Crystal_Swarm_Gamerea_0725021324_texture.blend",
+  "mesh_count": 1,
+  "object_count": 1,
+  "triangle_count": 14338,
+  "vertex_count": 7163,
+  "material_slot_count": 1,
+  "unique_material_count": 1,
+  "transparent_material_count": 1,
+  "transparent_materials": [
+    "Material_0.001"
+  ],
+  "texture_count": 3,
+  "texture_paths": [],
+  "packed_texture_names": [
+    "Baked_BaseColor",
+    "Baked_Emit",
+    "Baked_MetallicRoughness"
+  ],
+  "bounds": {
+    "min": [
+      -0.8504210710525513,
+      -0.901544988155365,
+      -0.9502829909324646
+    ],
+    "max": [
+      0.8489720821380615,
+      0.9024170637130737,
+      0.9478070139884949
+    ],
+    "size": [
+      1.6993931531906128,
+      1.803961992263794,
+      1.8980900049209595
+    ]
+  },
+  "object_name_sample": [
+    "Mesh1.0"
+  ],
+  "material_names": [
+    "Material_0.001"
+  ]
+}

@@ -1,0 +1,54 @@
+{
+  "role": "control",
+  "input": "/Users/admin/Downloads/Meshy_AI_Portal_Shrine_Gamerea_0724232602_texture.blend",
+  "output": "/Users/admin/LTW/unity/LTW.UnityClient/Assets/Art/AIStaging/Models/Towers/Control/AIDrop/control_meshy_portal_shrine_blend_unpacked_0724232602_prepared.fbx",
+  "target_height": 1.25,
+  "max_footprint": 1.45,
+  "mesh_count": 1,
+  "exported_textures": [
+    "/Users/admin/LTW/unity/LTW.UnityClient/Assets/Art/AIStaging/Models/Towers/Control/AIDrop/control_meshy_portal_shrine_blend_unpacked_0724232602_prepared_Textures/Baked_BaseColor.png",
+    "/Users/admin/LTW/unity/LTW.UnityClient/Assets/Art/AIStaging/Models/Towers/Control/AIDrop/control_meshy_portal_shrine_blend_unpacked_0724232602_prepared_Textures/Baked_Emit.png",
+    "/Users/admin/LTW/unity/LTW.UnityClient/Assets/Art/AIStaging/Models/Towers/Control/AIDrop/control_meshy_portal_shrine_blend_unpacked_0724232602_prepared_Textures/Baked_MetallicRoughness.png"
+  ],
+  "normalization": {
+    "scale_factor": 0.7638131549502841,
+    "initial_bounds": {
+      "min": [
+        -0.9501110315322876,
+        -0.9486861228942871,
+        -0.6249849796295166
+      ],
+      "max": [
+        0.9482590556144714,
+        0.9495890140533447,
+        0.6221740245819092
+      ],
+      "size": [
+        1.8983700275421143,
+        1.8982751369476318,
+        1.2471590042114258
+      ]
+    },
+    "final_bounds": {
+      "min": [
+        -0.7250000238418579,
+        -0.7249637246131897,
+        0.0
+      ],
+      "max": [
+        0.7249999642372131,
+        0.7249637246131897,
+        0.9525964260101318
+      ],
+      "size": [
+        1.4500000476837158,
+        1.4499274492263794,
+        0.9525964260101318
+      ]
+    }
+  },
+  "notes": [
+    "Prepared by Blender source cleanup script.",
+    "This is a source/staging export only; Unity promotion remains separate."
+  ]
+}

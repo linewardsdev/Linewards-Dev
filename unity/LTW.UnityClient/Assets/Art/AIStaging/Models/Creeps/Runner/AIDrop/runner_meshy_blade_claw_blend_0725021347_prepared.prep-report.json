@@ -1,0 +1,54 @@
+{
+  "role": "runner",
+  "input": "/Users/admin/Downloads/Meshy_AI_Blade_Claw_Gameready_0725021347_texture.blend",
+  "output": "/Users/admin/LTW/unity/LTW.UnityClient/Assets/Art/AIStaging/Models/Creeps/Runner/AIDrop/runner_meshy_blade_claw_blend_0725021347_prepared.fbx",
+  "target_height": 0.75,
+  "max_footprint": 0.9,
+  "mesh_count": 1,
+  "exported_textures": [
+    "/Users/admin/LTW/unity/LTW.UnityClient/Assets/Art/AIStaging/Models/Creeps/Runner/AIDrop/runner_meshy_blade_claw_blend_0725021347_prepared_Textures/Baked_BaseColor.png",
+    "/Users/admin/LTW/unity/LTW.UnityClient/Assets/Art/AIStaging/Models/Creeps/Runner/AIDrop/runner_meshy_blade_claw_blend_0725021347_prepared_Textures/Baked_Emit.png",
+    "/Users/admin/LTW/unity/LTW.UnityClient/Assets/Art/AIStaging/Models/Creeps/Runner/AIDrop/runner_meshy_blade_claw_blend_0725021347_prepared_Textures/Baked_MetallicRoughness.png"
+  ],
+  "normalization": {
+    "scale_factor": 0.4740429975790975,
+    "initial_bounds": {
+      "min": [
+        -0.9498909115791321,
+        -0.47658804059028625,
+        -0.24497799575328827
+      ],
+      "max": [
+        0.9486709833145142,
+        0.4768660068511963,
+        0.24013102054595947
+      ],
+      "size": [
+        1.898561954498291,
+        0.9534540176391602,
+        0.48510903120040894
+      ]
+    },
+    "final_bounds": {
+      "min": [
+        -0.45000001788139343,
+        -0.22598910331726074,
+        0.0
+      ],
+      "max": [
+        0.44999998807907104,
+        0.22598911821842194,
+        0.2299625277519226
+      ],
+      "size": [
+        0.8999999761581421,
+        0.4519782066345215,
+        0.2299625277519226
+      ]
+    }
+  },
+  "notes": [
+    "Prepared by Blender source cleanup script.",
+    "This is a source/staging export only; Unity promotion remains separate."
+  ]
+}

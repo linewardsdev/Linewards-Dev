@@ -1,0 +1,49 @@
+{
+  "role": "control",
+  "input": "/Users/admin/Downloads/Meshy_AI_Azure_Nexus_Ring_0724230105_generate.fbx",
+  "output": "/Users/admin/LTW/unity/LTW.UnityClient/Assets/Art/AIStaging/Models/Towers/Control/AIDrop/control_meshy_azure_nexus_ring_0724230105_prepared.fbx",
+  "target_height": 1.25,
+  "max_footprint": 1.45,
+  "mesh_count": 1,
+  "normalization": {
+    "scale_factor": 0.7633487611998466,
+    "initial_bounds": {
+      "min": [
+        -0.9501286745071411,
+        -0.9488949775695801,
+        -0.5888341069221497
+      ],
+      "max": [
+        0.9482948780059814,
+        0.9506298899650574,
+        0.5881097912788391
+      ],
+      "size": [
+        1.8984235525131226,
+        1.8995249271392822,
+        1.1769438982009888
+      ]
+    },
+    "final_bounds": {
+      "min": [
+        -0.7245796322822571,
+        -0.7250000238418579,
+        -1.9173782561665575e-09
+      ],
+      "max": [
+        0.7245796322822571,
+        0.7250000238418579,
+        0.898418664932251
+      ],
+      "size": [
+        1.4491592645645142,
+        1.4500000476837158,
+        0.898418664932251
+      ]
+    }
+  },
+  "notes": [
+    "Prepared by Blender source cleanup script.",
+    "This is a source/staging export only; Unity promotion remains separate."
+  ]
+}
