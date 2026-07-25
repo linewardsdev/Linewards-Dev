@@ -12,6 +12,7 @@ using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEditorInternal;
 using UnityEngine;
+using UnityEngine.Rendering;
 
 namespace LTW.UnityClient.Editor
 {
@@ -609,6 +610,22 @@ namespace LTW.UnityClient.Editor
             Debug.Log("Applied review-only AI proof visual overrides to UnityVerticalSliceRenderer.");
         }
 
+        private static void CreateContactSheetLight(string name, Vector3 eulerAngles, Color color, float intensity)
+        {
+            var lightObject = new GameObject($"RoleContactSheet{name}Light");
+            lightObject.transform.rotation = Quaternion.Euler(eulerAngles);
+
+            var light = lightObject.AddComponent<Light>();
+            light.type = LightType.Directional;
+            light.color = color;
+            light.intensity = intensity;
+            light.shadows = name == "Key" ? LightShadows.Soft : LightShadows.None;
+            if (light.shadows == LightShadows.Soft)
+            {
+                light.shadowStrength = 0.55f;
+            }
+        }
+
         private static void RenderRoleContactSheet(string path)
         {
             EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
@@ -625,30 +642,41 @@ namespace LTW.UnityClient.Editor
             camera.transform.position = new Vector3(0f, 7.5f, -8.5f);
             camera.transform.rotation = Quaternion.LookRotation(new Vector3(0f, 0.45f, 0f) - camera.transform.position);
 
-            var lightObject = new GameObject("RoleContactSheetKeyLight");
-            var light = lightObject.AddComponent<Light>();
-            light.type = LightType.Directional;
-            light.intensity = 1.2f;
-            light.transform.rotation = Quaternion.Euler(52f, -28f, 0f);
+            // Mirror the runtime rig from LocalVerticalSliceLauncher so the sheet reviews what the
+            // game actually renders. A single key over flat ambient flatters models the game never
+            // shows that way.
+            CreateContactSheetLight("Key", new Vector3(50f, -35f, 0f), new Color(1f, 0.957f, 0.878f), 1.2f);
+            CreateContactSheetLight("Fill", new Vector3(30f, 145f, 0f), new Color(0.722f, 0.804f, 1f), 0.35f);
+            CreateContactSheetLight("Rim", new Vector3(15f, 180f, 0f), new Color(0.851f, 0.902f, 1f), 0.5f);
+
+            RenderSettings.ambientMode = AmbientMode.Trilight;
+            RenderSettings.ambientSkyColor = new Color(0.322f, 0.361f, 0.451f);
+            RenderSettings.ambientEquatorColor = new Color(0.212f, 0.227f, 0.259f);
+            RenderSettings.ambientGroundColor = new Color(0.114f, 0.125f, 0.157f);
 
             CreateContactSheetBackdrop();
 
+            // These must track TowerVisualLibrary and CreepVisualLibrary. The sheet previously
+            // rendered the pre-3D primitive prefabs, so no review captured through it ever showed
+            // the meshes the game loads.
             var towerPrefabs = new[]
             {
-                ("ARROW", PreferAiProofPrefab("Assets/Prefabs/Towers/Tower_Arrow_AIPlate.prefab", "Assets/Prefabs/Towers/Tower_Arrow.prefab")),
-                ("CONTROL", "Assets/Prefabs/Towers/Tower_Control.prefab"),
-                ("RELAY", "Assets/Prefabs/Towers/Tower_Relay.prefab"),
-                ("PULSE", "Assets/Prefabs/Towers/Tower_Pulse.prefab"),
-                ("PRISM", "Assets/Prefabs/Towers/Tower_Prism.prefab"),
+                ("ARROW", "Assets/Prefabs/Towers/Tower_Arrow_3D.prefab"),
+                ("CONTROL", "Assets/Prefabs/Towers/Tower_Control_3D.prefab"),
+                ("RELAY", "Assets/Prefabs/Towers/Tower_Relay_3D.prefab"),
+                ("PULSE", "Assets/Prefabs/Towers/Tower_Pulse_3D.prefab"),
+                ("PRISM", "Assets/Prefabs/Towers/Tower_Prism_3D.prefab"),
             };
 
+            // Creeps stay on the plate prefabs because CreepVisualLibrary still loads those; swap
+            // these over in the same change that wires the 3D creep meshes in.
             var creepPrefabs = new[]
             {
-                ("RUNNER", PreferAiProofPrefab("Assets/Prefabs/Creeps/Creep_Runner_AIPlate.prefab", "Assets/Prefabs/Creeps/Creep_Runner.prefab")),
-                ("BRUTE", "Assets/Prefabs/Creeps/Creep_Brute.prefab"),
-                ("SWARM", "Assets/Prefabs/Creeps/Creep_Swarm.prefab"),
-                ("SHADE", "Assets/Prefabs/Creeps/Creep_Shade.prefab"),
-                ("SIEGE", "Assets/Prefabs/Creeps/Creep_Siege.prefab"),
+                ("RUNNER", "Assets/Prefabs/Creeps/Creep_Runner_AIPlate.prefab"),
+                ("BRUTE", "Assets/Prefabs/Creeps/Creep_Brute_AIPlate.prefab"),
+                ("SWARM", "Assets/Prefabs/Creeps/Creep_Swarm_AIPlate.prefab"),
+                ("SHADE", "Assets/Prefabs/Creeps/Creep_Shade_AIPlate.prefab"),
+                ("SIEGE", "Assets/Prefabs/Creeps/Creep_Siege_AIPlate.prefab"),
             };
 
             for (var index = 0; index < towerPrefabs.Length; index++)
