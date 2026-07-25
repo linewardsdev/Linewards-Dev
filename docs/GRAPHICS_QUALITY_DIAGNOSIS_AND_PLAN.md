@@ -1,0 +1,149 @@
+# Graphics Quality Diagnosis And Improvement Plan
+
+Recorded 2026-07-25, after the AI 3D asset pipeline landed five tower meshes and five
+creep meshes from the Meshy intake.
+
+## Summary
+
+The Meshy 3D assets look markedly worse in game than they do in the source previews.
+The cause is not the meshes or their textures. It is the scene and material setup around
+them: **the game contains no lights**, runs in **Gamma color space**, and its runtime
+materials **discard two of the three maps the intake produces** while explicitly disabling
+specular highlights and reflections.
+
+A physically based mesh lit only by flat ambient has no diffuse gradient, no specular
+response, and casts no shadow. Every cue that makes it read as a three-dimensional object
+is absent, so it renders as a flat image of itself. Extended 2D art iteration cannot
+recover that, which is why previous art passes produced limited improvement.
+
+## Verified findings
+
+Each item below was confirmed by reading project files, not inferred from appearance.
+
+### 1. The scene has no lights and no camera
+
+`Assets/Scenes/LocalVerticalSlice.unity` contains zero `Light` components and zero
+`Camera` components. The camera is constructed at runtime in
+`Assets/Scripts/Simulation/LocalVerticalSliceLauncher.cs` (`CreateCamera`, line 68). That
+method never creates a light and never assigns `RenderSettings`.
+
+The only illumination in the game is ambient, configured as:
+
+```yaml
+m_AmbientMode: 0                 # Skybox
+m_AmbientSkyColor: {r: 0.212, g: 0.227, b: 0.259, a: 1}
+m_AmbientIntensity: 1
+```
+
+Flat, uniform, directionless. This is the single largest contributor to the quality loss.
+
+### 2. Runtime tower materials discard most of the intake
+
+In `Assets/Art/Towers/Production/Materials/mat_tower_arrow_3d_body_runtime_v01.mat`, and
+identically in the Control equivalent:
+
+| Slot | State |
+| --- | --- |
+| `_MainTex` | bound |
+| `_MetallicGlossMap` | **not bound** — `Baked_MetallicRoughness.png` is unused |
+| `_EmissionMap` | **not bound** — `Baked_Emit.png` is unused |
+| `_BumpMap` | not bound — no normal map exists in the set |
+
+Shader keywords are `_GLOSSYREFLECTIONS_OFF` and `_SPECULARHIGHLIGHTS_OFF`, with
+`_Glossiness: 0.12` and `_Metallic: 0`. Specular response and reflections are switched
+off at the material level. The likely history is that these were disabled to suppress
+artifacts that were actually symptoms of finding 1.
+
+### 3. Project renders in Gamma color space
+
+`ProjectSettings.asset` has `m_ActiveColorSpace: 0`. Physically based shading assumes
+linear light transport; in Gamma the response curve is wrong and output reads washed out
+and plastic. This is the standard cause of "correct in the DCC tool, flat in Unity".
+
+### 4. MetallicRoughness maps import as sRGB
+
+The `.meta` for `Baked_MetallicRoughness.png` carries `sRGBTexture: 1`. Roughness and
+metallic are data, not color, and must import linear. Binding the map without correcting
+this produces wrong values.
+
+### 5. Android ships a lower quality tier than the editor previews
+
+`QualitySettings.asset` sets `m_PerPlatformDefaultQuality: Android: 2` — the "Medium"
+level, with `antiAliasing: 0`, `shadows: 1`, `shadowCascades: 1`, and
+`realtimeReflectionProbes: 0`. The editor previews at level 5. Device output is therefore
+worse than anything reviewed on desktop.
+
+### 6. Supporting observations
+
+- **No normal maps.** The intake extracts BaseColor, MetallicRoughness and Emit only, so
+  all surface detail is flattened into albedo. See `tools/art_pipeline/blender_prepare_tower_source.py`.
+- **The board is untextured primitives.** `UnityVerticalSliceRenderer.cs` builds lane
+  cells, meters, pylons and rails from `GameObject.CreatePrimitive` on default materials;
+  board plates use `Unlit/Transparent` (line 1646).
+- **Source textures are 4096²** while the importer clamps to `maxTextureSize: 2048`. The
+  4K originals add repository weight with no rendered benefit at phone scale.
+- **The 2D creep plates are still live.** `CreepVisualLibrary` references
+  `Creep_Runner_AIPlate` and `Creep_Shade_AIPlate`, so `Assets/Art/AIStaging/SourcePlates`
+  (126 MB) cannot be retired until the 3D creeps are wired in.
+
+## Improvement plan
+
+Ordered by rendered improvement per unit of effort.
+
+### Tier 1 — foundation
+
+Expected to account for most of the visible gap. Small, reversible changes.
+
+1. **Add a three-point light rig at runtime.** Key directional light (warm, intensity
+   ~1.2, pitched ~50°, shadows enabled), fill (cool, ~0.35, opposing), rim/back (~0.5)
+   for silhouette separation against the board.
+2. **Switch to Linear color space.** Requires one retune pass over board and UI tints;
+   do that immediately after, as its own change.
+3. **Bind `_MetallicGlossMap` and `_EmissionMap`, clear `_GLOSSYREFLECTIONS_OFF` and
+   `_SPECULARHIGHLIGHTS_OFF`, raise `_Glossiness`.** Recovers the material variation the
+   intake already produces.
+4. **Set `sRGBTexture: 0` on every MetallicRoughness map.** Prerequisite for item 3
+   reading correctly.
+5. **Replace flat ambient with a gradient** — warm sky, neutral equator, cool ground.
+   Approximates bounce grounding at negligible cost.
+
+### Tier 2 — shading and pipeline
+
+6. **Evaluate a URP migration.** Built-in can look good once Tier 1 lands. URP adds
+   per-object shadow control, mobile post-processing, and shader graph authoring for the
+   energy and owner materials. Decide after Tier 1, on evidence.
+7. **Neutral or ACES tonemapping plus restrained bloom**, once emission is bound. Bloom
+   is what makes emissive tower detail read.
+8. **Author emission per tower role** so arrow, pulse, relay, prism and control separate
+   at a glance by glow colour.
+9. **Give Android a dedicated quality level**: `antiAliasing: 2` (MSAA 2x is inexpensive
+   on tile-based mobile GPUs), `shadowCascades: 2`, `shadowResolution: 1`.
+
+### Tier 3 — game board
+
+10. **Replace primitive cells with a board mesh and tiling material.** Hundreds of
+    primitives on default materials are both flat and costly.
+11. **Ground every unit** with a blob shadow or contact decal. Under an orthographic
+    camera this is the strongest available depth cue.
+12. **Express lane state through material** — emissive strength or fill amount — rather
+    than stacked cube geometry.
+13. **Enable static batching and GPU instancing** on board geometry to fund the shadow
+    cost added in Tier 1.
+
+### Tier 4 — towers and creeps
+
+14. **Re-export the Meshy drops with normal maps** and extend
+    `blender_prepare_tower_source.py` to extract them.
+15. **Wire the five 3D creeps into `CreepVisualLibrary`**, retiring the 2D plate prefabs
+    and the 126 MB `SourcePlates` folder.
+16. **Run a silhouette pass at true game scale.** Towers occupy roughly 100 px on a
+    phone; confirm all ten read distinctly at that size in grayscale.
+17. **Lower `maxTextureSize` to 1024 and stop committing 4096 sources.**
+18. **Tint team colour through `_Color` on the owner material** instead of separate
+    texture sets, so the treatment stays consistent as the roster grows.
+
+## Working note
+
+Prior art cycles iterated 2D source material to solve what is a lighting and material
+binding problem. Before committing further art effort, verify the change under the Tier 1
+setup — the existing assets have not yet been seen lit.
