@@ -224,6 +224,26 @@ What the capture confirmed:
 - The violet marker on the lane is `WardViolet`, an intended colour constant, not a
   missing-material placeholder.
 
+### Follow-up pass, same day
+
+Both problems above were addressed and re-verified against a fresh match capture.
+
+**Creep scale.** `UnitBoundsReport` was added to log runtime prefab bounds, since unit
+scale can only be judged against the match camera. It showed the shortfall was height, not
+width — widths already approached a full cell, so the uniform 1.6-1.8x increase first
+proposed would have pushed siege and runner wider than the lane they walk. Scales are now
+derived from measured height: creeps sit at 0.64 to 0.70 against towers at roughly 0.74.
+
+**Board palette.** All board colour helpers now route through `BoardSurface`, which lifts
+values authored for gamma. The exact inverse-gamma conversion proved too strong — it
+turned night stone into pale concrete and made the buildable slots read as holes — so the
+helper blends part of the way via `BoardSurfaceLift`, currently 0.35. That constant is the
+single dial for board brightness; raise to brighten, lower to darken.
+
+**Runner remains an outlier.** Width-capped, it lands at 0.29 tall against 0.64 or more
+for every other creep. Scale cannot fix a flat mesh. It needs an art decision or a
+re-source.
+
 ### Creep 3D wiring, 2026-07-25
 
 All five creep meshes now load through `CreepVisualLibrary`. Two notes for whoever picks
