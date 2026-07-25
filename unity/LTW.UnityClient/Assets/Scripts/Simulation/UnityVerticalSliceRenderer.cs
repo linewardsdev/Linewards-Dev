@@ -15,6 +15,12 @@ namespace LTW.UnityClient.Simulation
     public sealed class UnityVerticalSliceRenderer : MonoBehaviour
     {
         private const int LaneWidth = 7;
+
+        /// <summary>
+        /// Sorting order for world-space floating text. Kept above every board decoration
+        /// SpriteRenderer so send banners and damage numbers are never covered by board furniture.
+        /// </summary>
+        private const int FloatingTextSortingOrder = 100;
         private const int LaneLength = 16;
         private const int LaneCount = 8;
         private const int LaneSpacing = 9;
@@ -628,6 +634,16 @@ namespace LTW.UnityClient.Simulation
             mesh.text = text;
             mesh.color = color;
             mesh.characterSize = 0.16f * PresentationPreferences.TextScale;
+
+            // Board furniture such as the endpoint gate plates draws through SpriteRenderers with
+            // sorting orders up to 3. A TextMesh renderer defaults to 0, so send banners spawning
+            // over a gate were being covered by it. Sort floating text above all board decoration.
+            var textRenderer = textObject.GetComponent<MeshRenderer>();
+            if (textRenderer != null)
+            {
+                textRenderer.sortingOrder = FloatingTextSortingOrder;
+            }
+
             timedPresentations.Add(new TimedPresentation(textObject, Time.time + duration, textPool));
         }
 

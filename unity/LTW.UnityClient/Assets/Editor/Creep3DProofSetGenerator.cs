@@ -29,7 +29,11 @@ namespace LTW.UnityClient.Editor
                 Creep3DImportPipeline.RuntimePrefabFolder + "/Creep_Runner_3D.prefab",
                 new Vector3(1.13f, 1.13f, 1.13f),
                 1f,
-                Vector3.zero,
+                // The blade-claw mesh is 0.90 wide but only 0.23 tall, so at board scale it reads
+                // as a sliver no scale can rescue without overflowing the lane. Pitching it nose-up
+                // trades unseen depth for silhouette, roughly doubling apparent height, and suits a
+                // darting creep. Set back to Vector3.zero to return it flat.
+                new Vector3(35f, 0f, 0f),
                 0.42f),
             new(
                 "Brute",

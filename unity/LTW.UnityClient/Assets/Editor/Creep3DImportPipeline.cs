@@ -58,6 +58,7 @@ namespace LTW.UnityClient.Editor
 
             StripColliders(instance);
             ApplyMaterial(instance, bodyMaterial);
+            SeatOnGround(instance);
 
             // The library tints whatever sits under bodyRendererPath. Pointing it at an empty
             // anchor keeps the team colour from multiplying into the baked albedo, which is how
@@ -201,6 +202,31 @@ namespace LTW.UnityClient.Editor
             AssetDatabase.DeleteAsset(materialPath);
             AssetDatabase.CreateAsset(material, materialPath);
             accent.GetComponent<Renderer>().sharedMaterial = AssetDatabase.LoadAssetAtPath<Material>(materialPath);
+        }
+
+        /// <summary>
+        /// Lifts the imported mesh so its lowest point rests on y = 0.
+        /// </summary>
+        /// <remarks>
+        /// The intake exports each model with its base already at the origin, but any import
+        /// rotation pivots about that base and swings part of the mesh below the board. Reseating
+        /// from the measured bounds keeps units on the surface whatever rotation a spec asks for.
+        /// </remarks>
+        private static void SeatOnGround(GameObject instance)
+        {
+            var renderers = instance.GetComponentsInChildren<Renderer>(true);
+            if (renderers.Length == 0)
+            {
+                return;
+            }
+
+            var bounds = renderers[0].bounds;
+            for (var index = 1; index < renderers.Length; index++)
+            {
+                bounds.Encapsulate(renderers[index].bounds);
+            }
+
+            instance.transform.localPosition -= new Vector3(0f, bounds.min.y, 0f);
         }
 
         private static GameObject CreateEmptyChild(GameObject parent, string name, Vector3 localPosition)
