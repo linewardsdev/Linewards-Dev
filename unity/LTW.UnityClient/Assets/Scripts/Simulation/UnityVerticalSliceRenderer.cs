@@ -37,6 +37,27 @@ namespace LTW.UnityClient.Simulation
         private const string BoardBuildBandTextureResourcePath = "Art/Board/Materials/board_build_band_option_11";
         private const string BoardRouteCoreTextureResourcePath = "Art/Board/Materials/board_route_core_option_11";
 
+        /// <summary>
+        /// World Y of the walkable board surface: the top face of a lane cell, which sits at
+        /// <c>GridToWorld().y - 0.53 + 0.06</c>. Contact shadows are pinned to this plane so they
+        /// stay glued to the floor regardless of how far a unit's own pivot floats above it.
+        /// </summary>
+        private const float BoardTopY = -0.12f;
+
+        /// <summary>
+        /// How far the contact shadow decal is lifted off <see cref="BoardTopY"/>. Large enough to
+        /// clear depth-fighting with the baked lane mesh, small enough to read as painted on.
+        /// </summary>
+        private const float ContactShadowLift = 0.006f;
+
+        /// <summary>
+        /// Vertex shade applied to the bottom edge of every baked board box, blending back to the
+        /// authored colour at the top. The primitive cubes used to gain their seam definition from
+        /// self-shadowing across the 0.04 gap between tiles; baking the same falloff into the mesh
+        /// keeps the grid legible and adds contact occlusion under every raised strip.
+        /// </summary>
+        private const float BoardSeamShade = 0.74f;
+
         [SerializeField] private UnitySimulationDriver simulationDriver = null!;
         [SerializeField] private PresentationDetail presentationDetail = PresentationDetail.Full;
         [SerializeField] private LaneCameraFraming cameraFraming = LaneCameraFraming.ActiveLane;
@@ -68,6 +89,16 @@ namespace LTW.UnityClient.Simulation
         private readonly Dictionary<int, TextMesh> lanePressureLabels = new Dictionary<int, TextMesh>();
         private readonly List<GameObject> laneCells = new List<GameObject>();
         private readonly List<GameObject> laneDecorations = new List<GameObject>();
+        private readonly List<BoardPiece> pendingBoardPieces = new List<BoardPiece>();
+
+        /// <summary>Total board pieces folded into the baked lane meshes, for the geometry budget log.</summary>
+        private int bakedBoardPieceCount;
+        private readonly BoardMeshBuilder boardMeshBuilder = new BoardMeshBuilder();
+        private readonly Dictionary<string, Material> referencePlateMaterials = new Dictionary<string, Material>();
+        private readonly Dictionary<string, GameObject> activeContactShadows = new Dictionary<string, GameObject>();
+        private readonly Dictionary<string, Vector2> unitFootprints = new Dictionary<string, Vector2>();
+        private readonly Queue<GameObject> contactShadowPool = new Queue<GameObject>();
+        private readonly HashSet<string> visibleContactShadowKeys = new HashSet<string>();
         private readonly HashSet<string> visibleKeys = new HashSet<string>();
         private readonly Queue<GameObject> towerPool = new Queue<GameObject>();
         private readonly Queue<GameObject> creepPool = new Queue<GameObject>();
@@ -84,6 +115,9 @@ namespace LTW.UnityClient.Simulation
         private Texture2D boardDeepFieldTexture;
         private Texture2D boardBuildBandTexture;
         private Texture2D boardRouteCoreTexture;
+        private GameObject boardGeometryRoot;
+        private Material towerContactShadowMaterial;
+        private Material creepContactShadowMaterial;
         private bool laneCreated;
 
         public PresentationDetail Detail => presentationDetail;
@@ -258,18 +292,7 @@ namespace LTW.UnityClient.Simulation
                 CreateLaneEnvironmentTrim(lane);
                 CreateLaneFlowTickMarks(lane);
                 CreateLaneSurfaceBands(lane);
-                for (var x = 0; x < LaneWidth; x++)
-                {
-                    for (var y = 0; y < LaneLength; y++)
-                    {
-                        var cell = CreatePrimitive($"Lane{lane}Cell_{x}_{y}", PrimitiveType.Cube);
-                        cell.transform.position = GridToWorld(new GridPosition(x, y), new LaneId(lane)) + Vector3.down * 0.53f;
-                        cell.transform.localScale = new Vector3(0.96f, 0.12f, 0.96f);
-                        SetColor(cell, CellColor(lane, x, y));
-                        laneCells.Add(cell);
-                    }
-                }
-
+                CreateLaneFloor(lane);
                 CreateLaneReferenceMaterialOverlays(lane);
                 CreateLaneTileDetailPass(lane);
                 if (!EndpointSpritesAvailable)
@@ -292,14 +315,165 @@ namespace LTW.UnityClient.Simulation
 
                 CreateLaneLabel(lane);
                 CreateLaneOwnershipBadge(lane);
+                BakeLaneBoardMesh(lane);
             }
 
             laneCreated = true;
+            LogBoardGeometryBudget();
+        }
+
+        /// <summary>
+        /// Emits the lane's cell grid straight into the lane mesh.
+        /// </summary>
+        /// <remarks>
+        /// Geometry matches the primitive cubes this replaces exactly - same centre, same
+        /// 0.96 x 0.12 x 0.96 extent, so the 0.04 gap that draws the grid is untouched and
+        /// <see cref="GridToWorld"/> still describes where a cell is. The only change is that the
+        /// per-cell colour now lives in the vertex stream rather than in 112 material instances.
+        /// </remarks>
+        private void CreateLaneFloor(int laneId)
+        {
+            for (var x = 0; x < LaneWidth; x++)
+            {
+                for (var y = 0; y < LaneLength; y++)
+                {
+                    var center = GridToWorld(new GridPosition(x, y), new LaneId(laneId)) + Vector3.down * 0.53f;
+                    boardMeshBuilder.AddBox(center, new Vector3(0.96f, 0.12f, 0.96f), CellColor(laneId, x, y), BoardSeamShade);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Folds every board piece queued for this lane into one mesh and spawns the single
+        /// renderer that draws it.
+        /// </summary>
+        /// <remarks>
+        /// The decoration helpers hand back transform-only proxies so callers can keep rotating and
+        /// nudging them exactly as before; the proxies are consumed here and destroyed. Baking per
+        /// lane rather than per board keeps frustum culling useful - the active-lane framing only
+        /// ever sees one lane - and keeps every mesh comfortably inside a 16-bit index buffer.
+        /// </remarks>
+        private void BakeLaneBoardMesh(int laneId)
+        {
+            for (var index = 0; index < pendingBoardPieces.Count; index++)
+            {
+                var piece = pendingBoardPieces[index];
+                if (piece.Object == null)
+                {
+                    continue;
+                }
+
+                var pieceTransform = piece.Object.transform.localToWorldMatrix;
+                if (piece.PrimitiveType == PrimitiveType.Cube)
+                {
+                    boardMeshBuilder.AddBox(pieceTransform, piece.Color, BoardSeamShade);
+                }
+                else
+                {
+                    boardMeshBuilder.AddMesh(BoardMeshBuilder.PrimitiveMesh(piece.PrimitiveType), pieceTransform, piece.Color);
+                }
+
+                Destroy(piece.Object);
+            }
+
+            bakedBoardPieceCount += pendingBoardPieces.Count;
+            pendingBoardPieces.Clear();
+            if (boardMeshBuilder.IsEmpty)
+            {
+                return;
+            }
+
+            var mesh = boardMeshBuilder.CreateMesh($"LTW Lane{laneId} Board");
+            boardMeshBuilder.Clear();
+
+            var surface = new GameObject($"Lane{laneId}BoardSurface");
+            surface.transform.SetParent(BoardGeometryRoot().transform, false);
+            surface.AddComponent<MeshFilter>().sharedMesh = mesh;
+            var meshRenderer = surface.AddComponent<MeshRenderer>();
+            meshRenderer.sharedMaterial = BoardRenderResources.BoardSurfaceMaterial;
+            meshRenderer.receiveShadows = true;
+            meshRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.On;
+            laneCells.Add(surface);
+        }
+
+        private GameObject BoardGeometryRoot()
+        {
+            if (boardGeometryRoot == null)
+            {
+                boardGeometryRoot = new GameObject("LTW Board Geometry");
+            }
+
+            return boardGeometryRoot;
+        }
+
+        /// <summary>
+        /// Records a board decoration for baking and returns a transform-only stand-in.
+        /// </summary>
+        /// <remarks>
+        /// Callers routinely rotate or reposition the object they get back, so the piece cannot be
+        /// baked at creation time. The stand-in carries nothing but a <see cref="Transform"/> - no
+        /// renderer, no material, and notably no collider, which the old primitives all carried
+        /// despite nothing in the client ever raycasting the board.
+        /// </remarks>
+        private GameObject CreateBoardPiece(string name, PrimitiveType primitiveType, Vector3 position, Vector3 scale, Color color)
+        {
+            var piece = new GameObject(name);
+            piece.transform.position = position;
+            piece.transform.localScale = scale;
+            pendingBoardPieces.Add(new BoardPiece(piece, primitiveType, color));
+            return piece;
+        }
+
+        /// <summary>
+        /// Creates a board decoration that has to survive as a real renderer because something
+        /// animates it later. These share a material per colour so GPU instancing can still fold
+        /// them together.
+        /// </summary>
+        private GameObject CreateLiveBoardPiece(string name, PrimitiveType primitiveType, Vector3 position, Vector3 scale, Color color)
+        {
+            var instance = CreatePrimitive(name, primitiveType);
+            DestroyPrimitiveCollider(instance);
+            instance.transform.position = position;
+            instance.transform.localScale = scale;
+            var meshRenderer = instance.GetComponent<MeshRenderer>();
+            if (meshRenderer != null)
+            {
+                meshRenderer.sharedMaterial = BoardRenderResources.SharedOpaque(color);
+            }
+
+            laneDecorations.Add(instance);
+            return instance;
+        }
+
+        private void DestroyPrimitiveCollider(GameObject instance)
+        {
+            var collider = instance.GetComponent<Collider>();
+            if (collider != null)
+            {
+                Destroy(collider);
+            }
+        }
+
+        private void LogBoardGeometryBudget()
+        {
+            var boardRenderers = 0;
+            for (var index = 0; index < laneDecorations.Count; index++)
+            {
+                if (laneDecorations[index] != null && laneDecorations[index].GetComponent<Renderer>() != null)
+                {
+                    boardRenderers++;
+                }
+            }
+
+            Debug.Log(
+                $"LTW board geometry -> {laneCells.Count} baked lane meshes, {boardRenderers} remaining board renderers, " +
+                $"{bakedBoardPieceCount} pieces baked (each was previously its own renderer and material instance)");
         }
 
         private void RenderSnapshot(LTW.Simulation.Bridge.VerticalSliceSnapshot snapshot)
         {
             visibleKeys.Clear();
+            visibleContactShadowKeys.Clear();
             towerRolesByCell.Clear();
             foreach (var tower in snapshot.Towers)
             {
@@ -315,6 +489,9 @@ namespace LTW.UnityClient.Simulation
                     ConfigureTowerRoleMarker(towerObject, tower.TowerId.Value, tower.OwnerId.Value);
                 }
 
+                // Towers and creeps are keyed from separate id spaces, so the decal key is prefixed
+                // to stop a tower and a creep that happen to share an entity id fighting over one.
+                UpdateContactShadow("t" + key, towerObject, TowerPoolKey(visualProfile), TowerContactShadowMaterial(), 0.94f);
                 lastKnownPositions[key] = towerObject.transform.position;
             }
 
@@ -359,6 +536,7 @@ namespace LTW.UnityClient.Simulation
                     }
                 }
 
+                UpdateContactShadow("c" + key, creepObject, CreepPoolKey(visualProfile), CreepContactShadowMaterial(), 0.86f);
                 lastKnownPositions[key] = creepObject.transform.position;
                 lastKnownCreepIds[key] = creep.CreepId.Value;
                 lastCreepHealth[key] = creep.Health;
@@ -369,7 +547,191 @@ namespace LTW.UnityClient.Simulation
             }
 
             ReleaseMissingCreeps();
+            ReleaseMissingContactShadows();
             UpdateLanePressureIndicators(pressureByLane);
+        }
+
+        /// <summary>
+        /// Places the grounding decal for one unit.
+        /// </summary>
+        /// <remarks>
+        /// The match camera is orthographic and looks almost straight down, so a cast shadow from
+        /// the key light lands nearly underneath the unit and reads as nothing. A blob pinned to the
+        /// board plane is the depth cue that actually survives this projection: it tells the eye
+        /// where the unit touches the floor and how big its footprint is.
+        ///
+        /// The decal is pooled and keyed off the same entity id as the unit itself, so it follows
+        /// the existing pooling exactly - reused instances get repositioned, and anything that
+        /// leaves the snapshot returns its blob on the same frame the unit is released.
+        /// </remarks>
+        private void UpdateContactShadow(string key, GameObject unit, string poolKey, Material material, float footprintScale)
+        {
+            if (material == null || unit == null)
+            {
+                return;
+            }
+
+            visibleContactShadowKeys.Add(key);
+            if (!activeContactShadows.TryGetValue(key, out var decal) || decal == null)
+            {
+                decal = GetPooledContactShadow();
+                activeContactShadows[key] = decal;
+            }
+
+            var decalRenderer = decal.GetComponent<MeshRenderer>();
+            if (decalRenderer.sharedMaterial != material)
+            {
+                decalRenderer.sharedMaterial = material;
+            }
+
+            var footprint = UnitFootprint(poolKey, unit);
+            var unitPosition = unit.transform.position;
+            decal.transform.position = new Vector3(unitPosition.x, BoardTopY + ContactShadowLift, unitPosition.z);
+            decal.transform.localScale = new Vector3(footprint.x * footprintScale, 1f, footprint.y * footprintScale);
+        }
+
+        private GameObject GetPooledContactShadow()
+        {
+            if (contactShadowPool.Count > 0)
+            {
+                var pooled = contactShadowPool.Dequeue();
+                pooled.SetActive(true);
+                return pooled;
+            }
+
+            var decal = new GameObject("UnitContactShadow");
+            decal.transform.SetParent(BoardGeometryRoot().transform, false);
+            decal.AddComponent<MeshFilter>().sharedMesh = BoardRenderResources.ContactShadowMesh;
+            var decalRenderer = decal.AddComponent<MeshRenderer>();
+            decalRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            decalRenderer.receiveShadows = false;
+            decalRenderer.lightProbeUsage = UnityEngine.Rendering.LightProbeUsage.Off;
+            decalRenderer.reflectionProbeUsage = UnityEngine.Rendering.ReflectionProbeUsage.Off;
+            return decal;
+        }
+
+        private void ReleaseMissingContactShadows()
+        {
+            if (activeContactShadows.Count == 0)
+            {
+                return;
+            }
+
+            var keysToRelease = new List<string>();
+            foreach (var pair in activeContactShadows)
+            {
+                if (!visibleContactShadowKeys.Contains(pair.Key))
+                {
+                    keysToRelease.Add(pair.Key);
+                }
+            }
+
+            for (var index = 0; index < keysToRelease.Count; index++)
+            {
+                ReleaseContactShadow(keysToRelease[index]);
+            }
+        }
+
+        private void ReleaseContactShadow(string key)
+        {
+            if (activeContactShadows.TryGetValue(key, out var decal) && decal != null)
+            {
+                ReleaseToPool(decal, contactShadowPool);
+            }
+
+            activeContactShadows.Remove(key);
+        }
+
+        private void ReleaseAllContactShadows()
+        {
+            foreach (var pair in activeContactShadows)
+            {
+                if (pair.Value != null)
+                {
+                    ReleaseToPool(pair.Value, contactShadowPool);
+                }
+            }
+
+            activeContactShadows.Clear();
+        }
+
+        /// <summary>
+        /// The XZ extent of a unit's body at unit scale, measured once per pool key.
+        /// </summary>
+        /// <remarks>
+        /// Measured from the prefab's own renderers rather than guessed from the role tables, so a
+        /// blob matches the silhouette that is actually on screen. Health bars and role-readability
+        /// overlays are excluded: they are wider than every creep they sit above and would inflate
+        /// the footprint into a puddle. The result is normalised by the instance's scale at
+        /// measurement time so the caller can re-apply the live scale each frame.
+        /// </remarks>
+        private Vector2 UnitFootprint(string poolKey, GameObject unit)
+        {
+            var scale = unit.transform.lossyScale;
+            if (unitFootprints.TryGetValue(poolKey, out var cached))
+            {
+                return new Vector2(cached.x * Mathf.Abs(scale.x), cached.y * Mathf.Abs(scale.z));
+            }
+
+            var renderers = unit.GetComponentsInChildren<Renderer>(true);
+            var hasBounds = false;
+            var bounds = new Bounds(unit.transform.position, Vector3.zero);
+            for (var index = 0; index < renderers.Length; index++)
+            {
+                var candidate = renderers[index];
+                if (candidate == null || candidate is SpriteRenderer || IsOverlayRenderer(candidate.gameObject.name))
+                {
+                    continue;
+                }
+
+                if (!hasBounds)
+                {
+                    bounds = candidate.bounds;
+                    hasBounds = true;
+                    continue;
+                }
+
+                bounds.Encapsulate(candidate.bounds);
+            }
+
+            var footprint = hasBounds
+                ? new Vector2(
+                    bounds.size.x / Mathf.Max(0.0001f, Mathf.Abs(scale.x)),
+                    bounds.size.z / Mathf.Max(0.0001f, Mathf.Abs(scale.z)))
+                : Vector2.one;
+
+            footprint = new Vector2(Mathf.Clamp(footprint.x, 0.4f, 3f), Mathf.Clamp(footprint.y, 0.4f, 3f));
+            unitFootprints[poolKey] = footprint;
+            return new Vector2(footprint.x * Mathf.Abs(scale.x), footprint.y * Mathf.Abs(scale.z));
+        }
+
+        private static bool IsOverlayRenderer(string rendererName) =>
+            rendererName.StartsWith("Health", StringComparison.Ordinal) || rendererName.StartsWith("Role", StringComparison.Ordinal);
+
+        private Material TowerContactShadowMaterial()
+        {
+            if (towerContactShadowMaterial == null)
+            {
+                towerContactShadowMaterial = BoardRenderResources.CreateContactShadowMaterial(
+                    "LTW Tower Contact Shadow",
+                    new Color(0.012f, 0.017f, 0.028f, 0.62f),
+                    0.62f);
+            }
+
+            return towerContactShadowMaterial;
+        }
+
+        private Material CreepContactShadowMaterial()
+        {
+            if (creepContactShadowMaterial == null)
+            {
+                creepContactShadowMaterial = BoardRenderResources.CreateContactShadowMaterial(
+                    "LTW Creep Contact Shadow",
+                    new Color(0.014f, 0.018f, 0.03f, 0.5f),
+                    0.7f);
+            }
+
+            return creepContactShadowMaterial;
         }
 
         private void UpdateLanePressureIndicators(IReadOnlyList<int> pressureByLane)
@@ -383,12 +745,14 @@ namespace LTW.UnityClient.Simulation
                 var length = Mathf.Lerp(0.28f, LaneLength * 0.54f, fill);
                 meter.transform.localScale = new Vector3(0.16f, 0.12f, length);
                 meter.transform.position = new Vector3(LaneOffset(laneId) + LaneWidth + 0.18f, -0.08f, 0.35f + length * 0.5f);
-                SetColor(meter, color);
+                // PressureColor only ever returns three colours, so a shared material per colour
+                // stays bounded and keeps the eight meters instanced instead of eight clones.
+                SetSharedColor(meter, color);
 
                 var cap = GetLanePressureCap(laneId);
                 cap.SetActive(pressure >= 8);
                 cap.transform.position = new Vector3(LaneOffset(laneId) + LaneWidth + 0.18f, 0.04f, 0.35f + length);
-                SetColor(cap, LeakRed);
+                SetSharedColor(cap, LeakRed);
 
                 var label = GetLanePressureLabel(laneId);
                 label.text = PressureLabel(pressure);
@@ -404,6 +768,7 @@ namespace LTW.UnityClient.Simulation
             }
 
             meter = CreatePrimitive($"Lane{laneId}PressureMeter", PrimitiveType.Cube);
+            DestroyPrimitiveCollider(meter);
             lanePressureMeters[laneId] = meter;
             laneDecorations.Add(meter);
             return meter;
@@ -417,6 +782,7 @@ namespace LTW.UnityClient.Simulation
             }
 
             cap = CreatePrimitive($"Lane{laneId}PressureCap", PrimitiveType.Sphere);
+            DestroyPrimitiveCollider(cap);
             cap.transform.localScale = new Vector3(0.38f, 0.18f, 0.38f);
             lanePressureCaps[laneId] = cap;
             laneDecorations.Add(cap);
@@ -1003,6 +1369,7 @@ namespace LTW.UnityClient.Simulation
         {
             foreach (var pair in activeTowers) ReleaseTowerToPool(pair.Key, pair.Value);
             foreach (var pair in activeCreeps) ReleaseCreepToPool(pair.Key, pair.Value);
+            ReleaseAllContactShadows();
             activeTowers.Clear();
             activeCreeps.Clear();
             activeTowerPoolKeys.Clear();
@@ -1483,11 +1850,12 @@ namespace LTW.UnityClient.Simulation
 
         private void CreateLaneBackplate(int laneId)
         {
-            var backplate = CreatePrimitive($"Lane{laneId}Backplate", PrimitiveType.Cube);
-            backplate.transform.position = new Vector3(LaneOffset(laneId) + BoardCenterX, -0.28f, BoardCenterZ);
-            backplate.transform.localScale = new Vector3(LaneWidth + 1.35f, 0.08f, LaneLength + 1.35f);
-            SetColor(backplate, LaneBackplateColor(laneId));
-            laneDecorations.Add(backplate);
+            CreateBoardPiece(
+                $"Lane{laneId}Backplate",
+                PrimitiveType.Cube,
+                new Vector3(LaneOffset(laneId) + BoardCenterX, -0.28f, BoardCenterZ),
+                new Vector3(LaneWidth + 1.35f, 0.08f, LaneLength + 1.35f),
+                LaneBackplateColor(laneId));
         }
 
         private void CreateLaneEnvironmentTrim(int laneId)
@@ -1510,11 +1878,12 @@ namespace LTW.UnityClient.Simulation
 
         private void CreateCornerPylon(int laneId, string name, Vector3 position, Color color, float focusScale)
         {
-            var pylon = CreatePrimitive($"Lane{laneId}{name}Pylon", PrimitiveType.Cube);
-            pylon.transform.position = position;
-            pylon.transform.localScale = new Vector3(0.22f * focusScale, 0.38f * focusScale, 0.22f * focusScale);
-            SetColor(pylon, color);
-            laneDecorations.Add(pylon);
+            CreateBoardPiece(
+                $"Lane{laneId}{name}Pylon",
+                PrimitiveType.Cube,
+                position,
+                new Vector3(0.22f * focusScale, 0.38f * focusScale, 0.22f * focusScale),
+                color);
         }
 
         private void CreateLaneFlowTickMarks(int laneId)
@@ -1532,12 +1901,13 @@ namespace LTW.UnityClient.Simulation
 
         private void CreateFlowTick(int laneId, string name, Vector3 position, Color color, float rotationY, bool isPlayerLane)
         {
-            var tick = CreatePrimitive($"Lane{laneId}{name}", PrimitiveType.Cube);
-            tick.transform.position = position;
+            var tick = CreateBoardPiece(
+                $"Lane{laneId}{name}",
+                PrimitiveType.Cube,
+                position,
+                new Vector3(isPlayerLane ? 0.1f : 0.075f, 0.055f, isPlayerLane ? 0.42f : 0.32f),
+                color);
             tick.transform.rotation = Quaternion.Euler(0f, rotationY, 0f);
-            tick.transform.localScale = new Vector3(isPlayerLane ? 0.1f : 0.075f, 0.055f, isPlayerLane ? 0.42f : 0.32f);
-            SetColor(tick, color);
-            laneDecorations.Add(tick);
         }
 
         private void CreateLaneSurfaceBands(int laneId)
@@ -1653,20 +2023,34 @@ namespace LTW.UnityClient.Simulation
             plate.transform.rotation = Quaternion.Euler(90f, 0f, 0f);
             plate.transform.localScale = new Vector3(size.x, size.y, 1f);
 
-            var collider = plate.GetComponent("Collider");
-            if (collider != null)
+            DestroyPrimitiveCollider(plate);
+            plate.GetComponent<Renderer>().sharedMaterial = ReferencePlateMaterial(texture, alpha);
+            laneDecorations.Add(plate);
+        }
+
+        /// <summary>
+        /// One material per texture/alpha pair rather than per plate. Eight lanes ask for the same
+        /// five overlays, so this turns forty material instances into three shared ones that batch.
+        /// </summary>
+        private Material ReferencePlateMaterial(Texture2D texture, float alpha)
+        {
+            var key = $"{texture.name}:{Mathf.RoundToInt(alpha * 1000f)}";
+            if (referencePlateMaterials.TryGetValue(key, out var cached) && cached != null)
             {
-                Destroy(collider);
+                return cached;
             }
 
             var shader = Shader.Find("Unlit/Transparent") ?? Shader.Find("Unlit/Texture") ?? Shader.Find("Standard");
             var material = new Material(shader)
             {
+                name = $"LTW Board Reference {texture.name}",
+                enableInstancing = true,
                 mainTexture = texture,
                 color = new Color(1f, 1f, 1f, alpha)
             };
-            plate.GetComponent<Renderer>().material = material;
-            laneDecorations.Add(plate);
+
+            referencePlateMaterials[key] = material;
+            return material;
         }
 
         private void CreateBoardPlateInset(int laneId, string name, Vector3 center, bool isPlayerLane, float width = 1.25f, float depth = 0.64f)
@@ -1835,9 +2219,14 @@ namespace LTW.UnityClient.Simulation
             }
         }
 
+        /// <summary>
+        /// Pulse bands animate every frame, so unlike the rest of the board furniture they cannot
+        /// be baked into the static lane mesh and stay as real renderers. They share a material per
+        /// colour and all draw the same cube mesh, so GPU instancing collapses them anyway.
+        /// </summary>
         private GameObject CreateSpawnGatePulseBand(int laneId, string name, Vector3 position, Vector3 scale, Color color, float phase, float scalePulse, float liftPulse)
         {
-            var band = CreateSurfaceBand($"Lane{laneId}Spawn{name}", position, scale, color);
+            var band = CreateLiveBoardPiece($"Lane{laneId}Spawn{name}", PrimitiveType.Cube, position, scale, color);
             spawnGatePulseElements.Add(new SpawnGatePulseElement(band, position, scale, phase, scalePulse, liftPulse));
             return band;
         }
@@ -1895,32 +2284,22 @@ namespace LTW.UnityClient.Simulation
 
         private void CreateEndpointDisc(string name, Vector3 position, float diameter, float height, Color color)
         {
-            var disc = CreatePrimitive(name, PrimitiveType.Cylinder);
-            disc.transform.position = position;
-            disc.transform.localScale = new Vector3(diameter, height, diameter);
-            SetColor(disc, color);
-            laneDecorations.Add(disc);
+            CreateBoardPiece(name, PrimitiveType.Cylinder, position, new Vector3(diameter, height, diameter), color);
         }
 
         private void CreateEndpointPylon(int laneId, string name, Vector3 position, Color color, bool isPlayerLane)
         {
-            var pylon = CreatePrimitive($"Lane{laneId}{name}", PrimitiveType.Cylinder);
-            pylon.transform.position = position;
-            pylon.transform.localScale = Vector3.one * (isPlayerLane ? 0.22f : 0.17f);
-            pylon.transform.localScale = new Vector3(pylon.transform.localScale.x, isPlayerLane ? 0.42f : 0.32f, pylon.transform.localScale.z);
-            SetColor(pylon, color);
-            laneDecorations.Add(pylon);
+            var radius = isPlayerLane ? 0.22f : 0.17f;
+            CreateBoardPiece(
+                $"Lane{laneId}{name}",
+                PrimitiveType.Cylinder,
+                position,
+                new Vector3(radius, isPlayerLane ? 0.42f : 0.32f, radius),
+                color);
         }
 
-        private GameObject CreateSurfaceBand(string name, Vector3 position, Vector3 scale, Color color)
-        {
-            var band = CreatePrimitive(name, PrimitiveType.Cube);
-            band.transform.position = position;
-            band.transform.localScale = scale;
-            SetColor(band, color);
-            laneDecorations.Add(band);
-            return band;
-        }
+        private GameObject CreateSurfaceBand(string name, Vector3 position, Vector3 scale, Color color) =>
+            CreateBoardPiece(name, PrimitiveType.Cube, position, scale, color);
 
         private void CreateLaneFlowCues(int laneId)
         {
@@ -1934,56 +2313,55 @@ namespace LTW.UnityClient.Simulation
         {
             var offset = LaneOffset(laneId);
             var color = RouteTriangleColor(laneId);
-            var shaft = CreatePrimitive($"Lane{laneId}Flow_{y}_Shaft", PrimitiveType.Cube);
-            shaft.transform.position = new Vector3(offset + CenterColumn, -0.005f, WorldZ(y));
-            shaft.transform.localScale = new Vector3(0.035f, 0.032f, 0.18f);
-            SetColor(shaft, color);
-            laneDecorations.Add(shaft);
+            CreateBoardPiece(
+                $"Lane{laneId}Flow_{y}_Shaft",
+                PrimitiveType.Cube,
+                new Vector3(offset + CenterColumn, -0.005f, WorldZ(y)),
+                new Vector3(0.035f, 0.032f, 0.18f),
+                color);
 
-            var eastHead = CreatePrimitive($"Lane{laneId}Flow_{y}_HeadA", PrimitiveType.Cube);
-            eastHead.transform.position = new Vector3(offset + CenterColumn + 0.12f, 0f, WorldZ(y) - 0.18f);
+            var eastHead = CreateBoardPiece(
+                $"Lane{laneId}Flow_{y}_HeadA",
+                PrimitiveType.Cube,
+                new Vector3(offset + CenterColumn + 0.12f, 0f, WorldZ(y) - 0.18f),
+                new Vector3(0.05f, 0.035f, 0.24f),
+                color);
             eastHead.transform.rotation = Quaternion.Euler(0f, 42f, 0f);
-            eastHead.transform.localScale = new Vector3(0.05f, 0.035f, 0.24f);
-            SetColor(eastHead, color);
-            laneDecorations.Add(eastHead);
 
-            var westHead = CreatePrimitive($"Lane{laneId}Flow_{y}_HeadB", PrimitiveType.Cube);
-            westHead.transform.position = new Vector3(offset + CenterColumn - 0.12f, 0f, WorldZ(y) - 0.18f);
+            var westHead = CreateBoardPiece(
+                $"Lane{laneId}Flow_{y}_HeadB",
+                PrimitiveType.Cube,
+                new Vector3(offset + CenterColumn - 0.12f, 0f, WorldZ(y) - 0.18f),
+                new Vector3(0.05f, 0.035f, 0.24f),
+                color);
             westHead.transform.rotation = Quaternion.Euler(0f, -42f, 0f);
-            westHead.transform.localScale = new Vector3(0.05f, 0.035f, 0.24f);
-            SetColor(westHead, color);
-            laneDecorations.Add(westHead);
 
-            var triangleBase = CreatePrimitive($"Lane{laneId}Flow_{y}_Base", PrimitiveType.Cube);
-            triangleBase.transform.position = new Vector3(offset + CenterColumn, -0.002f, WorldZ(y) + 0.03f);
-            triangleBase.transform.localScale = new Vector3(0.28f, 0.028f, 0.035f);
-            SetColor(triangleBase, new Color(color.r * 0.72f, color.g * 0.72f, color.b * 0.72f));
-            laneDecorations.Add(triangleBase);
+            CreateBoardPiece(
+                $"Lane{laneId}Flow_{y}_Base",
+                PrimitiveType.Cube,
+                new Vector3(offset + CenterColumn, -0.002f, WorldZ(y) + 0.03f),
+                new Vector3(0.28f, 0.028f, 0.035f),
+                new Color(color.r * 0.72f, color.g * 0.72f, color.b * 0.72f));
         }
 
-        private GameObject CreateBoardRail(string name, Vector3 position, Vector3 scale, Color color)
-        {
-            var rail = CreatePrimitive(name, PrimitiveType.Cube);
-            rail.transform.position = position;
-            rail.transform.localScale = scale;
-            SetColor(rail, color);
-            laneDecorations.Add(rail);
-            return rail;
-        }
+        private GameObject CreateBoardRail(string name, Vector3 position, Vector3 scale, Color color) =>
+            CreateBoardPiece(name, PrimitiveType.Cube, position, scale, color);
 
         private void CreateLaneLandmark(int laneId, int x, int y, string landmarkName, Color color, float scale)
         {
-            var marker = CreatePrimitive($"Lane{laneId}{landmarkName}Beacon", PrimitiveType.Cylinder);
-            marker.transform.position = GridToWorld(new GridPosition(x, y), new LaneId(laneId)) + Vector3.down * 0.23f;
-            marker.transform.localScale = new Vector3(scale, 0.22f, scale);
-            SetColor(marker, color);
-            laneDecorations.Add(marker);
+            CreateBoardPiece(
+                $"Lane{laneId}{landmarkName}Beacon",
+                PrimitiveType.Cylinder,
+                GridToWorld(new GridPosition(x, y), new LaneId(laneId)) + Vector3.down * 0.23f,
+                new Vector3(scale, 0.22f, scale),
+                color);
 
-            var halo = CreatePrimitive($"Lane{laneId}{landmarkName}Halo", PrimitiveType.Cylinder);
-            halo.transform.position = GridToWorld(new GridPosition(x, y), new LaneId(laneId)) + Vector3.down * 0.31f;
-            halo.transform.localScale = new Vector3(scale * 1.95f, 0.045f, scale * 1.95f);
-            SetColor(halo, EndpointWashColor(color, laneId == 1));
-            laneDecorations.Add(halo);
+            CreateBoardPiece(
+                $"Lane{laneId}{landmarkName}Halo",
+                PrimitiveType.Cylinder,
+                GridToWorld(new GridPosition(x, y), new LaneId(laneId)) + Vector3.down * 0.31f,
+                new Vector3(scale * 1.95f, 0.045f, scale * 1.95f),
+                EndpointWashColor(color, laneId == 1));
         }
 
         private void CreateLaneGate(int laneId, int y, Color color, string label)
@@ -1999,11 +2377,13 @@ namespace LTW.UnityClient.Simulation
         private void CreateLaneEndpointBox(int laneId, int x, int y, string boxName, Color color)
         {
             var isSpawn = y == 0;
-            var disc = CreatePrimitive($"Lane{laneId}{boxName}", PrimitiveType.Cylinder);
-            disc.transform.position = GridToWorld(new GridPosition(x, y), new LaneId(laneId)) + Vector3.down * 0.46f;
-            disc.transform.localScale = new Vector3(laneId == 1 ? 1.88f : 1.6f, 0.13f, laneId == 1 ? 1.88f : 1.6f);
-            SetColor(disc, EndpointBaseColor(color, laneId == 1, isSpawn));
-            laneDecorations.Add(disc);
+            var diameter = laneId == 1 ? 1.88f : 1.6f;
+            CreateBoardPiece(
+                $"Lane{laneId}{boxName}",
+                PrimitiveType.Cylinder,
+                GridToWorld(new GridPosition(x, y), new LaneId(laneId)) + Vector3.down * 0.46f,
+                new Vector3(diameter, 0.13f, diameter),
+                EndpointBaseColor(color, laneId == 1, isSpawn));
         }
 
         private void CreateLaneEndpointLabel(int laneId, int x, int y, string labelText, Color color)
@@ -3135,6 +3515,17 @@ namespace LTW.UnityClient.Simulation
             if (renderer != null) renderer.material.color = color;
         }
 
+        /// <summary>
+        /// Colours a board object from the shared-material cache instead of cloning a private
+        /// material for it. Only safe where the set of colours an object can take is small and
+        /// known; anything with a continuously varying tint must keep using <see cref="SetColor"/>.
+        /// </summary>
+        private static void SetSharedColor(GameObject instance, Color color)
+        {
+            var renderer = instance.GetComponent<Renderer>();
+            if (renderer != null) renderer.sharedMaterial = BoardRenderResources.SharedOpaque(color);
+        }
+
         private readonly struct CreepMotion
         {
             public CreepMotion(Vector3 positionOffset, Quaternion rotation)
@@ -3200,6 +3591,24 @@ namespace LTW.UnityClient.Simulation
 
                 return new CreepHealthBarMetrics(0.98f, 0.07f, 0.16f, 0.78f, 0.72f, 0.07f, 0.08f, 0.1f);
             }
+        }
+
+        /// <summary>
+        /// A board decoration queued for baking into the lane mesh: the transform-only stand-in
+        /// handed back to the construction code, plus the shape and colour it stands for.
+        /// </summary>
+        private readonly struct BoardPiece
+        {
+            public BoardPiece(GameObject @object, PrimitiveType primitiveType, Color color)
+            {
+                Object = @object;
+                PrimitiveType = primitiveType;
+                Color = color;
+            }
+
+            public GameObject Object { get; }
+            public PrimitiveType PrimitiveType { get; }
+            public Color Color { get; }
         }
 
         private readonly struct TimedPresentation
