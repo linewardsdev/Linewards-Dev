@@ -2040,24 +2040,50 @@ namespace LTW.UnityClient.Simulation
             laneDecorations.Add(labelObject);
         }
 
+        /// <summary>
+        /// Lifts a board surface colour that was authored against the gamma response.
+        /// </summary>
+        /// <remarks>
+        /// The board palette was tuned when the project rendered in gamma, where an albedo near
+        /// 0.05 still read as visible stonework. Linear rendering resolves those same values far
+        /// darker and the board collapses into an undifferentiated dark field. Treating the
+        /// authored number as the intended linear reflectance and converting it back to the sRGB
+        /// albedo that produces it restores the original intent, rather than re-tuning a dozen
+        /// scattered constants by eye.
+        /// </remarks>
+        /// <remarks>
+        /// A full inverse-gamma conversion is the mathematically exact compensation, but it
+        /// overshoots the art direction: it lifts a 0.052 cell to roughly 0.25 and the board reads
+        /// as pale concrete rather than night stone. This blends part of the way, which restores
+        /// legible tonal separation while keeping the dark palette. Raise to brighten the board,
+        /// lower to darken it; 0 is the original gamma-era value and 1 the exact conversion.
+        /// </remarks>
+        private const float BoardSurfaceLift = 0.35f;
+
+        private static Color BoardSurface(Color authored) => new Color(
+            Mathf.Lerp(authored.r, Mathf.LinearToGammaSpace(authored.r), BoardSurfaceLift),
+            Mathf.Lerp(authored.g, Mathf.LinearToGammaSpace(authored.g), BoardSurfaceLift),
+            Mathf.Lerp(authored.b, Mathf.LinearToGammaSpace(authored.b), BoardSurfaceLift),
+            authored.a);
+
         private static Color CellColor(int laneId, int x, int y)
         {
             if (x == CenterColumn && y == 0)
             {
-                return new Color(0.08f, 0.18f, 0.19f);
+                return BoardSurface(new Color(0.08f, 0.18f, 0.19f));
             }
 
             if (x == CenterColumn && y == LaneLength - 1)
             {
-                return new Color(0.16f, 0.055f, 0.052f);
+                return BoardSurface(new Color(0.16f, 0.055f, 0.052f));
             }
 
             if (x == CenterColumn)
             {
                 var routeVariation = TileVariation(laneId, x, y) * 0.016f;
                 return laneId == 1
-                    ? new Color(0.07f + routeVariation, 0.145f + routeVariation, 0.225f + routeVariation)
-                    : new Color(0.044f + routeVariation * 0.7f, 0.085f + routeVariation * 0.7f, 0.145f + routeVariation * 0.7f);
+                    ? BoardSurface(new Color(0.07f + routeVariation, 0.145f + routeVariation, 0.225f + routeVariation))
+                    : BoardSurface(new Color(0.044f + routeVariation * 0.7f, 0.085f + routeVariation * 0.7f, 0.145f + routeVariation * 0.7f));
             }
 
             var checker = (x + y + laneId) % 2 == 0 ? 0.012f : 0f;
@@ -2065,7 +2091,7 @@ namespace LTW.UnityClient.Simulation
             var buildColumn = x < CenterColumn ? 0.004f : 0.01f;
             var stoneVariation = TileVariation(laneId, x, y) * 0.014f;
             var edgeLift = x == 0 || x == LaneWidth - 1 ? 0.008f : 0f;
-            return new Color(0.052f + checker + laneTint + buildColumn + stoneVariation + edgeLift, 0.058f + checker + laneTint + stoneVariation * 0.82f + edgeLift, 0.072f + checker + laneTint + stoneVariation * 0.55f + edgeLift);
+            return BoardSurface(new Color(0.052f + checker + laneTint + buildColumn + stoneVariation + edgeLift, 0.058f + checker + laneTint + stoneVariation * 0.82f + edgeLift, 0.072f + checker + laneTint + stoneVariation * 0.55f + edgeLift));
         }
 
         private static Vector3 TowerRoleScale(string towerId)
@@ -2774,10 +2800,10 @@ namespace LTW.UnityClient.Simulation
 
         private static Color LaneBackplateColor(int laneId)
         {
-            return laneId == 1 ? new Color(0.025f, 0.045f, 0.072f) : new Color(0.018f, 0.026f, 0.046f);
+            return laneId == 1 ? BoardSurface(new Color(0.025f, 0.045f, 0.072f)) : BoardSurface(new Color(0.018f, 0.026f, 0.046f));
         }
 
-        private static Color LaneGutterColor(int laneId) => laneId == 1 ? new Color(0.018f, 0.034f, 0.054f) : new Color(0.014f, 0.018f, 0.032f);
+        private static Color LaneGutterColor(int laneId) => laneId == 1 ? BoardSurface(new Color(0.018f, 0.034f, 0.054f)) : BoardSurface(new Color(0.014f, 0.018f, 0.032f));
 
         private static Color LaneAnchorColor(Color accent, bool isPlayerLane)
         {
@@ -2839,20 +2865,20 @@ namespace LTW.UnityClient.Simulation
         private static Color BuildZoneColor(Color tint, bool isPlayerLane)
         {
             var strength = isPlayerLane ? 0.08f : 0.045f;
-            return new Color(0.044f + tint.r * strength, 0.052f + tint.g * strength, 0.068f + tint.b * strength);
+            return BoardSurface(new Color(0.044f + tint.r * strength, 0.052f + tint.g * strength, 0.068f + tint.b * strength));
         }
 
-        private static Color RouteBandColor(int laneId) => laneId == 1 ? new Color(0.074f, 0.16f, 0.25f) : new Color(0.044f, 0.09f, 0.16f);
+        private static Color RouteBandColor(int laneId) => laneId == 1 ? BoardSurface(new Color(0.074f, 0.16f, 0.25f)) : BoardSurface(new Color(0.044f, 0.09f, 0.16f));
 
-        private static Color RouteGuideColor(int laneId) => laneId == 1 ? new Color(0.16f, 0.33f, 0.52f) : new Color(0.085f, 0.18f, 0.32f);
+        private static Color RouteGuideColor(int laneId) => laneId == 1 ? BoardSurface(new Color(0.16f, 0.33f, 0.52f)) : BoardSurface(new Color(0.085f, 0.18f, 0.32f));
 
-        private static Color RouteInlayColor(int laneId) => laneId == 1 ? new Color(0.085f, 0.22f, 0.36f) : new Color(0.044f, 0.12f, 0.22f);
+        private static Color RouteInlayColor(int laneId) => laneId == 1 ? BoardSurface(new Color(0.085f, 0.22f, 0.36f)) : BoardSurface(new Color(0.044f, 0.12f, 0.22f));
 
-        private static Color RouteRecessColor(int laneId) => laneId == 1 ? new Color(0.018f, 0.032f, 0.046f) : new Color(0.009f, 0.018f, 0.03f);
+        private static Color RouteRecessColor(int laneId) => laneId == 1 ? BoardSurface(new Color(0.018f, 0.032f, 0.046f)) : BoardSurface(new Color(0.009f, 0.018f, 0.03f));
 
-        private static Color RouteRibColor(int laneId) => laneId == 1 ? new Color(0.18f, 0.32f, 0.43f) : new Color(0.075f, 0.14f, 0.22f);
+        private static Color RouteRibColor(int laneId) => laneId == 1 ? BoardSurface(new Color(0.18f, 0.32f, 0.43f)) : BoardSurface(new Color(0.075f, 0.14f, 0.22f));
 
-        private static Color BuildBandEdgeColor(int laneId) => laneId == 1 ? new Color(0.12f, 0.14f, 0.15f) : new Color(0.064f, 0.074f, 0.086f);
+        private static Color BuildBandEdgeColor(int laneId) => laneId == 1 ? BoardSurface(new Color(0.12f, 0.14f, 0.15f)) : BoardSurface(new Color(0.064f, 0.074f, 0.086f));
 
         private static Color EndpointApproachPlateColor(bool isSpawn, bool isPlayerLane)
         {

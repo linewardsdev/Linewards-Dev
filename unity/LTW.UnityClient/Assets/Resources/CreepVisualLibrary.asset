@@ -16,7 +16,7 @@ MonoBehaviour:
   - creepId: creep.runner
     role: 0
     prefab: {fileID: 3268587029970364819, guid: dd4a4d0cca2af4214881623a6b8ba645, type: 3}
-    scale: {x: 0.92, y: 0.92, z: 0.92}
+    scale: {x: 1.13, y: 1.13, z: 1.13}
     motionStyle: 1
     bodyRendererPath: BodyTintAnchor
     senderAccentRendererPaths:
@@ -26,7 +26,7 @@ MonoBehaviour:
   - creepId: creep.brute
     role: 1
     prefab: {fileID: 5873063566193760746, guid: 49abd90f5cf724ababc9de03c4f9cbb3, type: 3}
-    scale: {x: 0.98, y: 0.98, z: 0.98}
+    scale: {x: 1.18, y: 1.18, z: 1.18}
     motionStyle: 2
     bodyRendererPath: BodyTintAnchor
     senderAccentRendererPaths:
@@ -36,7 +36,7 @@ MonoBehaviour:
   - creepId: creep.swarm
     role: 2
     prefab: {fileID: 5994159186706667127, guid: 44fc777c2fc3e4e288b8c2cee30300c9, type: 3}
-    scale: {x: 0.68, y: 0.68, z: 0.68}
+    scale: {x: 0.8, y: 0.8, z: 0.8}
     motionStyle: 3
     bodyRendererPath: BodyTintAnchor
     senderAccentRendererPaths:
@@ -46,7 +46,7 @@ MonoBehaviour:
   - creepId: creep.shade
     role: 5
     prefab: {fileID: 4644943160577110976, guid: 412cc0bcd9cc34945aa7be8231fd044f, type: 3}
-    scale: {x: 0.72, y: 0.72, z: 0.72}
+    scale: {x: 0.82, y: 0.82, z: 0.82}
     motionStyle: 5
     bodyRendererPath: BodyTintAnchor
     senderAccentRendererPaths:
@@ -56,7 +56,7 @@ MonoBehaviour:
   - creepId: creep.siege
     role: 6
     prefab: {fileID: 6519791765986218597, guid: 369786349a27f4f08ad9290427ef85bf, type: 3}
-    scale: {x: 0.98, y: 0.98, z: 0.98}
+    scale: {x: 1.13, y: 1.13, z: 1.13}
     motionStyle: 6
     bodyRendererPath: BodyTintAnchor
     senderAccentRendererPaths:
