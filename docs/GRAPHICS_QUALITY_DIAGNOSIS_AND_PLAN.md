@@ -156,6 +156,25 @@ Expected to account for most of the visible gap. Small, reversible changes.
 9. **Give Android a dedicated quality level**: `antiAliasing: 2` (MSAA 2x is inexpensive
    on tile-based mobile GPUs), `shadowCascades: 2`, `shadowResolution: 1`.
 
+### Tier 3 status, 2026-07-25
+
+Items 10, 11 and 13 landed. The board is now baked into one vertex-coloured mesh per lane
+by `BoardMeshBuilder`, and towers and creeps carry soft contact shadow decals. Measured on
+the eight-lane board: **1730 renderers before, 152 after**, with 1586 pieces baked.
+
+Construction was deliberately left alone. Pieces are still positioned by the existing code
+and only then recorded and merged, so the baked geometry is positionally identical to the
+primitives it replaced. Animated elements stay separate via `CreateLiveBoardPiece`.
+
+**Watch for this when baking colours.** Vertex colours must be decoded to linear through
+`BoardMeshBuilder.ToRenderSpace`. In linear colour space a colour assigned through
+`Material.color` is sRGB-decoded on its way to the GPU, but a colour written into the
+vertex stream is not, so baking authored values unchanged renders the board roughly twice
+as bright. `AddBox` and `AddMesh` apply the decode themselves so no caller can forget.
+
+Item 12, expressing lane state through material rather than stacked cube geometry, is
+still open.
+
 ### Tier 3 — game board
 
 10. **Replace primitive cells with a board mesh and tiling material.** Hundreds of
