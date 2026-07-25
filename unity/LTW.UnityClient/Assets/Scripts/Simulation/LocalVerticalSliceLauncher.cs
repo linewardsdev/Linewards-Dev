@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.Rendering;
 using LTW.UnityClient.UI;
 
 namespace LTW.UnityClient.Simulation
@@ -37,6 +38,7 @@ namespace LTW.UnityClient.Simulation
             var laneViewToggle = matchObject.AddComponent<LaneViewToggleController>();
             var camera = CreateCamera();
             CreateBackgroundCamera(camera);
+            CreateLightRig(matchObject);
 
             renderer.Initialize(driver);
             renderer.SetPresentationCamera(camera);
@@ -82,6 +84,63 @@ namespace LTW.UnityClient.Simulation
             }
 
             return camera;
+        }
+
+        /// <summary>
+        /// Builds the three-point rig the board is lit by. The scene asset carries no lights, so
+        /// without this every mesh renders under flat ambient only: no diffuse gradient, no
+        /// specular response and no contact shadow, which reads as a flat image of the model
+        /// rather than a solid object.
+        /// </summary>
+        private static void CreateLightRig(GameObject matchObject)
+        {
+            if (Object.FindAnyObjectByType<Light>() != null)
+            {
+                return;
+            }
+
+            var rig = new GameObject("LTW Light Rig");
+            rig.transform.SetParent(matchObject.transform, false);
+
+            // The presentation camera sits at -Z looking toward +Z, so board-facing surfaces carry
+            // -Z normals. The key is yawed off-axis to keep tower faces from flattening out.
+            var key = CreateDirectionalLight(rig, "Key", new Vector3(50f, -35f, 0f), new Color(1f, 0.957f, 0.878f), 1.2f);
+            key.shadows = LightShadows.Soft;
+            key.shadowStrength = 0.55f;
+
+            CreateDirectionalLight(rig, "Fill", new Vector3(30f, 145f, 0f), new Color(0.722f, 0.804f, 1f), 0.35f);
+
+            // Rim travels back toward the camera to separate silhouettes from the board beneath.
+            CreateDirectionalLight(rig, "Rim", new Vector3(15f, 180f, 0f), new Color(0.851f, 0.902f, 1f), 0.5f);
+
+            ApplyGradientAmbient();
+        }
+
+        private static Light CreateDirectionalLight(GameObject rig, string name, Vector3 eulerAngles, Color color, float intensity)
+        {
+            var lightObject = new GameObject($"LTW {name} Light");
+            lightObject.transform.SetParent(rig.transform, false);
+            lightObject.transform.rotation = Quaternion.Euler(eulerAngles);
+
+            var light = lightObject.AddComponent<Light>();
+            light.type = LightType.Directional;
+            light.color = color;
+            light.intensity = intensity;
+            light.shadows = LightShadows.None;
+            return light;
+        }
+
+        /// <summary>
+        /// Replaces the flat ambient colour with a sky/equator/ground gradient. It approximates
+        /// bounce grounding at no runtime cost and keeps undersides from going fully dead.
+        /// </summary>
+        private static void ApplyGradientAmbient()
+        {
+            RenderSettings.ambientMode = AmbientMode.Trilight;
+            RenderSettings.ambientSkyColor = new Color(0.322f, 0.361f, 0.451f);
+            RenderSettings.ambientEquatorColor = new Color(0.212f, 0.227f, 0.259f);
+            RenderSettings.ambientGroundColor = new Color(0.114f, 0.125f, 0.157f);
+            RenderSettings.ambientIntensity = 1f;
         }
 
         private static Camera CreateBackgroundCamera(Camera presentationCamera)
