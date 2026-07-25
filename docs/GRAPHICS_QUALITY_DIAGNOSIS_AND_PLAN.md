@@ -90,7 +90,27 @@ those folders when it unpacks FBX-embedded media and regenerates them — with f
 — on reimport, so the bindings could not survive an import cycle. They now point at the
 stable `*_Textures/` sets the intake writes.
 
-### 8. Supporting observations
+### 8. The visual review tool rendered the wrong prefabs
+
+The most consequential finding, and the reason prior art cycles could not converge.
+
+`VisualReviewCaptureRunner.RenderRoleContactSheet` instantiated `Tower_Control.prefab`,
+`Tower_Relay.prefab`, `Tower_Pulse.prefab` and `Tower_Prism.prefab` — the pre-3D primitive
+prefabs — while `TowerVisualLibrary` loads the `_3D` Meshy prefabs at runtime. It also
+built its own scene, camera and single directional light, bypassing the runtime setup.
+
+Every screenshot review captured through the tool therefore showed placeholder geometry
+under lighting the game does not use. Art was being judged against something the player
+never sees. Fixed, with before and after captures in
+[the Tier 1 evidence folder](screenshot-reviews/tier1-lighting-pass/).
+
+### 9. Only the towers reached the game; the creeps did not
+
+`CreepVisualLibrary` loads `Creep_*_AIPlate` for all five roles, so the Brute, Runner,
+Shade, Siege and Swarm meshes from the intake are present in the repository but absent
+from the build. Half the 3D investment is not yet in the game.
+
+### 10. Supporting observations
 
 - **No normal maps.** The intake extracts BaseColor, MetallicRoughness and Emit only, so
   all surface detail is flattened into albedo. See `tools/art_pipeline/blender_prepare_tower_source.py`.
