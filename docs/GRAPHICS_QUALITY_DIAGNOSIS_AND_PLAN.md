@@ -197,9 +197,32 @@ Supporting change: `tools/art_pipeline/repack_metallic_smoothness.py` converts t
 metallic-roughness packing into Unity's metallic-smoothness layout, at 1024 by default.
 Fold it into the intake so future drops arrive already converted.
 
-Outstanding from Tier 1: the board and UI tints were authored against the gamma response
-and need a retune pass now that the project renders linear. Expect them to read brighter
-and more saturated until that lands.
+### First in-match review, 2026-07-25
+
+Captured through `Line Wards/Review/Capture Visual Review Set`. Evidence in
+[the gameplay folder](screenshot-reviews/tier1-lighting-pass/gameplay/).
+
+**The linear switch darkens the board; it does not brighten it.** Earlier notes in this
+document predicted the opposite. Converting gamma-authored colour values to linear pulls
+midtones *down* — a cell authored at 0.2 now resolves near 0.03 — so the board reads as an
+undifferentiated dark field. The retune must raise board values, not restrain them.
+
+What the capture confirmed:
+
+- **Towers read correctly.** Lit, metallic, with real form. This is the Tier 1 payoff.
+- **Creeps are far too small.** A swarm creep occupies roughly 40 px against a builder that
+  reads clearly at about three times that. The runtime scales were derived from model
+  geometry and validated on the role contact sheet, which frames isolated prefabs close up.
+  The match camera is orthographic at size 15.5 across eight lanes, so the contact sheet
+  could not surface the problem. **Validate unit scale against a match capture, never
+  against the contact sheet.**
+- **The board is now the dominant weakness.** It is built from `CreatePrimitive` cubes on
+  default materials, so there is no surface detail for the new lighting to reveal, and the
+  linear conversion pushed it darker still.
+- **The `1x RUNNER` overlay draws behind the spawn gate panel**, a HUD z-order defect
+  unrelated to lighting.
+- The violet marker on the lane is `WardViolet`, an intended colour constant, not a
+  missing-material placeholder.
 
 ### Creep 3D wiring, 2026-07-25
 
