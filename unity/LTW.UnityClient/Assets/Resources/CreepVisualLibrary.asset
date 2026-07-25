@@ -15,46 +15,51 @@ MonoBehaviour:
   profiles:
   - creepId: creep.runner
     role: 0
-    prefab: {fileID: 8440338666414854759, guid: 3a47e07c0bf4ba744beaedc3087895fc, type: 3}
-    scale: {x: 0.94, y: 0.54, z: 1.26}
+    prefab: {fileID: 3268587029970364819, guid: dd4a4d0cca2af4214881623a6b8ba645, type: 3}
+    scale: {x: 0.92, y: 0.92, z: 0.92}
     motionStyle: 1
-    bodyRendererPath: Body
-    senderAccentRendererPaths: []
+    bodyRendererPath: BodyTintAnchor
+    senderAccentRendererPaths:
+    - SenderAccent
     damageRendererPaths: []
     deathCueStyle: 1
   - creepId: creep.brute
     role: 1
-    prefab: {fileID: 8440338666414854759, guid: e6db5eea749946589f17017cb1e8365e, type: 3}
-    scale: {x: 0.88, y: 0.54, z: 1.08}
+    prefab: {fileID: 5873063566193760746, guid: 49abd90f5cf724ababc9de03c4f9cbb3, type: 3}
+    scale: {x: 0.98, y: 0.98, z: 0.98}
     motionStyle: 2
-    bodyRendererPath: Body
-    senderAccentRendererPaths: []
+    bodyRendererPath: BodyTintAnchor
+    senderAccentRendererPaths:
+    - SenderAccent
     damageRendererPaths: []
     deathCueStyle: 2
   - creepId: creep.swarm
     role: 2
-    prefab: {fileID: 8440338666414854759, guid: 658751aeec7e47bba9a879f674dbc305, type: 3}
-    scale: {x: 0.72, y: 0.46, z: 0.72}
+    prefab: {fileID: 5994159186706667127, guid: 44fc777c2fc3e4e288b8c2cee30300c9, type: 3}
+    scale: {x: 0.68, y: 0.68, z: 0.68}
     motionStyle: 3
-    bodyRendererPath: Body
-    senderAccentRendererPaths: []
+    bodyRendererPath: BodyTintAnchor
+    senderAccentRendererPaths:
+    - SenderAccent
     damageRendererPaths: []
     deathCueStyle: 3
   - creepId: creep.shade
     role: 5
-    prefab: {fileID: 8440338666414854759, guid: 86a347e1de154b44899c248854c57068, type: 3}
-    scale: {x: 0.68, y: 0.44, z: 0.9}
+    prefab: {fileID: 4644943160577110976, guid: 412cc0bcd9cc34945aa7be8231fd044f, type: 3}
+    scale: {x: 0.72, y: 0.72, z: 0.72}
     motionStyle: 5
-    bodyRendererPath: Body
-    senderAccentRendererPaths: []
+    bodyRendererPath: BodyTintAnchor
+    senderAccentRendererPaths:
+    - SenderAccent
     damageRendererPaths: []
     deathCueStyle: 4
   - creepId: creep.siege
     role: 6
-    prefab: {fileID: 8440338666414854759, guid: 3707b2d430444800a5f99e38f3ee7e07, type: 3}
-    scale: {x: 0.82, y: 0.54, z: 0.82}
+    prefab: {fileID: 6519791765986218597, guid: 369786349a27f4f08ad9290427ef85bf, type: 3}
+    scale: {x: 0.98, y: 0.98, z: 0.98}
     motionStyle: 6
-    bodyRendererPath: Body
-    senderAccentRendererPaths: []
+    bodyRendererPath: BodyTintAnchor
+    senderAccentRendererPaths:
+    - SenderAccent
     damageRendererPaths: []
     deathCueStyle: 2

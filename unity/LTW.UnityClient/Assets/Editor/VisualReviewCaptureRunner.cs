@@ -668,15 +668,13 @@ namespace LTW.UnityClient.Editor
                 ("PRISM", "Assets/Prefabs/Towers/Tower_Prism_3D.prefab"),
             };
 
-            // Creeps stay on the plate prefabs because CreepVisualLibrary still loads those; swap
-            // these over in the same change that wires the 3D creep meshes in.
             var creepPrefabs = new[]
             {
-                ("RUNNER", "Assets/Prefabs/Creeps/Creep_Runner_AIPlate.prefab"),
-                ("BRUTE", "Assets/Prefabs/Creeps/Creep_Brute_AIPlate.prefab"),
-                ("SWARM", "Assets/Prefabs/Creeps/Creep_Swarm_AIPlate.prefab"),
-                ("SHADE", "Assets/Prefabs/Creeps/Creep_Shade_AIPlate.prefab"),
-                ("SIEGE", "Assets/Prefabs/Creeps/Creep_Siege_AIPlate.prefab"),
+                ("RUNNER", "Assets/Prefabs/Creeps/Creep_Runner_3D.prefab"),
+                ("BRUTE", "Assets/Prefabs/Creeps/Creep_Brute_3D.prefab"),
+                ("SWARM", "Assets/Prefabs/Creeps/Creep_Swarm_3D.prefab"),
+                ("SHADE", "Assets/Prefabs/Creeps/Creep_Shade_3D.prefab"),
+                ("SIEGE", "Assets/Prefabs/Creeps/Creep_Siege_3D.prefab"),
             };
 
             for (var index = 0; index < towerPrefabs.Length; index++)
