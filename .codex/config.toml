@@ -1,3 +1,10 @@
+# Node is installed via nvm under ~/.nvm and is not on the PATH that GUI-launched
+# processes inherit, so the interpreter is pinned by absolute path here. Update the
+# version if nvm is upgraded: `nvm which --lts`.
+#
+# The PackageCache hash below changes whenever the mcp-unity package is re-resolved.
+# If the bridge stops starting, re-check it with:
+#   ls unity/LTW.UnityClient/Library/PackageCache | grep mcp-unity
 [mcp_servers.mcp-unity]
-command = "node"
+command = "/Users/admin/.nvm/versions/node/v24.18.0/bin/node"
 args = ["unity/LTW.UnityClient/Library/PackageCache/com.gamelovers.mcp-unity@c35f184d7656/Server~/build/index.js"]
