@@ -21,6 +21,20 @@ Recordings/
 unity/LTW.UnityClient/Assets/Plugins/LTW.Simulation.dll
 unity/LTW.UnityClient/Assets/Plugins/LTW.Simulation.dll.meta
 
+# Stray Unity project generated when the Hub is pointed at the repo root
+# instead of unity/LTW.UnityClient
+/Assets/
+/Packages/
+/ProjectSettings/
+
+# Nested clone of this repository
+/LTW/
+
+# FBX embedded-media caches. Unity regenerates these on import and they are
+# byte-identical duplicates of the sibling *_Textures/ folders.
+*.fbm/
+*.fbm.meta
+
 # Unity-generated IDE files
 *.csproj
 *.sln
