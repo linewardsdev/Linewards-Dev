@@ -188,8 +188,11 @@ still open.
 
 ### Tier 4 — towers and creeps
 
-14. **Re-export the Meshy drops with normal maps** and extend
-    `blender_prepare_tower_source.py` to extract them.
+14. **Re-export the drops with normal maps.** Note the earlier wording here was wrong: the
+    prepare script needs no extension. `export_packed_images` already exports every packed
+    image generically, so a normal map would come through if one existed. No drop has ever
+    contained one, which is a generator export setting rather than a pipeline gap. The
+    intake now reports `has_normal_map` on the scorecard so this stops passing unnoticed.
 15. ~~**Wire the five 3D creeps into `CreepVisualLibrary`**~~ — done 2026-07-25 via
     `Creep3DImportPipeline` and `Creep3DProofSetGenerator`. The `_AIPlate` prefabs and the
     126 MB `SourcePlates` folder are now unreferenced by the libraries and can be retired

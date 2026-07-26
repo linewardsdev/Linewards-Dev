@@ -33,6 +33,13 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--max-triangles", type=int, default=25000)
     parser.add_argument("--max-transparent-materials", type=int, default=2)
     parser.add_argument("--max-materials", type=int, default=12)
+    parser.add_argument(
+        "--metallic-smoothness-size",
+        type=int,
+        default=1024,
+        help="Resolution of the repacked metallic-smoothness map. Metallic and smoothness are "
+        "low-frequency data, so the generator's source resolution is rarely worth keeping.",
+    )
     parser.add_argument("--skip-preview", action="store_true")
     return parser.parse_args()
 
@@ -75,6 +82,31 @@ def score_candidate(audit: dict[str, object], prep: dict[str, object] | None, ar
             "detail": f"{texture_count} texture(s), {material_count} material(s)",
         },
     ]
+
+    # Surface-map coverage. These are reported rather than hard-failed: a candidate without a
+    # normal map is still usable, it just renders flatter than one with it, and every drop to date
+    # has shipped without one because the generator was not asked for it. Making that visible on
+    # the scorecard is the point.
+    audit_textures = {
+        Path(str(name)).name
+        for key in ("texture_paths", "packed_texture_names")
+        for name in (audit.get(key) or [])
+    }
+    exported = {Path(str(name)).name for name in (prep.get("exported_textures") or [])} if prep else set()
+    available = audit_textures | exported
+
+    def has_map(*needles: str) -> bool:
+        return any(any(needle.lower() in name.lower() for needle in needles) for name in available)
+
+    if available:
+        checks.append(
+            {
+                "id": "has_normal_map",
+                "pass": has_map("normal", "_nrm", "_n."),
+                "detail": "normal map present" if has_map("normal", "_nrm", "_n.")
+                else "no normal map: surface detail will read flat, re-export with one if the silhouette needs it",
+            }
+        )
 
     if prep is not None:
         final_bounds = prep.get("normalization", {}).get("final_bounds", {}) if isinstance(prep.get("normalization"), dict) else {}
@@ -218,6 +250,26 @@ def main() -> None:
                 str(prepared),
                 "--output",
                 str(preview_png),
+            ]
+        )
+
+    # The generators export the glTF metallic-roughness packing, which Unity's Standard shader
+    # cannot read: it wants metallic in R and smoothness in A. Converting here means a drop is
+    # usable the moment intake finishes, instead of rendering with wrong metal and gloss until
+    # someone remembers to run the repacker by hand.
+    texture_dir = prepared.parent / f"{prepared.stem}_Textures"
+    if (texture_dir / "Baked_MetallicRoughness.png").exists():
+        run(
+            [
+                str(blender),
+                "--background",
+                "--python",
+                "tools/art_pipeline/repack_metallic_smoothness.py",
+                "--",
+                "--root",
+                str(texture_dir),
+                "--max-size",
+                str(args.metallic_smoothness_size),
             ]
         )
 
