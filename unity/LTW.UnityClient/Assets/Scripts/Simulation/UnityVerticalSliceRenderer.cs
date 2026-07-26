@@ -3019,8 +3019,12 @@ namespace LTW.UnityClient.Simulation
         private static void ConfigureCreepRoleMarker(GameObject creepObject, string creepId, int senderId, float healthFraction, bool isHitFlashing)
         {
             DeactivateKnownCreepMarkers(creepObject);
-            var shadow = EnsureChild(creepObject, "GroundShadow", PrimitiveType.Cylinder);
-            ConfigureChild(shadow, true, new Vector3(0f, -0.42f, 0f), CreepShadowScale(creepId), new Color(0.015f, 0.022f, 0.035f));
+
+            // The old per-creep GroundShadow cylinder is gone. Its -0.42 local offset was tuned
+            // against the flat 2D plate profiles, where the shallow scale left it just above the
+            // board; at the uniform scale the 3D wrappers use it sinks below the surface and is
+            // never seen. Grounding now comes from the pooled contact shadow decals, which are
+            // instanced and sit on the board rather than inside it.
 
             var isSwarm = ContainsRole(creepId, "swarm");
             var isBoss = ContainsRole(creepId, "boss");
@@ -3162,46 +3166,6 @@ namespace LTW.UnityClient.Simulation
                     marker.gameObject.SetActive(false);
                 }
             }
-        }
-
-        private static Vector3 CreepShadowScale(string creepId)
-        {
-            if (ContainsRole(creepId, "swarm"))
-            {
-                return new Vector3(1.2f, 0.025f, 1.2f);
-            }
-
-            if (ContainsRole(creepId, "boss"))
-            {
-                return new Vector3(1.36f, 0.025f, 1.48f);
-            }
-
-            if (ContainsRole(creepId, "brute") || ContainsRole(creepId, "tank"))
-            {
-                return new Vector3(1.05f, 0.025f, 1.25f);
-            }
-
-            if (ContainsRole(creepId, "siege"))
-            {
-                return new Vector3(1.05f, 0.025f, 0.95f);
-            }
-
-            if (ContainsRole(creepId, "shade") || ContainsRole(creepId, "invisible") || ContainsRole(creepId, "stealth"))
-            {
-                return new Vector3(0.92f, 0.02f, 1.12f);
-            }
-
-            if (ContainsRole(creepId, "flying") || ContainsRole(creepId, "air"))
-            {
-                return new Vector3(0.92f, 0.02f, 0.92f);
-            }
-
-            if (ContainsRole(creepId, "aura") || ContainsRole(creepId, "support"))
-            {
-                return new Vector3(1.38f, 0.02f, 1.38f);
-            }
-
-            return new Vector3(0.72f, 0.025f, 1.05f);
         }
 
         private static Color LaneBackplateColor(int laneId)
