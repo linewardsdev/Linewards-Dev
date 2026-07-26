@@ -1077,6 +1077,10 @@ namespace LTW.UnityClient.Editor
                     RenderBatchHudOverlay(renderTexture, label);
                 }
 
+                // A scriptable pipeline binds its own targets while rendering and does not restore
+                // this one, so the active target has to be re-established before reading back or
+                // ReadPixels samples whatever surface the pipeline left bound.
+                RenderTexture.active = renderTexture;
                 texture.ReadPixels(new Rect(0, 0, width, height), 0, 0);
                 if (!IsBoardFocusLabel(label))
                 {
@@ -1096,6 +1100,45 @@ namespace LTW.UnityClient.Editor
             }
         }
 
+        /// <summary>
+        /// Renders one camera into a target, using whichever path the active render pipeline
+        /// supports.
+        /// </summary>
+        /// <remarks>
+        /// <c>Camera.Render()</c> is a Built-in pipeline call and does nothing under a scriptable
+        /// pipeline. When URP was first assigned, every capture came back blank white: not because
+        /// the game had broken, but because this harness silently rendered nothing. A capture tool
+        /// that fails quietly during a pipeline migration is worse than no tool, since a blank
+        /// frame reads as catastrophic damage.
+        ///
+        /// Both paths are kept because main is still Built-in while the migration runs on a
+        /// branch, so captures have to stay comparable across the two.
+        /// </remarks>
+        private static void RenderCameraToTarget(Camera camera, RenderTexture renderTexture)
+        {
+            if (GraphicsSettings.currentRenderPipeline == null)
+            {
+                camera.Render();
+                return;
+            }
+
+            var request = new UnityEngine.Rendering.Universal.UniversalRenderPipeline.SingleCameraRequest
+            {
+                destination = renderTexture
+            };
+
+            if (RenderPipeline.SupportsRenderRequest(camera, request))
+            {
+                RenderPipeline.SubmitRenderRequest(camera, request);
+                return;
+            }
+
+            Debug.LogError(
+                $"Active render pipeline {GraphicsSettings.currentRenderPipeline.GetType().Name} rejected a " +
+                $"single camera render request for '{camera.name}'. The capture would be blank, so it is being " +
+                "reported rather than saved as if it were a real frame.");
+        }
+
         private static void RenderActiveCameras(RenderTexture renderTexture)
         {
             var cameras = UnityEngine.Object.FindObjectsByType<Camera>(FindObjectsSortMode.None);
@@ -1112,7 +1155,7 @@ namespace LTW.UnityClient.Editor
                 var previousAspect = camera.aspect;
                 camera.targetTexture = renderTexture;
                 camera.aspect = renderTexture.width / (float)renderTexture.height;
-                camera.Render();
+                RenderCameraToTarget(camera, renderTexture);
                 camera.targetTexture = previousTarget;
                 camera.aspect = previousAspect;
             }
@@ -1550,6 +1593,17 @@ namespace LTW.UnityClient.Editor
         private static void RenderBatchHudOverlay(RenderTexture renderTexture, string label)
         {
             if (!InternalEditorUtility.inBatchMode)
+            {
+                return;
+            }
+
+            // This pass adds a second camera with a Depth-only clear, which preserves colour under
+            // the Built-in pipeline. A scriptable pipeline gives no such guarantee: a standalone
+            // base camera clears its target, so this wiped the rendered board and left the frame
+            // blank. PaintBatchHudOverlay already composites the same HUD on the CPU after
+            // readback, so the GPU pass is simply skipped rather than restructured into a camera
+            // stack.
+            if (GraphicsSettings.currentRenderPipeline != null)
             {
                 return;
             }

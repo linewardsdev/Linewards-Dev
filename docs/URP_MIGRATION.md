@@ -65,7 +65,29 @@ by itself a reason to stop; the acceptance criteria below are what matter.
 
 - [x] Add `com.unity.render-pipelines.universal` to the manifest — 17.5.0, the version bundled with the 6000.5.3f1 editor
 - [x] Create a URP asset and renderer, assign in Graphics settings — scripted in `UrpMigrationSetup`; per-quality overrides left empty so all levels inherit the default
-- [ ] Confirm the project still compiles and the capture harness still runs
+- [x] Confirm the project still compiles and the capture harness still runs — required repairing the harness, see Phase 1b
+
+### Phase 1b — repair the capture harness
+
+Assigning URP silently broke the verification tool, which is worth calling out because a
+blank capture reads as catastrophic damage when nothing is actually wrong.
+
+- [x] Render through `RenderPipeline.SubmitRenderRequest` under a scriptable pipeline;
+      `Camera.Render()` is a Built-in call and does nothing under URP. Both paths are kept
+      so captures stay comparable while `main` is Built-in and the branch is URP.
+- [x] Re-establish the active render target before readback. A scriptable pipeline binds
+      its own targets and does not restore the caller's, so `ReadPixels` sampled the wrong
+      surface.
+- [x] Skip the GPU HUD overlay pass under a scriptable pipeline. It adds a second camera
+      with a Depth-only clear, which preserves colour on Built-in but clears the target
+      under URP, wiping the rendered board. `PaintBatchHudOverlay` already composites the
+      same HUD on the CPU after readback.
+- [x] Report rather than save when a render request is rejected, so the tool cannot fail
+      quietly again.
+
+`UrpCaptureDiagnostic` was added to isolate this: it renders one camera to a texture and
+reports the readback mean, which is what proved the render path was working and narrowed
+the fault to the overlay pass.
 
 ### Phase 2 — materials and shaders
 
@@ -118,3 +140,7 @@ Append an entry per working session: what changed, what broke, what is outstandi
   `Assets/Settings` and assigned as the default pipeline. Compiles clean, simulation tests
   still 77 passing. Materials are not converted yet, so the game is expected to render
   mostly magenta until Phase 2.
+- **2026-07-26** — Phase 1b: repaired the capture harness for scriptable pipelines. Three
+  separate faults, each of which produced a blank frame that could have been misread as
+  URP destroying the rendering. Captures now show the genuine intermediate state: board
+  magenta from unconverted materials, sprites and HUD rendering correctly.
