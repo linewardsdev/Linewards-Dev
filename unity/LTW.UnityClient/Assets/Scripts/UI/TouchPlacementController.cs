@@ -292,35 +292,35 @@ namespace LTW.UnityClient.UI
             var switchGap = 4f * scale;
             var switchWidth = (rect.width - 24f * scale - switchGap * 4f) / 5f;
             var switchX = rect.x + 12f * scale;
-            if (DrawPlacementSwitchButton(new Rect(switchX, switchY, switchWidth, switchHeight), "ARW", 0, ArcaneBlue, scale))
+            if (DrawPlacementSwitchButton(new Rect(switchX, switchY, switchWidth, switchHeight), "ARW", 0, LTW.UnityClient.Simulation.TowerRolePalette.Arrow, scale))
             {
                 BeginTowerPlacement(0);
                 return;
             }
 
             switchX += switchWidth + switchGap;
-            if (DrawPlacementSwitchButton(new Rect(switchX, switchY, switchWidth, switchHeight), "CTRL", 1, WardViolet, scale))
+            if (DrawPlacementSwitchButton(new Rect(switchX, switchY, switchWidth, switchHeight), "CTRL", 1, LTW.UnityClient.Simulation.TowerRolePalette.Control, scale))
             {
                 BeginControlTowerPlacement();
                 return;
             }
 
             switchX += switchWidth + switchGap;
-            if (DrawPlacementSwitchButton(new Rect(switchX, switchY, switchWidth, switchHeight), "RLY", 2, SignalGold, scale))
+            if (DrawPlacementSwitchButton(new Rect(switchX, switchY, switchWidth, switchHeight), "RLY", 2, LTW.UnityClient.Simulation.TowerRolePalette.Relay, scale))
             {
                 BeginUtilityTowerPlacement();
                 return;
             }
 
             switchX += switchWidth + switchGap;
-            if (DrawPlacementSwitchButton(new Rect(switchX, switchY, switchWidth, switchHeight), "PLS", 3, MintSignal, scale))
+            if (DrawPlacementSwitchButton(new Rect(switchX, switchY, switchWidth, switchHeight), "PLS", 3, LTW.UnityClient.Simulation.TowerRolePalette.Pulse, scale))
             {
                 BeginPulseTowerPlacement();
                 return;
             }
 
             switchX += switchWidth + switchGap;
-            if (DrawPlacementSwitchButton(new Rect(switchX, switchY, switchWidth, switchHeight), "PRM", 4, new Color(0.72f, 0.94f, 1f), scale))
+            if (DrawPlacementSwitchButton(new Rect(switchX, switchY, switchWidth, switchHeight), "PRM", 4, LTW.UnityClient.Simulation.TowerRolePalette.Prism, scale))
             {
                 BeginPrismTowerPlacement();
                 return;
@@ -523,7 +523,9 @@ namespace LTW.UnityClient.UI
             ConfigureGhostChild("GhostPulseEcho", isPulse, new Vector3(0f, 0.72f, 0f), new Vector3(0.92f, 0.035f, 0.92f), accent);
             ConfigureGhostChild("GhostPrismSpire", isPrism, new Vector3(0f, 0.68f, 0f), new Vector3(0.22f, 1.28f, 0.22f), accent);
             ConfigureGhostChild("GhostPrismLens", isPrism, new Vector3(0f, 1.36f, 0f), new Vector3(0.42f, 0.18f, 0.42f), accent);
-            ConfigureGhostChild("GhostPrismBeam", isPrism, new Vector3(0f, 1.08f, 0.34f), new Vector3(0.08f, 0.78f, 0.08f), MintSignal);
+            // Every other ghost part uses the role accent; this one was pinned to mint, which is
+            // now the pulse colour, so a prism placement preview showed a rival role's beam.
+            ConfigureGhostChild("GhostPrismBeam", isPrism, new Vector3(0f, 1.08f, 0.34f), new Vector3(0.08f, 0.78f, 0.08f), accent);
         }
 
         private void EnsureBuilderAvatar()
@@ -737,24 +739,19 @@ namespace LTW.UnityClient.UI
             return "Arrow ward";
         }
 
-        private static Color TowerAccent(string towerId)
-        {
-            if (towerId.Contains("control")) return WardViolet;
-            if (towerId.Contains("relay") || towerId.Contains("economy")) return SignalGold;
-            if (towerId.Contains("pulse")) return MintSignal;
-            if (towerId.Contains("prism")) return new Color(0.72f, 0.94f, 1f);
-            return ArcaneBlue;
-        }
+        private static Color TowerAccent(string towerId) =>
+            LTW.UnityClient.Simulation.TowerRolePalette.For(towerId);
 
         private Color SelectedTowerAccent()
         {
+            // Role indices follow the build palette order: arrow, control, relay, pulse, prism.
             return selectedTowerRole switch
             {
-                1 => WardViolet,
-                2 => SignalGold,
-                3 => MintSignal,
-                4 => new Color(0.72f, 0.94f, 1f),
-                _ => ArcaneBlue
+                1 => LTW.UnityClient.Simulation.TowerRolePalette.Control,
+                2 => LTW.UnityClient.Simulation.TowerRolePalette.Relay,
+                3 => LTW.UnityClient.Simulation.TowerRolePalette.Pulse,
+                4 => LTW.UnityClient.Simulation.TowerRolePalette.Prism,
+                _ => LTW.UnityClient.Simulation.TowerRolePalette.Arrow
             };
         }
 
@@ -809,21 +806,21 @@ namespace LTW.UnityClient.UI
             var x = rect.x + 12f * scale;
             var gold = CurrentPlayerGold();
 
-            if (DrawPaletteButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "ARROW", "20G", TowerIconKind.Arrow, ArcaneBlue, gold >= 20, highlightedTowerRole == 0, scale))
+            if (DrawPaletteButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "ARROW", "20G", TowerIconKind.Arrow, LTW.UnityClient.Simulation.TowerRolePalette.Arrow, gold >= 20, highlightedTowerRole == 0, scale))
             {
                 selectedTower = null;
                 BeginTowerPlacement(0);
             }
 
             x += buttonWidth + gap;
-            if (DrawPaletteButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "CTRL", "35G", TowerIconKind.Control, WardViolet, gold >= 35, highlightedTowerRole == 1, scale))
+            if (DrawPaletteButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "CTRL", "35G", TowerIconKind.Control, LTW.UnityClient.Simulation.TowerRolePalette.Control, gold >= 35, highlightedTowerRole == 1, scale))
             {
                 selectedTower = null;
                 BeginControlTowerPlacement();
             }
 
             x += buttonWidth + gap;
-            if (DrawPaletteButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "RELAY", "40G", TowerIconKind.Relay, SignalGold, gold >= 40, highlightedTowerRole == 2, scale))
+            if (DrawPaletteButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "RELAY", "40G", TowerIconKind.Relay, LTW.UnityClient.Simulation.TowerRolePalette.Relay, gold >= 40, highlightedTowerRole == 2, scale))
             {
                 selectedTower = null;
                 BeginUtilityTowerPlacement();
@@ -832,14 +829,14 @@ namespace LTW.UnityClient.UI
             var secondRowY = buttonY + buttonHeight + gap;
             var secondRowWidth = (rect.width - 24f * scale - gap) / 2f;
             x = rect.x + 12f * scale;
-            if (DrawPaletteButton(new Rect(x, secondRowY, secondRowWidth, buttonHeight), "PULSE", "45G", TowerIconKind.Pulse, MintSignal, gold >= 45, highlightedTowerRole == 3, scale))
+            if (DrawPaletteButton(new Rect(x, secondRowY, secondRowWidth, buttonHeight), "PULSE", "45G", TowerIconKind.Pulse, LTW.UnityClient.Simulation.TowerRolePalette.Pulse, gold >= 45, highlightedTowerRole == 3, scale))
             {
                 selectedTower = null;
                 BeginPulseTowerPlacement();
             }
 
             x += secondRowWidth + gap;
-            if (DrawPaletteButton(new Rect(x, secondRowY, secondRowWidth, buttonHeight), "PRISM", "60G", TowerIconKind.Prism, new Color(0.72f, 0.94f, 1f), gold >= 60, highlightedTowerRole == 4, scale))
+            if (DrawPaletteButton(new Rect(x, secondRowY, secondRowWidth, buttonHeight), "PRISM", "60G", TowerIconKind.Prism, LTW.UnityClient.Simulation.TowerRolePalette.Prism, gold >= 60, highlightedTowerRole == 4, scale))
             {
                 selectedTower = null;
                 BeginPrismTowerPlacement();

@@ -3063,30 +3063,19 @@ namespace LTW.UnityClient.Simulation
             return new Vector3(0.22f, 0.22f, 0.22f);
         }
 
-        private static Color TowerMarkerColor(string towerId)
-        {
-            if (ContainsRole(towerId, "slow") || ContainsRole(towerId, "ice") || ContainsRole(towerId, "control"))
-            {
-                return new Color(0.72f, 0.94f, 1f);
-            }
-
-            if (ContainsRole(towerId, "pulse") || ContainsRole(towerId, "splash") || ContainsRole(towerId, "fire") || ContainsRole(towerId, "area"))
-            {
-                return new Color(1f, 0.7f, 0.28f);
-            }
-
-            if (IsPrismTower(towerId))
-            {
-                return new Color(0.72f, 0.94f, 1f);
-            }
-
-            if (IsRelayTower(towerId))
-            {
-                return SignalGold;
-            }
-
-            return MintSignal;
-        }
+        /// <summary>
+        /// The identity colour for a tower role. Everything else derives from it:
+        /// <see cref="TowerBaseColor"/> dims it, and the 3D body materials carry the matching
+        /// emission tint, so marker, base and glow all agree.
+        /// </summary>
+        /// <remarks>
+        /// Hues are deliberately spread. The previous mapping returned the same pale blue for
+        /// control and for prism, and placed relay within roughly fifteen degrees of pulse, so two
+        /// pairs of roles were effectively indistinguishable by colour. Roles are matched through
+        /// the explicit predicates rather than loose substring tests, which is what let prism fall
+        /// through to control's branch.
+        /// </remarks>
+        private static Color TowerMarkerColor(string towerId) => TowerRolePalette.For(towerId);
 
         private static void ConfigureCreepRoleMarker(GameObject creepObject, string creepId, int senderId, float healthFraction, bool isHitFlashing)
         {
