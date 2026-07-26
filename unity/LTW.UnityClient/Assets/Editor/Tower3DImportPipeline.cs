@@ -524,7 +524,7 @@ namespace LTW.UnityClient.Editor
             var material = AssetDatabase.LoadAssetAtPath<Material>(path);
             if (material == null)
             {
-                material = new Material(Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard"));
+                material = new Material(LTW.UnityClient.Simulation.RenderCompat.Lit);
                 AssetDatabase.CreateAsset(material, path);
             }
 
@@ -542,7 +542,7 @@ namespace LTW.UnityClient.Editor
             var material = AssetDatabase.LoadAssetAtPath<Material>(path);
             if (material == null)
             {
-                material = new Material(Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard"));
+                material = new Material(LTW.UnityClient.Simulation.RenderCompat.Lit);
                 AssetDatabase.CreateAsset(material, path);
             }
 
@@ -578,7 +578,7 @@ namespace LTW.UnityClient.Editor
             var material = AssetDatabase.LoadAssetAtPath<Material>(path);
             if (material == null)
             {
-                material = new Material(Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard"));
+                material = new Material(LTW.UnityClient.Simulation.RenderCompat.Lit);
                 AssetDatabase.CreateAsset(material, path);
             }
 

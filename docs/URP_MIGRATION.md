@@ -91,15 +91,29 @@ the fault to the overlay pass.
 
 ### Phase 2 — materials and shaders
 
-- [ ] Run Unity's Built-in to URP material converter
-- [ ] Rewrite `LTWBoardVertexColor` for URP, preserving vertex-colour albedo and the
-      `BoardMeshBuilder.ToRenderSpace` linear decode
-- [ ] Port `LTWContactShadow`
-- [ ] Update the 16 `Shader.Find("Standard")` sites
-- [ ] Verify the tower and creep body materials keep base colour, metallic-smoothness and
-      emission bindings
+- [x] Convert materials — 99 converted, 0 left unconverted, via `UrpMaterialConverter`
+- [x] Rewrite `LTWBoardVertexColor` for URP — hand-written HLSL forward pass using
+      `UniversalFragmentPBR`; shadow, depth and depth-normals passes borrowed from URP's Lit
+      via `UsePass` rather than reimplemented
+- [x] Port `LTWContactShadow` — needed only the `RenderPipeline` tag
+- [x] Update the 16 `Shader.Find("Standard")` sites — routed through a new `RenderCompat`
+      helper that resolves per active pipeline. These are why gate bars and lane chevrons stayed
+      magenta after the asset conversion: they are built in code, so the converter never saw them
+- [x] Verify the tower and creep body materials keep their bindings — no magenta remains in
+      any capture state
 
 ### Phase 3 — lighting and palette re-tune
+
+Two measured deltas against the baseline, both expected from a pipeline change:
+
+- **Board is darker.** Mean board luminance 0.130 under URP against 0.214 on the baseline.
+  `BoardSurfaceLift` and the light rig were both tuned against Built-in's response.
+- **Board occupies less width.** 337 px against 976 px in the same mid-board band, with
+  camera aspect and orthographic size confirmed identical at 0.5625 and 9.2. Cause not yet
+  established; the leading candidate is that each URP render request clears the target, so
+  the background camera's full-frame fill no longer survives under the presentation camera
+  the way it composited under Built-in.
+
 
 - [ ] Re-check the three-point rig; URP light intensity units differ from Built-in
 - [ ] Re-check `BoardSurfaceLift`, which was tuned against Built-in's response

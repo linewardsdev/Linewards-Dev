@@ -945,7 +945,7 @@ namespace LTW.UnityClient.Editor
         private static Shader FindContactSheetShader() =>
             Shader.Find("Universal Render Pipeline/Unlit")
             ?? Shader.Find("Unlit/Color")
-            ?? Shader.Find("Standard");
+            ?? LTW.UnityClient.Simulation.RenderCompat.Lit;
 
         private static void GrantPlaytestGold(UnityCommandAdapter commands, int playerId, int amount)
         {
@@ -1129,7 +1129,20 @@ namespace LTW.UnityClient.Editor
 
             if (RenderPipeline.SupportsRenderRequest(camera, request))
             {
+                if (HasArgument("-ltwCaptureDebugCamera"))
+                {
+                    Debug.Log($"CAMDEBUG name={camera.name} ortho={camera.orthographic} size={camera.orthographicSize:F3} " +
+                              $"aspect={camera.aspect:F4} rt={renderTexture.width}x{renderTexture.height} " +
+                              $"screen={Screen.width}x{Screen.height}");
+                }
+
                 RenderPipeline.SubmitRenderRequest(camera, request);
+
+                if (HasArgument("-ltwCaptureDebugCamera"))
+                {
+                    Debug.Log($"CAMDEBUG after submit: aspect={camera.aspect:F4}");
+                }
+
                 return;
             }
 
@@ -1832,7 +1845,7 @@ namespace LTW.UnityClient.Editor
 
             var shader = Shader.Find("Universal Render Pipeline/Unlit")
                 ?? Shader.Find("Unlit/Color")
-                ?? Shader.Find("Standard");
+                ?? LTW.UnityClient.Simulation.RenderCompat.Lit;
             var material = new Material(shader)
             {
                 color = color

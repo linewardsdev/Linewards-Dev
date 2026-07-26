@@ -63,7 +63,7 @@ namespace LTW.UnityClient.Simulation
             {
                 if (boardSurfaceMaterial == null)
                 {
-                    var shader = BoardVertexColorShader ?? Shader.Find("Standard");
+                    var shader = BoardVertexColorShader ?? RenderCompat.Lit;
                     boardSurfaceMaterial = new Material(shader)
                     {
                         name = "LTW Board Surface",
@@ -155,7 +155,7 @@ namespace LTW.UnityClient.Simulation
 
             // Deliberately the stock Standard shader, not the vertex-colour one: these materials go
             // on built-in primitive meshes, which carry no COLOR stream to multiply against.
-            var material = new Material(Shader.Find("Standard"))
+            var material = new Material(RenderCompat.Lit)
             {
                 name = $"LTW Board Shared {key:X8}",
                 enableInstancing = true,

@@ -22,6 +22,7 @@ Shader "LTW/Contact Shadow"
         {
             "Queue" = "Transparent-100"
             "RenderType" = "Transparent"
+            "RenderPipeline" = "UniversalPipeline"
             "IgnoreProjector" = "True"
             "PreviewType" = "Plane"
         }
