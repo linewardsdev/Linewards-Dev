@@ -155,26 +155,40 @@ onto the URP pipeline asset directly (MSAA 2x, 1024 shadowmap, 4 additional ligh
 — see [URP_MIGRATION.md](URP_MIGRATION.md) — which is the real fix; the Quality-settings
 change was a stopgap for Built-in and no longer does anything now the project renders URP.
 
-**Item 8, per-role emission (2026-07-25).** Measured across the five baked emission maps,
-coverage runs 2.5 to 15 percent but the mean colour is near neutral cyan-grey on every
-tower, so the maps carried no role identity. `_EmissionColor` is now tinted per role.
+**Item 8, per-role emission (2026-07-25) — status downgraded, see correction below.**
+Measured across the five baked emission maps, coverage runs 2.5 to 15 percent but the mean
+colour is near neutral cyan-grey on every tower, so the maps carried no role identity.
+`_EmissionColor` was tinted per role on `mat_tower_*_3d_body_runtime_v01.mat`.
+
+**Correction, 2026-07-26:** this tinting has never actually rendered on any tower. Found
+while investigating a URP contact-sheet artifact (see
+[URP_MIGRATION.md](URP_MIGRATION.md) Known follow-up): all five tower specs pass
+`preserveSourceMaterials: true`, so the tuned body material is created but never assigned to
+the visible mesh — the mesh renders with Unity's unconfigured, auto-generated FBX import
+material instead. The glow visible in the match capture referenced below is that
+auto-material's own uncalibrated full-white emission, not the per-role tinting described
+here. Item 8 is **not actually done** for towers pending that fix. Creeps are unaffected —
+their import pipeline has no equivalent branch and their per-role tinting does render.
 
 The role-colour collision noted at the time — `TowerMarkerColor` giving control and prism
 the same pale blue, and placing relay and pulse within ~15 degrees of hue — was fixed
 separately by introducing `TowerRolePalette` as the single source of truth for role colour,
-consumed by both the board renderer and the HUD build cards. See the 2D-plate-era constant
-class-of-bug section below for the related creep fixes from the same pass.
+consumed by both the board renderer and the HUD build cards. That fix is real and does apply
+(it governs `RoleMarker`/`OwnerTrim`, which are separate small accent meshes generated
+directly, not part of the imported body mesh). See the 2D-plate-era constant class-of-bug
+section below for the related creep fixes from the same pass.
 
-**Items 6 and 7, URP and bloom (2026-07-26).** Both done via the full migration — see
-[URP_MIGRATION.md](URP_MIGRATION.md). The emissive payoff from item 8 was capped without
-bloom; it now reads correctly, confirmed against the pre-migration baseline (match
-luminance 0.2113 vs 0.2142, no blown pixels, towers visibly glowing where the baseline was
-flat).
+**Items 6 and 7, URP and bloom (2026-07-26).** The migration itself is done and verified —
+see [URP_MIGRATION.md](URP_MIGRATION.md) (match luminance 0.2113 vs 0.2142, no blown pixels).
+Bloom and tonemapping work correctly on whatever is actually lit and emissive in the scene.
+Whether the *intended* per-role tower emission benefits from it is blocked on the item 8 fix
+above, since that emission has never been the one rendering.
 
-**Tier 2 is complete.** No open items remain in this tier. Two follow-ups from the URP work
-are tracked in `URP_MIGRATION.md`'s Known follow-up section: the role contact sheet review
-tool renders too hot under URP and needs its own lighting tuned before it can be trusted
-again, and bloom's real cost has not been measured on a physical device.
+**Tier 2 is not fully complete** — item 8 needs the tower material-assignment bug fixed
+before it can be called done. Items 6, 7 and 9 hold. Two open items are tracked in
+`URP_MIGRATION.md`'s Known follow-up section: the tower material-assignment bug itself (with
+two candidate fixes described there), and bloom's real cost, which has not been measured on
+a physical device.
 
 ### Tier 2 — shading and pipeline
 

@@ -1,7 +1,11 @@
 # URP Migration
 
 **Status: merged to `main` at `0c3792d` on 2026-07-26.** The project now renders on URP
-17.5.0. Two follow-ups remain open — see Known follow-up.
+17.5.0, and the migration itself is verified sound (see Acceptance criteria). A significant
+**pre-existing, non-URP bug** was found afterward while investigating a review-tool artifact:
+all five towers render with an unconfigured auto-generated material instead of their tuned
+production material. Not yet fixed — see Known follow-up. Bloom's cost on a physical device
+is also still unmeasured.
 
 Tracking document for moving Line Wards from the Built-in Render Pipeline to the Universal
 Render Pipeline. Started and completed 2026-07-26.
@@ -178,70 +182,96 @@ The migration is worth merging only if all of these hold. All four confirmed bef
 
 **Caution on how criterion 4 was first judged.** The initial check used the role contact
 sheet — a tool that builds its own synthetic scene — and it showed the models washed out
-under URP. That was nearly reported as a regression requiring a rollback. It was not: the
-actual match capture measured correctly all along (0.2113 vs 0.2142, 0% blown), and the
-contact sheet's own lighting rig is what runs hot under URP, not the game. See Known
-follow-up. Lesson: judge acceptance criteria from the game, not from a review tool, even a
-supposedly-fixed one.
+under URP. That was nearly reported as a regression requiring a rollback. It was not a URP
+regression: the migration itself is sound, and the whole-frame match luminance (0.2113 vs
+0.2142, 0% blown) is accurate as a migration-parity check. But the wash the contact sheet was
+showing turned out to be real, not a review-tool artifact — see Known follow-up: all five
+towers' visible mesh renders with an unconfigured auto-generated material, a pre-existing bug
+unrelated to URP that the contact sheet happened to make visible and the frame-wide metric
+was never going to catch. Lesson: a review tool showing something ugly is a lead worth
+chasing to an actual root cause, not something to explain away once the obvious culprit (here,
+URP) is cleared.
 
 ## Known follow-up
 
-### The role contact sheet washes out under URP — root cause found, fix not yet applied
+### Correction: the contact sheet wash-out was not emission intensity
 
-**Root cause: emission intensity, not the review tool.** Tower and creep body materials
-carry `_EmissionColor` authored at up to 2x intensity, tuned so emission reads at gameplay's
-tiny on-screen tower size (a few dozen pixels). At the contact sheet's much closer framing
-(orthographic size 4.35 vs the match's 9.2–15.5), the same emission is large enough on screen
-to genuinely wash the model out. This was confirmed empirically: scaling `_EmissionColor` to
-zero for a test render measurably reduced the wash (Control went from pale lavender to a
-recognisable metallic grey), with everything else about the scene held constant.
+An earlier version of this section concluded the wash was caused by tower/creep emission
+intensity (authored at 2x, tuned for gameplay scale) being too strong at the contact sheet's
+closer framing, and recommended retuning shipping emission values. **That conclusion was
+wrong**, for two compounding reasons, both now fixed or corrected below:
 
-**This likely affects the shipped game too, just below the sensitivity of the metric used to
-clear it.** The match capture's acceptance check was a whole-frame mean luminance (0.2113 vs
-baseline 0.2142). A tower occupies a small enough fraction of the frame that even a
-significantly overbright tower would barely move that average. The frame-wide metric cannot
-rule out per-tower overbrightness at gameplay scale — it was never designed to.
+1. The contact sheet's captures were non-deterministic (see the commit "Make role contact
+   sheet captures deterministic with warm-up frames"): the same committed material state
+   produced two different stable renders depending on process timing, and several of the
+   "emission causes the wash" A/B comparisons were unknowingly comparing across that
+   coin-flip rather than across the actual variable being changed.
+2. Editing `mat_tower_*_3d_body_runtime_v01.mat` and re-rendering produced **byte-identical**
+   output before and after the edit — a red flag that should have been chased immediately
+   rather than read as "no effect." It led to the real finding below.
 
-**What was ruled out before finding this**, each by an isolated, verifiable test rather than
-by inspection, in case any of this needs re-checking later:
+### The real root cause: all five towers render with an unconfigured, auto-generated FBX material
 
-- Render path (`camera.Render()` vs `RenderPipeline.SubmitRenderRequest`) — switched the
-  contact sheet to the same pipeline-aware `RenderCameraToTarget` helper the main capture
-  uses; output was pixel-near-identical to the old path. Kept as a correctness fix regardless
-  (`camera.Render()` is unsupported under a scriptable pipeline), but it was not the cause.
-- Bloom and tonemapping entirely — disabling every `Volume` in the scene produced the same
-  washed image. Post-processing was not amplifying anything; the raw lit values were already
-  the problem.
-- Camera viewing angle — the contact sheet's camera is shallower (~40° below horizontal) than
-  the match's (~56°). Rotating it to match the match's angle changed framing but not the wash.
-- Skybox / environment reflection — both scenes resolve to the same default skybox and
-  `DefaultReflectionMode.Skybox`; not a source of difference.
-- Ambient intensity and mode — both scenes carry `ambientIntensity = 1`, `ambientMode =
-  Trilight`, identical sky/equator/ground colours. Confirmed by direct log, not inference.
-- Light intensity and colour — logged directly from the contact sheet's key/fill/rim lights;
-  matched the authored values exactly.
-- Resolution / perceived scale — downsampling a cropped tower 8x changed its mean brightness
-  by under 2%. Averaging doesn't remove overbright pixels, it just re-distributes them; this
-  ruled out "it's just showing detail invisible at gameplay's real resolution" as an
-  explanation.
-- Owner/role marker tint — the contact sheet never calls the game's per-owner tinting code, so
-  `OwnerTrim`/`RoleMarker` render at their authored defaults rather than the actual role
-  colour. Overriding them to the correct `TowerRolePalette` colour for the test made no
-  visible difference; these are small accent pieces, not enough surface area to explain a
-  whole-model wash.
+`Tower3DImportPipeline.GenerateWrapperIfRawExists` branches on `spec.PreserveSourceMaterials`:
 
-**Not fixed this session, deliberately.** The fix is to lower emission intensity on the
-shipping tower/creep body materials — real production art assets, not review-tool
-configuration — and that is a judgment call about how much glow reads correctly at both
-gameplay and close-up scale. It should be tuned and reviewed as its own pass, not changed
-autonomously while chasing a review-tool symptom. Suggested next step: retest emission at
-progressively lower multipliers (try 1.0–1.4x in place of the current 2x) against both a
-contact-sheet capture and a real match capture side by side, and pick the value where the
-contact sheet stops washing out without the match capture's glow disappearing.
+```csharp
+if (spec.PreserveSourceMaterials)
+{
+    NormalizeRendererPolicy(generatedInstance);   // tweaks blend/shadow settings only
+}
+else
+{
+    ApplyRuntimeMaterial(generatedInstance, recipe.BodyMaterial);   // assigns the tuned material
+}
+```
 
-Diagnostic scaffolding used to isolate this (temporary CLI-flag-gated code paths in
-`RenderRoleContactSheet` / `InstantiateContactPrefab`) has been removed after use; the
-findings above are what's retained.
+Every one of the five tower specs in `Tower3DProofSetGenerator.cs` passes
+`preserveSourceMaterials: true`. `NormalizeRendererPolicy` never assigns
+`mat_tower_*_3d_body_runtime_v01.mat` to anything — it only adjusts render queue and shadow
+settings on whatever material is already on the renderer. That material is whatever Unity's
+FBX importer auto-generated on import (named e.g. `Material_0.001`), because the source
+FBX's material was never explicitly remapped to the production asset.
+
+Confirmed by direct probe on the Control tower's actual body mesh renderer
+(`Tower_Control_3D/Body/Imported3DVisual/LTW_Unity_ExportRoot/Mesh1.0`):
+
+| Property | Auto-generated `Material_0.001` (what actually renders) | `mat_tower_control_3d_body_runtime_v01.mat` (what has been tuned all session, never assigned) |
+| --- | --- | --- |
+| `_BaseMap` | `Baked_BaseColor` (correct, auto-detected by the importer) | Same texture |
+| `_MetallicGlossMap` | **not bound** | Bound, repacked, correct |
+| `_Smoothness` | flat shader default, `0.5` | Tuned per intake |
+| `_EmissionColor` | **`(1,1,1,1)`, full white, keyword on** | Tuned per role, e.g. Control `(1.216, 0.848, 2)` |
+
+The full-white, uncalibrated emission is what actually washes the tower out — not the tuned
+material's 2x intensity, which has never been rendered by any tower in this project.
+
+**Everything this session (and prior sessions) did to `mat_tower_*_3d_body_runtime_v01.mat`
+— the URP shader conversion, the emission keyword fix, the `EmissiveIsBlack` fix, the
+metallic-smoothness repack, per-role emission tuning — has had zero visual effect on any
+tower, because that asset was never assigned to a visible renderer.** The URP migration's
+board/lighting/bloom work is unaffected by this (verified against the real match capture,
+which does show towers glowing — that glow is coming from the auto material's own
+uncalibrated white emission, not from the tuned one).
+
+**Creeps do not have this bug.** `Creep3DImportPipeline.GenerateWrapper` calls
+`ApplyMaterial(instance, bodyMaterial)` unconditionally — no preserve-source branch exists
+for creeps. Confirmed by probe: the Brute creep's body renderer correctly uses
+`mat_creep_brute_3d_body_v01`.
+
+**Not fixed this session.** This is a five-tower, previously-unnoticed bug with real visual
+impact on the shipped game, and nobody has ever seen what these towers look like with the
+intended material actually applied — it could look better, or expose different problems.
+Two possible directions, both requiring a look before deciding:
+
+- Flip `preserveSourceMaterials` to `false` for the five tower specs and regenerate, so
+  `ApplyRuntimeMaterial` assigns the already-tuned, already-URP-converted production
+  material. Simplest, and uses work that already exists.
+- If `PreserveSourceMaterials` was chosen deliberately for a reason not yet understood (check
+  history/intent before assuming it's simply wrong), instead fix `NormalizeRendererPolicy` /
+  `ConfigurePreservedSourceMaterial` to also correct the auto-material's emission and bind a
+  metallic-smoothness map, rather than replacing it outright.
+
+Either path needs a visual check afterward — this has not been rendered correctly even once.
 
 ## Rollback
 
@@ -277,10 +307,28 @@ Append an entry per working session: what changed, what broke, what is outstandi
   against baseline, all four acceptance criteria confirmed. Merged to `main` at `0c3792d`.
   `urp-migration` branch kept, now 1 commit behind `main`; safe to delete once confidence
   builds, per Rollback.
-- **2026-07-26** — Contact sheet follow-up: root-caused the wash to emission intensity (2x,
-  tuned for gameplay scale, too strong at the contact sheet's closer framing) rather than to
-  the review tool's setup. Eight other hypotheses tested and ruled out one at a time — see
-  Known follow-up for the full list. Fixed the contact sheet's own remaining Built-in-only
-  `camera.Render()` calls (both role and stylized-weapon-kit sheets) as a genuine correctness
-  fix, unrelated to the wash. Did not change shipping emission values; that is a deliberate
-  art-tuning decision left for a dedicated pass, not an autonomous fix.
+- **2026-07-26** — Contact sheet follow-up, first pass: concluded the wash was emission
+  intensity (2x, tuned for gameplay scale) being too strong at the contact sheet's closer
+  framing. Eight other hypotheses tested and ruled out along the way. Fixed the contact
+  sheet's own remaining Built-in-only `camera.Render()` calls as a genuine correctness fix,
+  unrelated to the wash. Did not change shipping emission values, correctly deferring that as
+  an art decision — but the underlying diagnosis was itself wrong; see the next two entries.
+- **2026-07-26** — Contact sheet follow-up, second pass: while preparing an A/B emission
+  comparison for the user, found the captures were non-deterministic — identical committed
+  material state produced two different stable renders depending on process timing. Traced to
+  the first two frames after building the scene rendering differently from every frame after.
+  Fixed with two warm-up frames before every contact sheet capture; verified stable across
+  repeated process launches. This invalidated several of the prior pass's A/B conclusions,
+  which had been comparing across that coin-flip.
+- **2026-07-26** — Contact sheet follow-up, third pass: with captures now deterministic, an
+  emission edit to `mat_tower_control_3d_body_runtime_v01.mat` produced byte-identical render
+  output, which should not be possible for a real material edit. Traced to the actual cause:
+  all five tower specs pass `preserveSourceMaterials: true`, so
+  `Tower3DImportPipeline.ApplyRuntimeMaterial` is never called for towers and their visible
+  body mesh renders with Unity's auto-generated, unconfigured FBX import material instead —
+  full-white uncalibrated emission, no metallic map, default flat smoothness. Every tower
+  material fix made this session and in prior sessions has had zero visual effect, because
+  none of it was ever assigned to a visible renderer. Creeps are unaffected (confirmed by
+  probe; their import pipeline has no such branch). See Known follow-up for full detail and
+  the two possible fixes. Not fixed this session — this needs a visual check nobody has done,
+  since these towers have never rendered with their intended material.
