@@ -163,7 +163,7 @@ Two measured deltas against the baseline, both expected from a pipeline change:
 - [x] Full capture set, in [screenshot-reviews/urp-migration/after/](screenshot-reviews/urp-migration/after/)
 - [x] `dotnet test LTW.sln` still 77 passing
 - [x] Zero compile and shader errors
-- [ ] Report to the user with side-by-side frames; **merge only on approval**
+- [x] Reported and merged on approval
 
 ## Acceptance criteria
 
@@ -175,6 +175,18 @@ The migration is worth merging only if all of these hold:
    does not deliver visibly more than Built-in did, the migration has not paid for itself.
 4. No regression in creep scale, alignment, health bars, contact shadows or role colour,
    all of which were fixed on 2026-07-26.
+
+## Known follow-up
+
+**The role contact sheet renders too hot under URP.** It builds its own scene with a close
+camera and no match lighting context, and the same three-point rig that looks correct in a
+match blows the models out there. Adding the game's post-processing volume to that scene did
+not resolve it, so the cause is the synthetic setup rather than tonemapping.
+
+This does not affect the game. The match captures measure at 0.2113 mean luminance against
+the baseline's 0.2142 with no blown pixels. But it does mean the contact sheet is currently
+misleading for judging material and colour work, which is the exact failure it was repointed
+at the real prefabs to avoid. Tune its lighting before trusting it again.
 
 ## Rollback
 

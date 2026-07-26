@@ -666,6 +666,25 @@ namespace LTW.UnityClient.Editor
             RenderSettings.ambientEquatorColor = new Color(0.212f, 0.227f, 0.259f);
             RenderSettings.ambientGroundColor = new Color(0.114f, 0.125f, 0.157f);
 
+            // Match the game's post-processing. Without it this scene renders with no tonemapping,
+            // and under URP the same rig that looks correct in a match blows the models out, which
+            // makes the sheet misleading in exactly the way that repointing it at the real prefabs
+            // was meant to stop.
+            if (GraphicsSettings.currentRenderPipeline != null)
+            {
+                var profile = Resources.Load<VolumeProfile>("LTW_PostProcessing");
+                if (profile != null)
+                {
+                    var volumeObject = new GameObject("RoleContactSheetPostProcessing");
+                    var volume = volumeObject.AddComponent<Volume>();
+                    volume.isGlobal = true;
+                    volume.sharedProfile = profile;
+                    var cameraData = camera.GetComponent<UnityEngine.Rendering.Universal.UniversalAdditionalCameraData>()
+                                     ?? camera.gameObject.AddComponent<UnityEngine.Rendering.Universal.UniversalAdditionalCameraData>();
+                    cameraData.renderPostProcessing = true;
+                }
+            }
+
             CreateContactSheetBackdrop();
 
             // These must track TowerVisualLibrary and CreepVisualLibrary. The sheet previously
