@@ -63,8 +63,8 @@ by itself a reason to stop; the acceptance criteria below are what matter.
 
 ### Phase 1 — install and configure
 
-- [ ] Add `com.unity.render-pipelines.universal` to the manifest
-- [ ] Create a URP asset and renderer, assign in Graphics and Quality settings
+- [x] Add `com.unity.render-pipelines.universal` to the manifest — 17.5.0, the version bundled with the 6000.5.3f1 editor
+- [x] Create a URP asset and renderer, assign in Graphics settings — scripted in `UrpMigrationSetup`; per-quality overrides left empty so all levels inherit the default
 - [ ] Confirm the project still compiles and the capture harness still runs
 
 ### Phase 2 — materials and shaders
@@ -113,3 +113,8 @@ commit depends on the migration.
 Append an entry per working session: what changed, what broke, what is outstanding.
 
 - **2026-07-26** — Document created, baseline captured, branch opened. No engine changes yet.
+- **2026-07-26** — Phase 1: URP 17.5.0 resolved from the editor's bundled packages, since the
+  public registry only publishes legacy versions. Pipeline asset and renderer created under
+  `Assets/Settings` and assigned as the default pipeline. Compiles clean, simulation tests
+  still 77 passing. Materials are not converted yet, so the game is expected to render
+  mostly magenta until Phase 2.
