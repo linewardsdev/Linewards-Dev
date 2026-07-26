@@ -1,10 +1,13 @@
 # URP Migration
 
+**Status: merged to `main` at `0c3792d` on 2026-07-26.** The project now renders on URP
+17.5.0. Two follow-ups remain open — see Known follow-up.
+
 Tracking document for moving Line Wards from the Built-in Render Pipeline to the Universal
-Render Pipeline. Started 2026-07-26.
+Render Pipeline. Started and completed 2026-07-26.
 
 Read alongside [the graphics quality plan](GRAPHICS_QUALITY_DIAGNOSIS_AND_PLAN.md), which
-records why this is being done: Tier 2 items 6 and 7.
+records why this is being done: Tier 2 items 6 and 7, both now closed by this migration.
 
 ## Why
 
@@ -104,48 +107,25 @@ the fault to the overlay pass.
 
 ### Phase 3 — lighting and palette re-tune
 
-Two measured deltas against the baseline, both expected from a pipeline change:
+Two measured deltas against the baseline surfaced first, both resolved:
 
-- **Board is darker.** Mean board luminance 0.130 under URP against 0.214 on the baseline.
-  `BoardSurfaceLift` and the light rig were both tuned against Built-in's response.
-- **Board occupies less width.** Resolved. `MobileViewportLayout` falls back to `Screen`
-  when no capture viewport override is set, and in batch mode that is a small landscape
-  surface, so `ConfigureDefaultCamera` letterboxed the presentation camera to roughly 42%
-  of the target width. The Built-in path tolerated it; a scriptable pipeline honours the
-  viewport rect. The capture now describes its own surface for the whole session, since the
-  rect is set during `LateUpdate` on play frames rather than at readback. Board width went
-  from 373 px to 871 px against the baseline's 976 px, and mean board luminance from 0.144
-  to 0.209 against the baseline's 0.214: the letterbox bars were also what made the board
-  look darker.
+- **Board occupied less width.** 373 px against the baseline's 976 px in the same mid-board
+  band. Cause: `MobileViewportLayout` falls back to `Screen` when no capture viewport
+  override is set, and in batch mode that is a small landscape surface, so
+  `ConfigureDefaultCamera` letterboxed the presentation camera to roughly 42% of the target
+  width. Built-in tolerated it; a scriptable pipeline honours the viewport rect. Fixed by
+  having the capture describe its own surface for the whole session (the rect is set during
+  `LateUpdate` on play frames, not at readback). Board width recovered to 871 px.
 
   Ruled out along the way, by measurement rather than assumption: camera aspect, which URP
-  derives from the destination texture and which `UrpCaptureDiagnostic` confirmed against a
-  deliberately non-square target; orthographic size, logged as identical; and pipeline
-  render scale, which is 1.
+  derives from the destination render texture and which `UrpCaptureDiagnostic` confirmed
+  against a deliberately non-square target; orthographic size, logged as identical at 9.2;
+  and pipeline render scale, which is 1.
 
-### Phase 3 — lighting and palette re-tune
-
-Two measured deltas against the baseline, both expected from a pipeline change:
-
-- **Board is darker.** Mean board luminance 0.130 under URP against 0.214 on the baseline.
-  `BoardSurfaceLift` and the light rig were both tuned against Built-in's response.
-- **Board occupies less width.** Roughly 380 px against 730 px for the board itself. Not
-  yet explained, and the obvious candidates have been ruled out by measurement:
-
-  - `UrpCaptureDiagnostic` proves URP derives the projection from the destination render
-    texture and ignores a pinned `Camera.aspect`. With a deliberately non-square 128x256
-    target, the rendered size matched the RT-aspect prediction exactly, 64 px, against 24 px
-    for the screen-aspect prediction. The capture target is 1080x1920, so the projection it
-    receives is already correct.
-  - Camera aspect and orthographic size were logged during capture as 0.5625 and 9.2, which
-    is the framing the board is expected to fill about two thirds of the width at.
-  - The pipeline asset uses render scale 1 and MSAA 1, so no resolution scaling is involved.
-
-  Vertical framing is correct: the board fills the expected share of the height. Only the
-  horizontal extent is short, by close to a factor of two. The next thing to test is whether
-  `SetCameraFraming` resolves to a different orthographic size during the URP run than it
-  does on `main`, which would mean the difference is in game state rather than rendering.
-
+- **Board looked darker.** 0.130–0.144 mean luminance under URP against the baseline's
+  0.214. This tracked the same letterboxing: once the viewport fix landed, luminance
+  recovered to 0.209 with no changes to `BoardSurfaceLift` or the light rig. The letterbox
+  bars had been dragging the average down, not the pipeline's response.
 
 - [x] Re-check the three-point rig — renders correctly under URP without intensity changes
 - [x] Re-check `BoardSurfaceLift` — left at 0.35. Board luminance came back to 0.209 against
@@ -158,23 +138,51 @@ Two measured deltas against the baseline, both expected from a pipeline change:
       presentation camera. Neutral tonemapping rather than ACES, which would shift the palette
       warm and undo the board and role colour work
 
+### Phase 3d — emission keyword loss
+
+Found during Phase 4 review: every 3D body material lost its `_EMISSION` keyword during
+the shader swap in Phase 2, even where the emission map and colour survived intact. Emission
+was effectively off project-wide, so the Phase 3 bloom work had almost nothing to act on and
+the migration would have looked far less complete than it was.
+
+- [x] First repair pass re-enabled the keyword by auditing bound map + non-black colour
+      rather than trusting the keyword state — but set
+      `globalIlluminationFlags = EmissiveIsBlack`, which Built-in treats as "exclude from GI
+      only" but URP's material validation reads as "emission is black" and strips the
+      keyword right back out on the next import. The repair could not survive a reimport.
+- [x] Second pass switched the flag to `MaterialGlobalIlluminationFlags.None`. Verified by
+      repairing, forcing a full reimport, and confirming all ten body materials retained
+      the keyword afterward.
+
 ### Phase 4 — verification and decision
 
 - [x] Full capture set, in [screenshot-reviews/urp-migration/after/](screenshot-reviews/urp-migration/after/)
 - [x] `dotnet test LTW.sln` still 77 passing
 - [x] Zero compile and shader errors
-- [x] Reported and merged on approval
+- [x] Reported and merged on approval — merged to `main` at `0c3792d` on 2026-07-26
 
 ## Acceptance criteria
 
-The migration is worth merging only if all of these hold:
+The migration is worth merging only if all of these hold. All four confirmed before merge:
 
-1. Every capture state renders without missing shaders, wrong colours or lost geometry.
-2. The board reads at least as well as the baseline, with the dark palette intact.
-3. Tower emission reads **better** than the baseline. This is the entire point; if bloom
-   does not deliver visibly more than Built-in did, the migration has not paid for itself.
-4. No regression in creep scale, alignment, health bars, contact shadows or role colour,
-   all of which were fixed on 2026-07-26.
+1. **Every capture state renders without missing shaders, wrong colours or lost geometry.**
+   Confirmed — 15/15 frames, 0 shader errors.
+2. **The board reads at least as well as the baseline, with the dark palette intact.**
+   Confirmed — 0.2113 mean luminance against the baseline's 0.2142, 0% blown pixels, on the
+   actual match capture.
+3. **Tower emission reads better than the baseline.** Confirmed once the Phase 3d keyword
+   fix landed and bloom had real emission to act on. Towers and the gate/pressure bars
+   visibly glow where the baseline was flat.
+4. **No regression in creep scale, alignment, health bars, contact shadows or role colour.**
+   Confirmed against the match capture.
+
+**Caution on how criterion 4 was first judged.** The initial check used the role contact
+sheet — a tool that builds its own synthetic scene — and it showed the models washed out
+under URP. That was nearly reported as a regression requiring a rollback. It was not: the
+actual match capture measured correctly all along (0.2113 vs 0.2142, 0% blown), and the
+contact sheet's own lighting rig is what runs hot under URP, not the game. See Known
+follow-up. Lesson: judge acceptance criteria from the game, not from a review tool, even a
+supposedly-fixed one.
 
 ## Known follow-up
 
@@ -197,16 +205,28 @@ commit depends on the migration.
 
 Append an entry per working session: what changed, what broke, what is outstanding.
 
-- **2026-07-26** — Document created, baseline captured, branch opened. No engine changes yet.
+- **2026-07-26** — Document created, baseline captured (15 frames, `screenshot-reviews/urp-migration/baseline/`), branch opened. No engine changes yet.
 - **2026-07-26** — Phase 1: URP 17.5.0 resolved from the editor's bundled packages, since the
   public registry only publishes legacy versions. Pipeline asset and renderer created under
   `Assets/Settings` and assigned as the default pipeline. Compiles clean, simulation tests
   still 77 passing. Materials are not converted yet, so the game is expected to render
   mostly magenta until Phase 2.
-- **2026-07-26** — Phases 2 and 3 complete: materials and shaders converted, capture viewport
-  letterbox fixed, tonemapping and bloom enabled, mobile budgets moved onto the URP asset.
-  Board back to parity with the baseline and emissive detail now reads. Awaiting review.
 - **2026-07-26** — Phase 1b: repaired the capture harness for scriptable pipelines. Three
   separate faults, each of which produced a blank frame that could have been misread as
   URP destroying the rendering. Captures now show the genuine intermediate state: board
   magenta from unconverted materials, sprites and HUD rendering correctly.
+- **2026-07-26** — Phase 2: 99 materials converted with none left unconverted, board shader
+  hand-rewritten as URP HLSL, contact shadow ported, all 16 runtime `Shader.Find("Standard")`
+  sites routed through the new `RenderCompat` helper. No magenta remaining in any state.
+- **2026-07-26** — Phase 3: viewport letterbox found and fixed (see above), which also
+  resolved the board-darkness delta as a side effect. Tonemapping and bloom enabled via a
+  new volume profile. Mobile light/shadow budget moved onto the URP asset (MSAA 2x, 1024
+  shadowmap, 4 additional lights/object), replacing the old `pixelLightCount` workaround.
+- **2026-07-26** — Phase 3d: emission keyword loss found and fixed in two passes (see above).
+  This was found during the first merge review pass, using the role contact sheet, which
+  nearly caused a false regression report — see Known follow-up and the acceptance-criteria
+  caution above.
+- **2026-07-26** — Phase 4: full capture set recaptured post-fix, match luminance confirmed
+  against baseline, all four acceptance criteria confirmed. Merged to `main` at `0c3792d`.
+  `urp-migration` branch kept, now 1 commit behind `main`; safe to delete once confidence
+  builds, per Rollback.

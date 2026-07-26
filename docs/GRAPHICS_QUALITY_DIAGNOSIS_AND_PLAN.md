@@ -144,39 +144,49 @@ Expected to account for most of the visible gap. Small, reversible changes.
 5. **Replace flat ambient with a gradient** — warm sky, neutral equator, cool ground.
    Approximates bounce grounding at negligible cost.
 
-### Tier 2 status, 2026-07-26
+### Tier 2 status — all four items now closed, 2026-07-26
 
-Items 8 and 9 landed. Items 6 and 7 remain, and they are now coupled.
+**Item 9, Android quality (2026-07-25),** later superseded by the URP asset. Android mapped
+to the Quality-settings Medium level, which allowed a single pixel light while the runtime
+rig is three directional lights, so on device the fill and rim degraded to vertex and
+spherical harmonic contributions. First fix raised Medium to three pixel lights, MSAA 2x and
+two shadow cascades. Once the URP migration landed, the mobile light/shadow budget moved
+onto the URP pipeline asset directly (MSAA 2x, 1024 shadowmap, 4 additional lights/object)
+— see [URP_MIGRATION.md](URP_MIGRATION.md) — which is the real fix; the Quality-settings
+change was a stopgap for Built-in and no longer does anything now the project renders URP.
 
-**Item 9, Android quality.** Android maps to the Medium level, which allowed a single
-pixel light while the runtime rig is three directional lights, so on device the fill and
-rim degraded to vertex and spherical harmonic contributions and the form definition Tier 1
-restored was weaker than the editor showed. Medium now allows three pixel lights, MSAA 2x,
-and two shadow cascades at the next resolution. No other platform maps to that level.
-Pixel light count is the main frame time risk and the first thing to lower if device
-profiling regresses.
+**Item 8, per-role emission (2026-07-25).** Measured across the five baked emission maps,
+coverage runs 2.5 to 15 percent but the mean colour is near neutral cyan-grey on every
+tower, so the maps carried no role identity. `_EmissionColor` is now tinted per role.
 
-**Item 8, per-role emission.** Measured across the five baked emission maps, coverage runs
-2.5 to 15 percent but the mean colour is near neutral cyan-grey on every tower, so the maps
-carried no role identity. `_EmissionColor` is now tinted per role.
+The role-colour collision noted at the time — `TowerMarkerColor` giving control and prism
+the same pale blue, and placing relay and pulse within ~15 degrees of hue — was fixed
+separately by introducing `TowerRolePalette` as the single source of truth for role colour,
+consumed by both the board renderer and the HUD build cards. See the 2D-plate-era constant
+class-of-bug section below for the related creep fixes from the same pass.
 
-Two things worth knowing:
+**Items 6 and 7, URP and bloom (2026-07-26).** Both done via the full migration — see
+[URP_MIGRATION.md](URP_MIGRATION.md). The emissive payoff from item 8 was capped without
+bloom; it now reads correctly, confirmed against the pre-migration baseline (match
+luminance 0.2113 vs 0.2142, no blown pixels, towers visibly glowing where the baseline was
+flat).
 
-- `TowerMarkerColor` gives **control and prism the same pale blue**, and places relay and
-  pulse within about fifteen degrees of hue. The emission tints work around this, but the
-  underlying role colour language still has the collision.
-- **The payoff is capped until there is bloom.** With emissive coverage this small and no
-  post-processing, a tint can only do so much. The project has neither the Post Processing
-  Stack nor URP installed, so item 7 cannot be done without first resolving item 6. That
-  makes the URP decision the gate on the rest of Tier 2, not an independent choice.
+**Tier 2 is complete.** No open items remain in this tier. Two follow-ups from the URP work
+are tracked in `URP_MIGRATION.md`'s Known follow-up section: the role contact sheet review
+tool renders too hot under URP and needs its own lighting tuned before it can be trusted
+again, and bloom's real cost has not been measured on a physical device.
 
 ### Tier 2 — shading and pipeline
 
-6. **Evaluate a URP migration.** Built-in can look good once Tier 1 lands. URP adds
-   per-object shadow control, mobile post-processing, and shader graph authoring for the
-   energy and owner materials. Decide after Tier 1, on evidence.
-7. **Neutral or ACES tonemapping plus restrained bloom**, once emission is bound. Bloom
-   is what makes emissive tower detail read.
+6. ~~**Evaluate a URP migration.**~~ — done 2026-07-26. See
+   [URP_MIGRATION.md](URP_MIGRATION.md) for the full tracker. Migrated to URP 17.5.0 and
+   merged to `main`. Surfaced and fixed several latent bugs Built-in had been hiding: a
+   letterboxed capture viewport, a silently-broken review harness, runtime shaders
+   resolving to null, and emission keywords being stripped by an `EmissiveIsBlack` flag
+   that Built-in tolerated but URP's validation does not.
+7. ~~**Neutral or ACES tonemapping plus restrained bloom**~~ — done 2026-07-26 as part of
+   the URP migration. Neutral tonemapping, bloom threshold 1.05, intensity 0.9. Confirmed
+   emissive tower detail now reads visibly better than the Built-in baseline.
 8. **Author emission per tower role** so arrow, pulse, relay, prism and control separate
    at a glance by glow colour.
 9. **Give Android a dedicated quality level**: `antiAliasing: 2` (MSAA 2x is inexpensive
