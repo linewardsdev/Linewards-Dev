@@ -144,6 +144,32 @@ Expected to account for most of the visible gap. Small, reversible changes.
 5. **Replace flat ambient with a gradient** — warm sky, neutral equator, cool ground.
    Approximates bounce grounding at negligible cost.
 
+### Tier 2 status, 2026-07-26
+
+Items 8 and 9 landed. Items 6 and 7 remain, and they are now coupled.
+
+**Item 9, Android quality.** Android maps to the Medium level, which allowed a single
+pixel light while the runtime rig is three directional lights, so on device the fill and
+rim degraded to vertex and spherical harmonic contributions and the form definition Tier 1
+restored was weaker than the editor showed. Medium now allows three pixel lights, MSAA 2x,
+and two shadow cascades at the next resolution. No other platform maps to that level.
+Pixel light count is the main frame time risk and the first thing to lower if device
+profiling regresses.
+
+**Item 8, per-role emission.** Measured across the five baked emission maps, coverage runs
+2.5 to 15 percent but the mean colour is near neutral cyan-grey on every tower, so the maps
+carried no role identity. `_EmissionColor` is now tinted per role.
+
+Two things worth knowing:
+
+- `TowerMarkerColor` gives **control and prism the same pale blue**, and places relay and
+  pulse within about fifteen degrees of hue. The emission tints work around this, but the
+  underlying role colour language still has the collision.
+- **The payoff is capped until there is bloom.** With emissive coverage this small and no
+  post-processing, a tint can only do so much. The project has neither the Post Processing
+  Stack nor URP installed, so item 7 cannot be done without first resolving item 6. That
+  makes the URP decision the gate on the rest of Tier 2, not an independent choice.
+
 ### Tier 2 — shading and pipeline
 
 6. **Evaluate a URP migration.** Built-in can look good once Tier 1 lands. URP adds
