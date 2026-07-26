@@ -682,6 +682,7 @@ namespace LTW.UnityClient.Editor
                 }
             }
 
+
             CreateContactSheetBackdrop();
 
             // These must track TowerVisualLibrary and CreepVisualLibrary. The sheet previously
@@ -726,13 +727,23 @@ namespace LTW.UnityClient.Editor
             var previousActive = RenderTexture.active;
             try
             {
-                // camera.Render() is a Built-in-only call and is unsupported under a scriptable
-                // pipeline; RenderCameraToTarget is the same pipeline-aware path RenderActiveCameras
-                // uses for the gameplay capture. Note: switching this was NOT what fixed the model
-                // wash-out under URP (see docs/URP_MIGRATION.md Known follow-up) - that turned out to
-                // be emission intensity, unrelated to which render call is used. This change is kept
-                // purely because the old call was technically wrong under URP regardless.
                 camera.targetTexture = texture;
+
+                // The first couple of frames after building this scene render measurably
+                // different (and visibly washed-out on lit models) from the third and every
+                // subsequent frame, which are all pixel-identical to each other. The scene is
+                // brand new (fresh empty scene, camera and lights created moments ago), so
+                // something - most likely URP compiling/resolving the correct shader variant for
+                // the freshly bound metallic/emission keywords, though this was not root-caused
+                // further - has not converged yet on frame 0/1. Rendering a couple of throwaway
+                // warm-up frames first makes the capture deterministic and avoids reporting a
+                // transient artifact as if it were the material's real appearance.
+                const int warmupFrames = 2;
+                for (var w = 0; w < warmupFrames; w++)
+                {
+                    RenderCameraToTarget(camera, texture);
+                }
+
                 RenderCameraToTarget(camera, texture);
                 RenderTexture.active = texture;
                 var output = new Texture2D(texture.width, texture.height, TextureFormat.RGBA32, false);
@@ -821,6 +832,16 @@ namespace LTW.UnityClient.Editor
             try
             {
                 camera.targetTexture = texture;
+
+                // See the matching comment in RenderRoleContactSheet: the first couple of frames
+                // after building a fresh scene render measurably different from every frame after,
+                // which are all stable. Warm up before the real capture.
+                const int warmupFrames = 2;
+                for (var w = 0; w < warmupFrames; w++)
+                {
+                    RenderCameraToTarget(camera, texture);
+                }
+
                 RenderCameraToTarget(camera, texture);
                 RenderTexture.active = texture;
                 var output = new Texture2D(texture.width, texture.height, TextureFormat.RGBA32, false);
