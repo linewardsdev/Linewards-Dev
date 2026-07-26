@@ -89,6 +89,49 @@ namespace LTW.UnityClient.Editor
             ExitIfBatch(0);
         }
 
+        /// <summary>
+        /// Re-enables _EMISSION wherever an emission map is bound with a non-black colour.
+        /// </summary>
+        /// <remarks>
+        /// Material re-serialisation during import dropped the keyword on three of the five creep
+        /// body materials while leaving the map and colour intact, which silently disables their
+        /// emission. Auditing by map-and-colour rather than trusting the keyword makes the state
+        /// checkable and repeatable.
+        /// </remarks>
+        [MenuItem("Line Wards/Migration/Repair Emission Keywords")]
+        public static void RepairEmissionKeywords()
+        {
+            var repaired = 0;
+            foreach (var guid in AssetDatabase.FindAssets("t:Material", new[] { "Assets" }))
+            {
+                var path = AssetDatabase.GUIDToAssetPath(guid);
+                var material = AssetDatabase.LoadAssetAtPath<Material>(path);
+                if (material == null || !material.HasProperty("_EmissionMap") || !material.HasProperty("_EmissionColor"))
+                {
+                    continue;
+                }
+
+                var map = material.GetTexture("_EmissionMap");
+                var color = material.GetColor("_EmissionColor");
+                var wants = map != null && color.maxColorComponent > 0.001f;
+                if (!wants || material.IsKeywordEnabled("_EMISSION"))
+                {
+                    continue;
+                }
+
+                material.EnableKeyword("_EMISSION");
+                material.globalIlluminationFlags = MaterialGlobalIlluminationFlags.EmissiveIsBlack;
+                EditorUtility.SetDirty(material);
+                repaired++;
+                Debug.Log($"Re-enabled emission on {path}");
+            }
+
+            AssetDatabase.SaveAssets();
+            AssetDatabase.Refresh();
+            Debug.Log($"Emission keyword repair: {repaired} material(s) fixed.");
+            ExitIfBatch(0);
+        }
+
         private static void ConvertStandardToLit(Material material, Shader lit)
         {
             var mainTex = material.HasProperty("_MainTex") ? material.GetTexture("_MainTex") : null;
