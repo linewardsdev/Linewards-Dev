@@ -522,12 +522,15 @@ namespace LTW.UnityClient.Editor
         {
             EnsureFolder(Path.GetDirectoryName(path)?.Replace("\\", "/") ?? MaterialFolder);
             var material = AssetDatabase.LoadAssetAtPath<Material>(path);
-            if (material == null)
+            if (material != null)
             {
-                material = new Material(LTW.UnityClient.Simulation.RenderCompat.Lit);
-                AssetDatabase.CreateAsset(material, path);
+                // Body material is hand-tuned per role after creation (color, emission, smoothness).
+                // Regenerating the wrapper must not reset those tuned values back to the generic recipe defaults.
+                return material;
             }
 
+            material = new Material(LTW.UnityClient.Simulation.RenderCompat.Lit);
+            AssetDatabase.CreateAsset(material, path);
             return ConfigureBodyMaterial(material, color, mainTexture, preserveAlpha);
         }
 

@@ -155,20 +155,29 @@ onto the URP pipeline asset directly (MSAA 2x, 1024 shadowmap, 4 additional ligh
 — see [URP_MIGRATION.md](URP_MIGRATION.md) — which is the real fix; the Quality-settings
 change was a stopgap for Built-in and no longer does anything now the project renders URP.
 
-**Item 8, per-role emission (2026-07-25) — status downgraded, see correction below.**
+**Item 8, per-role emission (2026-07-25) — now genuinely done, see fix below.**
 Measured across the five baked emission maps, coverage runs 2.5 to 15 percent but the mean
 colour is near neutral cyan-grey on every tower, so the maps carried no role identity.
 `_EmissionColor` was tinted per role on `mat_tower_*_3d_body_runtime_v01.mat`.
 
-**Correction, 2026-07-26:** this tinting has never actually rendered on any tower. Found
+**Correction, 2026-07-26:** this tinting had never actually rendered on any tower. Found
 while investigating a URP contact-sheet artifact (see
-[URP_MIGRATION.md](URP_MIGRATION.md) Known follow-up): all five tower specs pass
-`preserveSourceMaterials: true`, so the tuned body material is created but never assigned to
-the visible mesh — the mesh renders with Unity's unconfigured, auto-generated FBX import
-material instead. The glow visible in the match capture referenced below is that
+[URP_MIGRATION.md](URP_MIGRATION.md) Known follow-up): all five tower specs passed
+`preserveSourceMaterials: true`, so the tuned body material was created but never assigned to
+the visible mesh — the mesh rendered with Unity's unconfigured, auto-generated FBX import
+material instead. The glow visible in the match capture referenced below was that
 auto-material's own uncalibrated full-white emission, not the per-role tinting described
-here. Item 8 is **not actually done** for towers pending that fix. Creeps are unaffected —
-their import pipeline has no equivalent branch and their per-role tinting does render.
+here. Creeps were unaffected — their import pipeline has no equivalent branch and their
+per-role tinting does render.
+
+**Fixed, 2026-07-26:** flipped `preserveSourceMaterials` to `false` and regenerated. A second,
+independent bug surfaced during the fix — regenerating unconditionally reset the tuned body
+material back to generic defaults regardless of this flag — and was fixed in the same pass
+(`Tower3DImportPipeline.CreateBodyMaterial`; full detail in `URP_MIGRATION.md`'s Known
+follow-up). Verified at the data level (prefab references the tuned material's guid) and
+visually (role contact sheet + real match capture now show genuine per-role tuned emission
+and metallic detail, saved to `docs/screenshot-reviews/tower-material-fix/`). Item 8 is now
+done for both towers and creeps.
 
 The role-colour collision noted at the time — `TowerMarkerColor` giving control and prism
 the same pale blue, and placing relay and pulse within ~15 degrees of hue — was fixed
@@ -180,15 +189,13 @@ section below for the related creep fixes from the same pass.
 
 **Items 6 and 7, URP and bloom (2026-07-26).** The migration itself is done and verified —
 see [URP_MIGRATION.md](URP_MIGRATION.md) (match luminance 0.2113 vs 0.2142, no blown pixels).
-Bloom and tonemapping work correctly on whatever is actually lit and emissive in the scene.
-Whether the *intended* per-role tower emission benefits from it is blocked on the item 8 fix
-above, since that emission has never been the one rendering.
+Bloom and tonemapping work correctly on whatever is actually lit and emissive in the scene,
+and now that towers render their intended per-role emission (item 8, above), that is what
+bloom is reacting to.
 
-**Tier 2 is not fully complete** — item 8 needs the tower material-assignment bug fixed
-before it can be called done. Items 6, 7 and 9 hold. Two open items are tracked in
-`URP_MIGRATION.md`'s Known follow-up section: the tower material-assignment bug itself (with
-two candidate fixes described there), and bloom's real cost, which has not been measured on
-a physical device.
+**Tier 2 is complete** — items 6, 7, 8 and 9 all hold. One open item remains, tracked in
+`URP_MIGRATION.md`'s Known follow-up section: bloom's real cost, which has not been measured
+on a physical device (no device access).
 
 ### Tier 2 — shading and pipeline
 

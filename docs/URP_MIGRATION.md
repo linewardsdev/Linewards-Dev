@@ -3,9 +3,9 @@
 **Status: merged to `main` at `0c3792d` on 2026-07-26.** The project now renders on URP
 17.5.0, and the migration itself is verified sound (see Acceptance criteria). A significant
 **pre-existing, non-URP bug** was found afterward while investigating a review-tool artifact:
-all five towers render with an unconfigured auto-generated material instead of their tuned
-production material. Not yet fixed — see Known follow-up. Bloom's cost on a physical device
-is also still unmeasured.
+all five towers rendered with an unconfigured auto-generated material instead of their tuned
+production material. **Fixed and verified — see Known follow-up.** Bloom's cost on a physical
+device is still unmeasured (no device access).
 
 Tracking document for moving Line Wards from the Built-in Render Pipeline to the Universal
 Render Pipeline. Started and completed 2026-07-26.
@@ -258,20 +258,43 @@ uncalibrated white emission, not from the tuned one).
 for creeps. Confirmed by probe: the Brute creep's body renderer correctly uses
 `mat_creep_brute_3d_body_v01`.
 
-**Not fixed this session.** This is a five-tower, previously-unnoticed bug with real visual
-impact on the shipped game, and nobody has ever seen what these towers look like with the
-intended material actually applied — it could look better, or expose different problems.
-Two possible directions, both requiring a look before deciding:
+### Fixed: `preserveSourceMaterials` flipped to `false`, plus a second bug found during the fix
 
-- Flip `preserveSourceMaterials` to `false` for the five tower specs and regenerate, so
-  `ApplyRuntimeMaterial` assigns the already-tuned, already-URP-converted production
-  material. Simplest, and uses work that already exists.
-- If `PreserveSourceMaterials` was chosen deliberately for a reason not yet understood (check
-  history/intent before assuming it's simply wrong), instead fix `NormalizeRendererPolicy` /
-  `ConfigurePreservedSourceMaterial` to also correct the auto-material's emission and bind a
-  metallic-smoothness map, rather than replacing it outright.
+All five specs in `Tower3DProofSetGenerator.cs` now pass `preserveSourceMaterials: false`, so
+`ApplyRuntimeMaterial` assigns the tuned, URP-converted `mat_tower_*_3d_body_runtime_v01.mat`
+to every tower's body renderer.
 
-Either path needs a visual check afterward — this has not been rendered correctly even once.
+The first regeneration attempt surfaced a **second, previously-latent bug**: regardless of
+`preserveSourceMaterials`, `CreateMaterialRecipe` unconditionally called `CreateBodyMaterial`,
+which re-ran `ConfigureBodyMaterial` on the body material **even when it already existed**.
+Because `PreserveSourceAlpha` is `true` for all five specs, this took the transparent branch —
+resetting the hand-tuned material back to generic recipe defaults (shared `BodyColor`
+`(0.82, 0.95, 1)` instead of the tuned per-role color, near-zero emission `(0.02, 0.035, 0.05)`
+instead of the tuned value e.g. Control's `(1.216, 0.848, 2)`, `Smoothness` `1` → `0.12`,
+`Opaque` → `Transparent`, `ZWrite 1` → `0`). This silently destroyed two prior sessions' worth
+of tuning ("Restore opaque PBR shading", "Give each tower role its own emission colour") the
+moment the generator ran, independent of the assignment bug above. Caught before committing by
+reviewing the regenerated `.mat` diffs, not by visual inspection — the resulting render looked
+plausible ("richer than before") but was in fact neither the tuned material nor the original
+auto-generated one.
+
+Fixed in `Tower3DImportPipeline.CreateBodyMaterial`: only run `ConfigureBodyMaterial` when the
+asset is newly created; return an existing material untouched. Reverted the clobbered `.mat`
+files from git and regenerated again with the corrected pipeline — this time the body materials
+show zero diff (tuned values preserved) while the prefabs correctly reference the tuned
+material's guid.
+
+Verified:
+- Data level: `Tower_Control_3D.prefab` references `mat_tower_control_3d_body_runtime_v01.mat`'s
+  guid (`be545f9603d7041e69253391dbd5c30e`) via a `PrefabInstance` material override.
+- Visual: role contact sheet and a real match capture
+  (`docs/screenshot-reviews/tower-material-fix/`) both show towers with genuine mesh/material
+  detail (metallic sheen, tuned per-role color and emission) at gameplay scale, not the
+  full-white auto-material glow.
+- `dotnet test` 77/77 passing, 0 compile/shader errors.
+
+Creeps were unaffected by either bug (confirmed earlier: no preserve-source branch, and no
+equivalent unconditional-reconfigure call in `Creep3DImportPipeline`).
 
 ## Rollback
 
@@ -332,3 +355,12 @@ Append an entry per working session: what changed, what broke, what is outstandi
   probe; their import pipeline has no such branch). See Known follow-up for full detail and
   the two possible fixes. Not fixed this session — this needs a visual check nobody has done,
   since these towers have never rendered with their intended material.
+- **2026-07-26** — Contact sheet follow-up, fourth pass: flipped `preserveSourceMaterials` to
+  `false` and regenerated. First regeneration attempt clobbered the tuned body materials back
+  to generic defaults (a second, independent bug in `CreateBodyMaterial` — see Known
+  follow-up); caught via `.mat` diff review before committing, not visually. Fixed
+  `CreateBodyMaterial` to leave an existing material untouched, reverted the clobbered assets,
+  regenerated again. Verified clean at the data level (guid reference) and visually (contact
+  sheet + real match capture, saved to `docs/screenshot-reviews/tower-material-fix/`). 77/77
+  tests passing, 0 compile/shader errors. This closes the tower half of Tier 2 item 8 in the
+  graphics plan.

@@ -29,7 +29,7 @@ namespace LTW.UnityClient.Editor
                 Vector3.one,
                 true,
                 true,
-                true),
+                false),
             new(
                 "Control",
                 "tower.control",
@@ -46,7 +46,7 @@ namespace LTW.UnityClient.Editor
                 Vector3.one,
                 true,
                 true,
-                true),
+                false),
             new(
                 "Relay",
                 "tower.relay",
@@ -63,7 +63,7 @@ namespace LTW.UnityClient.Editor
                 Vector3.one,
                 true,
                 true,
-                true),
+                false),
             new(
                 "Pulse",
                 "tower.pulse",
@@ -80,7 +80,7 @@ namespace LTW.UnityClient.Editor
                 Vector3.one,
                 true,
                 true,
-                true),
+                false),
             new(
                 "Prism",
                 "tower.prism",
@@ -97,7 +97,7 @@ namespace LTW.UnityClient.Editor
                 Vector3.one,
                 true,
                 true,
-                true)
+                false)
         };
 
         [MenuItem(GenerateMenuPath)]
