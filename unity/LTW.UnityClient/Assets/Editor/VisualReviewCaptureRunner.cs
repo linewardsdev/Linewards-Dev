@@ -1122,6 +1122,15 @@ namespace LTW.UnityClient.Editor
                 return;
             }
 
+            // URP derives the projection from the request's destination texture, so a manually
+            // pinned Camera.aspect is ignored while still being reported by the property. Leaving
+            // ours pinned made the board render at the batch-mode screen aspect instead of the
+            // capture's portrait aspect, shrinking it to roughly a third of its baseline width.
+            // Releasing the override lets the pipeline derive the correct projection.
+            var pinnedTarget = camera.targetTexture;
+            camera.targetTexture = null;
+            camera.ResetAspect();
+
             var request = new UnityEngine.Rendering.Universal.UniversalRenderPipeline.SingleCameraRequest
             {
                 destination = renderTexture
@@ -1137,6 +1146,7 @@ namespace LTW.UnityClient.Editor
                 }
 
                 RenderPipeline.SubmitRenderRequest(camera, request);
+                camera.targetTexture = pinnedTarget;
 
                 if (HasArgument("-ltwCaptureDebugCamera"))
                 {
@@ -1146,6 +1156,7 @@ namespace LTW.UnityClient.Editor
                 return;
             }
 
+            camera.targetTexture = pinnedTarget;
             Debug.LogError(
                 $"Active render pipeline {GraphicsSettings.currentRenderPipeline.GetType().Name} rejected a " +
                 $"single camera render request for '{camera.name}'. The capture would be blank, so it is being " +

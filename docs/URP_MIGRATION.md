@@ -108,11 +108,22 @@ Two measured deltas against the baseline, both expected from a pipeline change:
 
 - **Board is darker.** Mean board luminance 0.130 under URP against 0.214 on the baseline.
   `BoardSurfaceLift` and the light rig were both tuned against Built-in's response.
-- **Board occupies less width.** 337 px against 976 px in the same mid-board band, with
-  camera aspect and orthographic size confirmed identical at 0.5625 and 9.2. Cause not yet
-  established; the leading candidate is that each URP render request clears the target, so
-  the background camera's full-frame fill no longer survives under the presentation camera
-  the way it composited under Built-in.
+- **Board occupies less width.** Roughly 380 px against 730 px for the board itself. Not
+  yet explained, and the obvious candidates have been ruled out by measurement:
+
+  - `UrpCaptureDiagnostic` proves URP derives the projection from the destination render
+    texture and ignores a pinned `Camera.aspect`. With a deliberately non-square 128x256
+    target, the rendered size matched the RT-aspect prediction exactly, 64 px, against 24 px
+    for the screen-aspect prediction. The capture target is 1080x1920, so the projection it
+    receives is already correct.
+  - Camera aspect and orthographic size were logged during capture as 0.5625 and 9.2, which
+    is the framing the board is expected to fill about two thirds of the width at.
+  - The pipeline asset uses render scale 1 and MSAA 1, so no resolution scaling is involved.
+
+  Vertical framing is correct: the board fills the expected share of the height. Only the
+  horizontal extent is short, by close to a factor of two. The next thing to test is whether
+  `SetCameraFraming` resolves to a different orthographic size during the URP run than it
+  does on `main`, which would mean the difference is in game state rather than rendering.
 
 
 - [ ] Re-check the three-point rig; URP light intensity units differ from Built-in
