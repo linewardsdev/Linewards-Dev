@@ -108,6 +108,27 @@ Two measured deltas against the baseline, both expected from a pipeline change:
 
 - **Board is darker.** Mean board luminance 0.130 under URP against 0.214 on the baseline.
   `BoardSurfaceLift` and the light rig were both tuned against Built-in's response.
+- **Board occupies less width.** Resolved. `MobileViewportLayout` falls back to `Screen`
+  when no capture viewport override is set, and in batch mode that is a small landscape
+  surface, so `ConfigureDefaultCamera` letterboxed the presentation camera to roughly 42%
+  of the target width. The Built-in path tolerated it; a scriptable pipeline honours the
+  viewport rect. The capture now describes its own surface for the whole session, since the
+  rect is set during `LateUpdate` on play frames rather than at readback. Board width went
+  from 373 px to 871 px against the baseline's 976 px, and mean board luminance from 0.144
+  to 0.209 against the baseline's 0.214: the letterbox bars were also what made the board
+  look darker.
+
+  Ruled out along the way, by measurement rather than assumption: camera aspect, which URP
+  derives from the destination texture and which `UrpCaptureDiagnostic` confirmed against a
+  deliberately non-square target; orthographic size, logged as identical; and pipeline
+  render scale, which is 1.
+
+### Phase 3 — lighting and palette re-tune
+
+Two measured deltas against the baseline, both expected from a pipeline change:
+
+- **Board is darker.** Mean board luminance 0.130 under URP against 0.214 on the baseline.
+  `BoardSurfaceLift` and the light rig were both tuned against Built-in's response.
 - **Board occupies less width.** Roughly 380 px against 730 px for the board itself. Not
   yet explained, and the obvious candidates have been ruled out by measurement:
 

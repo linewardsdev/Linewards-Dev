@@ -173,6 +173,18 @@ namespace LTW.UnityClient.Editor
             aiProofGameplayPrepared = false;
             exitAfterRun = ShouldExitAfterRun();
             writeGrayscaleCopies = HasArgument("-ltwCaptureGrayscale");
+            // MobileViewportLayout falls back to Screen, which in batch mode is a small landscape
+            // surface, and ConfigureDefaultCamera turns that into a letterboxed camera rect during
+            // LateUpdate. The override has to be in place for the whole session, not just at
+            // readback, because the rect is set on play frames well before any capture happens.
+            if (capturePlan == null && !MobileViewportLayout.HasCaptureViewportOverride)
+            {
+                const int captureWidth = 1080;
+                const int captureHeight = 1920;
+                MobileViewportLayout.SetCaptureViewportOverride(
+                    captureWidth, captureHeight, new Rect(0f, 0f, captureWidth, captureHeight));
+            }
+
             previousEnterPlayModeOptionsEnabled = EditorSettings.enterPlayModeOptionsEnabled;
             previousEnterPlayModeOptions = EditorSettings.enterPlayModeOptions;
             EditorSettings.enterPlayModeOptionsEnabled = true;
@@ -1067,6 +1079,11 @@ namespace LTW.UnityClient.Editor
             var texture = new Texture2D(width, height, TextureFormat.RGBA32, false);
             var previousActive = RenderTexture.active;
 
+            // Without an override, MobileViewportLayout reads Screen, which in batch mode is a
+            // small landscape surface. CameraRect() then letterboxes the presentation camera to
+            // roughly 42% of the target width. The Built-in path happened to tolerate that; a
+            // scriptable pipeline honours the viewport rect and the board rendered about half its
+            // width. Describing the actual capture surface fixes it for both pipelines.
             try
             {
                 RenderTexture.active = renderTexture;
