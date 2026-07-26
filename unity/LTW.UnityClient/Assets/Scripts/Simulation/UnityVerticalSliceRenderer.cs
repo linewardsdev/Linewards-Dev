@@ -2112,7 +2112,7 @@ namespace LTW.UnityClient.Simulation
                 return cached;
             }
 
-            var shader = Shader.Find("Unlit/Transparent") ?? Shader.Find("Unlit/Texture") ?? Shader.Find("Standard");
+            var shader = Shader.Find("Unlit/Transparent") ?? Shader.Find("Unlit/Texture") ?? RenderCompat.Lit;
             var material = new Material(shader)
             {
                 name = $"LTW Board Reference {texture.name}",

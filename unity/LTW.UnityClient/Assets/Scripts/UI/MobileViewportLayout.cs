@@ -43,6 +43,9 @@ namespace LTW.UnityClient.UI
             captureViewportOverride = new CaptureViewport(resolvedWidth, resolvedHeight, resolvedSafeArea);
         }
 
+        /// <summary>True when a capture has described its own surface, rather than falling back to Screen.</summary>
+        public static bool HasCaptureViewportOverride => captureViewportOverride.HasValue;
+
         public static void ClearCaptureViewportOverride()
         {
             captureViewportOverride = null;

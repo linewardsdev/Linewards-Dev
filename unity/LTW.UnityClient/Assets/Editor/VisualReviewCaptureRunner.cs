@@ -173,6 +173,18 @@ namespace LTW.UnityClient.Editor
             aiProofGameplayPrepared = false;
             exitAfterRun = ShouldExitAfterRun();
             writeGrayscaleCopies = HasArgument("-ltwCaptureGrayscale");
+            // MobileViewportLayout falls back to Screen, which in batch mode is a small landscape
+            // surface, and ConfigureDefaultCamera turns that into a letterboxed camera rect during
+            // LateUpdate. The override has to be in place for the whole session, not just at
+            // readback, because the rect is set on play frames well before any capture happens.
+            if (capturePlan == null && !MobileViewportLayout.HasCaptureViewportOverride)
+            {
+                const int captureWidth = 1080;
+                const int captureHeight = 1920;
+                MobileViewportLayout.SetCaptureViewportOverride(
+                    captureWidth, captureHeight, new Rect(0f, 0f, captureWidth, captureHeight));
+            }
+
             previousEnterPlayModeOptionsEnabled = EditorSettings.enterPlayModeOptionsEnabled;
             previousEnterPlayModeOptions = EditorSettings.enterPlayModeOptions;
             EditorSettings.enterPlayModeOptionsEnabled = true;
@@ -654,6 +666,25 @@ namespace LTW.UnityClient.Editor
             RenderSettings.ambientEquatorColor = new Color(0.212f, 0.227f, 0.259f);
             RenderSettings.ambientGroundColor = new Color(0.114f, 0.125f, 0.157f);
 
+            // Match the game's post-processing. Without it this scene renders with no tonemapping,
+            // and under URP the same rig that looks correct in a match blows the models out, which
+            // makes the sheet misleading in exactly the way that repointing it at the real prefabs
+            // was meant to stop.
+            if (GraphicsSettings.currentRenderPipeline != null)
+            {
+                var profile = Resources.Load<VolumeProfile>("LTW_PostProcessing");
+                if (profile != null)
+                {
+                    var volumeObject = new GameObject("RoleContactSheetPostProcessing");
+                    var volume = volumeObject.AddComponent<Volume>();
+                    volume.isGlobal = true;
+                    volume.sharedProfile = profile;
+                    var cameraData = camera.GetComponent<UnityEngine.Rendering.Universal.UniversalAdditionalCameraData>()
+                                     ?? camera.gameObject.AddComponent<UnityEngine.Rendering.Universal.UniversalAdditionalCameraData>();
+                    cameraData.renderPostProcessing = true;
+                }
+            }
+
             CreateContactSheetBackdrop();
 
             // These must track TowerVisualLibrary and CreepVisualLibrary. The sheet previously
@@ -945,7 +976,7 @@ namespace LTW.UnityClient.Editor
         private static Shader FindContactSheetShader() =>
             Shader.Find("Universal Render Pipeline/Unlit")
             ?? Shader.Find("Unlit/Color")
-            ?? Shader.Find("Standard");
+            ?? LTW.UnityClient.Simulation.RenderCompat.Lit;
 
         private static void GrantPlaytestGold(UnityCommandAdapter commands, int playerId, int amount)
         {
@@ -1067,6 +1098,11 @@ namespace LTW.UnityClient.Editor
             var texture = new Texture2D(width, height, TextureFormat.RGBA32, false);
             var previousActive = RenderTexture.active;
 
+            // Without an override, MobileViewportLayout reads Screen, which in batch mode is a
+            // small landscape surface. CameraRect() then letterboxes the presentation camera to
+            // roughly 42% of the target width. The Built-in path happened to tolerate that; a
+            // scriptable pipeline honours the viewport rect and the board rendered about half its
+            // width. Describing the actual capture surface fixes it for both pipelines.
             try
             {
                 RenderTexture.active = renderTexture;
@@ -1077,6 +1113,10 @@ namespace LTW.UnityClient.Editor
                     RenderBatchHudOverlay(renderTexture, label);
                 }
 
+                // A scriptable pipeline binds its own targets while rendering and does not restore
+                // this one, so the active target has to be re-established before reading back or
+                // ReadPixels samples whatever surface the pipeline left bound.
+                RenderTexture.active = renderTexture;
                 texture.ReadPixels(new Rect(0, 0, width, height), 0, 0);
                 if (!IsBoardFocusLabel(label))
                 {
@@ -1096,6 +1136,69 @@ namespace LTW.UnityClient.Editor
             }
         }
 
+        /// <summary>
+        /// Renders one camera into a target, using whichever path the active render pipeline
+        /// supports.
+        /// </summary>
+        /// <remarks>
+        /// <c>Camera.Render()</c> is a Built-in pipeline call and does nothing under a scriptable
+        /// pipeline. When URP was first assigned, every capture came back blank white: not because
+        /// the game had broken, but because this harness silently rendered nothing. A capture tool
+        /// that fails quietly during a pipeline migration is worse than no tool, since a blank
+        /// frame reads as catastrophic damage.
+        ///
+        /// Both paths are kept because main is still Built-in while the migration runs on a
+        /// branch, so captures have to stay comparable across the two.
+        /// </remarks>
+        private static void RenderCameraToTarget(Camera camera, RenderTexture renderTexture)
+        {
+            if (GraphicsSettings.currentRenderPipeline == null)
+            {
+                camera.Render();
+                return;
+            }
+
+            // URP derives the projection from the request's destination texture, so a manually
+            // pinned Camera.aspect is ignored while still being reported by the property. Leaving
+            // ours pinned made the board render at the batch-mode screen aspect instead of the
+            // capture's portrait aspect, shrinking it to roughly a third of its baseline width.
+            // Releasing the override lets the pipeline derive the correct projection.
+            var pinnedTarget = camera.targetTexture;
+            camera.targetTexture = null;
+            camera.ResetAspect();
+
+            var request = new UnityEngine.Rendering.Universal.UniversalRenderPipeline.SingleCameraRequest
+            {
+                destination = renderTexture
+            };
+
+            if (RenderPipeline.SupportsRenderRequest(camera, request))
+            {
+                if (HasArgument("-ltwCaptureDebugCamera"))
+                {
+                    Debug.Log($"CAMDEBUG name={camera.name} ortho={camera.orthographic} size={camera.orthographicSize:F3} " +
+                              $"aspect={camera.aspect:F4} rt={renderTexture.width}x{renderTexture.height} " +
+                              $"screen={Screen.width}x{Screen.height}");
+                }
+
+                RenderPipeline.SubmitRenderRequest(camera, request);
+                camera.targetTexture = pinnedTarget;
+
+                if (HasArgument("-ltwCaptureDebugCamera"))
+                {
+                    Debug.Log($"CAMDEBUG after submit: aspect={camera.aspect:F4}");
+                }
+
+                return;
+            }
+
+            camera.targetTexture = pinnedTarget;
+            Debug.LogError(
+                $"Active render pipeline {GraphicsSettings.currentRenderPipeline.GetType().Name} rejected a " +
+                $"single camera render request for '{camera.name}'. The capture would be blank, so it is being " +
+                "reported rather than saved as if it were a real frame.");
+        }
+
         private static void RenderActiveCameras(RenderTexture renderTexture)
         {
             var cameras = UnityEngine.Object.FindObjectsByType<Camera>(FindObjectsSortMode.None);
@@ -1112,7 +1215,7 @@ namespace LTW.UnityClient.Editor
                 var previousAspect = camera.aspect;
                 camera.targetTexture = renderTexture;
                 camera.aspect = renderTexture.width / (float)renderTexture.height;
-                camera.Render();
+                RenderCameraToTarget(camera, renderTexture);
                 camera.targetTexture = previousTarget;
                 camera.aspect = previousAspect;
             }
@@ -1554,6 +1657,17 @@ namespace LTW.UnityClient.Editor
                 return;
             }
 
+            // This pass adds a second camera with a Depth-only clear, which preserves colour under
+            // the Built-in pipeline. A scriptable pipeline gives no such guarantee: a standalone
+            // base camera clears its target, so this wiped the rendered board and left the frame
+            // blank. PaintBatchHudOverlay already composites the same HUD on the CPU after
+            // readback, so the GPU pass is simply skipped rather than restructured into a camera
+            // stack.
+            if (GraphicsSettings.currentRenderPipeline != null)
+            {
+                return;
+            }
+
             var root = new GameObject("LTW Batch HUD Capture Overlay");
             var cameraObject = new GameObject("LTW Batch HUD Capture Camera");
             var overlayCamera = cameraObject.AddComponent<Camera>();
@@ -1778,7 +1892,7 @@ namespace LTW.UnityClient.Editor
 
             var shader = Shader.Find("Universal Render Pipeline/Unlit")
                 ?? Shader.Find("Unlit/Color")
-                ?? Shader.Find("Standard");
+                ?? LTW.UnityClient.Simulation.RenderCompat.Lit;
             var material = new Material(shader)
             {
                 color = color

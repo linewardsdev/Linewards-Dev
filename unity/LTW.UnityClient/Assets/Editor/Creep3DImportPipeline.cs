@@ -140,13 +140,17 @@ namespace LTW.UnityClient.Editor
                 return null;
             }
 
-            var material = new Material(Shader.Find("Standard"))
+            var material = new Material(LTW.UnityClient.Simulation.RenderCompat.Lit)
             {
                 name = $"mat_creep_{spec.DisplayName.ToLowerInvariant()}_3d_body_v01",
             };
 
-            material.SetTexture("_MainTex", baseColor);
-            material.SetColor("_Color", Color.white);
+            // Property names differ per pipeline: URP/Lit uses _BaseMap and _BaseColor where
+            // Built-in Standard uses _MainTex and _Color. Set whichever the shader exposes so a
+            // regenerated creep is textured under either.
+            if (material.HasProperty("_BaseMap")) material.SetTexture("_BaseMap", baseColor);
+            if (material.HasProperty("_MainTex")) material.SetTexture("_MainTex", baseColor);
+            RenderCompat.SetAlbedo(material, Color.white);
 
             // Unity's metallic-smoothness packing, produced by
             // tools/art_pipeline/repack_metallic_smoothness.py from the glTF source map.
@@ -155,7 +159,7 @@ namespace LTW.UnityClient.Editor
             {
                 material.SetTexture("_MetallicGlossMap", metallic);
                 material.SetFloat("_GlossMapScale", 1f);
-                material.EnableKeyword("_METALLICGLOSSMAP");
+                material.EnableKeyword(RenderCompat.UsingScriptablePipeline ? "_METALLICSPECGLOSSMAP" : "_METALLICGLOSSMAP");
             }
 
             var emission = AssetDatabase.LoadAssetAtPath<Texture>($"{spec.TextureFolder}/Baked_Emit.png");
@@ -164,7 +168,7 @@ namespace LTW.UnityClient.Editor
                 material.SetTexture("_EmissionMap", emission);
                 material.SetColor("_EmissionColor", Color.white);
                 material.EnableKeyword("_EMISSION");
-                material.globalIlluminationFlags = MaterialGlobalIlluminationFlags.EmissiveIsBlack;
+                material.globalIlluminationFlags = MaterialGlobalIlluminationFlags.None;
             }
 
             var materialPath = $"{MaterialFolder}/{material.name}.mat";
@@ -188,7 +192,7 @@ namespace LTW.UnityClient.Editor
 
             // Authored dark. The runtime multiplies the sender colour into this, so a white base
             // reads as a bright puck under every creep until a match assigns ownership.
-            var material = new Material(Shader.Find("Standard"))
+            var material = new Material(LTW.UnityClient.Simulation.RenderCompat.Lit)
             {
                 name = $"mat_creep_{spec.DisplayName.ToLowerInvariant()}_3d_sender_v01",
             };
@@ -196,7 +200,7 @@ namespace LTW.UnityClient.Editor
             material.SetFloat("_Glossiness", 0.35f);
             material.SetColor("_EmissionColor", new Color(0.09f, 0.10f, 0.13f));
             material.EnableKeyword("_EMISSION");
-            material.globalIlluminationFlags = MaterialGlobalIlluminationFlags.EmissiveIsBlack;
+            material.globalIlluminationFlags = MaterialGlobalIlluminationFlags.None;
 
             var materialPath = $"{MaterialFolder}/{material.name}.mat";
             AssetDatabase.DeleteAsset(materialPath);

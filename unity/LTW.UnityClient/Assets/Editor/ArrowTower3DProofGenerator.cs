@@ -139,7 +139,7 @@ namespace LTW.UnityClient.Editor
         private static Material CreateRuntimeBoardMaterial()
         {
             var source = AssetDatabase.LoadAssetAtPath<Material>(GeneratedMaterialPath);
-            var shader = Shader.Find("Standard");
+            var shader = LTW.UnityClient.Simulation.RenderCompat.Lit;
             var material = AssetDatabase.LoadAssetAtPath<Material>(RuntimeMaterialPath);
             if (material == null)
             {
@@ -200,7 +200,7 @@ namespace LTW.UnityClient.Editor
             var material = AssetDatabase.LoadAssetAtPath<Material>(path);
             if (material == null)
             {
-                material = new Material(Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard"));
+                material = new Material(LTW.UnityClient.Simulation.RenderCompat.Lit);
                 AssetDatabase.CreateAsset(material, path);
             }
 

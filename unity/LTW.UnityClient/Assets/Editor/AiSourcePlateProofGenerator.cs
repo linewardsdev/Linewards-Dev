@@ -426,7 +426,7 @@ namespace LTW.UnityClient.Editor
             Shader.Find("Universal Render Pipeline/2D/Sprite-Lit-Default")
             ?? Shader.Find("Sprites/Default")
             ?? Shader.Find("Universal Render Pipeline/Unlit")
-            ?? Shader.Find("Standard");
+            ?? LTW.UnityClient.Simulation.RenderCompat.Lit;
 
         private static int ValidatePrefab(string path, string[] childPaths)
         {

@@ -389,7 +389,7 @@ namespace LTW.UnityClient.Editor
 
         private static Shader FindDefaultShader() =>
             Shader.Find("Universal Render Pipeline/Lit")
-            ?? Shader.Find("Standard")
+            ?? LTW.UnityClient.Simulation.RenderCompat.Lit
             ?? Shader.Find("Sprites/Default");
 
         private static void UpdateVisualLibrary(
