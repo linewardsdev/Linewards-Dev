@@ -120,7 +120,7 @@ namespace LTW.UnityClient.Editor
                 }
 
                 material.EnableKeyword("_EMISSION");
-                material.globalIlluminationFlags = MaterialGlobalIlluminationFlags.EmissiveIsBlack;
+                material.globalIlluminationFlags = MaterialGlobalIlluminationFlags.None;
                 EditorUtility.SetDirty(material);
                 repaired++;
                 Debug.Log($"Re-enabled emission on {path}");
@@ -182,7 +182,7 @@ namespace LTW.UnityClient.Editor
                 if (material.HasProperty("_EmissionMap")) material.SetTexture("_EmissionMap", emissionMap);
                 if (material.HasProperty("_EmissionColor")) material.SetColor("_EmissionColor", emissionColor);
                 material.EnableKeyword("_EMISSION");
-                material.globalIlluminationFlags = MaterialGlobalIlluminationFlags.EmissiveIsBlack;
+                material.globalIlluminationFlags = MaterialGlobalIlluminationFlags.None;
             }
 
             EditorUtility.SetDirty(material);

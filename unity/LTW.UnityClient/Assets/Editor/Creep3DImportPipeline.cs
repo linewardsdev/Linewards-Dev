@@ -168,7 +168,7 @@ namespace LTW.UnityClient.Editor
                 material.SetTexture("_EmissionMap", emission);
                 material.SetColor("_EmissionColor", Color.white);
                 material.EnableKeyword("_EMISSION");
-                material.globalIlluminationFlags = MaterialGlobalIlluminationFlags.EmissiveIsBlack;
+                material.globalIlluminationFlags = MaterialGlobalIlluminationFlags.None;
             }
 
             var materialPath = $"{MaterialFolder}/{material.name}.mat";
@@ -200,7 +200,7 @@ namespace LTW.UnityClient.Editor
             material.SetFloat("_Glossiness", 0.35f);
             material.SetColor("_EmissionColor", new Color(0.09f, 0.10f, 0.13f));
             material.EnableKeyword("_EMISSION");
-            material.globalIlluminationFlags = MaterialGlobalIlluminationFlags.EmissiveIsBlack;
+            material.globalIlluminationFlags = MaterialGlobalIlluminationFlags.None;
 
             var materialPath = $"{MaterialFolder}/{material.name}.mat";
             AssetDatabase.DeleteAsset(materialPath);
