@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.Rendering;
+using UnityEngine.Rendering.Universal;
 using LTW.UnityClient.UI;
 
 namespace LTW.UnityClient.Simulation
@@ -39,6 +40,7 @@ namespace LTW.UnityClient.Simulation
             var camera = CreateCamera();
             CreateBackgroundCamera(camera);
             CreateLightRig(matchObject);
+            CreatePostProcessing(matchObject, camera);
 
             renderer.Initialize(driver);
             renderer.SetPresentationCamera(camera);
@@ -141,6 +143,45 @@ namespace LTW.UnityClient.Simulation
             RenderSettings.ambientEquatorColor = new Color(0.212f, 0.227f, 0.259f);
             RenderSettings.ambientGroundColor = new Color(0.114f, 0.125f, 0.157f);
             RenderSettings.ambientIntensity = 1f;
+        }
+
+        /// <summary>
+        /// Attaches the global post-processing volume and enables it on the presentation camera.
+        /// </summary>
+        /// <remarks>
+        /// Bloom is the capability the URP migration exists to obtain. Tower emission maps cover
+        /// only a small fraction of each texture, so the per-role emission colours read as barely
+        /// tinted highlights without it.
+        ///
+        /// This is a no-op under the Built-in pipeline, which has no volume system, so the launcher
+        /// stays valid on both while the migration is in flight.
+        /// </remarks>
+        private static void CreatePostProcessing(GameObject matchObject, Camera camera)
+        {
+            if (GraphicsSettings.currentRenderPipeline == null)
+            {
+                return;
+            }
+
+            var profile = Resources.Load<VolumeProfile>("LTW_PostProcessing");
+            if (profile == null)
+            {
+                Debug.LogWarning("LTW_PostProcessing profile not found in Resources; rendering without bloom.");
+                return;
+            }
+
+            var volumeObject = new GameObject("LTW Post Processing");
+            volumeObject.transform.SetParent(matchObject.transform, false);
+            var volume = volumeObject.AddComponent<Volume>();
+            volume.isGlobal = true;
+            volume.priority = 0f;
+            volume.sharedProfile = profile;
+
+            var cameraData = camera.GetUniversalAdditionalCameraData();
+            if (cameraData != null)
+            {
+                cameraData.renderPostProcessing = true;
+            }
         }
 
         private static Camera CreateBackgroundCamera(Camera presentationCamera)

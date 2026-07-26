@@ -147,11 +147,15 @@ Two measured deltas against the baseline, both expected from a pipeline change:
   does on `main`, which would mean the difference is in game state rather than rendering.
 
 
-- [ ] Re-check the three-point rig; URP light intensity units differ from Built-in
-- [ ] Re-check `BoardSurfaceLift`, which was tuned against Built-in's response
+- [x] Re-check the three-point rig — renders correctly under URP without intensity changes
+- [x] Re-check `BoardSurfaceLift` — left at 0.35. Board luminance came back to 0.209 against
+      the baseline's 0.214 once the letterboxed viewport was fixed, so no re-tune was needed
 - [ ] Configure mobile light and shadow budgets on the URP asset, replacing the
       `pixelLightCount` workaround in Quality settings
-- [ ] Enable tonemapping and bloom, the reason for the migration
+- [x] Enable tonemapping and bloom — `UrpPostProcessingSetup` writes a volume profile to
+      Resources; the launcher attaches a global volume and enables post-processing on the
+      presentation camera. Neutral tonemapping rather than ACES, which would shift the palette
+      warm and undo the board and role colour work
 
 ### Phase 4 — verification and decision
 
