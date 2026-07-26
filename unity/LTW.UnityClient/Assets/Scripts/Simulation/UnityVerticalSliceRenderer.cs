@@ -2583,6 +2583,16 @@ namespace LTW.UnityClient.Simulation
             return Vector3.up * 0.02f;
         }
 
+        /// <summary>
+        /// Per-role idle motion applied on top of the creep's lane position.
+        /// </summary>
+        /// <remarks>
+        /// Position offsets here must stay centred on the lane. The swarm and brute styles used to
+        /// carry a constant lateral shift of 0.16, which read acceptably when creeps were flat 2D
+        /// plates at roughly half the current scale but sits them visibly off-centre now they are
+        /// 3D meshes. Only oscillating components belong in the offset; a constant one is a
+        /// misalignment.
+        /// </remarks>
         private static CreepMotion CreepRoleMotion(string creepId, CreepVisualProfile visualProfile)
         {
             var time = Time.time;
@@ -2590,14 +2600,14 @@ namespace LTW.UnityClient.Simulation
             if (motionStyle == CreepVisualMotionStyle.ClusterJitter || motionStyle == CreepVisualMotionStyle.Auto && ContainsRole(creepId, "swarm"))
             {
                 var pulse = Mathf.Sin(time * 15f) * 0.045f;
-                return new CreepMotion(new Vector3(0.16f + pulse, 0f, -pulse * 0.65f), Quaternion.Euler(0f, time * 60f, 0f));
+                return new CreepMotion(new Vector3(pulse, 0f, -pulse * 0.65f), Quaternion.Euler(0f, time * 60f, 0f));
             }
 
             if (motionStyle == CreepVisualMotionStyle.HeavyBob || motionStyle == CreepVisualMotionStyle.Auto && (ContainsRole(creepId, "brute") || ContainsRole(creepId, "tank") || ContainsRole(creepId, "boss")))
             {
                 var weight = Mathf.Abs(Mathf.Sin(time * 3.4f)) * 0.055f;
                 var sway = Mathf.Sin(time * 3.4f) * 1.5f;
-                return new CreepMotion(new Vector3(-0.16f, -weight, 0f), Quaternion.Euler(0f, 0f, sway));
+                return new CreepMotion(new Vector3(0f, -weight, 0f), Quaternion.Euler(0f, 0f, sway));
             }
 
             if (motionStyle == CreepVisualMotionStyle.Hover || motionStyle == CreepVisualMotionStyle.Auto && (ContainsRole(creepId, "flying") || ContainsRole(creepId, "air")))
@@ -3204,7 +3214,7 @@ namespace LTW.UnityClient.Simulation
         private static Color LaneAnchorColor(Color accent, bool isPlayerLane)
         {
             var strength = isPlayerLane ? 0.34f : 0.18f;
-            return new Color(accent.r * strength, accent.g * strength, accent.b * strength);
+            return BoardSurface(new Color(accent.r * strength, accent.g * strength, accent.b * strength));
         }
 
         private static Color LaneTickColor(Color accent, bool isPlayerLane)
@@ -3280,10 +3290,10 @@ namespace LTW.UnityClient.Simulation
         {
             if (isSpawn)
             {
-                return isPlayerLane ? new Color(0.075f, 0.13f, 0.13f) : new Color(0.036f, 0.068f, 0.068f);
+                return BoardSurface(isPlayerLane ? new Color(0.075f, 0.13f, 0.13f) : new Color(0.036f, 0.068f, 0.068f));
             }
 
-            return isPlayerLane ? new Color(0.12f, 0.045f, 0.04f) : new Color(0.062f, 0.022f, 0.02f);
+            return BoardSurface(isPlayerLane ? new Color(0.12f, 0.045f, 0.04f) : new Color(0.062f, 0.022f, 0.02f));
         }
 
         private static Color EndpointWashColor(Color color, bool isPlayerLane)
@@ -3292,30 +3302,30 @@ namespace LTW.UnityClient.Simulation
             return new Color(color.r * strength, color.g * strength, color.b * strength);
         }
 
-        private static Color RouteWearColor(int laneId) => laneId == 1 ? new Color(0.055f, 0.075f, 0.088f) : new Color(0.034f, 0.048f, 0.062f);
+        private static Color RouteWearColor(int laneId) => laneId == 1 ? BoardSurface(new Color(0.055f, 0.075f, 0.088f)) : BoardSurface(new Color(0.034f, 0.048f, 0.062f));
 
-        private static Color BuildBandSeamColor(int laneId) => laneId == 1 ? new Color(0.018f, 0.026f, 0.034f) : new Color(0.012f, 0.018f, 0.026f);
+        private static Color BuildBandSeamColor(int laneId) => laneId == 1 ? BoardSurface(new Color(0.018f, 0.026f, 0.034f)) : BoardSurface(new Color(0.012f, 0.018f, 0.026f));
 
-        private static Color TileCrackColor(int laneId) => laneId == 1 ? new Color(0.012f, 0.016f, 0.022f) : new Color(0.008f, 0.012f, 0.018f);
+        private static Color TileCrackColor(int laneId) => laneId == 1 ? BoardSurface(new Color(0.012f, 0.016f, 0.022f)) : BoardSurface(new Color(0.008f, 0.012f, 0.018f));
 
-        private static Color TileEdgeHighlightColor(int laneId) => laneId == 1 ? new Color(0.13f, 0.15f, 0.16f) : new Color(0.074f, 0.086f, 0.1f);
+        private static Color TileEdgeHighlightColor(int laneId) => laneId == 1 ? BoardSurface(new Color(0.13f, 0.15f, 0.16f)) : BoardSurface(new Color(0.074f, 0.086f, 0.1f));
 
-        private static Color BoardPlateInsetColor(int laneId) => laneId == 1 ? new Color(0.058f, 0.068f, 0.078f) : new Color(0.034f, 0.042f, 0.052f);
+        private static Color BoardPlateInsetColor(int laneId) => laneId == 1 ? BoardSurface(new Color(0.058f, 0.068f, 0.078f)) : BoardSurface(new Color(0.034f, 0.042f, 0.052f));
 
-        private static Color BoardPlateLightBevelColor(int laneId) => laneId == 1 ? new Color(0.16f, 0.17f, 0.17f) : new Color(0.086f, 0.096f, 0.106f);
+        private static Color BoardPlateLightBevelColor(int laneId) => laneId == 1 ? BoardSurface(new Color(0.16f, 0.17f, 0.17f)) : BoardSurface(new Color(0.086f, 0.096f, 0.106f));
 
-        private static Color BoardPlateDarkBevelColor(int laneId) => laneId == 1 ? new Color(0.012f, 0.018f, 0.026f) : new Color(0.006f, 0.01f, 0.016f);
+        private static Color BoardPlateDarkBevelColor(int laneId) => laneId == 1 ? BoardSurface(new Color(0.012f, 0.018f, 0.026f)) : BoardSurface(new Color(0.006f, 0.01f, 0.016f));
 
-        private static Color BoardContactShadowColor(int laneId) => laneId == 1 ? new Color(0.008f, 0.014f, 0.02f) : new Color(0.004f, 0.008f, 0.014f);
+        private static Color BoardContactShadowColor(int laneId) => laneId == 1 ? BoardSurface(new Color(0.008f, 0.014f, 0.02f)) : BoardSurface(new Color(0.004f, 0.008f, 0.014f));
 
-        private static Color LaneFrameTrimColor(int laneId) => laneId == 1 ? new Color(0.065f, 0.078f, 0.088f) : new Color(0.034f, 0.042f, 0.052f);
+        private static Color LaneFrameTrimColor(int laneId) => laneId == 1 ? BoardSurface(new Color(0.065f, 0.078f, 0.088f)) : BoardSurface(new Color(0.034f, 0.042f, 0.052f));
 
-        private static Color LaneFrameHighlightColor(int laneId) => laneId == 1 ? new Color(0.18f, 0.19f, 0.18f) : new Color(0.086f, 0.094f, 0.1f);
+        private static Color LaneFrameHighlightColor(int laneId) => laneId == 1 ? BoardSurface(new Color(0.18f, 0.19f, 0.18f)) : BoardSurface(new Color(0.086f, 0.094f, 0.1f));
 
         private static Color LaneFrameAccentColor(Color accent, bool isPlayerLane)
         {
             var strength = isPlayerLane ? 0.38f : 0.18f;
-            return new Color(0.035f + accent.r * strength, 0.04f + accent.g * strength, 0.045f + accent.b * strength);
+            return BoardSurface(new Color(0.035f + accent.r * strength, 0.04f + accent.g * strength, 0.045f + accent.b * strength));
         }
 
         private static Color EndpointPlateSignalColor(Color color, bool isPlayerLane)
@@ -3324,61 +3334,61 @@ namespace LTW.UnityClient.Simulation
             return new Color(color.r * strength, color.g * strength, color.b * strength);
         }
 
-        private static Color RouteTriangleColor(int laneId) => laneId == 1 ? new Color(0.33f, 0.58f, 0.78f) : new Color(0.14f, 0.27f, 0.43f);
+        private static Color RouteTriangleColor(int laneId) => laneId == 1 ? BoardSurface(new Color(0.33f, 0.58f, 0.78f)) : BoardSurface(new Color(0.14f, 0.27f, 0.43f));
 
         private static Color EndpointBaseColor(Color color, bool isPlayerLane, bool isSpawn)
         {
             var strength = isPlayerLane ? 0.18f : 0.11f;
             var baseTone = isSpawn ? new Color(0.048f, 0.072f, 0.084f) : new Color(0.055f, 0.038f, 0.038f);
-            return new Color(baseTone.r + color.r * strength, baseTone.g + color.g * strength, baseTone.b + color.b * strength);
+            return BoardSurface(new Color(baseTone.r + color.r * strength, baseTone.g + color.g * strength, baseTone.b + color.b * strength));
         }
 
         private static Color EndpointStoneRingColor(bool isSpawn, bool isPlayerLane)
         {
             var laneLift = isPlayerLane ? 0.018f : 0f;
-            return isSpawn
+            return BoardSurface(isSpawn
                 ? new Color(0.145f + laneLift, 0.162f + laneLift, 0.172f + laneLift)
-                : new Color(0.172f + laneLift, 0.092f + laneLift * 0.4f, 0.086f + laneLift * 0.4f);
+                : new Color(0.172f + laneLift, 0.092f + laneLift * 0.4f, 0.086f + laneLift * 0.4f));
         }
 
         private static Color EndpointOuterRingColor(bool isSpawn, bool isPlayerLane)
         {
             var laneLift = isPlayerLane ? 0.022f : 0f;
-            return isSpawn
+            return BoardSurface(isSpawn
                 ? new Color(0.088f + laneLift, 0.108f + laneLift, 0.122f + laneLift)
-                : new Color(0.115f + laneLift, 0.056f + laneLift * 0.35f, 0.054f + laneLift * 0.3f);
+                : new Color(0.115f + laneLift, 0.056f + laneLift * 0.35f, 0.054f + laneLift * 0.3f));
         }
 
         private static Color EndpointInnerPlateColor(bool isSpawn, bool isPlayerLane)
         {
             var laneLift = isPlayerLane ? 0.02f : 0f;
-            return isSpawn
+            return BoardSurface(isSpawn
                 ? new Color(0.072f + laneLift, 0.112f + laneLift, 0.124f + laneLift)
-                : new Color(0.092f + laneLift, 0.038f + laneLift * 0.35f, 0.034f + laneLift * 0.35f);
+                : new Color(0.092f + laneLift, 0.038f + laneLift * 0.35f, 0.034f + laneLift * 0.35f));
         }
 
         private static Color EndpointDeepRecessColor(bool isSpawn, bool isPlayerLane)
         {
             var lift = isPlayerLane ? 0.012f : 0f;
-            return isSpawn
+            return BoardSurface(isSpawn
                 ? new Color(0.018f + lift, 0.032f + lift, 0.036f + lift)
-                : new Color(0.026f + lift, 0.006f + lift * 0.25f, 0.006f + lift * 0.2f);
+                : new Color(0.026f + lift, 0.006f + lift * 0.25f, 0.006f + lift * 0.2f));
         }
 
         private static Color EndpointStoneHighlightColor(bool isSpawn, bool isPlayerLane)
         {
             var lift = isPlayerLane ? 0.035f : 0.012f;
-            return isSpawn
+            return BoardSurface(isSpawn
                 ? new Color(0.22f + lift, 0.235f + lift, 0.235f + lift)
-                : new Color(0.24f + lift, 0.12f + lift * 0.4f, 0.108f + lift * 0.35f);
+                : new Color(0.24f + lift, 0.12f + lift * 0.4f, 0.108f + lift * 0.35f));
         }
 
         private static Color EndpointRimHighlightColor(bool isSpawn, bool isPlayerLane)
         {
             var lift = isPlayerLane ? 0.028f : 0f;
-            return isSpawn
+            return BoardSurface(isSpawn
                 ? new Color(0.17f + lift, 0.19f + lift, 0.19f + lift)
-                : new Color(0.18f + lift, 0.072f + lift * 0.35f, 0.066f + lift * 0.3f);
+                : new Color(0.18f + lift, 0.072f + lift * 0.35f, 0.066f + lift * 0.3f));
         }
 
         private static Color EndpointPortalColor(bool isPlayerLane) =>
