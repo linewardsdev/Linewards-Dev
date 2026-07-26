@@ -98,6 +98,12 @@ namespace LTW.UnityClient.Simulation
         private readonly Dictionary<string, GameObject> activeContactShadows = new Dictionary<string, GameObject>();
         private readonly Dictionary<string, Vector2> unitFootprints = new Dictionary<string, Vector2>();
         private readonly Queue<GameObject> contactShadowPool = new Queue<GameObject>();
+
+        /// <summary>Measured local-space body top per creep role, used to place health bars.</summary>
+        private static readonly Dictionary<string, float> CreepBodyTopByRole = new Dictionary<string, float>();
+
+        /// <summary>Local-space gap between a creep's body top and its health bar.</summary>
+        private const float HealthBarGap = 0.12f;
         private readonly HashSet<string> visibleContactShadowKeys = new HashSet<string>();
         private readonly HashSet<string> visibleKeys = new HashSet<string>();
         private readonly Queue<GameObject> towerPool = new Queue<GameObject>();
@@ -1662,20 +1668,73 @@ namespace LTW.UnityClient.Simulation
             SetProfileColors(creepObject, visualProfile.DamageRendererPaths, damageColor);
         }
 
+        /// <summary>
+        /// Local-space top of a creep's body, measured once per role and cached.
+        /// </summary>
+        /// <remarks>
+        /// The health bar heights in <see cref="CreepHealthBarMetrics"/> were hand-tuned against
+        /// the flat 2D plate profiles, whose Y scale was around 0.54. The 3D wrappers scale
+        /// uniformly, which pushed the same constants anywhere from 0.91x to 2.03x of a creep's
+        /// height: the swarm bar sat inside its model while the brute's floated well clear.
+        /// Measuring the body instead keeps every bar the same short distance above its creep and
+        /// survives the next scale change, which retuning the constants would not.
+        /// </remarks>
+        private static float CreepBodyTop(GameObject creepObject, string creepId)
+        {
+            if (CreepBodyTopByRole.TryGetValue(creepId, out var cached))
+            {
+                return cached;
+            }
+
+            var top = 0f;
+            var renderers = creepObject.GetComponentsInChildren<Renderer>(true);
+            for (var index = 0; index < renderers.Length; index++)
+            {
+                var rendererObject = renderers[index].gameObject;
+                if (IsHealthBarPart(rendererObject.name))
+                {
+                    continue;
+                }
+
+                var localTop = creepObject.transform.InverseTransformPoint(renderers[index].bounds.max).y;
+                if (localTop > top)
+                {
+                    top = localTop;
+                }
+            }
+
+            if (top <= 0.01f)
+            {
+                // Renderers are not ready yet; leave the cache empty so a later frame measures it.
+                return 0f;
+            }
+
+            CreepBodyTopByRole[creepId] = top;
+            return top;
+        }
+
+        private static bool IsHealthBarPart(string name) =>
+            name == "HealthBarBack" || name == "HealthBarFill" || name == "HealthBarMidTick" || name == "HealthWoundPip";
+
         private static void ConfigureCreepHealthBar(GameObject creepObject, string creepId, float healthFraction)
         {
             var metrics = CreepHealthBarMetrics.For(creepId);
+
+            // Measure before the bar parts exist, so they cannot inflate the body's top.
+            var bodyTop = CreepBodyTop(creepObject, creepId);
+            var barY = bodyTop > 0f ? bodyTop + HealthBarGap : metrics.Y;
+
             var back = EnsureChild(creepObject, "HealthBarBack", PrimitiveType.Cube);
             var fill = EnsureChild(creepObject, "HealthBarFill", PrimitiveType.Cube);
             var midpoint = EnsureChild(creepObject, "HealthBarMidTick", PrimitiveType.Cube);
             var wound = EnsureChild(creepObject, "HealthWoundPip", PrimitiveType.Cube);
 
-            ConfigureHealthBarChild(back, new Vector3(0f, metrics.Y, metrics.Z), new Vector3(metrics.Width, metrics.Height, metrics.Depth), new Color(0.015f, 0.022f, 0.035f));
+            ConfigureHealthBarChild(back, new Vector3(0f, barY, metrics.Z), new Vector3(metrics.Width, metrics.Height, metrics.Depth), new Color(0.015f, 0.022f, 0.035f));
             var fillWidth = Mathf.Max(metrics.MinFillWidth, metrics.Width * Mathf.Clamp01(healthFraction));
             var fillX = (fillWidth - metrics.Width) * 0.5f;
-            ConfigureHealthBarChild(fill, new Vector3(fillX, metrics.Y + metrics.FillLift, metrics.Z), new Vector3(fillWidth, metrics.Height * 1.12f, metrics.Depth * 1.08f), CreepHealthColor(healthFraction));
-            ConfigureHealthBarChild(midpoint, new Vector3(0f, metrics.Y + metrics.FillLift * 1.6f, metrics.Z), new Vector3(0.035f, metrics.Height * 1.35f, metrics.Depth * 1.16f), new Color(0.015f, 0.022f, 0.035f));
-            ConfigureHealthBarChild(wound, new Vector3(metrics.Width * 0.5f + metrics.WoundOffset, metrics.Y + metrics.FillLift * 1.7f, metrics.Z), new Vector3(metrics.WoundSize, metrics.Height * 1.5f, metrics.Depth * 1.18f), LeakRed);
+            ConfigureHealthBarChild(fill, new Vector3(fillX, barY + metrics.FillLift, metrics.Z), new Vector3(fillWidth, metrics.Height * 1.12f, metrics.Depth * 1.08f), CreepHealthColor(healthFraction));
+            ConfigureHealthBarChild(midpoint, new Vector3(0f, barY + metrics.FillLift * 1.6f, metrics.Z), new Vector3(0.035f, metrics.Height * 1.35f, metrics.Depth * 1.16f), new Color(0.015f, 0.022f, 0.035f));
+            ConfigureHealthBarChild(wound, new Vector3(metrics.Width * 0.5f + metrics.WoundOffset, barY + metrics.FillLift * 1.7f, metrics.Z), new Vector3(metrics.WoundSize, metrics.Height * 1.5f, metrics.Depth * 1.18f), LeakRed);
             wound.SetActive(healthFraction < 0.72f);
         }
 
