@@ -527,7 +527,7 @@ namespace LTW.UnityClient.Simulation
                 else
                 {
                     ConfigureCreepHealthBar(creepObject, creep.CreepId.Value, healthFraction);
-                    if (UsesAiPlateVisual(creepObject))
+                    if (UsesAiPlateVisual(creepObject) || UsesMeshVisual(creepObject))
                     {
                         DeactivateRoleReadabilityOverlay(creepObject);
                     }
@@ -1819,6 +1819,19 @@ namespace LTW.UnityClient.Simulation
 
         private static bool UsesAiPlateVisual(GameObject instance) =>
             instance != null && instance.transform.Find("AIPlateVisual") != null;
+
+        /// <summary>
+        /// True when a creep is one of the generated 3D wrappers built by Creep3DImportPipeline.
+        /// </summary>
+        /// <remarks>
+        /// The role readability overlay exists to tell flat 2D plates apart: it sticks coloured
+        /// primitives onto the creep at offsets tuned for the plate profiles. A generated mesh
+        /// carries its own silhouette and material identity, and those offsets land wrong at the
+        /// wrapper's uniform scale - the swarm value ring sits at -0.33, below the board - so the
+        /// overlay is suppressed for meshes. Ownership still reads from the SenderAccent decal.
+        /// </remarks>
+        private static bool UsesMeshVisual(GameObject instance) =>
+            instance != null && instance.transform.Find("Body/Imported3DVisual") != null;
 
         private static void DeactivateCreepGameplayOverlays(GameObject creepObject)
         {
