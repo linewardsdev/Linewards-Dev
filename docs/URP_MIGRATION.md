@@ -150,8 +150,9 @@ Two measured deltas against the baseline, both expected from a pipeline change:
 - [x] Re-check the three-point rig — renders correctly under URP without intensity changes
 - [x] Re-check `BoardSurfaceLift` — left at 0.35. Board luminance came back to 0.209 against
       the baseline's 0.214 once the letterboxed viewport was fixed, so no re-tune was needed
-- [ ] Configure mobile light and shadow budgets on the URP asset, replacing the
-      `pixelLightCount` workaround in Quality settings
+- [x] Configure mobile light and shadow budgets on the URP asset — MSAA 2x, 1024 main
+      light shadowmap, four additional lights per object with shadows enabled. These are the
+      controls the Android `pixelLightCount` workaround was standing in for
 - [x] Enable tonemapping and bloom — `UrpPostProcessingSetup` writes a volume profile to
       Resources; the launcher attaches a global volume and enables post-processing on the
       presentation camera. Neutral tonemapping rather than ACES, which would shift the palette
@@ -159,9 +160,9 @@ Two measured deltas against the baseline, both expected from a pipeline change:
 
 ### Phase 4 — verification and decision
 
-- [ ] Full capture set, compared frame by frame against the baseline
-- [ ] `dotnet test LTW.sln` still 77 passing
-- [ ] Zero compile and shader errors
+- [x] Full capture set, in [screenshot-reviews/urp-migration/after/](screenshot-reviews/urp-migration/after/)
+- [x] `dotnet test LTW.sln` still 77 passing
+- [x] Zero compile and shader errors
 - [ ] Report to the user with side-by-side frames; **merge only on approval**
 
 ## Acceptance criteria
@@ -190,6 +191,9 @@ Append an entry per working session: what changed, what broke, what is outstandi
   `Assets/Settings` and assigned as the default pipeline. Compiles clean, simulation tests
   still 77 passing. Materials are not converted yet, so the game is expected to render
   mostly magenta until Phase 2.
+- **2026-07-26** — Phases 2 and 3 complete: materials and shaders converted, capture viewport
+  letterbox fixed, tonemapping and bloom enabled, mobile budgets moved onto the URP asset.
+  Board back to parity with the baseline and emissive detail now reads. Awaiting review.
 - **2026-07-26** — Phase 1b: repaired the capture harness for scriptable pipelines. Three
   separate faults, each of which produced a blank frame that could have been misread as
   URP destroying the rendering. Captures now show the genuine intermediate state: board
