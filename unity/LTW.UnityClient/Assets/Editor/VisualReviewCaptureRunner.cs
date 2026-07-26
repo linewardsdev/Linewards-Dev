@@ -666,10 +666,7 @@ namespace LTW.UnityClient.Editor
             RenderSettings.ambientEquatorColor = new Color(0.212f, 0.227f, 0.259f);
             RenderSettings.ambientGroundColor = new Color(0.114f, 0.125f, 0.157f);
 
-            // Match the game's post-processing. Without it this scene renders with no tonemapping,
-            // and under URP the same rig that looks correct in a match blows the models out, which
-            // makes the sheet misleading in exactly the way that repointing it at the real prefabs
-            // was meant to stop.
+            // Match the game's post-processing so the sheet is graded the same way a match is.
             if (GraphicsSettings.currentRenderPipeline != null)
             {
                 var profile = Resources.Load<VolumeProfile>("LTW_PostProcessing");
@@ -729,8 +726,14 @@ namespace LTW.UnityClient.Editor
             var previousActive = RenderTexture.active;
             try
             {
+                // camera.Render() is a Built-in-only call and is unsupported under a scriptable
+                // pipeline; RenderCameraToTarget is the same pipeline-aware path RenderActiveCameras
+                // uses for the gameplay capture. Note: switching this was NOT what fixed the model
+                // wash-out under URP (see docs/URP_MIGRATION.md Known follow-up) - that turned out to
+                // be emission intensity, unrelated to which render call is used. This change is kept
+                // purely because the old call was technically wrong under URP regardless.
                 camera.targetTexture = texture;
-                camera.Render();
+                RenderCameraToTarget(camera, texture);
                 RenderTexture.active = texture;
                 var output = new Texture2D(texture.width, texture.height, TextureFormat.RGBA32, false);
                 output.ReadPixels(new Rect(0f, 0f, texture.width, texture.height), 0, 0);
@@ -818,7 +821,7 @@ namespace LTW.UnityClient.Editor
             try
             {
                 camera.targetTexture = texture;
-                camera.Render();
+                RenderCameraToTarget(camera, texture);
                 RenderTexture.active = texture;
                 var output = new Texture2D(texture.width, texture.height, TextureFormat.RGBA32, false);
                 output.ReadPixels(new Rect(0f, 0f, texture.width, texture.height), 0, 0);

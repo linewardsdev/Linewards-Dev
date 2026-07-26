@@ -186,15 +186,62 @@ supposedly-fixed one.
 
 ## Known follow-up
 
-**The role contact sheet renders too hot under URP.** It builds its own scene with a close
-camera and no match lighting context, and the same three-point rig that looks correct in a
-match blows the models out there. Adding the game's post-processing volume to that scene did
-not resolve it, so the cause is the synthetic setup rather than tonemapping.
+### The role contact sheet washes out under URP — root cause found, fix not yet applied
 
-This does not affect the game. The match captures measure at 0.2113 mean luminance against
-the baseline's 0.2142 with no blown pixels. But it does mean the contact sheet is currently
-misleading for judging material and colour work, which is the exact failure it was repointed
-at the real prefabs to avoid. Tune its lighting before trusting it again.
+**Root cause: emission intensity, not the review tool.** Tower and creep body materials
+carry `_EmissionColor` authored at up to 2x intensity, tuned so emission reads at gameplay's
+tiny on-screen tower size (a few dozen pixels). At the contact sheet's much closer framing
+(orthographic size 4.35 vs the match's 9.2–15.5), the same emission is large enough on screen
+to genuinely wash the model out. This was confirmed empirically: scaling `_EmissionColor` to
+zero for a test render measurably reduced the wash (Control went from pale lavender to a
+recognisable metallic grey), with everything else about the scene held constant.
+
+**This likely affects the shipped game too, just below the sensitivity of the metric used to
+clear it.** The match capture's acceptance check was a whole-frame mean luminance (0.2113 vs
+baseline 0.2142). A tower occupies a small enough fraction of the frame that even a
+significantly overbright tower would barely move that average. The frame-wide metric cannot
+rule out per-tower overbrightness at gameplay scale — it was never designed to.
+
+**What was ruled out before finding this**, each by an isolated, verifiable test rather than
+by inspection, in case any of this needs re-checking later:
+
+- Render path (`camera.Render()` vs `RenderPipeline.SubmitRenderRequest`) — switched the
+  contact sheet to the same pipeline-aware `RenderCameraToTarget` helper the main capture
+  uses; output was pixel-near-identical to the old path. Kept as a correctness fix regardless
+  (`camera.Render()` is unsupported under a scriptable pipeline), but it was not the cause.
+- Bloom and tonemapping entirely — disabling every `Volume` in the scene produced the same
+  washed image. Post-processing was not amplifying anything; the raw lit values were already
+  the problem.
+- Camera viewing angle — the contact sheet's camera is shallower (~40° below horizontal) than
+  the match's (~56°). Rotating it to match the match's angle changed framing but not the wash.
+- Skybox / environment reflection — both scenes resolve to the same default skybox and
+  `DefaultReflectionMode.Skybox`; not a source of difference.
+- Ambient intensity and mode — both scenes carry `ambientIntensity = 1`, `ambientMode =
+  Trilight`, identical sky/equator/ground colours. Confirmed by direct log, not inference.
+- Light intensity and colour — logged directly from the contact sheet's key/fill/rim lights;
+  matched the authored values exactly.
+- Resolution / perceived scale — downsampling a cropped tower 8x changed its mean brightness
+  by under 2%. Averaging doesn't remove overbright pixels, it just re-distributes them; this
+  ruled out "it's just showing detail invisible at gameplay's real resolution" as an
+  explanation.
+- Owner/role marker tint — the contact sheet never calls the game's per-owner tinting code, so
+  `OwnerTrim`/`RoleMarker` render at their authored defaults rather than the actual role
+  colour. Overriding them to the correct `TowerRolePalette` colour for the test made no
+  visible difference; these are small accent pieces, not enough surface area to explain a
+  whole-model wash.
+
+**Not fixed this session, deliberately.** The fix is to lower emission intensity on the
+shipping tower/creep body materials — real production art assets, not review-tool
+configuration — and that is a judgment call about how much glow reads correctly at both
+gameplay and close-up scale. It should be tuned and reviewed as its own pass, not changed
+autonomously while chasing a review-tool symptom. Suggested next step: retest emission at
+progressively lower multipliers (try 1.0–1.4x in place of the current 2x) against both a
+contact-sheet capture and a real match capture side by side, and pick the value where the
+contact sheet stops washing out without the match capture's glow disappearing.
+
+Diagnostic scaffolding used to isolate this (temporary CLI-flag-gated code paths in
+`RenderRoleContactSheet` / `InstantiateContactPrefab`) has been removed after use; the
+findings above are what's retained.
 
 ## Rollback
 
@@ -230,3 +277,10 @@ Append an entry per working session: what changed, what broke, what is outstandi
   against baseline, all four acceptance criteria confirmed. Merged to `main` at `0c3792d`.
   `urp-migration` branch kept, now 1 commit behind `main`; safe to delete once confidence
   builds, per Rollback.
+- **2026-07-26** — Contact sheet follow-up: root-caused the wash to emission intensity (2x,
+  tuned for gameplay scale, too strong at the contact sheet's closer framing) rather than to
+  the review tool's setup. Eight other hypotheses tested and ruled out one at a time — see
+  Known follow-up for the full list. Fixed the contact sheet's own remaining Built-in-only
+  `camera.Render()` calls (both role and stylized-weapon-kit sheets) as a genuine correctness
+  fix, unrelated to the wash. Did not change shipping emission values; that is a deliberate
+  art-tuning decision left for a dedicated pass, not an autonomous fix.
