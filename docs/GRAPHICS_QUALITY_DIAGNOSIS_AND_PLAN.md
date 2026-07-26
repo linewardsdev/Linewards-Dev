@@ -289,6 +289,27 @@ this up next:
   sits much flatter than the other four. That is the mesh, not the wrapper. Either accept
   it as the silhouette or re-source the model.
 
+## A class of bug: constants tuned for the 2D plates
+
+Recorded 2026-07-26 after four separate defects turned out to share one cause.
+
+The creep visuals were originally flat 2D plate prefabs, scaled non-uniformly at roughly
+`(0.9, 0.54, 1.2)`. Anything positioned relative to a creep was hand-tuned against that
+shape. The 3D wrappers scale uniformly at roughly 1.0, so every one of those constants now
+resolves somewhere it was never meant to:
+
+| Constant | Tuned for plates | Result on 3D meshes |
+| --- | --- | --- |
+| Swarm and brute lateral motion offset, `0.16` | nudge stopping billboards overlapping | creep sits visibly off lane centre |
+| Creep `GroundShadow` local offset, `-0.42` | just above the board | below the surface, never rendered |
+| `CreepHealthBarMetrics` heights | bar just above the plate | 0.91x to 2.03x of creep height |
+| Board palette authored near 0.05 albedo | visible stonework under gamma | near black under linear |
+
+**When fixing one of these, prefer deriving the value over retuning it.** The health bar
+now measures the creep body rather than carrying a per-role constant, so it survives the
+next scale change; retuned constants would not. Treat any remaining hand-tuned offset that
+positions something relative to a creep as suspect until checked against a match capture.
+
 ## Working note
 
 Prior art cycles iterated 2D source material to solve what is a lighting and material
