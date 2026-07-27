@@ -1690,7 +1690,7 @@ namespace LTW.UnityClient.Simulation
             instance.transform.rotation = Quaternion.identity;
         }
 
-        private const float TowerRecoilDuration = 0.18f;
+        private const float TowerRecoilDuration = 0.35f;
         private const float TowerAimTurnDegreesPerSecond = 260f;
 
         /// <summary>
@@ -1721,9 +1721,16 @@ namespace LTW.UnityClient.Simulation
             var timeSinceFired = towerLastFiredAt.TryGetValue(key, out var firedAt) ? Time.time - firedAt : float.MaxValue;
             var recoil = timeSinceFired < TowerRecoilDuration ? 1f - timeSinceFired / TowerRecoilDuration : 0f;
 
-            body.localPosition = idle.PositionOffset + Vector3.down * (recoil * 0.05f);
-            body.localRotation = Quaternion.Euler(idle.PitchDegrees + recoil * 6f, yaw, 0f);
-            body.localScale = new Vector3(1f + recoil * 0.025f, 1f - recoil * 0.05f, 1f + recoil * 0.025f);
+            // Scale-based feedback (breathe idle + squash/stretch recoil) carries this tower's
+            // motion, not position/pitch — see TowerRoleMotion's remark on why those mostly don't
+            // reach the screen under this camera. A squash/stretch punch reads from any angle.
+            var idleScale = 1f + idle.ScalePulse;
+            var recoilStretch = recoil * 0.22f;
+            var recoilSquash = recoil * 0.35f;
+
+            body.localPosition = idle.PositionOffset + Vector3.down * (recoil * 0.1f);
+            body.localRotation = Quaternion.Euler(idle.PitchDegrees + recoil * 18f, yaw, 0f);
+            body.localScale = new Vector3(idleScale + recoilStretch, idleScale - recoilSquash, idleScale + recoilStretch);
         }
 
         private static Transform ResolveTowerMotionTarget(GameObject towerObject, TowerVisualProfile visualProfile)
@@ -1743,7 +1750,7 @@ namespace LTW.UnityClient.Simulation
             instance.transform.position = snapToTarget || Vector3.Distance(instance.transform.position, targetPosition) > 2.5f
                 ? targetPosition
                 : Vector3.Lerp(instance.transform.position, targetPosition, Mathf.Clamp01(Time.deltaTime * 8f));
-            instance.transform.localScale = CreepRoleScale(creepId, visualProfile);
+            instance.transform.localScale = CreepRoleScale(creepId, visualProfile) * roleMotion.ScaleMultiplier;
             instance.transform.rotation = roleMotion.Rotation;
         }
 
@@ -2760,18 +2767,26 @@ namespace LTW.UnityClient.Simulation
         /// <see cref="UpdateTowerMotion"/> owns yaw exclusively, so idle and aim never fight over
         /// the same axis.
         /// </summary>
+        /// <summary>
+        /// The match camera is orthographic but tilted only ~19 degrees off vertical
+        /// (ConfigureDefaultCamera), so Y-axis position and X-axis pitch mostly project away —
+        /// only ~sin(19 deg) of either ever reaches the screen. Idle motion leans on XZ position
+        /// and uniform scale instead, since neither loses effect to that projection.
+        /// </summary>
         private static TowerMotion TowerRoleMotion(TowerVisualRole role)
         {
             var time = Time.time;
             if (role == TowerVisualRole.Control)
             {
-                var pulse = Mathf.Sin(time * 1.6f) * 0.02f;
-                var wobble = Mathf.Sin(time * 1.1f) * 1.2f;
-                return new TowerMotion(Vector3.up * pulse, wobble);
+                var breathe = Mathf.Sin(time * 1.6f) * 0.05f;
+                var driftX = Mathf.Sin(time * 0.9f) * 0.05f;
+                var driftZ = Mathf.Cos(time * 0.7f) * 0.04f;
+                var wobble = Mathf.Sin(time * 1.1f) * 6f;
+                return new TowerMotion(new Vector3(driftX, 0f, driftZ), wobble, breathe);
             }
 
-            var defaultPulse = Mathf.Sin(time * 1.3f) * 0.012f;
-            return new TowerMotion(Vector3.up * defaultPulse, 0f);
+            var defaultBreathe = Mathf.Sin(time * 1.3f) * 0.02f;
+            return new TowerMotion(Vector3.zero, 0f, defaultBreathe);
         }
 
         /// <summary>
@@ -2800,13 +2815,16 @@ namespace LTW.UnityClient.Simulation
             {
                 var weight = Mathf.Abs(Mathf.Sin(time * 3.4f)) * 0.055f;
                 var sway = Mathf.Sin(time * 3.4f) * 1.5f;
-                // Hit-flinch: a quick opposite-direction tilt layered on top of the continuous idle
-                // sway, decaying over the same 0.16s window creepHitFlashUntil already tracks for
-                // the colour flash, so this reads as a reaction to the hit rather than a new
-                // permanent idle state.
+                // Hit-flinch: a quick opposite-direction tilt plus a squash/stretch punch, layered
+                // on top of the continuous idle sway, decaying over the same 0.16s window
+                // creepHitFlashUntil already tracks for the colour flash. The scale punch is what
+                // actually carries this — the match camera is orthographic and tilted only ~19
+                // degrees off vertical (see UpdateTowerMotion's remark), so tilt/position changes
+                // mostly project away and read as almost nothing on screen.
                 var flinch = Mathf.Clamp01((hitFlashUntil - time) / CreepHitFlashDuration);
-                var flinchTilt = -Mathf.Sign(sway == 0f ? 1f : sway) * flinch * 10f;
-                return new CreepMotion(new Vector3(0f, -weight - flinch * 0.03f, 0f), Quaternion.Euler(flinch * 8f, 0f, sway + flinchTilt));
+                var flinchTilt = -Mathf.Sign(sway == 0f ? 1f : sway) * flinch * 26f;
+                var flinchScale = 1f + flinch * 0.28f;
+                return new CreepMotion(new Vector3(0f, -weight - flinch * 0.09f, 0f), Quaternion.Euler(flinch * 20f, 0f, sway + flinchTilt), flinchScale);
             }
 
             if (motionStyle == CreepVisualMotionStyle.Hover || motionStyle == CreepVisualMotionStyle.Auto && (ContainsRole(creepId, "flying") || ContainsRole(creepId, "air")))
@@ -3690,26 +3708,30 @@ namespace LTW.UnityClient.Simulation
 
         private readonly struct CreepMotion
         {
-            public CreepMotion(Vector3 positionOffset, Quaternion rotation)
+            public CreepMotion(Vector3 positionOffset, Quaternion rotation, float scaleMultiplier = 1f)
             {
                 PositionOffset = positionOffset;
                 Rotation = rotation;
+                ScaleMultiplier = scaleMultiplier;
             }
 
             public Vector3 PositionOffset { get; }
             public Quaternion Rotation { get; }
+            public float ScaleMultiplier { get; }
         }
 
         private readonly struct TowerMotion
         {
-            public TowerMotion(Vector3 positionOffset, float pitchDegrees)
+            public TowerMotion(Vector3 positionOffset, float pitchDegrees, float scalePulse)
             {
                 PositionOffset = positionOffset;
                 PitchDegrees = pitchDegrees;
+                ScalePulse = scalePulse;
             }
 
             public Vector3 PositionOffset { get; }
             public float PitchDegrees { get; }
+            public float ScalePulse { get; }
         }
 
         private readonly struct CreepHealthBarMetrics
