@@ -1,8 +1,9 @@
 # Tier 1 Lighting Pass Evidence
 
 Captured 2026-07-25 with `Line Wards/Review/Capture Role Contact Sheet` under Unity
-6000.5.3f1, after the Tier 1 changes in
-[the graphics quality plan](../../GRAPHICS_QUALITY_DIAGNOSIS_AND_PLAN.md).
+6000.5.3f1, after the Tier 1 lighting changes (three-point light rig, linear colour space,
+gradient ambient). See [docs/OPEN_ITEMS.md](../../OPEN_ITEMS.md) for what remains open from
+the graphics work this evidence is part of.
 
 | File | What it shows |
 | --- | --- |
@@ -20,9 +21,10 @@ placeholder geometry rather than the towers the game renders, which is worth kee
 mind when reading the archived review passes.
 
 `RenderRoleContactSheet` now instantiates the `_3D` tower prefabs and mirrors the runtime
-three-point rig and gradient ambient from `LocalVerticalSliceLauncher`. Creeps stay on the
-`_AIPlate` prefabs because `CreepVisualLibrary` still loads those; swap them here in the
-same change that wires the 3D creep meshes in.
+three-point rig and gradient ambient from `LocalVerticalSliceLauncher`. Creeps were still on
+the `_AIPlate` prefabs at the time of this capture; both `CreepVisualLibrary` and this
+contact sheet were later repointed at the 3D creep meshes, and the `_AIPlate` prefabs were
+retired entirely on 2026-07-26.
 
 Both prefab lists must track the visual libraries. If they drift again, reviews stop
 describing the shipping build.

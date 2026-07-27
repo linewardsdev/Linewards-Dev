@@ -8,6 +8,7 @@ This folder contains the durable project documentation for Line Wards, the mobil
 - [Architecture](ARCHITECTURE.md)
 - [MVP status snapshot](MVP_STATUS.md)
 - [Agent and contributor guidance](AGENTS.md)
+- [Open items](OPEN_ITEMS.md)
 
 ## Planning And Delivery
 
@@ -18,7 +19,6 @@ This folder contains the durable project documentation for Line Wards, the mobil
 - [Game menu and runtime flow](GAME_MENU_AND_RUNTIME_FLOW.md)
 - [Content roster expansion plan](CONTENT_ROSTER_EXPANSION_PLAN.md)
 - [Builder placement concept](BUILDER_PLACEMENT_CONCEPT.md)
-- [Graphics quality diagnosis and improvement plan](GRAPHICS_QUALITY_DIAGNOSIS_AND_PLAN.md)
 - [Graphics theme work breakdown](GRAPHICS_THEME_WORK_BREAKDOWN.md)
 - [Mobile art direction improvement cycle](MOBILE_ART_DIRECTION_IMPROVEMENT_CYCLE.md)
 - [AI-assisted art pipeline](AI_ART_PIPELINE.md)

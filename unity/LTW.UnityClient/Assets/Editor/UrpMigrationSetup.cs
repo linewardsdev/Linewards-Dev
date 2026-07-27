@@ -7,8 +7,8 @@ using UnityEngine.Rendering.Universal;
 namespace LTW.UnityClient.Editor
 {
     /// <summary>
-    /// Creates the URP pipeline asset and assigns it, for the migration tracked in
-    /// docs/URP_MIGRATION.md.
+    /// Creates the URP pipeline asset and assigns it. Part of the Built-in to URP migration
+    /// completed 2026-07-26; see docs/OPEN_ITEMS.md for what's still outstanding from that work.
     /// </summary>
     /// <remarks>
     /// Scripted rather than done by hand so the step is reproducible and reviewable, and so it

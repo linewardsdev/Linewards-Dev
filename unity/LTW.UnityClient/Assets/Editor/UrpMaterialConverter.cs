@@ -5,8 +5,9 @@ using UnityEngine;
 namespace LTW.UnityClient.Editor
 {
     /// <summary>
-    /// Converts project materials from the Built-in Standard shader to URP/Lit, for the migration
-    /// tracked in docs/URP_MIGRATION.md.
+    /// Converts project materials from the Built-in Standard shader to URP/Lit. Part of the
+    /// Built-in to URP migration completed 2026-07-26; see docs/OPEN_ITEMS.md for what's still
+    /// outstanding from that work.
     /// </summary>
     /// <remarks>
     /// Written explicitly rather than driven through the package's interactive converter window so
