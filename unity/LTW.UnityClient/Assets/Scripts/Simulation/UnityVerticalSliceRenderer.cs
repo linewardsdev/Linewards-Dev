@@ -1003,7 +1003,8 @@ namespace LTW.UnityClient.Simulation
                         var damagedCreepId = CreepIdFor(damaged.CreepEntityId.Value.ToString());
                         var towerPosition = GridToWorld(damaged.TowerPosition, damaged.LaneId);
                         var towerRole = TowerRoleAt(damaged.TowerPosition, damaged.LaneId);
-                        SpawnTowerAttackCue(towerPosition, hitPosition, towerRole, damaged.DamageDealt);
+                        var attackBody = ResolveTowerBodyTransform(damaged.TowerEntityId.Value.ToString());
+                        SpawnTowerAttackCue(towerPosition, hitPosition, towerRole, damaged.DamageDealt, attackBody);
                         SpawnCreepHitCue(hitPosition, new Color(1f, 0.88f, 0.44f), damaged.DamageDealt);
                         SpawnCreepRoleFeedbackCue(hitPosition, damagedCreepId, damaged.DamageDealt);
                         SpawnEffect(hitPosition, new Color(1f, 0.88f, 0.44f), 0.24f, 0.12f);
@@ -1190,26 +1191,38 @@ namespace LTW.UnityClient.Simulation
             SpawnBeam(spawn + new Vector3(-0.44f, 0.18f, 0f), spawn + new Vector3(0.44f, 0.38f, 0f), SignalGold, 0.24f);
         }
 
-        private void SpawnTowerAttackCue(Vector3 towerPosition, Vector3 hitPosition, string towerId, int damage)
+        /// <summary>
+        /// All the offsets below are expressed relative to the tower's base — the same numeric
+        /// vectors that used to be added to <paramref name="towerPosition"/> directly. When a live
+        /// Body transform is available they instead go through <paramref name="bodyTransform"/>'s
+        /// TransformPoint, so the whole attack cue rotates and drifts with the tower's actual
+        /// current animated state (aim rotation, idle drift, recoil) rather than assuming the tower
+        /// still sits at its rest pose. Falls back to the old flat world-space offset if the tower
+        /// GameObject could not be resolved (e.g. it was removed the same frame).
+        /// </summary>
+        private void SpawnTowerAttackCue(Vector3 towerPosition, Vector3 hitPosition, string towerId, int damage, Transform bodyTransform)
         {
+            Vector3 At(Vector3 localOffset) =>
+                bodyTransform != null ? bodyTransform.TransformPoint(localOffset) : towerPosition + localOffset;
+
             var shotColor = TowerShotColor(towerId, damage);
-            var muzzle = towerPosition + Vector3.up * 0.62f;
+            var muzzle = At(Vector3.up * 0.62f);
             if (IsArrowTower(towerId))
             {
-                SpawnBeam(muzzle + new Vector3(-0.5f, 0f, -0.18f), muzzle + new Vector3(0.5f, 0f, -0.18f), shotColor, 0.08f);
-                SpawnBeam(muzzle + new Vector3(0f, -0.04f, -0.32f), muzzle + new Vector3(0f, 0.04f, 0.26f), SignalGold, 0.08f);
-                SpawnBeam(muzzle + new Vector3(0f, 0f, 0.08f), hitPosition + Vector3.up * 0.12f, shotColor, damage >= 5 ? 0.16f : 0.12f);
+                SpawnBeam(At(new Vector3(-0.5f, 0.62f, -0.18f)), At(new Vector3(0.5f, 0.62f, -0.18f)), shotColor, 0.08f);
+                SpawnBeam(At(new Vector3(0f, 0.58f, -0.32f)), At(new Vector3(0f, 0.66f, 0.26f)), SignalGold, 0.08f);
+                SpawnBeam(At(new Vector3(0f, 0.62f, 0.08f)), hitPosition + Vector3.up * 0.12f, shotColor, damage >= 5 ? 0.16f : 0.12f);
                 SpawnCellFrameCue(hitPosition, shotColor, damage >= 5 ? 0.15f : 0.1f);
-                SpawnEffect(muzzle + new Vector3(0f, 0f, 0.12f), shotColor, damage >= 5 ? 0.28f : 0.2f, 0.08f);
+                SpawnEffect(At(new Vector3(0f, 0.62f, 0.12f)), shotColor, damage >= 5 ? 0.28f : 0.2f, 0.08f);
                 return;
             }
 
             if (IsControlTower(towerId))
             {
-                SpawnBeam(muzzle + new Vector3(-0.42f, 0f, 0f), hitPosition + Vector3.up * 0.12f, shotColor, 0.18f);
-                SpawnBeam(muzzle + new Vector3(0.42f, 0f, 0f), hitPosition + Vector3.up * 0.12f, shotColor, 0.18f);
+                SpawnBeam(At(new Vector3(-0.42f, 0.62f, 0f)), hitPosition + Vector3.up * 0.12f, shotColor, 0.18f);
+                SpawnBeam(At(new Vector3(0.42f, 0.62f, 0f)), hitPosition + Vector3.up * 0.12f, shotColor, 0.18f);
                 SpawnCellFrameCue(hitPosition, shotColor, 0.18f);
-                SpawnEffect(towerPosition + Vector3.up * 0.28f, shotColor, 0.42f, 0.16f);
+                SpawnEffect(At(Vector3.up * 0.28f), shotColor, 0.42f, 0.16f);
                 SpawnEffect(hitPosition, shotColor, damage >= 5 ? 0.42f : 0.32f, 0.16f);
                 return;
             }
@@ -1217,8 +1230,8 @@ namespace LTW.UnityClient.Simulation
             if (IsRelayTower(towerId))
             {
                 SpawnBeam(muzzle, hitPosition + Vector3.up * 0.2f, shotColor, 0.2f);
-                SpawnBeam(towerPosition + new Vector3(-0.34f, 0.34f, 0f), towerPosition + new Vector3(0.34f, 0.34f, 0f), shotColor, 0.14f);
-                SpawnBeam(towerPosition + new Vector3(0f, 0.58f, -0.34f), towerPosition + new Vector3(0f, 0.58f, 0.34f), shotColor, 0.14f);
+                SpawnBeam(At(new Vector3(-0.34f, 0.34f, 0f)), At(new Vector3(0.34f, 0.34f, 0f)), shotColor, 0.14f);
+                SpawnBeam(At(new Vector3(0f, 0.58f, -0.34f)), At(new Vector3(0f, 0.58f, 0.34f)), shotColor, 0.14f);
                 SpawnCellFrameCue(towerPosition, shotColor, 0.16f);
                 SpawnEffect(muzzle, shotColor, 0.26f, 0.12f);
                 return;
@@ -1226,14 +1239,14 @@ namespace LTW.UnityClient.Simulation
 
             if (IsPulseTower(towerId))
             {
-                SpawnEffect(towerPosition + Vector3.up * 0.28f, shotColor, 0.68f, 0.18f);
-                SpawnEffect(towerPosition + Vector3.up * 0.62f, SignalGold, 0.28f, 0.1f);
-                SpawnBeam(towerPosition + new Vector3(-0.54f, 0.34f, 0.54f), towerPosition + new Vector3(0.54f, 0.34f, 0.54f), shotColor, 0.14f);
-                SpawnBeam(towerPosition + new Vector3(-0.54f, 0.34f, -0.54f), towerPosition + new Vector3(0.54f, 0.34f, -0.54f), shotColor, 0.14f);
-                SpawnBeam(towerPosition + new Vector3(-0.54f, 0.34f, -0.54f), towerPosition + new Vector3(-0.54f, 0.34f, 0.54f), shotColor, 0.14f);
-                SpawnBeam(towerPosition + new Vector3(0.54f, 0.34f, -0.54f), towerPosition + new Vector3(0.54f, 0.34f, 0.54f), shotColor, 0.14f);
-                SpawnBeam(towerPosition + new Vector3(-0.36f, 0.42f, -0.36f), towerPosition + new Vector3(0.36f, 0.42f, 0.36f), SignalGold, 0.12f);
-                SpawnBeam(towerPosition + new Vector3(-0.36f, 0.42f, 0.36f), towerPosition + new Vector3(0.36f, 0.42f, -0.36f), SignalGold, 0.12f);
+                SpawnEffect(At(Vector3.up * 0.28f), shotColor, 0.68f, 0.18f);
+                SpawnEffect(At(Vector3.up * 0.62f), SignalGold, 0.28f, 0.1f);
+                SpawnBeam(At(new Vector3(-0.54f, 0.34f, 0.54f)), At(new Vector3(0.54f, 0.34f, 0.54f)), shotColor, 0.14f);
+                SpawnBeam(At(new Vector3(-0.54f, 0.34f, -0.54f)), At(new Vector3(0.54f, 0.34f, -0.54f)), shotColor, 0.14f);
+                SpawnBeam(At(new Vector3(-0.54f, 0.34f, -0.54f)), At(new Vector3(-0.54f, 0.34f, 0.54f)), shotColor, 0.14f);
+                SpawnBeam(At(new Vector3(0.54f, 0.34f, -0.54f)), At(new Vector3(0.54f, 0.34f, 0.54f)), shotColor, 0.14f);
+                SpawnBeam(At(new Vector3(-0.36f, 0.42f, -0.36f)), At(new Vector3(0.36f, 0.42f, 0.36f)), SignalGold, 0.12f);
+                SpawnBeam(At(new Vector3(-0.36f, 0.42f, 0.36f)), At(new Vector3(0.36f, 0.42f, -0.36f)), SignalGold, 0.12f);
                 SpawnCellFrameCue(hitPosition, shotColor, 0.18f);
                 SpawnEffect(hitPosition, shotColor, damage >= 5 ? 0.5f : 0.36f, 0.16f);
                 return;
@@ -1241,17 +1254,17 @@ namespace LTW.UnityClient.Simulation
 
             if (IsPrismTower(towerId))
             {
-                SpawnBeam(muzzle + new Vector3(-0.16f, 0.08f, 0f), muzzle + new Vector3(0.16f, 0.08f, 0f), SignalGold, 0.12f);
-                SpawnBeam(muzzle + new Vector3(0f, 0.08f, -0.16f), muzzle + new Vector3(0f, 0.08f, 0.16f), SignalGold, 0.12f);
-                SpawnEffect(muzzle + Vector3.up * 0.08f, SignalGold, 0.22f, 0.12f);
-                SpawnBeam(muzzle + Vector3.up * 0.08f, hitPosition + Vector3.up * 0.16f, shotColor, damage >= 5 ? 0.22f : 0.18f);
+                SpawnBeam(At(new Vector3(-0.16f, 0.7f, 0f)), At(new Vector3(0.16f, 0.7f, 0f)), SignalGold, 0.12f);
+                SpawnBeam(At(new Vector3(0f, 0.7f, -0.16f)), At(new Vector3(0f, 0.7f, 0.16f)), SignalGold, 0.12f);
+                SpawnEffect(At(Vector3.up * 0.7f), SignalGold, 0.22f, 0.12f);
+                SpawnBeam(At(Vector3.up * 0.7f), hitPosition + Vector3.up * 0.16f, shotColor, damage >= 5 ? 0.22f : 0.18f);
                 SpawnEffect(hitPosition + Vector3.up * 0.08f, shotColor, damage >= 5 ? 0.46f : 0.32f, 0.18f);
                 return;
             }
 
             var scale = damage >= 5 ? 0.48f : 0.34f;
-            SpawnBeam(muzzle + new Vector3(-scale, 0f, 0f), muzzle + new Vector3(scale, 0f, 0f), shotColor, 0.1f);
-            SpawnBeam(muzzle + new Vector3(0f, 0f, -scale), muzzle + new Vector3(0f, 0f, scale), shotColor, 0.1f);
+            SpawnBeam(At(new Vector3(-scale, 0.62f, 0f)), At(new Vector3(scale, 0.62f, 0f)), shotColor, 0.1f);
+            SpawnBeam(At(new Vector3(0f, 0.62f, -scale)), At(new Vector3(0f, 0.62f, scale)), shotColor, 0.1f);
             SpawnBeam(muzzle, hitPosition + Vector3.up * 0.12f, shotColor, 0.14f);
             SpawnCellFrameCue(hitPosition, shotColor, damage >= 5 ? 0.16f : 0.12f);
             SpawnEffect(muzzle, shotColor, damage >= 5 ? 0.3f : 0.22f, 0.1f);
@@ -1810,16 +1823,51 @@ namespace LTW.UnityClient.Simulation
             var timeSinceFired = towerLastFiredAt.TryGetValue(key, out var firedAt) ? Time.time - firedAt : float.MaxValue;
             var recoil = timeSinceFired < TowerRecoilDuration ? 1f - timeSinceFired / TowerRecoilDuration : 0f;
 
-            // Scale-based feedback (breathe idle + squash/stretch recoil) carries this tower's
-            // motion, not position/pitch — see TowerRoleMotion's remark on why those mostly don't
-            // reach the screen under this camera. A squash/stretch punch reads from any angle.
+            // Recoil is a rigid kick along the tower's current firing axis (position + a small
+            // backward pitch), not a squash/stretch scale distortion — these towers are stone and
+            // metal, and jelly-deformation on a rigid body reads as wrong regardless of how well
+            // it's tuned. Idle keeps a small UNIFORM scale pulse (a "breathing" energy effect,
+            // not an axis-skewed squash), which is a different thing from a recoil punch.
             var idleScale = 1f + idle.ScalePulse;
-            var recoilStretch = recoil * 0.22f;
-            var recoilSquash = recoil * 0.35f;
+            var recoilKick = recoil * 0.16f;
+            var kickDirection = Quaternion.Euler(0f, yaw, 0f) * Vector3.back;
 
-            body.localPosition = idle.PositionOffset + Vector3.down * (recoil * 0.1f);
-            body.localRotation = Quaternion.Euler(idle.PitchDegrees + recoil * 18f, yaw, 0f);
-            body.localScale = new Vector3(idleScale + recoilStretch, idleScale - recoilSquash, idleScale + recoilStretch);
+            body.localPosition = idle.PositionOffset + kickDirection * recoilKick + Vector3.down * (recoil * 0.04f);
+            body.localRotation = Quaternion.Euler(idle.PitchDegrees - recoil * 10f, yaw, 0f);
+            body.localScale = Vector3.one * idleScale;
+
+            // Rigid sub-parts (e.g. Control's floating ring) spin independently of Body's own
+            // idle/aim/recoil motion — a continuous local yaw, not something driven by firing
+            // state. Searched by name rather than a fixed path since the ring sits under whatever
+            // depth the imported raw mesh hierarchy happens to nest it at (e.g.
+            // Body/Imported3DVisual/Ring), which is an import-pipeline detail this call site
+            // shouldn't need to know.
+            var ring = FindDeepChild(body, "Ring");
+            if (ring != null)
+            {
+                ring.localRotation = Quaternion.Euler(0f, Time.time * TowerRingSpinDegreesPerSecond, 0f);
+            }
+        }
+
+        private const float TowerRingSpinDegreesPerSecond = 32f;
+
+        private static Transform FindDeepChild(Transform parent, string name)
+        {
+            foreach (Transform child in parent)
+            {
+                if (child.name == name)
+                {
+                    return child;
+                }
+
+                var found = FindDeepChild(child, name);
+                if (found != null)
+                {
+                    return found;
+                }
+            }
+
+            return null;
         }
 
         private static Transform ResolveTowerMotionTarget(GameObject towerObject, TowerVisualProfile visualProfile)
@@ -1830,6 +1878,24 @@ namespace LTW.UnityClient.Simulation
             }
 
             return towerObject.transform.Find(visualProfile.BodyRendererPath) ?? towerObject.transform;
+        }
+
+        /// <summary>
+        /// The tower's Body transform, if the tower is currently active, else null. Attack VFX uses
+        /// this to place beams/effects relative to the tower's actual current animated state
+        /// (idle drift, aim rotation, recoil) instead of a fixed world-space offset from the grid
+        /// position — a tower that has turned to face its target was firing its beam from where it
+        /// used to point, not where it currently does, before this was threaded through.
+        /// </summary>
+        private Transform ResolveTowerBodyTransform(string towerKey)
+        {
+            if (!activeTowers.TryGetValue(towerKey, out var towerObject) || towerObject == null)
+            {
+                return null;
+            }
+
+            var body = towerObject.transform.Find("Body");
+            return body != null ? body : towerObject.transform;
         }
 
         /// <summary>
@@ -3030,10 +3096,11 @@ namespace LTW.UnityClient.Simulation
         /// the same axis.
         /// </summary>
         /// <summary>
-        /// The match camera is orthographic but tilted only ~19 degrees off vertical
-        /// (ConfigureDefaultCamera), so Y-axis position and X-axis pitch mostly project away —
-        /// only ~sin(19 deg) of either ever reaches the screen. Idle motion leans on XZ position
-        /// and uniform scale instead, since neither loses effect to that projection.
+        /// The match camera is orthographic and tilted (ConfigureDefaultCamera, default 30 degrees
+        /// off vertical), so Y-axis position and X-axis pitch reach the screen at only sin(tilt) of
+        /// their true magnitude — real, but still partial. Idle motion leans on XZ position and
+        /// uniform scale, which lose nothing to that projection, and layers pitch/position on top
+        /// rather than relying on them alone.
         /// </summary>
         private static TowerMotion TowerRoleMotion(TowerVisualRole role)
         {

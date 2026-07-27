@@ -70,10 +70,16 @@ namespace LTW.UnityClient.Editor
             CreateOwnerTrim(root, recipe.OwnerMaterial);
             CreateRangeHalo(root, recipe.RangeMaterial);
 
+            // Anchors are parented under Body, not root: UnityVerticalSliceRenderer.UpdateTowerMotion
+            // rotates Body to aim at the tower's current target, and an anchor parented under the
+            // never-rotating root would then point at a stale direction the moment the tower turned
+            // — visually detaching the muzzle flash from an already-rotated model. Body sits at
+            // root's local origin with identity rotation at rest, so this reparenting does not move
+            // any anchor's resting position; it only makes them inherit Body's rotation going forward.
             for (var index = 0; index < spec.AnchorNames.Length; index++)
             {
                 var anchorName = spec.AnchorNames[index];
-                CreateEmptyChild(root, anchorName, ResolveAnchorPosition(spec, anchorName));
+                CreateEmptyChild(body, anchorName, ResolveAnchorPosition(spec, anchorName));
             }
 
             PrefabUtility.SaveAsPrefabAsset(root, spec.RuntimePrefabPath);
@@ -112,7 +118,9 @@ namespace LTW.UnityClient.Editor
 
             for (var index = 0; index < spec.AnchorNames.Length; index++)
             {
-                issueCount += ValidateChild(prefab, spec.AnchorNames[index], requireRenderer: false);
+                // Anchors live under Body now, not at the prefab root — see the comment where
+                // they're created in GenerateWrapperIfRawExists.
+                issueCount += ValidateChild(prefab, $"Body/{spec.AnchorNames[index]}", requireRenderer: false);
             }
 
             issueCount += ValidateNoRuntimeColliders(prefab);

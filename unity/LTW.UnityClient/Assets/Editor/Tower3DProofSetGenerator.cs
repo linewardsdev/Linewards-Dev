@@ -34,7 +34,7 @@ namespace LTW.UnityClient.Editor
                 "Control",
                 "tower.control",
                 TowerVisualRole.Control,
-                "Assets/Art/AIStaging/Models/Towers/Control/AIDrop/control_meshy_portal_shrine_blend_final_0724232602_prepared.fbx",
+                "Assets/Art/AIStaging/Models/Towers/Control/AIDrop/control_split_base_ring_0727.fbx",
                 Tower3DImportPipeline.RuntimePrefabFolder + "/Tower_Control_3D.prefab",
                 new Vector3(0.74f, 0.74f, 0.74f),
                 0.10f,
