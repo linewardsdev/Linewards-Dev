@@ -43,7 +43,10 @@ namespace LTW.UnityClient.Editor
                 CreepVisualRole.Brute,
                 CreepVisualMotionStyle.HeavyBob,
                 CreepDeathCueStyle.HeavyShatter,
-                ModelRoot + "/Brute/AIDrop/brute_meshy_rock_golem_blend_0725021355_prepared.fbx",
+                // Rigged variant: same prepared mesh with a quadruped skeleton and walk clip added
+                // (tools/art_pipeline/rig_quadruped_creep.py). Built against the prepared FBX so
+                // the scale/rotation values below stay valid.
+                ModelRoot + "/Brute/AIDrop/brute_meshy_rock_golem_blend_0725021355_prepared_rigged.fbx",
                 ModelRoot + "/Brute/AIDrop/brute_meshy_rock_golem_blend_0725021355_prepared_Textures",
                 Creep3DImportPipeline.RuntimePrefabFolder + "/Creep_Brute_3D.prefab",
                 new Vector3(1.18f, 1.18f, 1.18f),
@@ -52,7 +55,8 @@ namespace LTW.UnityClient.Editor
                 // degree fix needed) but faced the wrong end of it — reported backwards, not
                 // sideways. Yaw 180 turns it to face travel direction (toward -Z).
                 new Vector3(0f, 180f, 0f),
-                0.46f),
+                0.46f,
+                RiggedCreepSetup.BruteControllerPath),
             new(
                 "Swarm",
                 "creep.swarm",

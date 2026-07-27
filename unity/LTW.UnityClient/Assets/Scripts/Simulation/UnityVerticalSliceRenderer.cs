@@ -1743,9 +1743,28 @@ namespace LTW.UnityClient.Simulation
             return towerObject.transform.Find(visualProfile.BodyRendererPath) ?? towerObject.transform;
         }
 
+        /// <summary>
+        /// Whether a creep role's prefab carries a skeletal rig, cached per role. Rigged creeps let
+        /// their animation clip own idle motion instead of the procedural bob, which would
+        /// otherwise double up with the clip's own body movement.
+        /// </summary>
+        private static readonly Dictionary<string, bool> RiggedByRole = new Dictionary<string, bool>();
+
+        private static bool IsRiggedCreep(GameObject instance, string creepId)
+        {
+            if (RiggedByRole.TryGetValue(creepId, out var cached))
+            {
+                return cached;
+            }
+
+            var rigged = instance.GetComponentInChildren<Animator>(true) != null;
+            RiggedByRole[creepId] = rigged;
+            return rigged;
+        }
+
         private static void SetCreepTransform(GameObject instance, GridPosition position, LaneId laneId, string creepId, CreepVisualProfile visualProfile, bool snapToTarget, float hitFlashUntil)
         {
-            var roleMotion = CreepRoleMotion(creepId, visualProfile, hitFlashUntil);
+            var roleMotion = CreepRoleMotion(creepId, visualProfile, hitFlashUntil, IsRiggedCreep(instance, creepId));
             var targetPosition = GridToWorld(position, laneId) + CreepRoleOffset(creepId) + roleMotion.PositionOffset;
             instance.transform.position = snapToTarget || Vector3.Distance(instance.transform.position, targetPosition) > 2.5f
                 ? targetPosition
@@ -2801,9 +2820,19 @@ namespace LTW.UnityClient.Simulation
         /// </remarks>
         private const float CreepHitFlashDuration = 0.16f;
 
-        private static CreepMotion CreepRoleMotion(string creepId, CreepVisualProfile visualProfile, float hitFlashUntil)
+        private static CreepMotion CreepRoleMotion(string creepId, CreepVisualProfile visualProfile, float hitFlashUntil, bool isRigged = false)
         {
             var time = Time.time;
+
+            // A rigged creep's walk clip already animates its body, so the procedural idle bob and
+            // sway are redundant and fight it. Keep only the hit reaction, which the clip does not
+            // cover, expressed as a scale punch so it still reads under this camera angle.
+            if (isRigged)
+            {
+                var riggedFlinch = Mathf.Clamp01((hitFlashUntil - time) / CreepHitFlashDuration);
+                return new CreepMotion(Vector3.zero, Quaternion.identity, 1f + riggedFlinch * 0.28f);
+            }
+
             var motionStyle = visualProfile != null ? visualProfile.MotionStyle : CreepVisualMotionStyle.Auto;
             if (motionStyle == CreepVisualMotionStyle.ClusterJitter || motionStyle == CreepVisualMotionStyle.Auto && ContainsRole(creepId, "swarm"))
             {

@@ -59,6 +59,7 @@ namespace LTW.UnityClient.Editor
             StripColliders(instance);
             ApplyMaterial(instance, bodyMaterial);
             SeatOnGround(instance);
+            AttachAnimator(instance, spec);
 
             // The library tints whatever sits under bodyRendererPath. Pointing it at an empty
             // anchor keeps the team colour from multiplying into the baked albedo, which is how
@@ -185,6 +186,47 @@ namespace LTW.UnityClient.Editor
             AssetDatabase.DeleteAsset(materialPath);
             AssetDatabase.CreateAsset(material, materialPath);
             return AssetDatabase.LoadAssetAtPath<Material>(materialPath);
+        }
+
+        /// <summary>
+        /// Binds an Animator to a rigged creep's imported visual. Skipped entirely for the static
+        /// meshes, which have no rig and keep their procedural motion instead.
+        /// </summary>
+        private static void AttachAnimator(GameObject instance, Creep3DImportSpec spec)
+        {
+            if (string.IsNullOrWhiteSpace(spec.AnimatorControllerPath))
+            {
+                return;
+            }
+
+            var controller = AssetDatabase.LoadAssetAtPath<RuntimeAnimatorController>(spec.AnimatorControllerPath);
+            if (controller == null)
+            {
+                Debug.LogWarning($"{spec.DisplayName}: no animator controller at {spec.AnimatorControllerPath}; leaving unanimated.");
+                return;
+            }
+
+            if (instance.GetComponentInChildren<SkinnedMeshRenderer>(true) == null)
+            {
+                Debug.LogWarning($"{spec.DisplayName}: animator controller specified but the model has no SkinnedMeshRenderer, so it carries no rig. Leaving unanimated.");
+                return;
+            }
+
+            // Not `?? AddComponent`: Unity's overloaded equality makes a missing component compare
+            // equal to null without being C# null, so the null-coalescing operator skips right
+            // past it and hands back an unusable object.
+            var animator = instance.GetComponent<Animator>();
+            if (animator == null)
+            {
+                animator = instance.AddComponent<Animator>();
+            }
+
+            animator.runtimeAnimatorController = controller;
+            animator.applyRootMotion = false;
+            // Creeps are driven along the lane by the simulation, and are frequently off-screen or
+            // culled behind the HUD; culling updates keeps the skinning cost off those frames.
+            animator.cullingMode = AnimatorCullingMode.CullUpdateTransforms;
+            Debug.Log($"{spec.DisplayName}: attached Animator with {controller.name}.");
         }
 
         private static void CreateSenderAccent(GameObject root, Creep3DImportSpec spec)
@@ -338,7 +380,8 @@ namespace LTW.UnityClient.Editor
             Vector3 runtimeScale,
             float importScale,
             Vector3 importEulerAngles,
-            float accentRadius)
+            float accentRadius,
+            string animatorControllerPath = null)
         {
             DisplayName = displayName;
             CreepId = creepId;
@@ -352,7 +395,15 @@ namespace LTW.UnityClient.Editor
             ImportScale = importScale;
             ImportEulerAngles = importEulerAngles;
             AccentRadius = accentRadius;
+            AnimatorControllerPath = animatorControllerPath;
         }
+
+        /// <summary>
+        /// Optional. Set when the source model carries a skeletal rig and animation clips; the
+        /// wrapper then gets an Animator bound to this controller. Null for the static meshes,
+        /// which stay on the procedural motion in UnityVerticalSliceRenderer.
+        /// </summary>
+        public string AnimatorControllerPath { get; }
 
         public string DisplayName { get; }
 
