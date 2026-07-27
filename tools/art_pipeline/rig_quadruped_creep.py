@@ -24,7 +24,7 @@ Verified on: Brute / Rock Golem (7682 verts, four clean leg clusters).
 import bpy
 import math
 import sys
-from mathutils import Vector
+from mathutils import Quaternion, Vector
 
 argv = sys.argv[sys.argv.index("--") + 1:]
 SRC_FBX = argv[0]
@@ -143,33 +143,53 @@ bpy.context.view_layer.objects.active = arm
 bpy.ops.object.mode_set(mode='POSE')
 
 for pb in arm.pose.bones:
-    pb.rotation_mode = 'XYZ'
+    pb.rotation_mode = 'QUATERNION'
 
-SWING = math.radians(22.0)     # leg swing amplitude, lumbering
+SWING = math.radians(26.0)     # leg swing amplitude, lumbering
 BODY_BOB = 0.022
 BODY_ROCK = math.radians(3.5)
 HEAD_BOB = math.radians(5.0)
 
-axis_index = {"X": 0, "Y": 1, "Z": 2}[SWING_AXIS]
+# The creature faces -Y, so a walking leg swings in the YZ plane, i.e. about world X.
+WALK_AXIS = Vector((1.0, 0.0, 0.0))
+
+
+def world_axis_quaternion(pose_bone, world_axis, angle):
+    """Rotate a pose bone about a WORLD axis rather than a bone-local one.
+
+    Bone-local axes cannot be relied on here: a bone pointing straight down is
+    parallel to world Z, which is the degenerate case for Blender's roll
+    calculation, so its local X is not guaranteed to be world X. Posing about
+    local X therefore swung the legs sideways (a lateral waddle) instead of
+    stepping fore-aft. Converting an explicit world axis into the bone's rest
+    space removes the guesswork entirely.
+    """
+    rest = pose_bone.bone.matrix_local.to_3x3()
+    local_axis = (rest.inverted() @ Vector(world_axis)).normalized()
+    return Quaternion(local_axis, angle)
 
 
 def set_leg(pb, amount, frame):
-    rot = [0.0, 0.0, 0.0]
-    rot[axis_index] = amount
-    pb.rotation_euler = rot
-    pb.keyframe_insert("rotation_euler", frame=frame)
+    pb.rotation_quaternion = world_axis_quaternion(pb, WALK_AXIS, amount)
+    pb.keyframe_insert("rotation_quaternion", frame=frame)
 
 
 def set_body(z_off, rock, frame):
-    arm.pose.bones["Body"].location = (0.0, 0.0, z_off)
-    arm.pose.bones["Body"].rotation_euler = (rock, 0.0, 0.0)
-    arm.pose.bones["Body"].keyframe_insert("location", frame=frame)
-    arm.pose.bones["Body"].keyframe_insert("rotation_euler", frame=frame)
+    pb = arm.pose.bones["Body"]
+    # Body bob is a world-space vertical lift, so convert it through the rest matrix for the
+    # same reason the leg swing does — the Body bone runs along -Y, so its local axes are not
+    # world axes either.
+    rest = pb.bone.matrix_local.to_3x3()
+    pb.location = rest.inverted() @ Vector((0.0, 0.0, z_off))
+    pb.rotation_quaternion = world_axis_quaternion(pb, WALK_AXIS, rock)
+    pb.keyframe_insert("location", frame=frame)
+    pb.keyframe_insert("rotation_quaternion", frame=frame)
 
 
 def set_head(pitch, frame):
-    arm.pose.bones["Head"].rotation_euler = (pitch, 0.0, 0.0)
-    arm.pose.bones["Head"].keyframe_insert("rotation_euler", frame=frame)
+    pb = arm.pose.bones["Head"]
+    pb.rotation_quaternion = world_axis_quaternion(pb, WALK_AXIS, pitch)
+    pb.keyframe_insert("rotation_quaternion", frame=frame)
 
 
 # Diagonal pairs: A = FL+BR, B = FR+BL
@@ -234,12 +254,26 @@ if RENDER_PREFIX:
     cam = bpy.data.objects.new("C", cd)
     bpy.context.collection.objects.link(cam)
     scene.camera = cam
-    # Low side-on view so the legs are not occluded by the shell
     target = Vector((0, 0, 0.10))
-    cam.location = (1.8, -0.55, 0.16)
-    cam.rotation_euler = (target - Vector(cam.location)).to_track_quat('-Z', 'Y').to_euler()
+    # Two viewpoints, because they disambiguate the failure mode: from the SIDE a correct
+    # fore-aft step reads as horizontal leg travel, while from the FRONT a correct step is
+    # nearly invisible. If the front view shows big left-right leg travel, the swing axis is
+    # wrong and the creature is waddling rather than walking.
+    view_positions = {
+        "side": (1.8, -0.05, 0.16),
+        "front": (0.05, -1.8, 0.16),
+    }
 
-    for f in (1, 4, 7, 10, 13, 16, 19, 22):
+    for view_name, loc in view_positions.items():
+        cam.location = loc
+        cam.rotation_euler = (target - Vector(loc)).to_track_quat('-Z', 'Y').to_euler()
+        for f in (1, 7, 13, 19):
+            scene.frame_set(f)
+            scene.render.filepath = f"{RENDER_PREFIX}_{view_name}_f{f:02d}.png"
+            bpy.ops.render.render(write_still=True)
+            print(f"RENDERED {view_name} frame {f}")
+
+    for f in ():
         scene.frame_set(f)
         scene.render.filepath = f"{RENDER_PREFIX}_f{f:02d}.png"
         bpy.ops.render.render(write_still=True)

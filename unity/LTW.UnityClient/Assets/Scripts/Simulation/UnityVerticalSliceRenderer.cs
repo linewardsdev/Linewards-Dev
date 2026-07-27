@@ -1103,11 +1103,24 @@ namespace LTW.UnityClient.Simulation
 
         private void SpawnFloatingText(Vector3 position, string text, Color color) => SpawnFloatingText(position, text, color, 0.7f);
 
+        /// <summary>
+        /// Orientation that presents flat world-space text square-on to the gameplay camera.
+        /// Falls back to the old board-flat orientation only if no camera is resolvable.
+        /// </summary>
+        private Quaternion FloatingTextRotation()
+        {
+            var camera = presentationCamera != null ? presentationCamera : Camera.main;
+            return camera != null ? camera.transform.rotation : Quaternion.Euler(90f, 0f, 0f);
+        }
+
         private void SpawnFloatingText(Vector3 position, string text, Color color, float duration)
         {
             var textObject = GetTextObject();
             textObject.transform.position = position + Vector3.up * 0.55f;
-            textObject.transform.rotation = Quaternion.Euler(90f, 0f, 0f);
+            // Face the camera rather than lying flat on the board. The old fixed Euler(90,0,0) was
+            // only legible because the camera was nearly straight down; at any real tilt the text
+            // slants away and loses readability. Billboarding keeps it face-on at any camera angle.
+            textObject.transform.rotation = FloatingTextRotation();
             textObject.transform.localScale = Vector3.one;
             var mesh = textObject.GetComponent<TextMesh>();
             if (mesh == null)
@@ -1375,7 +1388,9 @@ namespace LTW.UnityClient.Simulation
             SpawnBeam(senderPosition + Vector3.up * 0.18f, defenderPosition + Vector3.up * 0.18f, color, 0.22f);
             SpawnEffect(defenderPosition, color, 0.54f, 0.3f);
             SpawnFloatingText(senderPosition + Vector3.left * 0.42f, "SEND", color, 0.42f);
-            SpawnFloatingText(defenderPosition, $"{queued.Quantity}x {SpawnLabel(queued.CreepId.Value)}", color, 0.56f);
+            // The large "{qty}x {NAME}" spawn banner over the defender's gate was removed: it
+            // dominated the top of the board and duplicated information the send dock already
+            // shows. The sender-side SEND cue and the gate effect still mark the event.
             SpawnReducedEffectCue(defenderPosition, "SEND", color);
             PlaySound(sendClip);
         }
@@ -1907,6 +1922,20 @@ namespace LTW.UnityClient.Simulation
         private static bool IsHealthBarPart(string name) =>
             name == "HealthBarBack" || name == "HealthBarFill" || name == "HealthBarMidTick" || name == "HealthWoundPip";
 
+        /// <summary>
+        /// Two-piece health bar: a dark backing and a coloured fill, shown only once a creep has
+        /// actually taken damage.
+        /// </summary>
+        /// <remarks>
+        /// This used to stack four separate cubes per creep — backing, fill, a dark mid-tick
+        /// splitting the fill in half, and a red "wound pip" hanging off the end — and drew all of
+        /// them on every creep at all times, including at full health. On screen that read as a
+        /// cluster of unrelated coloured lines floating above each unit rather than as one bar, and
+        /// at the spawn gate it appeared as a stray green/red streak before its creep was even
+        /// visible. The mid-tick and wound pip carried no information the fill width did not
+        /// already convey, so both are gone; hiding the bar at full health removes it entirely for
+        /// most units most of the time.
+        /// </remarks>
         private static void ConfigureCreepHealthBar(GameObject creepObject, string creepId, float healthFraction)
         {
             var metrics = CreepHealthBarMetrics.For(creepId);
@@ -1917,16 +1946,35 @@ namespace LTW.UnityClient.Simulation
 
             var back = EnsureChild(creepObject, "HealthBarBack", PrimitiveType.Cube);
             var fill = EnsureChild(creepObject, "HealthBarFill", PrimitiveType.Cube);
-            var midpoint = EnsureChild(creepObject, "HealthBarMidTick", PrimitiveType.Cube);
-            var wound = EnsureChild(creepObject, "HealthWoundPip", PrimitiveType.Cube);
+
+            var damaged = healthFraction < 0.999f;
+            back.SetActive(damaged);
+            fill.SetActive(damaged);
+            if (!damaged)
+            {
+                DeactivateChild(creepObject, "HealthBarMidTick");
+                DeactivateChild(creepObject, "HealthWoundPip");
+                return;
+            }
 
             ConfigureHealthBarChild(back, new Vector3(0f, barY, metrics.Z), new Vector3(metrics.Width, metrics.Height, metrics.Depth), new Color(0.015f, 0.022f, 0.035f));
             var fillWidth = Mathf.Max(metrics.MinFillWidth, metrics.Width * Mathf.Clamp01(healthFraction));
             var fillX = (fillWidth - metrics.Width) * 0.5f;
             ConfigureHealthBarChild(fill, new Vector3(fillX, barY + metrics.FillLift, metrics.Z), new Vector3(fillWidth, metrics.Height * 1.12f, metrics.Depth * 1.08f), CreepHealthColor(healthFraction));
-            ConfigureHealthBarChild(midpoint, new Vector3(0f, barY + metrics.FillLift * 1.6f, metrics.Z), new Vector3(0.035f, metrics.Height * 1.35f, metrics.Depth * 1.16f), new Color(0.015f, 0.022f, 0.035f));
-            ConfigureHealthBarChild(wound, new Vector3(metrics.Width * 0.5f + metrics.WoundOffset, barY + metrics.FillLift * 1.7f, metrics.Z), new Vector3(metrics.WoundSize, metrics.Height * 1.5f, metrics.Depth * 1.18f), LeakRed);
-            wound.SetActive(healthFraction < 0.72f);
+
+            // Retired parts: pooled creeps can carry them over from a previous life, so they are
+            // explicitly switched off rather than merely no longer created.
+            DeactivateChild(creepObject, "HealthBarMidTick");
+            DeactivateChild(creepObject, "HealthWoundPip");
+        }
+
+        private static void DeactivateChild(GameObject root, string childName)
+        {
+            var child = root.transform.Find(childName);
+            if (child != null && child.gameObject.activeSelf)
+            {
+                child.gameObject.SetActive(false);
+            }
         }
 
         private static void ConfigureHealthBarChild(GameObject child, Vector3 localPosition, Vector3 localScale, Color color)
@@ -2107,6 +2155,13 @@ namespace LTW.UnityClient.Simulation
 
         private void CreateLaneFrameAccentChip(int laneId, string name, Vector3 position, Color accent)
         {
+            // Same problem as the gutter ticks: a tilted slab on the frame corner reads as a
+            // stray shard rather than trim, so it is full-detail only.
+            if (BoardDetail != BoardDetailLevel.Full)
+            {
+                return;
+            }
+
             var chip = CreateBoardRail($"Lane{laneId}{name}RailAccent", position, new Vector3(0.2f, 0.018f, 0.055f), LaneFrameAccentColor(accent, laneId == 1));
             chip.transform.rotation = Quaternion.Euler(0f, name.Contains("West", StringComparison.OrdinalIgnoreCase) ? 22f : -22f, 0f);
         }
@@ -2151,6 +2206,15 @@ namespace LTW.UnityClient.Simulation
 
         private void CreateLaneFlowTickMarks(int laneId)
         {
+            // Angled slabs down both gutters, originally every third row. They restate the flow
+            // direction the in-lane arrows already give, and because they are tilted cubes sitting
+            // proud of the gutter they read as loose blue shards stuck to the board edge rather
+            // than as trim. Only kept at full detail.
+            if (BoardDetail != BoardDetailLevel.Full)
+            {
+                return;
+            }
+
             var offset = LaneOffset(laneId);
             var color = LaneTickColor(OwnerAccent(laneId), laneId == 1);
 
@@ -2196,6 +2260,46 @@ namespace LTW.UnityClient.Simulation
             CreateSurfaceBand($"Lane{laneId}LeakApproachPlate", new Vector3(offset + BoardCenterX, -0.218f, 0.72f), new Vector3(LaneWidth - 1.15f, 0.032f, 0.34f), EndpointApproachPlateColor(false, laneId == 1));
         }
 
+        /// <summary>
+        /// How much scatter decoration the board surface carries.
+        /// </summary>
+        /// <remarks>
+        /// The original pass laid down roughly 130 extra pieces per lane — a beveled inset plate
+        /// every other row on both build columns plus one in the walking route, wear smudges,
+        /// edge chips, ribs, seams and cracks. Under the near-overhead camera this read as
+        /// scattered floating boxes rather than surface texture. Override with
+        /// -ltwBoardDetail minimal|reduced|full.
+        /// </remarks>
+        private enum BoardDetailLevel
+        {
+            Minimal,
+            Reduced,
+            Full
+        }
+
+        private static readonly BoardDetailLevel BoardDetail = ResolveBoardDetail();
+
+        private static BoardDetailLevel ResolveBoardDetail()
+        {
+            var args = Environment.GetCommandLineArgs();
+            for (var index = 0; index < args.Length - 1; index++)
+            {
+                if (args[index] != "-ltwBoardDetail")
+                {
+                    continue;
+                }
+
+                switch (args[index + 1].ToLowerInvariant())
+                {
+                    case "minimal": return BoardDetailLevel.Minimal;
+                    case "reduced": return BoardDetailLevel.Reduced;
+                    case "full": return BoardDetailLevel.Full;
+                }
+            }
+
+            return BoardDetailLevel.Reduced;
+        }
+
         private void CreateLaneTileDetailPass(int laneId)
         {
             var offset = LaneOffset(laneId);
@@ -2207,53 +2311,66 @@ namespace LTW.UnityClient.Simulation
             CreateSurfaceBand($"Lane{laneId}WestRailContactShadow", new Vector3(offset - 0.43f, -0.118f, BoardCenterZ), new Vector3(0.12f, 0.018f, LaneLength - 0.2f), BoardContactShadowColor(laneId));
             CreateSurfaceBand($"Lane{laneId}EastRailContactShadow", new Vector3(offset + LaneWidth - 0.57f, -0.118f, BoardCenterZ), new Vector3(0.12f, 0.018f, LaneLength - 0.2f), BoardContactShadowColor(laneId));
 
-            for (var y = 1; y < LaneLength - 1; y++)
+            // Scatter detail inside the walking route is the worst offender: creeps travel over it,
+            // so it competes with the units for attention on exactly the pixels that matter most.
+            if (BoardDetail == BoardDetailLevel.Full)
             {
-                var z = WorldZ(y);
-                var jitter = TileVariation(laneId, CenterColumn, y) - 0.5f;
-                if (y % 2 == 0)
+                for (var y = 1; y < LaneLength - 1; y++)
                 {
-                    var wear = CreateSurfaceBand($"Lane{laneId}RouteWear_{y}", new Vector3(offset + CenterColumn + jitter * 0.18f, -0.098f, z + jitter * 0.08f), new Vector3(0.48f + Mathf.Abs(jitter) * 0.18f, 0.018f, 0.16f), routeWear);
-                    wear.transform.rotation = Quaternion.Euler(0f, jitter * 14f, 0f);
-                }
+                    var z = WorldZ(y);
+                    var jitter = TileVariation(laneId, CenterColumn, y) - 0.5f;
+                    if (y % 2 == 0)
+                    {
+                        var wear = CreateSurfaceBand($"Lane{laneId}RouteWear_{y}", new Vector3(offset + CenterColumn + jitter * 0.18f, -0.098f, z + jitter * 0.08f), new Vector3(0.48f + Mathf.Abs(jitter) * 0.18f, 0.018f, 0.16f), routeWear);
+                        wear.transform.rotation = Quaternion.Euler(0f, jitter * 14f, 0f);
+                    }
 
-                if (y % 4 == 1)
-                {
-                    CreateSurfaceBand($"Lane{laneId}RouteLeftChip_{y}", new Vector3(offset + CenterColumn - 0.5f, -0.092f, z), new Vector3(0.16f, 0.016f, 0.08f), edgeColor);
-                    CreateSurfaceBand($"Lane{laneId}RouteRightChip_{y}", new Vector3(offset + CenterColumn + 0.5f, -0.092f, z - 0.18f), new Vector3(0.12f, 0.016f, 0.09f), edgeColor);
-                }
+                    if (y % 4 == 1)
+                    {
+                        CreateSurfaceBand($"Lane{laneId}RouteLeftChip_{y}", new Vector3(offset + CenterColumn - 0.5f, -0.092f, z), new Vector3(0.16f, 0.016f, 0.08f), edgeColor);
+                        CreateSurfaceBand($"Lane{laneId}RouteRightChip_{y}", new Vector3(offset + CenterColumn + 0.5f, -0.092f, z - 0.18f), new Vector3(0.12f, 0.016f, 0.09f), edgeColor);
+                    }
 
-                if (y % 3 == 0)
-                {
-                    var rib = CreateSurfaceBand($"Lane{laneId}RouteRib_{y}", new Vector3(offset + CenterColumn, -0.086f, z - 0.32f), new Vector3(0.72f, 0.014f, 0.028f), RouteRibColor(laneId));
-                    rib.transform.rotation = Quaternion.Euler(0f, (y % 2 == 0 ? 10f : -10f), 0f);
+                    if (y % 3 == 0)
+                    {
+                        var rib = CreateSurfaceBand($"Lane{laneId}RouteRib_{y}", new Vector3(offset + CenterColumn, -0.086f, z - 0.32f), new Vector3(0.72f, 0.014f, 0.028f), RouteRibColor(laneId));
+                        rib.transform.rotation = Quaternion.Euler(0f, (y % 2 == 0 ? 10f : -10f), 0f);
+                    }
                 }
             }
 
-            for (var y = 2; y < LaneLength - 2; y += 4)
+            if (BoardDetail != BoardDetailLevel.Minimal)
             {
-                var z = WorldZ(y) - 0.5f;
-                CreateSurfaceBand($"Lane{laneId}LeftBuildSeam_{y}", new Vector3(offset + 1f, -0.088f, z), new Vector3(1.5f, 0.014f, 0.035f), seamColor);
-                CreateSurfaceBand($"Lane{laneId}RightBuildSeam_{y}", new Vector3(offset + 5f, -0.088f, z), new Vector3(1.5f, 0.014f, 0.035f), seamColor);
+                for (var y = 2; y < LaneLength - 2; y += 4)
+                {
+                    var z = WorldZ(y) - 0.5f;
+                    CreateSurfaceBand($"Lane{laneId}LeftBuildSeam_{y}", new Vector3(offset + 1f, -0.088f, z), new Vector3(1.5f, 0.014f, 0.035f), seamColor);
+                    CreateSurfaceBand($"Lane{laneId}RightBuildSeam_{y}", new Vector3(offset + 5f, -0.088f, z), new Vector3(1.5f, 0.014f, 0.035f), seamColor);
+                }
             }
 
+            // The build-column plates are the only inset that carries meaning — they mark where a
+            // tower can go — so they survive every level. The one in the walking route does not.
             for (var y = 1; y < LaneLength - 1; y += 2)
             {
                 var z = WorldZ(y);
                 CreateBoardPlateInset(laneId, $"LeftInset_{y}", new Vector3(offset + 1f, -0.078f, z), laneId == 1);
                 CreateBoardPlateInset(laneId, $"RightInset_{y}", new Vector3(offset + 5f, -0.078f, z), laneId == 1);
-                if (y % 4 == 1)
+                if (y % 4 == 1 && BoardDetail == BoardDetailLevel.Full)
                 {
                     CreateBoardPlateInset(laneId, $"RouteInset_{y}", new Vector3(offset + CenterColumn, -0.074f, z), laneId == 1, 0.72f, 0.52f);
                 }
             }
 
-            for (var y = 3; y < LaneLength - 2; y += 5)
+            if (BoardDetail == BoardDetailLevel.Full)
             {
-                var westCrack = CreateSurfaceBand($"Lane{laneId}WestPlateCrack_{y}", new Vector3(offset + 1.45f, -0.082f, WorldZ(y) + 0.18f), new Vector3(0.035f, 0.014f, 0.44f), crackColor);
-                westCrack.transform.rotation = Quaternion.Euler(0f, -22f, 0f);
-                var eastCrack = CreateSurfaceBand($"Lane{laneId}EastPlateCrack_{y}", new Vector3(offset + 4.55f, -0.082f, WorldZ(y) - 0.08f), new Vector3(0.032f, 0.014f, 0.36f), crackColor);
-                eastCrack.transform.rotation = Quaternion.Euler(0f, 18f, 0f);
+                for (var y = 3; y < LaneLength - 2; y += 5)
+                {
+                    var westCrack = CreateSurfaceBand($"Lane{laneId}WestPlateCrack_{y}", new Vector3(offset + 1.45f, -0.082f, WorldZ(y) + 0.18f), new Vector3(0.035f, 0.014f, 0.44f), crackColor);
+                    westCrack.transform.rotation = Quaternion.Euler(0f, -22f, 0f);
+                    var eastCrack = CreateSurfaceBand($"Lane{laneId}EastPlateCrack_{y}", new Vector3(offset + 4.55f, -0.082f, WorldZ(y) - 0.08f), new Vector3(0.032f, 0.014f, 0.36f), crackColor);
+                    eastCrack.transform.rotation = Quaternion.Euler(0f, 18f, 0f);
+                }
             }
         }
 
@@ -2467,6 +2584,14 @@ namespace LTW.UnityClient.Simulation
             var intakeB = CreateSpawnGatePulseBand(laneId, "IntakeChevronB", new Vector3(offset + CenterColumn + 0.22f * scale, 0.224f, z - 1.02f * scale), new Vector3(0.1f, 0.018f, 0.56f * scale), signal, 0.16f, 0.08f, 0.018f);
             intakeB.transform.rotation = Quaternion.Euler(0f, -35f, 0f);
 
+            // The rune row is five small cubes strung across the mouth of the gate. It was intended
+            // as arcane trim but reads as a dashed coloured line drawn over the lane, so it only
+            // survives at full detail.
+            if (BoardDetail != BoardDetailLevel.Full)
+            {
+                return;
+            }
+
             for (var index = -2; index <= 2; index++)
             {
                 var rune = CreateSpawnGatePulseBand(
@@ -2566,7 +2691,16 @@ namespace LTW.UnityClient.Simulation
 
         private void CreateLaneFlowCues(int laneId)
         {
-            for (var y = 2; y < LaneLength - 1; y += 3)
+            // Direction of travel only needs establishing, not repeating every three tiles down a
+            // lane that already reads as one-way. Spacing them out also clears the route for units.
+            var spacing = BoardDetail switch
+            {
+                BoardDetailLevel.Full => 3,
+                BoardDetailLevel.Reduced => 5,
+                _ => 7
+            };
+
+            for (var y = 2; y < LaneLength - 1; y += spacing)
             {
                 CreateFlowArrow(laneId, y);
             }
