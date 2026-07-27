@@ -48,7 +48,10 @@ namespace LTW.UnityClient.Editor
                 Creep3DImportPipeline.RuntimePrefabFolder + "/Creep_Brute_3D.prefab",
                 new Vector3(1.18f, 1.18f, 1.18f),
                 1f,
-                Vector3.zero,
+                // Unlike Runner/Siege, Brute's long axis was already aligned with the lane (no 90
+                // degree fix needed) but faced the wrong end of it — reported backwards, not
+                // sideways. Yaw 180 turns it to face travel direction (toward -Z).
+                new Vector3(0f, 180f, 0f),
                 0.46f),
             new(
                 "Swarm",
