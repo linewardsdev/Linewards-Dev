@@ -122,6 +122,13 @@ namespace LTW.UnityClient.Simulation
         private readonly List<TimedPresentation> timedPresentations = new List<TimedPresentation>();
         private readonly List<SpawnGatePulseElement> spawnGatePulseElements = new List<SpawnGatePulseElement>();
 
+        /// <summary>
+        /// Spawn gate artwork, brightness-pulsed to show the gate is live. This replaces the
+        /// geometric pulse bars, which achieved the same thing by laying flat cubes straight across
+        /// the middle of the portal sprite and hiding the detail it was drawn with.
+        /// </summary>
+        private readonly List<SpriteRenderer> spawnGateSpriteRenderers = new List<SpriteRenderer>();
+
         private Camera presentationCamera = null!;
         private Sprite spawnGateSprite;
         private Sprite leakGateSprite;
@@ -2558,6 +2565,11 @@ namespace LTW.UnityClient.Simulation
             renderer.sortingOrder = 3;
             renderer.color = Color.white;
             laneDecorations.Add(plate);
+
+            if (isSpawn)
+            {
+                spawnGateSpriteRenderers.Add(renderer);
+            }
         }
 
         private void CreateSpawnGateSpriteCompanionDetails(int laneId, Vector3 center, Color signal, bool isPlayerLane)
@@ -2576,13 +2588,21 @@ namespace LTW.UnityClient.Simulation
             CreateSurfaceBand($"Lane{laneId}SpawnSocketNorthLip", new Vector3(offset + CenterColumn, 0.13f, z + 0.78f * scale), new Vector3(2.08f * scale, 0.024f, 0.1f), rimColor);
             CreateSurfaceBand($"Lane{laneId}SpawnSocketSouthLip", new Vector3(offset + CenterColumn, 0.13f, z - 0.84f * scale), new Vector3(2.08f * scale, 0.024f, 0.1f), rimColor);
 
-            CreateSpawnGatePulseBand(laneId, "OuterPulse", center + new Vector3(0f, 0.205f, -0.04f), new Vector3(1.52f * scale, 0.012f, 0.075f), pulseColor, 0f, 0.12f, 0.012f);
-            CreateSpawnGatePulseBand(laneId, "InnerPulse", center + new Vector3(0f, 0.216f, -0.04f), new Vector3(0.86f * scale, 0.014f, 0.06f), pulseColor, 0.47f, 0.1f, 0.014f);
+            // The two pulse bars sat flat across the middle of the gate sprite, covering the glowing
+            // core the artwork already draws, and the intake chevrons repeated the chevron shapes
+            // the same sprite carries at its base. Both are geometry competing with finished art,
+            // so at anything below full detail the gate is left to speak for itself and the
+            // "this gate is live" signal comes from pulsing the sprite's brightness instead.
+            if (BoardDetail == BoardDetailLevel.Full)
+            {
+                CreateSpawnGatePulseBand(laneId, "OuterPulse", center + new Vector3(0f, 0.205f, -0.04f), new Vector3(1.52f * scale, 0.012f, 0.075f), pulseColor, 0f, 0.12f, 0.012f);
+                CreateSpawnGatePulseBand(laneId, "InnerPulse", center + new Vector3(0f, 0.216f, -0.04f), new Vector3(0.86f * scale, 0.014f, 0.06f), pulseColor, 0.47f, 0.1f, 0.014f);
 
-            var intakeA = CreateSpawnGatePulseBand(laneId, "IntakeChevronA", new Vector3(offset + CenterColumn - 0.22f * scale, 0.224f, z - 1.02f * scale), new Vector3(0.1f, 0.018f, 0.56f * scale), signal, 0.16f, 0.08f, 0.018f);
-            intakeA.transform.rotation = Quaternion.Euler(0f, 35f, 0f);
-            var intakeB = CreateSpawnGatePulseBand(laneId, "IntakeChevronB", new Vector3(offset + CenterColumn + 0.22f * scale, 0.224f, z - 1.02f * scale), new Vector3(0.1f, 0.018f, 0.56f * scale), signal, 0.16f, 0.08f, 0.018f);
-            intakeB.transform.rotation = Quaternion.Euler(0f, -35f, 0f);
+                var intakeA = CreateSpawnGatePulseBand(laneId, "IntakeChevronA", new Vector3(offset + CenterColumn - 0.22f * scale, 0.224f, z - 1.02f * scale), new Vector3(0.1f, 0.018f, 0.56f * scale), signal, 0.16f, 0.08f, 0.018f);
+                intakeA.transform.rotation = Quaternion.Euler(0f, 35f, 0f);
+                var intakeB = CreateSpawnGatePulseBand(laneId, "IntakeChevronB", new Vector3(offset + CenterColumn + 0.22f * scale, 0.224f, z - 1.02f * scale), new Vector3(0.1f, 0.018f, 0.56f * scale), signal, 0.16f, 0.08f, 0.018f);
+                intakeB.transform.rotation = Quaternion.Euler(0f, -35f, 0f);
+            }
 
             // The rune row is five small cubes strung across the mouth of the gate. It was intended
             // as arcane trim but reads as a dashed coloured line drawn over the lane, so it only
@@ -2621,6 +2641,20 @@ namespace LTW.UnityClient.Simulation
 
         private void UpdateSpawnGatePulse()
         {
+            // Brightness pulse on the gate artwork itself. Kept subtle: this reads as the portal
+            // breathing, where anything stronger looks like a flicker fault.
+            for (var index = 0; index < spawnGateSpriteRenderers.Count; index++)
+            {
+                var spriteRenderer = spawnGateSpriteRenderers[index];
+                if (spriteRenderer == null)
+                {
+                    continue;
+                }
+
+                var glow = 0.9f + (Mathf.Sin(Time.time * 1.8f) + 1f) * 0.5f * 0.1f;
+                spriteRenderer.color = new Color(glow, glow, glow, 1f);
+            }
+
             if (spawnGatePulseElements.Count == 0)
             {
                 return;
