@@ -17,7 +17,7 @@ MonoBehaviour:
     role: 0
     prefab: {fileID: 9064727781167026979, guid: 039af61179c58114eb927ddbdc2d4aba, type: 3}
     scale: {x: 0.78, y: 0.78, z: 0.78}
-    lift: 0.1
+    lift: 0
     bodyRendererPath: BodyTintAnchor
     roleMarkerRendererPath: RoleMarker
     ownerTrimRendererPath: OwnerTrim
@@ -26,7 +26,7 @@ MonoBehaviour:
     role: 1
     prefab: {fileID: 9202368460950008800, guid: 30374dc784fd34f66b3eeed0b2383b15, type: 3}
     scale: {x: 0.74, y: 0.74, z: 0.74}
-    lift: 0.1
+    lift: 0
     bodyRendererPath: BodyTintAnchor
     roleMarkerRendererPath: RoleMarker
     ownerTrimRendererPath: OwnerTrim
@@ -35,7 +35,7 @@ MonoBehaviour:
     role: 2
     prefab: {fileID: 2164388632969021273, guid: 6685df9c0a2124b5e84dd655857a866c, type: 3}
     scale: {x: 0.66, y: 0.66, z: 0.66}
-    lift: 0.1
+    lift: 0
     bodyRendererPath: BodyTintAnchor
     roleMarkerRendererPath: RoleMarker
     ownerTrimRendererPath: OwnerTrim
@@ -44,7 +44,7 @@ MonoBehaviour:
     role: 3
     prefab: {fileID: 5790834266410992208, guid: a623adc13e3734243be03cef0246b51e, type: 3}
     scale: {x: 0.76, y: 0.76, z: 0.76}
-    lift: 0.1
+    lift: 0
     bodyRendererPath: BodyTintAnchor
     roleMarkerRendererPath: RoleMarker
     ownerTrimRendererPath: OwnerTrim
@@ -53,7 +53,7 @@ MonoBehaviour:
     role: 4
     prefab: {fileID: 1891049805039902047, guid: ddff33573a97a4937948f0dd9c01a640, type: 3}
     scale: {x: 0.62, y: 0.62, z: 0.62}
-    lift: 0.1
+    lift: 0
     bodyRendererPath: BodyTintAnchor
     roleMarkerRendererPath: RoleMarker
     ownerTrimRendererPath: OwnerTrim

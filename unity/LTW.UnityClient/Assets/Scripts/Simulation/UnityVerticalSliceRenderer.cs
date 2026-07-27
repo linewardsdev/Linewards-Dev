@@ -87,6 +87,7 @@ namespace LTW.UnityClient.Simulation
         private readonly Dictionary<string, float> towerLastFiredAt = new Dictionary<string, float>();
         private readonly Dictionary<string, Vector3> towerAimTarget = new Dictionary<string, Vector3>();
         private readonly Dictionary<string, float> towerAimYaw = new Dictionary<string, float>();
+        private readonly Dictionary<string, RingSpinState> towerRingSpinState = new Dictionary<string, RingSpinState>();
         private readonly Dictionary<int, GameObject> lanePressureMeters = new Dictionary<int, GameObject>();
         private readonly Dictionary<int, GameObject> lanePressureCaps = new Dictionary<int, GameObject>();
         private readonly Dictionary<int, TextMesh> lanePressureLabels = new Dictionary<int, TextMesh>();
@@ -1622,6 +1623,7 @@ namespace LTW.UnityClient.Simulation
                 towerLastFiredAt.Remove(key);
                 towerAimTarget.Remove(key);
                 towerAimYaw.Remove(key);
+                towerRingSpinState.Remove(key);
             }
         }
 
@@ -1784,10 +1786,26 @@ namespace LTW.UnityClient.Simulation
             instance.transform.localScale = Vector3.one * scale;
         }
 
+        // Real 3D tower prefabs have their own mesh pivot sitting exactly at the model's visual
+        // base, but GridToWorld's fixed Y (0.35, shared with every other entity type) sits 0.47
+        // units above BoardTopY (-0.12), the board mesh's actual baked floor surface — the same
+        // surface each tower's own contact-shadow decal is correctly pinned to (UpdateContactShadow).
+        // That gap is invisible from directly overhead, but the tilted match camera projects it into
+        // a real, visible vertical disconnect between a tower and its own shadow, reading as
+        // "floating"/"off-center". Anchoring real tower prefabs to BoardTopY instead removes the gap
+        // without touching GridToWorld itself, which creeps and the (now-unused) primitive tower
+        // fallback still rely on. Clearance must clear RangeHalo, the lowest root-level accessory
+        // shape at local Y -0.06 (Tower3DImportPipeline.CreateRangeHalo) — those accessories sit
+        // below root by design and would otherwise dip beneath BoardTopY and clip into the floor.
+        private const float TowerBaseClearance = 0.08f;
+
         private static void SetTowerTransform(GameObject instance, GridPosition position, LaneId laneId, string towerId, TowerVisualProfile visualProfile)
         {
-            var lift = visualProfile != null && visualProfile.Prefab != null ? visualProfile.Lift : TowerRoleLift(towerId);
-            instance.transform.position = GridToWorld(position, laneId) + Vector3.up * lift;
+            var hasRealPrefab = visualProfile != null && visualProfile.Prefab != null;
+            var lift = hasRealPrefab ? visualProfile.Lift : TowerRoleLift(towerId);
+            var basePosition = GridToWorld(position, laneId);
+            var baseY = hasRealPrefab ? BoardTopY + TowerBaseClearance : basePosition.y;
+            instance.transform.position = new Vector3(basePosition.x, baseY + lift, basePosition.z);
             instance.transform.localScale = visualProfile != null && visualProfile.HasScale ? visualProfile.Scale : TowerRoleScale(towerId);
             instance.transform.rotation = Quaternion.identity;
         }
@@ -1837,19 +1855,45 @@ namespace LTW.UnityClient.Simulation
             body.localScale = Vector3.one * idleScale;
 
             // Rigid sub-parts (e.g. Control's floating ring) spin independently of Body's own
-            // idle/aim/recoil motion — a continuous local yaw, not something driven by firing
-            // state. Searched by name rather than a fixed path since the ring sits under whatever
-            // depth the imported raw mesh hierarchy happens to nest it at (e.g.
-            // Body/Imported3DVisual/Ring), which is an import-pipeline detail this call site
-            // shouldn't need to know.
+            // idle/aim/recoil motion — a continuous spin about the WORLD-vertical axis, not
+            // something driven by firing state. Searched by name rather than a fixed path since
+            // the ring sits under whatever depth the imported raw mesh hierarchy happens to nest
+            // it at (e.g. Body/Imported3DVisual/LTW_Unity_ExportRoot/Ring), which is an
+            // import-pipeline detail this call site shouldn't need to know.
             var ring = FindDeepChild(body, "Ring");
             if (ring != null)
             {
-                ring.localRotation = Quaternion.Euler(0f, Time.time * TowerRingSpinDegreesPerSecond, 0f);
+                // A plain Quaternion.Euler(0, angle, 0) assumes the ring's own local Y axis IS
+                // world-up, which isn't guaranteed once an FBX export/import round-trip has done
+                // its own Z-up/Y-up axis conversion partway down the hierarchy — it produced an
+                // end-over-end tumble instead of a flat Saturn's-rings spin here. Instead, convert
+                // world-up into whatever axis it actually corresponds to in the ring's own rest
+                // space (cached once), the same fix pattern used for the Brute rig's degenerate
+                // straight-down bone case in rig_quadruped_creep.py.
+                if (!towerRingSpinState.TryGetValue(key, out var spinState))
+                {
+                    var localSpinAxis = ring.parent.InverseTransformDirection(Vector3.up).normalized;
+                    spinState = new RingSpinState(localSpinAxis, ring.localRotation);
+                    towerRingSpinState[key] = spinState;
+                }
+
+                ring.localRotation = Quaternion.AngleAxis(Time.time * TowerRingSpinDegreesPerSecond, spinState.LocalSpinAxis) * spinState.RestLocalRotation;
             }
         }
 
         private const float TowerRingSpinDegreesPerSecond = 32f;
+
+        private readonly struct RingSpinState
+        {
+            public RingSpinState(Vector3 localSpinAxis, Quaternion restLocalRotation)
+            {
+                LocalSpinAxis = localSpinAxis;
+                RestLocalRotation = restLocalRotation;
+            }
+
+            public Vector3 LocalSpinAxis { get; }
+            public Quaternion RestLocalRotation { get; }
+        }
 
         private static Transform FindDeepChild(Transform parent, string name)
         {
@@ -1870,14 +1914,19 @@ namespace LTW.UnityClient.Simulation
             return null;
         }
 
+        /// <summary>
+        /// Resolves the tower's actual mesh-bearing Body transform, NOT
+        /// <see cref="TowerVisualProfile.BodyRendererPath"/> — that field is "BodyTintAnchor" for
+        /// every tower profile (see TowerVisualLibrary.asset), a separate mesh-less empty used only
+        /// for the SetProfileColor tint lookup. It is a sibling of Body, not an alias for it (see
+        /// Tower3DImportPipeline.GenerateWrapperIfRawExists, which creates both as distinct children
+        /// of root). Applying motion to BodyTintAnchor silently animates nothing, since it has no
+        /// renderer anywhere under it — this was the actual reason tower idle/aim/recoil motion
+        /// (and now ring-spin) never appeared on screen.
+        /// </summary>
         private static Transform ResolveTowerMotionTarget(GameObject towerObject, TowerVisualProfile visualProfile)
         {
-            if (string.IsNullOrWhiteSpace(visualProfile.BodyRendererPath))
-            {
-                return towerObject.transform;
-            }
-
-            return towerObject.transform.Find(visualProfile.BodyRendererPath) ?? towerObject.transform;
+            return towerObject.transform.Find("Body") ?? towerObject.transform;
         }
 
         /// <summary>
