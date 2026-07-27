@@ -133,6 +133,16 @@ namespace LTW.UnityClient.Editor
 
         private static Material CreateBodyMaterial(Creep3DImportSpec spec)
         {
+            var materialPathForExistingCheck = $"{MaterialFolder}/mat_creep_{spec.DisplayName.ToLowerInvariant()}_3d_body_v01.mat";
+            var existingMaterial = AssetDatabase.LoadAssetAtPath<Material>(materialPathForExistingCheck);
+            if (existingMaterial != null)
+            {
+                // Body material is hand-tuned after creation (smoothness, parallax, etc.).
+                // Regenerating the wrapper must not reset those tuned values back to this recipe's
+                // defaults — see the equivalent fix in Tower3DImportPipeline.CreateBodyMaterial.
+                return existingMaterial;
+            }
+
             var baseColor = AssetDatabase.LoadAssetAtPath<Texture>($"{spec.TextureFolder}/Baked_BaseColor.png");
             if (baseColor == null)
             {
@@ -190,20 +200,32 @@ namespace LTW.UnityClient.Editor
             StripColliders(accent);
             accent.GetComponent<Renderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
 
+            var materialPath = $"{MaterialFolder}/mat_creep_{spec.DisplayName.ToLowerInvariant()}_3d_sender_v01.mat";
+            var existingMaterial = AssetDatabase.LoadAssetAtPath<Material>(materialPath);
+            if (existingMaterial != null)
+            {
+                // Same reasoning as CreateBodyMaterial: regenerating the wrapper must not reset an
+                // already-tuned material back to this recipe's defaults.
+                accent.GetComponent<Renderer>().sharedMaterial = existingMaterial;
+                return;
+            }
+
             // Authored dark. The runtime multiplies the sender colour into this, so a white base
-            // reads as a bright puck under every creep until a match assigns ownership.
+            // reads as a bright puck under every creep until a match assigns ownership. Set on both
+            // _Color and _BaseColor since Built-in Standard and URP/Lit read from different
+            // properties and RenderCompat.Lit may resolve to either.
             var material = new Material(LTW.UnityClient.Simulation.RenderCompat.Lit)
             {
                 name = $"mat_creep_{spec.DisplayName.ToLowerInvariant()}_3d_sender_v01",
             };
-            material.SetColor("_Color", new Color(0.078f, 0.086f, 0.11f));
+            var accentColor = new Color(0.078f, 0.086f, 0.11f);
+            material.SetColor("_Color", accentColor);
+            if (material.HasProperty("_BaseColor")) material.SetColor("_BaseColor", accentColor);
             material.SetFloat("_Glossiness", 0.35f);
             material.SetColor("_EmissionColor", new Color(0.09f, 0.10f, 0.13f));
             material.EnableKeyword("_EMISSION");
             material.globalIlluminationFlags = MaterialGlobalIlluminationFlags.None;
 
-            var materialPath = $"{MaterialFolder}/{material.name}.mat";
-            AssetDatabase.DeleteAsset(materialPath);
             AssetDatabase.CreateAsset(material, materialPath);
             accent.GetComponent<Renderer>().sharedMaterial = AssetDatabase.LoadAssetAtPath<Material>(materialPath);
         }

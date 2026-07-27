@@ -8,32 +8,31 @@ retired since the work they tracked is done; recover that detail from git
 history (`git log --all --full-history -- docs/URP_MIGRATION.md`) if it's
 ever needed again.
 
-## 1. `_EMISSION` keyword loss on the five tower body materials
+## 1. `_EMISSION` keyword loss on the five tower body materials — now self-healing, root cause still unknown
 
-`mat_tower_{arrow,control,relay,pulse,prism}_3d_body_runtime_v01.mat` have
-lost their `_EMISSION` shader keyword and gone silently non-emissive twice
-this session, from a trigger that was never isolated — once from a
-`MaterialGlobalIlluminationFlags.EmissiveIsBlack` setting (fixed by setting
-it to `.None`), and once again afterward from a plain compile-only Editor
-pass with no material-touching code involved. Both times it was caught only
-by explicitly grepping the `.mat` files for `_EMISSION`, not by looking at a
-render.
+`mat_tower_{arrow,control,relay,pulse,prism}_3d_body_runtime_v01.mat` lost
+their `_EMISSION` shader keyword and went silently non-emissive repeatedly
+(at least 4 times) across two sessions, from a trigger that was never
+isolated — it recurred from a plain compile-only Editor pass with no
+material-touching code involved, and from ordinary batchmode capture runs.
+Manually re-enabling it after each occurrence stopped scaling.
 
-**Before relying on tower emission rendering correctly, check:**
+**Fixed with a guard, not a root-cause fix**: `Assets/Editor/TowerEmissionKeywordGuard.cs`
+runs on every asset import pass (`AssetPostprocessor.OnPostprocessAllAssets`)
+and silently re-enables `_EMISSION` + resets `globalIlluminationFlags` to
+`.None` on any of the 5 materials found wrong. Verified working by
+deliberately stripping the keyword on Control's body material and confirming
+the guard corrected it within the same batchmode pass (visible in the log as
+`TowerEmissionKeywordGuard: re-applied the _EMISSION fix to 1 tower body
+material(s).`).
 
-```bash
-grep _EMISSION unity/LTW.UnityClient/Assets/Art/Towers/Production/Materials/mat_tower_*_3d_body_runtime_v01.mat
-```
-
-Each of the 5 files should list `_EMISSION` once. If any are missing it,
-re-enable it and set `globalIlluminationFlags = MaterialGlobalIlluminationFlags.None`
-via an Editor script, save, and re-check after a fresh Editor relaunch — do
-not assume it will hold.
-
-A real fix likely needs either a `MaterialPostprocessor.OnPostprocessAllAssets`
-hook that force-corrects this on every import of these five assets, or
-actually root-causing what re-triggers Unity's keyword sync. Neither has been
-attempted.
+This means the symptom can no longer ship broken, but the actual trigger —
+what in Unity's import/reimport pipeline keeps stripping this keyword in the
+first place — is still unknown. If tower emission ever looks wrong despite
+the guard, check the Editor log for repeated `TowerEmissionKeywordGuard`
+corrections firing every session, which would mean something is fighting it
+faster than expected; that would be the signal to actually root-cause this
+rather than lean on the guard indefinitely.
 
 ## 2. Bloom cost on a physical Android device is unmeasured
 

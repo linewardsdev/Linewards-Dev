@@ -33,7 +33,9 @@ namespace LTW.UnityClient.Editor
                 // as a sliver no scale can rescue without overflowing the lane. Pitching it nose-up
                 // trades unseen depth for silhouette, roughly doubling apparent height, and suits a
                 // darting creep. Set back to Vector3.zero to return it flat.
-                new Vector3(35f, 0f, 0f),
+                // Yaw 90 is a first guess to test whether it turns the blade to face down the lane
+                // (creeps travel toward -Z); verifying with a capture before trusting the sign.
+                new Vector3(35f, 90f, 0f),
                 0.42f),
             new(
                 "Brute",
@@ -85,7 +87,9 @@ namespace LTW.UnityClient.Editor
                 Creep3DImportPipeline.RuntimePrefabFolder + "/Creep_Siege_3D.prefab",
                 new Vector3(1.13f, 1.13f, 1.13f),
                 1f,
-                Vector3.zero,
+                // Raw mesh bounds are long on X, short on Y, same profile as Runner (which needed
+                // yaw 90 to face down the lane) — same fix, verify with a capture.
+                new Vector3(0f, 90f, 0f),
                 0.46f),
         };
 
