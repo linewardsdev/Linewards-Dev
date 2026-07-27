@@ -48,6 +48,9 @@ namespace LTW.UnityClient.UI
 
         [SerializeField]
         private GameObject ghost = null!;
+        private readonly System.Collections.Generic.Dictionary<string, GameObject?> ghostModels = new();
+        private TowerVisualLibrary? towerVisualLibrary;
+        private Material? ghostMaterial;
 
         private GameObject builderAvatar = null!;
         private SpriteRenderer? builderAvatarSprite;
@@ -464,8 +467,10 @@ namespace LTW.UnityClient.UI
         {
             ghost.transform.position = GridToWorld(selectedCell, 0.6f);
             HideBuilderAvatar();
-            ghost.transform.localScale = SelectedTowerGhostScale();
             ConfigurePlacementGhostVisual();
+            // A resolved model already carries its profile's own scale, so the root has to stay at
+            // one or the two multiply and the preview comes out larger than the placed tower.
+            ghost.transform.localScale = HasGhostModel() ? Vector3.one : SelectedTowerGhostScale();
             RefreshPlacementPreview();
         }
 
@@ -500,32 +505,102 @@ namespace LTW.UnityClient.UI
             }
         }
 
+        /// <summary>
+        /// Shows a translucent copy of the actual tower model for the selected role.
+        /// </summary>
+        /// <remarks>
+        /// The preview used to be assembled from tinted cylinders and cubes — a stack of coloured
+        /// primitives roughly standing in for each tower's proportions. That was reasonable when
+        /// the towers themselves were primitives, but they are 3D models now, so the preview was
+        /// showing a shape that no longer matched what you would get. Instantiating the real
+        /// prefab means the silhouette under your finger is the silhouette you are about to place.
+        /// </remarks>
         private void ConfigurePlacementGhostVisual()
         {
             var roleId = SelectedTowerRoleId();
-            var accent = SelectedTowerAccent();
-            var isControl = roleId == "control";
-            var isRelay = roleId == "relay";
-            var isPulse = roleId == "pulse";
-            var isPrism = roleId == "prism";
-            var isArrow = roleId == "arrow";
+            foreach (var cached in ghostModels)
+            {
+                if (cached.Value != null)
+                {
+                    cached.Value.SetActive(cached.Key == roleId);
+                }
+            }
 
-            ConfigureGhostChild("GhostBase", true, new Vector3(0f, -0.28f, 0f), isControl || isPulse ? new Vector3(1.18f, 0.06f, 1.18f) : isRelay ? new Vector3(0.78f, 0.06f, 0.78f) : isPrism ? new Vector3(0.58f, 0.06f, 0.58f) : new Vector3(0.72f, 0.06f, 0.72f), accent);
-            ConfigureGhostChild("GhostArrowSpire", isArrow, new Vector3(0f, 0.48f, 0f), new Vector3(0.14f, 0.92f, 0.14f), accent);
-            ConfigureGhostChild("GhostArrowBowLeft", isArrow, new Vector3(-0.26f, 0.36f, 0f), new Vector3(0.1f, 0.62f, 0.12f), accent);
-            ConfigureGhostChild("GhostArrowBowRight", isArrow, new Vector3(0.26f, 0.36f, 0f), new Vector3(0.1f, 0.62f, 0.12f), accent);
-            ConfigureGhostChild("GhostControlRing", isControl, new Vector3(0f, 0.1f, 0f), new Vector3(1.36f, 0.04f, 1.36f), accent);
-            ConfigureGhostChild("GhostControlCore", isControl, new Vector3(0f, 0.42f, 0f), new Vector3(0.34f, 0.34f, 0.34f), accent);
-            ConfigureGhostChild("GhostRelayMast", isRelay, new Vector3(0f, 0.52f, 0f), new Vector3(0.1f, 1.02f, 0.1f), accent);
-            ConfigureGhostChild("GhostRelaySignal", isRelay, new Vector3(0f, 1.08f, 0f), new Vector3(0.5f, 0.04f, 0.5f), accent);
-            ConfigureGhostChild("GhostPulseRing", isPulse, new Vector3(0f, 0.08f, 0f), new Vector3(1.44f, 0.04f, 1.44f), accent);
-            ConfigureGhostChild("GhostPulseCore", isPulse, new Vector3(0f, 0.44f, 0f), new Vector3(0.44f, 0.44f, 0.44f), accent);
-            ConfigureGhostChild("GhostPulseEcho", isPulse, new Vector3(0f, 0.72f, 0f), new Vector3(0.92f, 0.035f, 0.92f), accent);
-            ConfigureGhostChild("GhostPrismSpire", isPrism, new Vector3(0f, 0.68f, 0f), new Vector3(0.22f, 1.28f, 0.22f), accent);
-            ConfigureGhostChild("GhostPrismLens", isPrism, new Vector3(0f, 1.36f, 0f), new Vector3(0.42f, 0.18f, 0.42f), accent);
-            // Every other ghost part uses the role accent; this one was pinned to mint, which is
-            // now the pulse colour, so a prism placement preview showed a rival role's beam.
-            ConfigureGhostChild("GhostPrismBeam", isPrism, new Vector3(0f, 1.08f, 0.34f), new Vector3(0.08f, 0.78f, 0.08f), accent);
+            if (ghostModels.TryGetValue(roleId, out var existing) && existing != null)
+            {
+                return;
+            }
+
+            var model = BuildGhostModel(roleId);
+            ghostModels[roleId] = model;
+            if (model == null)
+            {
+                // No library or prefab: fall back to the plain ghost root so placement still has
+                // something to point at rather than nothing at all.
+                EnsureGhostFallback(true);
+                return;
+            }
+
+            EnsureGhostFallback(false);
+        }
+
+        private GameObject? BuildGhostModel(string roleId)
+        {
+            var library = towerVisualLibrary != null
+                ? towerVisualLibrary
+                : towerVisualLibrary = Resources.Load<TowerVisualLibrary>("TowerVisualLibrary");
+            var profile = library != null ? library.FindProfile($"tower.{roleId}") : null;
+            if (profile == null || profile.Prefab == null)
+            {
+                return null;
+            }
+
+            var model = Instantiate(profile.Prefab, ghost.transform);
+            model.name = $"GhostModel_{roleId}";
+            model.transform.localPosition = Vector3.up * profile.Lift;
+            model.transform.localRotation = Quaternion.identity;
+            model.transform.localScale = profile.HasScale ? profile.Scale : Vector3.one;
+
+            foreach (var collider in model.GetComponentsInChildren<Collider>(true))
+            {
+                Destroy(collider);
+            }
+
+            // One shared unlit translucent material across the whole model. Keeping the tower's
+            // own materials would make the preview look like a finished tower already standing
+            // there, which is exactly the confusion a ghost has to avoid.
+            foreach (var modelRenderer in model.GetComponentsInChildren<Renderer>(true))
+            {
+                modelRenderer.sharedMaterial = GhostMaterial();
+                modelRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                modelRenderer.receiveShadows = false;
+            }
+
+            return model;
+        }
+
+        private bool HasGhostModel() =>
+            ghostModels.TryGetValue(SelectedTowerRoleId(), out var model) && model != null;
+
+        private Material GhostMaterial()
+        {
+            if (ghostMaterial != null)
+            {
+                return ghostMaterial;
+            }
+
+            var shader = Shader.Find("Sprites/Default") ?? Shader.Find("Unlit/Transparent");
+            ghostMaterial = new Material(shader) { name = "PlacementGhost" };
+            return ghostMaterial;
+        }
+
+        /// <summary>Shows or hides the ghost root's own renderer, used only when no model resolves.</summary>
+        private void EnsureGhostFallback(bool visible)
+        {
+            if (ghost.TryGetComponent<Renderer>(out var rootRenderer))
+            {
+                rootRenderer.enabled = visible;
+            }
         }
 
         private void EnsureBuilderAvatar()
@@ -632,35 +707,6 @@ namespace LTW.UnityClient.UI
                     part.enabled = false;
                 }
             }
-        }
-
-        private GameObject EnsureGhostChild(string childName, PrimitiveType primitiveType)
-        {
-            var child = ghost.transform.Find(childName)?.gameObject;
-            if (child != null)
-            {
-                return child;
-            }
-
-            child = GameObject.CreatePrimitive(primitiveType);
-            child.name = childName;
-            child.transform.SetParent(ghost.transform, false);
-            return child;
-        }
-
-        private void ConfigureGhostChild(string childName, bool active, Vector3 localPosition, Vector3 localScale, Color color)
-        {
-            var child = EnsureGhostChild(childName, childName.Contains("Ring") || childName.Contains("Signal") || childName.Contains("Base") ? PrimitiveType.Cylinder : PrimitiveType.Cube);
-            child.SetActive(active);
-            if (!active)
-            {
-                return;
-            }
-
-            child.transform.localPosition = localPosition;
-            child.transform.localRotation = Quaternion.identity;
-            child.transform.localScale = localScale;
-            child.GetComponent<Renderer>().material.color = color;
         }
 
         private void UpdateSelectionRing(TowerCombatState tower)
