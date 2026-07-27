@@ -17,13 +17,17 @@ namespace LTW.UnityClient.Simulation
     {
         private const string BoardVertexColorShaderResourcePath = "Shaders/LTWBoardVertexColor";
         private const string ContactShadowShaderResourcePath = "Shaders/LTWContactShadow";
+        private const string FillBarShaderResourcePath = "Shaders/LTWFillBar";
 
         private static readonly Dictionary<uint, Material> SharedOpaqueMaterials = new Dictionary<uint, Material>();
 
         private static Shader boardVertexColorShader;
         private static Shader contactShadowShader;
+        private static Shader fillBarShader;
         private static Material boardSurfaceMaterial;
+        private static Material fillBarMaterial;
         private static Mesh contactShadowMesh;
+        private static Mesh fillBarMesh;
 
         public static Shader BoardVertexColorShader
         {
@@ -50,6 +54,20 @@ namespace LTW.UnityClient.Simulation
                 }
 
                 return contactShadowShader;
+            }
+        }
+
+        public static Shader FillBarShader
+        {
+            get
+            {
+                if (fillBarShader == null)
+                {
+                    fillBarShader = Resources.Load<Shader>(FillBarShaderResourcePath)
+                        ?? Shader.Find("LTW/Fill Bar");
+                }
+
+                return fillBarShader;
             }
         }
 
@@ -112,6 +130,71 @@ namespace LTW.UnityClient.Simulation
                 }
 
                 return contactShadowMesh;
+            }
+        }
+
+        /// <summary>
+        /// Unit quad in the XZ plane whose U coordinate runs 0 to 1 along local X, used by
+        /// <see cref="FillBarMaterial"/> to read off how full a gauge is. A fixed-size mesh plus a
+        /// shared material read through a <c>MaterialPropertyBlock</c> means a lane's pressure
+        /// gauge never has to rescale its transform to show fill level.
+        /// </summary>
+        public static Mesh FillBarMesh
+        {
+            get
+            {
+                if (fillBarMesh == null)
+                {
+                    fillBarMesh = new Mesh { name = "LTW Fill Bar Quad" };
+                    fillBarMesh.SetVertices(new List<Vector3>
+                    {
+                        new Vector3(-0.5f, 0f, -0.5f),
+                        new Vector3(0.5f, 0f, -0.5f),
+                        new Vector3(0.5f, 0f, 0.5f),
+                        new Vector3(-0.5f, 0f, 0.5f)
+                    });
+                    fillBarMesh.SetNormals(new List<Vector3>
+                    {
+                        Vector3.up,
+                        Vector3.up,
+                        Vector3.up,
+                        Vector3.up
+                    });
+                    fillBarMesh.SetUVs(0, new List<Vector2>
+                    {
+                        new Vector2(0f, 0f),
+                        new Vector2(1f, 0f),
+                        new Vector2(1f, 1f),
+                        new Vector2(0f, 1f)
+                    });
+                    fillBarMesh.SetTriangles(new[] { 0, 2, 1, 0, 3, 2 }, 0);
+                    fillBarMesh.RecalculateBounds();
+                }
+
+                return fillBarMesh;
+            }
+        }
+
+        /// <summary>
+        /// The single material every lane's pressure gauge renders with. Per-lane fill level and
+        /// colour are set through a <c>MaterialPropertyBlock</c> on each renderer, not by cloning
+        /// this material, so every gauge stays on one shared material.
+        /// </summary>
+        public static Material FillBarMaterial
+        {
+            get
+            {
+                if (fillBarMaterial == null)
+                {
+                    var shader = FillBarShader ?? Shader.Find("Sprites/Default") ?? Shader.Find("Unlit/Transparent");
+                    fillBarMaterial = new Material(shader)
+                    {
+                        name = "LTW Fill Bar",
+                        enableInstancing = true
+                    };
+                }
+
+                return fillBarMaterial;
             }
         }
 

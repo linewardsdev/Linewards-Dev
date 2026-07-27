@@ -208,8 +208,9 @@ on a physical device (no device access).
 7. ~~**Neutral or ACES tonemapping plus restrained bloom**~~ — done 2026-07-26 as part of
    the URP migration. Neutral tonemapping, bloom threshold 1.05, intensity 0.9. Confirmed
    emissive tower detail now reads visibly better than the Built-in baseline.
-8. **Author emission per tower role** so arrow, pulse, relay, prism and control separate
-   at a glance by glow colour.
+8. ~~**Author emission per tower role**~~ — done 2026-07-26, see the correction and fix
+   above: the tuning existed since 2026-07-25 but never rendered until the tower
+   material-assignment bug was fixed.
 9. **Give Android a dedicated quality level**: `antiAliasing: 2` (MSAA 2x is inexpensive
    on tile-based mobile GPUs), `shadowCascades: 2`, `shadowResolution: 1`.
 
@@ -230,7 +231,7 @@ vertex stream is not, so baking authored values unchanged renders the board roug
 as bright. `AddBox` and `AddMesh` apply the decode themselves so no caller can forget.
 
 Item 12, expressing lane state through material rather than stacked cube geometry, is
-still open.
+now also done — see below.
 
 ### Tier 3 — game board
 
@@ -238,8 +239,23 @@ still open.
     primitives on default materials are both flat and costly.
 11. **Ground every unit** with a blob shadow or contact decal. Under an orthographic
     camera this is the strongest available depth cue.
-12. **Express lane state through material** — emissive strength or fill amount — rather
-    than stacked cube geometry.
+12. ~~**Express lane state through material**~~ — done 2026-07-26. The lane pressure gauge
+    (`UnityVerticalSliceRenderer.UpdateLanePressureIndicators`) used to rescale a cube's Z
+    every tick to show fill level — geometry changing every frame, which defeats static
+    batching, is exactly the "stacked cube geometry" this item named. Replaced with a
+    fixed-size quad (`BoardRenderResources.FillBarMesh`/`FillBarMaterial`) and a new
+    `LTW/Fill Bar` shader (`Assets/Resources/Shaders/LTWFillBar.shader`) that reads fill as
+    a threshold along the mesh's U coordinate, driven per-lane through a
+    `MaterialPropertyBlock` rather than by touching the shared material. Verified the scale
+    never changes with pressure via a temporary diagnostic (logged fixed `(8.64, 1, 0.16)`
+    across pressure 0 through 25) and that `_Fill` varies correctly (0 → 1.0 across the
+    pressure range) before removing the diagnostic. Also had to fix a real shader bug found
+    during verification: the fragment stage never received the vertex stage's instance ID
+    (`UNITY_TRANSFER_INSTANCE_ID` was missing), which failed to compile on Metal — fixed
+    before this could ship broken. The gauge's empty-state background color was also bumped
+    from near-transparent to a visible opaque housing color, since the original was nearly
+    invisible against the dark board and made an empty gauge look like it wasn't there at
+    all rather than reading as "empty."
 13. **Enable static batching and GPU instancing** on board geometry to fund the shadow
     cost added in Tier 1.
 
@@ -250,15 +266,45 @@ still open.
     image generically, so a normal map would come through if one existed. No drop has ever
     contained one, which is a generator export setting rather than a pipeline gap. The
     intake now reports `has_normal_map` on the scorecard so this stops passing unnoticed.
+    Re-checked 2026-07-26: this remains a Meshy-generation-time decision, not something
+    fixable in this codebase — either re-run generation with normal maps requested, or
+    accept flat shading. A synthetic height-derived normal bake was considered and rejected
+    without trying it, since faking one is a real visual/artistic tradeoff that shouldn't be
+    made silently.
 15. ~~**Wire the five 3D creeps into `CreepVisualLibrary`**~~ — done 2026-07-25 via
     `Creep3DImportPipeline` and `Creep3DProofSetGenerator`. The `_AIPlate` prefabs and the
-    126 MB `SourcePlates` folder are now unreferenced by the libraries and can be retired
-    once the 3D creeps have been reviewed in a real match.
-16. **Run a silhouette pass at true game scale.** Towers occupy roughly 100 px on a
-    phone; confirm all ten read distinctly at that size in grayscale.
-17. **Lower `maxTextureSize` to 1024 and stop committing 4096 sources.**
-18. **Tint team colour through `_Color` on the owner material** instead of separate
-    texture sets, so the treatment stays consistent as the roster grows.
+    127 MB `SourcePlates` folder have now been retired (2026-07-26): both were unreferenced
+    by the libraries, confirmed unreferenced by any other code path, and deleted along with
+    `AiSourcePlateProofGenerator.cs` (their only remaining generator/validator) and the dead
+    `CaptureAiProofGameplayReviewSet` capture path in `VisualReviewCaptureRunner.cs` that
+    still pointed at two of the AIPlate prefabs.
+16. ~~**Run a silhouette pass at true game scale.**~~ — done 2026-07-26. Captured the
+    true-scale role lineup scenario (`CaptureRoleLineupReviewSet`, real gameplay proportions,
+    not the contact sheet's per-unit close-up framing) in grayscale and cross-checked against
+    a grayscale role contact sheet. All ten units read as distinct shapes at both close-up
+    and true relative game scale. One near-miss investigated and ruled out: the Arrow tower
+    appeared to wash into an indistinct glowing blob in the lineup capture, but this turned
+    out to be the automated test scenario placing Arrow at row 14 of 16 — almost directly on
+    the spawn gate tile — so it was overlapping the gate's own pulse/glow decoration, not a
+    defect in Arrow's silhouette. Confirmed by disabling effects (the blob and banner both
+    disappeared together) and by Arrow reading fine in every other capture this session.
+    Separately, decided the Runner creep's flat, elongated "blade" silhouette (0.90 long by
+    0.23 tall, noted as an open question in the Tier 4 creep-wiring log below) should be kept
+    as-is: it reads as clearly distinct from the other four creeps at both scales checked,
+    and the flatness reads as a legitimate "fast unit" silhouette rather than a defect, so
+    re-sourcing the model isn't worth spending Meshy generation credits on.
+17. ~~**Lower `maxTextureSize` to 1024 and stop committing 4096 sources.**~~ — done
+    2026-07-26. All 33 raw `Baked_BaseColor`/`Baked_Emit`/`Baked_MetallicRoughness` sources
+    across the five towers and five creeps were 4096×4096 and directly referenced by the
+    runtime materials (there was no separate, smaller repacked copy). Downsized in place to
+    1024×1024 (488 MB → 61 MB in `Assets/Art/AIStaging/Models`), set `maxTextureSize: 1024`
+    on every affected `.meta` (default and all platform overrides), and capped
+    `blender_prepare_tower_source.py`'s `export_packed_images` at 1024 so future intake drops
+    come in at this size automatically instead of needing a manual downsize pass.
+18. ~~**Tint team colour through `_Color` on the owner material**~~ — checked 2026-07-26,
+    already done. `UnityVerticalSliceRenderer.SetColorInChildren` already tints via
+    `renderer.material.color` (which URP resolves to `_BaseColor`), and there are no
+    separate per-owner texture sets anywhere in the project to replace. No change needed.
 
 ## Status
 

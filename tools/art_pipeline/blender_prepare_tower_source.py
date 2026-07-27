@@ -168,6 +168,9 @@ def assign_fallback_materials(role: str) -> None:
     bpy.context.scene.name = root_name
 
 
+MAX_EXPORTED_TEXTURE_SIZE = 1024
+
+
 def export_packed_images(texture_dir: Path) -> list[str]:
     texture_dir.mkdir(parents=True, exist_ok=True)
     exported: list[str] = []
@@ -175,6 +178,10 @@ def export_packed_images(texture_dir: Path) -> list[str]:
     for image in bpy.data.images:
         if image.packed_file is None:
             continue
+        width, height = image.size
+        if width > MAX_EXPORTED_TEXTURE_SIZE or height > MAX_EXPORTED_TEXTURE_SIZE:
+            scale = MAX_EXPORTED_TEXTURE_SIZE / max(width, height)
+            image.scale(max(1, round(width * scale)), max(1, round(height * scale)))
         safe_name = "".join(ch if ch.isalnum() or ch in {"_", "-"} else "_" for ch in image.name)
         texture_path = texture_dir / f"{safe_name}.png"
         image.filepath_raw = str(texture_path)

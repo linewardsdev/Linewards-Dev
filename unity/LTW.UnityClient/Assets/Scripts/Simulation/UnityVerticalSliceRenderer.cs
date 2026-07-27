@@ -87,6 +87,10 @@ namespace LTW.UnityClient.Simulation
         private readonly Dictionary<int, GameObject> lanePressureMeters = new Dictionary<int, GameObject>();
         private readonly Dictionary<int, GameObject> lanePressureCaps = new Dictionary<int, GameObject>();
         private readonly Dictionary<int, TextMesh> lanePressureLabels = new Dictionary<int, TextMesh>();
+        private static MaterialPropertyBlock lanePressureMeterPropertyBlock;
+        private static readonly int BaseColorPropertyId = Shader.PropertyToID("_Color");
+        private static readonly int BackgroundColorPropertyId = Shader.PropertyToID("_BackgroundColor");
+        private static readonly int FillPropertyId = Shader.PropertyToID("_Fill");
         private readonly List<GameObject> laneCells = new List<GameObject>();
         private readonly List<GameObject> laneDecorations = new List<GameObject>();
         private readonly List<BoardPiece> pendingBoardPieces = new List<BoardPiece>();
@@ -740,6 +744,8 @@ namespace LTW.UnityClient.Simulation
             return creepContactShadowMaterial;
         }
 
+        private static readonly float LanePressureMeterLength = LaneLength * 0.54f;
+
         private void UpdateLanePressureIndicators(IReadOnlyList<int> pressureByLane)
         {
             for (var laneId = 1; laneId <= LaneCount; laneId++)
@@ -748,16 +754,20 @@ namespace LTW.UnityClient.Simulation
                 var meter = GetLanePressureMeter(laneId);
                 var color = PressureColor(pressure);
                 var fill = Mathf.Clamp(pressure, 0, 12) / 12f;
-                var length = Mathf.Lerp(0.28f, LaneLength * 0.54f, fill);
-                meter.transform.localScale = new Vector3(0.16f, 0.12f, length);
-                meter.transform.position = new Vector3(LaneOffset(laneId) + LaneWidth + 0.18f, -0.08f, 0.35f + length * 0.5f);
-                // PressureColor only ever returns three colours, so a shared material per colour
-                // stays bounded and keeps the eight meters instanced instead of eight clones.
-                SetSharedColor(meter, color);
+                // Fixed footprint: fill level reads through the LTW/Fill Bar shader's _Fill
+                // threshold, not by rescaling the mesh, so the gauge never breaks batching by
+                // changing geometry every tick the way a growing cube did.
+                meter.transform.localScale = new Vector3(LanePressureMeterLength, 1f, 0.16f);
+                // -90 (not +90) so the mesh's U=0 edge lands at the near/base end of the gauge:
+                // the filled region then grows outward from the base as pressure rises, matching
+                // the direction the old growing cube always animated in.
+                meter.transform.rotation = Quaternion.Euler(0f, -90f, 0f);
+                meter.transform.position = new Vector3(LaneOffset(laneId) + LaneWidth + 0.18f, -0.08f, 0.35f + LanePressureMeterLength * 0.5f);
+                SetFillBarProperties(meter, color, fill);
 
                 var cap = GetLanePressureCap(laneId);
                 cap.SetActive(pressure >= 8);
-                cap.transform.position = new Vector3(LaneOffset(laneId) + LaneWidth + 0.18f, 0.04f, 0.35f + length);
+                cap.transform.position = new Vector3(LaneOffset(laneId) + LaneWidth + 0.18f, 0.04f, 0.35f + LanePressureMeterLength);
                 SetSharedColor(cap, LeakRed);
 
                 var label = GetLanePressureLabel(laneId);
@@ -773,11 +783,37 @@ namespace LTW.UnityClient.Simulation
                 return meter;
             }
 
-            meter = CreatePrimitive($"Lane{laneId}PressureMeter", PrimitiveType.Cube);
-            DestroyPrimitiveCollider(meter);
+            meter = new GameObject($"Lane{laneId}PressureMeter");
+            var meshFilter = meter.AddComponent<MeshFilter>();
+            meshFilter.sharedMesh = BoardRenderResources.FillBarMesh;
+            var meshRenderer = meter.AddComponent<MeshRenderer>();
+            meshRenderer.sharedMaterial = BoardRenderResources.FillBarMaterial;
+            meshRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            meshRenderer.receiveShadows = false;
             lanePressureMeters[laneId] = meter;
             laneDecorations.Add(meter);
             return meter;
+        }
+
+        // Opaque enough to read as a gauge housing against the dark board even at zero fill;
+        // the earlier low-alpha value blended into the board so an empty gauge looked invisible
+        // rather than like a gauge sitting at zero.
+        private static readonly Color LanePressureMeterBackground = new Color(0.22f, 0.25f, 0.28f, 0.92f);
+
+        private static void SetFillBarProperties(GameObject instance, Color fillColor, float fill)
+        {
+            var renderer = instance.GetComponent<Renderer>();
+            if (renderer == null)
+            {
+                return;
+            }
+
+            lanePressureMeterPropertyBlock ??= new MaterialPropertyBlock();
+            renderer.GetPropertyBlock(lanePressureMeterPropertyBlock);
+            lanePressureMeterPropertyBlock.SetColor(BaseColorPropertyId, fillColor);
+            lanePressureMeterPropertyBlock.SetColor(BackgroundColorPropertyId, LanePressureMeterBackground);
+            lanePressureMeterPropertyBlock.SetFloat(FillPropertyId, fill);
+            renderer.SetPropertyBlock(lanePressureMeterPropertyBlock);
         }
 
         private GameObject GetLanePressureCap(int laneId)

@@ -42,7 +42,6 @@ namespace LTW.UnityClient.Editor
         private static EnterPlayModeOptions previousEnterPlayModeOptions;
         private static CaptureMode captureMode;
         private static bool roleLineupPrepared;
-        private static bool aiProofGameplayPrepared;
         private static string captureOutputRoot = DefaultOutputDirectory;
         private static VisualCapturePlan? capturePlan;
         private static VisualCaptureManifest? captureManifest;
@@ -72,12 +71,6 @@ namespace LTW.UnityClient.Editor
         public static void CaptureChecklistEvidenceSet()
         {
             BeginCapture(CaptureMode.ChecklistEvidence);
-        }
-
-        [MenuItem("Line Wards/Review/Capture AI Proof Gameplay Review Set")]
-        public static void CaptureAiProofGameplayReviewSet()
-        {
-            BeginCapture(CaptureMode.AiProofGameplay);
         }
 
         [MenuItem("Line Wards/Review/Capture Role Contact Sheet")]
@@ -170,7 +163,6 @@ namespace LTW.UnityClient.Editor
             pendingCaptureLabel = null;
             delayedCaptureLabel = null;
             roleLineupPrepared = false;
-            aiProofGameplayPrepared = false;
             exitAfterRun = ShouldExitAfterRun();
             writeGrayscaleCopies = HasArgument("-ltwCaptureGrayscale");
             // MobileViewportLayout falls back to Screen, which in batch mode is a small landscape
@@ -271,12 +263,6 @@ namespace LTW.UnityClient.Editor
             if (captureMode == CaptureMode.ChecklistEvidence)
             {
                 UpdateChecklistEvidence(driver, commands, placement, sendDock, laneToggle);
-                return;
-            }
-
-            if (captureMode == CaptureMode.AiProofGameplay)
-            {
-                UpdateAiProofGameplay(driver, commands, placement, sendDock, laneToggle);
                 return;
             }
 
@@ -482,41 +468,6 @@ namespace LTW.UnityClient.Editor
             }
         }
 
-        private static void UpdateAiProofGameplay(
-            UnitySimulationDriver driver,
-            UnityCommandAdapter commands,
-            TouchPlacementController placement,
-            SendDockController sendDock,
-            LaneViewToggleController laneToggle)
-        {
-            switch (state)
-            {
-                case CaptureState.WaitForPlayMode:
-                    ResetChecklistScenario(commands, placement, sendDock, laneToggle, activeLaneId: 1);
-                    ApplyAiProofVisualOverrides();
-                    driver.StartMatch();
-                    GrantPlaytestGold(commands, 1, 5000);
-                    GrantPlaytestGold(commands, 3, 5000);
-                    LogCommandResult("ai proof Runner pressure", QueueVisibleLineupCreep(commands, SampleVerticalSliceContent.CreepId, 8));
-                    ScheduleCaptureThenAdvance("ai-v04-active-lane", 2.25d);
-                    break;
-
-                case CaptureState.OpenBuildMenu:
-                    PresentationPreferences.ReducedEffects = true;
-                    ScheduleCaptureThenAdvance("ai-v04-active-lane-reduced-effects", 1.25d);
-                    state = CaptureState.Done;
-                    break;
-
-                case CaptureState.OpenSendMenu:
-                    state = CaptureState.Done;
-                    break;
-
-                case CaptureState.Done:
-                    Finish(null);
-                    break;
-            }
-        }
-
         private static void ResetChecklistScenario(
             UnityCommandAdapter commands,
             TouchPlacementController placement,
@@ -571,55 +522,6 @@ namespace LTW.UnityClient.Editor
             LogCommandResult("lineup Shade visible send", QueueVisibleLineupCreep(commands, SampleVerticalSliceContent.ShadeCreepId, 1));
             LogCommandResult("lineup Siege visible send", QueueVisibleLineupCreep(commands, SampleVerticalSliceContent.SiegeCreepId, 1));
             driver.RefreshSnapshot(drainEvents: true);
-        }
-
-        private static void ApplyAiProofVisualOverrides()
-        {
-            if (aiProofGameplayPrepared)
-            {
-                return;
-            }
-
-            aiProofGameplayPrepared = true;
-
-            var renderer = UnityEngine.Object.FindAnyObjectByType<UnityVerticalSliceRenderer>();
-            if (renderer == null)
-            {
-                Debug.LogWarning("Unable to apply AI proof visual overrides because UnityVerticalSliceRenderer was not found.");
-                return;
-            }
-
-            var arrowProof = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/Towers/Tower_Arrow_AIPlate.prefab");
-            var runnerProof = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/Creeps/Creep_Runner_AIPlate.prefab");
-            if (arrowProof == null || runnerProof == null)
-            {
-                Debug.LogWarning("Unable to apply AI proof visual overrides because proof prefabs were missing.");
-                return;
-            }
-
-            var towerLibrary = Resources.Load<TowerVisualLibrary>("TowerVisualLibrary");
-            var creepLibrary = Resources.Load<CreepVisualLibrary>("CreepVisualLibrary");
-            if (towerLibrary == null || creepLibrary == null)
-            {
-                Debug.LogWarning("Unable to apply AI proof visual overrides because runtime visual libraries were missing.");
-                return;
-            }
-
-            var towerClone = UnityEngine.Object.Instantiate(towerLibrary);
-            towerClone.name = "TowerVisualLibrary_AIProofRuntimeClone";
-            var creepClone = UnityEngine.Object.Instantiate(creepLibrary);
-            creepClone.name = "CreepVisualLibrary_AIProofRuntimeClone";
-
-            OverrideTowerProfile(towerClone, "tower.arrow", arrowProof, new Vector3(1.18f, 1.28f, 1.18f), 0.12f);
-            OverrideCreepProfile(creepClone, "creep.runner", runnerProof, new Vector3(0.94f, 0.54f, 1.26f));
-            LogAiProofProfileState(towerClone, creepClone);
-
-            SetPrivateField(renderer, "towerVisualLibrary", towerClone);
-            SetPrivateField(renderer, "creepVisualLibrary", creepClone);
-            SetPrivateField(renderer, "suppressCreepGameplayOverlays", true);
-            ClearPrivateDictionary(renderer, "creepPrefabPools");
-            ClearPrivateDictionary(renderer, "activeCreepPoolKeys");
-            Debug.Log("Applied review-only AI proof visual overrides to UnityVerticalSliceRenderer.");
         }
 
         private static void CreateContactSheetLight(string name, Vector3 eulerAngles, Color color, float intensity)
@@ -2012,79 +1914,6 @@ namespace LTW.UnityClient.Editor
             field?.SetValue(target, value);
         }
 
-        private static void ClearPrivateDictionary(object target, string fieldName)
-        {
-            var field = target.GetType().GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic);
-            if (field?.GetValue(target) is System.Collections.IDictionary dictionary)
-            {
-                dictionary.Clear();
-            }
-        }
-
-        private static void LogAiProofProfileState(TowerVisualLibrary towerLibrary, CreepVisualLibrary creepLibrary)
-        {
-            var towerProfile = towerLibrary.FindProfile("tower.arrow");
-            var creepProfile = creepLibrary.FindProfile("creep.runner");
-            Debug.Log(
-                $"AI proof profile state: tower.arrow prefab='{towerProfile?.Prefab?.name ?? "<missing>"}', " +
-                $"creep.runner prefab='{creepProfile?.Prefab?.name ?? "<missing>"}', " +
-                $"scale='{(creepProfile != null ? creepProfile.Scale.ToString() : "<missing>")}', " +
-                $"bodyPath='{creepProfile?.BodyRendererPath ?? "<missing>"}', " +
-                $"senderPaths={creepProfile?.SenderAccentRendererPaths.Count ?? -1}, " +
-                $"damagePaths={creepProfile?.DamageRendererPaths.Count ?? -1}.");
-        }
-
-        private static void OverrideTowerProfile(TowerVisualLibrary library, string towerId, GameObject prefab, Vector3 scale, float lift)
-        {
-            var serializedLibrary = new SerializedObject(library);
-            var profiles = serializedLibrary.FindProperty("profiles");
-            var profile = FindProfileProperty(profiles, "towerId", towerId);
-            if (profile == null)
-            {
-                Debug.LogWarning($"Unable to apply AI proof tower override for '{towerId}' because the profile was not found.");
-                return;
-            }
-
-            profile.FindPropertyRelative("prefab").objectReferenceValue = prefab;
-            profile.FindPropertyRelative("scale").vector3Value = scale;
-            profile.FindPropertyRelative("lift").floatValue = lift;
-            profile.FindPropertyRelative("rangeHaloRendererPath").stringValue = "RangeHaloInactiveForAiProofReview";
-            serializedLibrary.ApplyModifiedPropertiesWithoutUndo();
-        }
-
-        private static void OverrideCreepProfile(CreepVisualLibrary library, string creepId, GameObject prefab, Vector3 scale)
-        {
-            var serializedLibrary = new SerializedObject(library);
-            var profiles = serializedLibrary.FindProperty("profiles");
-            var profile = FindProfileProperty(profiles, "creepId", creepId);
-            if (profile == null)
-            {
-                Debug.LogWarning($"Unable to apply AI proof creep override for '{creepId}' because the profile was not found.");
-                return;
-            }
-
-            profile.FindPropertyRelative("prefab").objectReferenceValue = prefab;
-            profile.FindPropertyRelative("scale").vector3Value = scale;
-            profile.FindPropertyRelative("bodyRendererPath").stringValue = "BodyInactiveForAiProofReview";
-            profile.FindPropertyRelative("senderAccentRendererPaths").arraySize = 0;
-            profile.FindPropertyRelative("damageRendererPaths").arraySize = 0;
-            serializedLibrary.ApplyModifiedPropertiesWithoutUndo();
-        }
-
-        private static SerializedProperty? FindProfileProperty(SerializedProperty profiles, string idProperty, string id)
-        {
-            for (var index = 0; index < profiles.arraySize; index++)
-            {
-                var profile = profiles.GetArrayElementAtIndex(index);
-                if (string.Equals(profile.FindPropertyRelative(idProperty).stringValue, id, StringComparison.OrdinalIgnoreCase))
-                {
-                    return profile;
-                }
-            }
-
-            return null;
-        }
-
         private static string ResolveOutputDirectory()
         {
             var explicitOutput = ReadArgumentValue("-ltwCaptureOutputDir");
@@ -2235,8 +2064,7 @@ namespace LTW.UnityClient.Editor
         {
             FullReview,
             RoleLineup,
-            ChecklistEvidence,
-            AiProofGameplay
+            ChecklistEvidence
         }
     }
 }

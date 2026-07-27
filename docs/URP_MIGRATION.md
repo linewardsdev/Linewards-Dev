@@ -194,6 +194,24 @@ URP) is cleared.
 
 ## Known follow-up
 
+### Open: the `_EMISSION` keyword loss on the five tower body materials is not fully solved
+
+This was previously believed fixed twice this session (switching `globalIlluminationFlags`
+from `EmissiveIsBlack` to `None`, then re-enabling the keyword directly and confirming it
+held across one reimport). While doing the item 1-7 follow-up work on 2026-07-26, the
+keyword was found stripped again on all five `mat_tower_*_3d_body_runtime_v01.mat` files
+after a plain `-quit -nographics` compile-only pass with no material-touching code involved
+— the same class of loss, recurring from a trigger that has not been isolated. Re-enabled it
+again and confirmed it now holds across one more compile pass, but given it has now silently
+recurred twice despite the GI-flag fix supposedly addressing the root cause, **do not trust
+this as permanently fixed.** Anyone touching these five materials should re-check
+`grep _EMISSION` on them before relying on emission rendering, especially after any bare
+Editor relaunch or reimport with no obvious cause. A real fix would likely need either a
+`ShaderGraph`/`MaterialPostprocessor`-level hook that force-corrects this on every import
+rather than a one-time manual poke, or a deeper root-cause of what specifically re-triggers
+Unity's keyword sync — neither was pursued here since it was out of scope for the tower
+material-assignment fix this section otherwise documents.
+
 ### Correction: the contact sheet wash-out was not emission intensity
 
 An earlier version of this section concluded the wash was caused by tower/creep emission
