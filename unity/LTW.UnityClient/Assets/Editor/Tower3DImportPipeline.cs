@@ -253,14 +253,20 @@ namespace LTW.UnityClient.Editor
             }
         }
 
+        /// <summary>
+        /// Owner colour pooled under the tower. Was a solid cylinder, which read as an opaque
+        /// coloured plate sitting on the board; it is now a flat quad so the soft-falloff material
+        /// can fade it out at the rim. See <see cref="CreateSenderAccent"/>'s counterpart in the
+        /// creep pipeline, which had the same problem.
+        /// </summary>
         private static void CreateOwnerTrim(GameObject parent, Material material)
         {
-            var child = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            var child = GameObject.CreatePrimitive(PrimitiveType.Quad);
             child.name = "OwnerTrim";
             child.transform.SetParent(parent.transform, false);
             child.transform.localPosition = new Vector3(0f, -0.045f, 0f);
-            child.transform.localRotation = Quaternion.identity;
-            child.transform.localScale = new Vector3(0.56f, 0.018f, 0.56f);
+            child.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
+            child.transform.localScale = new Vector3(1.05f, 1.05f, 1f);
             RemoveCollider(child);
 
             if (child.TryGetComponent<Renderer>(out var renderer))
@@ -476,7 +482,7 @@ namespace LTW.UnityClient.Editor
                     : CreateBodyMaterial(BodyMaterialPath(spec), BodyColor, sourceTexture, spec.PreserveSourceAlpha),
                 CreateOpaqueMaterial(BucketMaterialPath(spec, "trim"), TrimColor, null),
                 CreateOpaqueMaterial(BucketMaterialPath(spec, "energy"), EnergyColor, null, emission: new Color(0.08f, 0.18f, 0.24f, 1f)),
-                CreateOpaqueMaterial(BucketMaterialPath(spec, "owner"), OwnerColor, null),
+                CreateSoftPoolMaterial(BucketMaterialPath(spec, "owner"), OwnerColor),
                 CreateTransparentMaterial(BucketMaterialPath(spec, "range_halo"), RangeColor));
         }
 
@@ -538,6 +544,34 @@ namespace LTW.UnityClient.Editor
             preserveAlpha
                 ? ConfigureTransparentMaterial(material, color, mainTexture)
                 : ConfigureOpaqueMaterial(material, color, mainTexture);
+
+        /// <summary>
+        /// Material for the owner pool under a tower: soft radial falloff so the colour fades out
+        /// at its rim instead of ending on a hard circular edge. Preserves an existing asset, since
+        /// these get hand-tuned after creation.
+        /// </summary>
+        private static Material CreateSoftPoolMaterial(string path, Color color)
+        {
+            EnsureFolder(Path.GetDirectoryName(path)?.Replace("\\", "/") ?? MaterialFolder);
+            var existing = AssetDatabase.LoadAssetAtPath<Material>(path);
+            if (existing != null)
+            {
+                return existing;
+            }
+
+            var shader = Shader.Find("LTW/Contact Shadow") ?? LTW.UnityClient.Simulation.RenderCompat.Lit;
+            var material = new Material(shader)
+            {
+                name = Path.GetFileNameWithoutExtension(path)
+            };
+            var pooled = new Color(color.r, color.g, color.b, 0.5f);
+            material.SetColor("_Color", pooled);
+            if (material.HasProperty("_BaseColor")) material.SetColor("_BaseColor", pooled);
+            if (material.HasProperty("_Softness")) material.SetFloat("_Softness", 0.85f);
+            material.globalIlluminationFlags = MaterialGlobalIlluminationFlags.None;
+            AssetDatabase.CreateAsset(material, path);
+            return AssetDatabase.LoadAssetAtPath<Material>(path);
+        }
 
         private static Material CreateOpaqueMaterial(string path, Color color, Texture mainTexture, Color? emission = null)
         {

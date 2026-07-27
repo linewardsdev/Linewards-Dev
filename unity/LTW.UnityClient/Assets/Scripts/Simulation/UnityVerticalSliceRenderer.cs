@@ -1877,7 +1877,7 @@ namespace LTW.UnityClient.Simulation
             }
 
             SetProfileColor(creepObject, visualProfile.BodyRendererPath, bodyColor);
-            SetProfileColors(creepObject, visualProfile.SenderAccentRendererPaths, senderColor);
+            SetProfileColors(creepObject, visualProfile.SenderAccentRendererPaths, AccentPoolColor(senderColor));
             SetProfileColors(creepObject, visualProfile.DamageRendererPaths, damageColor);
         }
 
@@ -2092,6 +2092,14 @@ namespace LTW.UnityClient.Simulation
                 }
             }
         }
+
+        /// <summary>
+        /// Owner/sender colour softened for the pool under a unit. These renderers run the
+        /// soft-falloff shader, and colour is written straight onto the material — including its
+        /// alpha — so an opaque team colour would drive the pool back to full strength and undo
+        /// the falloff. Held well under 1 so the pool reads as a tint on the board, not a light.
+        /// </summary>
+        private static Color AccentPoolColor(Color color) => new Color(color.r, color.g, color.b, 0.34f);
 
         private static void SetProfileColors(GameObject root, IReadOnlyList<string> paths, Color color)
         {
@@ -3180,7 +3188,7 @@ namespace LTW.UnityClient.Simulation
 
             SetProfileColor(towerObject, visualProfile.BodyRendererPath, baseColor);
             SetProfileColor(towerObject, visualProfile.RoleMarkerRendererPath, roleColor);
-            SetProfileColor(towerObject, visualProfile.OwnerTrimRendererPath, ownerColor);
+            SetProfileColor(towerObject, visualProfile.OwnerTrimRendererPath, AccentPoolColor(ownerColor));
             SetProfileColor(towerObject, visualProfile.RangeHaloRendererPath, rangeColor);
         }
 

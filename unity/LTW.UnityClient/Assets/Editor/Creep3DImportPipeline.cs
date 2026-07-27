@@ -231,14 +231,18 @@ namespace LTW.UnityClient.Editor
 
         private static void CreateSenderAccent(GameObject root, Creep3DImportSpec spec)
         {
-            // A flat emissive disc under the creep. It carries the sender colour now that the mesh
-            // itself is no longer tinted, and doubles as a contact shadow substitute against the
-            // board under the orthographic camera.
-            var accent = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            // Carries the sender colour, since the mesh itself is no longer tinted.
+            //
+            // This was a solid cylinder, which rendered as an opaque hard-edged plate parked on the
+            // board under the creep — it read as a coloured coaster rather than as the unit giving
+            // off light. It is now a flat quad running the LTW/Contact Shadow shader, whose radial
+            // falloff turns the same colour into a soft pool that fades out at its rim.
+            var accent = GameObject.CreatePrimitive(PrimitiveType.Quad);
             accent.name = SenderAccentName;
             accent.transform.SetParent(root.transform, false);
             accent.transform.localPosition = new Vector3(0f, 0.012f, 0f);
-            accent.transform.localScale = new Vector3(spec.AccentRadius, 0.008f, spec.AccentRadius);
+            accent.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
+            accent.transform.localScale = new Vector3(spec.AccentRadius * 1.85f, spec.AccentRadius * 1.85f, 1f);
             StripColliders(accent);
             accent.GetComponent<Renderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
 
@@ -252,20 +256,18 @@ namespace LTW.UnityClient.Editor
                 return;
             }
 
-            // Authored dark. The runtime multiplies the sender colour into this, so a white base
-            // reads as a bright puck under every creep until a match assigns ownership. Set on both
-            // _Color and _BaseColor since Built-in Standard and URP/Lit read from different
-            // properties and RenderCompat.Lit may resolve to either.
-            var material = new Material(LTW.UnityClient.Simulation.RenderCompat.Lit)
+            // Soft radial falloff rather than a lit surface: the runtime writes the sender colour
+            // straight into _Color, and the shader fades it to nothing at the rim so the accent
+            // reads as light pooling under the creep instead of a disc lying on the board.
+            var shader = Shader.Find("LTW/Contact Shadow") ?? LTW.UnityClient.Simulation.RenderCompat.Lit;
+            var material = new Material(shader)
             {
                 name = $"mat_creep_{spec.DisplayName.ToLowerInvariant()}_3d_sender_v01",
             };
-            var accentColor = new Color(0.078f, 0.086f, 0.11f);
+            var accentColor = new Color(0.078f, 0.086f, 0.11f, 0.55f);
             material.SetColor("_Color", accentColor);
             if (material.HasProperty("_BaseColor")) material.SetColor("_BaseColor", accentColor);
-            material.SetFloat("_Glossiness", 0.35f);
-            material.SetColor("_EmissionColor", new Color(0.09f, 0.10f, 0.13f));
-            material.EnableKeyword("_EMISSION");
+            if (material.HasProperty("_Softness")) material.SetFloat("_Softness", 0.85f);
             material.globalIlluminationFlags = MaterialGlobalIlluminationFlags.None;
 
             AssetDatabase.CreateAsset(material, materialPath);
