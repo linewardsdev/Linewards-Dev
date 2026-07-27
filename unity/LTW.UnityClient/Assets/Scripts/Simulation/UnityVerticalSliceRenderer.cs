@@ -84,6 +84,9 @@ namespace LTW.UnityClient.Simulation
         private readonly Dictionary<string, string> towerRolesByCell = new Dictionary<string, string>();
         private readonly Dictionary<string, int> lastCreepHealth = new Dictionary<string, int>();
         private readonly Dictionary<string, float> creepHitFlashUntil = new Dictionary<string, float>();
+        private readonly Dictionary<string, float> towerLastFiredAt = new Dictionary<string, float>();
+        private readonly Dictionary<string, Vector3> towerAimTarget = new Dictionary<string, Vector3>();
+        private readonly Dictionary<string, float> towerAimYaw = new Dictionary<string, float>();
         private readonly Dictionary<int, GameObject> lanePressureMeters = new Dictionary<int, GameObject>();
         private readonly Dictionary<int, GameObject> lanePressureCaps = new Dictionary<int, GameObject>();
         private readonly Dictionary<int, TextMesh> lanePressureLabels = new Dictionary<int, TextMesh>();
@@ -498,6 +501,10 @@ namespace LTW.UnityClient.Simulation
                 {
                     ConfigureTowerRoleMarker(towerObject, tower.TowerId.Value, tower.OwnerId.Value);
                 }
+                else
+                {
+                    UpdateTowerMotion(towerObject, key, towerObject.transform.position, visualProfile);
+                }
 
                 // Towers and creeps are keyed from separate id spaces, so the decal key is prefixed
                 // to stop a tower and a creep that happen to share an entity id fighting over one.
@@ -520,7 +527,8 @@ namespace LTW.UnityClient.Simulation
                     creepHitFlashUntil[key] = Time.time + 0.16f;
                 }
 
-                SetCreepTransform(creepObject, creep.Position, creep.LaneId, creep.CreepId.Value, visualProfile, isNewCreep);
+                var hitFlashUntil = creepHitFlashUntil.TryGetValue(key, out var flashUntilValue) ? flashUntilValue : 0f;
+                SetCreepTransform(creepObject, creep.Position, creep.LaneId, creep.CreepId.Value, visualProfile, isNewCreep, hitFlashUntil);
                 var healthFraction = CreepHealthFraction(creep.CreepId.Value, creep.Health);
                 var isHitFlashing = creepHitFlashUntil.TryGetValue(key, out var flashUntil) && Time.time < flashUntil;
                 ApplyCreepColor(creepObject, creep.CreepId.Value, creep.SenderId.Value, visualProfile, healthFraction, isHitFlashing);
@@ -910,6 +918,11 @@ namespace LTW.UnityClient.Simulation
                         }
 
                         SpawnEffect(spawnPosition, spawnColor, 0.52f, 0.28f);
+                        break;
+                    case TowerFiredEvent fired:
+                        var firedTowerKey = fired.TowerEntityId.Value.ToString();
+                        towerLastFiredAt[firedTowerKey] = Time.time;
+                        towerAimTarget[firedTowerKey] = GridToWorld(fired.TargetPosition, fired.LaneId);
                         break;
                     case CreepDamagedEvent damaged:
                         var hitPosition = PositionFor(damaged.CreepEntityId.Value.ToString());
@@ -1504,6 +1517,9 @@ namespace LTW.UnityClient.Simulation
                 ReleaseTowerToPool(key, activeTowers[key]);
                 activeTowers.Remove(key);
                 activeTowerPoolKeys.Remove(key);
+                towerLastFiredAt.Remove(key);
+                towerAimTarget.Remove(key);
+                towerAimYaw.Remove(key);
             }
         }
 
@@ -1674,9 +1690,55 @@ namespace LTW.UnityClient.Simulation
             instance.transform.rotation = Quaternion.identity;
         }
 
-        private static void SetCreepTransform(GameObject instance, GridPosition position, LaneId laneId, string creepId, CreepVisualProfile visualProfile, bool snapToTarget)
+        private const float TowerRecoilDuration = 0.18f;
+        private const float TowerAimTurnDegreesPerSecond = 260f;
+
+        /// <summary>
+        /// Idle motion, aim rotation and fire recoil all apply to the tower's Body child, not the
+        /// root — RoleMarker/OwnerTrim/RangeHalo are siblings of Body (see
+        /// Tower3DImportPipeline.GenerateWrapperIfRawExists) and are rotationally symmetric shapes
+        /// that should never visibly kick or spin with an attack reaction.
+        /// </summary>
+        private void UpdateTowerMotion(GameObject towerObject, string key, Vector3 towerPosition, TowerVisualProfile visualProfile)
         {
-            var roleMotion = CreepRoleMotion(creepId, visualProfile);
+            var body = ResolveTowerMotionTarget(towerObject, visualProfile);
+            var idle = TowerRoleMotion(visualProfile.Role);
+
+            var yaw = towerAimYaw.TryGetValue(key, out var currentYaw) ? currentYaw : 0f;
+            if (towerAimTarget.TryGetValue(key, out var aimTarget))
+            {
+                var direction = aimTarget - towerPosition;
+                direction.y = 0f;
+                if (direction.sqrMagnitude > 0.0001f)
+                {
+                    var desiredYaw = Mathf.Atan2(direction.x, direction.z) * Mathf.Rad2Deg;
+                    yaw = Mathf.MoveTowardsAngle(yaw, desiredYaw, TowerAimTurnDegreesPerSecond * Time.deltaTime);
+                }
+            }
+
+            towerAimYaw[key] = yaw;
+
+            var timeSinceFired = towerLastFiredAt.TryGetValue(key, out var firedAt) ? Time.time - firedAt : float.MaxValue;
+            var recoil = timeSinceFired < TowerRecoilDuration ? 1f - timeSinceFired / TowerRecoilDuration : 0f;
+
+            body.localPosition = idle.PositionOffset + Vector3.down * (recoil * 0.05f);
+            body.localRotation = Quaternion.Euler(idle.PitchDegrees + recoil * 6f, yaw, 0f);
+            body.localScale = new Vector3(1f + recoil * 0.025f, 1f - recoil * 0.05f, 1f + recoil * 0.025f);
+        }
+
+        private static Transform ResolveTowerMotionTarget(GameObject towerObject, TowerVisualProfile visualProfile)
+        {
+            if (string.IsNullOrWhiteSpace(visualProfile.BodyRendererPath))
+            {
+                return towerObject.transform;
+            }
+
+            return towerObject.transform.Find(visualProfile.BodyRendererPath) ?? towerObject.transform;
+        }
+
+        private static void SetCreepTransform(GameObject instance, GridPosition position, LaneId laneId, string creepId, CreepVisualProfile visualProfile, bool snapToTarget, float hitFlashUntil)
+        {
+            var roleMotion = CreepRoleMotion(creepId, visualProfile, hitFlashUntil);
             var targetPosition = GridToWorld(position, laneId) + CreepRoleOffset(creepId) + roleMotion.PositionOffset;
             instance.transform.position = snapToTarget || Vector3.Distance(instance.transform.position, targetPosition) > 2.5f
                 ? targetPosition
@@ -2692,6 +2754,27 @@ namespace LTW.UnityClient.Simulation
         }
 
         /// <summary>
+        /// Per-role idle motion for a tower's Body child. Only Control has a tuned idle motion so
+        /// far — the other four roles share a small generic default until their own pass tunes
+        /// them individually. Yaw is deliberately left untouched here (stays 0): aim rotation in
+        /// <see cref="UpdateTowerMotion"/> owns yaw exclusively, so idle and aim never fight over
+        /// the same axis.
+        /// </summary>
+        private static TowerMotion TowerRoleMotion(TowerVisualRole role)
+        {
+            var time = Time.time;
+            if (role == TowerVisualRole.Control)
+            {
+                var pulse = Mathf.Sin(time * 1.6f) * 0.02f;
+                var wobble = Mathf.Sin(time * 1.1f) * 1.2f;
+                return new TowerMotion(Vector3.up * pulse, wobble);
+            }
+
+            var defaultPulse = Mathf.Sin(time * 1.3f) * 0.012f;
+            return new TowerMotion(Vector3.up * defaultPulse, 0f);
+        }
+
+        /// <summary>
         /// Per-role idle motion applied on top of the creep's lane position.
         /// </summary>
         /// <remarks>
@@ -2701,7 +2784,9 @@ namespace LTW.UnityClient.Simulation
         /// 3D meshes. Only oscillating components belong in the offset; a constant one is a
         /// misalignment.
         /// </remarks>
-        private static CreepMotion CreepRoleMotion(string creepId, CreepVisualProfile visualProfile)
+        private const float CreepHitFlashDuration = 0.16f;
+
+        private static CreepMotion CreepRoleMotion(string creepId, CreepVisualProfile visualProfile, float hitFlashUntil)
         {
             var time = Time.time;
             var motionStyle = visualProfile != null ? visualProfile.MotionStyle : CreepVisualMotionStyle.Auto;
@@ -2715,7 +2800,13 @@ namespace LTW.UnityClient.Simulation
             {
                 var weight = Mathf.Abs(Mathf.Sin(time * 3.4f)) * 0.055f;
                 var sway = Mathf.Sin(time * 3.4f) * 1.5f;
-                return new CreepMotion(new Vector3(0f, -weight, 0f), Quaternion.Euler(0f, 0f, sway));
+                // Hit-flinch: a quick opposite-direction tilt layered on top of the continuous idle
+                // sway, decaying over the same 0.16s window creepHitFlashUntil already tracks for
+                // the colour flash, so this reads as a reaction to the hit rather than a new
+                // permanent idle state.
+                var flinch = Mathf.Clamp01((hitFlashUntil - time) / CreepHitFlashDuration);
+                var flinchTilt = -Mathf.Sign(sway == 0f ? 1f : sway) * flinch * 10f;
+                return new CreepMotion(new Vector3(0f, -weight - flinch * 0.03f, 0f), Quaternion.Euler(flinch * 8f, 0f, sway + flinchTilt));
             }
 
             if (motionStyle == CreepVisualMotionStyle.Hover || motionStyle == CreepVisualMotionStyle.Auto && (ContainsRole(creepId, "flying") || ContainsRole(creepId, "air")))
@@ -3607,6 +3698,18 @@ namespace LTW.UnityClient.Simulation
 
             public Vector3 PositionOffset { get; }
             public Quaternion Rotation { get; }
+        }
+
+        private readonly struct TowerMotion
+        {
+            public TowerMotion(Vector3 positionOffset, float pitchDegrees)
+            {
+                PositionOffset = positionOffset;
+                PitchDegrees = pitchDegrees;
+            }
+
+            public Vector3 PositionOffset { get; }
+            public float PitchDegrees { get; }
         }
 
         private readonly struct CreepHealthBarMetrics

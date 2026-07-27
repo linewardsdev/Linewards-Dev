@@ -25,6 +25,24 @@ public sealed class CombatTests
     }
 
     [Fact]
+    public void Tower_firing_emits_exactly_one_TowerFiredEvent_per_attack()
+    {
+        var service = new CombatService();
+        var content = CreateContent();
+        var routes = CreateRoutes();
+        var state = new CombatState(
+            new[] { service.SpawnCreep(new EntityId(1), Runner(), new PlayerId(2), LaneOne) },
+            new[] { new TowerCombatState(new EntityId(10), ArrowTowerId, new PlayerId(1), LaneOne, new GridPosition(1, 1)) });
+
+        var result = service.Advance(state, content, routes, new SimulationTick(0));
+
+        var fired = Assert.Single(result.Events.OfType<TowerFiredEvent>());
+        Assert.Equal(new EntityId(10), fired.TowerEntityId);
+        Assert.Equal(new EntityId(1), fired.TargetCreepEntityId);
+        Assert.Equal(LaneOne, fired.LaneId);
+    }
+
+    [Fact]
     public void Creep_reaching_exit_emits_one_leak_event_only()
     {
         var service = new CombatService();
@@ -107,6 +125,7 @@ public sealed class CombatTests
         Assert.Contains(result.State.Creeps, creep => creep.EntityId.Equals(new EntityId(1)) && creep.Health == 2);
         Assert.Contains(result.State.Creeps, creep => creep.EntityId.Equals(new EntityId(2)) && creep.Health == 6);
         Assert.Equal(2, result.Events.OfType<CreepDamagedEvent>().Count());
+        Assert.Single(result.Events.OfType<TowerFiredEvent>());
     }
 
     [Fact]

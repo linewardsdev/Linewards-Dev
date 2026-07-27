@@ -131,6 +131,8 @@ public sealed class CombatService
                 continue;
             }
 
+            events.Add(new TowerFiredEvent(tick, tower.LaneId, tower.EntityId, tower.Position, target.EntityId, ResolvePosition(target, routes)));
+
             next = DamageCreep(next, content, tower, target, towerDefinition.Damage, tick, events);
             if (IsPulseTower(tower.TowerId))
             {

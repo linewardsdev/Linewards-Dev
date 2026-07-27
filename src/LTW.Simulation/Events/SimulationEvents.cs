@@ -132,6 +132,31 @@ public sealed class CreepSpawnedEvent : ISimulationEvent
 }
 
 
+public sealed class TowerFiredEvent : ISimulationEvent
+{
+    public TowerFiredEvent(SimulationTick tick, LaneId laneId, EntityId towerEntityId, GridPosition towerPosition, EntityId targetCreepEntityId, GridPosition targetPosition)
+    {
+        Tick = tick;
+        LaneId = laneId;
+        TowerEntityId = towerEntityId;
+        TowerPosition = towerPosition;
+        TargetCreepEntityId = targetCreepEntityId;
+        TargetPosition = targetPosition;
+    }
+
+    public SimulationTick Tick { get; }
+
+    public LaneId LaneId { get; }
+
+    public EntityId TowerEntityId { get; }
+
+    public GridPosition TowerPosition { get; }
+
+    public EntityId TargetCreepEntityId { get; }
+
+    public GridPosition TargetPosition { get; }
+}
+
 public sealed class CreepDamagedEvent : ISimulationEvent
 {
     public CreepDamagedEvent(SimulationTick tick, PlayerId defenderId, LaneId laneId, EntityId towerEntityId, GridPosition towerPosition, EntityId creepEntityId, int damageDealt)
