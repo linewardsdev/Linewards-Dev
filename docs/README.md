@@ -15,6 +15,7 @@ This folder contains the durable project documentation for Line Wards, the mobil
 - [MVP dependencies](MVP_DEPENDENCIES.md)
 - [MVP implementation checklist](MVP_IMPLEMENTATION_CHECKLIST.md)
 - [Gameplay development checklist](GAMEPLAY_DEVELOPMENT_CHECKLIST.md)
+- [Gameplay review findings](GAMEPLAY_REVIEW_FINDINGS.md) — open defects found by capture review, with evidence
 - [Tower and creep roster](TOWER_AND_CREEP_ROSTER.md)
 - [Game menu and runtime flow](GAME_MENU_AND_RUNTIME_FLOW.md)
 - [Content roster expansion plan](CONTENT_ROSTER_EXPANSION_PLAN.md)
