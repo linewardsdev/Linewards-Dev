@@ -75,25 +75,42 @@ namespace LTW.UnityClient.Editor
             }
 
             // Towers with an independently-aimed/recoiling part (a turret Head, or — for
-            // Prism/Relay — the whole crystal cluster / dish assembly, split via
-            // split_tower_rigid_part.py) still sit deep in the imported hierarchy
-            // (Imported3DVisual/.../Head, .../Spire, or .../Dish) and carry whatever non-identity
-            // rest transform that hierarchy's own axis/scale correction bakes in — unlike Body,
-            // which is a purpose-built empty with an identity rest transform by construction.
-            // Rather than have runtime code reason about that opaque rest frame, give it the same
-            // clean-empty treatment as Body: a fresh "HeadPivot" child of Body (identity rest
-            // transform), with the actual mesh reparented under it using worldPositionStays so its
-            // visual position/orientation doesn't move, only its point of reference does. "Spire"
-            // and "Dish" are also UpdateTowerMotion's continuous-spin part names — nesting either
-            // under HeadPivot doesn't interfere with that, since the spin is applied to the part's
-            // own local rotation on top of whatever HeadPivot is doing.
+            // Prism/Relay/Control — the whole crystal cluster / dish assembly / arms+core+ring,
+            // split via split_tower_rigid_part.py) still sit deep in the imported hierarchy
+            // (Imported3DVisual/.../Head, .../Spire, .../Dish, or .../StemCore) and carry whatever
+            // non-identity rest transform that hierarchy's own axis/scale correction bakes in —
+            // unlike Body, which is a purpose-built empty with an identity rest transform by
+            // construction. Rather than have runtime code reason about that opaque rest frame,
+            // give it the same clean-empty treatment as Body: a fresh "HeadPivot" child of Body
+            // (identity rest transform), with the actual mesh reparented under it using
+            // worldPositionStays so its visual position/orientation doesn't move, only its point
+            // of reference does. "Spire"/"Dish"/"Ring" are also UpdateTowerMotion's continuous-spin
+            // part names — nesting any of them under HeadPivot doesn't interfere with that, since
+            // the spin is applied to the part's own local rotation on top of whatever HeadPivot is
+            // doing.
             var headMesh = FindDeepChild(generatedInstance.transform, "Head")
                 ?? FindDeepChild(generatedInstance.transform, "Spire")
-                ?? FindDeepChild(generatedInstance.transform, "Dish");
+                ?? FindDeepChild(generatedInstance.transform, "Dish")
+                ?? FindDeepChild(generatedInstance.transform, "StemCore");
             if (headMesh != null)
             {
                 var headPivot = CreateEmptyChild(body, "HeadPivot", Vector3.zero);
                 headMesh.SetParent(headPivot.transform, worldPositionStays: true);
+
+                // Control's crystal ring is mounted on the arms/core (StemCore) and needs to turn
+                // with them as one assembly, while still spinning independently within that frame
+                // — so it rides along under the SAME HeadPivot rather than staying a Body-level
+                // sibling. This only fires when StemCore is what triggered HeadPivot above; Pulse's
+                // Ring (a standalone decorative feature on an otherwise-unsplit, fixed body) has no
+                // StemCore and is deliberately left untouched, a Body-level sibling as before.
+                if (headMesh.name == "StemCore")
+                {
+                    var ringMesh = FindDeepChild(generatedInstance.transform, "Ring");
+                    if (ringMesh != null)
+                    {
+                        ringMesh.SetParent(headPivot.transform, worldPositionStays: true);
+                    }
+                }
             }
 
             CreateEmptyChild(root, "BodyTintAnchor", Vector3.zero);

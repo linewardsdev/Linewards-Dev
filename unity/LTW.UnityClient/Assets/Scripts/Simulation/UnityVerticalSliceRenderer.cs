@@ -139,6 +139,9 @@ namespace LTW.UnityClient.Simulation
         private GameObject boardGeometryRoot;
         private Material towerContactShadowMaterial;
         private Material creepContactShadowMaterial;
+        private Material shockwaveRingMaterial;
+        private readonly Queue<GameObject> shockwaveRingPool = new Queue<GameObject>();
+        private readonly List<ExpandingRingEffect> activeShockwaveRings = new List<ExpandingRingEffect>();
         private bool laneCreated;
 
         public PresentationDetail Detail => presentationDetail;
@@ -347,6 +350,7 @@ namespace LTW.UnityClient.Simulation
         private void Update()
         {
             ReleaseExpiredPresentations();
+            UpdateExpandingRings();
             if (presentationDetail == PresentationDetail.Disabled || simulationDriver == null)
             {
                 return;
@@ -1134,6 +1138,78 @@ namespace LTW.UnityClient.Simulation
             timedPresentations.Add(new TimedPresentation(beam, Time.time + duration, effectPool));
         }
 
+        /// <summary>
+        /// A flat ring that grows from startScale to endScale and fades to transparent over
+        /// duration — a real shockwave, unlike <see cref="SpawnEffect"/>'s static spawn-hold-vanish
+        /// flash. Built from the same quad+soft-falloff-shader combo as the ground contact shadow
+        /// decals (<see cref="BoardRenderResources.ContactShadowMesh"/>/CreateContactShadowMaterial),
+        /// since that shader already gives a soft radially-fading edge for free.
+        /// </summary>
+        private void SpawnExpandingRing(Vector3 position, Color color, float startScale, float endScale, float duration)
+        {
+            if (PresentationPreferences.ReducedEffects)
+            {
+                return;
+            }
+
+            var ring = GetPooledShockwaveRing();
+            ring.transform.position = position;
+            ring.transform.localScale = new Vector3(startScale, 1f, startScale);
+            SetColor(ring, color);
+            activeShockwaveRings.Add(new ExpandingRingEffect(ring, Time.time, duration, startScale, endScale, color));
+        }
+
+        private void UpdateExpandingRings()
+        {
+            for (var index = activeShockwaveRings.Count - 1; index >= 0; index--)
+            {
+                var ring = activeShockwaveRings[index];
+                var t = Mathf.Clamp01((Time.time - ring.StartTime) / ring.Duration);
+                var scale = Mathf.Lerp(ring.StartScale, ring.EndScale, t);
+                ring.Object.transform.localScale = new Vector3(scale, 1f, scale);
+                SetColor(ring.Object, new Color(ring.BaseColor.r, ring.BaseColor.g, ring.BaseColor.b, ring.BaseColor.a * (1f - t)));
+
+                if (t >= 1f)
+                {
+                    ReleaseToPool(ring.Object, shockwaveRingPool);
+                    activeShockwaveRings.RemoveAt(index);
+                }
+            }
+        }
+
+        private Material ShockwaveRingMaterial()
+        {
+            if (shockwaveRingMaterial == null)
+            {
+                shockwaveRingMaterial = BoardRenderResources.CreateContactShadowMaterial(
+                    "LTW Shockwave Ring",
+                    Color.white,
+                    0.55f);
+            }
+
+            return shockwaveRingMaterial;
+        }
+
+        private GameObject GetPooledShockwaveRing()
+        {
+            if (shockwaveRingPool.Count > 0)
+            {
+                var pooled = shockwaveRingPool.Dequeue();
+                pooled.SetActive(true);
+                return pooled;
+            }
+
+            var ring = new GameObject("ShockwaveRing");
+            ring.AddComponent<MeshFilter>().sharedMesh = BoardRenderResources.ContactShadowMesh;
+            var renderer = ring.AddComponent<MeshRenderer>();
+            renderer.sharedMaterial = ShockwaveRingMaterial();
+            renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            renderer.receiveShadows = false;
+            renderer.lightProbeUsage = UnityEngine.Rendering.LightProbeUsage.Off;
+            renderer.reflectionProbeUsage = UnityEngine.Rendering.ReflectionProbeUsage.Off;
+            return ring;
+        }
+
         private void SpawnFloatingText(Vector3 position, string text, Color color) => SpawnFloatingText(position, text, color, 0.7f);
 
         /// <summary>
@@ -1244,10 +1320,15 @@ namespace LTW.UnityClient.Simulation
 
             if (IsControlTower(towerId))
             {
-                SpawnBeam(At(new Vector3(-0.42f, 0.62f, 0f)), hitPosition + Vector3.up * 0.12f, shotColor, 0.18f);
-                SpawnBeam(At(new Vector3(0.42f, 0.62f, 0f)), hitPosition + Vector3.up * 0.12f, shotColor, 0.18f);
-                SpawnCellFrameCue(hitPosition, shotColor, 0.18f);
-                SpawnEffect(At(Vector3.up * 0.28f), shotColor, 0.42f, 0.16f);
+                // The old twin symmetric beams (fixed local offsets either side of centre) were
+                // tuned for a Control tower that never turned to aim — with its core+ring assembly
+                // now genuinely tracking the target (HeadPivot), a single beam from the core reads
+                // as an actual aimed shot rather than a fixed decorative gate. Expanding rings lean
+                // into Control's own ring/portal shape, replacing a static glow at the tower and
+                // the same blocky SpawnCellFrameCue square other towers' VFX had.
+                SpawnBeam(At(Vector3.up * 0.62f), hitPosition + Vector3.up * 0.12f, shotColor, 0.18f);
+                SpawnExpandingRing(At(Vector3.up * 0.28f), shotColor, 0.15f, 1.4f, 0.35f);
+                SpawnExpandingRing(hitPosition + Vector3.up * 0.18f, shotColor, 0.1f, 0.85f, 0.22f);
                 SpawnEffect(hitPosition, shotColor, damage >= 5 ? 0.42f : 0.32f, 0.16f);
                 return;
             }
@@ -1264,15 +1345,20 @@ namespace LTW.UnityClient.Simulation
 
             if (IsPulseTower(towerId))
             {
-                SpawnEffect(At(Vector3.up * 0.28f), shotColor, 0.68f, 0.18f);
-                SpawnEffect(At(Vector3.up * 0.62f), SignalGold, 0.28f, 0.1f);
-                SpawnBeam(At(new Vector3(-0.54f, 0.34f, 0.54f)), At(new Vector3(0.54f, 0.34f, 0.54f)), shotColor, 0.14f);
-                SpawnBeam(At(new Vector3(-0.54f, 0.34f, -0.54f)), At(new Vector3(0.54f, 0.34f, -0.54f)), shotColor, 0.14f);
-                SpawnBeam(At(new Vector3(-0.54f, 0.34f, -0.54f)), At(new Vector3(-0.54f, 0.34f, 0.54f)), shotColor, 0.14f);
-                SpawnBeam(At(new Vector3(0.54f, 0.34f, -0.54f)), At(new Vector3(0.54f, 0.34f, 0.54f)), shotColor, 0.14f);
-                SpawnBeam(At(new Vector3(-0.36f, 0.42f, -0.36f)), At(new Vector3(0.36f, 0.42f, 0.36f)), SignalGold, 0.12f);
-                SpawnBeam(At(new Vector3(-0.36f, 0.42f, 0.36f)), At(new Vector3(0.36f, 0.42f, -0.36f)), SignalGold, 0.12f);
-                SpawnCellFrameCue(hitPosition, shotColor, 0.18f);
+                // Previously drew 4 beams connecting the tower's own corners plus 2 more crossing
+                // diagonally — a literal square outline that read as dynamic while the whole body
+                // still rotated with each shot, but now that Pulse stays fixed (see locksYaw in
+                // UpdateTowerMotion), it flashed as an obvious static geometric square every time
+                // it fired. Replaced with an actual expanding shockwave — Pulse's whole identity is
+                // an energy pulse, and a ring that visibly grows outward from the spinning Ring
+                // part reads as that far better than a static glow ever could. A quick gold core
+                // pop underneath gives it a starting flash to expand from.
+                SpawnExpandingRing(At(Vector3.up * 0.5f), shotColor, 0.15f, 1.6f, 0.4f);
+                SpawnEffect(At(Vector3.up * 0.5f), SignalGold, 0.16f, 0.1f);
+                // SpawnCellFrameCue drew the same kind of static square-outline box this VFX used
+                // to draw around the tower itself — same problem, same fix: an expanding ring
+                // reads as the splash actually spreading from the impact, not a blocky marker.
+                SpawnExpandingRing(hitPosition + Vector3.up * 0.18f, shotColor, 0.1f, 0.85f, 0.22f);
                 SpawnEffect(hitPosition, shotColor, damage >= 5 ? 0.5f : 0.36f, 0.16f);
                 return;
             }
@@ -1561,6 +1647,8 @@ namespace LTW.UnityClient.Simulation
             creepHitFlashUntil.Clear();
             foreach (var presentation in timedPresentations) ReleaseToPool(presentation.Object, presentation.Pool);
             timedPresentations.Clear();
+            foreach (var ring in activeShockwaveRings) ReleaseToPool(ring.Object, shockwaveRingPool);
+            activeShockwaveRings.Clear();
         }
 
         private GameObject GetOrCreate(Dictionary<string, GameObject> activeObjects, Queue<GameObject> pool, string key, string name, PrimitiveType primitiveType)
@@ -1848,8 +1936,16 @@ namespace LTW.UnityClient.Simulation
             var body = ResolveTowerMotionTarget(towerObject, visualProfile);
             var idle = TowerRoleMotion(visualProfile.Role);
 
-            var yaw = towerAimYaw.TryGetValue(key, out var currentYaw) ? currentYaw : 0f;
-            if (towerAimTarget.TryGetValue(key, out var aimTarget))
+            // Pulse has no clean seam anywhere on its mesh (its 4 spikes run the tower's full
+            // height — every split attempt visibly detached their tips, see the Blender renders
+            // behind the Pulse ring split), so it has no isolated part that could carry aim
+            // rotation without swinging the whole stationary-looking bastion around with it. It
+            // stays fixed entirely; only its Ring spins, and only its idle pulse carries the
+            // "Pulse" identity — it's a splash/AOE emitter, not a turret that needs to point at a
+            // specific target.
+            var locksYaw = visualProfile.Role == TowerVisualRole.Pulse;
+            var yaw = locksYaw ? 0f : towerAimYaw.TryGetValue(key, out var currentYaw) ? currentYaw : 0f;
+            if (!locksYaw && towerAimTarget.TryGetValue(key, out var aimTarget))
             {
                 var direction = aimTarget - towerPosition;
                 direction.y = 0f;
@@ -1865,7 +1961,10 @@ namespace LTW.UnityClient.Simulation
                 }
             }
 
-            towerAimYaw[key] = yaw;
+            if (!locksYaw)
+            {
+                towerAimYaw[key] = yaw;
+            }
 
             var timeSinceFired = towerLastFiredAt.TryGetValue(key, out var firedAt) ? Time.time - firedAt : float.MaxValue;
             var recoil = timeSinceFired < TowerRecoilDuration ? 1f - timeSinceFired / TowerRecoilDuration : 0f;
@@ -1876,9 +1975,13 @@ namespace LTW.UnityClient.Simulation
             // it's tuned. Idle keeps a small UNIFORM scale pulse (a "breathing" energy effect,
             // not an axis-skewed squash), which is a different thing from a recoil punch.
             var idleScale = 1f + idle.ScalePulse;
-            var recoilKick = recoil * 0.16f;
+            // Pulse is a stationary splash/AOE emitter, not a mechanical weapon with a kickback —
+            // it should show zero recoil-driven position/pitch motion when it fires, only its own
+            // VFX flash and ring spin. locksYaw (Pulse-only, see above) doubles as that flag here.
+            var recoilKickScale = locksYaw ? 0f : 1f;
+            var recoilKick = recoil * 0.16f * recoilKickScale;
             var kickDirection = Quaternion.Euler(0f, yaw, 0f) * Vector3.back;
-            var recoilPosition = kickDirection * recoilKick + Vector3.down * (recoil * 0.04f);
+            var recoilPosition = kickDirection * recoilKick + Vector3.down * (recoil * 0.04f * recoilKickScale);
 
             // Turret-style towers (currently just Arrow, split via split_tower_rigid_part.py) have
             // a HeadPivot separate from Base: aim yaw and recoil apply to HeadPivot alone, so only
@@ -1906,7 +2009,7 @@ namespace LTW.UnityClient.Simulation
             else
             {
                 body.localPosition = idle.PositionOffset + recoilPosition;
-                body.localRotation = Quaternion.Euler(idle.PitchDegrees - recoil * 10f, yaw, 0f);
+                body.localRotation = Quaternion.Euler(idle.PitchDegrees - recoil * 10f * recoilKickScale, yaw, 0f);
                 body.localScale = Vector3.one * idleScale;
             }
 
@@ -3297,10 +3400,12 @@ namespace LTW.UnityClient.Simulation
                 {
                     // No cleanly separable emitter part exists on this mesh (the dome/spikes/core
                     // blend continuously with no seam — see the tower-survey notes), so the
-                    // tower's name is carried by a stronger, heartbeat-shaped uniform pulse on the
-                    // whole Body instead of a literal separate part: peaked rather than smooth
-                    // sine, so it reads as a pulse, not a sway.
-                    var pulse = Mathf.Pow(Mathf.Abs(Mathf.Sin(time * 1.1f)), 3f) * 0.09f;
+                    // tower's name is carried by a heartbeat-shaped uniform pulse on the whole Body
+                    // instead of a literal separate part: peaked rather than smooth sine, so it
+                    // reads as a pulse, not a sway. 0.09 amplitude read as an unwanted "in-out
+                    // sizing" wobble once Pulse's Body stopped rotating/kicking (locksYaw in
+                    // UpdateTowerMotion) and had nothing else to share attention with — quartered.
+                    var pulse = Mathf.Pow(Mathf.Abs(Mathf.Sin(time * 1.1f)), 3f) * 0.022f;
                     return new TowerMotion(Vector3.zero, 0f, pulse);
                 }
 
@@ -4360,6 +4465,26 @@ namespace LTW.UnityClient.Simulation
             public GameObject Object { get; }
             public float ReleaseAt { get; }
             public Queue<GameObject> Pool { get; }
+        }
+
+        private readonly struct ExpandingRingEffect
+        {
+            public ExpandingRingEffect(GameObject @object, float startTime, float duration, float startScale, float endScale, Color baseColor)
+            {
+                Object = @object;
+                StartTime = startTime;
+                Duration = duration;
+                StartScale = startScale;
+                EndScale = endScale;
+                BaseColor = baseColor;
+            }
+
+            public GameObject Object { get; }
+            public float StartTime { get; }
+            public float Duration { get; }
+            public float StartScale { get; }
+            public float EndScale { get; }
+            public Color BaseColor { get; }
         }
 
         private readonly struct SpawnGatePulseElement
