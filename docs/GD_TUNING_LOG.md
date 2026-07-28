@@ -155,3 +155,15 @@ Follow-up to the Category 2 landing above, after merge to `main`. Two changes, b
 - `dotnet test` — full suite green after updating `Bot_profiles_choose_expanded_roster_sends_when_available`'s expected creep ids and widening the match-length test's upper bound.
 - Three Unity batchmode playtests (`LocalPlaytestBatchRunner.Run`) with real replay analysis, evidence above and under `docs/playtest-evidence/local-unity-batch-rebalance-10-roster-*`.
 - `docs/TOWER_AND_CREEP_ROSTER.md`'s Serpent Coil cost entry updated to 20 to match.
+
+## 2026-07-28 (follow-up): Send Decision Reordered Before Tower Building — Obsidian Brute/Serpent Fix Confirmed
+
+Fixes the known limitation from the entry above. `LocalVerticalSlice.AdvanceOneTick` previously called `TryPlaceBotTower` before the bot's send decision every tick; since tower-building is uncapped, it absorbed a bot's surplus gold into "one more tower" before the 20-30g Serpent/Obsidian Brute band was ever reached. Reordered so the send decision (gated the same as before, by `HasMinimumDefenseCoverage`/`IsLaneUnderPressure`) runs first and `TryPlaceBotTower` only spends what's left — a bot's send now gets first claim on its own surplus gold instead of last.
+
+**Confirmed fixed via replay analysis**, isolated 3-lane run (P1 silent, P2 Balanced, P3 Defensive, P4-8 disabled, seed 1 — full brawl configs with all 8 default-Greedy lanes enabled aren't a fair test for this, since Balanced/Defensive get eliminated too fast by 5 Greedy bots to ever reach their higher income gates): `creep.swarm: 54, creep.runner: 41, creep.brute: 8, creep.wisp: 3, creep.obsidian_brute: 3, creep.serpent: 2, creep.shade: 2`. Both previously-stuck-at-0 creeps now appear. P2 (Balanced) survived to income 130, well past its 35-income Obsidian Brute gate.
+
+**Test fallout:** `Defensive_bot_builds_past_the_old_fixed_tower_cap_when_gold_allows` broke, for a legitimate reason — an isolated, unpressured Defensive bot no longer keeps stacking towers indefinitely, since it now prefers spending surplus gold on a send once its minimum coverage (4) is met, exactly the behavior this fix intends. Replaced with `Defensive_bot_prioritizes_sending_over_stacking_further_towers_once_coverage_is_met`, which checks coverage is still met (>=4) *and* that the bot actually sent something, to keep catching a real regression to the old hardcoded tower cap without asserting a tower count that's no longer guaranteed under normal (unpressured) conditions.
+
+**Verification performed:**
+- `dotnet test` — 86/86 green.
+- Two Unity batchmode playtests: an 8-lane brawl (uninformative for this question, all Balanced/Defensive lanes died too fast) and the isolated 3-lane run above, which is the one that confirms the fix.
