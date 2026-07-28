@@ -114,7 +114,6 @@ namespace LTW.UnityClient.UI
             MoveGhost();
             selectedTower = null;
             HideSelectionRing();
-            HideBuilderAvatar();
             feedbackView.Clear();
         }
 
@@ -476,7 +475,11 @@ namespace LTW.UnityClient.UI
         private void MoveGhost()
         {
             ghost.transform.position = GridToWorld(selectedCell, 0.6f);
-            HideBuilderAvatar();
+            // The builder now walks along with tower placement instead of vanishing for it — it
+            // reads as the builder actually being the one who walks over and puts the tower down,
+            // and TickBuilderWalk already knows how to smoothly approach whatever selectedCell is,
+            // so no extra plumbing is needed here beyond making sure it's visible/targeted.
+            UpdateBuilderAvatar();
             ConfigurePlacementGhostVisual();
             // A resolved model already carries its profile's own scale, so the root has to stay at
             // one or the two multiply and the preview comes out larger than the placed tower.
