@@ -54,13 +54,13 @@ public sealed class LocalThreePlayerMatchTests
         for (var tick = 0; tick < 6_000 && slice.MatchSummary is null; tick++) slice.AdvanceOneTick();
 
         Assert.NotNull(slice.MatchSummary);
-        // Upper bound widened 900->1200 alongside the 2026-07-28 creep rebalance: fixing the bot
-        // preference-list reachability bug (see BotController.SelectCreep) means bots now
-        // actually reach the pricier, tankier Category 2 creeps instead of always falling through
-        // to the cheapest option, so matches run longer — landing back inside the original
-        // 900-1800 target range from GD_TUNING_LOG.md's very first entry, rather than the
-        // artificially short range the reachability bug produced. Not a regression.
-        Assert.InRange(slice.MatchSummary!.CompletedAtTick.Value, 150, 1200);
+        // Upper bound widened again 1200->1800 when the 30-tick send cooldown was actually
+        // enforced for the first time (see EconomyService.QueueSend). Bots previously sent every
+        // tick because nothing gated cadence, so matches resolved artificially fast; rate-limiting
+        // them lengthened this seed's match from 1012 to 1643 ticks. 1800 is the upper edge of the
+        // match-completion target from GD_TUNING_LOG.md's very first entry, so the observed value
+        // now sits inside the originally intended range rather than below it.
+        Assert.InRange(slice.MatchSummary!.CompletedAtTick.Value, 150, 1800);
         Assert.NotEmpty(slice.GetReplayRecord().AcceptedCommands);
     }
 

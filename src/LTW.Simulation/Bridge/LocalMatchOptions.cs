@@ -11,8 +11,12 @@ public sealed class LocalMatchOptions
     public const int MinLaneCount = 2;
     public const int MaxLaneCount = 8;
 
+    // Player 1 has an entry here even though it is the default human seat: the entry only takes
+    // effect when the human is seated elsewhere (see IsBotEnabledFor), so moving the local seat to
+    // lane 3 leaves lane 1 bot-driven rather than idle.
     private static readonly BotLaneOptions[] DefaultLanes =
     {
+        new(1, profile: BotDecisionProfile.Balanced),
         new(2, profile: BotDecisionProfile.Balanced),
         new(3, profile: BotDecisionProfile.Defensive),
         new(4, profile: BotDecisionProfile.Greedy),
@@ -24,10 +28,11 @@ public sealed class LocalMatchOptions
 
     private readonly IReadOnlyDictionary<int, BotLaneOptions> lanes;
 
-    public LocalMatchOptions(int seed = 1, int laneCount = MaxLaneCount, IReadOnlyList<BotLaneOptions>? botLanes = null)
+    public LocalMatchOptions(int seed = 1, int laneCount = MaxLaneCount, IReadOnlyList<BotLaneOptions>? botLanes = null, int localPlayerId = 1)
     {
         Seed = seed;
         LaneCount = System.Math.Clamp(laneCount, MinLaneCount, MaxLaneCount);
+        LocalPlayerId = new PlayerId(System.Math.Clamp(localPlayerId, 1, LaneCount));
 
         var merged = DefaultLanes.ToDictionary(lane => lane.PlayerId.Value);
         if (botLanes != null)
@@ -48,6 +53,22 @@ public sealed class LocalMatchOptions
     public int LaneCount { get; }
 
     /// <summary>
+    /// Which seat the local human occupies. Previously this was an unstated assumption spread
+    /// across the Unity client as hardcoded <c>new PlayerId(1)</c> / <c>new LaneId(1)</c> literals;
+    /// naming it here is the first step toward remote players, where each client drives a different
+    /// seat of the same match. The seat's own lane is always <c>topology.HomeLaneFor(LocalPlayerId)</c>.
+    /// </summary>
+    public PlayerId LocalPlayerId { get; }
+
+    /// <summary>
+    /// Returns a copy of these options with the local human seated in a different lane. Whichever
+    /// lane the human occupies stops being bot-driven, and the lane they vacate starts being
+    /// bot-driven, without needing to restate any lane configuration.
+    /// </summary>
+    public LocalMatchOptions WithLocalPlayer(int playerId) =>
+        new LocalMatchOptions(Seed, LaneCount, lanes.Values.ToArray(), playerId);
+
+    /// <summary>
     /// Returns a copy of these options with a single lane's bot configuration overridden, leaving
     /// every other lane untouched. The usual way to express "start from the defaults, but change
     /// lane N" without needing to restate every other lane.
@@ -61,10 +82,16 @@ public sealed class LocalMatchOptions
             profile ?? current.Profile,
             primaryCreepId ?? current.PrimaryCreepId);
 
-        return new LocalMatchOptions(Seed, LaneCount, lanes.Values.Where(lane => lane.PlayerId.Value != playerId).Append(overridden).ToArray());
+        return new LocalMatchOptions(Seed, LaneCount, lanes.Values.Where(lane => lane.PlayerId.Value != playerId).Append(overridden).ToArray(), LocalPlayerId.Value);
     }
 
+    /// <summary>
+    /// The local human's own seat is never bot-driven, whatever the lane config says. This keeps
+    /// "who is the human" a single knob (<see cref="LocalPlayerId"/>) instead of requiring callers
+    /// to remember to also disable the bot on that lane.
+    /// </summary>
     public bool IsBotEnabledFor(PlayerId playerId) =>
+        !playerId.Equals(LocalPlayerId) &&
         lanes.TryGetValue(playerId.Value, out var lane) && lane.Enabled;
 
     public BotDecisionProfile BotProfileFor(PlayerId playerId) =>

@@ -10,6 +10,99 @@ namespace LTW.Tests;
 
 public sealed class VerticalSliceBridgeTests
 {
+    /// <summary>
+    /// Lane ownership is enforced on tower placement. Before this was added, the lane id was taken
+    /// on trust from the caller: PlaceTower(P1, lane 5, ...) succeeded, charged P1's gold, and left
+    /// a P1-owned tower in P5's lane. It never showed up locally because the Unity client hardcodes
+    /// lane 1, but it is an exploit as soon as remote clients submit their own commands.
+    /// </summary>
+    [Fact]
+    public void A_player_cannot_place_a_tower_in_another_players_lane()
+    {
+        var simulation = new LocalVerticalSlice(SampleVerticalSliceContent.Create(), enableBots: false);
+        var goldBefore = simulation.GetSnapshot().Players.Get(new PlayerId(1)).Gold.Amount;
+
+        var foreignLane = simulation.PlaceTower(new PlayerId(1), new LaneId(5), SampleVerticalSliceContent.TowerId, new GridPosition(1, 3));
+
+        Assert.False(foreignLane.Accepted);
+        Assert.Equal(CommandRejectionReason.NotOwner, foreignLane.RejectionReason);
+        Assert.DoesNotContain(simulation.GetSnapshot().Towers, tower => tower.LaneId.Equals(new LaneId(5)));
+        // A rejected placement must not charge the would-be builder.
+        Assert.Equal(goldBefore, simulation.GetSnapshot().Players.Get(new PlayerId(1)).Gold.Amount);
+
+        // The same placement in the player's own lane is still fine.
+        Assert.True(simulation.PlaceTower(new PlayerId(1), new LaneId(1), SampleVerticalSliceContent.TowerId, new GridPosition(1, 3)).Accepted);
+    }
+
+    /// <summary>
+    /// The local seat defaults to player 1, preserving every existing local-play assumption, but is
+    /// now explicit rather than hardcoded across the client.
+    /// </summary>
+    [Fact]
+    public void Local_seat_defaults_to_player_one_in_lane_one()
+    {
+        var simulation = new LocalVerticalSlice(SampleVerticalSliceContent.Create(), enableBots: false);
+
+        Assert.Equal(new PlayerId(1), simulation.LocalPlayerId);
+        Assert.Equal(new LaneId(1), simulation.LocalPlayerLaneId);
+    }
+
+    /// <summary>
+    /// Seating the human elsewhere must move both the seat and its lane together, and must flip
+    /// which lanes are bot-driven: the occupied lane stops being a bot, the vacated lane starts.
+    /// Without that second half, moving the seat would leave lane 1 idle and lane 3 double-driven.
+    /// </summary>
+    [Fact]
+    public void Seating_the_local_player_elsewhere_moves_the_lane_and_the_bots()
+    {
+        var options = LocalMatchOptions.Default.WithLocalPlayer(3);
+        var simulation = new LocalVerticalSlice(SampleVerticalSliceContent.Create(), options);
+
+        Assert.Equal(new PlayerId(3), simulation.LocalPlayerId);
+        Assert.Equal(new LaneId(3), simulation.LocalPlayerLaneId);
+
+        // The human's own lane is not bot-driven; the lane they vacated now is.
+        Assert.False(options.IsBotEnabledFor(new PlayerId(3)));
+        Assert.True(options.IsBotEnabledFor(new PlayerId(1)));
+        Assert.DoesNotContain(simulation.GetBotDiagnostics().Profiles, profile => profile.PlayerId.Value == 3);
+        Assert.Contains(simulation.GetBotDiagnostics().Profiles, profile => profile.PlayerId.Value == 1);
+    }
+
+    /// <summary>
+    /// The seat is what the ownership rule is enforced against — a player seated in lane 3 may
+    /// build in lane 3 and nowhere else. This is the pairing that makes remote seats safe.
+    /// </summary>
+    [Fact]
+    public void A_relocated_local_seat_may_build_only_in_its_own_lane()
+    {
+        var options = LocalMatchOptions.Default.WithLocalPlayer(3);
+        var simulation = new LocalVerticalSlice(SampleVerticalSliceContent.Create(), options, enableBots: false);
+
+        var ownLane = simulation.PlaceTower(simulation.LocalPlayerId, simulation.LocalPlayerLaneId, SampleVerticalSliceContent.TowerId, new GridPosition(1, 3));
+        var oldLane = simulation.PlaceTower(simulation.LocalPlayerId, new LaneId(1), SampleVerticalSliceContent.TowerId, new GridPosition(1, 5));
+
+        Assert.True(ownLane.Accepted);
+        Assert.False(oldLane.Accepted);
+        Assert.Equal(CommandRejectionReason.NotOwner, oldLane.RejectionReason);
+    }
+
+    /// <summary>
+    /// PlayerId.IsValid only means "positive", so an id outside the match still reached the economy
+    /// lookup and threw KeyNotFoundException. Over the wire that is a rejectable command, not an
+    /// exceptional program state, so it must come back as a rejection instead.
+    /// </summary>
+    [Fact]
+    public void Commands_from_a_player_outside_the_match_are_rejected_not_thrown()
+    {
+        var options = new LocalMatchOptions(laneCount: 3);
+        var simulation = new LocalVerticalSlice(SampleVerticalSliceContent.Create(), options, enableBots: false);
+
+        var result = simulation.PlaceTower(new PlayerId(99), new LaneId(1), SampleVerticalSliceContent.TowerId, new GridPosition(1, 3));
+
+        Assert.False(result.Accepted);
+        Assert.Equal(CommandRejectionReason.InvalidPlayer, result.RejectionReason);
+    }
+
     [Fact]
     public void Local_vertical_slice_places_tower_sends_creep_and_advances_to_expected_state()
     {
@@ -345,6 +438,14 @@ public sealed class VerticalSliceBridgeTests
         var pulsePreview = simulation.PreviewPlaceTower(new PlayerId(1), new LaneId(1), SampleVerticalSliceContent.PulseTowerId, new GridPosition(1, 1));
         var prismPreview = simulation.PreviewPlaceTower(new PlayerId(1), new LaneId(1), SampleVerticalSliceContent.PrismTowerId, new GridPosition(5, 1));
         var shadeSend = simulation.QueueSend(new PlayerId(1), SampleVerticalSliceContent.ShadeCreepId);
+        // Spaced past the 30-tick send cooldown (enforced as of the multiplayer authority pass).
+        // This test is about the expanded roster's content being accepted, not send cadence, so
+        // the wait just keeps the second send from being rejected for an unrelated reason.
+        for (var tick = 0; tick < 30; tick++)
+        {
+            simulation.AdvanceOneTick();
+        }
+
         var siegeSend = simulation.QueueSend(new PlayerId(1), SampleVerticalSliceContent.SiegeCreepId);
         var events = simulation.DrainEvents();
 
@@ -356,24 +457,52 @@ public sealed class VerticalSliceBridgeTests
         Assert.Contains(events, simulationEvent => simulationEvent is CreepQueuedEvent queued && queued.CreepId.Equals(SampleVerticalSliceContent.SiegeCreepId));
     }
 
+    /// <summary>
+    /// Replaces an earlier "Repeat_sends_are_limited_by_gold_only", which asserted a player could
+    /// spam sends within a single tick until gold ran out. That was only true because the 30-tick
+    /// send cooldown, though configured and tracked in player state, was never enforced. Sends are
+    /// now gated by the cooldown first and gold second.
+    /// </summary>
     [Fact]
-    public void Repeat_sends_are_limited_by_gold_only()
+    public void Repeat_sends_within_the_cooldown_window_are_rejected()
     {
         var simulation = new LocalVerticalSlice(SampleVerticalSliceContent.Create(), enableBots: false);
 
         var first = simulation.QueueSend(new PlayerId(1), SampleVerticalSliceContent.CreepId);
         var immediate = simulation.QueueSend(new PlayerId(1), SampleVerticalSliceContent.CreepId);
-        for (var send = 0; send < 8; send++)
-        {
-            Assert.True(simulation.QueueSend(new PlayerId(1), SampleVerticalSliceContent.CreepId).Accepted);
-        }
-
-        var noGold = simulation.QueueSend(new PlayerId(1), SampleVerticalSliceContent.CreepId);
 
         Assert.True(first.Accepted);
-        Assert.True(immediate.Accepted);
-        Assert.False(noGold.Accepted);
-        Assert.Equal(CommandRejectionReason.InsufficientGold, noGold.RejectionReason);
+        Assert.False(immediate.Accepted);
+        Assert.Equal(CommandRejectionReason.CooldownActive, immediate.RejectionReason);
+    }
+
+    /// <summary>
+    /// The companion to the test above: the cooldown throttles cadence, it does not permanently
+    /// stop a player sending. Spacing each send a full cooldown apart must let every one through.
+    /// Gold-exhaustion is deliberately not asserted here — over this many ticks income outgrows
+    /// Runner's cost, so a gold rejection never fires; that rule is covered directly by
+    /// <c>EconomyTests.Insufficient_gold_rejects_without_changing_state</c>.
+    /// </summary>
+    [Fact]
+    public void Sends_spaced_past_the_cooldown_are_all_accepted()
+    {
+        var simulation = new LocalVerticalSlice(SampleVerticalSliceContent.Create(), enableBots: false);
+        var accepted = 0;
+
+        for (var attempt = 0; attempt < 5; attempt++)
+        {
+            if (simulation.QueueSend(new PlayerId(1), SampleVerticalSliceContent.CreepId).Accepted)
+            {
+                accepted++;
+            }
+
+            for (var tick = 0; tick < 30; tick++)
+            {
+                simulation.AdvanceOneTick();
+            }
+        }
+
+        Assert.Equal(5, accepted);
     }
 
     [Fact]

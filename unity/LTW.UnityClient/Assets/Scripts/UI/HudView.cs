@@ -87,18 +87,18 @@ namespace LTW.UnityClient.UI
                     continue;
                 }
 
-                if (simulationEvent is CreepKilledEvent killed && killed.DefenderId.Value == 1)
+                if (simulationEvent is CreepKilledEvent killed && killed.DefenderId.Equals(simulationDriver.LocalPlayerId))
                 {
                     kills++;
                 }
-                else if (simulationEvent is LeakEvent leak && leak.DefenderId.Value == 1)
+                else if (simulationEvent is LeakEvent leak && leak.DefenderId.Equals(simulationDriver.LocalPlayerId))
                 {
                     leaks += leak.LivesLost.Amount;
                 }
             }
 
             lastObservedTick = snapshot.Tick.Value;
-            var player = snapshot.Players.Get(new PlayerId(1));
+            var player = snapshot.Players.Get(simulationDriver.LocalPlayerId);
             GoldText = player.Gold.Amount.ToString();
             IncomeText = player.Income.Amount.ToString();
             LivesText = player.Lives.Amount.ToString();

@@ -9,7 +9,7 @@ This log records the first gameplay pacing targets for the local vertical slice.
 - Three lanes: one human lane and two bot lanes.
 - Starting economy: 100 gold, 10 income, 220 lives.
 - Income interval: 50 simulation ticks.
-- Global send cooldown: 30 simulation ticks.
+- Global send cooldown: 30 simulation ticks (documented from the start, but only actually enforced as of 2026-07-28 — see the final entry in this log).
 - Sell refund: 50% of tower cost.
 - Leak life loss: 1 life per leaked creep; Siege currently leaks for 2.
 - Prototype towers: Arrow, Control, Relay, Pulse, Prism.
@@ -167,3 +167,33 @@ Fixes the known limitation from the entry above. `LocalVerticalSlice.AdvanceOneT
 **Verification performed:**
 - `dotnet test` — 86/86 green.
 - Two Unity batchmode playtests: an 8-lane brawl (uninformative for this question, all Balanced/Defensive lanes died too fast) and the isolated 3-lane run above, which is the one that confirms the fix.
+
+## 2026-07-28 (follow-up): The 30-Tick Send Cooldown Is Now Actually Enforced
+
+Landed on `multiplayer-seats-and-authority` as part of the command-authority pass for
+networked play. Full context in `docs/MULTIPLAYER_SEATS_AND_AUTHORITY.md`.
+
+**The cooldown described in this log's Current Baseline was never running.**
+`EconomyRules.SendCooldownTicks` (30), `PlayerEconomyState.NextSendAvailableTick`,
+`WithNextSendAvailableTick`, and `CommandRejectionReason.CooldownActive` all existed, but
+nothing anywhere read or set them — verified by grep across `src/` and `tests/`. Sends were
+limited only by gold. That means this log's own open question, "Does the global 30-tick send
+cooldown create enough breathing room once bots and humans send together?", has never
+actually been testable until now, and every balance observation recorded above was made
+against an *uncapped* send cadence.
+
+**Balance impact is significant and should be watched.** Bots previously sent every tick.
+With the cooldown enforced, the reference bot-vs-bot match (`Two_bots_complete_a_local_carousel_match`,
+default seed/config) went from 1012 to **1643 ticks, +62%**. That lands inside the
+900-1800 match-completion target from this log's very first entry rather than below it, so
+the direction looks right, but it is a large enough change that the next round of tuning
+observations should not be compared against pre-cooldown numbers.
+
+The value is a single constant in `LocalVerticalSlice`'s `EconomyRules` construction if it
+needs tuning. Enabling at the documented 30 (rather than a shorter anti-abuse-only value)
+was a deliberate choice, not an inherited default.
+
+**Related open question this now raises:** bot send *quantity* (`GetSendQuantity`: Greedy up
+to 3, Balanced up to 2, Defensive 1) was tuned when bots could send every tick. With cadence
+now rate-limited, per-send quantity may be the more appropriate lever for profile
+aggression, and the current numbers may under-serve Greedy in particular.

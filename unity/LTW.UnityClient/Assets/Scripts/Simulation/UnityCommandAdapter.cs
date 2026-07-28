@@ -26,7 +26,7 @@ namespace LTW.UnityClient.Simulation
         /// </summary>
         public int CurrentPlayerGold()
         {
-            return simulation is null ? 0 : simulation.GetSnapshot().Players.Get(new PlayerId(1)).Gold.Amount;
+            return simulation is null ? 0 : simulation.GetSnapshot().Players.Get(simulation.LocalPlayerId).Gold.Amount;
         }
 
         public VerticalSliceCommandResult PreviewSampleTower(int x, int y) => PreviewTower(SampleVerticalSliceContent.TowerId, x, y);
@@ -48,7 +48,7 @@ namespace LTW.UnityClient.Simulation
 
             return simulation is null
                 ? VerticalSliceCommandResult.Reject(CommandRejectionReason.MatchPaused)
-                : simulation.PreviewPlaceTower(new PlayerId(1), new LaneId(1), towerId, new GridPosition(x, y));
+                : simulation.PreviewPlaceTower(simulation.LocalPlayerId, simulation.LocalPlayerLaneId, towerId, new GridPosition(x, y));
         }
 
         public VerticalSliceCommandResult PlaceSampleTower(int x, int y) => PlaceTower(SampleVerticalSliceContent.TowerId, x, y);
@@ -73,7 +73,7 @@ namespace LTW.UnityClient.Simulation
                 return VerticalSliceCommandResult.Reject(CommandRejectionReason.MatchPaused);
             }
 
-            return RefreshAfterAccepted(simulation.PlaceTower(new PlayerId(1), new LaneId(1), towerId, new GridPosition(x, y)));
+            return RefreshAfterAccepted(simulation.PlaceTower(simulation.LocalPlayerId, simulation.LocalPlayerLaneId, towerId, new GridPosition(x, y)));
         }
 
         public VerticalSliceCommandResult SendSampleCreep()
@@ -146,7 +146,7 @@ namespace LTW.UnityClient.Simulation
                 return VerticalSliceCommandResult.Reject(CommandRejectionReason.MatchPaused);
             }
 
-            return RefreshAfterAccepted(simulation.QueueSend(new PlayerId(1), creepId, quantity));
+            return RefreshAfterAccepted(simulation.QueueSend(simulation.LocalPlayerId, creepId, quantity));
         }
 
         public VerticalSliceCommandResult SellLastSampleTower()
@@ -156,7 +156,7 @@ namespace LTW.UnityClient.Simulation
                 return VerticalSliceCommandResult.Reject(CommandRejectionReason.MatchPaused);
             }
 
-            return RefreshAfterAccepted(simulation.SellLastTower(new PlayerId(1)));
+            return RefreshAfterAccepted(simulation.SellLastTower(simulation.LocalPlayerId));
         }
 
         public VerticalSliceCommandResult SellTowerAt(int x, int y)
@@ -171,7 +171,7 @@ namespace LTW.UnityClient.Simulation
                 return VerticalSliceCommandResult.Reject(CommandRejectionReason.MatchPaused);
             }
 
-            return RefreshAfterAccepted(simulation.SellTowerAt(new PlayerId(1), new LaneId(1), new GridPosition(x, y)));
+            return RefreshAfterAccepted(simulation.SellTowerAt(simulation.LocalPlayerId, simulation.LocalPlayerLaneId, new GridPosition(x, y)));
         }
 
         public void ResetMatch()

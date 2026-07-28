@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using LTW.Simulation.Bridge;
 using LTW.Simulation.Events;
 using LTW.Simulation.Economy;
+using LTW.Simulation.Primitives;
 using LTW.Simulation.Replay;
 using UnityEngine;
 
@@ -40,6 +41,16 @@ namespace LTW.UnityClient.Simulation
         public ReplayRecord? LatestReplay { get; private set; }
 
         public BotDiagnosticsSnapshot? LatestBotDiagnostics { get; private set; }
+
+        /// <summary>
+        /// The seat this client drives, surfaced so HUD and input code stop assuming player 1.
+        /// Falls back to seat 1 only before <see cref="Initialize"/> has run, matching the previous
+        /// hardcoded behavior for that window rather than throwing during scene startup.
+        /// </summary>
+        public PlayerId LocalPlayerId => simulation is null ? new PlayerId(1) : simulation.LocalPlayerId;
+
+        /// <summary>The lane the local seat defends. Derived from the seat, never hardcoded.</summary>
+        public LaneId LocalPlayerLaneId => simulation is null ? new LaneId(1) : simulation.LocalPlayerLaneId;
 
         public void Initialize(LocalVerticalSlice localSimulation)
         {

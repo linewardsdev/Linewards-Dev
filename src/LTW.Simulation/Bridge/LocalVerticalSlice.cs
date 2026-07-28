@@ -88,6 +88,18 @@ public sealed class LocalVerticalSlice
         tick = new SimulationTick(0);
     }
 
+    /// <summary>
+    /// The seat the local client drives. Presentation and input code should ask for this rather
+    /// than assuming player 1, so the same client can be seated anywhere in the match — the
+    /// prerequisite for remote players each driving their own seat.
+    /// </summary>
+    public PlayerId LocalPlayerId => options.LocalPlayerId;
+
+    /// <summary>
+    /// The lane the local seat defends. Always derived from the seat rather than hardcoded.
+    /// </summary>
+    public LaneId LocalPlayerLaneId => topology.HomeLaneFor(options.LocalPlayerId);
+
     public VerticalSliceCommandResult PreviewPlaceTower(PlayerId playerId, LaneId laneId, ContentId towerId, GridPosition position)
     {
         return ValidateTowerPlacement(playerId, laneId, towerId, position).Result;
@@ -365,8 +377,11 @@ public sealed class LocalVerticalSlice
 
     private Dictionary<PlayerId, BotController> CreateBots(IReadOnlyList<PlayerId> playerIds)
     {
+        // The "never bot lane 1" rule this used to hardcode is now expressed by the seat: whichever
+        // lane the local human occupies is excluded by IsBotEnabledFor, so lane 1 correctly becomes
+        // bot-driven when the human is seated elsewhere.
         return playerIds
-            .Where(playerId => playerId.Value != 1 && options.IsBotEnabledFor(playerId))
+            .Where(playerId => options.IsBotEnabledFor(playerId))
             .ToDictionary(
                 playerId => playerId,
                 playerId => new BotController(
@@ -525,9 +540,29 @@ public sealed class LocalVerticalSlice
             return TowerPlacementValidation.Reject(contentResult.RejectionReason);
         }
 
+        // PlayerId.IsValid only means "positive", so a player id outside this match still reaches
+        // here and used to throw KeyNotFoundException from the economy lookup further down.
+        // Reject instead: over the wire this is just a bad command, not a program error.
+        if (!topology.HasPlayer(playerId))
+        {
+            return TowerPlacementValidation.Reject(CommandRejectionReason.InvalidPlayer);
+        }
+
         if (!grids.TryGetValue(laneId, out var grid))
         {
             return TowerPlacementValidation.Reject(CommandRejectionReason.InvalidLane);
+        }
+
+        // A player may only build in their own home lane. Until now nothing enforced this: the
+        // lane id was taken on trust from the caller, so PlaceTower(P1, lane 5, ...) succeeded,
+        // charged P1's gold, and left a P1-owned tower defending P5's lane. That was invisible
+        // locally only because the Unity client hardcodes lane 1 for the single human seat, but
+        // it becomes a live exploit the moment remote clients submit their own commands (a
+        // player could reshape an opponent's maze, or spend into their lane to grief the route).
+        // Selling already checked ownership (see SellTowerAt's OwnerId filter); building didn't.
+        if (!laneId.Equals(topology.HomeLaneFor(playerId)))
+        {
+            return TowerPlacementValidation.Reject(CommandRejectionReason.NotOwner);
         }
 
         var placement = pathService.ValidatePlacement(grid, position);

@@ -231,6 +231,9 @@ For online play:
 - Clients never submit damage, gold totals, paths, leaks, or ratings as authoritative facts.
 - Replay logs and content versions support dispute and desync investigation.
 - Rate limits and command cooldowns are enforced server-side.
+- A player may only build in their own home lane; send targets are derived from topology and
+  never accepted from the client. See `docs/MULTIPLAYER_SEATS_AND_AUTHORITY.md` for the full
+  list of command-authority rules the simulation enforces today.
 - Telemetry collects only what is needed for operations, product decisions, and fraud detection.
 
 ## Delivery Phases

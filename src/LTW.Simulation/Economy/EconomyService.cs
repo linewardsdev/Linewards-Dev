@@ -70,6 +70,18 @@ public sealed class EconomyService
             return SendResult.Reject(players, CommandRejectionReason.InvalidPlayer);
         }
 
+        // Send cooldown, enforced here for the first time. EconomyRules.SendCooldownTicks,
+        // PlayerEconomyState.NextSendAvailableTick and WithNextSendAvailableTick all already
+        // existed, and CommandRejectionReason.CooldownActive was already defined, but nothing
+        // ever read or set any of them — the "global 30-tick send cooldown" the design docs and
+        // GD_TUNING_LOG have been describing was never actually running, leaving sends limited
+        // only by gold. That is a rate-limit hole for remote clients specifically (see
+        // ARCHITECTURE.md's "rate limits and command cooldowns are enforced server-side").
+        if (requestedTick.Value < sender.NextSendAvailableTick.Value)
+        {
+            return SendResult.Reject(players, CommandRejectionReason.CooldownActive);
+        }
+
         var cost = creep.Cost.Amount * quantity;
         if (sender.Gold.Amount < cost)
         {
@@ -78,7 +90,8 @@ public sealed class EconomyService
 
         var updatedSender = sender
             .WithGold(new Gold(sender.Gold.Amount - cost))
-            .WithIncome(new Income(sender.Income.Amount + creep.IncomeGain.Amount * quantity));
+            .WithIncome(new Income(sender.Income.Amount + creep.IncomeGain.Amount * quantity))
+            .WithNextSendAvailableTick(new SimulationTick(requestedTick.Value + rules.SendCooldownTicks));
 
         return SendResult.Accept(players.Replace(updatedSender), targetId);
     }

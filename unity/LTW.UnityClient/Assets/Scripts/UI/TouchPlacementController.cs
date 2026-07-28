@@ -391,7 +391,7 @@ namespace LTW.UnityClient.UI
 
             foreach (var tower in snapshot.Towers)
             {
-                if (tower.OwnerId.Value == 1 && tower.LaneId.Value == 1 && tower.Position.X == cell.x && tower.Position.Y == cell.y)
+                if (tower.OwnerId.Equals(simulationDriver.LocalPlayerId) && tower.LaneId.Equals(simulationDriver.LocalPlayerLaneId) && tower.Position.X == cell.x && tower.Position.Y == cell.y)
                 {
                     selectedTower = tower;
                     UpdateSelectionRing(tower);
