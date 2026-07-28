@@ -112,7 +112,7 @@ namespace LTW.UnityClient.Simulation
             return RefreshAfterAccepted(result);
         }
 
-        public VerticalSliceCommandResult SendStressReviewWave(int burstIndex)
+        public VerticalSliceCommandResult SendStressReviewWave(int burstIndex, int senderPlayerId = 3)
         {
             if (simulationDriver == null || !simulationDriver.HasStarted || simulationDriver.IsPaused)
             {
@@ -124,7 +124,7 @@ namespace LTW.UnityClient.Simulation
                 return VerticalSliceCommandResult.Reject(CommandRejectionReason.MatchPaused);
             }
 
-            var stressSender = new PlayerId(3);
+            var stressSender = new PlayerId(senderPlayerId);
             simulation.GrantLocalPlaytestGold(stressSender, new Gold(5000));
             return (burstIndex % 3) switch
             {

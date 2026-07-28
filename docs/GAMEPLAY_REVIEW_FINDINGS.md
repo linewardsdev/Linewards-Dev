@@ -80,15 +80,33 @@ It seeds a match, captures the default HUD and both send-dock categories, and qu
 - [ ] **Send dock geometry covers a large part of the board.** The panel is `282f * scale` tall,
       bottom-anchored. Worth confirming whether it hides the leak gate in the real UI.
 
-## P2 — Review tooling gaps (these are real; they are board-layer, not painted)
+## P2 — Review tooling gaps (FIXED)
 
-- [ ] **`10-heavy-pressure` produces a single creep.** The state that exists to test readability
-      under load is not producing load. Creep count comes from the simulation, so this one is
-      genuine.
+Both were real, but the first diagnosis of the first one was wrong, so the cause is recorded.
 
-- [ ] **No towers are placed in the review set's combat states.** Tower aim, muzzle anchoring,
-      recoil and the ring VFX cannot be reviewed there. `CaptureRoleLineupReviewSet` does place
-      towers and is the better model.
+- [x] **FIXED — pressure states captured a near-empty board.** Reported as "`10-heavy-pressure`
+      produces a single creep". It was in fact producing 182 — but only 7 of them in the lane the
+      camera frames. A send goes to the home lane of the sender's *next active opponent*, and lane N
+      is player N's home lane, so with 8 lanes the hardcoded `PlayerId(3)` in
+      `QueueVisibleLineupCreep` (and in `SendStressReviewWave`) delivered every "visible lineup"
+      send to lane 4 while the camera watched lane 1. The name said visible; the routing said
+      otherwise. Sender is now derived from the framed lane via `SenderFeedingLane`.
+      Measured: `heavy-pressure` went from 7 on-camera creeps to 112.
+
+- [x] **FIXED — no towers on camera in the pressure states.** `ResetChecklistScenario` calls
+      `ResetMatch`, which clears the towers `StartCombat` placed, and nothing re-placed them — so
+      every state after `active-combat` captured 0 towers, which is most of what those states exist
+      to show. `PlaceReviewDefenceLine` now puts all five roles in lane 1 for each pressure state.
+      Measured: 0 towers on camera to 5.
+
+- [x] **Captures now log what was on the board.** `LogBoardContents` prints
+      `lane=N onCamera creeps=… towers=… | boardWide creeps=… towers=…` next to every capture, and
+      `HeavySendStressHarness` warns on a rejected wave instead of discarding the result. Both
+      failures above were invisible in the log precisely because a state that produced nothing
+      succeeded and wrote its file exactly like one that worked.
+
+`results-or-late-match` still captures an empty lane. That one is expected — the state runs the
+match to completion, by which point lane 1 is over.
 
 ---
 

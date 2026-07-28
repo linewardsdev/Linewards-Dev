@@ -330,6 +330,7 @@ namespace LTW.UnityClient.Editor
                     ResetChecklistScenario(commands, placement, sendDock, laneToggle, activeLaneId: 1);
                     driver.StartMatch();
                     GrantPlaytestGold(commands, 3, 5000);
+                    PlaceReviewDefenceLine(commands);
                     LogCommandResult("canonical runner x10", QueueVisibleLineupCreep(commands, SampleVerticalSliceContent.CreepId, 10));
                     ScheduleCaptureThenAdvance("runner-10-pressure", 4.5d);
                     break;
@@ -338,12 +339,14 @@ namespace LTW.UnityClient.Editor
                     ResetChecklistScenario(commands, placement, sendDock, laneToggle, activeLaneId: 1);
                     driver.StartMatch();
                     GrantPlaytestGold(commands, 3, 5000);
+                    PlaceReviewDefenceLine(commands);
                     LogCommandResult("canonical swarm heavy", QueueVisibleLineupCreep(commands, SampleVerticalSliceContent.SwarmCreepId, 24));
                     ScheduleCaptureThenAdvance("swarm-heavy-pressure", 4.5d);
                     break;
 
                 case CaptureState.HeavyPressure:
-                    stress.StartRun();
+                    PlaceReviewDefenceLine(commands);
+                    stress.StartRun(SenderFeedingLane(FramedLaneId()).Value);
                     ScheduleCaptureThenAdvance("heavy-pressure", 4d);
                     break;
 
@@ -435,6 +438,7 @@ namespace LTW.UnityClient.Editor
                     ResetChecklistScenario(commands, placement, sendDock, laneToggle, activeLaneId: 1);
                     driver.StartMatch();
                     GrantPlaytestGold(commands, 3, 5000);
+                    PlaceReviewDefenceLine(commands);
                     LogCommandResult("checklist runner x10", QueueVisibleLineupCreep(commands, SampleVerticalSliceContent.CreepId, 10));
                     ScheduleCaptureThenAdvance("runner-10-pressure", 4.5d);
                     break;
@@ -443,6 +447,7 @@ namespace LTW.UnityClient.Editor
                     ResetChecklistScenario(commands, placement, sendDock, laneToggle, activeLaneId: 1);
                     driver.StartMatch();
                     GrantPlaytestGold(commands, 3, 5000);
+                    PlaceReviewDefenceLine(commands);
                     LogCommandResult("checklist swarm x24", QueueVisibleLineupCreep(commands, SampleVerticalSliceContent.SwarmCreepId, 24));
                     ScheduleCaptureThenAdvance("swarm-heavy-pressure", 4.5d);
                     state = CaptureState.OpenSendMenu;
@@ -452,6 +457,7 @@ namespace LTW.UnityClient.Editor
                     ResetChecklistScenario(commands, placement, sendDock, laneToggle, activeLaneId: 1);
                     driver.StartMatch();
                     GrantPlaytestGold(commands, 3, 5000);
+                    PlaceReviewDefenceLine(commands);
                     LogCommandResult("checklist shade x6", QueueVisibleLineupCreep(commands, SampleVerticalSliceContent.ShadeCreepId, 6));
                     ScheduleCaptureThenAdvance("shade-readability", 4.5d);
                     state = CaptureState.OpenLaneSelector;
@@ -499,6 +505,26 @@ namespace LTW.UnityClient.Editor
             var renderer = UnityEngine.Object.FindAnyObjectByType<UnityVerticalSliceRenderer>();
             renderer?.SetActiveLaneCameraId(activeLaneId);
             ClearRendererPresentation(renderer);
+        }
+
+        /// <summary>
+        /// Places a defending line in lane 1 so a pressure state shows creeps being shot at rather
+        /// than walking an empty board.
+        /// </summary>
+        /// <remarks>
+        /// ResetChecklistScenario calls ResetMatch, which clears the towers StartCombat placed. The
+        /// states after active-combat therefore captured zero towers on camera, so tower aim, muzzle
+        /// anchoring, recoil and the ring VFX could not be reviewed under load — which is most of
+        /// what those states exist to show.
+        /// </remarks>
+        private static void PlaceReviewDefenceLine(UnityCommandAdapter commands)
+        {
+            GrantPlaytestGold(commands, 1, 4000);
+            LogCommandResult("review defence Arrow", commands.PlaceSampleTower(2, 13));
+            LogCommandResult("review defence Control", commands.PlaceControlTower(4, 12));
+            LogCommandResult("review defence Relay", commands.PlaceUtilityTower(2, 9));
+            LogCommandResult("review defence Pulse", commands.PlacePulseTower(4, 8));
+            LogCommandResult("review defence Prism", commands.PlacePrismTower(2, 5));
         }
 
         private static void StartCombat(UnitySimulationDriver driver, UnityCommandAdapter commands)
@@ -925,12 +951,41 @@ namespace LTW.UnityClient.Editor
             simulation?.GrantLocalPlaytestGold(new PlayerId(playerId), new Gold(amount));
         }
 
+        /// <summary>
+        /// The player whose sends land in the lane the camera is framing.
+        /// </summary>
+        /// <remarks>
+        /// A send goes to the home lane of the sender's next active opponent, and lane N is player
+        /// N's home lane, so the sender that feeds lane N is player N-1 (wrapping). This used to be
+        /// hardcoded to player 3, which with 8 lanes targets lane 4 — so every "visible lineup"
+        /// send in the review set was delivered to a lane the camera was not pointing at. The
+        /// pressure states looked nearly empty while the simulation held hundreds of creeps.
+        /// </remarks>
+        private const int MatchLaneCount = 8;
+
+        private static PlayerId SenderFeedingLane(int laneId)
+        {
+            var previous = laneId - 1;
+            return new PlayerId(previous >= 1 ? previous : MatchLaneCount);
+        }
+
+        private static int FramedLaneId()
+        {
+            var renderer = UnityEngine.Object.FindAnyObjectByType<UnityVerticalSliceRenderer>();
+            return renderer != null ? renderer.ActiveLaneCameraId : 1;
+        }
+
         private static VerticalSliceCommandResult QueueVisibleLineupCreep(UnityCommandAdapter commands, ContentId creepId, int quantity)
         {
             var simulation = GetLocalSimulation(commands);
-            return simulation is null
-                ? VerticalSliceCommandResult.Reject(LTW.Simulation.Commands.CommandRejectionReason.MatchPaused)
-                : simulation.QueueSend(new PlayerId(3), creepId, quantity);
+            if (simulation is null)
+            {
+                return VerticalSliceCommandResult.Reject(LTW.Simulation.Commands.CommandRejectionReason.MatchPaused);
+            }
+
+            var sender = SenderFeedingLane(FramedLaneId());
+            simulation.GrantLocalPlaytestGold(sender, new Gold(5000));
+            return simulation.QueueSend(sender, creepId, quantity);
         }
 
         private static LocalVerticalSlice? GetLocalSimulation(UnityCommandAdapter commands)
@@ -1027,6 +1082,54 @@ namespace LTW.UnityClient.Editor
             ScreenCapture.CaptureScreenshot(path);
         }
 
+        /// <summary>
+        /// Records what was actually on the board when a state was captured.
+        /// </summary>
+        /// <remarks>
+        /// A review state that produces no load looks identical in the log to one that works: the
+        /// capture succeeds and the file is written either way, and the shortfall is only visible
+        /// by opening the image and counting. That is how `heavy-pressure` came to be captured with
+        /// a single creep on the board without anyone noticing. Printing the counts next to each
+        /// capture means a scenario that failed to populate says so in the log.
+        /// </remarks>
+        private static void LogBoardContents(string label)
+        {
+            var driver = UnityEngine.Object.FindAnyObjectByType<UnitySimulationDriver>();
+            var snapshot = driver?.LatestSnapshot;
+            if (snapshot is null)
+            {
+                Debug.Log($"CAPTURE {label}: no snapshot");
+                return;
+            }
+
+            // Board-wide totals are not what the reviewer sees. The camera frames one lane, so a
+            // state can hold hundreds of creeps and still capture an empty board if they are all
+            // somewhere else. Report the framed lane separately from the total.
+            var renderer = UnityEngine.Object.FindAnyObjectByType<UnityVerticalSliceRenderer>();
+            var lane = renderer != null ? renderer.ActiveLaneCameraId : 0;
+            var laneCreeps = 0;
+            for (var index = 0; index < snapshot.Creeps.Count; index++)
+            {
+                if (snapshot.Creeps[index].LaneId.Value == lane)
+                {
+                    laneCreeps++;
+                }
+            }
+
+            var laneTowers = 0;
+            for (var index = 0; index < snapshot.Towers.Count; index++)
+            {
+                if (snapshot.Towers[index].LaneId.Value == lane)
+                {
+                    laneTowers++;
+                }
+            }
+
+            Debug.Log(
+                $"CAPTURE {label}: lane={lane} onCamera creeps={laneCreeps} towers={laneTowers} " +
+                $"| boardWide creeps={snapshot.Creeps.Count} towers={snapshot.Towers.Count}");
+        }
+
         private static void WriteImmediateCapture(
             string path,
             string label,
@@ -1067,6 +1170,7 @@ namespace LTW.UnityClient.Editor
                 texture.Apply();
                 Directory.CreateDirectory(Path.GetDirectoryName(path)!);
                 File.WriteAllBytes(path, ImageConversion.EncodeToPNG(texture));
+                LogBoardContents(label);
                 Debug.Log($"Saved visual review capture {path}");
             }
             finally
