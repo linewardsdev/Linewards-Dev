@@ -11,17 +11,38 @@ namespace LTW.UnityClient.Editor
     /// </summary>
     public static class RiggedCreepVerify
     {
+        /// <summary>Every rigged creep prefab, kept in step with RiggedCreepSetup.RiggedCreeps.</summary>
+        private static readonly string[] RiggedCreepPrefabs =
+        {
+            "Assets/Prefabs/Creeps/Creep_Brute_3D.prefab",
+            "Assets/Prefabs/Creeps/Creep_ObsidianBrute_3D.prefab",
+            "Assets/Prefabs/Creeps/Creep_TurretWalker_3D.prefab",
+        };
+
         [MenuItem("Line Wards/Art/Verify Rigged Creep Animation")]
-        public static void VerifyBrute()
+        public static void VerifyRiggedCreeps()
+        {
+            var allOk = true;
+            foreach (var path in RiggedCreepPrefabs)
+            {
+                Debug.Log($"RIGVERIFY ---- {path} ----");
+                allOk &= VerifyPrefab(path);
+            }
+
+            Debug.Log(allOk ? "RIGVERIFY ALL=PASS" : "RIGVERIFY ALL=FAIL");
+            Exit(allOk ? 0 : 1);
+        }
+
+        private static bool VerifyPrefab(string prefabPath)
         {
             var ok = true;
-            var prefabPath = "Assets/Prefabs/Creeps/Creep_Brute_3D.prefab";
+
             var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
             if (prefab == null)
             {
                 Debug.LogError($"RIGVERIFY missing prefab {prefabPath}");
-                Exit(1);
-                return;
+                return false;
+
             }
 
             var instance = (GameObject)PrefabUtility.InstantiatePrefab(prefab);
@@ -49,8 +70,8 @@ namespace LTW.UnityClient.Editor
                 Debug.LogError("RIGVERIFY no Animator or no controller bound.");
                 ok = false;
                 Object.DestroyImmediate(instance);
-                Exit(ok ? 0 : 1);
-                return;
+                return ok;
+
             }
 
             var controller = animator.runtimeAnimatorController;
@@ -117,7 +138,7 @@ namespace LTW.UnityClient.Editor
 
             Object.DestroyImmediate(instance);
             Debug.Log(ok ? "RIGVERIFY RESULT=PASS" : "RIGVERIFY RESULT=FAIL");
-            Exit(ok ? 0 : 1);
+            return ok;
         }
 
         private static void Exit(int code)

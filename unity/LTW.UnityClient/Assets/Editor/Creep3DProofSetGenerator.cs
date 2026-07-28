@@ -138,7 +138,7 @@ namespace LTW.UnityClient.Editor
                 CreepVisualRole.Brute,
                 CreepVisualMotionStyle.HeavyBob,
                 CreepDeathCueStyle.HeavyShatter,
-                ModelRoot + "/Obsidianbrute/AIDrop/obsidianbrute_meshy_obsidianbrute_v01_prepared.fbx",
+                ModelRoot + "/Obsidianbrute/AIDrop/obsidianbrute_meshy_obsidianbrute_v01_prepared_rigged.fbx",
                 ModelRoot + "/Obsidianbrute/AIDrop/obsidianbrute_meshy_obsidianbrute_v01_prepared_Textures",
                 Creep3DImportPipeline.RuntimePrefabFolder + "/Creep_ObsidianBrute_3D.prefab",
                 new Vector3(1.20f, 1.20f, 1.20f),
@@ -147,7 +147,8 @@ namespace LTW.UnityClient.Editor
                 // yaw 180 despite looking front-facing before correction — using the same fix as
                 // a first guess rather than trusting an uncorrected look.
                 new Vector3(0f, 180f, 0f),
-                0.48f),
+                0.48f,
+                RiggedCreepSetup.ObsidianBruteControllerPath),
             new(
                 "Serpent",
                 "creep.serpent",
@@ -167,7 +168,7 @@ namespace LTW.UnityClient.Editor
                 CreepVisualRole.Walker,
                 CreepVisualMotionStyle.SiegeWindup,
                 CreepDeathCueStyle.HeavyShatter,
-                ModelRoot + "/Turretwalker/AIDrop/turretwalker_meshy_turretwalker_v01_prepared.fbx",
+                ModelRoot + "/Turretwalker/AIDrop/turretwalker_meshy_turretwalker_v01_prepared_rigged.fbx",
                 ModelRoot + "/Turretwalker/AIDrop/turretwalker_meshy_turretwalker_v01_prepared_Textures",
                 Creep3DImportPipeline.RuntimePrefabFolder + "/Creep_TurretWalker_3D.prefab",
                 new Vector3(1.00f, 1.00f, 1.00f),
@@ -175,7 +176,8 @@ namespace LTW.UnityClient.Editor
                 // Cannon barrel measured pointing off-axis in a Blender-space check; yaw 135 there
                 // aligned it with the travel direction, used here as the first guess.
                 new Vector3(0f, 135f, 0f),
-                0.44f),
+                0.44f,
+                RiggedCreepSetup.TurretWalkerControllerPath),
         };
 
         [MenuItem(GenerateMenuPath)]

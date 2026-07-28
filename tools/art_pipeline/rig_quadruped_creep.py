@@ -10,7 +10,11 @@ values (runtime scale, import yaw, seat-on-ground) stay valid.
 
 Usage:
     blender --background --python tools/art_pipeline/rig_quadruped_creep.py -- \\
-        <prepared.fbx> <out_rigged.fbx> [swing_axis=X] [render_prefix]
+        <prepared.fbx> <out_rigged.fbx> [swing_axis=X] [render_prefix] [profile=brute]
+
+Per-creep measured geometry lives in PROFILES below; nothing about the rig is
+hardcoded to one model any more. To add a creep, measure it and add a profile —
+see the notes above PROFILES for exactly which measurement produces which value.
 
 Bone placement is driven by measured vertex clusters, not eyeballed: the bottom
 band of the mesh is split into quadrants and each cluster centre becomes a hip.
@@ -42,16 +46,79 @@ SRC_FBX = argv[0]
 OUT_FBX = argv[1]
 SWING_AXIS = argv[2] if len(argv) > 2 else "X"   # which local axis swings the leg
 RENDER_PREFIX = argv[3] if len(argv) > 3 else ""
+PROFILE_NAME = argv[4] if len(argv) > 4 else "brute"
 
-# Measured from analyze_prepared.py (world space, Blender Z-up)
-LEG_FL = Vector((-0.218, -0.215, 0.0))
-LEG_FR = Vector((0.223, -0.213, 0.0))
-LEG_BL = Vector((-0.218, 0.172, 0.0))
-LEG_BR = Vector((0.219, 0.172, 0.0))
-HIP_Z = 0.20
-FOOT_Z = 0.02
-KNEE_Z = 0.11  # measured: per-leg vertex band runs ~0.02-0.20, knee sits at the midpoint
-BODY_Z = 0.22
+# Per-creep measured geometry. Every value here came from measuring the actual
+# mesh (bottom-band quadrant centroids for the leg XY, per-leg vertical column
+# profiles for the joint heights) — none are eyeballed, and none transfer between
+# creeps, because the models differ in both scale and stance.
+#
+# Reproduce for a new creep with the measurement scripts described in the module
+# docstring: quadrant centroids give legFL..legBR, and the height at which each
+# leg's vertex column thickens into body mass gives hip_z.
+PROFILES = {
+    # Rock Golem. Squat, legs well separated fore/aft.
+    "brute": {
+        "legFL": (-0.218, -0.215), "legFR": (0.223, -0.213),
+        "legBL": (-0.218, 0.172),  "legBR": (0.219, 0.172),
+        "hip_z": 0.20, "foot_z": 0.02, "knee_z": 0.11, "body_z": 0.22,
+        "body_half": 0.16, "head_reach": 0.40, "leg_radius": 0.145,
+        "swing_deg": 26.0, "body_bob": 0.05, "body_rock_deg": 8.0,
+        "head_bob_deg": 11.0, "body_scale_pulse": 0.05,
+    },
+    # Obsidian Brute. Roughly 1.9x the Rock Golem's height (0.75 vs ~0.40) with a
+    # hunched gorilla stance: the front pair are heavy arms (523/533 verts in the
+    # bottom band) set wider and lower than the smaller rear legs (148/162), and
+    # the fore/aft separation is only ~0.10 rather than the Rock Golem's ~0.39.
+    # Joint heights come from the per-leg column profile: the front column thins
+    # through z 0.25-0.40 (forearm) before the shoulder mass at 0.40+, and the
+    # rear column thickens into body from z 0.30.
+    "obsidianbrute": {
+        "legFL": (-0.290, -0.064), "legFR": (0.287, -0.065),
+        "legBL": (-0.213, 0.036),  "legBR": (0.206, 0.036),
+        "hip_z": 0.36, "foot_z": 0.02, "knee_z": 0.19, "body_z": 0.46,
+        "body_half": 0.15, "head_reach": 0.34, "leg_radius": 0.135,
+        # Heavier tier of the same archetype, so the same lumber language as the
+        # Rock Golem, pushed slightly further to sell the extra mass.
+        "swing_deg": 24.0, "body_bob": 0.06, "body_rock_deg": 9.0,
+        "head_bob_deg": 12.0, "body_scale_pulse": 0.05,
+    },
+    # Spire Turret Walker. A mechanical walker, and the easiest of the three to
+    # rig: four thin legs land on clean corners (x +/-0.34, y -0.21 and +0.42, so
+    # ~0.62 apart fore/aft — better separated than either golem) and the vertical
+    # profile jumps sharply from ~20 verts per band in the legs to 543+ at
+    # z=0.178, which is where the chassis starts. Hip sits just under that.
+    #
+    # Gait is deliberately NOT the golems' lumber: this is a machine, so the body
+    # bob, rock and scale pulse are all much smaller. A rigid uniform scale pulse
+    # in particular reads as breathing on a creature and as a fault on a machine,
+    # so it is nearly off here.
+    "turretwalker": {
+        "legFL": (-0.336, -0.206), "legFR": (0.337, -0.206),
+        "legBL": (-0.335, 0.416),  "legBR": (0.335, 0.415),
+        "hip_z": 0.17, "foot_z": 0.01, "knee_z": 0.09, "body_z": 0.30,
+        "body_half": 0.22, "head_reach": 0.40, "leg_radius": 0.20,
+        "swing_deg": 22.0, "body_bob": 0.03, "body_rock_deg": 4.0,
+        "head_bob_deg": 5.0, "body_scale_pulse": 0.015,
+    },
+}
+
+if PROFILE_NAME not in PROFILES:
+    raise SystemExit(f"unknown profile '{PROFILE_NAME}'; known: {sorted(PROFILES)}")
+
+P = PROFILES[PROFILE_NAME]
+print(f"PROFILE {PROFILE_NAME}")
+
+LEG_FL = Vector((P["legFL"][0], P["legFL"][1], 0.0))
+LEG_FR = Vector((P["legFR"][0], P["legFR"][1], 0.0))
+LEG_BL = Vector((P["legBL"][0], P["legBL"][1], 0.0))
+LEG_BR = Vector((P["legBR"][0], P["legBR"][1], 0.0))
+HIP_Z = P["hip_z"]
+FOOT_Z = P["foot_z"]
+KNEE_Z = P["knee_z"]
+BODY_Z = P["body_z"]
+BODY_HALF = P["body_half"]
+HEAD_REACH = P["head_reach"]
 
 bpy.ops.object.select_all(action='SELECT')
 bpy.ops.object.delete()
@@ -82,8 +149,8 @@ def bone(name, head, tail, parent=None):
 
 root = bone("Root", Vector((0, 0, 0)), Vector((0, 0, 0.08)))
 # Body runs rear -> front so its local +Y points at the head end (-Y world)
-body = bone("Body", Vector((0, 0.16, BODY_Z)), Vector((0, -0.16, BODY_Z)), root)
-head = bone("Head", Vector((0, -0.16, BODY_Z)), Vector((0, -0.40, BODY_Z + 0.02)), body)
+body = bone("Body", Vector((0, BODY_HALF, BODY_Z)), Vector((0, -BODY_HALF, BODY_Z)), root)
+head = bone("Head", Vector((0, -BODY_HALF, BODY_Z)), Vector((0, -HEAD_REACH, BODY_Z + 0.02)), body)
 
 legs = {}
 for name, pos in (("LegFL", LEG_FL), ("LegFR", LEG_FR), ("LegBL", LEG_BL), ("LegBR", LEG_BR)):
@@ -110,7 +177,7 @@ for name in group_names:
     if name not in mesh.vertex_groups:
         mesh.vertex_groups.new(name=name)
 
-LEG_RADIUS = 0.145      # legs are ~0.44 apart in x, so this stays clear of overlap
+LEG_RADIUS = P["leg_radius"]   # must stay under half the inter-leg spacing to avoid overlap
 RADIAL_BLEND = 0.055
 HEIGHT_BLEND = 0.075
 KNEE_BLEND = 0.035      # blend band across the knee split so the shell doesn't visibly tear at the joint
@@ -168,15 +235,15 @@ bpy.ops.object.mode_set(mode='POSE')
 for pb in arm.pose.bones:
     pb.rotation_mode = 'QUATERNION'
 
-SWING = math.radians(26.0)     # leg swing amplitude, lumbering
+SWING = math.radians(P["swing_deg"])     # leg swing amplitude, lumbering
 # The shell fully occludes the legs from the actual top-down game camera (confirmed by render),
 # so body/head motion is the ONLY part of this clip a player ever sees. Amplitudes below were
 # raised well past the original leg-focused pass (which tuned for an eye-level artist-review
 # camera) specifically so the lumber reads from that top-down angle.
-BODY_BOB = 0.05
-BODY_ROCK = math.radians(8.0)
-HEAD_BOB = math.radians(11.0)
-BODY_SCALE_PULSE = 0.05         # rigid uniform scale pulse, not per-part deformation (see note below)
+BODY_BOB = P["body_bob"]
+BODY_ROCK = math.radians(P["body_rock_deg"])
+HEAD_BOB = math.radians(P["head_bob_deg"])
+BODY_SCALE_PULSE = P["body_scale_pulse"]   # rigid uniform scale pulse, not per-part deformation (see note below)
 
 # The creature faces -Y, so a walking leg swings in the YZ plane, i.e. about world X.
 WALK_AXIS = Vector((1.0, 0.0, 0.0))

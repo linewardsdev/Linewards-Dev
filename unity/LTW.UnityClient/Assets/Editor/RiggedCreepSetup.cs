@@ -21,13 +21,48 @@ namespace LTW.UnityClient.Editor
         public const string BruteRiggedModelPath =
             "Assets/Art/AIStaging/Models/Creeps/Brute/AIDrop/brute_meshy_rock_golem_blend_0725021355_prepared_rigged.fbx";
 
+        public const string ObsidianBruteRiggedModelPath =
+            "Assets/Art/AIStaging/Models/Creeps/Obsidianbrute/AIDrop/obsidianbrute_meshy_obsidianbrute_v01_prepared_rigged.fbx";
+
+        public const string TurretWalkerRiggedModelPath =
+            "Assets/Art/AIStaging/Models/Creeps/Turretwalker/AIDrop/turretwalker_meshy_turretwalker_v01_prepared_rigged.fbx";
+
         public const string ControllerFolder = "Assets/Animation/Creeps";
         public const string BruteControllerPath = ControllerFolder + "/Creep_Brute_3D.controller";
+        public const string ObsidianBruteControllerPath = ControllerFolder + "/Creep_ObsidianBrute_3D.controller";
+        public const string TurretWalkerControllerPath = ControllerFolder + "/Creep_TurretWalker_3D.controller";
+
+        /// <summary>
+        /// Every creep carrying a hand-authored rig, paired with the controller built for it.
+        /// </summary>
+        /// <remarks>
+        /// Rigs are produced by tools/art_pipeline/rig_quadruped_creep.py, which holds the measured
+        /// per-creep bone geometry in its PROFILES table. Meshy only auto-rigs bipeds, so every
+        /// quadruped here is rigged by that script instead.
+        /// </remarks>
+        private static readonly (string ModelPath, string ControllerPath)[] RiggedCreeps =
+        {
+            (BruteRiggedModelPath, BruteControllerPath),
+            (ObsidianBruteRiggedModelPath, ObsidianBruteControllerPath),
+            (TurretWalkerRiggedModelPath, TurretWalkerControllerPath),
+        };
 
         [MenuItem("Line Wards/Art/Configure Rigged Creep Animation")]
         public static void ConfigureRiggedCreeps()
         {
-            var ok = ConfigureModel(BruteRiggedModelPath) && BuildController(BruteRiggedModelPath, BruteControllerPath);
+            var ok = true;
+            foreach (var (modelPath, controllerPath) in RiggedCreeps)
+            {
+                if (AssetDatabase.LoadAssetAtPath<GameObject>(modelPath) == null)
+                {
+                    Debug.LogError($"Missing rigged model at {modelPath}.");
+                    ok = false;
+                    continue;
+                }
+
+                ok &= ConfigureModel(modelPath) && BuildController(modelPath, controllerPath);
+            }
+
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
 
