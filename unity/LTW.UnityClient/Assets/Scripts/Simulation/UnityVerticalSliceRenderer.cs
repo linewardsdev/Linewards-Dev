@@ -3994,16 +3994,20 @@ namespace LTW.UnityClient.Simulation
         /// the original 2D sprite's 7-bot cluster (one lead body, others fanned around it) rather
         /// than an evenly spaced ring.
         /// </summary>
+        // Widened from the original ±0.15 spread and bumped from 0.34 scale — at actual gameplay
+        // zoom (and after the creep's own 0.8 profile scale shrinks this local-space cluster
+        // further still), 5 small opaque mesh copies packed this tightly rendered as one soft
+        // indistinct blob rather than a readable cluster of separate pieces.
         private static readonly Vector3[] SwarmClusterSlots =
         {
-            new Vector3(0f, 0f, 0.15f),
-            new Vector3(-0.15f, 0f, -0.04f),
-            new Vector3(0.15f, 0f, -0.04f),
-            new Vector3(-0.08f, 0f, -0.15f),
-            new Vector3(0.08f, 0f, -0.15f),
+            new Vector3(0f, 0f, 0.26f),
+            new Vector3(-0.26f, 0f, -0.07f),
+            new Vector3(0.26f, 0f, -0.07f),
+            new Vector3(-0.14f, 0f, -0.26f),
+            new Vector3(0.14f, 0f, -0.26f),
         };
 
-        private const float SwarmShardScale = 0.34f;
+        private const float SwarmShardScale = 0.44f;
 
         /// <summary>
         /// Replaces the single mesh-backed swarm body with a small cluster of scaled-down copies
@@ -4068,7 +4072,27 @@ namespace LTW.UnityClient.Simulation
                 shard.transform.localScale = Vector3.one * SwarmShardScale;
                 SetColor(shard, color);
             }
+
+            // SenderAccent's own scale/alpha were tuned for the single full-size body this pipeline
+            // replaces — against the now much smaller shard cluster, that same pool reads as an
+            // oversized glow that swamps the tiny crystals sitting on top of it. Shrink and dim it
+            // specifically here rather than touch the shared per-creep accent sizing everyone else
+            // still relies on.
+            var senderAccent = creepObject.transform.Find("SenderAccent");
+            if (senderAccent != null)
+            {
+                senderAccent.localScale = SwarmSenderAccentScale;
+                var accentRenderer = senderAccent.GetComponent<Renderer>();
+                if (accentRenderer != null)
+                {
+                    var accentColor = accentRenderer.material.color;
+                    accentRenderer.material.color = new Color(accentColor.r, accentColor.g, accentColor.b, SwarmSenderAccentAlpha);
+                }
+            }
         }
+
+        private static readonly Vector3 SwarmSenderAccentScale = new Vector3(0.4f, 0.4f, 1f);
+        private const float SwarmSenderAccentAlpha = 0.16f;
 
         private static void ConfigureAirMarker(GameObject creepObject)
         {
