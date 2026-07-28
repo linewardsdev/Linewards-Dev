@@ -39,7 +39,7 @@ This is the Agent 2 handoff spec for replacing runtime primitive cues with autho
 | --- | --- | --- |
 | Runner | Darting small body with forward read. | Runtime motion exists. |
 | Brute | Heavy lumber/bob. | Runtime motion exists. |
-| Swarm | Cluster jitter without sparkle noise. | Runtime motion exists. |
+| Swarm | Cluster jitter without sparkle noise. | Restored the multi-body cluster the 2D sprite showed (the 3D pass had collapsed it to one enlarged body): each Swarm creep now renders as 5 scaled-down copies of its own mesh, each wandering within its own small "bubble" around a slot position, with the living count tied to remaining health so the cluster visibly thins under damage. Verified in Blender render against the game camera angle and via a Unity batch playtest (283 peak creeps, 0 exceptions). |
 | Shade | Echo/shimmer with solid silhouette support. | Runtime motion exists. |
 | Siege | Weighted directional pressure. | Runtime motion exists. |
 
