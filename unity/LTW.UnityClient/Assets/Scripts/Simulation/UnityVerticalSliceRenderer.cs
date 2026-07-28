@@ -2185,11 +2185,29 @@ namespace LTW.UnityClient.Simulation
             return rigged;
         }
 
+        /// <summary>
+        /// How far a creep may move in one update and still be interpolated rather than snapped.
+        /// Anything beyond this is treated as a teleport (a lane transfer) rather than travel.
+        /// </summary>
+        /// <remarks>
+        /// This has to sit above the fastest creep's per-tick travel and below <see cref="LaneSpacing"/>.
+        /// CombatService.MoveCreeps advances a creep by SpeedPerSecond WHOLE CELLS per tick, and one
+        /// cell is one world unit, so a creep's per-tick travel in world units equals its speed
+        /// value. The old 2.5 hardcode predated any creep faster than 2: Crystal Wisp ships at
+        /// speed 3, cleared the threshold on every single tick, and so snapped continuously instead
+        /// of ever interpolating — reading as teleporting across the lane. Half of LaneSpacing
+        /// leaves headroom for future speed tuning while still snapping a lane transfer, which
+        /// moves a creep a full LaneSpacing sideways and genuinely is a teleport.
+        /// CreepSpeedTests guards the lower bound so a future speed bump fails a test rather than
+        /// silently reintroducing the teleport.
+        /// </remarks>
+        private const float CreepTeleportSnapDistance = LaneSpacing * 0.5f;
+
         private static void SetCreepTransform(GameObject instance, GridPosition position, LaneId laneId, string creepId, CreepVisualProfile visualProfile, bool snapToTarget, float hitFlashUntil)
         {
             var roleMotion = CreepRoleMotion(creepId, visualProfile, hitFlashUntil, IsRiggedCreep(instance, creepId));
             var targetPosition = GridToWorld(position, laneId) + CreepRoleOffset(creepId) + roleMotion.PositionOffset;
-            instance.transform.position = snapToTarget || Vector3.Distance(instance.transform.position, targetPosition) > 2.5f
+            instance.transform.position = snapToTarget || Vector3.Distance(instance.transform.position, targetPosition) > CreepTeleportSnapDistance
                 ? targetPosition
                 : Vector3.Lerp(instance.transform.position, targetPosition, Mathf.Clamp01(Time.deltaTime * 8f));
             instance.transform.localScale = CreepRoleScale(creepId, visualProfile) * roleMotion.ScaleMultiplier;
