@@ -474,12 +474,16 @@ namespace LTW.UnityClient.UI
 
         private void MoveGhost()
         {
-            ghost.transform.position = GridToWorld(selectedCell, 0.6f);
-            // The builder now walks along with tower placement instead of vanishing for it — it
-            // reads as the builder actually being the one who walks over and puts the tower down,
-            // and TickBuilderWalk already knows how to smoothly approach whatever selectedCell is,
-            // so no extra plumbing is needed here beyond making sure it's visible/targeted.
+            // The builder now walks along with tower placement instead of vanishing for it, so
+            // the ghost preview shouldn't snap straight to the target cell either — it "rides"
+            // with the builder as it walks (TickBuilderWalk moves both together each frame) and
+            // only settles onto the exact cell once the builder actually arrives. Starting the
+            // ghost at the builder's CURRENT position, not the destination, is what makes it read
+            // as carried rather than teleported the instant a new cell is picked.
             UpdateBuilderAvatar();
+            ghost.transform.position = builderAvatar != null
+                ? new Vector3(builderAvatar.transform.position.x, 0.6f, builderAvatar.transform.position.z)
+                : GridToWorld(selectedCell, 0.6f);
             ConfigurePlacementGhostVisual();
             // A resolved model already carries its profile's own scale, so the root has to stay at
             // one or the two multiply and the preview comes out larger than the placed tower.
@@ -688,6 +692,14 @@ namespace LTW.UnityClient.UI
                 builderAvatarWalking = false;
                 builderAvatar.transform.position = target;
                 builderAvatarAnimator?.SetBool("Walking", false);
+                if (isPlacing)
+                {
+                    // Arrived — settle the ghost exactly onto the real cell rather than wherever
+                    // it was trailing the builder's rest-offset position, so the placement preview
+                    // stays accurate.
+                    ghost.transform.position = GridToWorld(selectedCell, 0.6f);
+                }
+
                 return;
             }
 
@@ -711,6 +723,13 @@ namespace LTW.UnityClient.UI
                 builderAvatar.transform.rotation,
                 desiredRotation,
                 BuilderWalkTurnDegreesPerSecond * Time.deltaTime);
+
+            if (isPlacing)
+            {
+                // Ride along with the builder while it's still mid-walk, rather than sitting at
+                // the destination cell waiting for it to catch up.
+                ghost.transform.position = new Vector3(moved.x, 0.6f, moved.z);
+            }
         }
 
         private void CreateBuilderPart(string partName, PrimitiveType primitiveType, Vector3 localPosition, Vector3 localScale)
