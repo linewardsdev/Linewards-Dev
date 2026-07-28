@@ -238,7 +238,12 @@ public sealed class LocalVerticalSlice
         foreach (var bot in bots)
         {
             TryPlaceBotTower(bot.Key, bot.Value);
-            if (!HasCompletedOpeningDefense(bot.Key, bot.Value))
+            if (!HasMinimumDefenseCoverage(bot.Key, bot.Value))
+            {
+                continue;
+            }
+
+            if (IsLaneUnderPressure(bot.Key, bot.Value))
             {
                 continue;
             }
@@ -380,12 +385,17 @@ public sealed class LocalVerticalSlice
         }
     }
 
-    private static int DesiredOpeningTowerCount(BotDecisionProfile profile) => profile switch
+    /// <summary>
+    /// Minimum tower count before a non-Greedy bot is allowed to send at all — a floor gate
+    /// checked by <see cref="HasMinimumDefenseCoverage"/>, never a ceiling on how much a bot can
+    /// build (see <see cref="TryPlaceBotTower"/>, which keeps building past this number as long as
+    /// gold and candidate positions allow).
+    /// </summary>
+    private static int MinimumTowerCoverage(BotDecisionProfile profile) => profile switch
     {
-        BotDecisionProfile.Greedy => 2,
         BotDecisionProfile.Balanced => 3,
         BotDecisionProfile.Defensive => 4,
-        _ => 2
+        _ => 0
     };
 
     /// <summary>
@@ -397,7 +407,7 @@ public sealed class LocalVerticalSlice
     /// checks the actual intent directly instead, so it holds regardless of the current cost
     /// balance.
     /// </summary>
-    private bool HasCompletedOpeningDefense(PlayerId playerId, BotController bot)
+    private bool HasMinimumDefenseCoverage(PlayerId playerId, BotController bot)
     {
         if (bot.Profile == BotDecisionProfile.Greedy)
         {
@@ -405,18 +415,42 @@ public sealed class LocalVerticalSlice
         }
 
         var ownedTowerCount = combatState.Towers.Count(tower => tower.OwnerId.Equals(playerId));
-        return ownedTowerCount >= DesiredOpeningTowerCount(bot.Profile);
+        return ownedTowerCount >= MinimumTowerCoverage(bot.Profile);
+    }
+
+    /// <summary>
+    /// True once a non-Greedy bot's own lane is carrying enough incoming creep health that it
+    /// should hold/build instead of spending gold on sends — the reactive replacement for the old
+    /// fixed opening-tower-count gate, driven by actual lane threat rather than a tick schedule.
+    /// Greedy is exempt: sending is its primary lever (see docs/ARCHITECTURE.md's Bot Controller
+    /// section), not something pressure should suppress.
+    /// </summary>
+    private bool IsLaneUnderPressure(PlayerId playerId, BotController bot)
+    {
+        if (bot.Profile == BotDecisionProfile.Greedy)
+        {
+            return false;
+        }
+
+        var myLane = topology.HomeLaneFor(playerId);
+        var incomingHealth = combatState.Creeps
+            .Where(creep => creep.LaneId.Equals(myLane) && !creep.IsDead)
+            .Sum(creep => creep.Health);
+        var ownedTowerCount = combatState.Towers.Count(tower => tower.OwnerId.Equals(playerId));
+        return incomingHealth >= bot.PressureThreshold(content, ownedTowerCount);
     }
 
     private void TryPlaceBotTower(PlayerId playerId, BotController bot)
     {
         var ownedTowerCount = combatState.Towers.Count(tower => tower.OwnerId.Equals(playerId));
-        if (ownedTowerCount >= DesiredOpeningTowerCount(bot.Profile))
+        var towerId = BotTowerForSlot(bot.Profile, ownedTowerCount);
+        var towerCost = content.Towers.First(tower => tower.Id.Equals(towerId)).Cost.Amount;
+        var player = players.Get(playerId);
+        if (player.Gold.Amount - bot.GoldReserveFloor(content) < towerCost)
         {
             return;
         }
 
-        var towerId = BotTowerForSlot(bot.Profile, ownedTowerCount);
         var laneId = topology.HomeLaneFor(playerId);
         var candidates = BotPlacementCandidates(bot.Profile, ownedTowerCount);
 

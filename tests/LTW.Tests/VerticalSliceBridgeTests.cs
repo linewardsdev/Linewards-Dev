@@ -186,7 +186,9 @@ public sealed class VerticalSliceBridgeTests
     public void Bot_profiles_choose_expanded_roster_sends_when_available()
     {
         var content = SampleVerticalSliceContent.Create();
-        var richState = new PlayerEconomyState(new PlayerId(2), new Gold(500), new Income(10), new Lives(220));
+        // Income (not tick) now gates expanded-roster send choices, so this represents a bot that
+        // has been playing long enough to build up income, rather than a specific tick number.
+        var richState = new PlayerEconomyState(new PlayerId(2), new Gold(500), new Income(60), new Lives(220));
         var greedy = new BotController(BotDecisionProfile.Greedy, SampleVerticalSliceContent.CreepId);
         var balanced = new BotController(BotDecisionProfile.Balanced, SampleVerticalSliceContent.CreepId);
         var defensive = new BotController(BotDecisionProfile.Defensive, SampleVerticalSliceContent.CreepId);
@@ -224,7 +226,11 @@ public sealed class VerticalSliceBridgeTests
         Assert.Contains(initial.Profiles, profile => profile.PlayerId.Equals(new PlayerId(2)) && profile.Profile == LTW.Simulation.Bots.BotDecisionProfile.Balanced);
         Assert.Contains(initial.Profiles, profile => profile.PlayerId.Equals(new PlayerId(3)) && profile.Profile == LTW.Simulation.Bots.BotDecisionProfile.Defensive);
 
-        for (var tick = 0; tick < 500; tick++)
+        // Kept short enough that the match is still ongoing with both bots active — reactive
+        // spending resolves matches faster than the old tick-scheduled bots did, and a long-enough
+        // window can run past one side's elimination, leaving only the other bot's decisions in
+        // the last-12 "recent decisions" diagnostic window.
+        for (var tick = 0; tick < 100; tick++)
         {
             simulation.AdvanceOneTick();
         }
@@ -703,6 +709,82 @@ public sealed class VerticalSliceBridgeTests
         Assert.DoesNotContain(events, simulationEvent =>
             simulationEvent is LeakEvent leak &&
             leak.SenderId.Equals(leak.DefenderId));
+    }
+
+    [Fact]
+    public void Defensive_bot_builds_past_the_old_fixed_tower_cap_when_gold_allows()
+    {
+        // The old design capped Defensive at exactly 4 towers regardless of gold. Reactive
+        // building removes that cap in favor of gold/candidate-slot gating, so a bot with enough
+        // ticks/gold to keep affording towers should end up owning more than the old fixed count.
+        var options = LocalMatchOptions.Default.WithLane(2, enabled: false).WithLane(3, profile: BotDecisionProfile.Defensive);
+        var simulation = new LocalVerticalSlice(SampleVerticalSliceContent.Create(), options);
+
+        // The 5th tower (Prism, 42 gold) needs more accumulated income than the first 4 do, so
+        // this needs enough ticks for a couple of income intervals (every 50 ticks) to land.
+        for (var tick = 0; tick < 400; tick++)
+        {
+            simulation.AdvanceOneTick();
+        }
+
+        var ownedTowerCount = simulation.GetSnapshot().Towers.Count(tower => tower.OwnerId.Value == 3);
+        Assert.True(ownedTowerCount > 4, $"Expected more than the old fixed cap of 4 towers, got {ownedTowerCount}.");
+    }
+
+    [Fact]
+    public void Non_greedy_bot_holds_sends_while_its_own_lane_is_under_heavy_pressure()
+    {
+        var options = LocalMatchOptions.Default.WithLane(2, profile: BotDecisionProfile.Balanced).WithLane(3, enabled: false);
+        var simulation = new LocalVerticalSlice(SampleVerticalSliceContent.Create(), options);
+
+        // Let P2 (Balanced, defends lane 2) finish its opening tower package first.
+        for (var tick = 0; tick < 10; tick++)
+        {
+            simulation.AdvanceOneTick();
+        }
+        Assert.True(simulation.GetSnapshot().Towers.Count(t => t.OwnerId.Value == 2) >= 3);
+
+        // Now dump heavy pressure into P2's own lane directly from P1 (P1's next carousel
+        // opponent is P2), and confirm P2 stops queuing new sends while towers keep being added,
+        // instead of sending regardless. Brute (18 gold, 24 health) at quantity 5 stays within
+        // P1's starting 100 gold while comfortably clearing the pressure threshold.
+        Assert.True(simulation.QueueSend(new PlayerId(1), SampleVerticalSliceContent.BruteCreepId, quantity: 5).Accepted);
+
+        var decisionsBefore = simulation.GetBotDiagnostics().RecentDecisions.Count(d => d.PlayerId.Value == 2);
+        for (var tick = 0; tick < 5; tick++)
+        {
+            simulation.AdvanceOneTick();
+        }
+        var decisionsAfter = simulation.GetBotDiagnostics().RecentDecisions.Count(d => d.PlayerId.Value == 2);
+
+        Assert.Equal(decisionsBefore, decisionsAfter);
+    }
+
+    [Fact]
+    public void Bot_decisions_are_deterministic_for_the_same_seed_and_options()
+    {
+        var options = LocalMatchOptions.Default;
+
+        var first = new LocalVerticalSlice(SampleVerticalSliceContent.Create(), options);
+        var second = new LocalVerticalSlice(SampleVerticalSliceContent.Create(), options);
+
+        for (var tick = 0; tick < 200; tick++)
+        {
+            first.AdvanceOneTick();
+            second.AdvanceOneTick();
+        }
+
+        var firstCommands = first.GetReplayRecord().AcceptedCommands;
+        var secondCommands = second.GetReplayRecord().AcceptedCommands;
+
+        Assert.Equal(firstCommands.Count, secondCommands.Count);
+        for (var index = 0; index < firstCommands.Count; index++)
+        {
+            Assert.Equal(firstCommands[index].Tick, secondCommands[index].Tick);
+            Assert.Equal(firstCommands[index].PlayerId, secondCommands[index].PlayerId);
+            Assert.Equal(firstCommands[index].ContentId, secondCommands[index].ContentId);
+            Assert.Equal(firstCommands[index].Quantity, secondCommands[index].Quantity);
+        }
     }
 
     private static LocalMatchOptions ThreeLaneOptions() => new(laneCount: 3);

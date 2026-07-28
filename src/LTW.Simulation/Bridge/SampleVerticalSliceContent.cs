@@ -1,4 +1,5 @@
 using System;
+using LTW.Simulation.Bots;
 using LTW.Simulation.Content;
 using LTW.Simulation.Primitives;
 
@@ -48,6 +49,19 @@ public static class SampleVerticalSliceContent
             },
             Array.Empty<TechDefinition>(),
             new[] { new MapDefinition(new ContentId("map.vertical-slice"), "Vertical Slice", width: 7, height: 16, new GridPosition(3, 0), new GridPosition(3, 15), Array.Empty<GridPosition>()) },
-            Array.Empty<BotProfileDefinition>());
+            new[]
+            {
+                // Aggression/defenseBias/minimumGoldReserve drive BotController's reactive spending
+                // (gold-reserve floor, minimum tower coverage before sending, lane-pressure
+                // tolerance) instead of the tick-scheduled constants they replace.
+                // Reserve values stay modest: sending is already gated by MinimumTowerCoverage
+                // in LocalVerticalSlice until a profile's opening package is built, so the reserve
+                // here only needs to stop a bot spending down to zero gold, not also cover the
+                // whole build-out phase (a high reserve just stalls building against the new
+                // cheaper tower costs).
+                new BotProfileDefinition(BotProfileIds.Greedy, "Greedy", aggression: 90, defenseBias: 10, minimumGoldReserve: 0),
+                new BotProfileDefinition(BotProfileIds.Balanced, "Balanced", aggression: 50, defenseBias: 50, minimumGoldReserve: 20),
+                new BotProfileDefinition(BotProfileIds.Defensive, "Defensive", aggression: 20, defenseBias: 80, minimumGoldReserve: 20)
+            });
     }
 }

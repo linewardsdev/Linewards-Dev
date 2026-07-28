@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Linq;
 using LTW.Simulation.Bots;
 using LTW.Simulation.Bridge;
@@ -7,17 +8,42 @@ namespace LTW.Tests;
 
 public sealed class LocalThreePlayerMatchTests
 {
+    /// <summary>
+    /// Replaces an earlier version of this test that asserted "no bot decisions in the first 30
+    /// ticks" — that was calibrated against the old tick-scheduled gold-reserve heuristics.
+    /// Reactive, gold-gated tower building can legitimately finish a profile's opening package
+    /// within a couple of ticks when starting gold covers it, so an early send is correct
+    /// behavior now, not a bug. What must still hold, and what this checks directly instead: a
+    /// bot never sends before its own profile's minimum tower coverage is actually met.
+    /// </summary>
     [Fact]
-    public void Bots_build_opening_defense_before_first_send_pressure()
+    public void Bots_never_send_before_meeting_their_own_profiles_minimum_tower_coverage()
     {
         var slice = new LocalVerticalSlice(SampleVerticalSliceContent.Create(), ThreeLaneOptions());
+        var minimumCoverage = new Dictionary<int, int> { [2] = 3, [3] = 4 };
+        var validated = new HashSet<(long Tick, int PlayerId)>();
 
-        for (var tick = 0; tick < 30; tick++) slice.AdvanceOneTick();
+        for (var tick = 0; tick < 60; tick++)
+        {
+            slice.AdvanceOneTick();
+            var snapshot = slice.GetSnapshot();
 
-        var snapshot = slice.GetSnapshot();
-        Assert.True(snapshot.Towers.Count(tower => tower.OwnerId.Value == 2) >= 2);
-        Assert.True(snapshot.Towers.Count(tower => tower.OwnerId.Value == 3) >= 3);
-        Assert.Empty(slice.GetBotDiagnostics().RecentDecisions);
+            foreach (var decision in slice.GetBotDiagnostics().RecentDecisions)
+            {
+                if (!validated.Add((decision.Tick.Value, decision.PlayerId.Value)))
+                {
+                    continue;
+                }
+
+                var ownedTowers = snapshot.Towers.Count(t => t.OwnerId.Value == decision.PlayerId.Value);
+                Assert.True(ownedTowers >= minimumCoverage[decision.PlayerId.Value],
+                    $"Player {decision.PlayerId.Value} sent at tick {decision.Tick.Value} with only {ownedTowers} towers (needs {minimumCoverage[decision.PlayerId.Value]}).");
+            }
+        }
+
+        var finalSnapshot = slice.GetSnapshot();
+        Assert.True(finalSnapshot.Towers.Count(t => t.OwnerId.Value == 2) >= 3);
+        Assert.True(finalSnapshot.Towers.Count(t => t.OwnerId.Value == 3) >= 4);
     }
 
     [Fact]
@@ -28,11 +54,13 @@ public sealed class LocalThreePlayerMatchTests
         for (var tick = 0; tick < 6_000 && slice.MatchSummary is null; tick++) slice.AdvanceOneTick();
 
         Assert.NotNull(slice.MatchSummary);
-        // Lower bound dropped from 430 alongside the tower cost/damage rebalance: bots build a
-        // fixed tower count regardless of price, so cheaper-but-weaker towers reduce total bot
-        // defense output and matches resolve faster. Revisit once bot spending scales with cost
-        // (see the planned per-lane bot system).
-        Assert.InRange(slice.MatchSummary!.CompletedAtTick.Value, 250, 900);
+        // Lower bound dropped again with the reactive-spending bot rework: bots now both build
+        // proportionally more towers AND start sending as soon as their own coverage is met
+        // (rather than waiting on a tick-scheduled gold reserve until tick 120-180+), so two bots
+        // fighting each other resolves faster than either the original tick-scheduled bots or the
+        // interim fixed-tower-count bots did. This is an accepted consequence of reactive bots,
+        // not a regression — see docs/GD_TUNING_LOG.md's bot-rework entry.
+        Assert.InRange(slice.MatchSummary!.CompletedAtTick.Value, 150, 900);
         Assert.NotEmpty(slice.GetReplayRecord().AcceptedCommands);
     }
 
