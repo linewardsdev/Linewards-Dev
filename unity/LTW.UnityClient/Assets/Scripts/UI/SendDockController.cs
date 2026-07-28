@@ -220,7 +220,7 @@ namespace LTW.UnityClient.UI
             var buttonWidth = (rect.width - 24f * scale - gap * 2f) / 3f;
             var x = rect.x + 12f * scale;
 
-            if (DrawSendButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "RUN", "10G  +1", CreepIconKind.Runner, ArcaneBlue, gold >= 10, highlightedCreepRole == 0, scale))
+            if (DrawSendButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "RUNNER", "10G  +1", CreepIconKind.Runner, ArcaneBlue, gold >= 10, highlightedCreepRole == 0, scale))
             {
                 SendRunner();
             }
@@ -263,13 +263,13 @@ namespace LTW.UnityClient.UI
             }
 
             x += buttonWidth + gap;
-            if (DrawSendButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "ASH", "16G  +4", CreepIconKind.Revenant, WardViolet, gold >= 16, highlightedCreepRole == 6, scale))
+            if (DrawSendButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "REVENANT", "16G  +4", CreepIconKind.Revenant, WardViolet, gold >= 16, highlightedCreepRole == 6, scale))
             {
                 SendRevenant();
             }
 
             x += buttonWidth + gap;
-            if (DrawSendButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "OBRT", "30G  +3", CreepIconKind.ObsidianBrute, new Color(0.92f, 0.32f, 0.28f), gold >= 30, highlightedCreepRole == 7, scale))
+            if (DrawSendButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "OBSIDIAN", "30G  +3", CreepIconKind.ObsidianBrute, new Color(0.92f, 0.32f, 0.28f), gold >= 30, highlightedCreepRole == 7, scale))
             {
                 SendObsidianBrute();
             }
@@ -277,13 +277,13 @@ namespace LTW.UnityClient.UI
             var secondRowY = buttonY + buttonHeight + gap;
             var secondRowWidth = (rect.width - 24f * scale - gap) / 2f;
             x = rect.x + 12f * scale;
-            if (DrawSendButton(new Rect(x, secondRowY, secondRowWidth, buttonHeight), "COIL", "22G  +2", CreepIconKind.Serpent, MintSignal, gold >= 22, highlightedCreepRole == 8, scale))
+            if (DrawSendButton(new Rect(x, secondRowY, secondRowWidth, buttonHeight), "SERPENT", "22G  +2", CreepIconKind.Serpent, MintSignal, gold >= 22, highlightedCreepRole == 8, scale))
             {
                 SendSerpent();
             }
 
             x += secondRowWidth + gap;
-            if (DrawSendButton(new Rect(x, secondRowY, secondRowWidth, buttonHeight), "WALK", "38G  +4", CreepIconKind.TurretWalker, new Color(0.42f, 0.82f, 0.86f), gold >= 38, highlightedCreepRole == 9, scale))
+            if (DrawSendButton(new Rect(x, secondRowY, secondRowWidth, buttonHeight), "WALKER", "38G  +4", CreepIconKind.TurretWalker, new Color(0.42f, 0.82f, 0.86f), gold >= 38, highlightedCreepRole == 9, scale))
             {
                 SendTurretWalker();
             }
@@ -339,25 +339,25 @@ namespace LTW.UnityClient.UI
             buttonStyle.normal.textColor = isAffordable ? Cloud : DisabledText;
             buttonStyle.hover.textColor = buttonStyle.normal.textColor;
             buttonStyle.active.textColor = buttonStyle.normal.textColor;
-            GUI.Label(RuntimeUiChrome.CommandCardLabelRect(rect, scale), CompactCreepLabel(label), buttonStyle);
+            GUI.Label(RuntimeUiChrome.CommandCardLabelRect(rect, scale), label, buttonStyle);
 
+            // Raw accent at this size washed out over the pale stone areas of the card art — the
+            // cost digits faded while the "+income" beside them stayed readable. Lifting the
+            // accent toward white keeps the per-creep colour coding while restoring contrast; the
+            // dark plate behind the row (DrawCommandCardChrome) does the rest.
             metaStyle!.fontSize = Mathf.RoundToInt(9f * scale);
-            metaStyle.normal.textColor = displayAccent;
+            metaStyle.normal.textColor = isAffordable
+                ? new Color(
+                    Mathf.Lerp(displayAccent.r, 1f, 0.55f),
+                    Mathf.Lerp(displayAccent.g, 1f, 0.55f),
+                    Mathf.Lerp(displayAccent.b, 1f, 0.55f),
+                    1f)
+                : displayAccent;
             GUI.Label(RuntimeUiChrome.CommandCardMetaRect(rect, scale), meta, metaStyle);
             return pressed;
         }
 
-        private static string CompactCreepLabel(string label)
-        {
-            return label switch
-            {
-                "BRUTE" => "BRT",
-                "SWARM" => "SWM",
-                "SHADE" => "SHD",
-                "SIEGE" => "SGE",
-                _ => label
-            };
-        }
+
 
         private static string CreepIconResourceName(CreepIconKind iconKind)
         {

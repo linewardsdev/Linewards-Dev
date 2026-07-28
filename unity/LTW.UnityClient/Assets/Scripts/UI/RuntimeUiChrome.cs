@@ -140,6 +140,12 @@ namespace LTW.UnityClient.UI
                 // Sits below the meta text, not through it: CommandCardMetaRect runs to
                 // yMax - 5*scale, so a strip starting at yMax - 9 covered the bottom of the cost
                 // digits ("5G +1" read as half-height glyphs behind a coloured bar).
+                // The card art has a nameplate behind the label row but nothing behind the cost
+                // row, so the cost text landed straight on pale stone and washed out. The
+                // procedural path below never had this problem because CardInset is already dark.
+                var referenceMetaPlate = Shrink(CommandCardMetaRect(rect, scale), -2f * scale);
+                Fill(referenceMetaPlate, new Color(0.02f, 0.03f, 0.045f, state == CommandCardState.Disabled ? 0.42f : 0.62f));
+
                 var referenceCostStrip = new Rect(rect.x + rect.width * 0.2f, rect.yMax - 4f * scale, rect.width * 0.6f, 2f * scale);
                 Fill(referenceCostStrip, new Color(stateAccent.r, stateAccent.g, stateAccent.b, state == CommandCardState.Disabled ? 0.34f : 0.78f));
                 return;

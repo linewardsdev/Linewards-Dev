@@ -56,10 +56,12 @@ It seeds a match, captures the default HUD and both send-dock categories, and qu
       bottom of the screen. One `buttonHeight` each lands at 260, matching the creep grids that
       already fit. Verified by recapture.
 
-- [ ] **Cost text contrast varies with the card art behind it.** The cost number is drawn in the
-      creep's accent colour; over the light stone areas of the card frame the saturated blue/red
-      digits wash out, while the `+income` beside them stays legible. Distinct from the accent-bar
-      overlap fixed above, and not fixed by it.
+- [x] **FIXED — cost text washed out over the card art.** The cost was drawn in the creep's raw
+      accent colour, and the reference card art has a nameplate behind the label row but nothing
+      behind the cost row, so the digits landed on pale stone. (The procedural path never showed
+      this: its `CardInset` is already dark.) Added a dark plate behind `CommandCardMetaRect` in
+      the art path and lifted the text 55% toward white, which keeps the per-creep colour coding.
+      Verified by recapture across all 10 cards.
 
 ## P1 — The mock-based capture path (kept for context)
 
@@ -87,10 +89,11 @@ It seeds a match, captures the default HUD and both send-dock categories, and qu
 
 ## P2 — Clarity (now verified against real UI captures)
 
-- [ ] **Creep abbreviations are cryptic — CONFIRMED against the real UI.** `real-03` shows
-      `WISP / ASH / OBRT / COIL / WALK`. `OBRT` and `WALK` are the worst offenders. The cards are
-      wide enough for full names at the current font size, and the icons already carry recognition,
-      so the abbreviation is buying nothing.
+- [x] **FIXED — creep abbreviations were cryptic, and one was wrong.** `ASH` was the Revenant:
+      not merely terse but misleading. Cards now read RUNNER / BRUTE / SWARM / SHADE / SIEGE and
+      WISP / REVENANT / OBSIDIAN / SERPENT / WALKER. `CompactCreepLabel`, which shortened the
+      first five to BRT/SWM/SHD/SGE, is deleted — the cards are ~130*scale wide against a 10*scale
+      font, so eight characters fit with room to spare. Verified by recapture of both categories.
 
 - [x] **REFUTED — the send dock does not hide the leak gate.** Checked against
       `real-02-send-dock-open.png`: the dock covers roughly the middle-lower third of the board and
