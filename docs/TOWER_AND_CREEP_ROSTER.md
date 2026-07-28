@@ -23,11 +23,13 @@ Source of truth:
 
 | Tower | ID | Weaponry / role | Cost | Range | Damage / shot | Cooldown ticks | Cooldown sec | Shots/sec | Baseline DPS | Special behavior |
 | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |
-| Arrow Tower | `tower.arrow` | Direct arrow shot; low-cost rapid single-target damage | 20 | 2 | 3 | 2 | 0.50 | 2.00 | 6.00 | Targets the front-most creep. Shade takes reduced damage from this tower. |
-| Control Ward | `tower.control` | Control beam; anti-shade single-target utility | 35 | 2 | 3 | 3 | 0.75 | 1.33 | 4.00 | Targets the front-most creep and deals full damage to Shade. |
-| Relay Ward | `tower.relay` | Relay spark; low-damage signal economy support | 40 | 2 | 2 | 4 | 1.00 | 1.00 | 2.00 | Generates +1 gold for its owner whenever it hits a creep. |
-| Pulse Ward | `tower.pulse` | Pulse burst; short-range splash weapon | 45 | 1 | 8 | 4 | 1.00 | 1.00 | 8.00 | Splashes half damage to up to 2 nearby creeps within 1 cell of the target. Shade reduces non-control/non-prism damage. |
-| Prism Ward | `tower.prism` | Prism beam; long-range priority weapon | 60 | 4 | 12 | 6 | 1.50 | 0.67 | 8.00 | Prioritizes Shade first, then higher-health and farther-forward targets. Deals full damage to Shade. |
+| Arrow Tower | `tower.arrow` | Direct arrow shot; low-cost rapid single-target damage | 14 | 2 | 2 | 2 | 0.50 | 2.00 | 4.00 | Targets the front-most creep. Shade takes reduced damage from this tower. |
+| Control Ward | `tower.control` | Control beam; anti-shade single-target utility | 24 | 2 | 2 | 3 | 0.75 | 1.33 | 2.67 | Targets the front-most creep and deals full damage to Shade. |
+| Relay Ward | `tower.relay` | Relay spark; low-damage signal economy support | 28 | 2 | 2 | 4 | 1.00 | 1.00 | 2.00 | Generates +1 gold for its owner whenever it hits a creep. |
+| Pulse Ward | `tower.pulse` | Pulse burst; short-range splash weapon | 32 | 1 | 6 | 4 | 1.00 | 1.00 | 6.00 | Splashes half damage to up to 2 nearby creeps within 1 cell of the target. Shade reduces non-control/non-prism damage. |
+| Prism Ward | `tower.prism` | Prism beam; long-range priority weapon | 42 | 4 | 9 | 6 | 1.50 | 0.67 | 6.00 | Prioritizes Shade first, then higher-health and farther-forward targets. Deals full damage to Shade. |
+
+Cost and damage were cut ~30%/~25-33% on 2026-07-27 to encourage building several cheaper, individually weaker towers early rather than one strong one — see `docs/GD_TUNING_LOG.md`'s "Tower Cost/Damage Cut" entry for the full rationale and before/after table.
 
 ## Tower Role Map
 
@@ -35,11 +37,11 @@ Source of truth:
 flowchart LR
     towers["Tower roster"]
 
-    towers --> arrow["Arrow Tower<br/>Rapid low-cost single-target<br/>20G / 6 DPS"]
-    towers --> control["Control Ward<br/>Anti-shade single-target<br/>35G / 4 DPS"]
-    towers --> relay["Relay Ward<br/>Signal economy support<br/>40G / 2 DPS / +1G on hit"]
-    towers --> pulse["Pulse Ward<br/>Short-range splash<br/>45G / 8 DPS baseline"]
-    towers --> prism["Prism Ward<br/>Long-range priority beam<br/>60G / 8 DPS"]
+    towers --> arrow["Arrow Tower<br/>Rapid low-cost single-target<br/>14G / 4 DPS"]
+    towers --> control["Control Ward<br/>Anti-shade single-target<br/>24G / 2.67 DPS"]
+    towers --> relay["Relay Ward<br/>Signal economy support<br/>28G / 2 DPS / +1G on hit"]
+    towers --> pulse["Pulse Ward<br/>Short-range splash<br/>32G / 6 DPS baseline"]
+    towers --> prism["Prism Ward<br/>Long-range priority beam<br/>42G / 6 DPS"]
 
     shade["Shade creep"] --> reduced["Reduced damage from Arrow / Relay / Pulse"]
     shade --> full["Full damage from Control / Prism"]

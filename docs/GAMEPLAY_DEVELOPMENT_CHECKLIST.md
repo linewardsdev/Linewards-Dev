@@ -135,13 +135,15 @@ Initial target ranges and known balance questions are recorded in `docs/GD_TUNIN
 - [x] Add at least one pressure bot and one defensive bot profile.
 - [x] Log bot decisions in replay diagnostics.
 
-Bot profiles now surface through the local diagnostics overlay and playtest report. Balanced and Defensive bots now place first-pass defensive tower packages before creating send pressure, giving playtests visible opponent behavior without hidden advantages. Balanced bots build two early towers; Defensive bots build three and hold a larger opening reserve before sending.
+Bot profiles now surface through the local diagnostics overlay and playtest report. Balanced and Defensive bots place first-pass defensive tower packages before creating send pressure, giving playtests visible opponent behavior without hidden advantages.
+
+**Updated 2026-07-27/28** (`swarm-multibot-cluster`): bot behavior is now reactive rather than tick-scheduled. Any lane 2-8 can be independently bot-enabled or left empty. Tuning (aggression, defense bias, minimum gold reserve) lives in content data, not hardcoded constants. Towers keep building past any fixed count as long as gold above a reserve floor and an unused placement slot remain — a bot is no longer capped at "two early towers" or "three towers," it builds as much as it can actually afford. Sends are held until a profile's own minimum tower coverage is met (Balanced 3, Defensive 4, Greedy none) and while the bot's own lane is under heavy incoming pressure (scaled by its own tower count, so more defense raises its tolerance rather than leaving it stuck). Creep-tier preference now gates on accumulated income instead of elapsed ticks. Full rationale, including two real bugs this design caught, in `docs/GD_TUNING_LOG.md`.
 
 ### Acceptance Checks
 
-- [ ] Bots produce visible pressure without depending on hidden advantages.
-- [ ] Bot matches vary by profile while remaining deterministic for a fixed seed.
-- [ ] A full local match can reach a winner through bot and human actions.
+- [x] Bots produce visible pressure without depending on hidden advantages. Demonstrated repeatedly across this session's Unity batch playtests (`docs/playtest-evidence/local-unity-batch-*`), including full 8-lane matches with a mix of profiles.
+- [x] Bot matches vary by profile while remaining deterministic for a fixed seed. Now covered by an automated test: `VerticalSliceBridgeTests.Bot_decisions_are_deterministic_for_the_same_seed_and_options`.
+- [x] A full local match can reach a winner through bot and human actions. Confirmed across every batch playtest run this session (e.g. `local-unity-batch-step3-reactive-bots-20260727-204354.md`, winner P6 at tick 680).
 
 ## GD-06: Session Flow And Results
 

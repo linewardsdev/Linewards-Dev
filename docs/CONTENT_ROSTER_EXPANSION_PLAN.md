@@ -116,15 +116,17 @@ Example compact labels:
 
 | Button | Label | Cost |
 | --- | --- | --- |
-| Arrow | `ARROW` | `20G` |
-| Control | `CTRL` | `35G` |
-| Relay | `RELAY` | `40G` |
-| Pulse | `PULSE` | `45G` |
-| Prism | `PRISM` | `60G` |
+| Arrow | `ARROW` | `14G` |
+| Control | `CTRL` | `24G` |
+| Relay | `RELAY` | `28G` |
+| Pulse | `PULSE` | `32G` |
+| Prism | `PRISM` | `42G` |
+
+(Costs cut ~30% on 2026-07-27 to encourage building several cheaper towers early — see `docs/GD_TUNING_LOG.md`.)
 
 ### Send Menu
 
-The send menu should mirror the build menu:
+The send menu should mirror the build menu. **Superseded 2026-07-28:** with 5 more creeps planned, a single flat 10-button menu was too crowded — SEND now opens a category picker first, then a 5-creep grid per category. See `docs/GAME_MENU_AND_RUNTIME_FLOW.md`'s "Send Drawer" section for the current structure; the table below still describes Category 1's unchanged content.
 
 | Button | Label | Cost |
 | --- | --- | --- |
@@ -152,7 +154,7 @@ Recommended detail strip after a selection or press-hold:
 
 ## Suggested First-Pass Stats
 
-These numbers are starting points for implementation, not final balance.
+These numbers are starting points for implementation, not final balance. **Tower cost/damage since changed** (2026-07-27 rebalance) — see `docs/TOWER_AND_CREEP_ROSTER.md` for current live values and `docs/GD_TUNING_LOG.md` for rationale. Left as-is below for historical reference.
 
 ### Towers
 
@@ -192,7 +194,7 @@ These numbers are starting points for implementation, not final balance.
 - [x] Add tests that sample content validates with 5 towers and 5 creeps.
 - [x] Add command acceptance tests for the new content.
 - [x] Add first mechanic tests for mixed pressure roles.
-- [ ] Add full scenario tests for low, normal, heavy, and mixed-pressure matches.
+- [x] Add full scenario tests for low, normal, heavy, and mixed-pressure matches (`GameplayScenarioTests.cs`: `Low_pressure_scenario_records_stable_opening_defense`, `Normal_pressure_scenario_records_income_and_active_combat`, `Heavy_pressure_scenario_records_escalation_without_hidden_bot_advantages`, `Mixed_pressure_scenario_records_distinct_send_roles_and_defensive_response`).
 
 ### Phase 3: Unity Controls
 
@@ -216,7 +218,7 @@ These numbers are starting points for implementation, not final balance.
 - [x] Let bots choose from more than one send type by profile.
 - [x] Let bots use expanded tower roles by profile.
 - [x] Tune opening gold and bot reserve behavior if new costs distort pacing.
-- [ ] Record playtest evidence for mixed send pressure.
+- [x] Record playtest evidence for mixed send pressure (`docs/playtest-evidence/local-unity-batch-*` captures from the bot-rework and send-menu verification passes on `swarm-multibot-cluster`).
 - [x] Update `GD_TUNING_LOG.md` with first-pass findings.
 
 ## Open Questions
