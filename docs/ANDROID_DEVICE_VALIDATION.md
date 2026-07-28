@@ -2,10 +2,18 @@
 
 ## Build Prerequisites
 
-- Google Play Console account, package name reserved, and (once ready) Play App Signing enrollment.
-- Android Studio or standalone Android SDK/NDK matching the selected Unity editor's supported version.
-- An Android Unity export built from `unity/LTW.UnityClient` with the local vertical-slice scene enabled, using the same build number as the paired iOS validation run where practical, per `MONETIZATION_AND_PAYMENTS.md`-adjacent cross-platform release-sync guidance in `MVP_IMPLEMENTATION_CHECKLIST.md`.
-- Build settings confirmed before the first export: IL2CPP scripting backend, ARM64 target architecture, and `.aab` output (required by Play Console, not `.apk`).
+**For local sandbox testing on your own device (available now, see `STORE_SIGNING_PREREQUISITES.md`):**
+
+- No separate Android Studio install needed — Unity `6000.5.3f1`'s Android module bundles its own SDK/NDK/OpenJDK, including `adb`, under `PlaybackEngines/AndroidPlayer/`.
+- A physical Android device with Developer Options and USB debugging enabled. (No Android Studio/emulator system images are currently installed on this machine; get a physical device or install Android Studio for an AVD if one isn't available.)
+- The placeholder package name `com.ltwplaceholder.ltw` (set on `applicationIdentifier.Android` in `ProjectSettings.asset`) is sufficient for sideloaded local builds; it isn't reserved on Play Console and doesn't need to be until a real store submission.
+- An Android Unity export built from `unity/LTW.UnityClient` with the local vertical-slice scene enabled. A debug/local build can ship as a directly-installed `.apk`; `.aab` is only required for Play Console upload.
+
+**Only needed once this moves to Play Console internal testing / release:**
+
+- Google Play Console account, the final (non-placeholder) package name reserved, and Play App Signing enrollment.
+- Build settings confirmed before the first store upload: IL2CPP scripting backend, ARM64 target architecture, and `.aab` output (required by Play Console, not `.apk`).
+- Using the same build number as the paired iOS validation run where practical, per cross-platform release-sync guidance in `MVP_IMPLEMENTATION_CHECKLIST.md`.
 
 ## Test Matrix
 
