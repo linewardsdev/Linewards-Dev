@@ -14,6 +14,7 @@ namespace LTW.UnityClient.UI
         private const int LaneWidth = 7;
         private const int LaneLength = 16;
         private const string BuilderSpriteResourcePath = "Art/Builder/Production/Sprites/builder_candidate_v01_trimmed";
+        private const string BuilderModelResourcePath = "Prefabs/Builder/Builder_3D";
 
         private static readonly Color PanelInk = new(0.08f, 0.12f, 0.22f, 0.92f);
         private static readonly Color ArcaneBlue = new(0.302f, 0.639f, 1f, 1f);
@@ -54,6 +55,13 @@ namespace LTW.UnityClient.UI
 
         private GameObject builderAvatar = null!;
         private SpriteRenderer? builderAvatarSprite;
+        private Animator? builderAvatarAnimator;
+        private bool builderAvatarWalking;
+
+        private const float BuilderWalkSpeed = 4.5f;
+        private const float BuilderWalkBobAmplitude = 0.05f;
+        private const float BuilderWalkBobFrequency = 9f;
+        private const float BuilderWalkTurnDegreesPerSecond = 720f;
 
         [SerializeField]
         private bool showPlacementReadout = true;
@@ -206,6 +214,8 @@ namespace LTW.UnityClient.UI
 
         private void Update()
         {
+            TickBuilderWalk();
+
             if (!Input.GetMouseButtonDown(0))
             {
                 return;
@@ -612,9 +622,27 @@ namespace LTW.UnityClient.UI
 
             builderAvatar = new GameObject("Builder Avatar");
             builderAvatar.transform.SetParent(transform, false);
-            builderAvatar.transform.localScale = new Vector3(1.35f, 1.35f, 1.35f);
             builderAvatar.SetActive(false);
 
+            var model = Resources.Load<GameObject>(BuilderModelResourcePath);
+            if (model != null)
+            {
+                // Rigged biped (Meshy) with a real Walk cycle — TickBuilderWalk drives its
+                // Animator's "Walking" bool instead of the old bob-only primitive avatar.
+                var instance = Instantiate(model, builderAvatar.transform);
+                instance.name = "Model";
+                instance.transform.localPosition = Vector3.zero;
+                instance.transform.localRotation = Quaternion.identity;
+                // Raw mesh stands ~2.2 units tall; scaled down to sit roughly level with the other
+                // 3D units on the board (see measure_builder_bounds notes in the pipeline).
+                instance.transform.localScale = new Vector3(0.4f, 0.4f, 0.4f);
+                builderAvatarAnimator = instance.GetComponentInChildren<Animator>(true);
+                return;
+            }
+
+            // Fallback if the 3D model asset is missing for any reason (e.g. a build stripped
+            // Resources content it shouldn't have) — the original primitive-and-sprite avatar.
+            builderAvatar.transform.localScale = new Vector3(1.35f, 1.35f, 1.35f);
             CreateBuilderPart("Body", PrimitiveType.Capsule, new Vector3(0f, 0.34f, 0f), new Vector3(0.28f, 0.34f, 0.28f));
             CreateBuilderPart("Pack", PrimitiveType.Cube, new Vector3(0f, 0.38f, -0.2f), new Vector3(0.25f, 0.3f, 0.12f));
             CreateBuilderPart("Visor", PrimitiveType.Cube, new Vector3(0f, 0.53f, 0.18f), new Vector3(0.2f, 0.08f, 0.08f));
@@ -627,6 +655,59 @@ namespace LTW.UnityClient.UI
             {
                 builderAvatar.SetActive(false);
             }
+
+            builderAvatarWalking = false;
+        }
+
+        /// <summary>
+        /// Walks the builder avatar toward whatever cell is currently selected instead of
+        /// teleporting it there — called every frame (not gated behind input, unlike the rest of
+        /// <see cref="Update"/>) so the walk keeps progressing across frames with no clicks.
+        /// A simple bob (no leg geometry exists on this primitive-built avatar) plus turning to
+        /// face the direction of travel is enough to read as an actual walk rather than a slide.
+        /// </summary>
+        private void TickBuilderWalk()
+        {
+            if (builderAvatar == null || !builderAvatar.activeSelf)
+            {
+                return;
+            }
+
+            var target = BuilderGroundPosition(selectedCell);
+            var current = builderAvatar.transform.position;
+            var flatCurrent = new Vector3(current.x, 0f, current.z);
+            var flatTarget = new Vector3(target.x, 0f, target.z);
+            var toTarget = flatTarget - flatCurrent;
+            var distance = toTarget.magnitude;
+
+            if (distance < 0.02f)
+            {
+                builderAvatarWalking = false;
+                builderAvatar.transform.position = target;
+                builderAvatarAnimator?.SetBool("Walking", false);
+                return;
+            }
+
+            builderAvatarWalking = true;
+            builderAvatarAnimator?.SetBool("Walking", true);
+            var direction = toTarget / distance;
+            var step = Mathf.Min(distance, BuilderWalkSpeed * Time.deltaTime);
+            var moved = flatCurrent + direction * step;
+
+            // The rigged model's own Walk clip already animates a real up-down bounce from its
+            // leg motion — layering the old procedural sine bob on top (built for the legless
+            // primitive avatar) would double up as an odd extra wobble, so it's skipped whenever
+            // a real Animator is driving the character.
+            var bob = builderAvatarAnimator == null
+                ? Mathf.Abs(Mathf.Sin(Time.time * BuilderWalkBobFrequency)) * BuilderWalkBobAmplitude
+                : 0f;
+            builderAvatar.transform.position = new Vector3(moved.x, target.y + bob, moved.z);
+
+            var desiredRotation = Quaternion.LookRotation(new Vector3(direction.x, 0f, direction.z), Vector3.up);
+            builderAvatar.transform.rotation = Quaternion.RotateTowards(
+                builderAvatar.transform.rotation,
+                desiredRotation,
+                BuilderWalkTurnDegreesPerSecond * Time.deltaTime);
         }
 
         private void CreateBuilderPart(string partName, PrimitiveType primitiveType, Vector3 localPosition, Vector3 localScale)
@@ -643,6 +724,10 @@ namespace LTW.UnityClient.UI
             part.transform.localScale = localScale;
         }
 
+        private static Vector3 BuilderRestOffset => new(-0.48f, 0f, 0.24f);
+
+        private Vector3 BuilderGroundPosition(Vector2Int cell) => GridToWorld(cell, 0.02f) + BuilderRestOffset;
+
         private void UpdateBuilderAvatar()
         {
             if (builderAvatar == null)
@@ -655,8 +740,26 @@ namespace LTW.UnityClient.UI
                 return;
             }
 
-            builderAvatar.transform.position = GridToWorld(selectedCell, 0.02f) + new Vector3(-0.48f, 0f, 0.24f);
+            // Only snap instantly the first time the avatar appears (there's no sensible "previous
+            // cell" to walk in from yet). Every cell change after that is picked up by
+            // TickBuilderWalk instead, which walks the avatar across the board rather than
+            // teleporting it — this call just needs to make sure it's visible/coloured.
+            var alreadyVisible = builderAvatar.activeSelf;
+            if (!alreadyVisible)
+            {
+                builderAvatar.transform.position = BuilderGroundPosition(selectedCell);
+            }
+
             builderAvatar.SetActive(true);
+
+            // The rigged model carries its own painted PBR material — recolouring it the way the
+            // primitive/sprite fallback does below would just wash out its texture with a flat
+            // tint, so it's left alone entirely.
+            if (builderAvatarAnimator != null)
+            {
+                return;
+            }
+
             var accent = SelectedTowerAccent();
             accent.a = 1f;
             foreach (var part in builderAvatar.GetComponentsInChildren<Renderer>(true))
