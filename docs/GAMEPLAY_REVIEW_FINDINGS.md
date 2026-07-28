@@ -44,8 +44,22 @@ It seeds a match, captures the default HUD and both send-dock categories, and qu
       `-ltwCameraTilt` switches. `LatestText` is still produced, since the playtest recorder
       consumes it. Verified by recapture: the top-left region is now clean.
 
-- [ ] **Two CLOSE buttons are visible at once** when the dock is open — one in the dock header and
-      one bottom-right. Worth confirming which is authoritative.
+- [x] **FIXED — two CLOSE buttons were visible at once** when the dock is open. Not an ownership
+      question: both belonged to `SendDockController`, and `TouchPlacementController` had the same
+      pair. The launcher slot must show something other than SEND/BUILD while expanded, so it is
+      necessarily CLOSE; the header CLOSE was pure duplication. Kept the launcher (thumb zone, and
+      where the finger already is after tapping SEND) and moved BACK into the vacated header slot.
+
+- [x] **FIXED — the category picker drew its second card outside the dock.** Cards were
+      `buttonHeight * 2 + gap` tall, putting the pair's bottom edge at 84 + 176 + 8 + 176 = 444
+      inside a panel only 282 tall, so card two hung over the board with its lower half off the
+      bottom of the screen. One `buttonHeight` each lands at 260, matching the creep grids that
+      already fit. Verified by recapture.
+
+- [ ] **Cost text contrast varies with the card art behind it.** The cost number is drawn in the
+      creep's accent colour; over the light stone areas of the card frame the saturated blue/red
+      digits wash out, while the `+income` beside them stays legible. Distinct from the accent-bar
+      overlap fixed above, and not fixed by it.
 
 ## P1 — The mock-based capture path (kept for context)
 
@@ -71,14 +85,17 @@ It seeds a match, captures the default HUD and both send-dock categories, and qu
       roster so divergence fails; or drop the painting and accept board-only captures, reviewing
       UI by hand.
 
-## P2 — Clarity (from code reading; NOT verified against real UI)
+## P2 — Clarity (now verified against real UI captures)
 
-- [ ] **Creep abbreviations are cryptic.** `RUN/BRT/SWM/SHD/SGE`, with `OBRT`, `COIL`, `WALK` in
-      the second category. Consider full names, or leaning on the icons and dropping the
-      abbreviation.
+- [ ] **Creep abbreviations are cryptic — CONFIRMED against the real UI.** `real-03` shows
+      `WISP / ASH / OBRT / COIL / WALK`. `OBRT` and `WALK` are the worst offenders. The cards are
+      wide enough for full names at the current font size, and the icons already carry recognition,
+      so the abbreviation is buying nothing.
 
-- [ ] **Send dock geometry covers a large part of the board.** The panel is `282f * scale` tall,
-      bottom-anchored. Worth confirming whether it hides the leak gate in the real UI.
+- [x] **REFUTED — the send dock does not hide the leak gate.** Checked against
+      `real-02-send-dock-open.png`: the dock covers roughly the middle-lower third of the board and
+      the leak gate sits below it, fully visible. The concern came from reading the panel height in
+      code without checking where it lands.
 
 ## P2 — Review tooling gaps (FIXED)
 

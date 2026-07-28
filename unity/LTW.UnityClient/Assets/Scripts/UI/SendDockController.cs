@@ -133,17 +133,16 @@ namespace LTW.UnityClient.UI
             titleStyle!.fontSize = Mathf.RoundToInt(12f * scale);
             titleStyle.normal.textColor = SignalGold;
             GUI.Label(new Rect(rect.x + 12f * scale, rect.y + 10f * scale, 220f * scale, 20f * scale), titleText, titleStyle);
+            // Only one CLOSE. The launcher slot above already turned into CLOSE when the dock
+            // opened, and it has to stay something other than SEND while expanded, so a second
+            // CLOSE in the header was pure duplication — two controls, same owner, same action,
+            // both on screen at once. The launcher keeps it: it sits in the thumb zone, and it is
+            // where the finger already is after tapping SEND. BACK moves into the vacated slot.
             buttonStyle!.fontSize = Mathf.RoundToInt(10f * scale);
             if (selectedCategory >= 0
-                && RuntimeUiChrome.DrawPanelButton(new Rect(rect.xMax - 138f * scale, rect.y + 8f * scale, 58f * scale, 32f * scale), "BACK", SignalGold, scale, buttonStyle))
+                && RuntimeUiChrome.DrawPanelButton(new Rect(rect.xMax - 72f * scale, rect.y + 8f * scale, 58f * scale, 32f * scale), "BACK", SignalGold, scale, buttonStyle))
             {
                 selectedCategory = -1;
-                return;
-            }
-
-            if (RuntimeUiChrome.DrawPanelButton(new Rect(rect.xMax - 72f * scale, rect.y + 8f * scale, 58f * scale, 32f * scale), "CLOSE", SignalGold, scale, buttonStyle))
-            {
-                CloseDock();
                 return;
             }
 
@@ -171,13 +170,20 @@ namespace LTW.UnityClient.UI
         }
 
         /// <summary>
-        /// Category chooser shown before either 5-creep grid. Two big cards rather than the
-        /// smaller creep-button size, since there's no icon/cost to show yet — just a name and a
-        /// "5 sends" hint.
+        /// Category chooser shown before either 5-creep grid. Full-width cards, since there's no
+        /// icon/cost to show yet — just a name and a "5 sends" hint.
         /// </summary>
+        /// <remarks>
+        /// The card height has to divide the panel the same way the creep grids do. These were
+        /// drawn at buttonHeight * 2 + gap each, which put the pair's bottom edge at
+        /// 84 + 176 + 8 + 176 = 444 inside a panel only 282 tall — so the second card hung
+        /// completely outside the dock, over the board, with its lower half off the bottom of the
+        /// screen. One buttonHeight each lands at 84 + 84 + 8 + 84 = 260, matching the two-row
+        /// creep grids that already fit.
+        /// </remarks>
         private void DrawCategoryPicker(Rect rect, float buttonY, float buttonHeight, float gap, float scale)
         {
-            var cardHeight = buttonHeight * 2f + gap;
+            var cardHeight = buttonHeight;
             var cardWidth = rect.width - 24f * scale;
             var x = rect.x + 12f * scale;
 

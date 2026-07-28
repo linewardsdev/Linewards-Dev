@@ -950,12 +950,9 @@ namespace LTW.UnityClient.UI
             titleStyle!.fontSize = Mathf.RoundToInt(12f * scale);
             titleStyle.normal.textColor = MintSignal;
             GUI.Label(new Rect(rect.x + 12f * scale, rect.y + 10f * scale, 120f * scale, 20f * scale), "BUILD", titleStyle);
+            // The launcher slot above is already CLOSE while the palette is expanded; a header
+            // CLOSE duplicated it. See the matching note in SendDockController.
             buttonStyle!.fontSize = Mathf.RoundToInt(10f * scale);
-            if (RuntimeUiChrome.DrawPanelButton(new Rect(rect.xMax - 72f * scale, rect.y + 8f * scale, 58f * scale, 32f * scale), "CLOSE", MintSignal, scale, buttonStyle))
-            {
-                isPaletteExpanded = false;
-                return;
-            }
 
             var buttonY = rect.y + 78f * scale;
             var buttonHeight = 84f * scale;
