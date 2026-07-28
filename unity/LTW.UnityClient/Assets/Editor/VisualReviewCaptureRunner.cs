@@ -17,6 +17,15 @@ using UnityEngine.Rendering;
 namespace LTW.UnityClient.Editor
 {
     /// <remarks>
+    /// WHAT IS REAL IN THESE CAPTURES: only the 3D board. In batchmode IMGUI does not draw into
+    /// the capture RenderTexture, so PaintBatchHudOverlay reconstructs the HUD on the CPU after
+    /// readback using its own 3x7 bitmap glyphs (see GlyphRows) — every panel, button and label in
+    /// the output is a PAINTING, not the game's UI. Do not review UI from these images: a full
+    /// review pass once filed five UI defects that were all artefacts of this mock, and two
+    /// attempts to fix the game's font produced byte-identical captures because the game's font is
+    /// not what is in the picture. The mock is also not kept in step with the game — the send menu
+    /// it paints still shows the pre-expansion 5-creep roster.
+    ///
     /// Run WITHOUT -nographics. That flag disables the graphics device, so captures come out as a
     /// single flat colour while still reporting success and writing the expected files — the
     /// blank result is only visible by inspecting the pixels. Use:
