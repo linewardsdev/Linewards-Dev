@@ -3369,11 +3369,13 @@ namespace LTW.UnityClient.Simulation
             {
                 case TowerVisualRole.Control:
                 {
-                    var breathe = Mathf.Sin(time * 1.6f) * 0.05f;
-                    var driftX = Mathf.Sin(time * 0.9f) * 0.05f;
-                    var driftZ = Mathf.Cos(time * 0.7f) * 0.04f;
-                    var wobble = Mathf.Sin(time * 1.1f) * 6f;
-                    return new TowerMotion(new Vector3(driftX, 0f, driftZ), wobble, breathe);
+                    // Now that the arms+core+ring assembly genuinely turns to aim and the ring
+                    // spins independently (both real, visible motion), the Body-level idle sway
+                    // and pitch wobble this had were pure excess on top — it should read as mostly
+                    // a still, ancient structure with only a faint pulse of life, not something
+                    // constantly swaying/tilting on its own.
+                    var breathe = Mathf.Sin(time * 1.6f) * 0.01f;
+                    return new TowerMotion(Vector3.zero, 0f, breathe);
                 }
 
                 case TowerVisualRole.Arrow:
