@@ -635,6 +635,15 @@ namespace LTW.UnityClient.Simulation
                 var healthFraction = CreepHealthFraction(creep.CreepId.Value, creep.Health);
                 var isHitFlashing = creepHitFlashUntil.TryGetValue(key, out var flashUntil) && Time.time < flashUntil;
                 ApplyCreepColor(creepObject, creep.CreepId.Value, creep.SenderId.Value, visualProfile, healthFraction, isHitFlashing);
+                if (UsesMeshVisual(creepObject) && ContainsRole(creep.CreepId.Value, "swarm"))
+                {
+                    // Replaces the single mesh-backed body with a small cluster, not an overlay on
+                    // top of it, so this runs unconditionally rather than being gated behind
+                    // suppressCreepGameplayOverlays — skipping it would leave the creep showing
+                    // nothing, since ConfigureSwarmCluster is what hides the original body.
+                    ConfigureSwarmCluster(creepObject, creep.CreepId.Value, creep.SenderId.Value, healthFraction, isHitFlashing);
+                }
+
                 if (suppressCreepGameplayOverlays)
                 {
                     DeactivateCreepGameplayOverlays(creepObject);
@@ -2205,7 +2214,7 @@ namespace LTW.UnityClient.Simulation
             for (var index = 0; index < renderers.Length; index++)
             {
                 var rendererObject = renderers[index].gameObject;
-                if (IsHealthBarPart(rendererObject.name))
+                if (IsHealthBarPart(rendererObject.name) || !rendererObject.activeInHierarchy)
                 {
                     continue;
                 }
@@ -3980,6 +3989,87 @@ namespace LTW.UnityClient.Simulation
             ConfigureChild(EnsureChild(creepObject, "SwarmTrail", PrimitiveType.Cylinder), true, new Vector3(0f, -0.18f, 0f), new Vector3(1.18f, 0.025f, 1.02f), senderColor);
         }
 
+        /// <summary>
+        /// Local slot positions for the mesh-backed swarm cluster, roughly matching the layout of
+        /// the original 2D sprite's 7-bot cluster (one lead body, others fanned around it) rather
+        /// than an evenly spaced ring.
+        /// </summary>
+        private static readonly Vector3[] SwarmClusterSlots =
+        {
+            new Vector3(0f, 0f, 0.15f),
+            new Vector3(-0.15f, 0f, -0.04f),
+            new Vector3(0.15f, 0f, -0.04f),
+            new Vector3(-0.08f, 0f, -0.15f),
+            new Vector3(0.08f, 0f, -0.15f),
+        };
+
+        private const float SwarmShardScale = 0.34f;
+
+        /// <summary>
+        /// Replaces the single mesh-backed swarm body with a small cluster of scaled-down copies
+        /// of the same mesh, each wandering within its own small "bubble" around a slot position.
+        /// </summary>
+        /// <remarks>
+        /// The 2D sprite this creep's role was designed against showed a cluster of small shard
+        /// bots, not one large one; the Meshy 3D pass generated (and the pipeline kept) a single
+        /// enlarged body instead. This restores the multi-body read using the existing mesh/
+        /// material — no new art asset — and reuses the same health-fraction "living count" idea
+        /// the old pre-mesh <see cref="ConfigureSwarmMarker"/> primitive overlay used, so the
+        /// cluster visibly thins as this creep takes damage instead of just changing color.
+        /// </remarks>
+        private static void ConfigureSwarmCluster(GameObject creepObject, string creepId, int senderId, float healthFraction, bool isHitFlashing)
+        {
+            var body = creepObject.transform.Find("Body");
+            var imported = body != null ? body.Find("Imported3DVisual") : null;
+            if (imported == null)
+            {
+                return;
+            }
+
+            // The pipeline's single big body is hidden, not destroyed — SwarmShard0..4 below are
+            // copies of its own mesh/material, so there is nothing else for this creep to show.
+            if (imported.gameObject.activeSelf)
+            {
+                imported.gameObject.SetActive(false);
+            }
+
+            var sourceFilter = imported.GetComponentInChildren<MeshFilter>(true);
+            var sourceRenderer = imported.GetComponentInChildren<MeshRenderer>(true);
+            if (sourceFilter == null || sourceFilter.sharedMesh == null || sourceRenderer == null)
+            {
+                return;
+            }
+
+            var mesh = sourceFilter.sharedMesh;
+            var material = sourceRenderer.sharedMaterial;
+            var color = CreepBodyColor(creepId, senderId, healthFraction, isHitFlashing);
+            var livingCount = Mathf.Clamp(Mathf.CeilToInt(healthFraction * SwarmClusterSlots.Length), 1, SwarmClusterSlots.Length);
+            var time = Time.time;
+
+            for (var index = 0; index < SwarmClusterSlots.Length; index++)
+            {
+                var shard = EnsureMeshChild(creepObject, $"SwarmShard{index}", mesh, material);
+                var active = index < livingCount;
+                shard.SetActive(active);
+                if (!active)
+                {
+                    continue;
+                }
+
+                // Each shard's own phase keeps the cluster from moving as one rigid block — the
+                // "bubble" is this small per-shard wander around its slot, not a shared pose.
+                var phase = index * 1.7f;
+                var wobble = new Vector3(
+                    Mathf.Sin(time * 2.1f + phase) * 0.045f,
+                    Mathf.Sin(time * 3.3f + phase * 1.3f) * 0.03f + 0.03f,
+                    Mathf.Cos(time * 2.4f + phase) * 0.045f);
+                shard.transform.localPosition = SwarmClusterSlots[index] + wobble;
+                shard.transform.localRotation = Quaternion.Euler(0f, (time * 26f + phase * 40f) % 360f, 0f);
+                shard.transform.localScale = Vector3.one * SwarmShardScale;
+                SetColor(shard, color);
+            }
+        }
+
         private static void ConfigureAirMarker(GameObject creepObject)
         {
             ConfigureChild(EnsureChild(creepObject, "AirHoverRing", PrimitiveType.Cylinder), true, new Vector3(0f, -0.52f, 0f), new Vector3(0.88f, 0.04f, 0.88f), new Color(0.82f, 0.72f, 1f));
@@ -4254,6 +4344,26 @@ namespace LTW.UnityClient.Simulation
             child.transform.localRotation = Quaternion.identity;
             child.transform.localScale = localScale;
             SetColor(child, color);
+        }
+
+        /// <summary>
+        /// Find-or-create a child carrying a copy of an existing mesh/material, for cases like
+        /// <see cref="ConfigureSwarmCluster"/> that need several small instances of a creep's own
+        /// body mesh rather than a Unity primitive shape (see <see cref="EnsureChild"/>).
+        /// </summary>
+        private static GameObject EnsureMeshChild(GameObject parent, string name, Mesh mesh, Material material)
+        {
+            var existing = parent.transform.Find(name)?.gameObject;
+            if (existing != null)
+            {
+                return existing;
+            }
+
+            var child = new GameObject(name);
+            child.transform.SetParent(parent.transform, false);
+            child.AddComponent<MeshFilter>().sharedMesh = mesh;
+            child.AddComponent<MeshRenderer>().sharedMaterial = material;
+            return child;
         }
 
         private static bool ContainsRole(string contentId, string role) => contentId.IndexOf(role, StringComparison.OrdinalIgnoreCase) >= 0;

@@ -7,6 +7,7 @@ using System.Reflection;
 using LTW.Simulation.Bots;
 using LTW.Simulation.Bridge;
 using LTW.Simulation.Content;
+using LTW.Simulation.Primitives;
 using LTW.UnityClient.Simulation;
 using UnityEditor;
 using UnityEditor.SceneManagement;
@@ -187,10 +188,12 @@ namespace LTW.UnityClient.Editor
             writer.WriteLine($"- Unity Version: `{Application.unityVersion}`");
             writer.WriteLine($"- Evidence Label: `{evidenceLabel}`");
             writer.WriteLine($"- Configured Seed: {matchOptions.Seed}");
-            writer.WriteLine($"- P2 Profile: {matchOptions.Player2Profile}");
-            writer.WriteLine($"- P3 Profile: {matchOptions.Player3Profile}");
-            writer.WriteLine($"- P2 Primary Creep: `{matchOptions.Player2PrimaryCreepId?.Value ?? "default"}`");
-            writer.WriteLine($"- P3 Primary Creep: `{matchOptions.Player3PrimaryCreepId?.Value ?? "default"}`");
+            for (var playerId = 2; playerId <= matchOptions.LaneCount; playerId++)
+            {
+                var id = new PlayerId(playerId);
+                var enabled = matchOptions.IsBotEnabledFor(id);
+                writer.WriteLine($"- P{playerId} Bot: {(enabled ? "enabled" : "disabled")}, Profile: {matchOptions.BotProfileFor(id)}, Primary Creep: `{matchOptions.PrimaryCreepFor(id)?.Value ?? "default"}`");
+            }
             writer.WriteLine($"- Result: {(failure is null && resetClean ? "pass" : "fail")}");
             writer.WriteLine($"- Wall Time Seconds: {(completedAt > 0d ? completedAt - startedAt : EditorApplication.timeSinceStartup - startedAt):F2}");
             writer.WriteLine($"- Completed Tick: {completedTick}");
@@ -230,16 +233,18 @@ namespace LTW.UnityClient.Editor
         private static LocalMatchOptions ReadOptionsFromCommandLine()
         {
             var seed = ReadIntArgument("-ltwSeed") ?? 1;
-            var player2Profile = ReadEnumArgument("-ltwP2", BotDecisionProfile.Balanced);
-            var player3Profile = ReadEnumArgument("-ltwP3", BotDecisionProfile.Defensive);
-            var player2Creep = ReadContentIdArgument("-ltwP2Creep");
-            var player3Creep = ReadContentIdArgument("-ltwP3Creep");
-            return new LocalMatchOptions(
-                seed: seed,
-                player2Profile: player2Profile,
-                player3Profile: player3Profile,
-                player2PrimaryCreepId: player2Creep,
-                player3PrimaryCreepId: player3Creep);
+            var options = new LocalMatchOptions(seed: seed);
+
+            for (var playerId = 2; playerId <= LocalMatchOptions.MaxLaneCount; playerId++)
+            {
+                var argSuffix = $"-ltwP{playerId}";
+                var enabled = ReadBoolArgument($"{argSuffix}Enabled", fallback: true);
+                var profile = ReadEnumArgument(argSuffix, options.BotProfileFor(new PlayerId(playerId)));
+                var creep = ReadContentIdArgument($"{argSuffix}Creep");
+                options = options.WithLane(playerId, enabled: enabled, profile: profile, primaryCreepId: creep);
+            }
+
+            return options;
         }
 
         private static string? ReadStringArgument(string name)
@@ -258,6 +263,9 @@ namespace LTW.UnityClient.Editor
 
         private static int? ReadIntArgument(string name) =>
             int.TryParse(ReadStringArgument(name), out var value) ? value : null;
+
+        private static bool ReadBoolArgument(string name, bool fallback) =>
+            bool.TryParse(ReadStringArgument(name), out var value) ? value : fallback;
 
         private static BotDecisionProfile ReadEnumArgument(string name, BotDecisionProfile fallback) =>
             Enum.TryParse(ReadStringArgument(name), ignoreCase: true, out BotDecisionProfile value) ? value : fallback;

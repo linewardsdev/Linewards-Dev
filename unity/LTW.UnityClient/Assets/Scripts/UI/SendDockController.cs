@@ -37,13 +37,25 @@ namespace LTW.UnityClient.UI
         [SerializeField]
         private bool showRuntimeDock = true;
 
+        // Placeholder names — the real category identities land with the 5 new creeps this
+        // splits the menu to make room for (see docs/CONTENT_ROSTER_EXPANSION_PLAN.md's "Why
+        // Shade And Siege Before Boss Or Air" section for what's likely headed into Category 2).
+        // Category 1 is the current 5-creep roster, unchanged; Category 2 is disabled placeholder
+        // slots until that content exists.
+        private static readonly string[] CategoryLabels = { "CATEGORY 1", "CATEGORY 2" };
+
         private bool isExpanded;
+        private int selectedCategory = -1;
         private int highlightedCreepRole = -1;
         private int reviewGoldOverride = -1;
 
         public bool IsExpanded => isExpanded;
 
-        public void CloseDock() => isExpanded = false;
+        public void CloseDock()
+        {
+            isExpanded = false;
+            selectedCategory = -1;
+        }
 
         public void Initialize(UnityCommandAdapter adapter, PlacementFeedbackView feedback)
         {
@@ -79,6 +91,7 @@ namespace LTW.UnityClient.UI
             if (touchPlacement?.IsTowerPaletteExpanded == true)
             {
                 isExpanded = false;
+                selectedCategory = -1;
                 return;
             }
 
@@ -102,28 +115,92 @@ namespace LTW.UnityClient.UI
             DrawAccent(new Rect(rect.x, rect.yMax - 4f * scale, rect.width, 4f * scale), SignalGold);
             if (DrawLauncherButton(launcherRect, "CLOSE", SignalGold, scale))
             {
-                isExpanded = false;
+                CloseDock();
                 return;
             }
 
+            var titleText = selectedCategory < 0 ? "SEND" : $"SEND › {CategoryLabels[selectedCategory]}";
             titleStyle!.fontSize = Mathf.RoundToInt(12f * scale);
             titleStyle.normal.textColor = SignalGold;
-            GUI.Label(new Rect(rect.x + 12f * scale, rect.y + 10f * scale, 120f * scale, 20f * scale), "SEND", titleStyle);
+            GUI.Label(new Rect(rect.x + 12f * scale, rect.y + 10f * scale, 220f * scale, 20f * scale), titleText, titleStyle);
             buttonStyle!.fontSize = Mathf.RoundToInt(10f * scale);
+            if (selectedCategory >= 0
+                && RuntimeUiChrome.DrawPanelButton(new Rect(rect.xMax - 138f * scale, rect.y + 8f * scale, 58f * scale, 32f * scale), "BACK", SignalGold, scale, buttonStyle))
+            {
+                selectedCategory = -1;
+                return;
+            }
+
             if (RuntimeUiChrome.DrawPanelButton(new Rect(rect.xMax - 72f * scale, rect.y + 8f * scale, 58f * scale, 32f * scale), "CLOSE", SignalGold, scale, buttonStyle))
             {
-                isExpanded = false;
+                CloseDock();
                 return;
             }
 
             var gold = CurrentPlayerGold();
             metaStyle!.fontSize = Mathf.RoundToInt(11f * scale);
             metaStyle.normal.textColor = MintSignal;
-            GUI.Label(new Rect(rect.xMax - 132f * scale, rect.y + 12f * scale, 58f * scale, 18f * scale), $"G{gold}", metaStyle);
+            GUI.Label(new Rect(rect.xMax - 204f * scale, rect.y + 12f * scale, 58f * scale, 18f * scale), $"G{gold}", metaStyle);
 
             var buttonY = rect.y + 84f * scale;
             var buttonHeight = 84f * scale;
             var gap = 8f * scale;
+
+            if (selectedCategory < 0)
+            {
+                DrawCategoryPicker(rect, buttonY, buttonHeight, gap, scale);
+            }
+            else if (selectedCategory == 0)
+            {
+                DrawCategoryOneCreeps(rect, buttonY, buttonHeight, gap, gold, scale);
+            }
+            else
+            {
+                DrawCategoryTwoPlaceholders(rect, buttonY, buttonHeight, gap, scale);
+            }
+        }
+
+        /// <summary>
+        /// Category chooser shown before either 5-creep grid. Two big cards rather than the
+        /// smaller creep-button size, since there's no icon/cost to show yet — just a name and a
+        /// "5 sends" hint.
+        /// </summary>
+        private void DrawCategoryPicker(Rect rect, float buttonY, float buttonHeight, float gap, float scale)
+        {
+            var cardHeight = buttonHeight * 2f + gap;
+            var cardWidth = rect.width - 24f * scale;
+            var x = rect.x + 12f * scale;
+
+            if (DrawCategoryCard(new Rect(x, buttonY, cardWidth, cardHeight), CategoryLabels[0], ArcaneBlue, scale))
+            {
+                selectedCategory = 0;
+            }
+
+            var secondY = buttonY + cardHeight + gap;
+            if (DrawCategoryCard(new Rect(x, secondY, cardWidth, cardHeight), CategoryLabels[1], WardViolet, scale))
+            {
+                selectedCategory = 1;
+            }
+        }
+
+        private static bool DrawCategoryCard(Rect rect, string label, Color accent, float scale)
+        {
+            var pressed = RuntimeUiChrome.DrawCommandCard(rect, accent, CommandCardState.Normal, scale);
+
+            buttonStyle!.fontSize = Mathf.RoundToInt(13f * scale);
+            buttonStyle.normal.textColor = Cloud;
+            buttonStyle.hover.textColor = Cloud;
+            buttonStyle.active.textColor = Cloud;
+            GUI.Label(new Rect(rect.x, rect.y + rect.height * 0.32f, rect.width, 22f * scale), label, buttonStyle);
+
+            metaStyle!.fontSize = Mathf.RoundToInt(9f * scale);
+            metaStyle.normal.textColor = accent;
+            GUI.Label(new Rect(rect.x, rect.y + rect.height * 0.58f, rect.width, 18f * scale), "5 SENDS", metaStyle);
+            return pressed;
+        }
+
+        private void DrawCategoryOneCreeps(Rect rect, float buttonY, float buttonHeight, float gap, int gold, float scale)
+        {
             var buttonWidth = (rect.width - 24f * scale - gap * 2f) / 3f;
             var x = rect.x + 12f * scale;
 
@@ -157,6 +234,47 @@ namespace LTW.UnityClient.UI
             {
                 SendSiege();
             }
+        }
+
+        /// <summary>
+        /// Category 2 has no real creep content yet (the 5 new creeps this menu split is being
+        /// built for), so its 5 slots render disabled/unlabeled rather than being wired to a
+        /// command that doesn't exist.
+        /// </summary>
+        private static void DrawCategoryTwoPlaceholders(Rect rect, float buttonY, float buttonHeight, float gap, float scale)
+        {
+            var buttonWidth = (rect.width - 24f * scale - gap * 2f) / 3f;
+            var x = rect.x + 12f * scale;
+
+            for (var index = 0; index < 3; index++)
+            {
+                DrawPlaceholderSlot(new Rect(x, buttonY, buttonWidth, buttonHeight), index + 1, scale);
+                x += buttonWidth + gap;
+            }
+
+            var secondRowY = buttonY + buttonHeight + gap;
+            var secondRowWidth = (rect.width - 24f * scale - gap) / 2f;
+            x = rect.x + 12f * scale;
+            for (var index = 3; index < 5; index++)
+            {
+                DrawPlaceholderSlot(new Rect(x, secondRowY, secondRowWidth, buttonHeight), index + 1, scale);
+                x += secondRowWidth + gap;
+            }
+        }
+
+        private static void DrawPlaceholderSlot(Rect rect, int slotNumber, float scale)
+        {
+            RuntimeUiChrome.DrawCommandCard(rect, DisabledText, CommandCardState.Disabled, scale);
+
+            buttonStyle!.fontSize = Mathf.RoundToInt(10f * scale);
+            buttonStyle.normal.textColor = DisabledText;
+            buttonStyle.hover.textColor = DisabledText;
+            buttonStyle.active.textColor = DisabledText;
+            GUI.Label(RuntimeUiChrome.CommandCardLabelRect(rect, scale), $"TBD {slotNumber}", buttonStyle);
+
+            metaStyle!.fontSize = Mathf.RoundToInt(9f * scale);
+            metaStyle.normal.textColor = DisabledText;
+            GUI.Label(RuntimeUiChrome.CommandCardMetaRect(rect, scale), "SOON", metaStyle);
         }
 
         private TouchPlacementController? TouchPlacement

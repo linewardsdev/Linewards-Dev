@@ -105,13 +105,17 @@ The prototype target should begin at 10 to 20 simulation ticks per second. Rende
 
 Bots are command producers, not special-case game logic. Each bot receives the same public lane state available to a player and issues the same commands through the command layer.
 
-Start with three configurable bot profiles:
+Three configurable bot profiles:
 
-- **Greedy:** prioritizes income and builds only when pressure is imminent.
+- **Greedy:** prioritizes income and sends from the start; exempt from the lane-pressure hold below.
 - **Balanced:** maintains a simple defense threshold and sends steadily.
 - **Defensive:** builds early and shifts to aggression later.
 
 This gives us repeatable balance tests without needing online players.
+
+Any subset of lanes 2-8 can be independently bot-enabled or left empty (`LocalMatchOptions.WithLane`, `BotLaneOptions`) rather than the earlier all-or-nothing "every non-human lane gets a bot" rule.
+
+Bot decisions are state-driven, not tick-scheduled: each profile's tuning (aggression, defense bias, minimum gold reserve) lives in content data (`ContentCatalog.BotProfiles`, via `BotProfileDefinition`) rather than hardcoded constants. A bot keeps building towers past any fixed count as long as gold above its reserve floor and an unused placement slot remain (`LocalVerticalSlice.TryPlaceBotTower`); it holds sends until its own minimum tower coverage is met (`HasMinimumDefenseCoverage`) and while its own lane's incoming creep health exceeds a coverage-scaled pressure threshold (`IsLaneUnderPressure`); and creep-tier preference now gates on accumulated income rather than elapsed ticks. See `docs/GD_TUNING_LOG.md`'s "Per-Lane Bot Toggle + Reactive Bot Spending" entry for the full rationale, including two real bugs this design caught (a premature-send exploit from cheap towers, and a permanent send-lockout from an unscaled pressure threshold).
 
 ### Content And Persistence
 

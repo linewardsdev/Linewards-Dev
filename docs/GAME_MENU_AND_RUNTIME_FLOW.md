@@ -199,9 +199,9 @@ Current implementation references:
 
 ## Send Drawer
 
-SEND opens a compact creep drawer mirroring the build drawer.
+SEND opens a category picker first, then a compact creep drawer mirroring the build drawer — split into two categories of 5 creeps each ahead of the next 5 creeps landing, since 10 in one flat drawer was too crowded. Category names are placeholders (`CATEGORY 1` / `CATEGORY 2`) pending real identities for the second five (see `docs/CONTENT_ROSTER_EXPANSION_PLAN.md`'s "Why Shade And Siege Before Boss Or Air" for likely candidates). Category 2's 5 slots render as disabled placeholders until that content exists.
 
-Recommended creep button content:
+Recommended creep button content, Category 1 (current roster, unchanged):
 
 | Creep | Compact label | Required info |
 | --- | --- | --- |
@@ -215,8 +215,9 @@ Behavior:
 
 - SEND is disabled or gives clear feedback before the match starts.
 - Sending is allowed only in LIVE state.
-- Opening the drawer must not send anything.
-- Tapping a creep queues a send through the simulation command path.
+- Opening the drawer (or the category picker within it) must not send anything.
+- Tapping a category opens its 5-creep grid; tapping a creep in Category 1 queues a send through the simulation command path. Category 2 slots are inert until real creep content lands.
+- BACK returns from a category's creep grid to the category picker without closing the drawer; CLOSE collapses the whole drawer from either level.
 - The UI should make it clear that sends attack the next active opponent lane, not the sender's own lane.
 
 Current implementation references:
