@@ -1,0 +1,50 @@
+{
+  "input": "/Users/admin/Downloads/Spire Turret Walker FBX.fbx",
+  "mesh_count": 1,
+  "object_count": 1,
+  "triangle_count": 14737,
+  "vertex_count": 7367,
+  "material_slot_count": 1,
+  "unique_material_count": 1,
+  "transparent_material_count": 1,
+  "transparent_materials": [
+    "Material.001"
+  ],
+  "texture_count": 9,
+  "texture_paths": [
+    "/Users/admin/Downloads/model.fbm/Baked_BaseColor.png",
+    "/Users/admin/Downloads/model.fbm/Baked_Emit.png",
+    "/Users/admin/Downloads/model.fbm/texture_0_metallic.png",
+    "/Users/admin/Downloads/model.fbm/texture_0_roughness.png"
+  ],
+  "packed_texture_names": [
+    "Baked_BaseColor",
+    "Baked_BaseColor.002",
+    "Baked_Emit",
+    "texture_0_metallic.png",
+    "texture_0_roughness.png"
+  ],
+  "bounds": {
+    "min": [
+      -0.7941915988922119,
+      -1.0,
+      -0.7905306220054626
+    ],
+    "max": [
+      0.7941915988922119,
+      1.0,
+      0.7905306220054626
+    ],
+    "size": [
+      1.5883831977844238,
+      2.0,
+      1.5810612440109253
+    ]
+  },
+  "object_name_sample": [
+    "Mesh1.0"
+  ],
+  "material_names": [
+    "Material.001"
+  ]
+}

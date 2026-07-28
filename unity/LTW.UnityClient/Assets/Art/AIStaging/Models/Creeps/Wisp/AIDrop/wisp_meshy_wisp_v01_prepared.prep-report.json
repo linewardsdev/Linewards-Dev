@@ -1,0 +1,57 @@
+{
+  "role": "wisp",
+  "input": "/Users/admin/Downloads/Crystal Wisp FBX.fbx",
+  "output": "/Users/admin/LTW-new-creeps/unity/LTW.UnityClient/Assets/Art/AIStaging/Models/Creeps/Wisp/AIDrop/wisp_meshy_wisp_v01_prepared.fbx",
+  "target_height": 0.75,
+  "max_footprint": 0.9,
+  "mesh_count": 1,
+  "exported_textures": [
+    "/Users/admin/LTW-new-creeps/unity/LTW.UnityClient/Assets/Art/AIStaging/Models/Creeps/Wisp/AIDrop/wisp_meshy_wisp_v01_prepared_Textures/Baked_BaseColor.png",
+    "/Users/admin/LTW-new-creeps/unity/LTW.UnityClient/Assets/Art/AIStaging/Models/Creeps/Wisp/AIDrop/wisp_meshy_wisp_v01_prepared_Textures/Baked_BaseColor_001.png",
+    "/Users/admin/LTW-new-creeps/unity/LTW.UnityClient/Assets/Art/AIStaging/Models/Creeps/Wisp/AIDrop/wisp_meshy_wisp_v01_prepared_Textures/Baked_BaseColor_002.png",
+    "/Users/admin/LTW-new-creeps/unity/LTW.UnityClient/Assets/Art/AIStaging/Models/Creeps/Wisp/AIDrop/wisp_meshy_wisp_v01_prepared_Textures/Baked_Emit.png",
+    "/Users/admin/LTW-new-creeps/unity/LTW.UnityClient/Assets/Art/AIStaging/Models/Creeps/Wisp/AIDrop/wisp_meshy_wisp_v01_prepared_Textures/texture_0_metallic_png.png",
+    "/Users/admin/LTW-new-creeps/unity/LTW.UnityClient/Assets/Art/AIStaging/Models/Creeps/Wisp/AIDrop/wisp_meshy_wisp_v01_prepared_Textures/texture_0_roughness_png.png"
+  ],
+  "normalization": {
+    "scale_factor": 0.45,
+    "initial_bounds": {
+      "min": [
+        -0.75236976146698,
+        -1.0,
+        -0.7842234969139099
+      ],
+      "max": [
+        0.75236976146698,
+        1.0,
+        0.7842234969139099
+      ],
+      "size": [
+        1.50473952293396,
+        2.0,
+        1.5684469938278198
+      ]
+    },
+    "final_bounds": {
+      "min": [
+        -0.338566392660141,
+        -0.45000001788139343,
+        1.0132197303391877e-08
+      ],
+      "max": [
+        0.338566392660141,
+        0.45000001788139343,
+        0.7058011293411255
+      ],
+      "size": [
+        0.677132785320282,
+        0.9000000357627869,
+        0.7058011293411255
+      ]
+    }
+  },
+  "notes": [
+    "Prepared by Blender source cleanup script.",
+    "This is a source/staging export only; Unity promotion remains separate."
+  ]
+}

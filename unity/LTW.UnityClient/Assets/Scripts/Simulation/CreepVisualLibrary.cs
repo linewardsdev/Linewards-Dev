@@ -78,7 +78,12 @@ namespace LTW.UnityClient.Simulation
         Air,
         Stealth,
         Siege,
-        Aura
+        Aura,
+        // Category 2 additions with no clean fit among the roles above — lightweight presentation
+        // tags only (no simulation-side coupling), so extending this enum is low-risk.
+        Wisp,
+        Coil,
+        Walker
     }
 
     public enum CreepVisualMotionStyle

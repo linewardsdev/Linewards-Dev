@@ -86,6 +86,8 @@ Boss is better treated as an event, tier modifier, or late-match escalation rath
 
 Air likely requires pathing, targeting, and tower-eligibility rules to feel honest. It should wait until the roster has enough ground-game variety.
 
+**Second five landed 2026-07-28, still ground-based:** Crystal Wisp, Ash Revenant, Obsidian Brute, Serpent Coil, and Spire Turret Walker (`creep.wisp`/`creep.revenant`/`creep.obsidian_brute`/`creep.serpent`/`creep.turret_walker`) — see `docs/TOWER_AND_CREEP_ROSTER.md`'s "Category 2" table and `docs/GD_TUNING_LOG.md` for stats/rationale. Boss and Air are still deferred for the reasons above; this batch answered "what else can the ground game support" rather than tackling flight/event-tier design.
+
 Shade and Siege can initially work within the current content model:
 
 - Shade can start as faster/moderately fragile with stealth-inspired visuals only.
@@ -126,7 +128,7 @@ Example compact labels:
 
 ### Send Menu
 
-The send menu should mirror the build menu. **Superseded 2026-07-28:** with 5 more creeps planned, a single flat 10-button menu was too crowded — SEND now opens a category picker first, then a 5-creep grid per category. See `docs/GAME_MENU_AND_RUNTIME_FLOW.md`'s "Send Drawer" section for the current structure; the table below still describes Category 1's unchanged content.
+The send menu should mirror the build menu. **Superseded 2026-07-28:** with 5 more creeps planned, a single flat 10-button menu was too crowded — SEND now opens a category picker first, then a 5-creep grid per category. See `docs/GAME_MENU_AND_RUNTIME_FLOW.md`'s "Send Drawer" section for the current structure; the table below still describes Category 1's unchanged content. Category 2's 5 real creeps (no longer TBD placeholders) are in `docs/TOWER_AND_CREEP_ROSTER.md`'s "Category 2" table.
 
 | Button | Label | Cost |
 | --- | --- | --- |

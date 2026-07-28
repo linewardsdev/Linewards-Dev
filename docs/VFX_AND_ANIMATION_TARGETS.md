@@ -42,6 +42,13 @@ This is the Agent 2 handoff spec for replacing runtime primitive cues with autho
 | Swarm | Cluster jitter without sparkle noise. | Restored the multi-body cluster the 2D sprite showed (the 3D pass had collapsed it to one enlarged body): each Swarm creep now renders as 5 scaled-down copies of its own mesh, each wandering within its own small "bubble" around a slot position, with the living count tied to remaining health so the cluster visibly thins under damage. Verified in Blender render against the game camera angle and via a Unity batch playtest (283 peak creeps, 0 exceptions). |
 | Shade | Echo/shimmer with solid silhouette support. | Runtime motion exists. |
 | Siege | Weighted directional pressure. | Runtime motion exists. |
+| Crystal Wisp | Small hovering orbit, no strong front. | Wired 2026-07-28 with `CreepVisualMotionStyle.Hover`; unrigged static mesh, procedural motion only. |
+| Ash Revenant | Ghostly shimmer, reads close to Shade's motion language on purpose (both stealth-adjacent). | Wired 2026-07-28 with `.Shimmer` + `SoftDissolve` death cue, matching Shade's existing treatment. |
+| Obsidian Brute | Heavy lumber/bob, same family as `creep.brute`. | Wired 2026-07-28 with `.HeavyBob` + `HeavyShatter` death cue — deliberately mirrors Brute's motion since it's a heavier tier of the same archetype, not a new one. |
+| Serpent Coil | Heavy, grounded motion (no dedicated "coiled slither" style exists yet). | Wired 2026-07-28 with `.HeavyBob` as a placeholder; a real coil/slither motion style is a candidate follow-up, not required for first pass. |
+| Spire Turret Walker | Weighted directional pressure with a windup read, same family as Siege. | Wired 2026-07-28 with `.SiegeWindup` + `HeavyShatter` death cue. |
+
+All 5 first-pass orientation values (`importEulerAngles` in `Creep3DProofSetGenerator.Specs`) came from a Blender-space facing check, not a real Unity capture — flagged in code comments as first guesses pending verification, same as every other creep's original "first guess... verify with a capture" entries.
 
 ## Authoring Guardrails
 

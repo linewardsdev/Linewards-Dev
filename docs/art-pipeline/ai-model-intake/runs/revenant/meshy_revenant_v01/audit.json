@@ -1,0 +1,50 @@
+{
+  "input": "/Users/admin/Downloads/Ash Revenant Static FBX.fbx",
+  "mesh_count": 1,
+  "object_count": 1,
+  "triangle_count": 14477,
+  "vertex_count": 7228,
+  "material_slot_count": 1,
+  "unique_material_count": 1,
+  "transparent_material_count": 1,
+  "transparent_materials": [
+    "Material.001"
+  ],
+  "texture_count": 9,
+  "texture_paths": [
+    "/Users/admin/Downloads/model.fbm/Baked_BaseColor.png",
+    "/Users/admin/Downloads/model.fbm/Baked_Emit.png",
+    "/Users/admin/Downloads/model.fbm/texture_0_metallic.png",
+    "/Users/admin/Downloads/model.fbm/texture_0_roughness.png"
+  ],
+  "packed_texture_names": [
+    "Baked_BaseColor",
+    "Baked_BaseColor.002",
+    "Baked_Emit",
+    "texture_0_metallic.png",
+    "texture_0_roughness.png"
+  ],
+  "bounds": {
+    "min": [
+      -0.6678558588027954,
+      -0.44255152344703674,
+      -1.0
+    ],
+    "max": [
+      0.6678558588027954,
+      0.44255152344703674,
+      1.0
+    ],
+    "size": [
+      1.3357117176055908,
+      0.8851030468940735,
+      2.0
+    ]
+  },
+  "object_name_sample": [
+    "Mesh1.0"
+  ],
+  "material_names": [
+    "Material.001"
+  ]
+}
