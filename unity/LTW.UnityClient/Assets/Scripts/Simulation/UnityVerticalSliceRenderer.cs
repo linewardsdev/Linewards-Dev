@@ -3994,20 +3994,16 @@ namespace LTW.UnityClient.Simulation
         /// the original 2D sprite's 7-bot cluster (one lead body, others fanned around it) rather
         /// than an evenly spaced ring.
         /// </summary>
-        // Widened from the original ±0.15 spread and bumped from 0.34 scale — at actual gameplay
-        // zoom (and after the creep's own 0.8 profile scale shrinks this local-space cluster
-        // further still), 5 small opaque mesh copies packed this tightly rendered as one soft
-        // indistinct blob rather than a readable cluster of separate pieces.
         private static readonly Vector3[] SwarmClusterSlots =
         {
-            new Vector3(0f, 0f, 0.26f),
-            new Vector3(-0.26f, 0f, -0.07f),
-            new Vector3(0.26f, 0f, -0.07f),
-            new Vector3(-0.14f, 0f, -0.26f),
-            new Vector3(0.14f, 0f, -0.26f),
+            new Vector3(0f, 0f, 0.15f),
+            new Vector3(-0.15f, 0f, -0.04f),
+            new Vector3(0.15f, 0f, -0.04f),
+            new Vector3(-0.08f, 0f, -0.15f),
+            new Vector3(0.08f, 0f, -0.15f),
         };
 
-        private const float SwarmShardScale = 0.44f;
+        private const float SwarmShardScale = 0.34f;
 
         /// <summary>
         /// Replaces the single mesh-backed swarm body with a small cluster of scaled-down copies
@@ -4050,6 +4046,23 @@ namespace LTW.UnityClient.Simulation
             var livingCount = Mathf.Clamp(Mathf.CeilToInt(healthFraction * SwarmClusterSlots.Length), 1, SwarmClusterSlots.Length);
             var time = Time.time;
 
+            // The raw FBX mesh is authored tiny (~0.02 units); it only renders at a sane size
+            // because the import hierarchy under Imported3DVisual applies a large scale to it
+            // (~39x for this asset). Shards are bare children of the CREEP ROOT, so they inherit
+            // none of that — cloning sharedMesh at a plain 0.44 localScale produced ~0.01-unit
+            // specks, roughly 90x too small, which is why tuning the shard scale and slot spread
+            // alone never made any visible difference. Derive the correction from the source
+            // transform itself rather than hardcoding it, so it self-corrects if the import
+            // pipeline's scaling ever changes. Rotation is carried across the same way, since the
+            // import chain may also hold an orientation correction the raw mesh depends on.
+            var creepScale = creepObject.transform.lossyScale;
+            var meshScale = sourceFilter.transform.lossyScale;
+            var importScale = new Vector3(
+                meshScale.x / Mathf.Max(0.0001f, creepScale.x),
+                meshScale.y / Mathf.Max(0.0001f, creepScale.y),
+                meshScale.z / Mathf.Max(0.0001f, creepScale.z));
+            var importRotation = Quaternion.Inverse(creepObject.transform.rotation) * sourceFilter.transform.rotation;
+
             for (var index = 0; index < SwarmClusterSlots.Length; index++)
             {
                 var shard = EnsureMeshChild(creepObject, $"SwarmShard{index}", mesh, material);
@@ -4068,31 +4081,12 @@ namespace LTW.UnityClient.Simulation
                     Mathf.Sin(time * 3.3f + phase * 1.3f) * 0.03f + 0.03f,
                     Mathf.Cos(time * 2.4f + phase) * 0.045f);
                 shard.transform.localPosition = SwarmClusterSlots[index] + wobble;
-                shard.transform.localRotation = Quaternion.Euler(0f, (time * 26f + phase * 40f) % 360f, 0f);
-                shard.transform.localScale = Vector3.one * SwarmShardScale;
+                shard.transform.localRotation = Quaternion.Euler(0f, (time * 26f + phase * 40f) % 360f, 0f) * importRotation;
+                shard.transform.localScale = importScale * SwarmShardScale;
                 SetColor(shard, color);
             }
 
-            // SenderAccent's own scale/alpha were tuned for the single full-size body this pipeline
-            // replaces — against the now much smaller shard cluster, that same pool reads as an
-            // oversized glow that swamps the tiny crystals sitting on top of it. Shrink and dim it
-            // specifically here rather than touch the shared per-creep accent sizing everyone else
-            // still relies on.
-            var senderAccent = creepObject.transform.Find("SenderAccent");
-            if (senderAccent != null)
-            {
-                senderAccent.localScale = SwarmSenderAccentScale;
-                var accentRenderer = senderAccent.GetComponent<Renderer>();
-                if (accentRenderer != null)
-                {
-                    var accentColor = accentRenderer.material.color;
-                    accentRenderer.material.color = new Color(accentColor.r, accentColor.g, accentColor.b, SwarmSenderAccentAlpha);
-                }
-            }
         }
-
-        private static readonly Vector3 SwarmSenderAccentScale = new Vector3(0.4f, 0.4f, 1f);
-        private const float SwarmSenderAccentAlpha = 0.16f;
 
         private static void ConfigureAirMarker(GameObject creepObject)
         {
