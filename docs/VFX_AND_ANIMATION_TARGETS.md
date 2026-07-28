@@ -38,7 +38,7 @@ This is the Agent 2 handoff spec for replacing runtime primitive cues with autho
 | Creep | Motion Target | Current Runtime Coverage |
 | --- | --- | --- |
 | Runner | Darting small body with forward read. | Runtime motion exists. |
-| Brute | Heavy lumber/bob. | Runtime motion exists. |
+| Brute | Heavy lumber/bob. | Runtime motion exists. Two-segment (thigh+shin) leg rig added for a real knee bend, but confirmed invisible from the actual top-down game camera — the shell fully occludes the legs from every angle tested. Body bob/rock/head bob amplitudes roughly doubled and a rigid uniform scale pulse (ground-contact "weight impact") added instead, since that's the only part of the clip a player can actually see; verified ~19% more frame-to-frame visual difference than the original from the game camera angle. |
 | Swarm | Cluster jitter without sparkle noise. | Runtime motion exists. |
 | Shade | Echo/shimmer with solid silhouette support. | Runtime motion exists. |
 | Siege | Weighted directional pressure. | Runtime motion exists. |

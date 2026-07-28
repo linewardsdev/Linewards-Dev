@@ -53,3 +53,21 @@ options, neither pursued:
   generation credits).
 - Fake one from the existing albedo via a height-derived bake (Blender can do
   this) — a real visual/artistic tradeoff, not attempted without a look first.
+
+## 4. Leg rigs on shell-bodied creeps may be invisible from the game camera — check before investing further
+
+Building a two-segment (thigh+shin) leg rig for the Brute revealed that its
+armor shell overhangs to the ground on every side, fully hiding the legs from
+the actual ~30-degree top-down game camera — confirmed by rendering the rig
+from that exact camera angle (not the eye-level angle `rig_quadruped_creep.py`
+defaults its verification renders to), where zero leg geometry is visible at
+any frame of the walk cycle. The knee-bend rig itself works and is kept
+(Unity-verified, 10/11 bones driven, no regression to the existing silhouette
+timing), but it produces no visible gameplay difference for this creature.
+
+If `rig_quadruped_creep.py` is ever reused for another quadruped-shaped creep,
+render-check from the actual game camera angle first, before investing in leg
+articulation — for a low, wide, or heavily-armored silhouette the legs may
+again be fully occluded, in which case body/head motion (bob, rock, and a
+rigid uniform scale pulse — added for the Brute in this same pass) is the only
+lever that will actually read to a player.

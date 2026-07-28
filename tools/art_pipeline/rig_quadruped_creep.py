@@ -18,6 +18,17 @@ Weights are assigned explicitly by region rather than with Blender's automatic
 heat-map weighting, because auto weights let the leg bones bend the rock shell,
 which reads as rubber on a hard-surface creature.
 
+Each leg is two bones (Thigh, Shin), not one straight hip-to-foot bone: a single
+rigid bone can only swing the whole leg as a pendulum, which cannot lift the foot
+clear of the ground independent of the fore-aft swing. The knee split height was
+picked by measuring the actual per-leg vertex Z distribution (the vertex band
+inside each leg's radius runs roughly foot=0.0 to hip=0.20), not eyeballed. The
+thigh keeps exactly the original single-bone sweep angle so the leg's outer
+silhouette/timing is unchanged; the shin adds an independent bend delta on top,
+scheduled to peak while that leg is mid-recovery (foot lifted, swinging from the
+back extreme to the front) and stay near-straight at both swing extremes, where
+the original single-bone version already reads as a foot plant.
+
 Verified on: Brute / Rock Golem (7682 verts, four clean leg clusters).
 """
 
@@ -39,6 +50,7 @@ LEG_BL = Vector((-0.218, 0.172, 0.0))
 LEG_BR = Vector((0.219, 0.172, 0.0))
 HIP_Z = 0.20
 FOOT_Z = 0.02
+KNEE_Z = 0.11  # measured: per-leg vertex band runs ~0.02-0.20, knee sits at the midpoint
 BODY_Z = 0.22
 
 bpy.ops.object.select_all(action='SELECT')
@@ -75,10 +87,9 @@ head = bone("Head", Vector((0, -0.16, BODY_Z)), Vector((0, -0.40, BODY_Z + 0.02)
 
 legs = {}
 for name, pos in (("LegFL", LEG_FL), ("LegFR", LEG_FR), ("LegBL", LEG_BL), ("LegBR", LEG_BR)):
-    legs[name] = bone(name,
-                      Vector((pos.x, pos.y, HIP_Z)),
-                      Vector((pos.x, pos.y, FOOT_Z)),
-                      body)
+    thigh = bone(f"{name}_Thigh", Vector((pos.x, pos.y, HIP_Z)), Vector((pos.x, pos.y, KNEE_Z)), body)
+    shin = bone(f"{name}_Shin", Vector((pos.x, pos.y, KNEE_Z)), Vector((pos.x, pos.y, FOOT_Z)), thigh)
+    legs[name] = (thigh, shin)
 
 bpy.ops.object.mode_set(mode='OBJECT')
 
@@ -93,13 +104,16 @@ arm.select_set(True)
 bpy.context.view_layer.objects.active = arm
 bpy.ops.object.parent_set(type='ARMATURE_NAME')   # creates groups, no weights
 
-for name in ("Root", "Body", "Head", "LegFL", "LegFR", "LegBL", "LegBR"):
+leg_names = ("LegFL", "LegFR", "LegBL", "LegBR")
+group_names = ["Root", "Body", "Head"] + [f"{n}_Thigh" for n in leg_names] + [f"{n}_Shin" for n in leg_names]
+for name in group_names:
     if name not in mesh.vertex_groups:
         mesh.vertex_groups.new(name=name)
 
 LEG_RADIUS = 0.145      # legs are ~0.44 apart in x, so this stays clear of overlap
 RADIAL_BLEND = 0.055
 HEIGHT_BLEND = 0.075
+KNEE_BLEND = 0.035      # blend band across the knee split so the shell doesn't visibly tear at the joint
 
 leg_pos = {"LegFL": LEG_FL, "LegFR": LEG_FR, "LegBL": LEG_BL, "LegBR": LEG_BR}
 
@@ -121,7 +135,16 @@ for v in mesh.data.vertices:
         if w > best_w:
             best_name, best_w = name, w
     if best_name and best_w > 0.0:
-        mesh.vertex_groups[best_name].add([v.index], best_w, 'REPLACE')
+        # Split the leg's weight between thigh and shin by height around the knee, with a small
+        # blend band so the shell doesn't visibly tear at the joint (same principle as the
+        # existing hip blend, just one joint further down the leg).
+        knee_t = clamp01((co.z - (KNEE_Z - KNEE_BLEND)) / (2 * KNEE_BLEND))  # 1 = fully thigh, 0 = fully shin
+        thigh_w = best_w * knee_t
+        shin_w = best_w * (1.0 - knee_t)
+        if thigh_w > 0.0:
+            mesh.vertex_groups[f"{best_name}_Thigh"].add([v.index], thigh_w, 'REPLACE')
+        if shin_w > 0.0:
+            mesh.vertex_groups[f"{best_name}_Shin"].add([v.index], shin_w, 'REPLACE')
         assigned[best_name] += 1
     if best_w < 1.0:
         mesh.vertex_groups["Body"].add([v.index], 1.0 - best_w, 'REPLACE')
@@ -146,9 +169,14 @@ for pb in arm.pose.bones:
     pb.rotation_mode = 'QUATERNION'
 
 SWING = math.radians(26.0)     # leg swing amplitude, lumbering
-BODY_BOB = 0.022
-BODY_ROCK = math.radians(3.5)
-HEAD_BOB = math.radians(5.0)
+# The shell fully occludes the legs from the actual top-down game camera (confirmed by render),
+# so body/head motion is the ONLY part of this clip a player ever sees. Amplitudes below were
+# raised well past the original leg-focused pass (which tuned for an eye-level artist-review
+# camera) specifically so the lumber reads from that top-down angle.
+BODY_BOB = 0.05
+BODY_ROCK = math.radians(8.0)
+HEAD_BOB = math.radians(11.0)
+BODY_SCALE_PULSE = 0.05         # rigid uniform scale pulse, not per-part deformation (see note below)
 
 # The creature faces -Y, so a walking leg swings in the YZ plane, i.e. about world X.
 WALK_AXIS = Vector((1.0, 0.0, 0.0))
@@ -174,7 +202,7 @@ def set_leg(pb, amount, frame):
     pb.keyframe_insert("rotation_quaternion", frame=frame)
 
 
-def set_body(z_off, rock, frame):
+def set_body(z_off, rock, scale, frame):
     pb = arm.pose.bones["Body"]
     # Body bob is a world-space vertical lift, so convert it through the rest matrix for the
     # same reason the leg swing does — the Body bone runs along -Y, so its local axes are not
@@ -182,8 +210,14 @@ def set_body(z_off, rock, frame):
     rest = pb.bone.matrix_local.to_3x3()
     pb.location = rest.inverted() @ Vector((0.0, 0.0, z_off))
     pb.rotation_quaternion = world_axis_quaternion(pb, WALK_AXIS, rock)
+    # Uniform scale pulse — the whole rigid shell resizes as one block, no part moves relative to
+    # another, so this stays consistent with "hard-surface creatures should not deform." Reads as
+    # a weight impact (compress on contact, rebound on the pass) from any camera angle, including
+    # the near-top-down game camera where a few centimetres of Z bob barely registers.
+    pb.scale = Vector((scale, scale, scale))
     pb.keyframe_insert("location", frame=frame)
     pb.keyframe_insert("rotation_quaternion", frame=frame)
+    pb.keyframe_insert("scale", frame=frame)
 
 
 def set_head(pitch, frame):
@@ -192,25 +226,47 @@ def set_head(pitch, frame):
     pb.keyframe_insert("rotation_quaternion", frame=frame)
 
 
+def set_knee(pb, bend, frame):
+    # Shin rotation is relative to the thigh's current pose (parent-child composition), so this
+    # is a pure delta on top of whatever the thigh is doing this frame — 0 means "straight
+    # continuation of the thigh," not "vertical in world space."
+    pb.rotation_quaternion = world_axis_quaternion(pb, WALK_AXIS, bend)
+    pb.keyframe_insert("rotation_quaternion", frame=frame)
+
+
+# BEND_SIGN direction was picked by rendering both and keeping the one where the foot visibly
+# lifts and tucks during recovery instead of the shin swinging further out past the thigh.
+BEND_SIGN = -1.0
+KNEE_BEND_PEAK = BEND_SIGN * math.radians(34.0)    # mid-recovery: foot lifted, swinging back-to-front
+KNEE_BEND_STANCE = BEND_SIGN * math.radians(6.0)   # mid-stance: foot grounded, small natural give
+
 # Diagonal pairs: A = FL+BR, B = FR+BL
 pairA = ("LegFL", "LegBR")
 pairB = ("LegFR", "LegBL")
 
 # f1 contact, f7 pass, f13 contact (mirrored), f19 pass, f25 = f1
+# bendA/bendB peak at each pair's own mid-recovery frame (moving from the back extreme to the
+# front, i.e. the phase where the original single-bone leg's foot was already lifted highest by
+# the X-axis swing's Z component) and stay near-zero at the swing extremes, where the original
+# single-bone version already read as a foot plant and should be left alone.
+# scale: compresses at ground contact (a foot just planted, absorbing weight) and rebounds
+# slightly above neutral at the pass (mid-stride, briefly unloaded).
 keys = [
-    (1,  +SWING, -SWING, -BODY_BOB, +BODY_ROCK, +HEAD_BOB),
-    (7,   0.0,    0.0,   +BODY_BOB, 0.0,        -HEAD_BOB * 0.5),
-    (13, -SWING, +SWING, -BODY_BOB, -BODY_ROCK, +HEAD_BOB),
-    (19,  0.0,    0.0,   +BODY_BOB, 0.0,        -HEAD_BOB * 0.5),
-    (25, +SWING, -SWING, -BODY_BOB, +BODY_ROCK, +HEAD_BOB),
+    (1,  +SWING, -SWING, -BODY_BOB, +BODY_ROCK, +HEAD_BOB, 0.0,               0.0,              1.0 - BODY_SCALE_PULSE),
+    (7,   0.0,    0.0,   +BODY_BOB, 0.0,        -HEAD_BOB * 0.5, KNEE_BEND_STANCE, KNEE_BEND_PEAK, 1.0 + BODY_SCALE_PULSE * 0.4),
+    (13, -SWING, +SWING, -BODY_BOB, -BODY_ROCK, +HEAD_BOB, 0.0,               0.0,              1.0 - BODY_SCALE_PULSE),
+    (19,  0.0,    0.0,   +BODY_BOB, 0.0,        -HEAD_BOB * 0.5, KNEE_BEND_PEAK, KNEE_BEND_STANCE, 1.0 + BODY_SCALE_PULSE * 0.4),
+    (25, +SWING, -SWING, -BODY_BOB, +BODY_ROCK, +HEAD_BOB, 0.0,               0.0,              1.0 - BODY_SCALE_PULSE),
 ]
 
-for frame, a, b, bob, rock, hp in keys:
+for frame, a, b, bob, rock, hp, bendA, bendB, scale in keys:
     for n in pairA:
-        set_leg(arm.pose.bones[n], a, frame)
+        set_leg(arm.pose.bones[f"{n}_Thigh"], a, frame)
+        set_knee(arm.pose.bones[f"{n}_Shin"], bendA, frame)
     for n in pairB:
-        set_leg(arm.pose.bones[n], b, frame)
-    set_body(bob, rock, frame)
+        set_leg(arm.pose.bones[f"{n}_Thigh"], b, frame)
+        set_knee(arm.pose.bones[f"{n}_Shin"], bendB, frame)
+    set_body(bob, rock, scale, frame)
     set_head(hp, frame)
 
 action = arm.animation_data.action
