@@ -13,7 +13,35 @@ out a single flat colour while the run still reports success.
 
 ---
 
-## P1 — The UI cannot currently be reviewed from captures at all
+## How to review real UI
+
+`RealUiCaptureRunner` captures the actual runtime UI, including IMGUI. It uses ScreenCapture on a
+real Game view instead of reading back an offscreen RenderTexture, which is what
+`VisualReviewCaptureRunner` cannot do. It therefore must run WITHOUT `-batchmode`:
+
+    Unity -projectPath <project> -executeMethod \
+        LTW.UnityClient.Editor.RealUiCaptureRunner.Run \
+        -ltwCaptureOutputDir <dir> -logFile <log>
+
+It seeds a match, captures the default HUD and both send-dock categories, and quits.
+
+## P1 — Real UI defects (found with RealUiCaptureRunner, verified at full resolution)
+
+- [ ] **Send-card cost text is occluded by the card's accent bar.** On every creep card the
+      cost/income line (`5G  +1`, `16G  +4`, …) is drawn where the coloured progress/accent bar is
+      also drawn, so the lower half of the digits is covered. Legible only if you already know what
+      it says.
+      Evidence: `real-03-send-category-two.png`, Wisp card at 3x.
+
+- [ ] **A debug overlay is visible during normal play.** Top-left shows `Tick: … Towers: … Creeps:
+      …`, per-player lines, `Lane flow:` and `Bot sends:`. Useful in development, but it is on by
+      default with no obvious gate.
+      Evidence: `real-01-default-hud.png` onwards.
+
+- [ ] **Two CLOSE buttons are visible at once** when the dock is open — one in the dock header and
+      one bottom-right. Worth confirming which is authoritative.
+
+## P1 — The mock-based capture path (kept for context)
 
 - [ ] **`VisualReviewCaptureRunner` composites a hand-painted mock of the HUD, not the real UI.**
       In batchmode, IMGUI (`OnGUI`) does not render into the capture RenderTexture, so
@@ -83,6 +111,13 @@ Two process lessons worth keeping:
    rendered; the UI is painted. Nothing in the filename or the log says so.
 
 ## Verified working (measured, not eyeballed)
+
+- **All 10 creeps ARE reachable.** `SEND › CATEGORY 2` opens correctly and shows WISP / ASH /
+  OBRT / COIL / WALK, each with its generated icon. The earlier "only 5 reachable" finding was the
+  stale painted mock, not the game. Confirmed in `real-03-send-category-two.png`.
+- **UI text is crisp and legible in the real UI.** Titles, buttons, the HUD readout and card labels
+  all render cleanly. Every legibility finding in the first pass came from the harness's 3x7
+  painted glyphs.
 
 - Creep motion applies exactly as authored: Revenant scale spread 0.0903 vs 0.09 authored, Serpent
   0.1103 vs 0.11 with 34°/s yaw as written, Wisp 52°/s. Sampled from live transforms in play mode,
