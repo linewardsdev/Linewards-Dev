@@ -16,6 +16,12 @@ using UnityEngine.Rendering;
 
 namespace LTW.UnityClient.Editor
 {
+    /// <remarks>
+    /// Run WITHOUT -nographics. That flag disables the graphics device, so captures come out as a
+    /// single flat colour while still reporting success and writing the expected files — the
+    /// blank result is only visible by inspecting the pixels. Use:
+    ///     Unity -batchmode -projectPath &lt;project&gt; -executeMethod &lt;method&gt; -logFile &lt;log&gt;
+    /// </remarks>
     public static class VisualReviewCaptureRunner
     {
         private const string ScenePath = "Assets/Scenes/LocalVerticalSlice.unity";

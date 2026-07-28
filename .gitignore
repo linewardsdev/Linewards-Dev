@@ -56,3 +56,6 @@ unity/LTW.UnityClient/Assets/Plugins/LTW.Simulation.dll.meta
 .DS_Store
 Thumbs.db
 Desktop.ini
+
+# Unity mono crash dumps, written into the project root on unclean editor exit
+mono_crash.mem.*.blob

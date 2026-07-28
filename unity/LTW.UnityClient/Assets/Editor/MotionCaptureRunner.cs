@@ -1,5 +1,10 @@
 using System.Globalization;
 using System.IO;
+using System.Reflection;
+using LTW.Simulation.Bridge;
+using LTW.Simulation.Economy;
+using LTW.Simulation.Primitives;
+using LTW.UnityClient.Simulation;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.Rendering;
@@ -20,6 +25,12 @@ namespace LTW.UnityClient.Editor
     ///
     /// Frame timing is recorded alongside because bloom has a real cost on mobile and none has been
     /// measured.
+    ///
+    /// IMPORTANT: run this WITHOUT -nographics. That flag disables the graphics device entirely,
+    /// so every captured frame comes out a single flat colour instead of failing loudly — the
+    /// capture "succeeds", writes the expected file count, and the blank result is only caught by
+    /// actually inspecting the pixels. Use:
+    ///     Unity -batchmode -projectPath &lt;project&gt; -executeMethod &lt;method&gt; -logFile &lt;log&gt;
     /// </remarks>
     public static class MotionCaptureRunner
     {
@@ -33,6 +44,7 @@ namespace LTW.UnityClient.Editor
         private static double nextCaptureAt;
         private static double startedAt;
         private static bool running;
+        private static bool matchSeeded;
         private static bool previousPlayModeOptionsEnabled;
         private static EnterPlayModeOptions previousPlayModeOptions;
 
@@ -54,6 +66,7 @@ namespace LTW.UnityClient.Editor
             deltaSum = 0d;
             deltaSamples = 0;
             running = true;
+            matchSeeded = false;
 
             MobileViewportLayout.SetCaptureViewportOverride(Width, Height, new Rect(0f, 0f, Width, Height));
 
@@ -64,10 +77,64 @@ namespace LTW.UnityClient.Editor
             EditorApplication.isPlaying = true;
 
             startedAt = EditorApplication.timeSinceStartup;
-            nextCaptureAt = startedAt + 1.5d;
+            nextCaptureAt = startedAt + 3.5d;
 
             EditorApplication.update -= Update;
             EditorApplication.update += Update;
+        }
+
+        /// <summary>
+        /// Starts a match and puts creeps on the board, so the captured frames actually contain
+        /// something moving.
+        /// </summary>
+        /// <remarks>
+        /// Without this the runner entered play mode against an idle scene: it rendered the board
+        /// correctly but there were no creeps, so all 16 frames came out byte-identical and the
+        /// sequence proved nothing. Seeds one of every creep whose motion is procedural or newly
+        /// rigged, which is exactly the set that cannot be validated from a still.
+        ///
+        /// Returns false until the driver and command adapter exist, since they are created a few
+        /// frames into play mode; the caller retries.
+        /// </remarks>
+        private static bool SeedMatch()
+        {
+            var driver = Object.FindAnyObjectByType<UnitySimulationDriver>();
+            var commands = Object.FindAnyObjectByType<UnityCommandAdapter>();
+            if (driver == null || commands == null)
+            {
+                return false;
+            }
+
+            // The queue/gold entry points are not on the adapter itself; VisualReviewCaptureRunner
+            // reaches the LocalVerticalSlice behind it the same way for its own scenario setup.
+            var field = typeof(UnityCommandAdapter).GetField("simulation", BindingFlags.Instance | BindingFlags.NonPublic);
+            if (field?.GetValue(commands) is not LocalVerticalSlice simulation)
+            {
+                return false;
+            }
+
+            driver.StartMatch();
+            // Player 3 is the sender, so its gold is what gates the queued creeps.
+            simulation.GrantLocalPlaytestGold(new PlayerId(3), new Gold(5000));
+
+            var roster = new[]
+            {
+                SampleVerticalSliceContent.WispCreepId,
+                SampleVerticalSliceContent.SerpentCreepId,
+                SampleVerticalSliceContent.RevenantCreepId,
+                SampleVerticalSliceContent.ObsidianBruteCreepId,
+                SampleVerticalSliceContent.TurretWalkerCreepId,
+                SampleVerticalSliceContent.BruteCreepId,
+            };
+
+            foreach (var creepId in roster)
+            {
+                var result = simulation.QueueSend(new PlayerId(3), creepId, 2);
+                Debug.Log($"MOTION seed {creepId.Value}: accepted={result.Accepted} reason={result.RejectionReason}");
+            }
+
+            matchSeeded = true;
+            return true;
         }
 
         private static void Update()
@@ -83,6 +150,17 @@ namespace LTW.UnityClient.Editor
                 if (EditorApplication.timeSinceStartup - startedAt > 60d)
                 {
                     Finish(1, "Timed out waiting for play mode.");
+                }
+
+                return;
+            }
+
+            if (!matchSeeded && !SeedMatch())
+            {
+                // The driver/adapter appear a frame or two after play mode starts.
+                if (EditorApplication.timeSinceStartup - startedAt > 60d)
+                {
+                    Finish(1, "Timed out waiting for the simulation driver.");
                 }
 
                 return;
