@@ -118,7 +118,10 @@ namespace LTW.UnityClient.Simulation
         private readonly Queue<GameObject> creepPool = new Queue<GameObject>();
         private readonly Dictionary<string, Queue<GameObject>> towerPrefabPools = new Dictionary<string, Queue<GameObject>>();
         private readonly Dictionary<string, Queue<GameObject>> creepPrefabPools = new Dictionary<string, Queue<GameObject>>();
+        // Sphere-shaped impact effects and cube-shaped beams keep separate pools; sharing one made
+        // them hand each other the wrong primitive shape (see GetPooled).
         private readonly Queue<GameObject> effectPool = new Queue<GameObject>();
+        private readonly Queue<GameObject> beamPool = new Queue<GameObject>();
         private readonly Queue<GameObject> textPool = new Queue<GameObject>();
         private readonly List<TimedPresentation> timedPresentations = new List<TimedPresentation>();
         private readonly List<SpawnGatePulseElement> spawnGatePulseElements = new List<SpawnGatePulseElement>();
@@ -152,7 +155,7 @@ namespace LTW.UnityClient.Simulation
 
         public int ActivePresentationObjectCount => activeTowers.Count + activeCreeps.Count + timedPresentations.Count;
 
-        public int PooledPresentationObjectCount => towerPool.Count + PooledTowerPrefabCount() + creepPool.Count + PooledCreepPrefabCount() + effectPool.Count + textPool.Count;
+        public int PooledPresentationObjectCount => towerPool.Count + PooledTowerPrefabCount() + creepPool.Count + PooledCreepPrefabCount() + effectPool.Count + beamPool.Count + textPool.Count;
 
         private bool EndpointSpritesAvailable => spawnGateSprite != null && leakGateSprite != null;
 
@@ -1137,14 +1140,14 @@ namespace LTW.UnityClient.Simulation
                 return;
             }
 
-            var beam = GetPooled(effectPool, "TowerBeam", PrimitiveType.Cube);
+            var beam = GetPooled(beamPool, "TowerBeam", PrimitiveType.Cube);
             var midpoint = Vector3.Lerp(start, end, 0.5f);
             var distance = Vector3.Distance(start, end);
             beam.transform.position = midpoint;
             beam.transform.LookAt(end);
             beam.transform.localScale = new Vector3(0.06f, 0.06f, Mathf.Max(0.1f, distance));
             SetColor(beam, color);
-            timedPresentations.Add(new TimedPresentation(beam, Time.time + duration, effectPool));
+            timedPresentations.Add(new TimedPresentation(beam, Time.time + duration, beamPool));
         }
 
         /// <summary>
@@ -1872,10 +1875,31 @@ namespace LTW.UnityClient.Simulation
                 : visualProfile.CreepId;
         }
 
+        /// <summary>
+        /// Takes an instance from a primitive pool, guaranteeing it actually renders the requested
+        /// primitive shape.
+        /// </summary>
+        /// <remarks>
+        /// The primitiveType argument used to be honoured only when the pool happened to be empty
+        /// (it was the argument to CreatePrimitive, nothing more), so any pool shared by two
+        /// different shapes would silently hand back the wrong one. SpawnEffect (Sphere) and
+        /// SpawnBeam (Cube) shared one pool, so a released beam cube came back as an "impact
+        /// effect" and rendered a hard-edged box at the tower instead of a round glow — appearing
+        /// at random, independent of board position, because it depended on what happened to be at
+        /// the head of the queue. Those two now use separate pools, and this re-asserts the mesh on
+        /// every take so the same class of mistake cannot silently reappear for any other pool.
+        /// </remarks>
         private GameObject GetPooled(Queue<GameObject> pool, string name, PrimitiveType primitiveType)
         {
             var instance = pool.Count > 0 ? pool.Dequeue() : CreatePrimitive(name, primitiveType);
             instance.name = name;
+
+            var expectedMesh = BoardMeshBuilder.PrimitiveMesh(primitiveType);
+            if (expectedMesh != null && instance.TryGetComponent<MeshFilter>(out var meshFilter) && meshFilter.sharedMesh != expectedMesh)
+            {
+                meshFilter.sharedMesh = expectedMesh;
+            }
+
             instance.SetActive(true);
             return instance;
         }
