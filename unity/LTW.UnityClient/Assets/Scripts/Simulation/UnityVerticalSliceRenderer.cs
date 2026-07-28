@@ -87,7 +87,7 @@ namespace LTW.UnityClient.Simulation
         private readonly Dictionary<string, float> towerLastFiredAt = new Dictionary<string, float>();
         private readonly Dictionary<string, Vector3> towerAimTarget = new Dictionary<string, Vector3>();
         private readonly Dictionary<string, float> towerAimYaw = new Dictionary<string, float>();
-        private readonly Dictionary<string, RingSpinState> towerRingSpinState = new Dictionary<string, RingSpinState>();
+        private readonly Dictionary<string, SpinPartState> towerSpinPartState = new Dictionary<string, SpinPartState>();
         private readonly Dictionary<int, GameObject> lanePressureMeters = new Dictionary<int, GameObject>();
         private readonly Dictionary<int, GameObject> lanePressureCaps = new Dictionary<int, GameObject>();
         private readonly Dictionary<int, TextMesh> lanePressureLabels = new Dictionary<int, TextMesh>();
@@ -1623,7 +1623,7 @@ namespace LTW.UnityClient.Simulation
                 towerLastFiredAt.Remove(key);
                 towerAimTarget.Remove(key);
                 towerAimYaw.Remove(key);
-                towerRingSpinState.Remove(key);
+                towerSpinPartState.Remove(key);
             }
         }
 
@@ -1849,43 +1849,80 @@ namespace LTW.UnityClient.Simulation
             var idleScale = 1f + idle.ScalePulse;
             var recoilKick = recoil * 0.16f;
             var kickDirection = Quaternion.Euler(0f, yaw, 0f) * Vector3.back;
+            var recoilPosition = kickDirection * recoilKick + Vector3.down * (recoil * 0.04f);
 
-            body.localPosition = idle.PositionOffset + kickDirection * recoilKick + Vector3.down * (recoil * 0.04f);
-            body.localRotation = Quaternion.Euler(idle.PitchDegrees - recoil * 10f, yaw, 0f);
-            body.localScale = Vector3.one * idleScale;
-
-            // Rigid sub-parts (e.g. Control's floating ring) spin independently of Body's own
-            // idle/aim/recoil motion — a continuous spin about the WORLD-vertical axis, not
-            // something driven by firing state. Searched by name rather than a fixed path since
-            // the ring sits under whatever depth the imported raw mesh hierarchy happens to nest
-            // it at (e.g. Body/Imported3DVisual/LTW_Unity_ExportRoot/Ring), which is an
-            // import-pipeline detail this call site shouldn't need to know.
-            var ring = FindDeepChild(body, "Ring");
-            if (ring != null)
+            // Turret-style towers (currently just Arrow, split via split_tower_rigid_part.py) have
+            // a HeadPivot separate from Base: aim yaw and recoil apply to HeadPivot alone, so only
+            // the cannon swivels/kicks while the foundation underneath stays put, like a real
+            // turret. HeadPivot is a purpose-built empty with an identity rest transform (see
+            // Tower3DImportPipeline — the actual Head mesh is reparented under it), exactly like
+            // Body, so it's just as safe to overwrite outright. Towers without one (everything
+            // else so far) fall back to turning the whole Body, exactly as before.
+            var headPivot = FindDeepChild(body, "HeadPivot");
+            if (headPivot != null)
             {
-                // A plain Quaternion.Euler(0, angle, 0) assumes the ring's own local Y axis IS
+                body.localPosition = idle.PositionOffset;
+                body.localRotation = Quaternion.Euler(idle.PitchDegrees, 0f, 0f);
+                body.localScale = Vector3.one * idleScale;
+                headPivot.localPosition = recoilPosition;
+                headPivot.localRotation = Quaternion.Euler(-recoil * 10f, yaw, 0f);
+            }
+            else
+            {
+                body.localPosition = idle.PositionOffset + recoilPosition;
+                body.localRotation = Quaternion.Euler(idle.PitchDegrees - recoil * 10f, yaw, 0f);
+                body.localScale = Vector3.one * idleScale;
+            }
+
+            // Rigid sub-parts (Control's floating ring, Relay's dish, Prism's spire) spin
+            // independently of Body's own idle/aim/recoil motion — a continuous spin about the
+            // WORLD-vertical axis, not something driven by firing state. Searched by name rather
+            // than a fixed path since a spin part sits under whatever depth the imported raw mesh
+            // hierarchy happens to nest it at (e.g. Body/Imported3DVisual/LTW_Unity_ExportRoot/Ring),
+            // which is an import-pipeline detail this call site shouldn't need to know. Each tower
+            // has at most one spin part today, so the first name found wins.
+            var spinPart = FindSpinPart(body);
+            if (spinPart != null)
+            {
+                // A plain Quaternion.Euler(0, angle, 0) assumes the part's own local Y axis IS
                 // world-up, which isn't guaranteed once an FBX export/import round-trip has done
                 // its own Z-up/Y-up axis conversion partway down the hierarchy — it produced an
-                // end-over-end tumble instead of a flat Saturn's-rings spin here. Instead, convert
-                // world-up into whatever axis it actually corresponds to in the ring's own rest
-                // space (cached once), the same fix pattern used for the Brute rig's degenerate
-                // straight-down bone case in rig_quadruped_creep.py.
-                if (!towerRingSpinState.TryGetValue(key, out var spinState))
+                // end-over-end tumble instead of a flat Saturn's-rings spin on Control's ring.
+                // Instead, convert world-up into whatever axis it actually corresponds to in the
+                // part's own rest space (cached once), the same fix pattern used for the Brute
+                // rig's degenerate straight-down bone case in rig_quadruped_creep.py.
+                if (!towerSpinPartState.TryGetValue(key, out var spinState))
                 {
-                    var localSpinAxis = ring.parent.InverseTransformDirection(Vector3.up).normalized;
-                    spinState = new RingSpinState(localSpinAxis, ring.localRotation);
-                    towerRingSpinState[key] = spinState;
+                    var localSpinAxis = spinPart.parent.InverseTransformDirection(Vector3.up).normalized;
+                    spinState = new SpinPartState(localSpinAxis, spinPart.localRotation);
+                    towerSpinPartState[key] = spinState;
                 }
 
-                ring.localRotation = Quaternion.AngleAxis(Time.time * TowerRingSpinDegreesPerSecond, spinState.LocalSpinAxis) * spinState.RestLocalRotation;
+                spinPart.localRotation = Quaternion.AngleAxis(Time.time * TowerRingSpinDegreesPerSecond, spinState.LocalSpinAxis) * spinState.RestLocalRotation;
             }
         }
 
         private const float TowerRingSpinDegreesPerSecond = 32f;
 
-        private readonly struct RingSpinState
+        private static readonly string[] TowerSpinPartNames = { "Ring", "Dish", "Spire" };
+
+        private static Transform FindSpinPart(Transform body)
         {
-            public RingSpinState(Vector3 localSpinAxis, Quaternion restLocalRotation)
+            for (var index = 0; index < TowerSpinPartNames.Length; index++)
+            {
+                var found = FindDeepChild(body, TowerSpinPartNames[index]);
+                if (found != null)
+                {
+                    return found;
+                }
+            }
+
+            return null;
+        }
+
+        private readonly struct SpinPartState
+        {
+            public SpinPartState(Vector3 localSpinAxis, Quaternion restLocalRotation)
             {
                 LocalSpinAxis = localSpinAxis;
                 RestLocalRotation = restLocalRotation;
@@ -1944,7 +1981,17 @@ namespace LTW.UnityClient.Simulation
             }
 
             var body = towerObject.transform.Find("Body");
-            return body != null ? body : towerObject.transform;
+            if (body == null)
+            {
+                return towerObject.transform;
+            }
+
+            // Turret-style towers carry aim/recoil on a HeadPivot instead of Body (see
+            // UpdateTowerMotion) — attack VFX must follow whichever transform actually turns, or a
+            // muzzle flash fires from where the cannon used to point before it swiveled. Towers
+            // without one keep using Body, unchanged.
+            var headPivot = FindDeepChild(body, "HeadPivot");
+            return headPivot != null ? headPivot : body;
         }
 
         /// <summary>
@@ -3138,11 +3185,10 @@ namespace LTW.UnityClient.Simulation
         }
 
         /// <summary>
-        /// Per-role idle motion for a tower's Body child. Only Control has a tuned idle motion so
-        /// far — the other four roles share a small generic default until their own pass tunes
-        /// them individually. Yaw is deliberately left untouched here (stays 0): aim rotation in
-        /// <see cref="UpdateTowerMotion"/> owns yaw exclusively, so idle and aim never fight over
-        /// the same axis.
+        /// Per-role idle motion for a tower's Body child. Yaw is deliberately left untouched here
+        /// (stays 0): aim rotation in <see cref="UpdateTowerMotion"/> owns yaw exclusively (applied
+        /// to the split Head for turret-style towers, to Body itself otherwise), so idle and aim
+        /// never fight over the same axis.
         /// </summary>
         /// <summary>
         /// The match camera is orthographic and tilted (ConfigureDefaultCamera, default 30 degrees
@@ -3154,17 +3200,62 @@ namespace LTW.UnityClient.Simulation
         private static TowerMotion TowerRoleMotion(TowerVisualRole role)
         {
             var time = Time.time;
-            if (role == TowerVisualRole.Control)
+            switch (role)
             {
-                var breathe = Mathf.Sin(time * 1.6f) * 0.05f;
-                var driftX = Mathf.Sin(time * 0.9f) * 0.05f;
-                var driftZ = Mathf.Cos(time * 0.7f) * 0.04f;
-                var wobble = Mathf.Sin(time * 1.1f) * 6f;
-                return new TowerMotion(new Vector3(driftX, 0f, driftZ), wobble, breathe);
-            }
+                case TowerVisualRole.Control:
+                {
+                    var breathe = Mathf.Sin(time * 1.6f) * 0.05f;
+                    var driftX = Mathf.Sin(time * 0.9f) * 0.05f;
+                    var driftZ = Mathf.Cos(time * 0.7f) * 0.04f;
+                    var wobble = Mathf.Sin(time * 1.1f) * 6f;
+                    return new TowerMotion(new Vector3(driftX, 0f, driftZ), wobble, breathe);
+                }
 
-            var defaultBreathe = Mathf.Sin(time * 1.3f) * 0.02f;
-            return new TowerMotion(Vector3.zero, 0f, defaultBreathe);
+                case TowerVisualRole.Arrow:
+                {
+                    // Aim and recoil now live on the split Head turret (UpdateTowerMotion), so
+                    // Body itself only needs a faint idle presence — an alert, mostly-still
+                    // gun emplacement rather than a swaying one.
+                    var breathe = Mathf.Sin(time * 1.4f) * 0.015f;
+                    return new TowerMotion(Vector3.zero, 0f, breathe);
+                }
+
+                case TowerVisualRole.Relay:
+                {
+                    // The split Dish already spins continuously (UpdateTowerMotion's spin-part
+                    // search), so Body just adds a slow, subtle mast sway underneath it rather
+                    // than competing with the dish for attention.
+                    var breathe = Mathf.Sin(time * 1.1f) * 0.02f;
+                    var driftX = Mathf.Sin(time * 0.6f) * 0.025f;
+                    var driftZ = Mathf.Cos(time * 0.5f) * 0.02f;
+                    return new TowerMotion(new Vector3(driftX, 0f, driftZ), 0f, breathe);
+                }
+
+                case TowerVisualRole.Pulse:
+                {
+                    // No cleanly separable emitter part exists on this mesh (the dome/spikes/core
+                    // blend continuously with no seam — see the tower-survey notes), so the
+                    // tower's name is carried by a stronger, heartbeat-shaped uniform pulse on the
+                    // whole Body instead of a literal separate part: peaked rather than smooth
+                    // sine, so it reads as a pulse, not a sway.
+                    var pulse = Mathf.Pow(Mathf.Abs(Mathf.Sin(time * 1.1f)), 3f) * 0.09f;
+                    return new TowerMotion(Vector3.zero, 0f, pulse);
+                }
+
+                case TowerVisualRole.Prism:
+                {
+                    // The split Spire already spins continuously; Body adds only a faint
+                    // glow-breathe underneath it.
+                    var breathe = Mathf.Sin(time * 1.8f) * 0.025f;
+                    return new TowerMotion(Vector3.zero, 0f, breathe);
+                }
+
+                default:
+                {
+                    var defaultBreathe = Mathf.Sin(time * 1.3f) * 0.02f;
+                    return new TowerMotion(Vector3.zero, 0f, defaultBreathe);
+                }
+            }
         }
 
         /// <summary>

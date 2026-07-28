@@ -49,6 +49,15 @@ namespace LTW.UnityClient.Editor
                 return false;
             }
 
+            // Fully disconnect from the source FBX prefab before any structural editing. Unity
+            // silently reverts an attempt to reparent a NESTED child of a still-connected prefab
+            // instance to somewhere outside it (e.g. moving a split Head mesh onto a fresh
+            // HeadPivot below) — reparenting the instance's own root elsewhere works fine, which
+            // is why that always worked, but a deeper child does not without unpacking first. This
+            // whole hierarchy is disposable scratch used only to assemble the new runtime prefab,
+            // so unpacking has no downside here.
+            PrefabUtility.UnpackPrefabInstance(generatedInstance, PrefabUnpackMode.Completely, InteractionMode.AutomatedAction);
+
             generatedInstance.name = "Imported3DVisual";
             generatedInstance.transform.SetParent(body.transform, false);
             generatedInstance.transform.localPosition = spec.ImportPosition;
@@ -63,6 +72,22 @@ namespace LTW.UnityClient.Editor
             else
             {
                 ApplyRuntimeMaterial(generatedInstance, recipe.BodyMaterial);
+            }
+
+            // Turret-style towers split a "Head" mesh from their base (split_tower_rigid_part.py).
+            // Head still sits deep in the imported hierarchy (Imported3DVisual/.../Head) and
+            // carries whatever non-identity rest transform that hierarchy's own axis/scale
+            // correction bakes in — unlike Body, which is a purpose-built empty with an identity
+            // rest transform by construction. Rather than have runtime code reason about Head's
+            // opaque rest frame, give it the same clean-empty treatment as Body: a fresh
+            // "HeadPivot" child of Body (identity rest transform), with the actual Head mesh
+            // reparented under it using worldPositionStays so its visual position/orientation
+            // doesn't move, only its point of reference does.
+            var headMesh = FindDeepChild(generatedInstance.transform, "Head");
+            if (headMesh != null)
+            {
+                var headPivot = CreateEmptyChild(body, "HeadPivot", Vector3.zero);
+                headMesh.SetParent(headPivot.transform, worldPositionStays: true);
             }
 
             CreateEmptyChild(root, "BodyTintAnchor", Vector3.zero);
@@ -320,6 +345,25 @@ namespace LTW.UnityClient.Editor
             child.transform.localRotation = Quaternion.identity;
             child.transform.localScale = Vector3.one;
             return child;
+        }
+
+        private static Transform FindDeepChild(Transform parent, string name)
+        {
+            foreach (Transform child in parent)
+            {
+                if (child.name == name)
+                {
+                    return child;
+                }
+
+                var found = FindDeepChild(child, name);
+                if (found != null)
+                {
+                    return found;
+                }
+            }
+
+            return null;
         }
 
         private static Vector3 ResolveAnchorPosition(Tower3DImportSpec spec, string anchorName)

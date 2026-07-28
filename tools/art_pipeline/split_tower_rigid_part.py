@@ -1,0 +1,92 @@
+"""Split a fused tower mesh into two rigid, independently-transformable objects.
+
+Generalized from the Control ring split: separates one named "feature" part
+(a turret head, a spinning dish, a spire) from the rest of the model ("Base"),
+using either a Z-height threshold or an XY-radius threshold as the split rule.
+Neither skinning nor an armature is used — both halves stay perfectly rigid,
+which is correct for these stone/metal/crystal towers.
+
+Find the threshold first with a per-band vertex/radius scan (see
+tools/art_pipeline/blender_audit_model.py or hand-roll one: import the FBX,
+bucket vertices into N height bands, print count/rMin/rMax per band — a
+sharp drop in count marks a "neck" for a Z split, a small-radius cluster that
+holds across the model's full height marks a radius split). Then run:
+
+    /Applications/Blender.app/Contents/MacOS/Blender --background --python \
+      tools/art_pipeline/split_tower_rigid_part.py -- \
+      <source.fbx> <output.fbx> <FeatureName> <z|radius> <threshold> <0|1>
+
+The final arg is ABOVE_IS_FEATURE: for z mode, 1 means verts at/above the
+threshold become the feature (e.g. a turret head sitting above its base); for
+radius mode, 1 means verts INSIDE the radius become the feature (e.g. a
+central spire surrounded by an outer base ring/shards). Use 0 to invert.
+"""
+import bpy, sys
+
+argv = sys.argv[sys.argv.index("--")+1:]
+SRC = argv[0]
+OUT = argv[1]
+FEATURE_NAME = argv[2]
+MODE = argv[3]           # "z" or "radius"
+THRESHOLD = float(argv[4])
+ABOVE_IS_FEATURE = argv[5] == "1"   # z mode: verts >= threshold are FEATURE_NAME; radius mode: verts < threshold are FEATURE_NAME
+
+bpy.ops.object.select_all(action='SELECT'); bpy.ops.object.delete()
+bpy.ops.import_scene.fbx(filepath=SRC)
+
+mesh = [o for o in bpy.context.scene.objects if o.type == 'MESH'][0]
+print(f"SOURCE mesh={mesh.name} verts={len(mesh.data.vertices)}")
+
+base = mesh
+base.name = "Base"
+feature = base.copy()
+feature.data = base.data.copy()
+feature.name = FEATURE_NAME
+bpy.context.collection.objects.link(feature)
+
+def vert_is_feature(world_co):
+    if MODE == "z":
+        is_above = world_co.z >= THRESHOLD
+        return is_above if ABOVE_IS_FEATURE else not is_above
+    else:
+        r = (world_co.x ** 2 + world_co.y ** 2) ** 0.5
+        is_inside = r < THRESHOLD
+        return is_inside if ABOVE_IS_FEATURE else not is_inside
+
+def keep_only(obj, keep_predicate):
+    bpy.context.view_layer.objects.active = obj
+    bpy.ops.object.mode_set(mode='EDIT'); bpy.ops.mesh.select_all(action='DESELECT'); bpy.ops.object.mode_set(mode='OBJECT')
+    mw = obj.matrix_world
+    for v in obj.data.vertices:
+        v.select = not keep_predicate(mw @ v.co)
+    bpy.ops.object.mode_set(mode='EDIT')
+    bpy.ops.mesh.delete(type='VERT')
+    bpy.ops.object.mode_set(mode='OBJECT')
+
+keep_only(base, lambda co: not vert_is_feature(co))
+print(f"BASE remaining verts={len(base.data.vertices)}")
+keep_only(feature, vert_is_feature)
+print(f"{FEATURE_NAME.upper()} remaining verts={len(feature.data.vertices)}")
+
+if len(base.data.vertices) == 0 or len(feature.data.vertices) == 0:
+    print("SPLIT_FAILED: one half is empty")
+    sys.exit(1)
+
+import mathutils
+verts_world = [feature.matrix_world @ v.co for v in feature.data.vertices]
+cx = sum(v.x for v in verts_world) / len(verts_world)
+cy = sum(v.y for v in verts_world) / len(verts_world)
+print(f"{FEATURE_NAME.upper()} centroid xy=({cx:.4f}, {cy:.4f})")
+
+bpy.ops.object.select_all(action='SELECT')
+bpy.ops.export_scene.fbx(
+    filepath=OUT,
+    use_selection=True,
+    object_types={'MESH', 'EMPTY'},
+    apply_unit_scale=True,
+    bake_space_transform=False,
+    add_leaf_bones=False,
+    path_mode='COPY',
+    embed_textures=False,
+)
+print(f"EXPORTED {OUT}")
