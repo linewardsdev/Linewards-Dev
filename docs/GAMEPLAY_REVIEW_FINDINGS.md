@@ -10,11 +10,37 @@ Run captures WITHOUT `-nographics` — see the remarks on both capture runners.
 
 ## P1 — Legibility (blocks reading the game)
 
-- [ ] **The font's `N` glyph renders as `M`.** Confirmed across three independent strings in two
-      different UI systems: the HUD reads `LIME` for LINE, the send dock title reads `SEMD` for
-      SEND, and the Runner button reads `RUM` for RUN. Because it reproduces everywhere `N`
-      appears, this is the glyph/atlas rather than any one label.
-      Evidence: `01-default-hud.png` (HUD zoom), `04-send-menu-open.png` (dock zoom).
+- [ ] **UI text is rendered too coarsely to distinguish letters.** `N` reads as `M` throughout —
+      the HUD looks like `LIME` for LINE, the dock title `SEMD` for SEND, the Runner button `RUM`
+      for RUN.
+      This is NOT a broken glyph. Segmenting the bitmaps and comparing them pixel-for-pixel shows
+      `N` and `M` are genuinely different (`N`'s solid middle band spans 9 rows, `M`'s spans 6),
+      so the font is correct and the mapping is fine. The problem is resolution: each glyph is
+      only 9px wide with 3px strokes, i.e. three cells of horizontal detail, which cannot separate
+      `N` from `M` at a glance. Any fix belongs in glyph size / stroke weight / render scale, not
+      in the font.
+      Evidence: `01-default-hud.png`, `04-send-menu-open.png`; bitmap comparison of the RUN and
+      SWM button labels.
+
+      **Investigation so far (all verified, none of it fixed the problem):**
+      - Dynamic OS fonts are available and resolve: 559 OS fonts present,
+        `Font.CreateDynamicFontFromOSFont` returns Arial successfully. Font availability is not
+        the blocker.
+      - Setting `GUI.skin.font` to that dynamic font before styles are constructed changed
+        nothing — every static UI capture was byte-identical before and after.
+      - Assigning `style.font` directly on `HudView`'s pill/label/value/meta styles also changed
+        nothing, byte-identical again.
+      - `HudView.cs:229` builds exactly the observed string
+        (`$"L{Lives}  G{Gold}  +{Income}  P{Pressure}"`, note the double spaces) and draws it with
+        `GUI.Label(..., valueStyle)`. Yet changing `valueStyle`'s font has no effect on the
+        rendered output.
+
+      **Conclusion / next lead:** the readout on screen is NOT coming from `HudView`'s styles,
+      despite the format string matching character for character. Something else is drawing it —
+      `RuntimeMatchHud` draws a similar readout and is the obvious next suspect. Identify the
+      actual draw path first; changing fonts on the wrong component wastes a full capture cycle
+      each time. Note also that both `+10` and the `P0` pressure box overlap, so the "no separator"
+      reading below is really an overlap of two elements, not a missing space.
 
 - [ ] **Send-button cost/meta text is unreadable at real resolution.** The line under each creep
       icon (intended to read like `10G  +1`) renders as overlapping strokes with no legible
@@ -22,9 +48,10 @@ Run captures WITHOUT `-nographics` — see the remarks on both capture runners.
       review before. This is a mobile target, so it needs to be legible at native size.
       Evidence: `04-send-menu-open.png` cropped to the dock at 2x.
 
-- [ ] **HUD income and player run together: `+10P0`.** No separator between the income figure and
-      the player tag, so it reads as one token.
-      Evidence: `01-default-hud.png`.
+- [ ] **HUD income and pressure overlap: reads as `+10P0`.** The source string already has two
+      spaces (`+{Income}  P{Pressure}`), so this is not a missing separator — the pressure element
+      is drawn in its own highlighted box that overlaps the income text.
+      Evidence: `01-default-hud.png` at 5x.
 
 - [ ] **Stray garbled text above the board, upper left.** A small cluster of illegible characters
       floats outside the board frame in every captured state. Appears to be a debug or
