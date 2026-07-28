@@ -74,16 +74,20 @@ namespace LTW.UnityClient.Editor
                 ApplyRuntimeMaterial(generatedInstance, recipe.BodyMaterial);
             }
 
-            // Turret-style towers split a "Head" mesh from their base (split_tower_rigid_part.py).
-            // Head still sits deep in the imported hierarchy (Imported3DVisual/.../Head) and
-            // carries whatever non-identity rest transform that hierarchy's own axis/scale
-            // correction bakes in — unlike Body, which is a purpose-built empty with an identity
-            // rest transform by construction. Rather than have runtime code reason about Head's
-            // opaque rest frame, give it the same clean-empty treatment as Body: a fresh
-            // "HeadPivot" child of Body (identity rest transform), with the actual Head mesh
-            // reparented under it using worldPositionStays so its visual position/orientation
-            // doesn't move, only its point of reference does.
-            var headMesh = FindDeepChild(generatedInstance.transform, "Head");
+            // Towers with an independently-aimed/recoiling part (a turret Head, or — for Prism —
+            // the whole crystal cluster, split via split_tower_rigid_part.py) still sit deep in
+            // the imported hierarchy (Imported3DVisual/.../Head or .../Spire) and carry whatever
+            // non-identity rest transform that hierarchy's own axis/scale correction bakes in —
+            // unlike Body, which is a purpose-built empty with an identity rest transform by
+            // construction. Rather than have runtime code reason about that opaque rest frame,
+            // give it the same clean-empty treatment as Body: a fresh "HeadPivot" child of Body
+            // (identity rest transform), with the actual mesh reparented under it using
+            // worldPositionStays so its visual position/orientation doesn't move, only its point
+            // of reference does. "Spire" is also one of UpdateTowerMotion's continuous-spin part
+            // names — nesting it under HeadPivot doesn't interfere with that, since the spin is
+            // applied to Spire's own local rotation on top of whatever HeadPivot is doing.
+            var headMesh = FindDeepChild(generatedInstance.transform, "Head")
+                ?? FindDeepChild(generatedInstance.transform, "Spire");
             if (headMesh != null)
             {
                 var headPivot = CreateEmptyChild(body, "HeadPivot", Vector3.zero);

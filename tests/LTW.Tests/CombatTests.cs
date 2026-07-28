@@ -43,6 +43,29 @@ public sealed class CombatTests
     }
 
     [Fact]
+    public void Tower_vision_extends_beyond_attack_range_without_firing()
+    {
+        var service = new CombatService();
+        var content = CreateContent();
+        var routes = CreateRoutes(length: 10);
+        var creep = service.SpawnCreep(new EntityId(1), Runner(), new PlayerId(2), LaneOne).WithMovement(4, 0);
+        var state = new CombatState(
+            new[] { creep },
+            new[] { new TowerCombatState(new EntityId(10), ArrowTowerId, new PlayerId(1), LaneOne, new GridPosition(1, 1)) });
+
+        // Distance 3 from the tower: outside Arrow's 2-cell attack range, so it must not fire...
+        var result = service.Advance(state, content, routes, new SimulationTick(0));
+        Assert.Empty(result.Events.OfType<TowerFiredEvent>());
+
+        // ...but within its extended vision (2 + VisionBufferCells), so the turret should already
+        // be tracking it well before it's actually in range to shoot.
+        var aimSnapshots = service.GetTowerAimSnapshots(state, content, routes);
+        var aim = Assert.Single(aimSnapshots);
+        Assert.Equal(new EntityId(10), aim.TowerEntityId);
+        Assert.Equal(new GridPosition(4, 1), aim.TargetPosition);
+    }
+
+    [Fact]
     public void Creep_reaching_exit_emits_one_leak_event_only()
     {
         var service = new CombatService();

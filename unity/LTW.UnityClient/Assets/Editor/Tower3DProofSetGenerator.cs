@@ -85,7 +85,7 @@ namespace LTW.UnityClient.Editor
                 "Prism",
                 "tower.prism",
                 TowerVisualRole.Prism,
-                "Assets/Art/AIStaging/Models/Towers/Prism/AIDrop/prism_split_base_spire_0727.fbx",
+                "Assets/Art/AIStaging/Models/Towers/Prism/AIDrop/prism_split_base_core_0727b.fbx",
                 Tower3DImportPipeline.RuntimePrefabFolder + "/Tower_Prism_3D.prefab",
                 new Vector3(0.62f, 0.62f, 0.62f),
                 0f,

@@ -70,6 +70,40 @@ public sealed class CombatService
             .ToArray();
     }
 
+    /// <summary>
+    /// A tower's presentation-layer "vision": the same target a tower would actually fire at, but
+    /// checked against a wider radius than its real attack range and NOT gated by attack cooldown.
+    /// This exists purely so a turret can start turning to face a creep well before it's close
+    /// enough to actually be fired on (matched by <see cref="AttackWithTowers"/>'s own range/target
+    /// selection) — a real shot never happens outside AttackWithTowers's own (unchanged, smaller)
+    /// RangeCells check, only the visual aim-tracking gets a head start.
+    /// </summary>
+    private const int VisionBufferCells = 3;
+
+    public IReadOnlyList<TowerAimSnapshot> GetTowerAimSnapshots(
+        CombatState state,
+        CombatContent content,
+        IReadOnlyDictionary<LaneId, IReadOnlyList<GridPosition>> routes)
+    {
+        var results = new List<TowerAimSnapshot>();
+        foreach (var tower in state.Towers)
+        {
+            var towerDefinition = content.GetTower(tower.TowerId);
+            var visionRangeCells = towerDefinition.RangeCells + VisionBufferCells;
+            var visibleTargets = state.Creeps
+                .Where(creep => !creep.IsDead && !creep.HasLeaked && creep.LaneId.Equals(tower.LaneId))
+                .Where(creep => IsInRange(tower.Position, ResolvePosition(creep, routes), visionRangeCells))
+                .ToArray();
+            var target = SelectTarget(tower, visibleTargets);
+            if (target is not null)
+            {
+                results.Add(new TowerAimSnapshot(tower.EntityId, ResolvePosition(target, routes)));
+            }
+        }
+
+        return results;
+    }
+
     private static CombatState MoveCreeps(
         CombatState state,
         CombatContent content,

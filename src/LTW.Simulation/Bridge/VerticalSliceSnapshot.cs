@@ -11,12 +11,14 @@ public sealed class VerticalSliceSnapshot
         SimulationTick tick,
         EconomyPlayerSet players,
         IReadOnlyList<CreepPresentationSnapshot> creeps,
-        IReadOnlyList<TowerCombatState> towers)
+        IReadOnlyList<TowerCombatState> towers,
+        IReadOnlyList<TowerAimSnapshot> towerAimTargets)
     {
         Tick = tick;
         Players = players;
         Creeps = creeps;
         Towers = towers;
+        TowerAimTargets = towerAimTargets;
     }
 
     public SimulationTick Tick { get; }
@@ -26,4 +28,6 @@ public sealed class VerticalSliceSnapshot
     public IReadOnlyList<CreepPresentationSnapshot> Creeps { get; }
 
     public IReadOnlyList<TowerCombatState> Towers { get; }
+
+    public IReadOnlyList<TowerAimSnapshot> TowerAimTargets { get; }
 }

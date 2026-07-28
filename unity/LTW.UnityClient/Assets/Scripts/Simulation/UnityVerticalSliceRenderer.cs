@@ -558,11 +558,29 @@ namespace LTW.UnityClient.Simulation
                 $"{bakedBoardPieceCount} pieces baked (each was previously its own renderer and material instance)");
         }
 
+        private readonly Dictionary<string, LTW.Simulation.Primitives.GridPosition> towerVisionTargetsScratch =
+            new Dictionary<string, LTW.Simulation.Primitives.GridPosition>();
+
         private void RenderSnapshot(LTW.Simulation.Bridge.VerticalSliceSnapshot snapshot)
         {
             visibleKeys.Clear();
             visibleContactShadowKeys.Clear();
             towerRolesByCell.Clear();
+
+            // A tower's vision (used purely for aim-tracking) is deliberately wider than its real
+            // attack range (CombatService.GetTowerAimSnapshots) so the turret has time to turn
+            // toward a target BEFORE it's actually close enough to fire — without this, the first
+            // shot always fires from whatever the head's previous/idle heading was, since
+            // towerAimTarget used to only ever get set at the moment of firing (TowerFiredEvent),
+            // leaving zero time to visibly turn beforehand. Refreshed every snapshot, not gated by
+            // firing or cooldown.
+            towerVisionTargetsScratch.Clear();
+            for (var index = 0; index < snapshot.TowerAimTargets.Count; index++)
+            {
+                var visionTarget = snapshot.TowerAimTargets[index];
+                towerVisionTargetsScratch[visionTarget.TowerEntityId.Value.ToString()] = visionTarget.TargetPosition;
+            }
+
             foreach (var tower in snapshot.Towers)
             {
                 var key = tower.EntityId.Value.ToString();
@@ -572,6 +590,12 @@ namespace LTW.UnityClient.Simulation
                 var towerObject = GetOrCreateTower(key, visualProfile);
                 SetTowerTransform(towerObject, tower.Position, tower.LaneId, tower.TowerId.Value, visualProfile);
                 ApplyTowerColor(towerObject, tower.TowerId.Value, tower.OwnerId.Value, visualProfile);
+
+                if (towerVisionTargetsScratch.TryGetValue(key, out var visionTargetPosition))
+                {
+                    towerAimTarget[key] = GridToWorld(visionTargetPosition, tower.LaneId);
+                }
+
                 if (visualProfile == null || visualProfile.Prefab == null)
                 {
                     ConfigureTowerRoleMarker(towerObject, tower.TowerId.Value, tower.OwnerId.Value);
@@ -1831,7 +1855,12 @@ namespace LTW.UnityClient.Simulation
                 direction.y = 0f;
                 if (direction.sqrMagnitude > 0.0001f)
                 {
-                    var desiredYaw = Mathf.Atan2(direction.x, direction.z) * Mathf.Rad2Deg;
+                    // atan2(x, z) assumes the model's own unrotated mesh faces +Z at yaw 0 — true
+                    // for most of these towers, but not universal, and TowerHeadRestHeadingDegrees
+                    // corrects for whichever roles it doesn't hold for (measured directly from the
+                    // mesh, not assumed).
+                    var desiredYaw = Mathf.Atan2(direction.x, direction.z) * Mathf.Rad2Deg
+                        - TowerHeadRestHeadingDegrees(visualProfile.Role);
                     yaw = Mathf.MoveTowardsAngle(yaw, desiredYaw, TowerAimTurnDegreesPerSecond * Time.deltaTime);
                 }
             }
@@ -1864,8 +1893,15 @@ namespace LTW.UnityClient.Simulation
                 body.localPosition = idle.PositionOffset;
                 body.localRotation = Quaternion.Euler(idle.PitchDegrees, 0f, 0f);
                 body.localScale = Vector3.one * idleScale;
-                headPivot.localPosition = recoilPosition;
-                headPivot.localRotation = Quaternion.Euler(-recoil * 10f, yaw, 0f);
+
+                // A HeadPivot kick moves only the isolated barrel relative to a stationary Base —
+                // the same 0.16-unit magnitude that read as a subtle whole-model punch before
+                // (Base and Head always moved together, so no gap could ever show) instead reads
+                // as the barrel flying off its mount, since nothing hides the separation anymore.
+                // Scaled down substantially so recoil stays a tight, visibly-connected kick.
+                var headRecoilPosition = kickDirection * (recoil * 0.05f) + Vector3.down * (recoil * 0.015f);
+                headPivot.localPosition = headRecoilPosition;
+                headPivot.localRotation = Quaternion.Euler(-recoil * 6f, yaw, 0f);
             }
             else
             {
@@ -3197,6 +3233,32 @@ namespace LTW.UnityClient.Simulation
         /// uniform scale, which lose nothing to that projection, and layers pitch/position on top
         /// rather than relying on them alone.
         /// </summary>
+        /// <summary>
+        /// How far a tower's mesh, at yaw 0 (HeadPivot/Body's identity rest rotation), actually
+        /// faces from world +Z, in the same atan2(x, z) convention the aim-yaw math above uses —
+        /// measured directly IN UNITY (a Blender-side measurement of the same mesh gave the wrong
+        /// sign, since Blender's FBX exporter mirrors X during its right-handed-to-left-handed
+        /// conversion), not asserted. Without this correction the turret still tracks (relative
+        /// motion as a target moves is correct either way), just aimed a constant angle away from
+        /// the actual target — invisible while the whole Body carried the rotation, obvious once
+        /// Arrow's barrel became an isolated, independently-aimed Head. Other roles default to 0
+        /// pending the same per-mesh measurement; none have shown the same symptom yet, but none
+        /// have an isolated barrel-like part to reveal it either.
+        /// </summary>
+        private static float TowerHeadRestHeadingDegrees(TowerVisualRole role)
+        {
+            if (role == TowerVisualRole.Arrow)
+            {
+                // Measured directly in Unity (not Blender — its FBX export mirrors X during the
+                // right-handed-to-left-handed conversion, which silently flipped the sign of an
+                // earlier Blender-side measurement): the barrel tip sits at local (x=0.725,
+                // z=0.001), heading +90 degrees.
+                return 90f;
+            }
+
+            return 0f;
+        }
+
         private static TowerMotion TowerRoleMotion(TowerVisualRole role)
         {
             var time = Time.time;

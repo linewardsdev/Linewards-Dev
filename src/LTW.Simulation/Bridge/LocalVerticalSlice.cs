@@ -300,7 +300,12 @@ public sealed class LocalVerticalSlice
     }
 
     public VerticalSliceSnapshot GetSnapshot() =>
-        new VerticalSliceSnapshot(tick, players, combat.GetCreepSnapshots(combatState, routes), combatState.Towers);
+        new VerticalSliceSnapshot(
+            tick,
+            players,
+            combat.GetCreepSnapshots(combatState, routes),
+            combatState.Towers,
+            combat.GetTowerAimSnapshots(combatState, combatContent, routes));
 
     public IReadOnlyList<ISimulationEvent> DrainEvents()
     {
