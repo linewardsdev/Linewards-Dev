@@ -63,29 +63,28 @@ It seeds a match, captures the default HUD and both send-dock categories, and qu
       the art path and lifted the text 55% toward white, which keeps the per-creep colour coding.
       Verified by recapture across all 10 cards.
 
-## P1 — The mock-based capture path (kept for context)
+## P1 — The painted HUD mock (DELETED)
 
-- [ ] **`VisualReviewCaptureRunner` composites a hand-painted mock of the HUD, not the real UI.**
-      In batchmode, IMGUI (`OnGUI`) does not render into the capture RenderTexture, so
-      `PaintBatchHudOverlay` reconstructs the HUD on the CPU after readback — drawing panels,
-      buttons and text with its own hand-rolled 3x7 bitmap font (`GlyphRows`, ~line 1541) via
-      `PaintRect`. This is deliberate and explained at `RenderBatchHudOverlay` (~line 1587), but
-      the consequence is easy to miss: **in every capture from this runner, only the 3D board is
-      real. Every panel, label and button is a painting.**
-      Demonstrated: changing the game's font had zero effect on these captures — verified twice,
-      byte-identical output — because the game's font is not what is in the image.
+- [x] **`VisualReviewCaptureRunner`'s CPU-painted HUD is gone** (678 lines: `PaintBatchHudOverlay`,
+      the `GlyphRows` 3x7 bitmap font, every `Paint*`/`Draw*Overlay`/`AddOverlay*` helper, and the
+      Built-in-pipeline `RenderBatchHudOverlay` GPU pass).
 
-- [ ] **The painted mock is stale and no longer matches the game.** `PaintSendMenuOverlay`
-      hard-codes exactly five `PaintCard` calls (RUN/BRT/SWM/SHD/SGE); it predates the 10-creep
-      roster, so the capture depicts half the current content. The real `SendDockController` has a
-      category picker and a populated `DrawCategoryTwoCreeps`.
-      This is the more dangerous of the two failure modes: the mock does not fail loudly when the
-      game changes, it quietly depicts an older build.
+      It existed because IMGUI does not draw into an offscreen RenderTexture in batchmode, so the
+      HUD was reconstructed after readback. The problem was that the painting was convincing enough
+      to review — and reviewing it produced five UI defects that were all artefacts of the mock,
+      plus two font "fixes" that changed nothing because the game's font was not in the picture. It
+      also drifted silently: it still painted the pre-expansion 5-creep send menu long after the
+      roster reached 10, depicting an older build rather than failing.
 
-      Options, roughly by value: capture real UI instead (drive a Game view rather than a batch
-      RenderTexture, so IMGUI actually draws); or keep the mock but assert it against the real
-      roster so divergence fails; or drop the painting and accept board-only captures, reviewing
-      UI by hand.
+      These captures now contain the board only. An empty region is honest; a convincing painting
+      of a stale HUD is not. For UI, use `RealUiCaptureRunner`, which drives a real Game view.
+
+## P2 — Found once the mock stopped covering the board
+
+- [ ] **World-space combat text overlaps itself and is hard to read under load.** In
+      `10-heavy-pressure`, two `RUNNER` spawn labels print on top of each other, and `-2 LIFE`
+      collides with a damage number. This is the game's own text, not the removed mock — it was
+      simply hidden behind the painted HUD before. Needs staggering or de-duplication.
 
 ## P2 — Clarity (now verified against real UI captures)
 
