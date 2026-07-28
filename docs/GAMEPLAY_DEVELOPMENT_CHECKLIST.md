@@ -115,10 +115,10 @@ Current sends have distinct cost, income, speed/health, and quantity pressure ac
 
 - [x] Define target ranges for first send, first leak, first elimination, and match completion.
 - [x] Tune starting gold, income interval, send rewards, bounties, lives, and cooldowns around those ranges.
-- [ ] Add scenario tests for low-pressure, normal-pressure, and heavy-pressure matches.
+- [x] Add scenario tests for low-pressure, normal-pressure, and heavy-pressure matches.
 - [x] Record current known balance problems in a tuning log.
 
-Initial target ranges and known balance questions are recorded in `docs/GD_TUNING_LOG.md`. The first pacing pass raises local lives to 220, delays bot send spending during the opening, and guards the deterministic local match against the 900-1800 tick completion target. Scenario coverage has started with send cooldown, early-pressure, bot-opening-defense, and match-duration tests, but the full low/normal/heavy suite remains open.
+Initial target ranges and known balance questions are recorded in `docs/GD_TUNING_LOG.md`. The first pacing pass raises local lives to 220, delays bot send spending during the opening, and guards the deterministic local match against the 900-1800 tick completion target. `tests/LTW.Tests/GameplayScenarioTests.cs` now covers low-pressure (stable opening defense), normal-pressure (income and active combat), and heavy-pressure (escalation without hidden bot advantages) scenarios; all 78 solution tests pass under `dotnet test LTW.sln --configuration Release`.
 
 ### Acceptance Checks
 
