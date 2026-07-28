@@ -31,6 +31,14 @@ public sealed class LocalMatchTopology
 
     public IReadOnlyDictionary<LaneId, PlayerId> LaneOwners => laneOwners;
 
+    /// <summary>
+    /// Whether this player is actually a participant in the match. Callers validating untrusted
+    /// input (a remote client's command) should check this and reject, rather than letting
+    /// <see cref="HomeLaneFor"/> or the economy's player lookup throw — an out-of-range player id
+    /// arriving over the wire is a rejectable command, not an exceptional program state.
+    /// </summary>
+    public bool HasPlayer(PlayerId playerId) => playerId.Value >= 1 && playerId.Value <= LaneCount;
+
     public LaneId HomeLaneFor(PlayerId playerId)
     {
         EnsurePlayer(playerId);

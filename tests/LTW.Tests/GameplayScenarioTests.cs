@@ -46,6 +46,10 @@ public sealed class GameplayScenarioTests
         Assert.True(slice.PlaceTower(new PlayerId(1), new LaneId(1), SampleVerticalSliceContent.TowerId, new GridPosition(2, 8)).Accepted);
         Assert.True(slice.PlaceTower(new PlayerId(1), new LaneId(1), SampleVerticalSliceContent.ControlTowerId, new GridPosition(4, 8)).Accepted);
         Assert.True(slice.QueueSend(new PlayerId(3), SampleVerticalSliceContent.CreepId).Accepted);
+        // Spaced past the 30-tick send cooldown (enforced as of the multiplayer authority pass).
+        // This scenario is about income accruing alongside active combat, not send cadence; the
+        // wait is folded into the run below so total elapsed ticks stay in the same ballpark.
+        RunTicks(slice, 30);
         Assert.True(slice.QueueSend(new PlayerId(3), SampleVerticalSliceContent.BruteCreepId).Accepted);
 
         RunTicks(slice, 120);

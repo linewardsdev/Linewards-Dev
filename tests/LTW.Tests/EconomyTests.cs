@@ -37,18 +37,36 @@ public sealed class EconomyTests
         Assert.Equal(10, result.Players.Get(new PlayerId(1)).Income.Amount);
     }
 
+    /// <summary>
+    /// Replaces an earlier test named "Repeat_sends_are_allowed_until_gold_runs_out", which built
+    /// the service with <c>sendCooldownTicks: 30</c>, sent at ticks 10 and 20, and asserted the
+    /// second send was accepted. That described the behavior at the time rather than the intended
+    /// rule: the cooldown was configured and its state was tracked, but nothing ever enforced it
+    /// (see EconomyService.QueueSend). Now that it is enforced, a resend inside the window must be
+    /// rejected, and only gold limits sends once the window has elapsed.
+    /// </summary>
     [Fact]
-    public void Repeat_sends_are_allowed_until_gold_runs_out()
+    public void Repeat_sends_are_gated_by_the_send_cooldown_then_by_gold()
     {
         var service = CreateService(sendCooldownTicks: 30);
         var players = CreatePlayers();
         var first = service.QueueSend(players, new PlayerId(1), Runner(), quantity: 1, new SimulationTick(10));
+        Assert.True(first.Accepted);
 
-        var second = service.QueueSend(first.Players, new PlayerId(1), Runner(), quantity: 1, new SimulationTick(20));
+        var insideWindow = service.QueueSend(first.Players, new PlayerId(1), Runner(), quantity: 1, new SimulationTick(20));
 
-        Assert.True(second.Accepted);
-        Assert.Equal(80, second.Players.Get(new PlayerId(1)).Gold.Amount);
-        Assert.Equal(12, second.Players.Get(new PlayerId(1)).Income.Amount);
+        Assert.False(insideWindow.Accepted);
+        Assert.Equal(CommandRejectionReason.CooldownActive, insideWindow.RejectionReason);
+        // Rejected sends must not move gold or income.
+        Assert.Equal(90, insideWindow.Players.Get(new PlayerId(1)).Gold.Amount);
+        Assert.Equal(11, insideWindow.Players.Get(new PlayerId(1)).Income.Amount);
+
+        // Exactly at first send tick + cooldown the next send is allowed again.
+        var afterWindow = service.QueueSend(first.Players, new PlayerId(1), Runner(), quantity: 1, new SimulationTick(40));
+
+        Assert.True(afterWindow.Accepted);
+        Assert.Equal(80, afterWindow.Players.Get(new PlayerId(1)).Gold.Amount);
+        Assert.Equal(12, afterWindow.Players.Get(new PlayerId(1)).Income.Amount);
     }
 
     [Fact]
