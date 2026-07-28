@@ -238,6 +238,11 @@ public sealed class LocalVerticalSlice
         foreach (var bot in bots)
         {
             TryPlaceBotTower(bot.Key, bot.Value);
+            if (!HasCompletedOpeningDefense(bot.Key, bot.Value))
+            {
+                continue;
+            }
+
             var decision = bot.Value.Decide(players.Get(bot.Key), content, tick);
             if (decision.Command is QueueSendCommand send)
             {
@@ -375,17 +380,38 @@ public sealed class LocalVerticalSlice
         }
     }
 
+    private static int DesiredOpeningTowerCount(BotDecisionProfile profile) => profile switch
+    {
+        BotDecisionProfile.Greedy => 2,
+        BotDecisionProfile.Balanced => 3,
+        BotDecisionProfile.Defensive => 4,
+        _ => 2
+    };
+
+    /// <summary>
+    /// Greedy bots are designed to send from the start (they prioritize income, not a defensive
+    /// package); Balanced and Defensive are designed to finish their opening tower package before
+    /// creating any send pressure. That intent was previously enforced only indirectly, through
+    /// gold-reserve thresholds tuned against specific tower costs — cheap enough towers could
+    /// leave just enough spare gold to opportunistically afford a cheap creep mid-build-out. This
+    /// checks the actual intent directly instead, so it holds regardless of the current cost
+    /// balance.
+    /// </summary>
+    private bool HasCompletedOpeningDefense(PlayerId playerId, BotController bot)
+    {
+        if (bot.Profile == BotDecisionProfile.Greedy)
+        {
+            return true;
+        }
+
+        var ownedTowerCount = combatState.Towers.Count(tower => tower.OwnerId.Equals(playerId));
+        return ownedTowerCount >= DesiredOpeningTowerCount(bot.Profile);
+    }
+
     private void TryPlaceBotTower(PlayerId playerId, BotController bot)
     {
         var ownedTowerCount = combatState.Towers.Count(tower => tower.OwnerId.Equals(playerId));
-        var desiredTowerCount = bot.Profile switch
-        {
-            BotDecisionProfile.Greedy => 2,
-            BotDecisionProfile.Balanced => 3,
-            BotDecisionProfile.Defensive => 4,
-            _ => 2
-        };
-        if (ownedTowerCount >= desiredTowerCount)
+        if (ownedTowerCount >= DesiredOpeningTowerCount(bot.Profile))
         {
             return;
         }

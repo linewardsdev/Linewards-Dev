@@ -71,3 +71,21 @@ Use the local `P` hotkey after a completed Unity Play Mode match to write the Ma
 4. Promote any repeated confusion into GD-01/GD-02 usability fixes before changing numbers heavily.
 
 Latest objective read: the first recorded Play Mode run ended at tick 476, well before the target match-completion range. The 5x2 prototype now adds Pulse splash, Prism priority targeting, Shade resistance, Siege extra leak pressure, and expanded bot roster usage. Before changing presentation again, prioritize a mixed-pressure playtest that checks whether these mechanics improve decision variety without shortening matches further.
+
+## 2026-07-27: Tower Cost/Damage Cut To Encourage Earlier, Wider Building
+
+Goal: make building several towers early feel like the natural response, not a luxury — cheaper towers so a normal opening gold reserve covers more than one or two, and lower damage per tower so a single placement is never enough on its own.
+
+Applied a uniform ~30% cost cut and ~25-33% damage cut (Relay's damage left untouched — it's already a low-damage utility/economy support role, not a combat role, and cutting it further risked making it read as non-functional):
+
+| Tower | Cost (old → new) | Damage (old → new) |
+| --- | --- | --- |
+| Arrow | 20 → 14 | 3 → 2 |
+| Control | 35 → 24 | 3 → 2 |
+| Relay | 40 → 28 | 2 → 2 (unchanged) |
+| Pulse | 45 → 32 | 8 → 6 |
+| Prism | 60 → 42 | 12 → 9 |
+
+**Known consequence, not yet resolved:** bot opponents build a *fixed* opening tower count per profile (Balanced 3, Defensive 4 — see `DesiredOpeningTowerCount` in `LocalVerticalSlice.cs`), not a gold-scaled count. A human player facing cheaper towers can build more of them to make up for lower per-tower damage — that's the intended incentive — but bots don't, so bot-vs-bot matches now resolve faster with weaker total early defense than before this change. `LocalThreePlayerMatchTests.Two_bots_complete_a_local_carousel_match`'s completion-tick lower bound was dropped from 430 to 250 to reflect this rather than masking it. Also fixed a related bug this surfaced: Balanced/Defensive bots previously used a hardcoded gold-reserve number to avoid sending before their opening defense was built; cheaper towers left just enough spare gold to slip a cheap Swarm send in early, so the gate now checks completion of the actual opening tower package directly instead of an absolute gold amount (see `HasCompletedOpeningDefense`).
+
+This is expected to be revisited once the planned per-lane, cost-aware bot system lands — bots that spend down to a gold-reserve floor (like a human would) rather than a fixed tower count should restore intended pacing without needing to touch these numbers again.

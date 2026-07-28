@@ -32,7 +32,7 @@ public sealed class VerticalSliceBridgeTests
             tower.OwnerId.Equals(new PlayerId(1)) &&
             tower.LaneId.Equals(new LaneId(1)) &&
             tower.Position.Equals(new GridPosition(1, 1)));
-        Assert.Equal(70, snapshot.Players.Get(new PlayerId(1)).Gold.Amount);
+        Assert.Equal(76, snapshot.Players.Get(new PlayerId(1)).Gold.Amount);
         Assert.Equal(11, snapshot.Players.Get(new PlayerId(1)).Income.Amount);
         Assert.Contains(events, simulationEvent => simulationEvent is TowerPlacedEvent);
         Assert.Contains(events, simulationEvent => simulationEvent is CreepSpawnedEvent);
@@ -84,6 +84,7 @@ public sealed class VerticalSliceBridgeTests
         var simulation = new LocalVerticalSlice(SampleVerticalSliceContent.Create());
         Assert.True(simulation.PlaceTower(new PlayerId(1), new LaneId(1), SampleVerticalSliceContent.UtilityTowerId, new GridPosition(1, 1)).Accepted);
         Assert.True(simulation.PlaceTower(new PlayerId(1), new LaneId(1), SampleVerticalSliceContent.UtilityTowerId, new GridPosition(2, 1)).Accepted);
+        Assert.True(simulation.PlaceTower(new PlayerId(1), new LaneId(1), SampleVerticalSliceContent.UtilityTowerId, new GridPosition(3, 1)).Accepted);
 
         var occupied = simulation.PreviewPlaceTower(new PlayerId(1), new LaneId(1), SampleVerticalSliceContent.TowerId, new GridPosition(1, 1));
         var unaffordable = simulation.PreviewPlaceTower(new PlayerId(1), new LaneId(1), SampleVerticalSliceContent.UtilityTowerId, new GridPosition(4, 1));
@@ -284,7 +285,7 @@ public sealed class VerticalSliceBridgeTests
         var shade = content.Creeps.Single(creep => creep.Id.Equals(SampleVerticalSliceContent.ShadeCreepId));
         var siege = content.Creeps.Single(creep => creep.Id.Equals(SampleVerticalSliceContent.SiegeCreepId));
 
-        Assert.Equal(3, arrow.Damage);
+        Assert.Equal(2, arrow.Damage);
         Assert.Equal(2, arrow.AttackCooldownTicks);
         Assert.Equal(2, relay.Damage);
         Assert.Equal(2, relay.RangeCells);
@@ -595,7 +596,7 @@ public sealed class VerticalSliceBridgeTests
 
         Assert.True(sell.Accepted);
         Assert.Empty(snapshot.Towers);
-        Assert.Equal(90, snapshot.Players.Get(new PlayerId(1)).Gold.Amount);
+        Assert.Equal(93, snapshot.Players.Get(new PlayerId(1)).Gold.Amount);
     }
 
     [Fact]

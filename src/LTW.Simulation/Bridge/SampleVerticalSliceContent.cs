@@ -32,11 +32,11 @@ public static class SampleVerticalSliceContent
             "mvp-07-5x2-roster",
             new[]
             {
-                new TowerDefinition(TowerId, "Arrow Tower", new Gold(20), rangeCells: 2, damage: 3, attackCooldownTicks: 2),
-                new TowerDefinition(ControlTowerId, "Control Ward", new Gold(35), rangeCells: 2, damage: 3, attackCooldownTicks: 3),
-                new TowerDefinition(UtilityTowerId, "Relay Ward", new Gold(40), rangeCells: 2, damage: 2, attackCooldownTicks: 4),
-                new TowerDefinition(PulseTowerId, "Pulse Ward", new Gold(45), rangeCells: 1, damage: 8, attackCooldownTicks: 4),
-                new TowerDefinition(PrismTowerId, "Prism Ward", new Gold(60), rangeCells: 4, damage: 12, attackCooldownTicks: 6)
+                new TowerDefinition(TowerId, "Arrow Tower", new Gold(14), rangeCells: 2, damage: 2, attackCooldownTicks: 2),
+                new TowerDefinition(ControlTowerId, "Control Ward", new Gold(24), rangeCells: 2, damage: 2, attackCooldownTicks: 3),
+                new TowerDefinition(UtilityTowerId, "Relay Ward", new Gold(28), rangeCells: 2, damage: 2, attackCooldownTicks: 4),
+                new TowerDefinition(PulseTowerId, "Pulse Ward", new Gold(32), rangeCells: 1, damage: 6, attackCooldownTicks: 4),
+                new TowerDefinition(PrismTowerId, "Prism Ward", new Gold(42), rangeCells: 4, damage: 9, attackCooldownTicks: 6)
             },
             new[]
             {

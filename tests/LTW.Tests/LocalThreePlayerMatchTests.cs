@@ -28,7 +28,11 @@ public sealed class LocalThreePlayerMatchTests
         for (var tick = 0; tick < 6_000 && slice.MatchSummary is null; tick++) slice.AdvanceOneTick();
 
         Assert.NotNull(slice.MatchSummary);
-        Assert.InRange(slice.MatchSummary!.CompletedAtTick.Value, 430, 900);
+        // Lower bound dropped from 430 alongside the tower cost/damage rebalance: bots build a
+        // fixed tower count regardless of price, so cheaper-but-weaker towers reduce total bot
+        // defense output and matches resolve faster. Revisit once bot spending scales with cost
+        // (see the planned per-lane bot system).
+        Assert.InRange(slice.MatchSummary!.CompletedAtTick.Value, 250, 900);
         Assert.NotEmpty(slice.GetReplayRecord().AcceptedCommands);
     }
 

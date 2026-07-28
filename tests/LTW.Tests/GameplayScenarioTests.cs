@@ -30,9 +30,12 @@ public sealed class GameplayScenarioTests
 
         output.WriteLine(evidence.ToString());
         Assert.True(evidence.AcceptedCommands >= 1);
-        Assert.True(evidence.PlayerOneLives >= 219);
+        // Lowered from 219 alongside the tower cost/damage rebalance (cheaper, weaker towers):
+        // one extra Runner hit lands in this fixed 80-tick window before defense catches up.
+        Assert.True(evidence.PlayerOneLives >= 218);
         Assert.True(evidence.DamageEvents >= 1);
-        Assert.True(evidence.TotalLives >= 658);
+        // Lowered from 658 for the same reason as the PlayerOneLives threshold above.
+        Assert.True(evidence.TotalLives >= 656);
         Assert.Null(slice.MatchSummary);
     }
 
