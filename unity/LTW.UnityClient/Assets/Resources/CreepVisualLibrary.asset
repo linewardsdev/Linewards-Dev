@@ -97,7 +97,7 @@ MonoBehaviour:
     role: 9
     prefab: {fileID: 5776599619616978906, guid: 05e89f5a10b91430eb593655956e556d, type: 3}
     scale: {x: 0.85, y: 0.85, z: 0.85}
-    motionStyle: 2
+    motionStyle: 8
     bodyRendererPath: BodyTintAnchor
     senderAccentRendererPaths:
     - SenderAccent

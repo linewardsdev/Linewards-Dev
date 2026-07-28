@@ -95,7 +95,12 @@ namespace LTW.UnityClient.Simulation
         Hover,
         Shimmer,
         SiegeWindup,
-        AuraPulse
+        AuraPulse,
+        /// <summary>
+        /// Limbless coiled body. Distinct from HeavyBob, which is a leg-driven lumber and reads
+        /// wrong on something with nothing to step on.
+        /// </summary>
+        Coil
     }
 
     public enum CreepDeathCueStyle

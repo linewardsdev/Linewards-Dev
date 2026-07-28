@@ -3464,16 +3464,50 @@ namespace LTW.UnityClient.Simulation
                 return new CreepMotion(new Vector3(0f, -weight - flinch * 0.09f, 0f), Quaternion.Euler(flinch * 20f, 0f, sway + flinchTilt), flinchScale);
             }
 
+            // The three limbless creeps below carry their whole read through these curves — none of
+            // them has legs to rig, so this is the animation, not a garnish on top of one. All
+            // three lean on yaw, XZ drift and uniform scale, which reach the screen unattenuated;
+            // vertical bob only arrives at ~sin(camera tilt) and so is used for flavour, never as
+            // the primary motion.
             if (motionStyle == CreepVisualMotionStyle.Hover || motionStyle == CreepVisualMotionStyle.Auto && (ContainsRole(creepId, "flying") || ContainsRole(creepId, "air")))
             {
-                var hover = Mathf.Sin(time * 5f) * 0.08f;
-                return new CreepMotion(Vector3.up * hover, Quaternion.Euler(0f, time * 80f, 0f));
+                // Crystal suspended in a cage: a slow turn lets the facets and the cage opening
+                // actually read from above. The old 80 deg/sec was fast enough that the silhouette
+                // blurred into a spinning lump. The wide, slow drift is what sells "floating"
+                // rather than "hovering in place".
+                var bob = Mathf.Sin(time * 2.6f) * 0.075f;
+                var driftX = Mathf.Sin(time * 0.9f) * 0.07f;
+                var driftZ = Mathf.Cos(time * 0.7f) * 0.055f;
+                var glow = 1f + Mathf.Sin(time * 3.4f) * 0.035f;
+                return new CreepMotion(new Vector3(driftX, bob, driftZ), Quaternion.Euler(0f, time * 52f, 0f), glow);
             }
 
             if (motionStyle == CreepVisualMotionStyle.Shimmer || motionStyle == CreepVisualMotionStyle.Auto && (ContainsRole(creepId, "shade") || ContainsRole(creepId, "invisible") || ContainsRole(creepId, "stealth")))
             {
-                var shimmer = Mathf.Sin(time * 8f) * 0.035f;
-                return new CreepMotion(new Vector3(shimmer, 0.02f, 0.04f), Quaternion.Euler(0f, time * 45f, 0f));
+                // Cloaked drifters (Shade, Ash Revenant). These used a constant 45 deg/sec yaw,
+                // which made a hooded silhouette read as pirouetting rather than advancing. It now
+                // weaves around its facing instead, and the slow scale pulse does the ghostly fade
+                // the old 8Hz positional jitter was reaching for — that jitter was fast enough to
+                // look like a rendering fault rather than a shimmer.
+                var weave = Mathf.Sin(time * 1.5f) * 14f;
+                var driftX = Mathf.Sin(time * 1.1f) * 0.06f;
+                var driftZ = Mathf.Cos(time * 0.8f) * 0.045f;
+                var rise = Mathf.Sin(time * 1.9f) * 0.05f;
+                var fade = 1f + Mathf.Sin(time * 2.3f) * 0.045f;
+                return new CreepMotion(new Vector3(driftX, rise, driftZ), Quaternion.Euler(0f, weave, 0f), fade);
+            }
+
+            if (motionStyle == CreepVisualMotionStyle.Coil)
+            {
+                // Serpent Coil. With no limbs, the writhe has to come from the whole body: a slow
+                // yaw rotation of the coil plus a uniform scale pulse reading as the coil
+                // tightening and loosening, both of which survive the camera projection intact.
+                // The vertical component is deliberately a rectified sine, so the body settles and
+                // rises rather than oscillating evenly, which reads as muscular rather than floaty.
+                var writhe = 1f + Mathf.Sin(time * 2.2f) * 0.055f;
+                var weaveX = Mathf.Sin(time * 1.7f) * 0.05f;
+                var settle = Mathf.Abs(Mathf.Sin(time * 2.2f)) * 0.035f;
+                return new CreepMotion(new Vector3(weaveX, settle, 0f), Quaternion.Euler(0f, time * 34f, 0f), writhe);
             }
 
             if (motionStyle == CreepVisualMotionStyle.SiegeWindup || motionStyle == CreepVisualMotionStyle.Auto && (ContainsRole(creepId, "attacker") || ContainsRole(creepId, "siege")))

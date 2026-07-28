@@ -153,7 +153,10 @@ namespace LTW.UnityClient.Editor
                 "Serpent",
                 "creep.serpent",
                 CreepVisualRole.Coil,
-                CreepVisualMotionStyle.HeavyBob,
+                // Was HeavyBob, borrowed from the golems, but that is a leg-driven lumber and this
+                // creep has no limbs to step on. Coil carries the writhe through yaw and a scale
+                // pulse instead.
+                CreepVisualMotionStyle.Coil,
                 CreepDeathCueStyle.ShardScatter,
                 ModelRoot + "/Serpent/AIDrop/serpent_meshy_serpent_v01_prepared.fbx",
                 ModelRoot + "/Serpent/AIDrop/serpent_meshy_serpent_v01_prepared_Textures",
