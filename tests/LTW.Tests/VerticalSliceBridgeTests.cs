@@ -197,9 +197,13 @@ public sealed class VerticalSliceBridgeTests
         var balancedSend = Assert.IsType<QueueSendCommand>(balanced.Decide(richState, content, new SimulationTick(220)).Command);
         var defensiveSend = Assert.IsType<QueueSendCommand>(defensive.Decide(richState, content, new SimulationTick(240)).Command);
 
+        // Category 2 creeps (added 2026-07-28) now slot into these cost-descending preference
+        // lists — see BotController.SelectCreep's comment for why cost-descending ordering is
+        // required for reachability. At this richState's abundant gold, each profile picks the
+        // single most expensive creep in its top tier.
         Assert.Equal(SampleVerticalSliceContent.SiegeCreepId, greedySend.CreepId);
-        Assert.Equal(SampleVerticalSliceContent.ShadeCreepId, balancedSend.CreepId);
-        Assert.Equal(SampleVerticalSliceContent.BruteCreepId, defensiveSend.CreepId);
+        Assert.Equal(SampleVerticalSliceContent.ObsidianBruteCreepId, balancedSend.CreepId);
+        Assert.Equal(SampleVerticalSliceContent.ObsidianBruteCreepId, defensiveSend.CreepId);
     }
 
     [Fact]
@@ -717,23 +721,45 @@ public sealed class VerticalSliceBridgeTests
     }
 
     [Fact]
-    public void Defensive_bot_builds_past_the_old_fixed_tower_cap_when_gold_allows()
+    public void Defensive_bot_prioritizes_sending_over_stacking_further_towers_once_coverage_is_met()
     {
-        // The old design capped Defensive at exactly 4 towers regardless of gold. Reactive
-        // building removes that cap in favor of gold/candidate-slot gating, so a bot with enough
-        // ticks/gold to keep affording towers should end up owning more than the old fixed count.
-        var options = LocalMatchOptions.Default.WithLane(2, enabled: false).WithLane(3, profile: BotDecisionProfile.Defensive);
+        // Replaces an earlier version of this test ("...builds_past_the_old_fixed_tower_cap...")
+        // that asserted an isolated, unpressured Defensive bot keeps adding towers indefinitely
+        // given enough ticks/gold. That stopped being true once the send decision was reordered
+        // to run before TryPlaceBotTower each tick (see GD_TUNING_LOG.md's 2026-07-28 bot-economy
+        // entry): a bot with surplus gold now spends it on a send first, and towers only get
+        // whatever's left, so an idle/unpressured bot plateaus at MinimumTowerCoverage (4 for
+        // Defensive) rather than continuing to stack towers. Traced with an instrumented run:
+        // towers plateaued at exactly 4 by tick ~100 while gold sat idle just short of the 5th
+        // tower's cost, because periodic sends kept siphoning off the surplus first.
+        //
+        // That's the intended, better behavior (a bot facing no defensive pressure should
+        // reasonably push offense rather than over-build), not a regression to the old
+        // DesiredOpeningTowerCount==4 hard cap bug this test originally existed to catch. To
+        // keep catching that regression specifically, this checks two things: coverage is met
+        // (>=4), and the plateau is actually explained by the bot having sent creeps (proving
+        // it's a spending choice, not a rebuilt structural cap).
+        // Default enables all 8 lanes as Greedy bots; disable everything but P3 so its own
+        // RecentDecisions entries (a 12-record shared ring buffer across all players) aren't
+        // evicted by the other lanes' unrelated send activity before we get to check it.
+        var options = LocalMatchOptions.Default
+            .WithLane(2, enabled: false)
+            .WithLane(3, profile: BotDecisionProfile.Defensive)
+            .WithLane(4, enabled: false)
+            .WithLane(5, enabled: false)
+            .WithLane(6, enabled: false)
+            .WithLane(7, enabled: false)
+            .WithLane(8, enabled: false);
         var simulation = new LocalVerticalSlice(SampleVerticalSliceContent.Create(), options);
 
-        // The 5th tower (Prism, 42 gold) needs more accumulated income than the first 4 do, so
-        // this needs enough ticks for a couple of income intervals (every 50 ticks) to land.
-        for (var tick = 0; tick < 400; tick++)
+        for (var tick = 0; tick < 150; tick++)
         {
             simulation.AdvanceOneTick();
         }
 
         var ownedTowerCount = simulation.GetSnapshot().Towers.Count(tower => tower.OwnerId.Value == 3);
-        Assert.True(ownedTowerCount > 4, $"Expected more than the old fixed cap of 4 towers, got {ownedTowerCount}.");
+        Assert.True(ownedTowerCount >= 4, $"Expected at least the minimum defensive coverage of 4 towers, got {ownedTowerCount}.");
+        Assert.Contains(simulation.GetBotDiagnostics().RecentDecisions, d => d.PlayerId.Value == 3);
     }
 
     [Fact]

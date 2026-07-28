@@ -235,28 +235,30 @@ public sealed class LocalVerticalSlice
 
         StartMatch();
 
+        // Send decision runs before tower building (reordered 2026-07-28 — see
+        // GD_TUNING_LOG.md). TryPlaceBotTower has no cap and previously ran first, so it
+        // would absorb a bot's surplus gold into "one more tower" before a pricier preferred
+        // creep (e.g. creep.serpent at 20g, creep.obsidian_brute at 30g) ever had a chance to
+        // become affordable — confirmed via replay analysis showing those creeps at 0 uses
+        // even though they were reachable on paper. Giving the send its claim on gold first,
+        // with towers only spending what's left, fixes the starvation without adding a new
+        // tunable cap.
         foreach (var bot in bots)
         {
-            TryPlaceBotTower(bot.Key, bot.Value);
-            if (!HasMinimumDefenseCoverage(bot.Key, bot.Value))
+            if (HasMinimumDefenseCoverage(bot.Key, bot.Value) && !IsLaneUnderPressure(bot.Key, bot.Value))
             {
-                continue;
-            }
-
-            if (IsLaneUnderPressure(bot.Key, bot.Value))
-            {
-                continue;
-            }
-
-            var decision = bot.Value.Decide(players.Get(bot.Key), content, tick);
-            if (decision.Command is QueueSendCommand send)
-            {
-                var sendResult = QueueSend(send.PlayerId, send.CreepId, send.Quantity);
-                if (sendResult.Accepted)
+                var decision = bot.Value.Decide(players.Get(bot.Key), content, tick);
+                if (decision.Command is QueueSendCommand send)
                 {
-                    botDecisionRecords.Add(new BotDecisionRecord(tick, send.PlayerId, bot.Value.Profile, send.CreepId, send.Quantity));
+                    var sendResult = QueueSend(send.PlayerId, send.CreepId, send.Quantity);
+                    if (sendResult.Accepted)
+                    {
+                        botDecisionRecords.Add(new BotDecisionRecord(tick, send.PlayerId, bot.Value.Profile, send.CreepId, send.Quantity));
+                    }
                 }
             }
+
+            TryPlaceBotTower(bot.Key, bot.Value);
         }
 
         tick = new SimulationTick(tick.Value + 1);

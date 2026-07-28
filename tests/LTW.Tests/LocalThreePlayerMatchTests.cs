@@ -54,13 +54,13 @@ public sealed class LocalThreePlayerMatchTests
         for (var tick = 0; tick < 6_000 && slice.MatchSummary is null; tick++) slice.AdvanceOneTick();
 
         Assert.NotNull(slice.MatchSummary);
-        // Lower bound dropped again with the reactive-spending bot rework: bots now both build
-        // proportionally more towers AND start sending as soon as their own coverage is met
-        // (rather than waiting on a tick-scheduled gold reserve until tick 120-180+), so two bots
-        // fighting each other resolves faster than either the original tick-scheduled bots or the
-        // interim fixed-tower-count bots did. This is an accepted consequence of reactive bots,
-        // not a regression — see docs/GD_TUNING_LOG.md's bot-rework entry.
-        Assert.InRange(slice.MatchSummary!.CompletedAtTick.Value, 150, 900);
+        // Upper bound widened 900->1200 alongside the 2026-07-28 creep rebalance: fixing the bot
+        // preference-list reachability bug (see BotController.SelectCreep) means bots now
+        // actually reach the pricier, tankier Category 2 creeps instead of always falling through
+        // to the cheapest option, so matches run longer — landing back inside the original
+        // 900-1800 target range from GD_TUNING_LOG.md's very first entry, rather than the
+        // artificially short range the reachability bug produced. Not a regression.
+        Assert.InRange(slice.MatchSummary!.CompletedAtTick.Value, 150, 1200);
         Assert.NotEmpty(slice.GetReplayRecord().AcceptedCommands);
     }
 
