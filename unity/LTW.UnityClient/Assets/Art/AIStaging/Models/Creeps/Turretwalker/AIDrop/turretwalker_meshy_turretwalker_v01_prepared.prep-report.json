@@ -1,0 +1,57 @@
+{
+  "role": "turretwalker",
+  "input": "/Users/admin/Downloads/Spire Turret Walker FBX.fbx",
+  "output": "/Users/admin/LTW-new-creeps/unity/LTW.UnityClient/Assets/Art/AIStaging/Models/Creeps/Turretwalker/AIDrop/turretwalker_meshy_turretwalker_v01_prepared.fbx",
+  "target_height": 0.75,
+  "max_footprint": 0.9,
+  "mesh_count": 1,
+  "exported_textures": [
+    "/Users/admin/LTW-new-creeps/unity/LTW.UnityClient/Assets/Art/AIStaging/Models/Creeps/Turretwalker/AIDrop/turretwalker_meshy_turretwalker_v01_prepared_Textures/Baked_BaseColor.png",
+    "/Users/admin/LTW-new-creeps/unity/LTW.UnityClient/Assets/Art/AIStaging/Models/Creeps/Turretwalker/AIDrop/turretwalker_meshy_turretwalker_v01_prepared_Textures/Baked_BaseColor_001.png",
+    "/Users/admin/LTW-new-creeps/unity/LTW.UnityClient/Assets/Art/AIStaging/Models/Creeps/Turretwalker/AIDrop/turretwalker_meshy_turretwalker_v01_prepared_Textures/Baked_BaseColor_002.png",
+    "/Users/admin/LTW-new-creeps/unity/LTW.UnityClient/Assets/Art/AIStaging/Models/Creeps/Turretwalker/AIDrop/turretwalker_meshy_turretwalker_v01_prepared_Textures/Baked_Emit.png",
+    "/Users/admin/LTW-new-creeps/unity/LTW.UnityClient/Assets/Art/AIStaging/Models/Creeps/Turretwalker/AIDrop/turretwalker_meshy_turretwalker_v01_prepared_Textures/texture_0_metallic_png.png",
+    "/Users/admin/LTW-new-creeps/unity/LTW.UnityClient/Assets/Art/AIStaging/Models/Creeps/Turretwalker/AIDrop/turretwalker_meshy_turretwalker_v01_prepared_Textures/texture_0_roughness_png.png"
+  ],
+  "normalization": {
+    "scale_factor": 0.45,
+    "initial_bounds": {
+      "min": [
+        -0.7941915988922119,
+        -1.0,
+        -0.7905306220054626
+      ],
+      "max": [
+        0.7941915988922119,
+        1.0,
+        0.7905306220054626
+      ],
+      "size": [
+        1.5883831977844238,
+        2.0,
+        1.5810612440109253
+      ]
+    },
+    "final_bounds": {
+      "min": [
+        -0.35738620162010193,
+        -0.45000001788139343,
+        3.993451969108719e-08
+      ],
+      "max": [
+        0.35738620162010193,
+        0.45000001788139343,
+        0.711477518081665
+      ],
+      "size": [
+        0.7147724032402039,
+        0.9000000357627869,
+        0.7114774584770203
+      ]
+    }
+  },
+  "notes": [
+    "Prepared by Blender source cleanup script.",
+    "This is a source/staging export only; Unity promotion remains separate."
+  ]
+}

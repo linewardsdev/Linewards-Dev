@@ -1,0 +1,50 @@
+{
+  "input": "/Users/admin/Downloads/Serpent Coil FBX.fbx",
+  "mesh_count": 1,
+  "object_count": 1,
+  "triangle_count": 15135,
+  "vertex_count": 7568,
+  "material_slot_count": 1,
+  "unique_material_count": 1,
+  "transparent_material_count": 1,
+  "transparent_materials": [
+    "Material.001"
+  ],
+  "texture_count": 9,
+  "texture_paths": [
+    "/Users/admin/Downloads/model.fbm/Baked_BaseColor.png",
+    "/Users/admin/Downloads/model.fbm/Baked_Emit.png",
+    "/Users/admin/Downloads/model.fbm/texture_0_metallic.png",
+    "/Users/admin/Downloads/model.fbm/texture_0_roughness.png"
+  ],
+  "packed_texture_names": [
+    "Baked_BaseColor",
+    "Baked_BaseColor.002",
+    "Baked_Emit",
+    "texture_0_metallic.png",
+    "texture_0_roughness.png"
+  ],
+  "bounds": {
+    "min": [
+      -1.0,
+      -0.9850146770477295,
+      -0.6059480309486389
+    ],
+    "max": [
+      1.0,
+      0.9850146770477295,
+      0.6059480309486389
+    ],
+    "size": [
+      2.0,
+      1.970029354095459,
+      1.2118960618972778
+    ]
+  },
+  "object_name_sample": [
+    "Mesh1.0"
+  ],
+  "material_names": [
+    "Material.001"
+  ]
+}

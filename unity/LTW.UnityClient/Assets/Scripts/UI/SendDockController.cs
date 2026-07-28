@@ -73,6 +73,16 @@ namespace LTW.UnityClient.UI
 
         public void SendSiege() => Send(commandAdapter.SendSiegeCreep(), "Siege sent", 40, 4);
 
+        public void SendWisp() => Send(commandAdapter.SendWispCreep(), "Wisp sent", 5, 5);
+
+        public void SendRevenant() => Send(commandAdapter.SendRevenantCreep(), "Revenant sent", 16, 6);
+
+        public void SendObsidianBrute() => Send(commandAdapter.SendObsidianBruteCreep(), "Obsidian Brute sent", 30, 7);
+
+        public void SendSerpent() => Send(commandAdapter.SendSerpentCreep(), "Serpent sent", 22, 8);
+
+        public void SendTurretWalker() => Send(commandAdapter.SendTurretWalkerCreep(), "Turret Walker sent", 38, 9);
+
         private void OnGUI()
         {
             if (!showRuntimeDock)
@@ -156,7 +166,7 @@ namespace LTW.UnityClient.UI
             }
             else
             {
-                DrawCategoryTwoPlaceholders(rect, buttonY, buttonHeight, gap, scale);
+                DrawCategoryTwoCreeps(rect, buttonY, buttonHeight, gap, gold, scale);
             }
         }
 
@@ -236,45 +246,41 @@ namespace LTW.UnityClient.UI
             }
         }
 
-        /// <summary>
-        /// Category 2 has no real creep content yet (the 5 new creeps this menu split is being
-        /// built for), so its 5 slots render disabled/unlabeled rather than being wired to a
-        /// command that doesn't exist.
-        /// </summary>
-        private static void DrawCategoryTwoPlaceholders(Rect rect, float buttonY, float buttonHeight, float gap, float scale)
+        private void DrawCategoryTwoCreeps(Rect rect, float buttonY, float buttonHeight, float gap, int gold, float scale)
         {
             var buttonWidth = (rect.width - 24f * scale - gap * 2f) / 3f;
             var x = rect.x + 12f * scale;
 
-            for (var index = 0; index < 3; index++)
+            if (DrawSendButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "WISP", "5G  +1", CreepIconKind.Wisp, ArcaneBlue, gold >= 5, highlightedCreepRole == 5, scale))
             {
-                DrawPlaceholderSlot(new Rect(x, buttonY, buttonWidth, buttonHeight), index + 1, scale);
-                x += buttonWidth + gap;
+                SendWisp();
+            }
+
+            x += buttonWidth + gap;
+            if (DrawSendButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "ASH", "16G  +4", CreepIconKind.Revenant, WardViolet, gold >= 16, highlightedCreepRole == 6, scale))
+            {
+                SendRevenant();
+            }
+
+            x += buttonWidth + gap;
+            if (DrawSendButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "OBRT", "30G  +3", CreepIconKind.ObsidianBrute, new Color(0.92f, 0.32f, 0.28f), gold >= 30, highlightedCreepRole == 7, scale))
+            {
+                SendObsidianBrute();
             }
 
             var secondRowY = buttonY + buttonHeight + gap;
             var secondRowWidth = (rect.width - 24f * scale - gap) / 2f;
             x = rect.x + 12f * scale;
-            for (var index = 3; index < 5; index++)
+            if (DrawSendButton(new Rect(x, secondRowY, secondRowWidth, buttonHeight), "COIL", "22G  +2", CreepIconKind.Serpent, MintSignal, gold >= 22, highlightedCreepRole == 8, scale))
             {
-                DrawPlaceholderSlot(new Rect(x, secondRowY, secondRowWidth, buttonHeight), index + 1, scale);
-                x += secondRowWidth + gap;
+                SendSerpent();
             }
-        }
 
-        private static void DrawPlaceholderSlot(Rect rect, int slotNumber, float scale)
-        {
-            RuntimeUiChrome.DrawCommandCard(rect, DisabledText, CommandCardState.Disabled, scale);
-
-            buttonStyle!.fontSize = Mathf.RoundToInt(10f * scale);
-            buttonStyle.normal.textColor = DisabledText;
-            buttonStyle.hover.textColor = DisabledText;
-            buttonStyle.active.textColor = DisabledText;
-            GUI.Label(RuntimeUiChrome.CommandCardLabelRect(rect, scale), $"TBD {slotNumber}", buttonStyle);
-
-            metaStyle!.fontSize = Mathf.RoundToInt(9f * scale);
-            metaStyle.normal.textColor = DisabledText;
-            GUI.Label(RuntimeUiChrome.CommandCardMetaRect(rect, scale), "SOON", metaStyle);
+            x += secondRowWidth + gap;
+            if (DrawSendButton(new Rect(x, secondRowY, secondRowWidth, buttonHeight), "WALK", "38G  +4", CreepIconKind.TurretWalker, new Color(0.42f, 0.82f, 0.86f), gold >= 38, highlightedCreepRole == 9, scale))
+            {
+                SendTurretWalker();
+            }
         }
 
         private TouchPlacementController? TouchPlacement
@@ -355,6 +361,15 @@ namespace LTW.UnityClient.UI
                 CreepIconKind.Swarm => "ui_icon_send_swarm_v01",
                 CreepIconKind.Shade => "ui_icon_send_shade_v01",
                 CreepIconKind.Siege => "ui_icon_send_siege_v01",
+                // No authored icon PNGs yet for Category 2 — RuntimeUiIconLibrary.DrawIcon already
+                // falls back to the procedural DrawCreepIcon shapes below when a resource is
+                // missing, same fallback-first pattern the original 5 used before their icons
+                // existed.
+                CreepIconKind.Wisp => "ui_icon_send_wisp_v01",
+                CreepIconKind.Revenant => "ui_icon_send_revenant_v01",
+                CreepIconKind.ObsidianBrute => "ui_icon_send_obsidian_brute_v01",
+                CreepIconKind.Serpent => "ui_icon_send_serpent_v01",
+                CreepIconKind.TurretWalker => "ui_icon_send_turret_walker_v01",
                 _ => "ui_icon_send_runner_v01"
             };
         }
@@ -396,6 +411,34 @@ namespace LTW.UnityClient.UI
                     DrawIconRect(new Rect(cx - 4f * scale, cy - 13f * scale, 8f * scale, 9f * scale), accent);
                     DrawIconRect(new Rect(cx - 3f * scale, cy - 1f * scale, 6f * scale, 17f * scale), Cloud);
                     DrawIconRect(new Rect(cx - 14f * scale, cy + 6f * scale, 28f * scale, line), accent);
+                    break;
+                case CreepIconKind.Wisp:
+                    DrawIconRect(new Rect(cx - 6f * scale, cy - 6f * scale, 12f * scale, 12f * scale), accent, 45f);
+                    DrawIconRect(new Rect(cx - 13f * scale, cy - 13f * scale, 26f * scale, line), dimAccent, 20f);
+                    DrawIconRect(new Rect(cx - 13f * scale, cy + 13f * scale, 26f * scale, line), dimAccent, -20f);
+                    break;
+                case CreepIconKind.Revenant:
+                    DrawIconRect(new Rect(cx - 9f * scale, cy - 12f * scale, 18f * scale, 22f * scale), dimAccent, -8f);
+                    DrawIconRect(new Rect(cx - 3f * scale, cy - 14f * scale, 6f * scale, 12f * scale), accent);
+                    DrawIconRect(new Rect(cx - 12f * scale, cy + 6f * scale, 8f * scale, 10f * scale), accent, -20f);
+                    DrawIconRect(new Rect(cx + 4f * scale, cy + 6f * scale, 8f * scale, 10f * scale), accent, 20f);
+                    break;
+                case CreepIconKind.ObsidianBrute:
+                    DrawIconRect(new Rect(cx - 12f * scale, cy - 9f * scale, 24f * scale, 18f * scale), accent);
+                    DrawIconRect(new Rect(cx - 16f * scale, cy - 3f * scale, 7f * scale, 13f * scale), accent);
+                    DrawIconRect(new Rect(cx + 9f * scale, cy - 3f * scale, 7f * scale, 13f * scale), accent);
+                    DrawIconRect(new Rect(cx - 4f * scale, cy - 1f * scale, 8f * scale, 4f * scale), new Color(0.92f, 0.32f, 0.28f));
+                    break;
+                case CreepIconKind.Serpent:
+                    DrawIconRect(new Rect(cx - 12f * scale, cy - 2f * scale, 12f * scale, 10f * scale), dimAccent, 10f);
+                    DrawIconRect(new Rect(cx - 4f * scale, cy - 6f * scale, 12f * scale, 10f * scale), accent, -6f);
+                    DrawIconRect(new Rect(cx + 6f * scale, cy - 2f * scale, 10f * scale, 9f * scale), dimAccent, 12f);
+                    break;
+                case CreepIconKind.TurretWalker:
+                    DrawIconRect(new Rect(cx - 6f * scale, cy - 12f * scale, 12f * scale, 9f * scale), accent);
+                    DrawIconRect(new Rect(cx - 2f * scale, cy - 4f * scale, 4f * scale, 10f * scale), accent);
+                    DrawIconRect(new Rect(cx - 14f * scale, cy + 8f * scale, 9f * scale, line * 1.5f), dimAccent, 30f);
+                    DrawIconRect(new Rect(cx + 5f * scale, cy + 8f * scale, 9f * scale, line * 1.5f), dimAccent, -30f);
                     break;
                 default:
                     DrawIconRect(new Rect(cx - 4f * scale, cy - 13f * scale, 8f * scale, 21f * scale), accent);
@@ -532,7 +575,12 @@ namespace LTW.UnityClient.UI
             Brute,
             Swarm,
             Shade,
-            Siege
+            Siege,
+            Wisp,
+            Revenant,
+            ObsidianBrute,
+            Serpent,
+            TurretWalker
         }
     }
 }

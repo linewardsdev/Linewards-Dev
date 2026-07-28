@@ -1,0 +1,54 @@
+{
+  "date": "2026-07-28T14:29:39.986281+00:00",
+  "asset_id": "creep.turret_walker",
+  "role": "turretwalker",
+  "kind": "creep",
+  "candidate": "meshy_turretwalker_v01",
+  "source": "/Users/admin/Downloads/Spire Turret Walker FBX.fbx",
+  "prepared_fbx": "/Users/admin/LTW-new-creeps/unity/LTW.UnityClient/Assets/Art/AIStaging/Models/Creeps/Turretwalker/AIDrop/turretwalker_meshy_turretwalker_v01_prepared.fbx",
+  "preview_png": "/Users/admin/LTW-new-creeps/docs/art-pipeline/ai-model-intake/runs/turretwalker/meshy_turretwalker_v01/preview.png",
+  "audit_json": "/Users/admin/LTW-new-creeps/docs/art-pipeline/ai-model-intake/runs/turretwalker/meshy_turretwalker_v01/audit.json",
+  "prep_report_json": "/Users/admin/LTW-new-creeps/unity/LTW.UnityClient/Assets/Art/AIStaging/Models/Creeps/Turretwalker/AIDrop/turretwalker_meshy_turretwalker_v01_prepared.prep-report.json",
+  "score": {
+    "status": "needs_review",
+    "passed_checks": 6,
+    "total_checks": 7,
+    "checks": [
+      {
+        "id": "has_meshes",
+        "pass": true,
+        "detail": "1 mesh object(s)"
+      },
+      {
+        "id": "triangle_budget",
+        "pass": true,
+        "detail": "14737 / 25000 triangles"
+      },
+      {
+        "id": "material_budget",
+        "pass": true,
+        "detail": "1 / 12 unique materials"
+      },
+      {
+        "id": "transparent_material_budget",
+        "pass": true,
+        "detail": "1 / 2 transparent materials"
+      },
+      {
+        "id": "has_textures_or_materials",
+        "pass": true,
+        "detail": "9 texture(s), 1 material(s)"
+      },
+      {
+        "id": "has_normal_map",
+        "pass": false,
+        "detail": "no normal map: surface detail will read flat, re-export with one if the silhouette needs it"
+      },
+      {
+        "id": "prepared_footprint",
+        "pass": true,
+        "detail": "0.900 / 0.900 footprint after prepare"
+      }
+    ]
+  }
+}

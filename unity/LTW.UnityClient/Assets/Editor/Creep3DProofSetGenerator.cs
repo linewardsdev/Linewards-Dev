@@ -98,6 +98,84 @@ namespace LTW.UnityClient.Editor
                 // yaw 90 to face down the lane) — same fix, verify with a capture.
                 new Vector3(0f, 90f, 0f),
                 0.46f),
+
+            // Category 2 additions. Orientation/scale below are first guesses from a Blender-space
+            // facing check (docs/GD_TUNING_LOG.md has the render-based reasoning per creep) — the
+            // FBX Blender(Z-up)->Unity(Y-up) axis conversion means that check doesn't map 1:1 onto
+            // these Unity-space import angles, so treat these as a starting point pending a real
+            // capture, same as every other creep's "first guess... verify with a capture" comments
+            // above.
+            new(
+                "Wisp",
+                "creep.wisp",
+                CreepVisualRole.Wisp,
+                CreepVisualMotionStyle.Hover,
+                CreepDeathCueStyle.ShardScatter,
+                ModelRoot + "/Wisp/AIDrop/wisp_meshy_wisp_v01_prepared.fbx",
+                ModelRoot + "/Wisp/AIDrop/wisp_meshy_wisp_v01_prepared_Textures",
+                Creep3DImportPipeline.RuntimePrefabFolder + "/Creep_Wisp_3D.prefab",
+                new Vector3(0.75f, 0.75f, 0.75f),
+                1f,
+                // Small orbital-ring silhouette with no obvious front, same as Swarm — no yaw fix.
+                Vector3.zero,
+                0.34f),
+            new(
+                "Revenant",
+                "creep.revenant",
+                CreepVisualRole.Stealth,
+                CreepVisualMotionStyle.Shimmer,
+                CreepDeathCueStyle.SoftDissolve,
+                ModelRoot + "/Revenant/AIDrop/revenant_meshy_revenant_v01_prepared.fbx",
+                ModelRoot + "/Revenant/AIDrop/revenant_meshy_revenant_v01_prepared_Textures",
+                Creep3DImportPipeline.RuntimePrefabFolder + "/Creep_Revenant_3D.prefab",
+                new Vector3(0.85f, 0.85f, 0.85f),
+                1f,
+                Vector3.zero,
+                0.40f),
+            new(
+                "ObsidianBrute",
+                "creep.obsidian_brute",
+                CreepVisualRole.Brute,
+                CreepVisualMotionStyle.HeavyBob,
+                CreepDeathCueStyle.HeavyShatter,
+                ModelRoot + "/Obsidianbrute/AIDrop/obsidianbrute_meshy_obsidianbrute_v01_prepared.fbx",
+                ModelRoot + "/Obsidianbrute/AIDrop/obsidianbrute_meshy_obsidianbrute_v01_prepared_Textures",
+                Creep3DImportPipeline.RuntimePrefabFolder + "/Creep_ObsidianBrute_3D.prefab",
+                new Vector3(1.20f, 1.20f, 1.20f),
+                1f,
+                // Gorilla-stance golem, same general build as the original Brute, which needed
+                // yaw 180 despite looking front-facing before correction — using the same fix as
+                // a first guess rather than trusting an uncorrected look.
+                new Vector3(0f, 180f, 0f),
+                0.48f),
+            new(
+                "Serpent",
+                "creep.serpent",
+                CreepVisualRole.Coil,
+                CreepVisualMotionStyle.HeavyBob,
+                CreepDeathCueStyle.ShardScatter,
+                ModelRoot + "/Serpent/AIDrop/serpent_meshy_serpent_v01_prepared.fbx",
+                ModelRoot + "/Serpent/AIDrop/serpent_meshy_serpent_v01_prepared_Textures",
+                Creep3DImportPipeline.RuntimePrefabFolder + "/Creep_Serpent_3D.prefab",
+                new Vector3(0.85f, 0.85f, 0.85f),
+                1f,
+                Vector3.zero,
+                0.42f),
+            new(
+                "TurretWalker",
+                "creep.turret_walker",
+                CreepVisualRole.Walker,
+                CreepVisualMotionStyle.SiegeWindup,
+                CreepDeathCueStyle.HeavyShatter,
+                ModelRoot + "/Turretwalker/AIDrop/turretwalker_meshy_turretwalker_v01_prepared.fbx",
+                ModelRoot + "/Turretwalker/AIDrop/turretwalker_meshy_turretwalker_v01_prepared_Textures",
+                Creep3DImportPipeline.RuntimePrefabFolder + "/Creep_TurretWalker_3D.prefab",
+                new Vector3(1.00f, 1.00f, 1.00f),
+                1f,
+                // Cannon barrel measured pointing off-axis in a Blender-space check; yaw 135 there
+                // aligned it with the travel direction, used here as the first guess.
+                new Vector3(0f, 135f, 0f),
+                0.44f),
         };
 
         [MenuItem(GenerateMenuPath)]

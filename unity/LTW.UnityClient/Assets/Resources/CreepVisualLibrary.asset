@@ -63,3 +63,53 @@ MonoBehaviour:
     - SenderAccent
     damageRendererPaths: []
     deathCueStyle: 2
+  - creepId: creep.wisp
+    role: 8
+    prefab: {fileID: 2718981827636936815, guid: 3e57fc1e78fbe47f4962a15ecfb38921, type: 3}
+    scale: {x: 0.75, y: 0.75, z: 0.75}
+    motionStyle: 4
+    bodyRendererPath: BodyTintAnchor
+    senderAccentRendererPaths:
+    - SenderAccent
+    damageRendererPaths: []
+    deathCueStyle: 3
+  - creepId: creep.revenant
+    role: 5
+    prefab: {fileID: 4901088538427465713, guid: 01256b58ae1c245f2ac242eba001a71c, type: 3}
+    scale: {x: 0.85, y: 0.85, z: 0.85}
+    motionStyle: 5
+    bodyRendererPath: BodyTintAnchor
+    senderAccentRendererPaths:
+    - SenderAccent
+    damageRendererPaths: []
+    deathCueStyle: 4
+  - creepId: creep.obsidian_brute
+    role: 1
+    prefab: {fileID: 5661266578685078605, guid: 4bf02ae3c095146ce889f12e1385fbb7, type: 3}
+    scale: {x: 1.2, y: 1.2, z: 1.2}
+    motionStyle: 2
+    bodyRendererPath: BodyTintAnchor
+    senderAccentRendererPaths:
+    - SenderAccent
+    damageRendererPaths: []
+    deathCueStyle: 2
+  - creepId: creep.serpent
+    role: 9
+    prefab: {fileID: 5776599619616978906, guid: 05e89f5a10b91430eb593655956e556d, type: 3}
+    scale: {x: 0.85, y: 0.85, z: 0.85}
+    motionStyle: 2
+    bodyRendererPath: BodyTintAnchor
+    senderAccentRendererPaths:
+    - SenderAccent
+    damageRendererPaths: []
+    deathCueStyle: 3
+  - creepId: creep.turret_walker
+    role: 10
+    prefab: {fileID: 8013996393646002435, guid: fe50fe65e55e7487698da39b8a51774f, type: 3}
+    scale: {x: 1, y: 1, z: 1}
+    motionStyle: 6
+    bodyRendererPath: BodyTintAnchor
+    senderAccentRendererPaths:
+    - SenderAccent
+    damageRendererPaths: []
+    deathCueStyle: 2

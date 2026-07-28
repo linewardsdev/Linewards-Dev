@@ -271,8 +271,13 @@ public sealed class VerticalSliceBridgeTests
         Assert.Contains(content.Creeps, creep => creep.Id.Equals(SampleVerticalSliceContent.SwarmCreepId));
         Assert.Contains(content.Creeps, creep => creep.Id.Equals(SampleVerticalSliceContent.ShadeCreepId));
         Assert.Contains(content.Creeps, creep => creep.Id.Equals(SampleVerticalSliceContent.SiegeCreepId));
+        Assert.Contains(content.Creeps, creep => creep.Id.Equals(SampleVerticalSliceContent.WispCreepId));
+        Assert.Contains(content.Creeps, creep => creep.Id.Equals(SampleVerticalSliceContent.RevenantCreepId));
+        Assert.Contains(content.Creeps, creep => creep.Id.Equals(SampleVerticalSliceContent.ObsidianBruteCreepId));
+        Assert.Contains(content.Creeps, creep => creep.Id.Equals(SampleVerticalSliceContent.SerpentCreepId));
+        Assert.Contains(content.Creeps, creep => creep.Id.Equals(SampleVerticalSliceContent.TurretWalkerCreepId));
         Assert.Equal(5, content.Towers.Count);
-        Assert.Equal(5, content.Creeps.Count);
+        Assert.Equal(10, content.Creeps.Count);
     }
 
     [Fact]
