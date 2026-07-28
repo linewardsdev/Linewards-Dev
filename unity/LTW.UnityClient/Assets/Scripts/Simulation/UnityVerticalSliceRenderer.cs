@@ -3994,16 +3994,18 @@ namespace LTW.UnityClient.Simulation
         /// the original 2D sprite's 7-bot cluster (one lead body, others fanned around it) rather
         /// than an evenly spaced ring.
         /// </summary>
+        // Slot spread scales with SwarmShardScale — bigger shards packed at the original ±0.15
+        // spacing merge back into one mass, which is the "blob" read this cluster exists to avoid.
         private static readonly Vector3[] SwarmClusterSlots =
         {
-            new Vector3(0f, 0f, 0.15f),
-            new Vector3(-0.15f, 0f, -0.04f),
-            new Vector3(0.15f, 0f, -0.04f),
-            new Vector3(-0.08f, 0f, -0.15f),
-            new Vector3(0.08f, 0f, -0.15f),
+            new Vector3(0f, 0f, 0.22f),
+            new Vector3(-0.22f, 0f, -0.06f),
+            new Vector3(0.22f, 0f, -0.06f),
+            new Vector3(-0.12f, 0f, -0.22f),
+            new Vector3(0.12f, 0f, -0.22f),
         };
 
-        private const float SwarmShardScale = 0.34f;
+        private const float SwarmShardScale = 0.5f;
 
         /// <summary>
         /// Replaces the single mesh-backed swarm body with a small cluster of scaled-down copies
@@ -4086,6 +4088,17 @@ namespace LTW.UnityClient.Simulation
                 SetColor(shard, color);
             }
 
+            // Swarm drops the SenderAccent ownership pool entirely: against a spread cluster of
+            // small shards (rather than the single solid body every other creep has) it reads as a
+            // dominant glow rather than a subtle ground tint. Note this costs Swarm its sender
+            // identity read — CreepRoleColor returns a fixed mint for swarm and ignores senderId,
+            // so unlike roles that fall through to SenderColor, the shards themselves carry no
+            // sender tint to fall back on.
+            var senderAccent = creepObject.transform.Find("SenderAccent");
+            if (senderAccent != null && senderAccent.gameObject.activeSelf)
+            {
+                senderAccent.gameObject.SetActive(false);
+            }
         }
 
         private static void ConfigureAirMarker(GameObject creepObject)
