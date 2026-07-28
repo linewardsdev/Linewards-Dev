@@ -68,7 +68,7 @@ namespace LTW.UnityClient.Editor
                 "Pulse",
                 "tower.pulse",
                 TowerVisualRole.Pulse,
-                "Assets/Art/AIStaging/Models/Towers/Pulse/AIDrop/pulse_meshy_bastion_dome_blend_0725015104_prepared.fbx",
+                "Assets/Art/AIStaging/Models/Towers/Pulse/AIDrop/pulse_split_base_ring_0727.fbx",
                 Tower3DImportPipeline.RuntimePrefabFolder + "/Tower_Pulse_3D.prefab",
                 new Vector3(0.76f, 0.76f, 0.76f),
                 0f,

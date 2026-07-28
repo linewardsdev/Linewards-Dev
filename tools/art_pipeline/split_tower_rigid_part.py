@@ -20,6 +20,13 @@ The final arg is ABOVE_IS_FEATURE: for z mode, 1 means verts at/above the
 threshold become the feature (e.g. a turret head sitting above its base); for
 radius mode, 1 means verts INSIDE the radius become the feature (e.g. a
 central spire surrounded by an outer base ring/shards). Use 0 to invert.
+
+A third mode, "annulus", isolates a donut-shaped band (radius AND height both
+bounded) rather than everything on one side of a single cut — for a decal-like
+ring feature sitting on an otherwise-unsplittable mesh (e.g. a glowing ring
+raised on a dome that has no clean neck or radius elsewhere):
+
+    ... <source.fbx> <output.fbx> <FeatureName> annulus <rInner> <rOuter> <zLo> <zHi>
 """
 import bpy, sys
 
@@ -27,9 +34,16 @@ argv = sys.argv[sys.argv.index("--")+1:]
 SRC = argv[0]
 OUT = argv[1]
 FEATURE_NAME = argv[2]
-MODE = argv[3]           # "z" or "radius"
-THRESHOLD = float(argv[4])
-ABOVE_IS_FEATURE = argv[5] == "1"   # z mode: verts >= threshold are FEATURE_NAME; radius mode: verts < threshold are FEATURE_NAME
+MODE = argv[3]           # "z", "radius", or "annulus"
+
+if MODE == "annulus":
+    R_INNER = float(argv[4])
+    R_OUTER = float(argv[5])
+    Z_LO = float(argv[6])
+    Z_HI = float(argv[7])
+else:
+    THRESHOLD = float(argv[4])
+    ABOVE_IS_FEATURE = argv[5] == "1"   # z mode: verts >= threshold are FEATURE_NAME; radius mode: verts < threshold are FEATURE_NAME
 
 bpy.ops.object.select_all(action='SELECT'); bpy.ops.object.delete()
 bpy.ops.import_scene.fbx(filepath=SRC)
@@ -48,10 +62,13 @@ def vert_is_feature(world_co):
     if MODE == "z":
         is_above = world_co.z >= THRESHOLD
         return is_above if ABOVE_IS_FEATURE else not is_above
-    else:
+    elif MODE == "radius":
         r = (world_co.x ** 2 + world_co.y ** 2) ** 0.5
         is_inside = r < THRESHOLD
         return is_inside if ABOVE_IS_FEATURE else not is_inside
+    else:
+        r = (world_co.x ** 2 + world_co.y ** 2) ** 0.5
+        return R_INNER <= r <= R_OUTER and Z_LO <= world_co.z <= Z_HI
 
 def keep_only(obj, keep_predicate):
     bpy.context.view_layer.objects.active = obj
