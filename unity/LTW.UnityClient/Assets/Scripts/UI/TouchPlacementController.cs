@@ -56,7 +56,6 @@ namespace LTW.UnityClient.UI
         private GameObject builderAvatar = null!;
         private SpriteRenderer? builderAvatarSprite;
         private Animator? builderAvatarAnimator;
-        private bool builderAvatarWalking;
 
         private const float BuilderWalkSpeed = 4.5f;
         private const float BuilderWalkBobAmplitude = 0.05f;
@@ -660,8 +659,6 @@ namespace LTW.UnityClient.UI
             {
                 builderAvatar.SetActive(false);
             }
-
-            builderAvatarWalking = false;
         }
 
         /// <summary>
@@ -687,7 +684,6 @@ namespace LTW.UnityClient.UI
 
             if (distance < 0.02f)
             {
-                builderAvatarWalking = false;
                 builderAvatar.transform.position = target;
                 builderAvatarAnimator?.SetBool("Walking", false);
                 if (isPlacing)
@@ -702,7 +698,6 @@ namespace LTW.UnityClient.UI
                 return;
             }
 
-            builderAvatarWalking = true;
             builderAvatarAnimator?.SetBool("Walking", true);
             var direction = toTarget / distance;
             var step = Mathf.Min(distance, BuilderWalkSpeed * Time.deltaTime);

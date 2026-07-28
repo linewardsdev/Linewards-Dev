@@ -2810,10 +2810,15 @@ namespace LTW.UnityClient.Simulation
 
             if (hasEndpointSprite)
             {
-                CreateEndpointSpritePlate(laneId, label, center, isSpawn, isPlayerLane);
-                if (isSpawn)
+                // The spawn end builds nothing at all. Its decoration sat at the far end of the
+                // lane (z=15) AND floated 0.27 units above the board surface, so under the tilted
+                // camera it projected up past the board's top edge and landed behind the HUD
+                // scoreboard — reading as a detached panel hanging in empty space rather than as
+                // board art. The board already reads its own spawn end without it. The leak end is
+                // unaffected: it sits at the near edge, fully on screen, and looks correct.
+                if (!isSpawn)
                 {
-                    CreateSpawnGateSpriteCompanionDetails(laneId, center, signal, isPlayerLane);
+                    CreateEndpointSpritePlate(laneId, label, center, isSpawn, isPlayerLane);
                 }
 
                 return;
@@ -2912,89 +2917,6 @@ namespace LTW.UnityClient.Simulation
             {
                 spawnGateSpriteRenderers.Add(renderer);
             }
-        }
-
-        private void CreateSpawnGateSpriteCompanionDetails(int laneId, Vector3 center, Color signal, bool isPlayerLane)
-        {
-            var offset = LaneOffset(laneId);
-            var z = center.z;
-            var pulseColor = EndpointPortalBrightColor(isPlayerLane);
-            var rimColor = EndpointRimHighlightColor(true, isPlayerLane);
-            var recessColor = EndpointDeepRecessColor(true, isPlayerLane);
-            var routeColor = EndpointPortalColor(isPlayerLane);
-            var scale = isPlayerLane ? 1f : 0.82f;
-
-            // This socket frame runs off the far end of the board. The spawn row sits at z=15 and
-            // the board's last cell row only reaches z=15.48, but SocketShadow reaches 15.71, the
-            // insets 15.65, and NorthLip (15.73-15.83) clears the edge entirely — so they render
-            // silhouetted against the background past the board rather than as recessed detail on
-            // it. Raising the camera tilt to 30 degrees put more of that overhang on screen, where
-            // it reads as a dark rectangular artifact sitting behind the HUD. SocketShadow is the
-            // worst of it: an opaque near-black cube standing in for a shadow, which can only ever
-            // read as a hard black box on an unlit board edge.
-            //
-            // Gated behind Full for the same reason the pulse bars, intake chevrons and rune row
-            // below already are — it is geometry competing with finished gate artwork that already
-            // draws its own frame. At the default Reduced detail the sprite speaks for itself and
-            // nothing overhangs the board.
-            if (BoardDetail == BoardDetailLevel.Full)
-            {
-                CreateSurfaceBand($"Lane{laneId}SpawnSocketShadow", center + new Vector3(0f, 0.042f, -0.03f), new Vector3(2.36f * scale, 0.018f, 1.48f * scale), BoardContactShadowColor(laneId));
-                CreateSurfaceBand($"Lane{laneId}SpawnInsetWest", new Vector3(offset + CenterColumn - 1.12f * scale, 0.122f, z - 0.04f), new Vector3(0.12f, 0.026f, 1.38f * scale), recessColor);
-                CreateSurfaceBand($"Lane{laneId}SpawnInsetEast", new Vector3(offset + CenterColumn + 1.12f * scale, 0.122f, z - 0.04f), new Vector3(0.12f, 0.026f, 1.38f * scale), recessColor);
-                CreateSurfaceBand($"Lane{laneId}SpawnSocketNorthLip", new Vector3(offset + CenterColumn, 0.13f, z + 0.78f * scale), new Vector3(2.08f * scale, 0.024f, 0.1f), rimColor);
-                CreateSurfaceBand($"Lane{laneId}SpawnSocketSouthLip", new Vector3(offset + CenterColumn, 0.13f, z - 0.84f * scale), new Vector3(2.08f * scale, 0.024f, 0.1f), rimColor);
-            }
-
-            // The two pulse bars sat flat across the middle of the gate sprite, covering the glowing
-            // core the artwork already draws, and the intake chevrons repeated the chevron shapes
-            // the same sprite carries at its base. Both are geometry competing with finished art,
-            // so at anything below full detail the gate is left to speak for itself and the
-            // "this gate is live" signal comes from pulsing the sprite's brightness instead.
-            if (BoardDetail == BoardDetailLevel.Full)
-            {
-                CreateSpawnGatePulseBand(laneId, "OuterPulse", center + new Vector3(0f, 0.205f, -0.04f), new Vector3(1.52f * scale, 0.012f, 0.075f), pulseColor, 0f, 0.12f, 0.012f);
-                CreateSpawnGatePulseBand(laneId, "InnerPulse", center + new Vector3(0f, 0.216f, -0.04f), new Vector3(0.86f * scale, 0.014f, 0.06f), pulseColor, 0.47f, 0.1f, 0.014f);
-
-                var intakeA = CreateSpawnGatePulseBand(laneId, "IntakeChevronA", new Vector3(offset + CenterColumn - 0.22f * scale, 0.224f, z - 1.02f * scale), new Vector3(0.1f, 0.018f, 0.56f * scale), signal, 0.16f, 0.08f, 0.018f);
-                intakeA.transform.rotation = Quaternion.Euler(0f, 35f, 0f);
-                var intakeB = CreateSpawnGatePulseBand(laneId, "IntakeChevronB", new Vector3(offset + CenterColumn + 0.22f * scale, 0.224f, z - 1.02f * scale), new Vector3(0.1f, 0.018f, 0.56f * scale), signal, 0.16f, 0.08f, 0.018f);
-                intakeB.transform.rotation = Quaternion.Euler(0f, -35f, 0f);
-            }
-
-            // The rune row is five small cubes strung across the mouth of the gate. It was intended
-            // as arcane trim but reads as a dashed coloured line drawn over the lane, so it only
-            // survives at full detail.
-            if (BoardDetail != BoardDetailLevel.Full)
-            {
-                return;
-            }
-
-            for (var index = -2; index <= 2; index++)
-            {
-                var rune = CreateSpawnGatePulseBand(
-                    laneId,
-                    $"RouteRune{index}",
-                    new Vector3(offset + CenterColumn + index * 0.26f * scale, 0.182f, z - 1.42f * scale),
-                    new Vector3(0.12f, 0.012f, 0.045f),
-                    index == 0 ? pulseColor : routeColor,
-                    0.25f + index * 0.09f,
-                    0.05f,
-                    0.01f);
-                rune.transform.rotation = Quaternion.Euler(0f, index * -8f, 0f);
-            }
-        }
-
-        /// <summary>
-        /// Pulse bands animate every frame, so unlike the rest of the board furniture they cannot
-        /// be baked into the static lane mesh and stay as real renderers. They share a material per
-        /// colour and all draw the same cube mesh, so GPU instancing collapses them anyway.
-        /// </summary>
-        private GameObject CreateSpawnGatePulseBand(int laneId, string name, Vector3 position, Vector3 scale, Color color, float phase, float scalePulse, float liftPulse)
-        {
-            var band = CreateLiveBoardPiece($"Lane{laneId}Spawn{name}", PrimitiveType.Cube, position, scale, color);
-            spawnGatePulseElements.Add(new SpawnGatePulseElement(band, position, scale, phase, scalePulse, liftPulse));
-            return band;
         }
 
         private void UpdateSpawnGatePulse()
