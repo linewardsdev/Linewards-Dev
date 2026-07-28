@@ -354,7 +354,7 @@ public sealed class LocalVerticalSlice
     private Dictionary<PlayerId, BotController> CreateBots(IReadOnlyList<PlayerId> playerIds)
     {
         return playerIds
-            .Where(playerId => playerId.Value != 1)
+            .Where(playerId => playerId.Value != 1 && options.IsBotEnabledFor(playerId))
             .ToDictionary(
                 playerId => playerId,
                 playerId => new BotController(

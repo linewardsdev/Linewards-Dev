@@ -58,13 +58,11 @@ public sealed class LocalThreePlayerMatchTests
     [Fact]
     public void Local_match_options_control_replay_seed_and_bot_profiles()
     {
-        var options = new LocalMatchOptions(
-            seed: 202,
-            player2Profile: BotDecisionProfile.Greedy,
-            player3Profile: BotDecisionProfile.Balanced,
-            player2PrimaryCreepId: SampleVerticalSliceContent.BruteCreepId,
-            player3PrimaryCreepId: SampleVerticalSliceContent.SwarmCreepId,
-            laneCount: 3);
+        var options = new LocalMatchOptions(seed: 202, laneCount: 3, botLanes: new[]
+        {
+            new BotLaneOptions(2, profile: BotDecisionProfile.Greedy, primaryCreepId: SampleVerticalSliceContent.BruteCreepId),
+            new BotLaneOptions(3, profile: BotDecisionProfile.Balanced, primaryCreepId: SampleVerticalSliceContent.SwarmCreepId)
+        });
         var slice = new LocalVerticalSlice(SampleVerticalSliceContent.Create(), options);
 
         var replay = slice.GetReplayRecord();

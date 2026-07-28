@@ -619,21 +619,16 @@ public sealed class VerticalSliceBridgeTests
     [Fact]
     public void Eight_lane_match_options_configure_each_bot_lane()
     {
-        var options = new LocalMatchOptions(
-            player2Profile: BotDecisionProfile.Greedy,
-            player3Profile: BotDecisionProfile.Balanced,
-            player4Profile: BotDecisionProfile.Defensive,
-            player5Profile: BotDecisionProfile.Greedy,
-            player6Profile: BotDecisionProfile.Balanced,
-            player7Profile: BotDecisionProfile.Defensive,
-            player8Profile: BotDecisionProfile.Greedy,
-            player2PrimaryCreepId: SampleVerticalSliceContent.BruteCreepId,
-            player3PrimaryCreepId: SampleVerticalSliceContent.SwarmCreepId,
-            player4PrimaryCreepId: SampleVerticalSliceContent.ShadeCreepId,
-            player5PrimaryCreepId: SampleVerticalSliceContent.SiegeCreepId,
-            player6PrimaryCreepId: SampleVerticalSliceContent.CreepId,
-            player7PrimaryCreepId: SampleVerticalSliceContent.BruteCreepId,
-            player8PrimaryCreepId: SampleVerticalSliceContent.ShadeCreepId);
+        var options = new LocalMatchOptions(botLanes: new[]
+        {
+            new BotLaneOptions(2, profile: BotDecisionProfile.Greedy, primaryCreepId: SampleVerticalSliceContent.BruteCreepId),
+            new BotLaneOptions(3, profile: BotDecisionProfile.Balanced, primaryCreepId: SampleVerticalSliceContent.SwarmCreepId),
+            new BotLaneOptions(4, profile: BotDecisionProfile.Defensive, primaryCreepId: SampleVerticalSliceContent.ShadeCreepId),
+            new BotLaneOptions(5, profile: BotDecisionProfile.Greedy, primaryCreepId: SampleVerticalSliceContent.SiegeCreepId),
+            new BotLaneOptions(6, profile: BotDecisionProfile.Balanced, primaryCreepId: SampleVerticalSliceContent.CreepId),
+            new BotLaneOptions(7, profile: BotDecisionProfile.Defensive, primaryCreepId: SampleVerticalSliceContent.BruteCreepId),
+            new BotLaneOptions(8, profile: BotDecisionProfile.Greedy, primaryCreepId: SampleVerticalSliceContent.ShadeCreepId)
+        });
         var simulation = new LocalVerticalSlice(SampleVerticalSliceContent.Create(), options);
 
         var diagnostics = simulation.GetBotDiagnostics();
@@ -645,6 +640,54 @@ public sealed class VerticalSliceBridgeTests
         Assert.Contains(diagnostics.Profiles, profile => profile.PlayerId.Equals(new PlayerId(6)) && profile.Profile == BotDecisionProfile.Balanced && profile.PrimaryCreepId.Equals(SampleVerticalSliceContent.CreepId));
         Assert.Contains(diagnostics.Profiles, profile => profile.PlayerId.Equals(new PlayerId(7)) && profile.Profile == BotDecisionProfile.Defensive && profile.PrimaryCreepId.Equals(SampleVerticalSliceContent.BruteCreepId));
         Assert.Contains(diagnostics.Profiles, profile => profile.PlayerId.Equals(new PlayerId(8)) && profile.Profile == BotDecisionProfile.Greedy && profile.PrimaryCreepId.Equals(SampleVerticalSliceContent.ShadeCreepId));
+    }
+
+    [Fact]
+    public void Disabled_lanes_never_get_a_bot_or_act()
+    {
+        var options = LocalMatchOptions.Default
+            .WithLane(3, enabled: false)
+            .WithLane(5, enabled: false)
+            .WithLane(7, enabled: false);
+        var simulation = new LocalVerticalSlice(SampleVerticalSliceContent.Create(), options);
+
+        for (var index = 0; index < 60; index++)
+        {
+            simulation.AdvanceOneTick();
+        }
+
+        var diagnostics = simulation.GetBotDiagnostics();
+        var disabledPlayerIds = new[] { 3, 5, 7 };
+
+        foreach (var disabledPlayerId in disabledPlayerIds)
+        {
+            Assert.DoesNotContain(diagnostics.Profiles, profile => profile.PlayerId.Value == disabledPlayerId);
+        }
+
+        Assert.DoesNotContain(simulation.GetReplayRecord().AcceptedCommands,
+            command => disabledPlayerIds.Contains(command.PlayerId.Value));
+        Assert.DoesNotContain(simulation.GetSnapshot().Towers, tower => disabledPlayerIds.Contains(tower.OwnerId.Value));
+    }
+
+    [Fact]
+    public void Default_options_preserve_original_per_lane_bot_assignments()
+    {
+        var options = LocalMatchOptions.Default;
+
+        Assert.Equal(BotDecisionProfile.Balanced, options.BotProfileFor(new PlayerId(2)));
+        Assert.Equal(BotDecisionProfile.Defensive, options.BotProfileFor(new PlayerId(3)));
+        Assert.Equal(BotDecisionProfile.Greedy, options.BotProfileFor(new PlayerId(4)));
+        Assert.Equal(BotDecisionProfile.Greedy, options.BotProfileFor(new PlayerId(5)));
+        Assert.Equal(BotDecisionProfile.Greedy, options.BotProfileFor(new PlayerId(6)));
+        Assert.Equal(BotDecisionProfile.Greedy, options.BotProfileFor(new PlayerId(7)));
+        Assert.Equal(BotDecisionProfile.Greedy, options.BotProfileFor(new PlayerId(8)));
+        for (var playerId = 2; playerId <= 8; playerId++)
+        {
+            Assert.True(options.IsBotEnabledFor(new PlayerId(playerId)));
+            Assert.Null(options.PrimaryCreepFor(new PlayerId(playerId)));
+        }
+
+        Assert.False(options.IsBotEnabledFor(new PlayerId(1)));
     }
 
     private static void AssertNoSenderHomeLaneCreeps(VerticalSliceSnapshot snapshot)

@@ -115,13 +115,11 @@ public sealed class GameplayScenarioTests
         ContentId playerTwoPrimaryCreepId,
         ContentId playerThreePrimaryCreepId)
     {
-        var options = new LocalMatchOptions(
-            seed: 2_002,
-            player2Profile: playerTwoProfile,
-            player3Profile: playerThreeProfile,
-            player2PrimaryCreepId: playerTwoPrimaryCreepId,
-            player3PrimaryCreepId: playerThreePrimaryCreepId,
-            laneCount: 3);
+        var options = new LocalMatchOptions(seed: 2_002, laneCount: 3, botLanes: new[]
+        {
+            new BotLaneOptions(2, profile: playerTwoProfile, primaryCreepId: playerTwoPrimaryCreepId),
+            new BotLaneOptions(3, profile: playerThreeProfile, primaryCreepId: playerThreePrimaryCreepId)
+        });
 
         return new LocalVerticalSlice(SampleVerticalSliceContent.Create(), options);
     }
