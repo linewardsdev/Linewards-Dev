@@ -188,7 +188,9 @@ namespace LTW.UnityClient.Editor
             writer.WriteLine($"- Unity Version: `{Application.unityVersion}`");
             writer.WriteLine($"- Evidence Label: `{evidenceLabel}`");
             writer.WriteLine($"- Configured Seed: {matchOptions.Seed}");
-            for (var playerId = 2; playerId <= matchOptions.LaneCount; playerId++)
+            writer.WriteLine($"- Local Player Seat: P{matchOptions.LocalPlayerId.Value} (lane {matchOptions.LocalPlayerId.Value})");
+            // Starts at 1, not 2: lane 1 is only guaranteed human when the local seat is P1.
+            for (var playerId = 1; playerId <= matchOptions.LaneCount; playerId++)
             {
                 var id = new PlayerId(playerId);
                 var enabled = matchOptions.IsBotEnabledFor(id);
@@ -233,7 +235,10 @@ namespace LTW.UnityClient.Editor
         private static LocalMatchOptions ReadOptionsFromCommandLine()
         {
             var seed = ReadIntArgument("-ltwSeed") ?? 1;
-            var options = new LocalMatchOptions(seed: seed);
+            // -ltwLocalPlayer seats the local (human) player somewhere other than lane 1. Whichever
+            // lane the human occupies is automatically not bot-driven, and the lane they vacate
+            // becomes bot-driven, so a batch run with no human input still plays out fully.
+            var options = new LocalMatchOptions(seed: seed, localPlayerId: ReadIntArgument("-ltwLocalPlayer") ?? 1);
 
             for (var playerId = 2; playerId <= LocalMatchOptions.MaxLaneCount; playerId++)
             {
