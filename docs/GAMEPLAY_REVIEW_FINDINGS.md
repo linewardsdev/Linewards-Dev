@@ -27,16 +27,22 @@ It seeds a match, captures the default HUD and both send-dock categories, and qu
 
 ## P1 — Real UI defects (found with RealUiCaptureRunner, verified at full resolution)
 
-- [ ] **Send-card cost text is occluded by the card's accent bar.** On every creep card the
+- [x] **FIXED — Send-card cost text was occluded by the card's accent bar.** On every creep card the
       cost/income line (`5G  +1`, `16G  +4`, …) is drawn where the coloured progress/accent bar is
       also drawn, so the lower half of the digits is covered. Legible only if you already know what
       it says.
-      Evidence: `real-03-send-category-two.png`, Wisp card at 3x.
+      Cause: `CommandCardMetaRect` runs to `yMax - 5*scale` while the cost strip started at
+      `yMax - 8*scale`, so the bar was drawn across the lower half of the digits. Moved the strip
+      to `yMax - 4*scale` and thinned it to `2*scale`. Verified by recapture: `5G  +1` now reads
+      cleanly.
 
-- [ ] **A debug overlay is visible during normal play.** Top-left shows `Tick: … Towers: … Creeps:
+- [x] **FIXED — A debug overlay was visible during normal play.** Top-left shows `Tick: … Towers: … Creeps:
       …`, per-player lines, `Lane flow:` and `Bot sends:`. Useful in development, but it is on by
       default with no obvious gate.
-      Evidence: `real-01-default-hud.png` onwards.
+      `DiagnosticsOverlay.showRuntimeOverlay` defaulted to true with nothing gating it. Now
+      defaults off and opts in with `-ltwDiagnostics`, matching the existing `-ltwBoardDetail` /
+      `-ltwCameraTilt` switches. `LatestText` is still produced, since the playtest recorder
+      consumes it. Verified by recapture: the top-left region is now clean.
 
 - [ ] **Two CLOSE buttons are visible at once** when the dock is open — one in the dock header and
       one bottom-right. Worth confirming which is authoritative.

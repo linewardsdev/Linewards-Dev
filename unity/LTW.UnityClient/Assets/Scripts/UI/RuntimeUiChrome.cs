@@ -137,7 +137,10 @@ namespace LTW.UnityClient.UI
                     Fill(Shrink(rect, 5f * scale), new Color(0f, 0f, 0f, 0.32f));
                 }
 
-                var referenceCostStrip = new Rect(rect.x + rect.width * 0.2f, rect.yMax - 9f * scale, rect.width * 0.6f, 3f * scale);
+                // Sits below the meta text, not through it: CommandCardMetaRect runs to
+                // yMax - 5*scale, so a strip starting at yMax - 9 covered the bottom of the cost
+                // digits ("5G +1" read as half-height glyphs behind a coloured bar).
+                var referenceCostStrip = new Rect(rect.x + rect.width * 0.2f, rect.yMax - 4f * scale, rect.width * 0.6f, 2f * scale);
                 Fill(referenceCostStrip, new Color(stateAccent.r, stateAccent.g, stateAccent.b, state == CommandCardState.Disabled ? 0.34f : 0.78f));
                 return;
             }
@@ -161,7 +164,9 @@ namespace LTW.UnityClient.UI
             Fill(iconWell, new Color(0.012f, 0.018f, 0.026f, 0.82f));
             DrawOutline(iconWell, new Color(stateAccent.r, stateAccent.g, stateAccent.b, 0.58f), Mathf.Max(1f, 1f * scale));
 
-            var costStrip = new Rect(rect.x + rect.width * 0.18f, rect.yMax - 8f * scale, rect.width * 0.64f, 3f * scale);
+            // Kept clear of CommandCardMetaRect, which runs to yMax - 5*scale; this strip used to
+            // start at yMax - 8 and so was drawn across the lower half of the cost/income text.
+            var costStrip = new Rect(rect.x + rect.width * 0.18f, rect.yMax - 4f * scale, rect.width * 0.64f, 2f * scale);
             Fill(costStrip, new Color(stateAccent.r, stateAccent.g, stateAccent.b, state == CommandCardState.Disabled ? 0.42f : 0.92f));
 
             if (state == CommandCardState.Selected)

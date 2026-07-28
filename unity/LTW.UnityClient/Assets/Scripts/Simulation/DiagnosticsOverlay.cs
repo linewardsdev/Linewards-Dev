@@ -12,8 +12,39 @@ namespace LTW.UnityClient.Simulation
         [SerializeField]
         private UnitySimulationDriver simulationDriver = null!;
 
+        /// <summary>
+        /// Whether the developer diagnostics panel is drawn over the match.
+        /// </summary>
+        /// <remarks>
+        /// Defaults OFF. It previously defaulted on, so a normal play session showed tick counts,
+        /// per-player state, lane flow and bot sends over the top-left of the board — useful while
+        /// developing, but it is not something a player should see, and nothing gated it. Opt in
+        /// with -ltwDiagnostics, matching the existing -ltwBoardDetail / -ltwCameraTilt switches.
+        /// LatestText is still produced either way, since the playtest recorder consumes it.
+        /// </remarks>
         [SerializeField]
-        private bool showRuntimeOverlay = true;
+        private bool showRuntimeOverlay;
+
+        private bool overlayFlagResolved;
+
+        private bool ShouldDrawOverlay()
+        {
+            if (!overlayFlagResolved)
+            {
+                overlayFlagResolved = true;
+                var args = System.Environment.GetCommandLineArgs();
+                for (var index = 0; index < args.Length; index++)
+                {
+                    if (string.Equals(args[index], "-ltwDiagnostics", System.StringComparison.Ordinal))
+                    {
+                        showRuntimeOverlay = true;
+                        break;
+                    }
+                }
+            }
+
+            return showRuntimeOverlay;
+        }
 
         private GUIStyle? overlayStyle;
 
@@ -102,7 +133,7 @@ namespace LTW.UnityClient.Simulation
 
         private void OnGUI()
         {
-            if (!showRuntimeOverlay || string.IsNullOrEmpty(LatestText))
+            if (!ShouldDrawOverlay() || string.IsNullOrEmpty(LatestText))
             {
                 return;
             }
