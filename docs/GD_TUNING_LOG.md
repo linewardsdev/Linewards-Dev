@@ -107,3 +107,30 @@ Follow-up to the tower rebalance above, landed in three steps on `swarm-multibot
 **Test fallout, all expected and fixed, not masked:** reactive building can finish a profile's opening tower package within a couple of ticks when starting gold covers it, so several tests that assumed a multi-tick or multi-hundred-tick delay before bots acted needed rewriting against the actual invariant ("never send before minimum coverage is met") instead of a time window. `LocalThreePlayerMatchTests.Two_bots_complete_a_local_carousel_match`'s completion-tick floor dropped again (250 → 150): reactive bots are now both better-defended *and* start attacking sooner (as soon as their own coverage is met, not after a large tick-gated reserve clears), so two bots fighting resolves faster than either the original or the interim fixed-count bots did. This is an accepted property of reactive play, not a regression.
 
 83/83 tests pass, including three new ones added for this work: overbuild-past-the-old-cap, hold-sends-under-lane-pressure, and same-seed determinism.
+
+## 2026-07-28: Category 2 Creeps — Crystal Wisp, Ash Revenant, Obsidian Brute, Serpent Coil, Spire Turret Walker
+
+Five new Meshy-generated FBX models landed in Downloads, exactly the "5 new creeps" the send-menu category split (2026-07-28, same day) was built to make room for. Ran through the same intake pipeline as the original 5 (`tools/art_pipeline/ai_asset_intake.py`, `--target-height 0.75 --max-footprint 0.9`, same as every existing creep) — all 5 passed every gate check except `has_normal_map`, the same already-accepted gap documented in `docs/OPEN_ITEMS.md` for the original set.
+
+First-pass stats, proposed rather than specified by the user, each answering a different defensive question from the existing 5 and from each other (kept in a similar cost/health range — Category 2 is a parallel set of answers, not a stronger tier):
+
+| Creep | Id | Cost | Income | Kill/Leak bounty | Health | Speed | Defensive question |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | --- |
+| Crystal Wisp | `creep.wisp` | 5 | +1 | 1/1 | 4 | 3 | Can the defender handle constant cheap chip pressure, not just big single threats? |
+| Ash Revenant | `creep.revenant` | 16 | +4 | 1/2 | 8 | 2 | Does the defender always finish off a fragile-but-high-value send, or let it feed the sender's economy? |
+| Obsidian Brute | `creep.obsidian_brute` | 30 | +3 | 3/4 | 60 | 1 | Does defender DPS scale into the mid/late game, not just the opener? |
+| Serpent Coil | `creep.serpent` | 22 | +2 | 2/3 | 32 | 1 | Can the defender handle sustained, unglamorous pressure without overinvesting? |
+| Spire Turret Walker | `creep.turret_walker` | 38 | +4 | 4/5 | 40 | 2 | Can the defender's towers keep up with a heavy threat that isn't slow, unlike Siege? |
+
+**"Obsidian Brute" naming/identity overlap, flagged and resolved deliberately:** the asset visually reads very close to the existing `creep.brute` (same rock-golem tank silhouette, different palette). Decided to keep the asset and differentiate by stats rather than swap it — it now holds the highest health in the entire roster (60, above even Siege's 48), reading as a heavier, later-game tank tier rather than a duplicate.
+
+**Not in scope for this pass:** bot AI awareness of the 5 new creeps. `BotController.SelectCreep`'s preferred-id lists still reference only the original 5 — bots won't send these on their own. Extending bot preferences to use Category 2 is a clean, separate follow-up whenever it's wanted; it wasn't required to make the creeps sendable by a human, and the reactive bot-spending work (previous entry) already gives bots plenty to do with the existing roster.
+
+**Orientation/scale values are first guesses, not verified in-engine.** Each creep needed a `Creep3DProofSetGenerator.Specs` entry with `runtimeScale`/`importEulerAngles`/`accentRadius`, same as every existing creep. Facing direction was checked via a Blender-space render (camera looking along the intended travel axis) rather than a real Unity capture, because the FBX Blender(Z-up)→Unity(Y-up) axis conversion means a rotation that looks correct in Blender doesn't necessarily transfer 1:1 to Unity's import-angle space — the same caveat the original Runner/Brute/Siege entries already carry in their code comments ("first guess... verify with a capture before trusting the sign"). Concretely: Wisp/Revenant/Serpent needed no correction (already faced the travel direction in the Blender-space check); Obsidian Brute got yaw 180 by analogy to the original Brute (which needed the same fix despite looking front-facing uncorrected); Turret Walker's cannon measured 135° off-axis and was corrected to match. **Next step before considering this fully done:** an actual in-game capture (Play Mode or a batch screenshot) to confirm these hold, and adjust if not.
+
+**Verification performed:**
+- `dotnet test` — 84/84 pass (10-creep content contract updated, new creep ids added).
+- Unity batchmode: `Creep3DProofSetGenerator.GenerateCreep3DWrappers` → `ValidateCreep3DWrappers` (0 issues across all 10 wrappers) → `PromoteCreep3DSet` (registered into `CreepVisualLibrary.asset`).
+- A throwaway diagnostic (mirroring `RiggedCreepVerify`'s style, removed after use) confirmed all 5 new creep ids resolve through `CreepVisualLibrary.FindProfile` to a prefab with a real mesh and material — the same runtime path the new send buttons trigger.
+- Full local batch playtest ran clean (0 exceptions) with the updated `SendDockController`/`UnityCommandAdapter`/content wiring in place.
+- **Not yet done:** an actual human playtest tapping each of the 5 new send buttons and eyeballing the result in Play Mode. The verification above proves the pipeline is wired correctly end-to-end; it doesn't replace looking at it.

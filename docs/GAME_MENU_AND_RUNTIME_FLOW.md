@@ -199,9 +199,9 @@ Current implementation references:
 
 ## Send Drawer
 
-SEND opens a category picker first, then a compact creep drawer mirroring the build drawer — split into two categories of 5 creeps each ahead of the next 5 creeps landing, since 10 in one flat drawer was too crowded. Category names are placeholders (`CATEGORY 1` / `CATEGORY 2`) pending real identities for the second five (see `docs/CONTENT_ROSTER_EXPANSION_PLAN.md`'s "Why Shade And Siege Before Boss Or Air" for likely candidates). Category 2's 5 slots render as disabled placeholders until that content exists.
+SEND opens a category picker first, then a compact creep drawer mirroring the build drawer — split into two categories of 5 creeps each, since 10 in one flat drawer was too crowded. Category names are still placeholders (`CATEGORY 1` / `CATEGORY 2`) pending real thematic identities, but **both categories now have real, sendable creep content** (Category 2 landed 2026-07-28 — see `docs/TOWER_AND_CREEP_ROSTER.md`'s "Category 2" table).
 
-Recommended creep button content, Category 1 (current roster, unchanged):
+Recommended creep button content, Category 1 (original roster, unchanged):
 
 | Creep | Compact label | Required info |
 | --- | --- | --- |
@@ -211,12 +211,22 @@ Recommended creep button content, Category 1 (current roster, unchanged):
 | Shade | SHADE | Cost, income gain |
 | Siege | SIEGE | Cost, income gain |
 
+Category 2 (2026-07-28):
+
+| Creep | Compact label | Required info |
+| --- | --- | --- |
+| Crystal Wisp | WISP | Cost, income gain |
+| Ash Revenant | ASH | Cost, income gain |
+| Obsidian Brute | OBRT | Cost, income gain |
+| Serpent Coil | COIL | Cost, income gain |
+| Spire Turret Walker | WALK | Cost, income gain |
+
 Behavior:
 
 - SEND is disabled or gives clear feedback before the match starts.
 - Sending is allowed only in LIVE state.
 - Opening the drawer (or the category picker within it) must not send anything.
-- Tapping a category opens its 5-creep grid; tapping a creep in Category 1 queues a send through the simulation command path. Category 2 slots are inert until real creep content lands.
+- Tapping a category opens its 5-creep grid; tapping any creep in either category queues a send through the simulation command path.
 - BACK returns from a category's creep grid to the category picker without closing the drawer; CLOSE collapses the whole drawer from either level.
 - The UI should make it clear that sends attack the next active opponent lane, not the sender's own lane.
 
