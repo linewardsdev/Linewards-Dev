@@ -2924,11 +2924,27 @@ namespace LTW.UnityClient.Simulation
             var routeColor = EndpointPortalColor(isPlayerLane);
             var scale = isPlayerLane ? 1f : 0.82f;
 
-            CreateSurfaceBand($"Lane{laneId}SpawnSocketShadow", center + new Vector3(0f, 0.042f, -0.03f), new Vector3(2.36f * scale, 0.018f, 1.48f * scale), BoardContactShadowColor(laneId));
-            CreateSurfaceBand($"Lane{laneId}SpawnInsetWest", new Vector3(offset + CenterColumn - 1.12f * scale, 0.122f, z - 0.04f), new Vector3(0.12f, 0.026f, 1.38f * scale), recessColor);
-            CreateSurfaceBand($"Lane{laneId}SpawnInsetEast", new Vector3(offset + CenterColumn + 1.12f * scale, 0.122f, z - 0.04f), new Vector3(0.12f, 0.026f, 1.38f * scale), recessColor);
-            CreateSurfaceBand($"Lane{laneId}SpawnSocketNorthLip", new Vector3(offset + CenterColumn, 0.13f, z + 0.78f * scale), new Vector3(2.08f * scale, 0.024f, 0.1f), rimColor);
-            CreateSurfaceBand($"Lane{laneId}SpawnSocketSouthLip", new Vector3(offset + CenterColumn, 0.13f, z - 0.84f * scale), new Vector3(2.08f * scale, 0.024f, 0.1f), rimColor);
+            // This socket frame runs off the far end of the board. The spawn row sits at z=15 and
+            // the board's last cell row only reaches z=15.48, but SocketShadow reaches 15.71, the
+            // insets 15.65, and NorthLip (15.73-15.83) clears the edge entirely — so they render
+            // silhouetted against the background past the board rather than as recessed detail on
+            // it. Raising the camera tilt to 30 degrees put more of that overhang on screen, where
+            // it reads as a dark rectangular artifact sitting behind the HUD. SocketShadow is the
+            // worst of it: an opaque near-black cube standing in for a shadow, which can only ever
+            // read as a hard black box on an unlit board edge.
+            //
+            // Gated behind Full for the same reason the pulse bars, intake chevrons and rune row
+            // below already are — it is geometry competing with finished gate artwork that already
+            // draws its own frame. At the default Reduced detail the sprite speaks for itself and
+            // nothing overhangs the board.
+            if (BoardDetail == BoardDetailLevel.Full)
+            {
+                CreateSurfaceBand($"Lane{laneId}SpawnSocketShadow", center + new Vector3(0f, 0.042f, -0.03f), new Vector3(2.36f * scale, 0.018f, 1.48f * scale), BoardContactShadowColor(laneId));
+                CreateSurfaceBand($"Lane{laneId}SpawnInsetWest", new Vector3(offset + CenterColumn - 1.12f * scale, 0.122f, z - 0.04f), new Vector3(0.12f, 0.026f, 1.38f * scale), recessColor);
+                CreateSurfaceBand($"Lane{laneId}SpawnInsetEast", new Vector3(offset + CenterColumn + 1.12f * scale, 0.122f, z - 0.04f), new Vector3(0.12f, 0.026f, 1.38f * scale), recessColor);
+                CreateSurfaceBand($"Lane{laneId}SpawnSocketNorthLip", new Vector3(offset + CenterColumn, 0.13f, z + 0.78f * scale), new Vector3(2.08f * scale, 0.024f, 0.1f), rimColor);
+                CreateSurfaceBand($"Lane{laneId}SpawnSocketSouthLip", new Vector3(offset + CenterColumn, 0.13f, z - 0.84f * scale), new Vector3(2.08f * scale, 0.024f, 0.1f), rimColor);
+            }
 
             // The two pulse bars sat flat across the middle of the gate sprite, covering the glowing
             // core the artwork already draws, and the intake chevrons repeated the chevron shapes
