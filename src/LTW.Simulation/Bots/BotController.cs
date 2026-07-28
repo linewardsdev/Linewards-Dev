@@ -73,19 +73,34 @@ public sealed class BotController
     {
         var available = player.Gold.Amount - GoldReserveFloor(content);
         var income = player.Income.Amount;
+        // Category 2 (creep.wisp/.revenant/.obsidian_brute/.serpent/.turret_walker, added
+        // 2026-07-28) slotted in by matching each profile's existing character rather than just
+        // appended: Greedy leans on Turret Walker/Revenant for their income efficiency and Wisp
+        // as a cheap opener; Balanced and Defensive lean on Obsidian Brute/Serpent for their
+        // health-per-gold as tankier alternatives to Brute.
+        //
+        // Every list below is ordered by descending cost. This isn't cosmetic: the loop after
+        // this switch tries each id in order and returns the first one `available` gold covers,
+        // so any id placed after a *cheaper* one in the same tier is mathematically unreachable —
+        // being able to afford the cheaper one never implies being unable to afford it, so the
+        // cheaper entry always wins first. A first version of this list ordered by "preference"
+        // instead of cost and left creep.brute/.shade/.siege/.serpent/.obsidian_brute completely
+        // unreachable across an entire batch playtest (0 sends each, confirmed via replay
+        // analysis) while creep.revenant alone accounted for 207 of 486 total sends — caught by
+        // actually running bots against the new roster, not by stat-math alone.
         var preferredIds = profile switch
         {
             BotDecisionProfile.Greedy => income >= 45
-                ? new[] { "creep.siege", "creep.shade", "creep.brute", creepId.Value }
+                ? new[] { "creep.siege", "creep.turret_walker", "creep.shade", "creep.brute", "creep.revenant", creepId.Value }
                 : income >= 20
-                    ? new[] { "creep.shade", "creep.brute", creepId.Value }
-                    : new[] { creepId.Value, "creep.brute" },
+                    ? new[] { "creep.shade", "creep.brute", "creep.revenant", creepId.Value }
+                    : new[] { "creep.brute", creepId.Value, "creep.wisp" },
             BotDecisionProfile.Balanced => income >= 35
-                ? new[] { "creep.shade", "creep.brute", "creep.swarm", creepId.Value }
-                : new[] { "creep.brute", "creep.swarm", creepId.Value },
+                ? new[] { "creep.obsidian_brute", "creep.shade", "creep.brute", creepId.Value, "creep.swarm" }
+                : new[] { "creep.serpent", "creep.brute", creepId.Value, "creep.swarm" },
             BotDecisionProfile.Defensive => income >= 30
-                ? new[] { "creep.brute", "creep.swarm", "creep.runner", creepId.Value }
-                : new[] { "creep.swarm", "creep.runner", creepId.Value },
+                ? new[] { "creep.obsidian_brute", "creep.serpent", "creep.brute", "creep.runner", creepId.Value, "creep.swarm" }
+                : new[] { "creep.runner", creepId.Value, "creep.swarm", "creep.wisp" },
             _ => new[] { creepId.Value }
         };
 

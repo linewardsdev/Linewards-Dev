@@ -197,9 +197,13 @@ public sealed class VerticalSliceBridgeTests
         var balancedSend = Assert.IsType<QueueSendCommand>(balanced.Decide(richState, content, new SimulationTick(220)).Command);
         var defensiveSend = Assert.IsType<QueueSendCommand>(defensive.Decide(richState, content, new SimulationTick(240)).Command);
 
+        // Category 2 creeps (added 2026-07-28) now slot into these cost-descending preference
+        // lists — see BotController.SelectCreep's comment for why cost-descending ordering is
+        // required for reachability. At this richState's abundant gold, each profile picks the
+        // single most expensive creep in its top tier.
         Assert.Equal(SampleVerticalSliceContent.SiegeCreepId, greedySend.CreepId);
-        Assert.Equal(SampleVerticalSliceContent.ShadeCreepId, balancedSend.CreepId);
-        Assert.Equal(SampleVerticalSliceContent.BruteCreepId, defensiveSend.CreepId);
+        Assert.Equal(SampleVerticalSliceContent.ObsidianBruteCreepId, balancedSend.CreepId);
+        Assert.Equal(SampleVerticalSliceContent.ObsidianBruteCreepId, defensiveSend.CreepId);
     }
 
     [Fact]

@@ -64,7 +64,10 @@ public static class SampleVerticalSliceContent
                 new CreepDefinition(WispCreepId, "Crystal Wisp", new Gold(5), new Income(1), new Gold(1), new Gold(1), maxHealth: 4, speedPerSecond: 3),
                 new CreepDefinition(RevenantCreepId, "Ash Revenant", new Gold(16), new Income(4), new Gold(1), new Gold(2), maxHealth: 8, speedPerSecond: 2),
                 new CreepDefinition(ObsidianBruteCreepId, "Obsidian Brute", new Gold(30), new Income(3), new Gold(3), new Gold(4), maxHealth: 60, speedPerSecond: 1),
-                new CreepDefinition(SerpentCreepId, "Serpent Coil", new Gold(22), new Income(2), new Gold(2), new Gold(3), maxHealth: 32, speedPerSecond: 1),
+                // Cost cut 22->20 (2026-07-28 rebalance): at 22 this was strictly dominated by
+                // Obsidian Brute (1.45 HP/gold and 0.091 income/gold vs Obsidian Brute's 2.00 and
+                // 0.100 for only 8 more gold) — see docs/GD_TUNING_LOG.md for the full comparison.
+                new CreepDefinition(SerpentCreepId, "Serpent Coil", new Gold(20), new Income(2), new Gold(2), new Gold(3), maxHealth: 32, speedPerSecond: 1),
                 new CreepDefinition(TurretWalkerCreepId, "Spire Turret Walker", new Gold(38), new Income(4), new Gold(4), new Gold(5), maxHealth: 40, speedPerSecond: 2)
             },
             Array.Empty<TechDefinition>(),
