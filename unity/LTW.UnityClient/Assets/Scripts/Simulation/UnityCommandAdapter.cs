@@ -126,6 +126,9 @@ namespace LTW.UnityClient.Simulation
 
             var stressSender = new PlayerId(senderPlayerId);
             simulation.GrantLocalPlaytestGold(stressSender, new Gold(5000));
+            // Each burst is one QueueSend, but they arrive every 1.25s against a send cooldown, so
+            // without this only the first burst of a run would land.
+            simulation.ClearLocalPlaytestSendCooldown(stressSender);
             return (burstIndex % 3) switch
             {
                 1 => simulation.QueueSend(stressSender, SampleVerticalSliceContent.BruteCreepId, 10),

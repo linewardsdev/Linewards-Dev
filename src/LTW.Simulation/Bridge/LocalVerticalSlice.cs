@@ -147,6 +147,55 @@ public sealed class LocalVerticalSlice
     }
 
     /// <summary>
+    /// Clears a player's send cooldown so editor/playtest scenarios can queue several sends in one
+    /// tick. Sits alongside <see cref="GrantLocalPlaytestGold"/> for the same reason: the
+    /// production rule in EconomyService stays untouched.
+    /// </summary>
+    /// <remarks>
+    /// The review capture states each queue a batch of sends back to back to build up load for a
+    /// screenshot. Once the send cooldown started actually being enforced, everything after the
+    /// first send in a state was rejected with CooldownActive and the captured board went nearly
+    /// empty — the rule is right, but a capture scenario is not a player and should not be rate
+    /// limited into producing nothing.
+    /// </remarks>
+    public void ClearLocalPlaytestSendCooldown(PlayerId playerId)
+    {
+        var player = players.Get(playerId);
+        players = players.Replace(player.WithNextSendAvailableTick(tick));
+    }
+
+    /// <summary>
+    /// Which player must send in order for the creeps to arrive in <paramref name="laneId"/>,
+    /// or null if no active player currently routes there.
+    /// </summary>
+    /// <remarks>
+    /// Review captures frame one lane and need to put creeps in it. Working the sender out from
+    /// outside means duplicating the routing rule — a send goes to the home lane of the sender's
+    /// next active opponent — along with the lane count, and it silently stops being true once a
+    /// player is eliminated, because NextActiveOpponent then skips past them. The capture harness
+    /// did exactly that and quietly filled the wrong lane. Asking the live topology instead keeps
+    /// the answer correct as the match state changes.
+    /// </remarks>
+    public PlayerId? LocalPlaytestSenderForLane(LaneId laneId)
+    {
+        foreach (var candidate in topology.Players)
+        {
+            if (players.Get(candidate).IsEliminated)
+            {
+                continue;
+            }
+
+            var target = topology.NextActiveOpponent(candidate, id => !players.Get(id).IsEliminated);
+            if (target is not null && topology.HomeLaneFor(target.Value).Equals(laneId))
+            {
+                return candidate;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
     /// Local editor/playtest helper for screenshot review. Creates a wounded creep that has just
     /// transferred into the next opponent lane, and emits the same leak/spawn event pairing the
     /// Unity renderer uses to display TRANSFER arrival cues.

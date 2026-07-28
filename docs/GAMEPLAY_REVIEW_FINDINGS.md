@@ -79,6 +79,20 @@ It seeds a match, captures the default HUD and both send-dock categories, and qu
       These captures now contain the board only. An empty region is honest; a convincing painting
       of a stale HUD is not. For UI, use `RealUiCaptureRunner`, which drives a real Game view.
 
+## P1 — Open: two capture states regressed after the seats/authority merge
+
+- [ ] **`runner-10-pressure` and `swarm-heavy-pressure` land nothing in the framed lane.**
+      `heavy-pressure` and `active-combat` are fine (63 and 21 on camera), so the harness, the
+      sender lookup and the cooldown bypass all work. These two differ in that they reset the match
+      first and then queue a single modest send. Measured: the send is accepted and correctly
+      targeted at lane 1, yet the capture shows `L2=9` / `L3=20` and `L1=0` — the creeps traverse
+      the lane and leak-transfer onward before the shutter.
+      Ruled out by measurement, not reasoning: it is not the send cooldown (bypassed, no
+      rejections logged), not the sender (logged as P8 → lane 1), not the defence line (removing it
+      changed nothing), and not the capture delay (11s behaved the same as 4.5s).
+      Left open deliberately. The merge itself is sound — 92 tests pass — but these scenarios need
+      retuning against the new match dynamics, and that is separate work from the merge.
+
 ## P2 — Found once the mock stopped covering the board
 
 - [ ] **World-space combat text overlaps itself and is hard to read under load.** In

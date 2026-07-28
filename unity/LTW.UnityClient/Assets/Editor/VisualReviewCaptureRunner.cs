@@ -349,7 +349,7 @@ namespace LTW.UnityClient.Editor
 
                 case CaptureState.HeavyPressure:
                     PlaceReviewDefenceLine(commands);
-                    stress.StartRun(SenderFeedingLane(FramedLaneId()).Value);
+                    stress.StartRun((SenderFeedingLane(commands, FramedLaneId()) ?? new PlayerId(3)).Value);
                     ScheduleCaptureThenAdvance("heavy-pressure", 4d);
                     break;
 
@@ -955,21 +955,20 @@ namespace LTW.UnityClient.Editor
         }
 
         /// <summary>
-        /// The player whose sends land in the lane the camera is framing.
+        /// The player whose sends land in the lane the camera is framing, asked of the live
+        /// simulation rather than derived here.
         /// </summary>
         /// <remarks>
-        /// A send goes to the home lane of the sender's next active opponent, and lane N is player
-        /// N's home lane, so the sender that feeds lane N is player N-1 (wrapping). This used to be
-        /// hardcoded to player 3, which with 8 lanes targets lane 4 — so every "visible lineup"
-        /// send in the review set was delivered to a lane the camera was not pointing at. The
-        /// pressure states looked nearly empty while the simulation held hundreds of creeps.
+        /// This used to compute the sender locally as laneId - 1, which duplicated both the
+        /// routing rule and the lane count, and went wrong the moment a player was eliminated:
+        /// NextActiveOpponent then skips past them, so the sends landed in a lane the camera was
+        /// not framing and the capture looked idle. Before that it was hardcoded to player 3,
+        /// which with 8 lanes always meant lane 4.
         /// </remarks>
-        private const int MatchLaneCount = 8;
-
-        private static PlayerId SenderFeedingLane(int laneId)
+        private static PlayerId? SenderFeedingLane(UnityCommandAdapter commands, int laneId)
         {
-            var previous = laneId - 1;
-            return new PlayerId(previous >= 1 ? previous : MatchLaneCount);
+            var simulation = GetLocalSimulation(commands);
+            return simulation?.LocalPlaytestSenderForLane(new LaneId(laneId));
         }
 
         private static int FramedLaneId()
@@ -986,9 +985,17 @@ namespace LTW.UnityClient.Editor
                 return VerticalSliceCommandResult.Reject(LTW.Simulation.Commands.CommandRejectionReason.MatchPaused);
             }
 
-            var sender = SenderFeedingLane(FramedLaneId());
-            simulation.GrantLocalPlaytestGold(sender, new Gold(5000));
-            return simulation.QueueSend(sender, creepId, quantity);
+            var lane = FramedLaneId();
+            var sender = simulation.LocalPlaytestSenderForLane(new LaneId(lane));
+            if (sender is null)
+            {
+                Debug.LogWarning($"CAPTURE no active sender routes to lane {lane}; skipping send");
+                return VerticalSliceCommandResult.Reject(LTW.Simulation.Commands.CommandRejectionReason.InvalidPlayer);
+            }
+
+            simulation.GrantLocalPlaytestGold(sender.Value, new Gold(5000));
+            simulation.ClearLocalPlaytestSendCooldown(sender.Value);
+            return simulation.QueueSend(sender.Value, creepId, quantity);
         }
 
         private static LocalVerticalSlice? GetLocalSimulation(UnityCommandAdapter commands)
@@ -1128,9 +1135,19 @@ namespace LTW.UnityClient.Editor
                 }
             }
 
+            var byLane = new System.Collections.Generic.Dictionary<int, int>();
+            for (var index = 0; index < snapshot.Creeps.Count; index++)
+            {
+                var id = snapshot.Creeps[index].LaneId.Value;
+                byLane[id] = byLane.TryGetValue(id, out var n) ? n + 1 : 1;
+            }
+
+            var spread = string.Join(",", System.Linq.Enumerable.Select(
+                System.Linq.Enumerable.OrderBy(byLane, kv => kv.Key), kv => $"L{kv.Key}={kv.Value}"));
+
             Debug.Log(
                 $"CAPTURE {label}: lane={lane} onCamera creeps={laneCreeps} towers={laneTowers} " +
-                $"| boardWide creeps={snapshot.Creeps.Count} towers={snapshot.Towers.Count}");
+                $"| boardWide creeps={snapshot.Creeps.Count} towers={snapshot.Towers.Count} | {spread}");
         }
 
         private static void WriteImmediateCapture(
