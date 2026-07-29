@@ -17,6 +17,31 @@ public static class SampleVerticalSliceContent
 
     public static readonly ContentId PrismTowerId = new("tower.prism");
 
+    // Foundry line — industrial towers. Same five defensive questions as the arcane line
+    // (single-target, chip, utility, close burst, long sniper) answered with heavier metal:
+    // each trades a little efficiency for reach or burst relative to its arcane counterpart.
+    public static readonly ContentId GatlingTowerId = new("tower.gatling");
+
+    public static readonly ContentId TeslaTowerId = new("tower.tesla");
+
+    public static readonly ContentId FoundryTowerId = new("tower.foundry");
+
+    public static readonly ContentId BarricadeTowerId = new("tower.barricade");
+
+    public static readonly ContentId RepairDroneTowerId = new("tower.repair_drone");
+
+    // Grove line — growth towers. The cheap end of the roster: individually weaker per gold
+    // than either other line, but the entry costs are low enough to build wide early.
+    public static readonly ContentId ElderCanopyTowerId = new("tower.elder_canopy");
+
+    public static readonly ContentId SaplingTowerId = new("tower.sapling");
+
+    public static readonly ContentId BloomheartTowerId = new("tower.bloomheart");
+
+    public static readonly ContentId ThornSnareTowerId = new("tower.thorn_snare");
+
+    public static readonly ContentId SporeCloudTowerId = new("tower.spore_cloud");
+
     public static readonly ContentId CreepId = new("creep.runner");
 
     public static readonly ContentId BruteCreepId = new("creep.brute");
@@ -54,14 +79,37 @@ public static class SampleVerticalSliceContent
     public static ContentCatalog Create()
     {
         return new ContentCatalog(
-            "mvp-07-5x3-roster",
+            "mvp-07-15-tower-3x5-roster",
             new[]
             {
                 new TowerDefinition(TowerId, "Arrow Tower", new Gold(14), rangeCells: 2, damage: 2, attackCooldownTicks: 2),
-                new TowerDefinition(ControlTowerId, "Control Ward", new Gold(24), rangeCells: 2, damage: 2, attackCooldownTicks: 3),
+                // Range 3 rather than 2. At range 2 this was strictly worse than the Arrow Tower on
+                // every axis at once — dearer, same reach, same damage, slower — with no
+                // compensating mechanic, so there was never a reason to build one. Reach is what a
+                // shrine that projects influence should be selling, and it is the only tower under
+                // 30 gold that has it.
+                new TowerDefinition(ControlTowerId, "Control Ward", new Gold(24), rangeCells: 3, damage: 2, attackCooldownTicks: 3),
                 new TowerDefinition(UtilityTowerId, "Relay Ward", new Gold(28), rangeCells: 2, damage: 2, attackCooldownTicks: 4),
                 new TowerDefinition(PulseTowerId, "Pulse Ward", new Gold(32), rangeCells: 1, damage: 6, attackCooldownTicks: 4),
-                new TowerDefinition(PrismTowerId, "Prism Ward", new Gold(42), rangeCells: 4, damage: 9, attackCooldownTicks: 6)
+                new TowerDefinition(PrismTowerId, "Prism Ward", new Gold(42), rangeCells: 4, damage: 9, attackCooldownTicks: 6),
+
+                // Foundry line. Costs sit above the arcane equivalents and the payoff is raw
+                // output: Gatling fires every tick for less damage per shot than Arrow but far
+                // more over time, Foundry trades Prism's reach for a much harder single hit,
+                // and Barricade is the cheapest way to hold a cell at all.
+                new TowerDefinition(GatlingTowerId, "Gatling Turret", new Gold(30), rangeCells: 2, damage: 2, attackCooldownTicks: 1),
+                new TowerDefinition(TeslaTowerId, "Tesla Coil Spire", new Gold(38), rangeCells: 3, damage: 5, attackCooldownTicks: 3),
+                new TowerDefinition(FoundryTowerId, "Foundry Core", new Gold(52), rangeCells: 2, damage: 14, attackCooldownTicks: 6),
+                new TowerDefinition(BarricadeTowerId, "Barricade Bastion", new Gold(18), rangeCells: 1, damage: 3, attackCooldownTicks: 4),
+                new TowerDefinition(RepairDroneTowerId, "Repair Drone Spire", new Gold(34), rangeCells: 3, damage: 3, attackCooldownTicks: 2),
+
+                // Grove line. Cheap and individually weak — the line you spam early and outgrow,
+                // except Elder Canopy, which is the roster's long-range anchor and priced for it.
+                new TowerDefinition(ElderCanopyTowerId, "Elder Canopy", new Gold(46), rangeCells: 5, damage: 8, attackCooldownTicks: 6),
+                new TowerDefinition(SaplingTowerId, "Sapling Sentinel", new Gold(10), rangeCells: 2, damage: 2, attackCooldownTicks: 3),
+                new TowerDefinition(BloomheartTowerId, "Bloomheart Totem", new Gold(22), rangeCells: 2, damage: 4, attackCooldownTicks: 3),
+                new TowerDefinition(ThornSnareTowerId, "Thorn Snare Totem", new Gold(26), rangeCells: 1, damage: 5, attackCooldownTicks: 3),
+                new TowerDefinition(SporeCloudTowerId, "Spore Cloud Bloom", new Gold(36), rangeCells: 3, damage: 6, attackCooldownTicks: 4)
             },
             new[]
             {

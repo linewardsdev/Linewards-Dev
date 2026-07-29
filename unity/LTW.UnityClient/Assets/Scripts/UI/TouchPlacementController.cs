@@ -72,6 +72,7 @@ namespace LTW.UnityClient.UI
         private int selectedTowerRole;
         private int lastSelectedTowerRole;
         private int highlightedTowerRole = -1;
+        private int selectedTowerCategory = -1;
         private Vector2Int selectedCell;
         private TowerCombatState? selectedTower;
         private VerticalSliceCommandResult placementPreview = VerticalSliceCommandResult.Reject(CommandRejectionReason.InvalidLane);
@@ -164,14 +165,7 @@ namespace LTW.UnityClient.UI
                 return;
             }
 
-            var result = selectedTowerRole switch
-            {
-                1 => commandAdapter.PlaceControlTower(selectedCell.x, selectedCell.y),
-                2 => commandAdapter.PlaceUtilityTower(selectedCell.x, selectedCell.y),
-                3 => commandAdapter.PlacePulseTower(selectedCell.x, selectedCell.y),
-                4 => commandAdapter.PlacePrismTower(selectedCell.x, selectedCell.y),
-                _ => commandAdapter.PlaceSampleTower(selectedCell.x, selectedCell.y)
-            };
+            var result = commandAdapter.PlaceTowerByRole(selectedTowerRole, selectedCell.x, selectedCell.y);
             if (result.Accepted)
             {
                 feedbackView.ShowAccepted(SelectedTowerName() + " placed");
@@ -497,14 +491,7 @@ namespace LTW.UnityClient.UI
                 return;
             }
 
-            placementPreview = selectedTowerRole switch
-            {
-                1 => commandAdapter.PreviewControlTower(selectedCell.x, selectedCell.y),
-                2 => commandAdapter.PreviewUtilityTower(selectedCell.x, selectedCell.y),
-                3 => commandAdapter.PreviewPulseTower(selectedCell.x, selectedCell.y),
-                4 => commandAdapter.PreviewPrismTower(selectedCell.x, selectedCell.y),
-                _ => commandAdapter.PreviewSampleTower(selectedCell.x, selectedCell.y)
-            };
+            placementPreview = commandAdapter.PreviewTowerByRole(selectedTowerRole, selectedCell.x, selectedCell.y);
 
             UpdateGhostColor();
         }
@@ -857,14 +844,7 @@ namespace LTW.UnityClient.UI
 
         private string SelectedTowerRoleId()
         {
-            return selectedTowerRole switch
-            {
-                1 => "control",
-                2 => "relay",
-                3 => "pulse",
-                4 => "prism",
-                _ => "arrow"
-            };
+            return LTW.UnityClient.Simulation.TowerCatalog.ForRole(selectedTowerRole).RoleId;
         }
 
         private static Vector3 TowerSelectionRingScale(string towerId)
@@ -878,14 +858,7 @@ namespace LTW.UnityClient.UI
 
         private string SelectedTowerName()
         {
-            return selectedTowerRole switch
-            {
-                1 => "Control ward",
-                2 => "Relay ward",
-                3 => "Pulse ward",
-                4 => "Prism ward",
-                _ => "Arrow ward"
-            };
+            return LTW.UnityClient.Simulation.TowerCatalog.ForRole(selectedTowerRole).DisplayName;
         }
 
         private static string TowerRoleName(string towerId)
@@ -902,15 +875,7 @@ namespace LTW.UnityClient.UI
 
         private Color SelectedTowerAccent()
         {
-            // Role indices follow the build palette order: arrow, control, relay, pulse, prism.
-            return selectedTowerRole switch
-            {
-                1 => LTW.UnityClient.Simulation.TowerRolePalette.Control,
-                2 => LTW.UnityClient.Simulation.TowerRolePalette.Relay,
-                3 => LTW.UnityClient.Simulation.TowerRolePalette.Pulse,
-                4 => LTW.UnityClient.Simulation.TowerRolePalette.Prism,
-                _ => LTW.UnityClient.Simulation.TowerRolePalette.Arrow
-            };
+            return LTW.UnityClient.Simulation.TowerCatalog.ForRole(selectedTowerRole).Accent;
         }
 
         private void DrawTowerPalette(float scale)
@@ -954,54 +919,157 @@ namespace LTW.UnityClient.UI
             // CLOSE duplicated it. See the matching note in SendDockController.
             buttonStyle!.fontSize = Mathf.RoundToInt(10f * scale);
 
-            var buttonY = rect.y + 78f * scale;
+            var buttonY = rect.y + 84f * scale;
             var buttonHeight = 84f * scale;
             var gap = 8f * scale;
-            var buttonWidth = (rect.width - 24f * scale - gap * 2f) / 3f;
+
+            if (selectedTowerCategory < 0)
+            {
+                DrawTowerCategoryPicker(rect, buttonY, buttonHeight, gap, scale);
+                return;
+            }
+
+            if (RuntimeUiChrome.DrawPanelButton(new Rect(rect.xMax - 72f * scale, rect.y + 8f * scale, 58f * scale, 32f * scale), "BACK", MintSignal, scale, buttonStyle))
+            {
+                selectedTowerCategory = -1;
+                return;
+            }
+
+            DrawTowerCategoryGrid(rect, buttonY, buttonHeight, gap, scale);
+        }
+
+        /// <summary>
+        /// Category chooser, mirroring the send dock. Card height is divided out of the panel's
+        /// actual height so adding a category cannot push the last card off the panel.
+        /// </summary>
+        private void DrawTowerCategoryPicker(Rect rect, float buttonY, float buttonHeight, float gap, float scale)
+        {
+            var labels = LTW.UnityClient.Simulation.TowerCatalog.CategoryLabels;
+            var top = buttonY - rect.y;
+            var available = rect.height - top - 12f * scale - gap * (labels.Length - 1);
+            var cardHeight = Mathf.Min(buttonHeight, available / labels.Length);
+            var cardWidth = rect.width - 24f * scale;
             var x = rect.x + 12f * scale;
+
+            for (var category = 0; category < labels.Length; category++)
+            {
+                var y = buttonY + category * (cardHeight + gap);
+                var accent = CategoryAccent(category);
+                var cardRect = new Rect(x, y, cardWidth, cardHeight);
+                var pressed = RuntimeUiChrome.DrawCommandCard(cardRect, accent, CommandCardState.Normal, scale);
+
+                buttonStyle!.fontSize = Mathf.RoundToInt(13f * scale);
+                buttonStyle.normal.textColor = Cloud;
+                GUI.Label(RuntimeUiChrome.CommandCardLabelRect(cardRect, scale), labels[category], buttonStyle);
+
+                metaStyle!.fontSize = Mathf.RoundToInt(9f * scale);
+                metaStyle.normal.textColor = accent;
+                GUI.Label(RuntimeUiChrome.CommandCardMetaRect(cardRect, scale), "5 TOWERS", metaStyle);
+
+                if (pressed)
+                {
+                    selectedTowerCategory = category;
+                }
+            }
+        }
+
+        /// <summary>
+        /// The five towers of the selected category, laid out 3 over 2 like the send grids.
+        /// </summary>
+        /// <remarks>
+        /// Driven off TowerCatalog rather than a hardcoded button per tower. The previous version
+        /// spelled out each button with its own literal price, which is how the palette came to
+        /// advertise 20 gold for a tower the simulation charged 14 for.
+        /// </remarks>
+        private void DrawTowerCategoryGrid(Rect rect, float buttonY, float buttonHeight, float gap, float scale)
+        {
             var gold = CurrentPlayerGold();
-
-            if (DrawPaletteButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "ARROW", "20G", TowerIconKind.Arrow, LTW.UnityClient.Simulation.TowerRolePalette.Arrow, gold >= 20, highlightedTowerRole == 0, scale))
+            var entries = new System.Collections.Generic.List<LTW.UnityClient.Simulation.TowerCatalog.Entry>(
+                LTW.UnityClient.Simulation.TowerCatalog.InCategory(selectedTowerCategory));
+            if (entries.Count == 0)
             {
-                selectedTower = null;
-                BeginTowerPlacement(0);
+                return;
             }
 
-            x += buttonWidth + gap;
-            if (DrawPaletteButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "CTRL", "35G", TowerIconKind.Control, LTW.UnityClient.Simulation.TowerRolePalette.Control, gold >= 35, highlightedTowerRole == 1, scale))
+            var firstRow = Mathf.Min(3, entries.Count);
+            var firstRowWidth = (rect.width - 24f * scale - gap * (firstRow - 1)) / firstRow;
+            var x = rect.x + 12f * scale;
+
+            for (var index = 0; index < firstRow; index++)
             {
-                selectedTower = null;
-                BeginControlTowerPlacement();
+                DrawCatalogPaletteButton(new Rect(x, buttonY, firstRowWidth, buttonHeight), entries[index], gold, scale);
+                x += firstRowWidth + gap;
             }
 
-            x += buttonWidth + gap;
-            if (DrawPaletteButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "RELAY", "40G", TowerIconKind.Relay, LTW.UnityClient.Simulation.TowerRolePalette.Relay, gold >= 40, highlightedTowerRole == 2, scale))
+            var remaining = entries.Count - firstRow;
+            if (remaining <= 0)
             {
-                selectedTower = null;
-                BeginUtilityTowerPlacement();
+                return;
             }
 
             var secondRowY = buttonY + buttonHeight + gap;
-            var secondRowWidth = (rect.width - 24f * scale - gap) / 2f;
+            var secondRowWidth = (rect.width - 24f * scale - gap * (remaining - 1)) / remaining;
             x = rect.x + 12f * scale;
-            if (DrawPaletteButton(new Rect(x, secondRowY, secondRowWidth, buttonHeight), "PULSE", "45G", TowerIconKind.Pulse, LTW.UnityClient.Simulation.TowerRolePalette.Pulse, gold >= 45, highlightedTowerRole == 3, scale))
+            for (var index = firstRow; index < entries.Count; index++)
             {
-                selectedTower = null;
-                BeginPulseTowerPlacement();
-            }
-
-            x += secondRowWidth + gap;
-            if (DrawPaletteButton(new Rect(x, secondRowY, secondRowWidth, buttonHeight), "PRISM", "60G", TowerIconKind.Prism, LTW.UnityClient.Simulation.TowerRolePalette.Prism, gold >= 60, highlightedTowerRole == 4, scale))
-            {
-                selectedTower = null;
-                BeginPrismTowerPlacement();
+                DrawCatalogPaletteButton(new Rect(x, secondRowY, secondRowWidth, buttonHeight), entries[index], gold, scale);
+                x += secondRowWidth + gap;
             }
         }
+
+        private void DrawCatalogPaletteButton(Rect buttonRect, LTW.UnityClient.Simulation.TowerCatalog.Entry entry, int gold, float scale)
+        {
+            var cost = commandAdapter != null ? commandAdapter.TowerCost(entry.Role) : 0;
+            if (DrawPaletteButton(
+                    buttonRect,
+                    entry.ShortLabel,
+                    $"{cost}G",
+                    TowerIconForRole(entry.Role),
+                    entry.Accent,
+                    gold >= cost,
+                    highlightedTowerRole == entry.Role,
+                    scale))
+            {
+                selectedTower = null;
+                BeginTowerPlacement(entry.Role);
+            }
+        }
+
+        private static Color CategoryAccent(int category) => category switch
+        {
+            1 => new Color(0.87f, 0.62f, 0.28f),
+            2 => new Color(0.45f, 0.78f, 0.36f),
+            _ => LTW.UnityClient.Simulation.TowerRolePalette.Arrow
+        };
+
+        /// <summary>
+        /// Icon for a role. Only the original five have authored icons; the new towers fall back to
+        /// the procedural shape closest to their silhouette until real icons are rendered.
+        /// </summary>
+        private static TowerIconKind TowerIconForRole(int role) => role switch
+        {
+            1 => TowerIconKind.Control,
+            2 => TowerIconKind.Relay,
+            3 => TowerIconKind.Pulse,
+            4 => TowerIconKind.Prism,
+            5 => TowerIconKind.Arrow,
+            6 => TowerIconKind.Prism,
+            7 => TowerIconKind.Pulse,
+            8 => TowerIconKind.Control,
+            9 => TowerIconKind.Relay,
+            10 => TowerIconKind.Prism,
+            11 => TowerIconKind.Arrow,
+            12 => TowerIconKind.Relay,
+            13 => TowerIconKind.Pulse,
+            14 => TowerIconKind.Control,
+            _ => TowerIconKind.Arrow
+        };
 
         private void OpenTowerPalette()
         {
             CloseSendDock();
             isPaletteExpanded = true;
+            selectedTowerCategory = -1;
         }
 
         private void CloseSendDock() => SendDock?.CloseDock();
@@ -1215,14 +1283,9 @@ namespace LTW.UnityClient.UI
 
         private int SelectedTowerCost()
         {
-            return selectedTowerRole switch
-            {
-                1 => 35,
-                2 => 40,
-                3 => 45,
-                4 => 60,
-                _ => 25
-            };
+            // Read from the simulation's catalog. These used to be literals here and in the
+            // palette buttons, and both had drifted from what the simulation actually charges.
+            return commandAdapter != null ? commandAdapter.TowerCost(selectedTowerRole) : 0;
         }
 
         private int CurrentPlayerGold()

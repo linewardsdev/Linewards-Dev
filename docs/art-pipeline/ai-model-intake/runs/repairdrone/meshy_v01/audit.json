@@ -1,0 +1,43 @@
+{
+  "input": "/Users/admin/Downloads/Meshy_AI_Repair_Drone_Spire_Ga_0729035603_texture.glb",
+  "mesh_count": 1,
+  "object_count": 1,
+  "triangle_count": 15110,
+  "vertex_count": 19499,
+  "material_slot_count": 1,
+  "unique_material_count": 1,
+  "transparent_material_count": 1,
+  "transparent_materials": [
+    "Material_0.001"
+  ],
+  "texture_count": 3,
+  "texture_paths": [],
+  "packed_texture_names": [
+    "Baked_BaseColor",
+    "Baked_Emit",
+    "Baked_MetallicRoughness"
+  ],
+  "bounds": {
+    "min": [
+      -0.37959998846054077,
+      -0.3787999451160431,
+      -0.950713038444519
+    ],
+    "max": [
+      0.37784600257873535,
+      0.38457798957824707,
+      0.9477109909057617
+    ],
+    "size": [
+      0.7574459910392761,
+      0.7633779048919678,
+      1.8984240293502808
+    ]
+  },
+  "object_name_sample": [
+    "Mesh1.0"
+  ],
+  "material_names": [
+    "Material_0.001"
+  ]
+}

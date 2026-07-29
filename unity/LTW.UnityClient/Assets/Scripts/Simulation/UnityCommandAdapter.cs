@@ -74,6 +74,45 @@ namespace LTW.UnityClient.Simulation
                 : simulation.PreviewPlaceTower(simulation.LocalPlayerId, simulation.LocalPlayerLaneId, towerId, new GridPosition(x, y));
         }
 
+        /// <summary>
+        /// Places the tower a palette role refers to. The per-tower PlaceXTower helpers below stay
+        /// for the review runners, which name towers explicitly; gameplay goes through here so a
+        /// new tower needs a catalog entry and nothing else.
+        /// </summary>
+        public VerticalSliceCommandResult PlaceTowerByRole(int role, int x, int y) =>
+            PlaceTower(new LTW.Simulation.Content.ContentId(TowerCatalog.ForRole(role).ContentId), x, y);
+
+        public VerticalSliceCommandResult PreviewTowerByRole(int role, int x, int y) =>
+            PreviewTower(new LTW.Simulation.Content.ContentId(TowerCatalog.ForRole(role).ContentId), x, y);
+
+        /// <summary>
+        /// Gold cost of a tower, read from the simulation's catalog.
+        /// </summary>
+        /// <remarks>
+        /// The client used to hold its own copy of every price and it went stale in two different
+        /// places at once — the palette showed 20 gold for Arrow, the selection readout said 25,
+        /// and the simulation charged 14. Asking the catalog means the displayed price and the
+        /// affordability gate cannot disagree with the charge.
+        /// </remarks>
+        public int TowerCost(int role)
+        {
+            if (simulation is null)
+            {
+                return 0;
+            }
+
+            var contentId = TowerCatalog.ForRole(role).ContentId;
+            foreach (var tower in simulation.Content.Towers)
+            {
+                if (tower.Id.Value == contentId)
+                {
+                    return tower.Cost.Amount;
+                }
+            }
+
+            return 0;
+        }
+
         public VerticalSliceCommandResult PlaceSampleTower(int x, int y) => PlaceTower(SampleVerticalSliceContent.TowerId, x, y);
 
         public VerticalSliceCommandResult PlaceControlTower(int x, int y) => PlaceTower(SampleVerticalSliceContent.ControlTowerId, x, y);

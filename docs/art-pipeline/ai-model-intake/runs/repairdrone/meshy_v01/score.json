@@ -1,0 +1,54 @@
+{
+  "date": "2026-07-29T03:57:33.522395+00:00",
+  "asset_id": "tower.repairdrone",
+  "role": "repairdrone",
+  "kind": "tower",
+  "candidate": "meshy_v01",
+  "source": "/Users/admin/Downloads/Meshy_AI_Repair_Drone_Spire_Ga_0729035603_texture.glb",
+  "prepared_fbx": "/Users/admin/LTW/unity/LTW.UnityClient/Assets/Art/AIStaging/Models/Towers/Repairdrone/AIDrop/repairdrone_meshy_v01_prepared.fbx",
+  "preview_png": "/Users/admin/LTW/docs/art-pipeline/ai-model-intake/runs/repairdrone/meshy_v01/preview.png",
+  "audit_json": "/Users/admin/LTW/docs/art-pipeline/ai-model-intake/runs/repairdrone/meshy_v01/audit.json",
+  "prep_report_json": "/Users/admin/LTW/unity/LTW.UnityClient/Assets/Art/AIStaging/Models/Towers/Repairdrone/AIDrop/repairdrone_meshy_v01_prepared.prep-report.json",
+  "score": {
+    "status": "needs_review",
+    "passed_checks": 6,
+    "total_checks": 7,
+    "checks": [
+      {
+        "id": "has_meshes",
+        "pass": true,
+        "detail": "1 mesh object(s)"
+      },
+      {
+        "id": "triangle_budget",
+        "pass": true,
+        "detail": "15110 / 25000 triangles"
+      },
+      {
+        "id": "material_budget",
+        "pass": true,
+        "detail": "1 / 12 unique materials"
+      },
+      {
+        "id": "transparent_material_budget",
+        "pass": true,
+        "detail": "1 / 2 transparent materials"
+      },
+      {
+        "id": "has_textures_or_materials",
+        "pass": true,
+        "detail": "3 texture(s), 1 material(s)"
+      },
+      {
+        "id": "has_normal_map",
+        "pass": false,
+        "detail": "no normal map: surface detail will read flat, re-export with one if the silhouette needs it"
+      },
+      {
+        "id": "prepared_footprint",
+        "pass": true,
+        "detail": "0.503 / 1.450 footprint after prepare"
+      }
+    ]
+  }
+}

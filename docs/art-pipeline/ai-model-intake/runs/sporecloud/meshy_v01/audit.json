@@ -1,0 +1,43 @@
+{
+  "input": "/Users/admin/Downloads/Meshy_AI_Spore_Cloud_Bloom_Gam_0729035500_texture.glb",
+  "mesh_count": 1,
+  "object_count": 1,
+  "triangle_count": 15529,
+  "vertex_count": 16945,
+  "material_slot_count": 1,
+  "unique_material_count": 1,
+  "transparent_material_count": 1,
+  "transparent_materials": [
+    "Material_0.001"
+  ],
+  "texture_count": 3,
+  "texture_paths": [],
+  "packed_texture_names": [
+    "Baked_BaseColor",
+    "Baked_Emit",
+    "Baked_MetallicRoughness"
+  ],
+  "bounds": {
+    "min": [
+      -0.7570899724960327,
+      -0.6033499836921692,
+      -0.9506750106811523
+    ],
+    "max": [
+      0.754954993724823,
+      0.6034929156303406,
+      0.9478229880332947
+    ],
+    "size": [
+      1.512044906616211,
+      1.2068428993225098,
+      1.8984980583190918
+    ]
+  },
+  "object_name_sample": [
+    "Mesh1.0"
+  ],
+  "material_names": [
+    "Material_0.001"
+  ]
+}

@@ -1,0 +1,54 @@
+{
+  "role": "repairdrone",
+  "input": "/Users/admin/Downloads/Meshy_AI_Repair_Drone_Spire_Ga_0729035603_texture.glb",
+  "output": "/Users/admin/LTW/unity/LTW.UnityClient/Assets/Art/AIStaging/Models/Towers/Repairdrone/AIDrop/repairdrone_meshy_v01_prepared.fbx",
+  "target_height": 1.25,
+  "max_footprint": 1.45,
+  "mesh_count": 1,
+  "exported_textures": [
+    "/Users/admin/LTW/unity/LTW.UnityClient/Assets/Art/AIStaging/Models/Towers/Repairdrone/AIDrop/repairdrone_meshy_v01_prepared_Textures/Baked_BaseColor.png",
+    "/Users/admin/LTW/unity/LTW.UnityClient/Assets/Art/AIStaging/Models/Towers/Repairdrone/AIDrop/repairdrone_meshy_v01_prepared_Textures/Baked_Emit.png",
+    "/Users/admin/LTW/unity/LTW.UnityClient/Assets/Art/AIStaging/Models/Towers/Repairdrone/AIDrop/repairdrone_meshy_v01_prepared_Textures/Baked_MetallicRoughness.png"
+  ],
+  "normalization": {
+    "scale_factor": 0.6584408860584228,
+    "initial_bounds": {
+      "min": [
+        -0.37959998846054077,
+        -0.3787999451160431,
+        -0.950713038444519
+      ],
+      "max": [
+        0.37784600257873535,
+        0.38457798957824707,
+        0.9477109909057617
+      ],
+      "size": [
+        0.7574459910392761,
+        0.7633779048919678,
+        1.8984240293502808
+      ]
+    },
+    "final_bounds": {
+      "min": [
+        -0.24936670064926147,
+        -0.25131961703300476,
+        0.0
+      ],
+      "max": [
+        0.24936670064926147,
+        0.25131961703300476,
+        1.25
+      ],
+      "size": [
+        0.49873340129852295,
+        0.5026392340660095,
+        1.25
+      ]
+    }
+  },
+  "notes": [
+    "Prepared by Blender source cleanup script.",
+    "This is a source/staging export only; Unity promotion remains separate."
+  ]
+}

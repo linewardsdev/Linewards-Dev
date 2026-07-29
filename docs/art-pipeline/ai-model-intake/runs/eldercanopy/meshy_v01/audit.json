@@ -1,0 +1,43 @@
+{
+  "input": "/Users/admin/Downloads/Meshy_AI_Elder_Canopy_Gameread_0729035524_texture.glb",
+  "mesh_count": 1,
+  "object_count": 1,
+  "triangle_count": 15526,
+  "vertex_count": 21883,
+  "material_slot_count": 1,
+  "unique_material_count": 1,
+  "transparent_material_count": 1,
+  "transparent_materials": [
+    "Material_0.001"
+  ],
+  "texture_count": 3,
+  "texture_paths": [],
+  "packed_texture_names": [
+    "Baked_BaseColor",
+    "Baked_Emit",
+    "Baked_MetallicRoughness"
+  ],
+  "bounds": {
+    "min": [
+      -0.9450910091400146,
+      -0.946941077709198,
+      -0.9140480160713196
+    ],
+    "max": [
+      0.94502192735672,
+      0.9472479224205017,
+      0.9156849980354309
+    ],
+    "size": [
+      1.8901128768920898,
+      1.8941890001296997,
+      1.8297330141067505
+    ]
+  },
+  "object_name_sample": [
+    "Mesh1.0"
+  ],
+  "material_names": [
+    "Material_0.001"
+  ]
+}

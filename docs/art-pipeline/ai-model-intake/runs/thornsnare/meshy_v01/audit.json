@@ -1,0 +1,43 @@
+{
+  "input": "/Users/admin/Downloads/Meshy_AI_Thorn_Snare_Totem_Gam_0729035453_texture.glb",
+  "mesh_count": 1,
+  "object_count": 1,
+  "triangle_count": 15484,
+  "vertex_count": 16949,
+  "material_slot_count": 1,
+  "unique_material_count": 1,
+  "transparent_material_count": 1,
+  "transparent_materials": [
+    "Material_0.001"
+  ],
+  "texture_count": 3,
+  "texture_paths": [],
+  "packed_texture_names": [
+    "Baked_BaseColor",
+    "Baked_Emit",
+    "Baked_MetallicRoughness"
+  ],
+  "bounds": {
+    "min": [
+      -0.9493860006332397,
+      -0.8920560479164124,
+      -0.9386979937553406
+    ],
+    "max": [
+      0.9470850825309753,
+      0.8971619606018066,
+      0.9446989893913269
+    ],
+    "size": [
+      1.8964710235595703,
+      1.7892179489135742,
+      1.8833969831466675
+    ]
+  },
+  "object_name_sample": [
+    "Mesh1.0"
+  ],
+  "material_names": [
+    "Material_0.001"
+  ]
+}

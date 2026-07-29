@@ -1,0 +1,43 @@
+{
+  "input": "/Users/admin/Downloads/Meshy_AI_Sapling_Sentinel_Game_0729035519_texture.glb",
+  "mesh_count": 1,
+  "object_count": 1,
+  "triangle_count": 15495,
+  "vertex_count": 19304,
+  "material_slot_count": 1,
+  "unique_material_count": 1,
+  "transparent_material_count": 1,
+  "transparent_materials": [
+    "Material_0.001"
+  ],
+  "texture_count": 3,
+  "texture_paths": [],
+  "packed_texture_names": [
+    "Baked_BaseColor",
+    "Baked_Emit",
+    "Baked_MetallicRoughness"
+  ],
+  "bounds": {
+    "min": [
+      -0.9482680559158325,
+      -0.858314037322998,
+      -0.828790009021759
+    ],
+    "max": [
+      0.9480469822883606,
+      0.8608610033988953,
+      0.8292199969291687
+    ],
+    "size": [
+      1.896315097808838,
+      1.719175100326538,
+      1.6580100059509277
+    ]
+  },
+  "object_name_sample": [
+    "Mesh1.0"
+  ],
+  "material_names": [
+    "Material_0.001"
+  ]
+}

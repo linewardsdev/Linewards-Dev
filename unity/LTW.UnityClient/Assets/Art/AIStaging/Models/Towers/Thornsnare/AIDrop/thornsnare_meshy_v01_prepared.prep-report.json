@@ -1,0 +1,54 @@
+{
+  "role": "thornsnare",
+  "input": "/Users/admin/Downloads/Meshy_AI_Thorn_Snare_Totem_Gam_0729035453_texture.glb",
+  "output": "/Users/admin/LTW/unity/LTW.UnityClient/Assets/Art/AIStaging/Models/Towers/Thornsnare/AIDrop/thornsnare_meshy_v01_prepared.fbx",
+  "target_height": 1.25,
+  "max_footprint": 1.45,
+  "mesh_count": 1,
+  "exported_textures": [
+    "/Users/admin/LTW/unity/LTW.UnityClient/Assets/Art/AIStaging/Models/Towers/Thornsnare/AIDrop/thornsnare_meshy_v01_prepared_Textures/Baked_BaseColor.png",
+    "/Users/admin/LTW/unity/LTW.UnityClient/Assets/Art/AIStaging/Models/Towers/Thornsnare/AIDrop/thornsnare_meshy_v01_prepared_Textures/Baked_Emit.png",
+    "/Users/admin/LTW/unity/LTW.UnityClient/Assets/Art/AIStaging/Models/Towers/Thornsnare/AIDrop/thornsnare_meshy_v01_prepared_Textures/Baked_MetallicRoughness.png"
+  ],
+  "normalization": {
+    "scale_factor": 0.6636943837042653,
+    "initial_bounds": {
+      "min": [
+        -0.9493860006332397,
+        -0.8920560479164124,
+        -0.9386979937553406
+      ],
+      "max": [
+        0.9470850825309753,
+        0.8971619606018066,
+        0.9446989893913269
+      ],
+      "size": [
+        1.8964710235595703,
+        1.7892179489135742,
+        1.8833969831466675
+      ]
+    },
+    "final_bounds": {
+      "min": [
+        -0.6293386220932007,
+        -0.5937469601631165,
+        0.0
+      ],
+      "max": [
+        0.6293385624885559,
+        0.5937469601631165,
+        1.25
+      ],
+      "size": [
+        1.2586772441864014,
+        1.187493920326233,
+        1.25
+      ]
+    }
+  },
+  "notes": [
+    "Prepared by Blender source cleanup script.",
+    "This is a source/staging export only; Unity promotion remains separate."
+  ]
+}

@@ -1,0 +1,43 @@
+{
+  "input": "/Users/admin/Downloads/Meshy_AI_Bloomheart_Totem_Game_0729035505_texture.glb",
+  "mesh_count": 1,
+  "object_count": 1,
+  "triangle_count": 15413,
+  "vertex_count": 16629,
+  "material_slot_count": 1,
+  "unique_material_count": 1,
+  "transparent_material_count": 1,
+  "transparent_materials": [
+    "Material_0.001"
+  ],
+  "texture_count": 3,
+  "texture_paths": [],
+  "packed_texture_names": [
+    "Baked_BaseColor",
+    "Baked_Emit",
+    "Baked_MetallicRoughness"
+  ],
+  "bounds": {
+    "min": [
+      -0.9490149617195129,
+      -0.820019006729126,
+      -0.9405259490013123
+    ],
+    "max": [
+      0.9468549489974976,
+      0.8238968849182129,
+      0.9376749396324158
+    ],
+    "size": [
+      1.8958699703216553,
+      1.6439158916473389,
+      1.878200888633728
+    ]
+  },
+  "object_name_sample": [
+    "Mesh1.0"
+  ],
+  "material_names": [
+    "Material_0.001"
+  ]
+}

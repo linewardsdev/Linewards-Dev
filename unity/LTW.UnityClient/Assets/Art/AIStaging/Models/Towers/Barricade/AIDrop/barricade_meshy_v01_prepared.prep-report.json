@@ -1,0 +1,54 @@
+{
+  "role": "barricade",
+  "input": "/Users/admin/Downloads/Meshy_AI_Barricade_Bastion_Gam_0729035557_texture.glb",
+  "output": "/Users/admin/LTW/unity/LTW.UnityClient/Assets/Art/AIStaging/Models/Towers/Barricade/AIDrop/barricade_meshy_v01_prepared.fbx",
+  "target_height": 1.25,
+  "max_footprint": 1.45,
+  "mesh_count": 1,
+  "exported_textures": [
+    "/Users/admin/LTW/unity/LTW.UnityClient/Assets/Art/AIStaging/Models/Towers/Barricade/AIDrop/barricade_meshy_v01_prepared_Textures/Baked_BaseColor.png",
+    "/Users/admin/LTW/unity/LTW.UnityClient/Assets/Art/AIStaging/Models/Towers/Barricade/AIDrop/barricade_meshy_v01_prepared_Textures/Baked_Emit.png",
+    "/Users/admin/LTW/unity/LTW.UnityClient/Assets/Art/AIStaging/Models/Towers/Barricade/AIDrop/barricade_meshy_v01_prepared_Textures/Baked_MetallicRoughness.png"
+  ],
+  "normalization": {
+    "scale_factor": 0.6580484569709548,
+    "initial_bounds": {
+      "min": [
+        -0.9155990481376648,
+        -0.9141940474510193,
+        -0.9507400989532471
+      ],
+      "max": [
+        0.9143890142440796,
+        0.9169639945030212,
+        0.9488160014152527
+      ],
+      "size": [
+        1.8299880027770996,
+        1.8311580419540405,
+        1.8995561599731445
+      ]
+    },
+    "final_bounds": {
+      "min": [
+        -0.6021103858947754,
+        -0.6024953126907349,
+        0.0
+      ],
+      "max": [
+        0.6021104454994202,
+        0.6024953722953796,
+        1.25
+      ],
+      "size": [
+        1.2042207717895508,
+        1.2049906253814697,
+        1.25
+      ]
+    }
+  },
+  "notes": [
+    "Prepared by Blender source cleanup script.",
+    "This is a source/staging export only; Unity promotion remains separate."
+  ]
+}

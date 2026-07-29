@@ -1,0 +1,43 @@
+{
+  "input": "/Users/admin/Downloads/Meshy_AI_Gatling_Turret_Gamere_0729035537_texture.glb",
+  "mesh_count": 1,
+  "object_count": 1,
+  "triangle_count": 15365,
+  "vertex_count": 20713,
+  "material_slot_count": 1,
+  "unique_material_count": 1,
+  "transparent_material_count": 1,
+  "transparent_materials": [
+    "Material_0.001"
+  ],
+  "texture_count": 3,
+  "texture_paths": [],
+  "packed_texture_names": [
+    "Baked_BaseColor",
+    "Baked_Emit",
+    "Baked_MetallicRoughness"
+  ],
+  "bounds": {
+    "min": [
+      -0.8908820152282715,
+      -0.48465704917907715,
+      -0.9507440328598022
+    ],
+    "max": [
+      0.8942819833755493,
+      0.48552194237709045,
+      0.94793301820755
+    ],
+    "size": [
+      1.7851639986038208,
+      0.9701789617538452,
+      1.898677110671997
+    ]
+  },
+  "object_name_sample": [
+    "Mesh1.0"
+  ],
+  "material_names": [
+    "Material_0.001"
+  ]
+}

@@ -1,0 +1,54 @@
+{
+  "role": "foundry",
+  "input": "/Users/admin/Downloads/Meshy_AI_Foundry_Core_Gameread_0729035551_texture.glb",
+  "output": "/Users/admin/LTW/unity/LTW.UnityClient/Assets/Art/AIStaging/Models/Towers/Foundry/AIDrop/foundry_meshy_v01_prepared.fbx",
+  "target_height": 1.25,
+  "max_footprint": 1.45,
+  "mesh_count": 1,
+  "exported_textures": [
+    "/Users/admin/LTW/unity/LTW.UnityClient/Assets/Art/AIStaging/Models/Towers/Foundry/AIDrop/foundry_meshy_v01_prepared_Textures/Baked_BaseColor.png",
+    "/Users/admin/LTW/unity/LTW.UnityClient/Assets/Art/AIStaging/Models/Towers/Foundry/AIDrop/foundry_meshy_v01_prepared_Textures/Baked_Emit.png",
+    "/Users/admin/LTW/unity/LTW.UnityClient/Assets/Art/AIStaging/Models/Towers/Foundry/AIDrop/foundry_meshy_v01_prepared_Textures/Baked_MetallicRoughness.png"
+  ],
+  "normalization": {
+    "scale_factor": 0.6581468818369585,
+    "initial_bounds": {
+      "min": [
+        -0.7814639806747437,
+        -0.9147820472717285,
+        -0.950778067111969
+      ],
+      "max": [
+        0.7790870070457458,
+        0.9201049208641052,
+        0.948494017124176
+      ],
+      "size": [
+        1.5605509281158447,
+        1.8348870277404785,
+        1.899272084236145
+      ]
+    },
+    "final_bounds": {
+      "min": [
+        -0.5135358572006226,
+        -0.6038125157356262,
+        0.0
+      ],
+      "max": [
+        0.5135358572006226,
+        0.603812575340271,
+        1.25
+      ],
+      "size": [
+        1.0270717144012451,
+        1.207625150680542,
+        1.25
+      ]
+    }
+  },
+  "notes": [
+    "Prepared by Blender source cleanup script.",
+    "This is a source/staging export only; Unity promotion remains separate."
+  ]
+}

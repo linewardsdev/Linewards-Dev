@@ -89,6 +89,12 @@ public sealed class LocalVerticalSlice
     }
 
     /// <summary>
+    /// The active content catalog, so the client can read authored values (tower costs and the
+    /// like) rather than keeping its own copy of them.
+    /// </summary>
+    public ContentCatalog Content => content;
+
+    /// <summary>
     /// The seat the local client drives. Presentation and input code should ask for this rather
     /// than assuming player 1, so the same client can be seated anywhere in the match — the
     /// prerequisite for remote players each driving their own seat.

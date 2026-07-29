@@ -1,0 +1,54 @@
+{
+  "role": "sporecloud",
+  "input": "/Users/admin/Downloads/Meshy_AI_Spore_Cloud_Bloom_Gam_0729035500_texture.glb",
+  "output": "/Users/admin/LTW/unity/LTW.UnityClient/Assets/Art/AIStaging/Models/Towers/Sporecloud/AIDrop/sporecloud_meshy_v01_prepared.fbx",
+  "target_height": 1.25,
+  "max_footprint": 1.45,
+  "mesh_count": 1,
+  "exported_textures": [
+    "/Users/admin/LTW/unity/LTW.UnityClient/Assets/Art/AIStaging/Models/Towers/Sporecloud/AIDrop/sporecloud_meshy_v01_prepared_Textures/Baked_BaseColor.png",
+    "/Users/admin/LTW/unity/LTW.UnityClient/Assets/Art/AIStaging/Models/Towers/Sporecloud/AIDrop/sporecloud_meshy_v01_prepared_Textures/Baked_Emit.png",
+    "/Users/admin/LTW/unity/LTW.UnityClient/Assets/Art/AIStaging/Models/Towers/Sporecloud/AIDrop/sporecloud_meshy_v01_prepared_Textures/Baked_MetallicRoughness.png"
+  ],
+  "normalization": {
+    "scale_factor": 0.6584152111836952,
+    "initial_bounds": {
+      "min": [
+        -0.7570899724960327,
+        -0.6033499836921692,
+        -0.9506750106811523
+      ],
+      "max": [
+        0.754954993724823,
+        0.6034929156303406,
+        0.9478229880332947
+      ],
+      "size": [
+        1.512044906616211,
+        1.2068428993225098,
+        1.8984980583190918
+      ]
+    },
+    "final_bounds": {
+      "min": [
+        -0.49777668714523315,
+        -0.3973018527030945,
+        0.0
+      ],
+      "max": [
+        0.49777668714523315,
+        0.3973018527030945,
+        1.25
+      ],
+      "size": [
+        0.9955533742904663,
+        0.794603705406189,
+        1.25
+      ]
+    }
+  },
+  "notes": [
+    "Prepared by Blender source cleanup script.",
+    "This is a source/staging export only; Unity promotion remains separate."
+  ]
+}

@@ -1,0 +1,54 @@
+{
+  "role": "gatling",
+  "input": "/Users/admin/Downloads/Meshy_AI_Gatling_Turret_Gamere_0729035537_texture.glb",
+  "output": "/Users/admin/LTW/unity/LTW.UnityClient/Assets/Art/AIStaging/Models/Towers/Gatling/AIDrop/gatling_meshy_v01_prepared.fbx",
+  "target_height": 1.25,
+  "max_footprint": 1.45,
+  "mesh_count": 1,
+  "exported_textures": [
+    "/Users/admin/LTW/unity/LTW.UnityClient/Assets/Art/AIStaging/Models/Towers/Gatling/AIDrop/gatling_meshy_v01_prepared_Textures/Baked_BaseColor.png",
+    "/Users/admin/LTW/unity/LTW.UnityClient/Assets/Art/AIStaging/Models/Towers/Gatling/AIDrop/gatling_meshy_v01_prepared_Textures/Baked_Emit.png",
+    "/Users/admin/LTW/unity/LTW.UnityClient/Assets/Art/AIStaging/Models/Towers/Gatling/AIDrop/gatling_meshy_v01_prepared_Textures/Baked_MetallicRoughness.png"
+  ],
+  "normalization": {
+    "scale_factor": 0.6583531201666979,
+    "initial_bounds": {
+      "min": [
+        -0.8908820152282715,
+        -0.48465704917907715,
+        -0.9507440328598022
+      ],
+      "max": [
+        0.8942819833755493,
+        0.48552194237709045,
+        0.94793301820755
+      ],
+      "size": [
+        1.7851639986038208,
+        0.9701789617538452,
+        1.898677110671997
+      ]
+    },
+    "final_bounds": {
+      "min": [
+        -0.5876342058181763,
+        -0.3193601965904236,
+        0.0
+      ],
+      "max": [
+        0.5876341462135315,
+        0.3193601965904236,
+        1.25
+      ],
+      "size": [
+        1.1752684116363525,
+        0.6387203931808472,
+        1.25
+      ]
+    }
+  },
+  "notes": [
+    "Prepared by Blender source cleanup script.",
+    "This is a source/staging export only; Unity promotion remains separate."
+  ]
+}

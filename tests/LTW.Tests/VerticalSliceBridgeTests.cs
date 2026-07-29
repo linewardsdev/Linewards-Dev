@@ -425,6 +425,16 @@ public sealed class VerticalSliceBridgeTests
         Assert.Contains(content.Towers, tower => tower.Id.Equals(SampleVerticalSliceContent.UtilityTowerId));
         Assert.Contains(content.Towers, tower => tower.Id.Equals(SampleVerticalSliceContent.PulseTowerId));
         Assert.Contains(content.Towers, tower => tower.Id.Equals(SampleVerticalSliceContent.PrismTowerId));
+        Assert.Contains(content.Towers, tower => tower.Id.Equals(SampleVerticalSliceContent.GatlingTowerId));
+        Assert.Contains(content.Towers, tower => tower.Id.Equals(SampleVerticalSliceContent.TeslaTowerId));
+        Assert.Contains(content.Towers, tower => tower.Id.Equals(SampleVerticalSliceContent.FoundryTowerId));
+        Assert.Contains(content.Towers, tower => tower.Id.Equals(SampleVerticalSliceContent.BarricadeTowerId));
+        Assert.Contains(content.Towers, tower => tower.Id.Equals(SampleVerticalSliceContent.RepairDroneTowerId));
+        Assert.Contains(content.Towers, tower => tower.Id.Equals(SampleVerticalSliceContent.ElderCanopyTowerId));
+        Assert.Contains(content.Towers, tower => tower.Id.Equals(SampleVerticalSliceContent.SaplingTowerId));
+        Assert.Contains(content.Towers, tower => tower.Id.Equals(SampleVerticalSliceContent.BloomheartTowerId));
+        Assert.Contains(content.Towers, tower => tower.Id.Equals(SampleVerticalSliceContent.ThornSnareTowerId));
+        Assert.Contains(content.Towers, tower => tower.Id.Equals(SampleVerticalSliceContent.SporeCloudTowerId));
         Assert.Contains(content.Creeps, creep => creep.Id.Equals(SampleVerticalSliceContent.CreepId));
         Assert.Contains(content.Creeps, creep => creep.Id.Equals(SampleVerticalSliceContent.BruteCreepId));
         Assert.Contains(content.Creeps, creep => creep.Id.Equals(SampleVerticalSliceContent.SwarmCreepId));
@@ -440,7 +450,7 @@ public sealed class VerticalSliceBridgeTests
         Assert.Contains(content.Creeps, creep => creep.Id.Equals(SampleVerticalSliceContent.StalkerCreepId));
         Assert.Contains(content.Creeps, creep => creep.Id.Equals(SampleVerticalSliceContent.WardenCreepId));
         Assert.Contains(content.Creeps, creep => creep.Id.Equals(SampleVerticalSliceContent.ColossusCreepId));
-        Assert.Equal(5, content.Towers.Count);
+        Assert.Equal(15, content.Towers.Count);
         Assert.Equal(15, content.Creeps.Count);
     }
 

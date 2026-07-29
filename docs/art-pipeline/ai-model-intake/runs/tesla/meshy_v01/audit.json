@@ -1,0 +1,43 @@
+{
+  "input": "/Users/admin/Downloads/Meshy_AI_Tesla_Coil_Spire_Game_0729035531_texture.glb",
+  "mesh_count": 1,
+  "object_count": 1,
+  "triangle_count": 14993,
+  "vertex_count": 19099,
+  "material_slot_count": 1,
+  "unique_material_count": 1,
+  "transparent_material_count": 1,
+  "transparent_materials": [
+    "Material_0.001"
+  ],
+  "texture_count": 3,
+  "texture_paths": [],
+  "packed_texture_names": [
+    "Baked_BaseColor",
+    "Baked_Emit",
+    "Baked_MetallicRoughness"
+  ],
+  "bounds": {
+    "min": [
+      -0.5760470032691956,
+      -0.4587080478668213,
+      -0.95067298412323
+    ],
+    "max": [
+      0.5743899941444397,
+      0.4591929316520691,
+      0.9483810067176819
+    ],
+    "size": [
+      1.1504369974136353,
+      0.9179009795188904,
+      1.8990540504455566
+    ]
+  },
+  "object_name_sample": [
+    "Mesh1.0"
+  ],
+  "material_names": [
+    "Material_0.001"
+  ]
+}

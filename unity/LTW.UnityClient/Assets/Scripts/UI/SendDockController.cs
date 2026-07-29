@@ -240,7 +240,15 @@ namespace LTW.UnityClient.UI
         /// </remarks>
         private void DrawCategoryPicker(Rect rect, float buttonY, float buttonHeight, float gap, float scale)
         {
-            var cardHeight = buttonHeight;
+            // Card height is divided out of the space the panel actually has, not fixed. At a
+            // fixed buttonHeight the three cards ran to 84 + 3*(84+8) = 352 inside a 282-tall
+            // panel, so the last one hung outside the dock and over the board — the same defect a
+            // two-card version of this picker had, reintroduced when a third category landed.
+            // Deriving the height means adding a fourth category cannot bring it back.
+            var count = CategoryLabels.Length;
+            var top = buttonY - rect.y;
+            var available = rect.height - top - 12f * scale - gap * (count - 1);
+            var cardHeight = Mathf.Min(buttonHeight, available / count);
             var cardWidth = rect.width - 24f * scale;
             var x = rect.x + 12f * scale;
             var accents = new[] { ArcaneBlue, WardViolet, SignalGold };

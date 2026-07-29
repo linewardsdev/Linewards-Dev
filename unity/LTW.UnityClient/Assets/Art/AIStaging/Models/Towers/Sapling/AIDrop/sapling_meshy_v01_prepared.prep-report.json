@@ -1,0 +1,54 @@
+{
+  "role": "sapling",
+  "input": "/Users/admin/Downloads/Meshy_AI_Sapling_Sentinel_Game_0729035519_texture.glb",
+  "output": "/Users/admin/LTW/unity/LTW.UnityClient/Assets/Art/AIStaging/Models/Towers/Sapling/AIDrop/sapling_meshy_v01_prepared.fbx",
+  "target_height": 1.25,
+  "max_footprint": 1.45,
+  "mesh_count": 1,
+  "exported_textures": [
+    "/Users/admin/LTW/unity/LTW.UnityClient/Assets/Art/AIStaging/Models/Towers/Sapling/AIDrop/sapling_meshy_v01_prepared_Textures/Baked_BaseColor.png",
+    "/Users/admin/LTW/unity/LTW.UnityClient/Assets/Art/AIStaging/Models/Towers/Sapling/AIDrop/sapling_meshy_v01_prepared_Textures/Baked_Emit.png",
+    "/Users/admin/LTW/unity/LTW.UnityClient/Assets/Art/AIStaging/Models/Towers/Sapling/AIDrop/sapling_meshy_v01_prepared_Textures/Baked_MetallicRoughness.png"
+  ],
+  "normalization": {
+    "scale_factor": 0.7539158361611217,
+    "initial_bounds": {
+      "min": [
+        -0.9482680559158325,
+        -0.858314037322998,
+        -0.828790009021759
+      ],
+      "max": [
+        0.9480469822883606,
+        0.8608610033988953,
+        0.8292199969291687
+      ],
+      "size": [
+        1.896315097808838,
+        1.719175100326538,
+        1.6580100059509277
+      ]
+    },
+    "final_bounds": {
+      "min": [
+        -0.7148309946060181,
+        -0.64805668592453,
+        0.0
+      ],
+      "max": [
+        0.7148309946060181,
+        0.6480566263198853,
+        1.25
+      ],
+      "size": [
+        1.4296619892120361,
+        1.2961132526397705,
+        1.25
+      ]
+    }
+  },
+  "notes": [
+    "Prepared by Blender source cleanup script.",
+    "This is a source/staging export only; Unity promotion remains separate."
+  ]
+}

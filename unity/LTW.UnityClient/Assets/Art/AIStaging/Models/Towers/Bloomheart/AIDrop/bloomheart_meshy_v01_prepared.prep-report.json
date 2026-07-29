@@ -1,0 +1,54 @@
+{
+  "role": "bloomheart",
+  "input": "/Users/admin/Downloads/Meshy_AI_Bloomheart_Totem_Game_0729035505_texture.glb",
+  "output": "/Users/admin/LTW/unity/LTW.UnityClient/Assets/Art/AIStaging/Models/Towers/Bloomheart/AIDrop/bloomheart_meshy_v01_prepared.fbx",
+  "target_height": 1.25,
+  "max_footprint": 1.45,
+  "mesh_count": 1,
+  "exported_textures": [
+    "/Users/admin/LTW/unity/LTW.UnityClient/Assets/Art/AIStaging/Models/Towers/Bloomheart/AIDrop/bloomheart_meshy_v01_prepared_Textures/Baked_BaseColor.png",
+    "/Users/admin/LTW/unity/LTW.UnityClient/Assets/Art/AIStaging/Models/Towers/Bloomheart/AIDrop/bloomheart_meshy_v01_prepared_Textures/Baked_Emit.png",
+    "/Users/admin/LTW/unity/LTW.UnityClient/Assets/Art/AIStaging/Models/Towers/Bloomheart/AIDrop/bloomheart_meshy_v01_prepared_Textures/Baked_MetallicRoughness.png"
+  ],
+  "normalization": {
+    "scale_factor": 0.6655305125051323,
+    "initial_bounds": {
+      "min": [
+        -0.9490149617195129,
+        -0.820019006729126,
+        -0.9405259490013123
+      ],
+      "max": [
+        0.9468549489974976,
+        0.8238968849182129,
+        0.9376749396324158
+      ],
+      "size": [
+        1.8958699703216553,
+        1.6439158916473389,
+        1.878200888633728
+      ]
+    },
+    "final_bounds": {
+      "min": [
+        -0.6308796405792236,
+        -0.5470380783081055,
+        0.0
+      ],
+      "max": [
+        0.6308796405792236,
+        0.5470380783081055,
+        1.25
+      ],
+      "size": [
+        1.2617592811584473,
+        1.094076156616211,
+        1.25
+      ]
+    }
+  },
+  "notes": [
+    "Prepared by Blender source cleanup script.",
+    "This is a source/staging export only; Unity promotion remains separate."
+  ]
+}
