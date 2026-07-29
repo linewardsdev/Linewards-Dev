@@ -38,10 +38,23 @@ public static class SampleVerticalSliceContent
 
     public static readonly ContentId TurretWalkerCreepId = new("creep.turret_walker");
 
+    // Category 3 roster ("ELITE") — Meshy auto-rigged bipeds. Costlier and heavier than the
+    // first ten, and unlike Category 2 these are NOT send-cooldown exempt: cost is what paces
+    // them, so they stay on the normal cooldown like Category 1.
+    public static readonly ContentId ZephyrCreepId = new("creep.zephyr");
+
+    public static readonly ContentId BurrowerCreepId = new("creep.burrower");
+
+    public static readonly ContentId StalkerCreepId = new("creep.stalker");
+
+    public static readonly ContentId WardenCreepId = new("creep.warden");
+
+    public static readonly ContentId ColossusCreepId = new("creep.colossus");
+
     public static ContentCatalog Create()
     {
         return new ContentCatalog(
-            "mvp-07-5x2-roster",
+            "mvp-07-5x3-roster",
             new[]
             {
                 new TowerDefinition(TowerId, "Arrow Tower", new Gold(14), rangeCells: 2, damage: 2, attackCooldownTicks: 2),
@@ -68,7 +81,20 @@ public static class SampleVerticalSliceContent
                 // Obsidian Brute (1.45 HP/gold and 0.091 income/gold vs Obsidian Brute's 2.00 and
                 // 0.100 for only 8 more gold) — see docs/GD_TUNING_LOG.md for the full comparison.
                 new CreepDefinition(SerpentCreepId, "Serpent Coil", new Gold(20), new Income(2), new Gold(2), new Gold(3), maxHealth: 32, speedPerSecond: 1, ignoresSendCooldown: true),
-                new CreepDefinition(TurretWalkerCreepId, "Spire Turret Walker", new Gold(38), new Income(4), new Gold(4), new Gold(5), maxHealth: 40, speedPerSecond: 2, ignoresSendCooldown: true)
+                new CreepDefinition(TurretWalkerCreepId, "Spire Turret Walker", new Gold(38), new Income(4), new Gold(4), new Gold(5), maxHealth: 40, speedPerSecond: 2, ignoresSendCooldown: true),
+
+                // Category 3 ("ELITE") — first pass, tunable. A deliberately later tier: costs
+                // and health run past the first ten, which is self-limiting because cost is the
+                // gate. Left on the normal send cooldown (no ignoresSendCooldown) unlike
+                // Category 2, since price already paces them.
+                new CreepDefinition(ZephyrCreepId, "Zephyr Wraith", new Gold(22), new Income(2), new Gold(2), new Gold(3), maxHealth: 12, speedPerSecond: 3),
+                new CreepDefinition(BurrowerCreepId, "Fracture Burrower", new Gold(26), new Income(2), new Gold(3), new Gold(4), maxHealth: 44, speedPerSecond: 1),
+                new CreepDefinition(StalkerCreepId, "Umbral Stalker", new Gold(28), new Income(3), new Gold(2), new Gold(4), maxHealth: 20, speedPerSecond: 2),
+                new CreepDefinition(WardenCreepId, "Aegis Warden", new Gold(34), new Income(3), new Gold(3), new Gold(4), maxHealth: 55, speedPerSecond: 1),
+                // Named Colossus rather than Siege to keep it distinct from creep.siege, which it
+                // deliberately outclasses (90 health / 52 gold vs 48 / 40) rather than duplicates
+                // — same call made for Obsidian Brute against Brute.
+                new CreepDefinition(ColossusCreepId, "Siege Colossus", new Gold(52), new Income(5), new Gold(5), new Gold(8), maxHealth: 90, speedPerSecond: 1)
             },
             Array.Empty<TechDefinition>(),
             new[] { new MapDefinition(new ContentId("map.vertical-slice"), "Vertical Slice", width: 7, height: 16, new GridPosition(3, 0), new GridPosition(3, 15), Array.Empty<GridPosition>()) },

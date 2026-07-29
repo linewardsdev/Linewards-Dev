@@ -1,7 +1,9 @@
+using System.Collections.Generic;
 using System.Linq;
 using LTW.Simulation.Bots;
 using LTW.Simulation.Bridge;
 using LTW.Simulation.Commands;
+using LTW.Simulation.Content;
 using LTW.Simulation.Economy;
 using LTW.Simulation.Events;
 using LTW.Simulation.Primitives;
@@ -290,13 +292,73 @@ public sealed class VerticalSliceBridgeTests
         var balancedSend = Assert.IsType<QueueSendCommand>(balanced.Decide(richState, content, new SimulationTick(220)).Command);
         var defensiveSend = Assert.IsType<QueueSendCommand>(defensive.Decide(richState, content, new SimulationTick(240)).Command);
 
-        // Category 2 creeps (added 2026-07-28) now slot into these cost-descending preference
-        // lists — see BotController.SelectCreep's comment for why cost-descending ordering is
-        // required for reachability. At this richState's abundant gold, each profile picks the
-        // single most expensive creep in its top tier.
-        Assert.Equal(SampleVerticalSliceContent.SiegeCreepId, greedySend.CreepId);
-        Assert.Equal(SampleVerticalSliceContent.ObsidianBruteCreepId, balancedSend.CreepId);
-        Assert.Equal(SampleVerticalSliceContent.ObsidianBruteCreepId, defensiveSend.CreepId);
+        // Category 2 and then Category 3 creeps slot into these cost-descending preference lists
+        // — see BotController.SelectCreep's comment for why cost-descending ordering is required
+        // for reachability. At this richState's abundant gold, each profile picks the single most
+        // expensive creep in its top tier, which Category 3 moved up for all three.
+        Assert.Equal(SampleVerticalSliceContent.ColossusCreepId, greedySend.CreepId);
+        Assert.Equal(SampleVerticalSliceContent.WardenCreepId, balancedSend.CreepId);
+        Assert.Equal(SampleVerticalSliceContent.WardenCreepId, defensiveSend.CreepId);
+    }
+
+    /// <summary>
+    /// Guards the reachability invariant directly, rather than trusting that whoever edits a
+    /// preference list keeps it cost-sorted.
+    /// </summary>
+    /// <remarks>
+    /// <c>SelectCreep</c> returns the first id in its list that the bot can afford, so an id
+    /// placed after a cheaper one can never be selected at any gold level — affording the pricier
+    /// one always implies affording the cheaper one, which wins first. A previous violation left
+    /// five creeps at zero sends across an entire batch playtest and was only caught by replay
+    /// analysis. Sweeping gold and collecting what each profile actually picks catches it in
+    /// milliseconds instead: every creep the lists name must be selectable at *some* gold level.
+    /// </remarks>
+    [Fact]
+    public void Every_creep_a_bot_profile_prefers_is_reachable_at_some_gold_level()
+    {
+        var content = SampleVerticalSliceContent.Create();
+        var expectedReachable = new (BotDecisionProfile Profile, int Income, ContentId[] Ids)[]
+        {
+            (BotDecisionProfile.Greedy, 60, new[]
+            {
+                SampleVerticalSliceContent.ColossusCreepId, SampleVerticalSliceContent.SiegeCreepId,
+                SampleVerticalSliceContent.TurretWalkerCreepId, SampleVerticalSliceContent.WardenCreepId,
+                SampleVerticalSliceContent.StalkerCreepId, SampleVerticalSliceContent.ShadeCreepId,
+                SampleVerticalSliceContent.BruteCreepId, SampleVerticalSliceContent.RevenantCreepId,
+            }),
+            (BotDecisionProfile.Balanced, 40, new[]
+            {
+                SampleVerticalSliceContent.WardenCreepId, SampleVerticalSliceContent.ObsidianBruteCreepId,
+                SampleVerticalSliceContent.BurrowerCreepId, SampleVerticalSliceContent.ShadeCreepId,
+                SampleVerticalSliceContent.BruteCreepId, SampleVerticalSliceContent.SwarmCreepId,
+            }),
+            (BotDecisionProfile.Defensive, 35, new[]
+            {
+                SampleVerticalSliceContent.WardenCreepId, SampleVerticalSliceContent.ObsidianBruteCreepId,
+                SampleVerticalSliceContent.BurrowerCreepId, SampleVerticalSliceContent.SerpentCreepId,
+                SampleVerticalSliceContent.BruteCreepId, SampleVerticalSliceContent.SwarmCreepId,
+            }),
+        };
+
+        foreach (var (profile, income, ids) in expectedReachable)
+        {
+            var bot = new BotController(profile, SampleVerticalSliceContent.CreepId);
+            var seen = new HashSet<string>();
+            for (var gold = 0; gold <= 600; gold++)
+            {
+                var state = new PlayerEconomyState(new PlayerId(2), new Gold(gold), new Income(income), new Lives(220));
+                if (bot.Decide(state, content, new SimulationTick(300)).Command is QueueSendCommand send)
+                {
+                    seen.Add(send.CreepId.Value);
+                }
+            }
+
+            foreach (var id in ids)
+            {
+                Assert.True(seen.Contains(id.Value),
+                    $"{profile} never selects {id.Value} at any gold level 0-600 — it is listed after a cheaper id and is therefore unreachable.");
+            }
+        }
     }
 
     [Fact]
@@ -373,8 +435,13 @@ public sealed class VerticalSliceBridgeTests
         Assert.Contains(content.Creeps, creep => creep.Id.Equals(SampleVerticalSliceContent.ObsidianBruteCreepId));
         Assert.Contains(content.Creeps, creep => creep.Id.Equals(SampleVerticalSliceContent.SerpentCreepId));
         Assert.Contains(content.Creeps, creep => creep.Id.Equals(SampleVerticalSliceContent.TurretWalkerCreepId));
+        Assert.Contains(content.Creeps, creep => creep.Id.Equals(SampleVerticalSliceContent.ZephyrCreepId));
+        Assert.Contains(content.Creeps, creep => creep.Id.Equals(SampleVerticalSliceContent.BurrowerCreepId));
+        Assert.Contains(content.Creeps, creep => creep.Id.Equals(SampleVerticalSliceContent.StalkerCreepId));
+        Assert.Contains(content.Creeps, creep => creep.Id.Equals(SampleVerticalSliceContent.WardenCreepId));
+        Assert.Contains(content.Creeps, creep => creep.Id.Equals(SampleVerticalSliceContent.ColossusCreepId));
         Assert.Equal(5, content.Towers.Count);
-        Assert.Equal(10, content.Creeps.Count);
+        Assert.Equal(15, content.Creeps.Count);
     }
 
     [Fact]

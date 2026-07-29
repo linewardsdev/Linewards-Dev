@@ -79,35 +79,52 @@ public sealed class BotController
         // as a cheap opener; Balanced and Defensive lean on Obsidian Brute/Serpent for their
         // health-per-gold as tankier alternatives to Brute.
         //
-        // Every list below is ordered by descending cost. This isn't cosmetic: the loop after
-        // this switch tries each id in order and returns the first one `available` gold covers,
-        // so any id placed after a *cheaper* one in the same tier is mathematically unreachable —
-        // being able to afford the cheaper one never implies being unable to afford it, so the
-        // cheaper entry always wins first. A first version of this list ordered by "preference"
-        // instead of cost and left creep.brute/.shade/.siege/.serpent/.obsidian_brute completely
-        // unreachable across an entire batch playtest (0 sends each, confirmed via replay
-        // analysis) while creep.revenant alone accounted for 207 of 486 total sends — caught by
-        // actually running bots against the new roster, not by stat-math alone.
+        // These lists express *membership* — which creeps a profile is willing to send in a given
+        // income tier. Ordering is not a preference and is no longer authored by hand: the list is
+        // sorted by descending cost below before it is used.
+        //
+        // That sort is load-bearing. The loop tries each id in order and returns the first one
+        // `available` gold covers, so any id sitting after a cheaper one is mathematically
+        // unreachable — affording the cheaper one never implies being unable to afford the pricier
+        // one, so the cheaper entry always wins first. An early hand-ordered version left
+        // creep.brute/.shade/.siege/.serpent/.obsidian_brute at zero sends across an entire batch
+        // playtest while creep.revenant alone took 207 of 486, and it was only caught by replay
+        // analysis. Hand-ordering also silently broke `creepId.Value`, the bot's configured
+        // primary creep, which was appended last regardless of price: a bot given the 40-gold
+        // Siege as its primary could never actually send it from a tier whose other entries were
+        // cheaper. Sorting makes the invariant structural instead of a comment to be honoured.
+        // Category 3 ("ELITE", added 2026-07-28) slotted in at cost-sorted positions, same as
+        // Category 2 before it. Costs for reference: colossus 52, walker 38, warden 34, siege 40,
+        // obsidian_brute 30, stalker 28, burrower 26, shade 24, zephyr 22, serpent 20, brute 18,
+        // revenant 16, runner 10, swarm 6, wisp 5. Greedy takes the expensive top end where its
+        // income allows; Balanced and Defensive gain the two mid-tier tanks (warden, burrower)
+        // that suit their health-per-gold bias.
         var preferredIds = profile switch
         {
             BotDecisionProfile.Greedy => income >= 45
-                ? new[] { "creep.siege", "creep.turret_walker", "creep.shade", "creep.brute", "creep.revenant", creepId.Value }
+                ? new[] { "creep.colossus", "creep.siege", "creep.turret_walker", "creep.warden", "creep.stalker", "creep.shade", "creep.brute", "creep.revenant", creepId.Value }
                 : income >= 20
-                    ? new[] { "creep.shade", "creep.brute", "creep.revenant", creepId.Value }
+                    ? new[] { "creep.stalker", "creep.shade", "creep.zephyr", "creep.brute", "creep.revenant", creepId.Value }
                     : new[] { "creep.brute", creepId.Value, "creep.wisp" },
             BotDecisionProfile.Balanced => income >= 35
-                ? new[] { "creep.obsidian_brute", "creep.shade", "creep.brute", creepId.Value, "creep.swarm" }
+                ? new[] { "creep.warden", "creep.obsidian_brute", "creep.burrower", "creep.shade", "creep.brute", creepId.Value, "creep.swarm" }
                 : new[] { "creep.serpent", "creep.brute", creepId.Value, "creep.swarm" },
             BotDecisionProfile.Defensive => income >= 30
-                ? new[] { "creep.obsidian_brute", "creep.serpent", "creep.brute", "creep.runner", creepId.Value, "creep.swarm" }
+                ? new[] { "creep.warden", "creep.obsidian_brute", "creep.burrower", "creep.serpent", "creep.brute", "creep.runner", creepId.Value, "creep.swarm" }
                 : new[] { "creep.runner", creepId.Value, "creep.swarm", "creep.wisp" },
             _ => new[] { creepId.Value }
         };
 
-        foreach (var preferredId in preferredIds)
+        var candidates = preferredIds
+            .Distinct()
+            .Select(id => content.Creeps.FirstOrDefault(creep => creep.Id.Value == id))
+            .Where(creep => creep != null)
+            .OrderByDescending(creep => creep!.Cost.Amount)
+            .ThenBy(creep => creep!.Id.Value, System.StringComparer.Ordinal);
+
+        foreach (var candidate in candidates)
         {
-            var candidate = content.Creeps.FirstOrDefault(creep => creep.Id.Value == preferredId);
-            if (candidate != null && available >= candidate.Cost.Amount)
+            if (available >= candidate!.Cost.Amount)
             {
                 return candidate;
             }
