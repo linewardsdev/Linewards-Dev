@@ -2828,17 +2828,14 @@ namespace LTW.UnityClient.Simulation
 
             if (hasEndpointSprite)
             {
-                // The spawn end builds nothing at all. Its decoration sat at the far end of the
-                // lane (z=15) AND floated 0.27 units above the board surface, so under the tilted
-                // camera it projected up past the board's top edge and landed behind the HUD
-                // scoreboard — reading as a detached panel hanging in empty space rather than as
-                // board art. The board already reads its own spawn end without it. The leak end is
-                // unaffected: it sits at the near edge, fully on screen, and looks correct.
-                if (!isSpawn)
-                {
-                    CreateEndpointSpritePlate(laneId, label, center, isSpawn, isPlayerLane);
-                }
-
+                // Both ends get their gate plate. An earlier pass removed the spawn end entirely
+                // while chasing a panel that appeared behind the HUD scoreboard, which took the
+                // spawn gate art with it and left that end of the lane bare. What actually floated
+                // was the companion detail and pulse band stacked above the plate: the spawn end
+                // sits at the far end of the lane (z=15), so anything lifted off the surface there
+                // projects up past the board's top edge under the tilted camera. Those two
+                // builders stay gone; the plate itself lies flat on the board and is fine.
+                CreateEndpointSpritePlate(laneId, label, center, isSpawn, isPlayerLane);
                 return;
             }
 
@@ -2918,7 +2915,7 @@ namespace LTW.UnityClient.Simulation
             }
 
             var plate = new GameObject($"Lane{laneId}{label}ReferenceSpritePlate");
-            plate.transform.position = center + new Vector3(0f, 0.18f, isSpawn ? 0.02f : -0.1f);
+            plate.transform.position = center + new Vector3(0f, isSpawn ? 0.06f : 0.18f, isSpawn ? 0.02f : -0.1f);
             plate.transform.rotation = Quaternion.Euler(90f, 0f, 0f);
             var scale = isPlayerLane
                 ? (isSpawn ? 0.54f : 0.5f)
