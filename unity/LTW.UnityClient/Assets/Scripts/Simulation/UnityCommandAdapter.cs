@@ -124,6 +124,16 @@ namespace LTW.UnityClient.Simulation
 
         public VerticalSliceCommandResult SendTurretWalkerCreep() => SendCreep(SampleVerticalSliceContent.TurretWalkerCreepId, 1);
 
+        public VerticalSliceCommandResult SendZephyrCreep() => SendCreep(SampleVerticalSliceContent.ZephyrCreepId, 1);
+
+        public VerticalSliceCommandResult SendBurrowerCreep() => SendCreep(SampleVerticalSliceContent.BurrowerCreepId, 1);
+
+        public VerticalSliceCommandResult SendStalkerCreep() => SendCreep(SampleVerticalSliceContent.StalkerCreepId, 1);
+
+        public VerticalSliceCommandResult SendWardenCreep() => SendCreep(SampleVerticalSliceContent.WardenCreepId, 1);
+
+        public VerticalSliceCommandResult SendColossusCreep() => SendCreep(SampleVerticalSliceContent.ColossusCreepId, 1);
+
         public VerticalSliceCommandResult CreateDamagedTransferReviewCreep()
         {
             if (simulation is null)
