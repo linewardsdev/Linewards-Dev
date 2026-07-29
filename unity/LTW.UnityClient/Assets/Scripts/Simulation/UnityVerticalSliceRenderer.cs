@@ -145,6 +145,8 @@ namespace LTW.UnityClient.Simulation
         private Material shockwaveRingMaterial;
         private readonly Queue<GameObject> shockwaveRingPool = new Queue<GameObject>();
         private readonly List<ExpandingRingEffect> activeShockwaveRings = new List<ExpandingRingEffect>();
+        private readonly List<MortarShellEffect> activeMortarShells = new List<MortarShellEffect>();
+        private readonly Dictionary<string, GameObject> towerMechanicMarkers = new Dictionary<string, GameObject>();
         private bool laneCreated;
 
         public PresentationDetail Detail => presentationDetail;
@@ -354,6 +356,7 @@ namespace LTW.UnityClient.Simulation
         {
             ReleaseExpiredPresentations();
             UpdateExpandingRings();
+            UpdateMortarShells();
             if (presentationDetail == PresentationDetail.Disabled || simulationDriver == null)
             {
                 return;
@@ -597,6 +600,8 @@ namespace LTW.UnityClient.Simulation
                 var towerObject = GetOrCreateTower(key, visualProfile);
                 SetTowerTransform(towerObject, tower.Position, tower.LaneId, tower.TowerId.Value, visualProfile);
                 ApplyTowerColor(towerObject, tower.TowerId.Value, tower.OwnerId.Value, visualProfile);
+
+                UpdateTowerMechanicMarker(key, tower.TowerId.Value, tower.Position, tower.LaneId, snapshot);
 
                 if (towerVisionTargetsScratch.TryGetValue(key, out var visionTargetPosition))
                 {
@@ -1038,6 +1043,16 @@ namespace LTW.UnityClient.Simulation
                         var firedTowerKey = fired.TowerEntityId.Value.ToString();
                         towerLastFiredAt[firedTowerKey] = Time.time;
                         towerAimTarget[firedTowerKey] = GridToWorld(fired.TargetPosition, fired.LaneId);
+                        // An impact tick in the future means indirect fire. Direct-fire towers report
+                        // "here, now", so this needs no per-tower special case.
+                        if (fired.ImpactTick.Value > fired.Tick.Value)
+                        {
+                            SpawnMortarShell(
+                                GridToWorld(fired.TowerPosition, fired.LaneId),
+                                GridToWorld(fired.ImpactPosition, fired.LaneId),
+                                (float)(fired.ImpactTick.Value - fired.Tick.Value) / SimulationTicksPerSecond());
+                        }
+
                         break;
                     case CreepDamagedEvent damaged:
                         var hitPosition = PositionFor(damaged.CreepEntityId.Value.ToString());
@@ -1169,6 +1184,213 @@ namespace LTW.UnityClient.Simulation
             ring.transform.localScale = new Vector3(startScale, 1f, startScale);
             SetColor(ring, color);
             activeShockwaveRings.Add(new ExpandingRingEffect(ring, Time.time, duration, startScale, endScale, color));
+        }
+
+        /// <summary>
+        /// Simulation ticks per second, read from the driver so a tick count from an event converts
+        /// to real seconds. Falls back to the driver's own default if the driver is missing.
+        /// </summary>
+        private float SimulationTicksPerSecond() => simulationDriver != null ? simulationDriver.TicksPerSecond : 4f;
+
+        /// <summary>
+        /// Launches a mortar shell: an arcing projectile plus a ground telegraph at the cell it will
+        /// land on.
+        /// </summary>
+        /// <remarks>
+        /// The telegraph is the important half. A Foundry Core deals no damage when it fires and its
+        /// shell lands half a second later, so without a marker on the ground the player has no way to
+        /// read where or when — the tower becomes hidden dice and reads as broken. With it, the delay
+        /// is fair information: you can see the shell in the air and the cell it is committed to.
+        ///
+        /// The whole flight is animated client-side from the launch event, which is why
+        /// TowerFiredEvent carries ImpactTick and ImpactPosition. Keying the landing off the damage
+        /// event instead would make a shell that hits nothing visually evaporate in mid-air — and
+        /// while the simulation now refuses to fire shells it cannot land, a shell can still lose its
+        /// target to another tower during the flight.
+        /// </remarks>
+        private void SpawnMortarShell(Vector3 from, Vector3 to, float flightSeconds)
+        {
+            if (PresentationPreferences.ReducedEffects || flightSeconds <= 0f)
+            {
+                return;
+            }
+
+            var shell = GetPooled(effectPool, "MortarShell", PrimitiveType.Sphere);
+            shell.transform.localScale = Vector3.one * 0.22f;
+            shell.transform.position = from + Vector3.up * MortarLaunchHeight;
+            SetColor(shell, MortarShellColor);
+
+            // A ring that contracts onto the impact cell, so its size reads as a countdown.
+            var telegraph = GetPooledShockwaveRing();
+            telegraph.transform.position = to + Vector3.up * 0.02f;
+            telegraph.transform.localScale = new Vector3(MortarTelegraphStartScale, 1f, MortarTelegraphStartScale);
+            SetColor(telegraph, MortarTelegraphColor);
+
+            activeMortarShells.Add(new MortarShellEffect(shell, telegraph, from, to, Time.time, flightSeconds));
+        }
+
+        private void UpdateMortarShells()
+        {
+            for (var index = activeMortarShells.Count - 1; index >= 0; index--)
+            {
+                var shell = activeMortarShells[index];
+                var t = Mathf.Clamp01((Time.time - shell.StartTime) / shell.Duration);
+
+                // Straight line across the board, parabola in height: 4t(1-t) peaks at t=0.5 and is
+                // zero at both ends, so the shell leaves the stacks and meets the ground exactly on
+                // the telegraph.
+                var ground = Vector3.Lerp(shell.From, shell.To, t);
+                var lift = MortarLaunchHeight + MortarArcHeight * 4f * t * (1f - t);
+                shell.Shell.transform.position = new Vector3(ground.x, shell.From.y + lift, ground.z);
+
+                // Telegraph contracts and brightens as impact approaches.
+                var telegraphScale = Mathf.Lerp(MortarTelegraphStartScale, MortarTelegraphEndScale, t);
+                shell.Telegraph.transform.localScale = new Vector3(telegraphScale, 1f, telegraphScale);
+                SetColor(shell.Telegraph, new Color(
+                    MortarTelegraphColor.r,
+                    MortarTelegraphColor.g,
+                    MortarTelegraphColor.b,
+                    Mathf.Lerp(MortarTelegraphColor.a * 0.55f, MortarTelegraphColor.a, t)));
+
+                if (t < 1f)
+                {
+                    continue;
+                }
+
+                // Impact. The crater fires whether or not anything was standing there, so a shell that
+                // loses its target still visibly lands rather than vanishing.
+                SpawnExpandingRing(shell.To + Vector3.up * 0.05f, MortarImpactColor, 0.2f, 1.9f, 0.34f);
+                SpawnEffect(shell.To + Vector3.up * 0.12f, MortarImpactColor, 0.6f, 0.24f);
+
+                ReleaseToPool(shell.Shell, effectPool);
+                ReleaseToPool(shell.Telegraph, shockwaveRingPool);
+                activeMortarShells.RemoveAt(index);
+            }
+        }
+
+        /// <summary>
+        /// Draws the standing ground marker a tower's mechanic needs, if it has one.
+        /// </summary>
+        /// <remarks>
+        /// Two mechanics are invisible without this, and an invisible mechanic is a spreadsheet:
+        ///
+        /// Thorn Snare brakes creeps that stand in its zone. The creep does visibly crawl, but nothing
+        /// says WHERE the zone is, so the player cannot place a second tower to exploit it. A decal
+        /// over the braked cells makes the zone a thing you can build around.
+        ///
+        /// Grovebond gives a Sapling +1 damage per adjacent Grove tower. Three of its four states are
+        /// otherwise pixel-identical — the only evidence is a damage number that has to be compared
+        /// against a different sapling. The marker's brightness tracks the bonus.
+        ///
+        /// One pooled quad per tower, updated in place, released with the tower.
+        /// </remarks>
+        private void UpdateTowerMechanicMarker(
+            string key,
+            string towerId,
+            GridPosition position,
+            LaneId laneId,
+            LTW.Simulation.Bridge.VerticalSliceSnapshot snapshot)
+        {
+            var isThorn = towerId.Contains("thorn");
+            var isSapling = towerId.Contains("sapling");
+            if ((!isThorn && !isSapling) || PresentationPreferences.ReducedEffects)
+            {
+                ReleaseTowerMechanicMarker(key);
+                return;
+            }
+
+            if (!towerMechanicMarkers.TryGetValue(key, out var marker) || marker == null)
+            {
+                marker = GetPooledShockwaveRing();
+                marker.name = $"TowerMechanicMarker_{key}";
+                towerMechanicMarkers[key] = marker;
+            }
+
+            var centre = GridToWorld(position, laneId);
+            if (isThorn)
+            {
+                // Sized to the braked span rather than to the tower: BrambleZoneCells in the
+                // simulation is 3, and the zone starts at the first route cell in range.
+                marker.transform.position = new Vector3(centre.x, BoardTopY + 0.015f, centre.z);
+                marker.transform.localScale = new Vector3(BrambleMarkerScale, 1f, BrambleMarkerScale);
+                SetColor(marker, BrambleMarkerColor);
+                return;
+            }
+
+            // Grovebond: brightness and size track the bonus, so a bonded cluster reads at a glance.
+            var bonus = CountAdjacentGroveTowers(position, laneId, snapshot);
+            if (bonus == 0)
+            {
+                // An unbonded sapling gets no ring at all. That is the clearest possible read of the
+                // mechanic: the ring's presence means "this one is bonded".
+                ReleaseTowerMechanicMarker(key);
+                return;
+            }
+
+            marker.transform.position = new Vector3(centre.x, BoardTopY + 0.012f, centre.z);
+            // Floors were originally 0.55 scale / 0.16 alpha, which at the common bonus of 1 was
+            // invisible under the tower mesh — verified in a capture. The ring now starts wide enough
+            // to clear the silhouette and opaque enough to see, and still grows with the bonus.
+            var scale = Mathf.Lerp(1.25f, 1.9f, (bonus - 1) / 2f);
+            marker.transform.localScale = new Vector3(scale, 1f, scale);
+            SetColor(marker, new Color(
+                GrovebondMarkerColor.r,
+                GrovebondMarkerColor.g,
+                GrovebondMarkerColor.b,
+                Mathf.Lerp(0.34f, GrovebondMarkerColor.a, (bonus - 1) / 2f)));
+        }
+
+        /// <summary>
+        /// Mirrors CombatService.GrovebondBonus: orthogonal only, same lane, same owner, capped at 3.
+        /// </summary>
+        /// <remarks>
+        /// Duplicating the rule in presentation is a real risk of drift, but the alternative is a new
+        /// snapshot field carrying a number that only exists to be drawn. Kept honest by the marker
+        /// being the only consumer — if it disagrees with the damage numbers, the marker is wrong.
+        /// </remarks>
+        private static int CountAdjacentGroveTowers(
+            GridPosition position,
+            LaneId laneId,
+            LTW.Simulation.Bridge.VerticalSliceSnapshot snapshot)
+        {
+            var adjacent = 0;
+            for (var index = 0; index < snapshot.Towers.Count; index++)
+            {
+                var other = snapshot.Towers[index];
+                if (other.LaneId.Value != laneId.Value)
+                {
+                    continue;
+                }
+
+                if (Mathf.Abs(other.Position.X - position.X) + Mathf.Abs(other.Position.Y - position.Y) != 1)
+                {
+                    continue;
+                }
+
+                var id = other.TowerId.Value;
+                if (id.Contains("sapling") || id.Contains("bloomheart") || id.Contains("thorn")
+                    || id.Contains("spore") || id.Contains("canopy"))
+                {
+                    adjacent++;
+                }
+            }
+
+            return Mathf.Min(3, adjacent);
+        }
+
+        private void ReleaseTowerMechanicMarker(string key)
+        {
+            if (!towerMechanicMarkers.TryGetValue(key, out var marker))
+            {
+                return;
+            }
+
+            if (marker != null)
+            {
+                ReleaseToPool(marker, shockwaveRingPool);
+            }
+
+            towerMechanicMarkers.Remove(key);
         }
 
         private void UpdateExpandingRings()
@@ -1748,6 +1970,8 @@ namespace LTW.UnityClient.Simulation
                 towerAimTarget.Remove(key);
                 towerAimYaw.Remove(key);
                 towerSpinPartState.Remove(key);
+                // Sold or destroyed towers must not leave their mechanic decal on the board.
+                ReleaseTowerMechanicMarker(key);
             }
         }
 
@@ -2014,7 +2238,7 @@ namespace LTW.UnityClient.Simulation
             // Pulse is a stationary splash/AOE emitter, not a mechanical weapon with a kickback —
             // it should show zero recoil-driven position/pitch motion when it fires, only its own
             // VFX flash and ring spin. locksYaw (Pulse-only, see above) doubles as that flag here.
-            var recoilKickScale = locksYaw ? 0f : 1f;
+            var recoilKickScale = TowerMotionProfileFor(visualProfile.Role).SuppressRecoil ? 0f : 1f;
             var recoilKick = recoil * 0.16f * recoilKickScale;
             var kickDirection = Quaternion.Euler(0f, yaw, 0f) * Vector3.back;
             var recoilPosition = kickDirection * recoilKick + Vector3.down * (recoil * 0.04f * recoilKickScale);
@@ -3359,8 +3583,10 @@ namespace LTW.UnityClient.Simulation
                 float driftAmp = 0f,
                 float sharpness = 1f,
                 bool locksYaw = false,
-                float restHeadingDegrees = 0f)
+                float restHeadingDegrees = 0f,
+                bool? suppressRecoil = null)
             {
+                SuppressRecoil = suppressRecoil ?? locksYaw;
                 BreatheHz = breatheHz;
                 BreatheAmp = breatheAmp;
                 DriftHz = driftHz;
@@ -3378,6 +3604,17 @@ namespace LTW.UnityClient.Simulation
 
             /// <summary>Tower never rotates to face its target.</summary>
             public bool LocksYaw { get; }
+
+            /// <summary>
+            /// Tower shows no recoil kick when it fires. Defaults to <see cref="LocksYaw"/>, which is
+            /// how this behaved when the two were the same flag.
+            /// </summary>
+            /// <remarks>
+            /// They had to come apart for the Barricade Bastion. It locks yaw because it never turns,
+            /// but a fixed emplacement's whole read is the kick straight back along its one axis, and
+            /// tying the two together left it firing with no reaction at all.
+            /// </remarks>
+            public bool SuppressRecoil { get; }
 
             /// <summary>
             /// Heading the head's mesh already points at in its rest pose, subtracted from the aim
@@ -3435,7 +3672,7 @@ namespace LTW.UnityClient.Simulation
                 // Yaw locked and nearly inert by design — a fixed emplacement that fires along one
                 // direction only. Any turn or sway would contradict the mechanic.
                 case TowerVisualRole.Barricade:
-                    return new TowerMotionProfile(0.7f, 0.006f, locksYaw: true);
+                    return new TowerMotionProfile(0.7f, 0.006f, locksYaw: true, suppressRecoil: false);
 
                 // A thin spire with a drone. Light bob plus a wider drift than anything else,
                 // reading as something hovering rather than planted.
@@ -4701,6 +4938,39 @@ namespace LTW.UnityClient.Simulation
             public GameObject Object { get; }
             public float ReleaseAt { get; }
             public Queue<GameObject> Pool { get; }
+        }
+
+        private const float BrambleMarkerScale = 2.6f;
+        private static readonly Color BrambleMarkerColor = new Color(0.42f, 0.24f, 0.58f, 0.34f);
+        private static readonly Color GrovebondMarkerColor = new Color(0.55f, 0.95f, 0.38f, 0.7f);
+
+        private const float MortarLaunchHeight = 0.62f;
+        private const float MortarArcHeight = 1.15f;
+        private const float MortarTelegraphStartScale = 1.6f;
+        private const float MortarTelegraphEndScale = 0.62f;
+        private static readonly Color MortarShellColor = new Color(1f, 0.62f, 0.24f, 1f);
+        private static readonly Color MortarTelegraphColor = new Color(1f, 0.45f, 0.18f, 0.72f);
+        private static readonly Color MortarImpactColor = new Color(1f, 0.55f, 0.2f, 1f);
+
+        /// <summary>A shell in flight, with the ground telegraph marking where it will land.</summary>
+        private readonly struct MortarShellEffect
+        {
+            public MortarShellEffect(GameObject shell, GameObject telegraph, Vector3 from, Vector3 to, float startTime, float duration)
+            {
+                Shell = shell;
+                Telegraph = telegraph;
+                From = from;
+                To = to;
+                StartTime = startTime;
+                Duration = duration;
+            }
+
+            public GameObject Shell { get; }
+            public GameObject Telegraph { get; }
+            public Vector3 From { get; }
+            public Vector3 To { get; }
+            public float StartTime { get; }
+            public float Duration { get; }
         }
 
         private readonly struct ExpandingRingEffect

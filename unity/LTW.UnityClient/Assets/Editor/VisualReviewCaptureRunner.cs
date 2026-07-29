@@ -528,6 +528,13 @@ namespace LTW.UnityClient.Editor
             LogCommandResult("review defence Relay", commands.PlaceUtilityTower(2, 9));
             LogCommandResult("review defence Pulse", commands.PlacePulseTower(4, 8));
             LogCommandResult("review defence Prism", commands.PlacePrismTower(2, 5));
+
+            // Grove cluster and a mortar, so the mechanic markers and the shell arc appear in the
+            // pressure captures. Saplings adjacent to each other so Grovebond has a bonus to show.
+            LogCommandResult("review Grovebond sapling A", commands.PlaceTowerByRole(11, 1, 7));
+            LogCommandResult("review Grovebond sapling B", commands.PlaceTowerByRole(11, 1, 6));
+            LogCommandResult("review Bramble thorn", commands.PlaceTowerByRole(13, 5, 7));
+            LogCommandResult("review Foundry mortar", commands.PlaceTowerByRole(7, 5, 10));
         }
 
         private static void StartCombat(UnitySimulationDriver driver, UnityCommandAdapter commands)

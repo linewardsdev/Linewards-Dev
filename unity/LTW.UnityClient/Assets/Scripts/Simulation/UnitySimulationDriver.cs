@@ -15,6 +15,13 @@ namespace LTW.UnityClient.Simulation
         [SerializeField]
         private float ticksPerSecond = 4f;
 
+        /// <summary>
+        /// Simulation ticks per second, so presentation can convert a tick count from an event into
+        /// a duration in seconds. The Foundry mortar needs this to animate a shell's flight for
+        /// exactly as long as the simulation says it takes.
+        /// </summary>
+        public float TicksPerSecond => ticksPerSecond;
+
         [SerializeField]
         private float openingBuildCountdownSeconds = 30f;
 
