@@ -36,6 +36,8 @@ namespace LTW.UnityClient.Editor
         private static int shot;
         private static double startedAt;
         private static double nextShotAt;
+        private static bool previousPlayModeOptionsEnabled;
+        private static EnterPlayModeOptions previousPlayModeOptions;
 
         // Each entry is captured in order; the action runs one frame before the shot is taken.
         private static readonly (string Name, System.Action Setup)[] Shots =
@@ -53,6 +55,12 @@ namespace LTW.UnityClient.Editor
             seeded = false;
             running = true;
 
+            // Saved and restored in Finish. These are persisted project settings, not per-run
+            // state: leaving DisableDomainReload on changed how play mode behaves for everyone —
+            // static state survives entering play mode — and the change was committed as a silent
+            // side effect of running a screenshot tool.
+            previousPlayModeOptionsEnabled = EditorSettings.enterPlayModeOptionsEnabled;
+            previousPlayModeOptions = EditorSettings.enterPlayModeOptions;
             EditorSettings.enterPlayModeOptionsEnabled = true;
             EditorSettings.enterPlayModeOptions = EnterPlayModeOptions.DisableDomainReload;
             EditorApplication.isPlaying = true;
@@ -175,7 +183,14 @@ namespace LTW.UnityClient.Editor
                 Debug.LogError($"REALUI {error}");
             }
 
+            EditorSettings.enterPlayModeOptionsEnabled = previousPlayModeOptionsEnabled;
+            EditorSettings.enterPlayModeOptions = previousPlayModeOptions;
+
             Debug.Log($"REALUI DONE shots={shot} dir={outputDirectory}");
+
+            // Exiting the process while still in play mode leaves a Temp/__Backupscenes entry
+            // behind, and the next editor launch restores that backup instead of the real scene —
+            // which presents as the editor simply never finishing loading.
             EditorApplication.isPlaying = false;
             EditorApplication.Exit(error == null ? 0 : 1);
         }
