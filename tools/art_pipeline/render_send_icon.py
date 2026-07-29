@@ -91,7 +91,23 @@ def main() -> None:
 
     scene.render.filepath = out
     bpy.ops.render.render(write_still=True)
-    print(f"ICON_RENDERED {out}")
+
+    # The 4x supersample only helps if it is actually resolved down. This step was missing: the
+    # module docstring promised "renders at 4x and downsamples" but nothing downsampled, so every
+    # icon this script has ever produced came out at ICON_SIZE * SUPERSAMPLE. Five creep icons
+    # shipped at 512x512 that way — sixteen times the intended pixels for a 128px UI slot, and
+    # visibly softer than the hand-authored originals once Unity scaled them down.
+    rendered = bpy.data.images.load(out)
+    try:
+        if rendered.size[0] != ICON_SIZE or rendered.size[1] != ICON_SIZE:
+            rendered.scale(ICON_SIZE, ICON_SIZE)
+            rendered.filepath_raw = out
+            rendered.file_format = "PNG"
+            rendered.save()
+    finally:
+        bpy.data.images.remove(rendered)
+
+    print(f"ICON_RENDERED {out} {ICON_SIZE}x{ICON_SIZE}")
 
 
 main()

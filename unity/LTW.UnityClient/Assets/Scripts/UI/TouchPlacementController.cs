@@ -1020,19 +1020,51 @@ namespace LTW.UnityClient.UI
         private void DrawCatalogPaletteButton(Rect buttonRect, LTW.UnityClient.Simulation.TowerCatalog.Entry entry, int gold, float scale)
         {
             var cost = commandAdapter != null ? commandAdapter.TowerCost(entry.Role) : 0;
-            if (DrawPaletteButton(
-                    buttonRect,
-                    entry.ShortLabel,
-                    $"{cost}G",
-                    TowerIconForRole(entry.Role),
-                    entry.Accent,
-                    gold >= cost,
-                    highlightedTowerRole == entry.Role,
-                    scale))
+            if (DrawCatalogCard(buttonRect, entry, cost, gold >= cost, highlightedTowerRole == entry.Role, scale))
             {
                 selectedTower = null;
                 BeginTowerPlacement(entry.Role);
             }
+        }
+
+        /// <summary>
+        /// Palette card whose icon is resolved from the tower's content id.
+        /// </summary>
+        /// <remarks>
+        /// DrawPaletteButton takes a TowerIconKind, a five-value enum from when there were five
+        /// towers, so every new tower had to borrow one of the original pictures. All fifteen now
+        /// have a rendered icon named after their content id, so the id is what we look up. The
+        /// procedural DrawTowerIcon fallback still covers a missing file.
+        /// </remarks>
+        private bool DrawCatalogCard(Rect rect, LTW.UnityClient.Simulation.TowerCatalog.Entry entry, int cost, bool isAffordable, bool isSelected, float scale)
+        {
+            var displayAccent = isAffordable ? entry.Accent : DisabledText;
+            var state = isSelected ? CommandCardState.Selected : CommandCardState.Normal;
+            var pressed = RuntimeUiChrome.DrawCommandCard(rect, entry.Accent, state, scale);
+
+            var iconRect = RuntimeUiChrome.CommandCardIconRect(rect, scale);
+            if (!RuntimeUiIconLibrary.DrawIcon(iconRect, $"ui_icon_tower_{entry.RoleId}_v01", isAffordable))
+            {
+                DrawTowerIcon(iconRect, TowerIconForRole(entry.Role), displayAccent, scale);
+            }
+
+            buttonStyle!.fontSize = Mathf.RoundToInt(10f * scale);
+            buttonStyle.normal.textColor = isAffordable ? Cloud : DisabledText;
+            buttonStyle.hover.textColor = buttonStyle.normal.textColor;
+            buttonStyle.active.textColor = buttonStyle.normal.textColor;
+            GUI.Label(RuntimeUiChrome.CommandCardLabelRect(rect, scale), entry.ShortLabel, buttonStyle);
+
+            metaStyle!.fontSize = Mathf.RoundToInt(9f * scale);
+            metaStyle.normal.textColor = isAffordable
+                ? new Color(
+                    Mathf.Lerp(displayAccent.r, 1f, 0.55f),
+                    Mathf.Lerp(displayAccent.g, 1f, 0.55f),
+                    Mathf.Lerp(displayAccent.b, 1f, 0.55f),
+                    1f)
+                : displayAccent;
+            GUI.Label(RuntimeUiChrome.CommandCardMetaRect(rect, scale), $"{cost}G", metaStyle);
+
+            return pressed;
         }
 
         private static Color CategoryAccent(int category) => category switch
