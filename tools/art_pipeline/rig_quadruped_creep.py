@@ -63,7 +63,11 @@ PROFILES = {
         "legBL": (-0.218, 0.172),  "legBR": (0.219, 0.172),
         "hip_z": 0.20, "foot_z": 0.02, "knee_z": 0.11, "body_z": 0.22,
         "body_half": 0.16, "head_reach": 0.40, "leg_radius": 0.145,
-        "swing_deg": 26.0, "body_bob": 0.05, "body_rock_deg": 8.0,
+        # Same correction as the Obsidian Brute: the old 26 deg swing was inflated to 34 on one
+        # diagonal and cut to 18 on the other by the walk-axis rock (measured 0.208 vs 0.112 of
+        # foot travel — the Rock Golem had the same limp). Swing carries the stride on its own
+        # now, and body_rock_deg drives the side-to-side roll instead.
+        "swing_deg": 30.0, "body_bob": 0.05, "body_rock_deg": 5.0,
         "head_bob_deg": 11.0, "body_scale_pulse": 0.05,
     },
     # Obsidian Brute. Roughly 1.9x the Rock Golem's height (0.75 vs ~0.40) with a
@@ -80,7 +84,12 @@ PROFILES = {
         "body_half": 0.15, "head_reach": 0.34, "leg_radius": 0.135,
         # Heavier tier of the same archetype, so the same lumber language as the
         # Rock Golem, pushed slightly further to sell the extra mass.
-        "swing_deg": 24.0, "body_bob": 0.06, "body_rock_deg": 9.0,
+        # swing was 24 with a 9 deg walk-axis rock stacked on top, which gave diagonal A an
+        # effective 33 deg and diagonal B only 15. With the rock no longer touching the swing
+        # plane, 30 gives both diagonals a longer stride than the old strong one had.
+        # body_rock_deg now feeds the side-to-side roll; 9 threw the feet 0.12 sideways against
+        # 0.27 forward, which is the waddle measure_creep_gait exists to catch, so it comes down.
+        "swing_deg": 30.0, "body_bob": 0.06, "body_rock_deg": 5.0,
         "head_bob_deg": 12.0, "body_scale_pulse": 0.05,
     },
     # Spire Turret Walker. A mechanical walker, and the easiest of the three to
@@ -98,7 +107,9 @@ PROFILES = {
         "legBL": (-0.335, 0.416),  "legBR": (0.335, 0.415),
         "hip_z": 0.17, "foot_z": 0.01, "knee_z": 0.09, "body_z": 0.30,
         "body_half": 0.22, "head_reach": 0.40, "leg_radius": 0.20,
-        "swing_deg": 22.0, "body_bob": 0.03, "body_rock_deg": 4.0,
+        # Roll trimmed with the same change: a machine should barely roll at all, and at 4 deg
+        # the lateral foot travel sat uncomfortably close to the fore-aft dominance guard.
+        "swing_deg": 22.0, "body_bob": 0.03, "body_rock_deg": 2.5,
         "head_bob_deg": 5.0, "body_scale_pulse": 0.015,
     },
 }
@@ -241,7 +252,12 @@ SWING = math.radians(P["swing_deg"])     # leg swing amplitude, lumbering
 # raised well past the original leg-focused pass (which tuned for an eye-level artist-review
 # camera) specifically so the lumber reads from that top-down angle.
 BODY_BOB = P["body_bob"]
-BODY_ROCK = math.radians(P["body_rock_deg"])
+# body_rock_deg now drives the once-per-cycle side-to-side ROLL, which is what actually reads as
+# a heavy walker shifting its weight. A much smaller fore-aft pitch is derived from it and runs
+# at double frequency; it used to BE the rock, and being both large and phase-locked to the swing
+# is what produced the uneven stride.
+BODY_ROLL = math.radians(P["body_rock_deg"])
+BODY_PITCH = math.radians(P["body_rock_deg"] * 0.35)
 HEAD_BOB = math.radians(P["head_bob_deg"])
 BODY_SCALE_PULSE = P["body_scale_pulse"]   # rigid uniform scale pulse, not per-part deformation (see note below)
 
@@ -269,14 +285,34 @@ def set_leg(pb, amount, frame):
     pb.keyframe_insert("rotation_quaternion", frame=frame)
 
 
-def set_body(z_off, rock, scale, frame):
+# Roll axis: the creature faces -Y, so rolling side to side is a rotation about Y.
+# Deliberately NOT the walk axis. See set_body.
+ROLL_AXIS = Vector((0.0, 1.0, 0.0))
+
+
+def set_body(z_off, pitch, roll, scale, frame):
     pb = arm.pose.bones["Body"]
     # Body bob is a world-space vertical lift, so convert it through the rest matrix for the
     # same reason the leg swing does — the Body bone runs along -Y, so its local axes are not
     # world axes either.
     rest = pb.bone.matrix_local.to_3x3()
     pb.location = rest.inverted() @ Vector((0.0, 0.0, z_off))
-    pb.rotation_quaternion = world_axis_quaternion(pb, WALK_AXIS, rock)
+    # The legs hang off Body, so any Body rotation about the WALK axis swings all four leg roots
+    # fore-aft and adds directly to the leg swing. The previous version rocked about the walk
+    # axis once per leg cycle, in phase with the swing: at the frame where diagonal A was at
+    # +SWING the body pitched +ROCK the same way, and where diagonal B was at -SWING the body
+    # still pitched +ROCK against it. With swing 24 deg and rock 9 deg that is a 66 deg sweep for
+    # one diagonal and 30 deg for the other — measured 0.384 vs 0.192 units of foot travel. The
+    # creature was walking with one long stride and one short one, which reads as a limp or a
+    # drag rather than a walk.
+    #
+    # Pitch now runs at twice the leg frequency, like the bob — nose down as a foot lands, level
+    # at the pass — so it lands identically on both diagonals and cannot bias either. The
+    # once-per-cycle weight shift that gives a heavy walker its lumber is now a ROLL about the
+    # facing axis, leaning over whichever diagonal is currently planted. Roll is perpendicular to
+    # the swing plane, so it contributes nothing to fore-aft travel no matter how large it gets.
+    pb.rotation_quaternion = (
+        world_axis_quaternion(pb, WALK_AXIS, pitch) @ world_axis_quaternion(pb, ROLL_AXIS, roll))
     # Uniform scale pulse — the whole rigid shell resizes as one block, no part moves relative to
     # another, so this stays consistent with "hard-surface creatures should not deform." Reads as
     # a weight impact (compress on contact, rebound on the pass) from any camera angle, including
@@ -318,22 +354,25 @@ pairB = ("LegFR", "LegBL")
 # single-bone version already read as a foot plant and should be left alone.
 # scale: compresses at ground contact (a foot just planted, absorbing weight) and rebounds
 # slightly above neutral at the pass (mid-stride, briefly unloaded).
+# pitch runs at twice the leg frequency (nose down at each contact, level at each pass) so it
+# affects both diagonals identically. roll runs once per cycle, leaning onto whichever diagonal
+# is planted, and is perpendicular to the swing plane so it never alters stride length.
 keys = [
-    (1,  +SWING, -SWING, -BODY_BOB, +BODY_ROCK, +HEAD_BOB, 0.0,               0.0,              1.0 - BODY_SCALE_PULSE),
-    (7,   0.0,    0.0,   +BODY_BOB, 0.0,        -HEAD_BOB * 0.5, KNEE_BEND_STANCE, KNEE_BEND_PEAK, 1.0 + BODY_SCALE_PULSE * 0.4),
-    (13, -SWING, +SWING, -BODY_BOB, -BODY_ROCK, +HEAD_BOB, 0.0,               0.0,              1.0 - BODY_SCALE_PULSE),
-    (19,  0.0,    0.0,   +BODY_BOB, 0.0,        -HEAD_BOB * 0.5, KNEE_BEND_PEAK, KNEE_BEND_STANCE, 1.0 + BODY_SCALE_PULSE * 0.4),
-    (25, +SWING, -SWING, -BODY_BOB, +BODY_ROCK, +HEAD_BOB, 0.0,               0.0,              1.0 - BODY_SCALE_PULSE),
+    (1,  +SWING, -SWING, -BODY_BOB, -BODY_PITCH, +BODY_ROLL, +HEAD_BOB, 0.0,               0.0,              1.0 - BODY_SCALE_PULSE),
+    (7,   0.0,    0.0,   +BODY_BOB, +BODY_PITCH,  0.0,       -HEAD_BOB * 0.5, KNEE_BEND_STANCE, KNEE_BEND_PEAK, 1.0 + BODY_SCALE_PULSE * 0.4),
+    (13, -SWING, +SWING, -BODY_BOB, -BODY_PITCH, -BODY_ROLL, +HEAD_BOB, 0.0,               0.0,              1.0 - BODY_SCALE_PULSE),
+    (19,  0.0,    0.0,   +BODY_BOB, +BODY_PITCH,  0.0,       -HEAD_BOB * 0.5, KNEE_BEND_PEAK, KNEE_BEND_STANCE, 1.0 + BODY_SCALE_PULSE * 0.4),
+    (25, +SWING, -SWING, -BODY_BOB, -BODY_PITCH, +BODY_ROLL, +HEAD_BOB, 0.0,               0.0,              1.0 - BODY_SCALE_PULSE),
 ]
 
-for frame, a, b, bob, rock, hp, bendA, bendB, scale in keys:
+for frame, a, b, bob, pitch, roll, hp, bendA, bendB, scale in keys:
     for n in pairA:
         set_leg(arm.pose.bones[f"{n}_Thigh"], a, frame)
         set_knee(arm.pose.bones[f"{n}_Shin"], bendA, frame)
     for n in pairB:
         set_leg(arm.pose.bones[f"{n}_Thigh"], b, frame)
         set_knee(arm.pose.bones[f"{n}_Shin"], bendB, frame)
-    set_body(bob, rock, scale, frame)
+    set_body(bob, pitch, roll, scale, frame)
     set_head(hp, frame)
 
 action = arm.animation_data.action
