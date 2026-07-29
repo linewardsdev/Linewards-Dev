@@ -299,3 +299,109 @@ cap, and a full batch playtest passed with a clean reset.
 
 **Not verified:** how this reads in motion to a human eye. The numbers are right; whether Siege
 now *feels* like the second-biggest threat is a judgement only a real playtest can make.
+
+## 2026-07-28: Category 3 ("ELITE") — Five Meshy-Rigged Bipeds, And The Categories Get Real Names
+
+Third five creeps, taking the roster to 15. These differ from every previous batch: Meshy
+**auto-rigs bipeds**, so they arrived as 24-bone humanoid rigs (`Hips` root, Mixamo-style
+naming) with walking and running clips already authored. No Blender rigging step was needed —
+`rig_quadruped_creep.py` exists only because Meshy cannot rig quadrupeds.
+
+**They deliberately skip `ai_asset_intake.py`.** Its normalize step exports
+`object_types={"MESH","EMPTY"}` with no `bake_anim`, which would have silently stripped the
+armature and every clip. Scale and orientation are handled by `Creep3DImportSpec`'s
+`importScale`/`importEulerAngles` instead, which is what those fields are for.
+
+### Category names
+
+The send menu's `"CATEGORY 1"`/`"CATEGORY 2"` placeholders are retired. Each is now named for
+what it actually does:
+
+| Idx | Name | Meaning |
+| --- | --- | --- |
+| 0 | **CORE** | The founding five; all send-cooldown gated. |
+| 1 | **RAPID** | Every Category 2 creep sets `ignoresSendCooldown` — that exemption is their identity. |
+| 2 | **ELITE** | These bipeds: costlier, heavier, and back on the normal cooldown, because price is what paces them. |
+
+### Stats (first pass, tunable)
+
+A deliberately later tier — costs and health run past the first ten, which is self-limiting
+because cost is the gate.
+
+| Creep | Id | Cost | Inc | Kill/Leak | HP | Spd | Clip | Defensive question |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | --- | --- |
+| Zephyr Wraith | `creep.zephyr` | 22 | +2 | 2/3 | 12 | 3 | Run | Can defence actually catch something fast, or only tank it? |
+| Fracture Burrower | `creep.burrower` | 26 | +2 | 3/4 | 44 | 1 | Walk | Sustained mid-tier tank pressure with no gimmick. |
+| Umbral Stalker | `creep.stalker` | 28 | +3 | 2/4 | 20 | 2 | Run | Does coverage extend past the opening cluster? |
+| Aegis Warden | `creep.warden` | 34 | +3 | 3/4 | 55 | 1 | Walk | Can defence out-damage a heavily armoured advance? |
+| Siege Colossus | `creep.colossus` | 52 | +5 | 5/8 | 90 | 1 | Walk | The true late wall — highest cost and health in the roster. |
+
+Walk-vs-run follows speed: speed 1 takes the walking clip, speed 2–3 the running clip. A run
+cycle's longer stride and faster cadence measurably reduces the foot skate documented in the
+Turret Walker entry above. It mitigates rather than solves it — the runtime fix (driving
+animator playback from creep speed) is still not done, and these will skate like everything else.
+
+**Name collision, handled deliberately:** "Siege Colossus" against the existing `creep.siege`.
+Same call as Obsidian Brute against Brute — kept and differentiated by stats rather than
+renamed. It is labelled COLOSSUS, not SIEGE, and at 90 health / 52 gold it outclasses Siege's
+48 / 40 rather than duplicating it.
+
+### Silhouette scales, and a mistake worth recording
+
+Scales were solved with the health-tracking rule from the silhouette pass above. The first
+solve was **wrong**: it used the models' Blender bounds, but Unity's FBX import applies a
+unit-scale conversion that makes the imported mesh roughly 1.8x larger. Every Category 3 creep
+came out about double size, with a 2.04 effective width against a 1.45 cap. Re-solving against
+the measured *Unity-space* prefab bounds fixed it. This is exactly why the rule says to measure
+after promoting rather than trust the authored number.
+
+| Creep | HP | Scale | Eff. height | Eff. width | Size |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Zephyr Wraith | 12 | 0.278 | 0.817 | 0.818 | 0.818 |
+| Umbral Stalker | 20 | 0.208 | 0.855 | 0.947 | 0.900 |
+| Fracture Burrower | 44 | 0.245 | 0.946 | 1.189 | 1.061 |
+| Aegis Warden | 55 | 0.428 | 1.103 | 1.129 | 1.116 |
+| Siege Colossus | 90 | 0.329 | 1.247 | 1.285 | 1.266 |
+
+Across all 15, max width is 1.444 (cap 1.45) and only four size-vs-health inversions remain:
+three are the known Shade slenderness case, and Siege/Burrower differ by 0.006.
+
+### Bot preference ordering is now structural, fixing a latent bug
+
+`BotController.SelectCreep`'s lists were hand-ordered by descending cost, with a comment
+explaining that anything after a cheaper id is unreachable. Adding Category 3 exposed the flaw
+in relying on that: `creepId.Value` — the bot's *configured primary creep* — was appended last
+regardless of price, so a bot given the 40-gold Siege as its primary could never actually send
+it from a tier whose other entries were cheaper. The list is now sorted by descending cost at
+runtime, so the invariant holds by construction rather than by discipline. A new test,
+`Every_creep_a_bot_profile_prefers_is_reachable_at_some_gold_level`, sweeps gold and asserts
+every named creep is selectable somewhere — the check that would have caught the original
+zero-sends bug in milliseconds instead of via replay analysis.
+
+### Other fixes made while here
+
+- **Serpent Coil's UI cost was stale.** Content was cut 22 → 20 in the rebalance above, but the
+  card, its affordability gate and its feedback message all still said 22, so an affordable
+  Serpent could read as unaffordable.
+- **The send dock dispatched categories with a bare `else`**, which would have silently rendered
+  Category 2's grid for Category 3. Now explicitly three-way.
+- **The cooldown countdown was suppressed by a hardcoded `selectedCategory != 1`.** Category 3 is
+  gated again, so that index test would have hidden a countdown that does apply; it now asks
+  whether the category has any gated cards.
+- **The category picker overflowed its panel.** Three 84px cards need 352px inside a 282px panel,
+  so the panel grows to 374 while the picker is up — the same class of bug its own code comment
+  records having fixed once already.
+- **`repack_metallic_smoothness.py` gained a second input shape.** Meshy emits separate metallic
+  and roughness maps as well as the combined glTF one, and the script only understood the latter.
+  Worth noting: this means **every Category 2 creep shipped with no metallic response at all**,
+  since none of them ever got a `Baked_MetallicSmoothness.png`. Category 3 now does. Retro-fixing
+  Category 2 is a one-command follow-up, deliberately not done here.
+
+**Verification:** 97/97 tests pass; 15 wrappers validate with no issues; scales re-measured after
+promote; batch playtest passes with a clean reset. Incidental regeneration churn on the three
+existing rigged creeps (a ~0.012 ground-offset drift each, plus controller id reshuffling) was
+reverted, same as on the walker pass.
+
+**Not verified:** how these look in motion. The models carry real skeletal animation while the
+renderer also layers procedural motion on top, so `CreepVisualMotionStyle` is `Auto` for all five
+to avoid double-animating — whether they need more is a judgement for a real playtest.

@@ -199,7 +199,7 @@ Current implementation references:
 
 ## Send Drawer
 
-SEND opens a category picker first, then a compact creep drawer mirroring the build drawer — split into two categories of 5 creeps each, since 10 in one flat drawer was too crowded. Category names are still placeholders (`CATEGORY 1` / `CATEGORY 2`) pending real thematic identities, but **both categories now have real, sendable creep content** (Category 2 landed 2026-07-28 — see `docs/TOWER_AND_CREEP_ROSTER.md`'s "Category 2" table).
+SEND opens a category picker first, then a compact creep drawer mirroring the build drawer — split into three categories of 5 creeps each (CORE / RAPID / ELITE), since 10 in one flat drawer was too crowded. Category names are no longer placeholders: **CORE** is the founding five, **RAPID** is the cooldown-exempt set (every one of its creeps sets `ignoresSendCooldown`, which is what the name refers to), and **ELITE** is the Meshy-rigged bipeds added 2026-07-28. All three carry real, sendable content — see `docs/TOWER_AND_CREEP_ROSTER.md`. The picker panel is taller than the creep grids because three full-width cards do not fit the grid height.
 
 Recommended creep button content, Category 1 (original roster, unchanged):
 
