@@ -99,10 +99,10 @@ Current tower palette exposes Arrow, Control, Relay, selected-tower inspect, and
 
 - [x] Add first-pass content for five tower roles: reliable single-target, area/control, relay utility, pulse burst, and prism long-range.
 - [x] Expand to 15 towers in three build lines, surfaced through a category picker (2026-07-29).
-- [x] Give the new towers special behaviour (2026-07-29). Nine of fifteen now have one: Barricade's fixed up-lane arc, Foundry's delayed mortar, Grovebond, Rot, Reaping Bloom and Bramble Hold, alongside the existing Pulse splash, Prism priority and Relay gold.
-- [ ] Three towers still have none: Tesla Coil Spire, Repair Drone Spire, Elder Canopy. Each needs simulation vocabulary that does not exist yet (chaining, a heal/buff channel, a persistent zone).
+- [x] Give the new towers special behaviour (2026-07-29). **All fifteen** now have one: Barricade's fixed up-lane arc, Foundry's delayed mortar, Tesla's chain arc, Repair Drone's +1 range to neighbours, Elder Canopy's back-most targeting, Grovebond, Rot, Reaping Bloom and Bramble Hold, alongside the existing Pulse splash, Prism priority and Relay gold.
 - [x] Generate wrapper prefabs and `TowerVisualLibrary` profiles for the ten new towers (2026-07-29). All fifteen render their own textured mesh.
-- [ ] Build the presentation for the six new mechanics. The simulation is tested but nothing is drawn: no Grovebond bond graphic, no mortar flight arc or impact telegraph, no bramble zone decal, and the barricade gets no recoil because `suppressRecoil` is still tied to `locksYaw`.
+- [x] Build the presentation for the mechanics (2026-07-29). Mortar arc and contracting impact telegraph, bramble zone decal, Grovebond ring scaled to the bonus, and Barricade recoil.
+- [ ] Two mechanics are still invisible: Repair Drone's range buff (the neighbour's halo should grow) and Chain Arc's hops (each should draw its own arc rather than reusing the generic beam).
 - [x] Add first-pass content for five creep/send roles: runner, brute, swarm, shade, and siege.
 - [x] Give each creep/send a different cost, income gain, and pressure profile.
 - [x] Extend tests so new content validates through the existing simulation contracts.
@@ -111,7 +111,7 @@ Current sends have distinct cost, income, speed/health, and quantity pressure ac
 
 ### Acceptance Checks
 
-- [ ] Each tower is best at a different problem. Partly enforced now: `TowerRosterTests.No_tower_is_strictly_dominated_by_another` rules out towers nobody would ever build (it caught the Control Ward being strictly worse than the Arrow Tower), but "not dominated" is a floor, not a distinct role. Six of the fifteen have no special behaviour.
+- [ ] Each tower is best at a different problem. All fifteen now have a distinct mechanic, and `TowerRosterTests.No_tower_is_strictly_dominated_by_another` rules out towers nobody would ever build. Still unticked because nothing has been PLAYED: distinctness on paper is not the same as each tower having a situation where it is the right buy.
 - [ ] Each creep/send creates a different defensive response.
 - [x] Content can be tuned without changing Unity presentation code. Tower costs, ranges, damage and cooldowns are read from `ContentCatalog`; the client holds no copy.
 

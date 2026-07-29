@@ -685,3 +685,38 @@ scaling to 15 per shot against a 90hp Colossus, Foundry kills in 2.25s.
 **Still without any mechanic:** Tesla Coil Spire, Repair Drone Spire, Elder Canopy. Their names all
 promise something (chain lightning, repair/support, area denial) that the simulation has no vocabulary
 for yet.
+
+
+## 2026-07-29 (mechanics, completion): All Fifteen Towers Now Do Something
+
+The last three had names promising behaviour the simulation had no vocabulary for. Each got that
+vocabulary rather than a reskin of an existing rule.
+
+**Tesla Coil Spire — Chain Arc.** After the primary hit the bolt jumps back down the queue up to two
+more times, halving each hop, each link within 2 cells of the last. This is deliberately NOT Pulse:
+Pulse hits everything within one cell of the target at flat half damage and rewards a clump, while the
+chain walks a line and decays, rewarding a single-file column — what a trickle send looks like.
+
+The direction is load-bearing, and the first implementation had it wrong. Chaining FORWARD looked
+natural but target selection picks the front-most creep, so the arc would search ahead of the leader,
+find nothing, and the mechanic would have been a total no-op in every real game. A test caught it
+immediately. Hitting the leader and arcing back through the queue behind it is also the better read.
+
+**Repair Drone Spire — Overwatch Uplink.** +1 range to every orthogonally adjacent tower of the same
+owner and lane. The name promised repair, but towers never take damage, so support is expressed as
+reach instead. This is the only mechanic that modifies another tower's range, and it pairs
+particularly well with the Barricade, whose limitation is a shallow forward arc. Bonuses do not stack
+— two drones beside one tower still give +1, or a drone sandwich would be a cheaper Prism.
+
+**Elder Canopy — Deep Roots.** Targets the creep furthest BACK in range instead of the leader. With
+the roster's longest reach (5) it engages arrivals at the mouth of the lane, softening a wave before
+anything else sees it, which is what "area denial" means here. A pure selection rule — the cheapest
+possible change — and nothing else on the roster targets back-most, so the tell is that it visibly
+shoots the far creep while its neighbours shoot the near one.
+
+**Verified:** 135 tests, 7 new for these three. Headless Unity compile clean. Damage-per-gold is
+unchanged for every tower whose stats did not move, so none of this rebalanced the roster by accident.
+
+**Not verified:** Repair Drone's range buff has no visual yet — the neighbour's range halo should grow,
+and without that the mechanic is invisible. Chain Arc reuses the generic beam cue rather than drawing
+the hops as separate arcs.

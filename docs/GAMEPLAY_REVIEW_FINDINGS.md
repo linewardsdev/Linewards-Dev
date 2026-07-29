@@ -105,19 +105,26 @@ It seeds a match, captures the default HUD and both send-dock categories, and qu
       Bloom, Bramble Hold). Nine of fifteen towers now do something specific. See GD_TUNING_LOG
       2026-07-29.
 
-- [ ] **Three towers still have no mechanic: Tesla Coil Spire, Repair Drone Spire, Elder Canopy.**
-      Each name promises something the simulation has no vocabulary for yet — chain lightning needs
-      multi-target chaining, repair needs a heal/buff channel, area denial needs a persistent zone
-      (Bramble Hold is the first of those and could be generalised).
+- [x] **FIXED — all fifteen towers now have a mechanic.** Tesla chains back down the queue, Repair
+      Drone gives adjacent towers +1 range, Elder Canopy targets back-most. See GD_TUNING_LOG.
 
-- [ ] **Foundry's whiff rate is unmeasured and is a ship/no-ship gate.** A 52-gold tower that
-      visibly does nothing some fraction of the time is a trap purchase, and the whiff sources
-      compound precisely when the player has defended well. Needs an impact telegraph in the
-      renderer to be fair information rather than hidden dice.
+- [x] **FIXED — Foundry's whiff rate is now zero.** Measured: 0% almost everywhere but 100% for a
+      Foundry in the last rows against fast creeps, because the lead landed on the leak index. It now
+      only targets creeps it can lead, and the impact telegraph ships.
 
-- [ ] **None of the six mechanics has been seen in motion.** The simulation is tested; the
-      presentation work (Grovebond bond graphic, mortar flight arc and impact marker, bramble zone
-      decal, barricade recoil direction) is not built.
+- [x] **FIXED — the mechanics are drawn.** Mortar arc and contracting impact telegraph, bramble zone
+      decal, Grovebond ring scaled to the bonus, and Barricade recoil (which needed `suppressRecoil`
+      split from `locksYaw`). Verified by capture.
+
+- [ ] **Repair Drone's range buff is invisible.** The adjacent tower's range halo should grow. Until
+      it does, the only evidence is a tower shooting one cell further than you expect.
+
+- [ ] **Chain Arc reuses the generic beam cue.** The hops should each draw as their own arc so the
+      chain reads as a chain.
+
+- [ ] **Nothing has been played.** All balance is measured arithmetic, not play data. The three
+      priority questions remain: is Thorn Snare a mandatory purchase, is Bloomheart a near-no-op in
+      the modal same-type send, and does the mortar's 0.5s delay feel fair at the board camera.
 
 - [ ] **P1: towers only get 1–3 shots per creep, and 10 of 15 cannot kill even a Runner.** Measured
       with `TowerDuelBalanceTests`, not estimated. `CombatService.MoveCreeps` adds `SpeedPerSecond`

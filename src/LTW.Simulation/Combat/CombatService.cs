@@ -93,7 +93,7 @@ public sealed class CombatService
         foreach (var tower in state.Towers)
         {
             var towerDefinition = content.GetTower(tower.TowerId);
-            var visionRangeCells = towerDefinition.RangeCells + VisionBufferCells;
+            var visionRangeCells = EffectiveRange(state, tower, towerDefinition.RangeCells) + VisionBufferCells;
             var visibleTargets = state.Creeps
                 .Where(creep => !creep.IsDead && !creep.HasLeaked && creep.LaneId.Equals(tower.LaneId))
                 .Where(creep => CanEngage(tower, ResolvePosition(creep, routes), visionRangeCells))
@@ -282,7 +282,7 @@ public sealed class CombatService
             var towerDefinition = content.GetTower(tower.TowerId);
             var availableTargets = next.Creeps
                 .Where(creep => !creep.IsDead && !creep.HasLeaked && creep.LaneId.Equals(tower.LaneId))
-                .Where(creep => CanEngage(tower, ResolvePosition(creep, routes), towerDefinition.RangeCells))
+                .Where(creep => CanEngage(tower, ResolvePosition(creep, routes), EffectiveRange(next, tower, towerDefinition.RangeCells)))
                 .ToArray();
             if (IsFoundryTower(tower.TowerId))
             {
@@ -333,6 +333,12 @@ public sealed class CombatService
             }
 
             next = DamageCreep(next, content, tower, target, shotDamage, tick, events);
+
+            if (IsTeslaTower(tower.TowerId))
+            {
+                next = ChainArc(next, content, routes, tower, target, shotDamage, tick, events);
+            }
+
             if (IsPulseTower(tower.TowerId))
             {
                 var splashDamage = Math.Max(1, towerDefinition.Damage / 2);
@@ -361,6 +367,51 @@ public sealed class CombatService
     private const int FoundryShellFlightTicks = 2;
 
     private static bool IsFoundryTower(ContentId towerId) => ContainsRole(towerId, "foundry");
+
+    private static bool IsTeslaTower(ContentId towerId) => ContainsRole(towerId, "tesla");
+
+    private static bool IsRepairDroneTower(ContentId towerId) => ContainsRole(towerId, "repair_drone");
+
+    private static bool IsElderCanopyTower(ContentId towerId) => ContainsRole(towerId, "elder_canopy");
+
+    private const int ChainArcMaxHops = 2;
+    private const int ChainArcHopRangeCells = 2;
+    private const int RepairDroneRangeBonus = 1;
+
+    /// <summary>
+    /// A tower's range including any bonus from an adjacent Repair Drone Spire.
+    /// </summary>
+    /// <remarks>
+    /// The Repair Drone Spire has nothing to repair — towers never take damage — so its support role
+    /// is expressed as reach instead: every orthogonally adjacent tower of the same owner and lane
+    /// gets +1 range. This is the only mechanic in the game that modifies another tower's range, and
+    /// it interacts well with the Barricade, whose whole limitation is a shallow forward arc.
+    ///
+    /// Bonuses do not stack: two drones beside one tower still give +1. Otherwise a drone sandwich
+    /// would be a strictly better Prism for less gold.
+    /// </remarks>
+    private static int EffectiveRange(CombatState state, TowerCombatState tower, int authoredRange)
+    {
+        foreach (var other in state.Towers)
+        {
+            if (other.EntityId.Equals(tower.EntityId))
+            {
+                continue;
+            }
+
+            if (!other.LaneId.Equals(tower.LaneId) || !other.OwnerId.Equals(tower.OwnerId))
+            {
+                continue;
+            }
+
+            if (IsRepairDroneTower(other.TowerId) && IsOrthogonallyAdjacent(tower.Position, other.Position))
+            {
+                return authoredRange + RepairDroneRangeBonus;
+            }
+        }
+
+        return authoredRange;
+    }
 
     /// <summary>
     /// Where a creep will stand once a Foundry shell has finished its flight.
@@ -420,6 +471,66 @@ public sealed class CombatService
     /// have re-pathed. That whiff is the point of aiming at ground rather than at an entity, and it
     /// is deterministic, since placement arrives as a command in the tick stream.
     /// </remarks>
+    /// <summary>
+    /// Arcs a Tesla Coil Spire's shot from creep to creep BACK down the queue, halving each hop.
+    /// </summary>
+    /// <remarks>
+    /// Distinct from Pulse's splash on purpose. Pulse hits everything within one cell of the target
+    /// at a flat half damage, so it rewards a CLUMP. The chain walks a LINE and decays, so it rewards
+    /// a column of creeps in single file — what a trickle send looks like. The two towers answer
+    /// different send shapes.
+    ///
+    /// The direction is BACKWARD, toward spawn, and that is load-bearing rather than flavour. Target
+    /// selection picks the front-most creep, so an arc that hopped forward would look for creeps ahead
+    /// of the leader and find none — the mechanic would have been a total no-op in every real game.
+    /// Hitting the leader and jumping back through the queue behind it is also the more natural read
+    /// of a lightning arc.
+    ///
+    /// Restricting hops to one direction is what keeps the chain order a property of the board rather
+    /// than of iteration order.
+    /// </remarks>
+    private static CombatState ChainArc(
+        CombatState state,
+        CombatContent content,
+        IReadOnlyDictionary<LaneId, IReadOnlyList<GridPosition>> routes,
+        TowerCombatState tower,
+        CreepCombatState primary,
+        int primaryDamage,
+        SimulationTick tick,
+        List<ISimulationEvent> events)
+    {
+        var next = state;
+        var damage = primaryDamage;
+        var fromIndex = primary.PathIndex;
+        var struck = new List<long> { primary.EntityId.Value };
+
+        for (var hop = 0; hop < ChainArcMaxHops; hop++)
+        {
+            damage = Math.Max(1, damage / 2);
+            var fromPosition = routes[tower.LaneId][Math.Min(fromIndex, routes[tower.LaneId].Count - 1)];
+
+            var link = next.Creeps
+                .Where(creep => !creep.IsDead && !creep.HasLeaked && creep.LaneId.Equals(tower.LaneId))
+                .Where(creep => !struck.Contains(creep.EntityId.Value))
+                .Where(creep => creep.PathIndex < fromIndex)
+                .Where(creep => IsInRange(fromPosition, ResolvePosition(creep, routes), ChainArcHopRangeCells))
+                .OrderByDescending(creep => creep.PathIndex)
+                .ThenBy(creep => creep.EntityId.Value)
+                .FirstOrDefault();
+
+            if (link is null)
+            {
+                break;
+            }
+
+            struck.Add(link.EntityId.Value);
+            fromIndex = link.PathIndex;
+            next = DamageCreep(next, content, tower, link, damage, tick, events);
+        }
+
+        return next;
+    }
+
     private static CombatState ResolveLandedShells(
         CombatState state,
         CombatContent content,
@@ -459,6 +570,19 @@ public sealed class CombatService
         TowerDefinition towerDefinition,
         IReadOnlyList<CreepCombatState> targets)
     {
+        if (IsElderCanopyTower(tower.TowerId))
+        {
+            // Targets the creep FURTHEST BACK in range, not the leader. With the roster's longest
+            // reach (5) that means it engages arrivals at the mouth of the lane, softening a wave
+            // before it reaches everything else — area denial rather than last-ditch defence. Nothing
+            // else on the roster targets back-most, so the tell is that it visibly shoots the far
+            // creep while its neighbours all shoot the near one.
+            return targets
+                .OrderBy(creep => creep.PathIndex)
+                .ThenBy(creep => creep.EntityId.Value)
+                .FirstOrDefault();
+        }
+
         if (IsBloomheartTower(tower.TowerId))
         {
             // Finish the weakest, else lead. The lethality test goes through AdjustDamageForRoles

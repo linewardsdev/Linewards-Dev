@@ -368,4 +368,141 @@ public sealed class TowerMechanicTests
         Assert.Equal(3, fired.ImpactTick.Value);
         Assert.Equal(fired.TargetPosition, fired.ImpactPosition);
     }
+
+    // ---- Tesla: Chain Arc ---------------------------------------------------------------------
+
+    [Fact]
+    public void Tesla_chains_forward_through_a_line_of_creeps_with_decaying_damage()
+    {
+        var service = new CombatService();
+        var state = new CombatState(
+            new[]
+            {
+                CreepAt(service, 1, "creep.colossus", pathIndex: 7),
+                CreepAt(service, 2, "creep.colossus", pathIndex: 8),
+                CreepAt(service, 3, "creep.colossus", pathIndex: 9)
+            },
+            new[] { Tower("tower.tesla", 10, x: 2, y: 9) });
+
+        var result = service.Advance(state, Content(), Routes(), new SimulationTick(0));
+        var byCreep = result.Events.OfType<CreepDamagedEvent>()
+            .ToDictionary(damaged => damaged.CreepEntityId.Value, damaged => damaged.DamageDealt);
+
+        // Entity 3 is the front-most and takes the primary 5; the arc then jumps BACK through the
+        // queue, halving: entity 2 takes 2, entity 1 takes 1.
+        Assert.Equal(3, byCreep.Count);
+        Assert.Equal(5, byCreep[3]);
+        Assert.Equal(2, byCreep[2]);
+        Assert.Equal(1, byCreep[1]);
+    }
+
+    [Fact]
+    public void Tesla_chain_stops_when_the_queue_has_a_gap_wider_than_a_hop()
+    {
+        var service = new CombatService();
+        // Entity 2 sits 4 route cells behind the leader, further than ChainArcHopRangeCells, so the
+        // arc has nowhere to jump and only the primary is hit.
+        var state = new CombatState(
+            new[]
+            {
+                CreepAt(service, 1, "creep.colossus", pathIndex: 8),
+                CreepAt(service, 2, "creep.colossus", pathIndex: 3)
+            },
+            new[] { Tower("tower.tesla", 10, x: 2, y: 9) });
+
+        var result = service.Advance(state, Content(), Routes(), new SimulationTick(0));
+        var hit = result.Events.OfType<CreepDamagedEvent>().Select(d => d.CreepEntityId.Value).ToArray();
+
+        Assert.Equal(new long[] { 1 }, hit);
+    }
+
+    [Fact]
+    public void Tesla_alone_deals_only_its_own_damage()
+    {
+        var service = new CombatService();
+        var state = new CombatState(
+            new[] { CreepAt(service, 1, "creep.colossus", pathIndex: 8) },
+            new[] { Tower("tower.tesla", 10, x: 2, y: 9) });
+
+        Assert.Equal(5, DamageFrom(service, state));
+    }
+
+    // ---- Repair Drone Spire: range support ---------------------------------------------------
+
+    [Fact]
+    public void Repair_drone_extends_an_adjacent_towers_range()
+    {
+        var service = new CombatService();
+        // Arrow at (2,8) has range 2, which reaches route rows 7..9. The creep lands on 10, one cell
+        // beyond, so only the +1 from the drone can bring it into reach.
+        var creeps = new[] { CreepAt(service, 1, "creep.brute", pathIndex: 9) };
+        var arrow = Tower("tower.arrow", 10, x: 2, y: 8);
+
+        var without = service.Advance(new CombatState(creeps, new[] { arrow }), Content(), Routes(), new SimulationTick(0));
+        var with = service.Advance(
+            new CombatState(creeps, new[] { arrow, Tower("tower.repair_drone", 11, x: 1, y: 8) }),
+            Content(),
+            Routes(),
+            new SimulationTick(0));
+
+        Assert.DoesNotContain(without.Events.OfType<TowerFiredEvent>(), f => f.TowerEntityId.Equals(new EntityId(10)));
+        Assert.Single(with.Events.OfType<TowerFiredEvent>(), f => f.TowerEntityId.Equals(new EntityId(10)));
+    }
+
+    [Fact]
+    public void Repair_drone_bonus_does_not_stack()
+    {
+        var service = new CombatService();
+        var state = new CombatState(
+            new[] { CreepAt(service, 1, "creep.brute", pathIndex: 10) },   // lands on 11, two beyond range 2
+            new[]
+            {
+                Tower("tower.arrow", 10, x: 2, y: 8),
+                Tower("tower.repair_drone", 11, x: 1, y: 8),
+                Tower("tower.repair_drone", 12, x: 3, y: 8)
+            });
+
+        var result = service.Advance(state, Content(), Routes(), new SimulationTick(0));
+
+        // Two drones must not give +2, or a drone sandwich would be a cheaper Prism.
+        Assert.DoesNotContain(result.Events.OfType<TowerFiredEvent>(), f => f.TowerEntityId.Equals(new EntityId(10)));
+    }
+
+    // ---- Elder Canopy: back-most targeting ---------------------------------------------------
+
+    [Fact]
+    public void Elder_canopy_shoots_the_creep_furthest_back_in_range()
+    {
+        var service = new CombatService();
+        var state = new CombatState(
+            new[]
+            {
+                CreepAt(service, 1, "creep.brute", pathIndex: 10),
+                CreepAt(service, 2, "creep.brute", pathIndex: 5)
+            },
+            new[] { Tower("tower.elder_canopy", 10, x: 2, y: 8) });
+
+        var fired = service.Advance(state, Content(), Routes(), new SimulationTick(0))
+            .Events.OfType<TowerFiredEvent>().Single();
+
+        Assert.Equal(new EntityId(2), fired.TargetCreepEntityId);
+    }
+
+    [Fact]
+    public void Other_long_range_towers_still_shoot_the_leader()
+    {
+        var service = new CombatService();
+        var state = new CombatState(
+            new[]
+            {
+                CreepAt(service, 1, "creep.brute", pathIndex: 10),
+                CreepAt(service, 2, "creep.brute", pathIndex: 5)
+            },
+            new[] { Tower("tower.prism", 10, x: 2, y: 8) });
+
+        var fired = service.Advance(state, Content(), Routes(), new SimulationTick(0))
+            .Events.OfType<TowerFiredEvent>().Single();
+
+        Assert.Equal(new EntityId(1), fired.TargetCreepEntityId);
+    }
 }
