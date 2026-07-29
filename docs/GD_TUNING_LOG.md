@@ -197,3 +197,50 @@ was a deliberate choice, not an inherited default.
 to 3, Balanced up to 2, Defensive 1) was tuned when bots could send every tick. With cadence
 now rate-limited, per-send quantity may be the more appropriate lever for profile
 aggression, and the current numbers may under-serve Greedy in particular.
+
+## 2026-07-28 (art): Ash Revenant Size Increased, And Authored Scale Is Not Perceived Size
+
+Raised `creep.revenant`'s `runtimeScale` from 0.85 to 1.05 in
+`Creep3DProofSetGenerator.Specs` and promoted it into `CreepVisualLibrary.asset`.
+
+**Why:** at 0.85 the Revenant sat inside the small cluster (Wisp 0.75, Swarm 0.80, Shade
+0.82) and read as chaff. That works against its entire design question — "does the defender
+finish off a fragile, high-value target, or let it feed the sender's economy?" — because a
+player can only prioritise a target they can pick out of a wave.
+
+**Measured effect.** Authored `runtimeScale` turns out to be a poor guide to on-screen size,
+because each source FBX has a different intrinsic mesh size. Measuring combined renderer
+bounds x library scale x the renderer's uniform 1.18/1.12/1.18 creep multiplier gives the
+actual silhouette:
+
+| Creep | Authored scale | Effective height | Effective width |
+| --- | ---: | ---: | ---: |
+| Obsidian Brute | 1.20 | 1.032 | 1.195 |
+| **Ash Revenant** | **1.05** | **0.882** | **0.621** |
+| Spire Turret Walker | 1.00 | 0.827 | 1.406 |
+| Brute | 1.18 | 0.818 | 1.277 |
+| Shade | 0.82 | 0.689 | 0.513 |
+| Swarm | 0.80 | 0.672 | 0.673 |
+| Siege | 1.13 | 0.640 | 1.200 |
+| Crystal Wisp | 0.75 | 0.593 | 0.797 |
+| Runner | 1.13 | 0.567 | 1.200 |
+| Serpent Coil | 0.85 | 0.519 | 0.903 |
+
+The Revenant is now the second-tallest creep, but also the second-narrowest — a tall, slender
+wraith rather than a bulky one. By rough visual footprint (height x width) it lands at 0.548,
+mid-pack: clearly above the small cluster (Shade 0.353, Swarm 0.452, Wisp 0.473) and clearly
+below the heavies (Brute 1.045, Turret Walker 1.163, Obsidian Brute 1.233). That is the
+intended read for an 8-health glass cannon: noticeable, not tanky.
+
+**Separate readability problem this measurement exposed, not fixed here.** Authored scale and
+perceived size disagree badly across the roster, and in at least one case the ordering is
+backwards relative to threat:
+
+- **Siege** (48 health, the "heavy leak-threat tank", authored 1.13) is only 0.640 tall —
+  *shorter than Shade*, a 14-health unit. It is wide (1.200) but visually squat.
+- **Runner** (authored 1.13) is the shortest creep in the roster at 0.567.
+- **Serpent Coil** (authored 0.85) is the shortest overall at 0.519 despite 32 health.
+
+Worth a dedicated pass: threat and silhouette size should broadly correlate, and right now a
+player cannot infer danger from size. Tuning the authored numbers blind will not fix it —
+they need to be set against measured bounds, as above.

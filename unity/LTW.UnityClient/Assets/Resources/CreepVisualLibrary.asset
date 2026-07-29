@@ -76,7 +76,7 @@ MonoBehaviour:
   - creepId: creep.revenant
     role: 5
     prefab: {fileID: 4901088538427465713, guid: 01256b58ae1c245f2ac242eba001a71c, type: 3}
-    scale: {x: 0.85, y: 0.85, z: 0.85}
+    scale: {x: 1.05, y: 1.05, z: 1.05}
     motionStyle: 5
     bodyRendererPath: BodyTintAnchor
     senderAccentRendererPaths:

@@ -128,7 +128,17 @@ namespace LTW.UnityClient.Editor
                 ModelRoot + "/Revenant/AIDrop/revenant_meshy_revenant_v01_prepared.fbx",
                 ModelRoot + "/Revenant/AIDrop/revenant_meshy_revenant_v01_prepared_Textures",
                 Creep3DImportPipeline.RuntimePrefabFolder + "/Creep_Revenant_3D.prefab",
-                new Vector3(0.85f, 0.85f, 0.85f),
+                // Raised 0.85 -> 1.05 (2026-07-28). At 0.85 the Revenant sat inside the small
+                // cluster (Wisp 0.75, Swarm 0.80, Shade 0.82) and read as chaff, which works
+                // against its whole design question — "does the defender finish off a fragile,
+                // high-value target, or let it feed the sender's economy?" — since a player can
+                // only prioritise what they can pick out. 1.05 clears that cluster decisively
+                // while staying under the heavies (Runner/Siege 1.13, Brute 1.18, Obsidian Brute
+                // 1.20) so it still does not read as a tank; it has 8 health, second-lowest in
+                // the roster. Note the accent pool is a child of the root and the renderer applies
+                // a further 1.18/1.12/1.18 to every creep, so both scale with this automatically —
+                // accentRadius below is deliberately left at 0.40.
+                new Vector3(1.05f, 1.05f, 1.05f),
                 1f,
                 Vector3.zero,
                 0.40f),
