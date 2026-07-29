@@ -100,7 +100,13 @@ public static class SampleVerticalSliceContent
                 new TowerDefinition(GatlingTowerId, "Gatling Turret", new Gold(30), rangeCells: 2, damage: 2, attackCooldownTicks: 1),
                 new TowerDefinition(TeslaTowerId, "Tesla Coil Spire", new Gold(38), rangeCells: 3, damage: 5, attackCooldownTicks: 3),
                 new TowerDefinition(FoundryTowerId, "Foundry Core", new Gold(52), rangeCells: 2, damage: 14, attackCooldownTicks: 6),
-                new TowerDefinition(BarricadeTowerId, "Barricade Bastion", new Gold(18), rangeCells: 1, damage: 3, attackCooldownTicks: 4),
+                // Range 1 to 2 and damage 3 to 5: the price of the fixed up-lane arc, and also a repair.
+                // At range 1 with a full diamond, 66 of 110 legal placements could hit nothing at
+                // all; at range 2 with the half-plane that falls to 34, all of them columns 0 and 6
+                // which no range-2 tower reaches the lane from anyway. Damage 5 also crosses the
+                // renderer's damage >= 5 threshold, so the shot changes colour and starts printing
+                // numbers — the bonus is literally visible.
+                new TowerDefinition(BarricadeTowerId, "Barricade Bastion", new Gold(18), rangeCells: 2, damage: 5, attackCooldownTicks: 4),
                 new TowerDefinition(RepairDroneTowerId, "Repair Drone Spire", new Gold(34), rangeCells: 3, damage: 3, attackCooldownTicks: 2),
 
                 // Grove line. Cheap and individually weak — the line you spam early and outgrow,
@@ -108,8 +114,17 @@ public static class SampleVerticalSliceContent
                 new TowerDefinition(ElderCanopyTowerId, "Elder Canopy", new Gold(46), rangeCells: 5, damage: 8, attackCooldownTicks: 6),
                 new TowerDefinition(SaplingTowerId, "Sapling Sentinel", new Gold(10), rangeCells: 2, damage: 2, attackCooldownTicks: 3),
                 new TowerDefinition(BloomheartTowerId, "Bloomheart Totem", new Gold(22), rangeCells: 2, damage: 4, attackCooldownTicks: 3),
-                new TowerDefinition(ThornSnareTowerId, "Thorn Snare Totem", new Gold(26), rangeCells: 1, damage: 5, attackCooldownTicks: 3),
-                new TowerDefinition(SporeCloudTowerId, "Spore Cloud Bloom", new Gold(36), rangeCells: 3, damage: 6, attackCooldownTicks: 4)
+                // Range 1 to 2 is required by the mechanic, not a buff: at range 1 the bramble zone
+                // could not reliably cover 3 route cells, and a speed-3 creep would step over the
+                // whole thing in one tick. Cost 26 to 30 pays for slowing every creep that crosses
+                // it, which roughly doubles the shot opportunities of every tower covering those
+                // cells.
+                new TowerDefinition(ThornSnareTowerId, "Thorn Snare Totem", new Gold(30), rangeCells: 2, damage: 5, attackCooldownTicks: 3),
+                // Authored damage is now only the FLOOR: Rot scales the real number off the target's max
+                // health (CombatService.RotDamage), so 4 is what it does to chaff and 15 is what it
+                // does to a Colossus. Cooldown slows to 6 because the payoff is per-shot magnitude
+                // against fat targets, not rate.
+                new TowerDefinition(SporeCloudTowerId, "Spore Cloud Bloom", new Gold(34), rangeCells: 3, damage: 4, attackCooldownTicks: 6)
             },
             new[]
             {

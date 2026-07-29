@@ -23,26 +23,30 @@ Source of truth:
 
 15 towers in three lines of five, surfaced through the build palette's ARCANE / FOUNDRY / GROVE
 category picker. The client reads every cost from `ContentCatalog` at display time
-(`UnityCommandAdapter.TowerCost`) — it does not keep its own copy, because it used to and the
-copies drifted three ways at once.
+(`UnityCommandAdapter.TowerCost`) - it keeps no copy, because it used to and the copies drifted three
+ways at once.
 
-| Tower | ID | Line | Cost | Range | Damage / shot | Cooldown ticks | Cooldown sec | Shots/sec | Baseline DPS | DPS/gold | Special behavior |
-| --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |
-| Arrow Tower | `tower.arrow` | Arcane | 14 | 2 | 2 | 2 | 0.50 | 2.00 | 4.00 | 0.286 | Targets the front-most creep. Shade takes reduced damage from this tower. |
-| Control Ward | `tower.control` | Arcane | 24 | 3 | 2 | 3 | 0.75 | 1.33 | 2.67 | 0.111 | Targets the front-most creep and deals full damage to Shade. Range raised 2 to 3 (2026-07-29) because at 2 it was strictly dominated by the Arrow Tower. |
-| Relay Ward | `tower.relay` | Arcane | 28 | 2 | 2 | 4 | 1.00 | 1.00 | 2.00 | 0.071 | Generates +1 gold for its owner whenever it hits a creep. Deliberately weak on stats; exempt from the no-strict-domination test for that reason. |
-| Pulse Ward | `tower.pulse` | Arcane | 32 | 1 | 6 | 4 | 1.00 | 1.00 | 6.00 | 0.188 | Splashes half damage to up to 2 nearby creeps within 1 cell of the target. |
-| Prism Ward | `tower.prism` | Arcane | 42 | 4 | 9 | 6 | 1.50 | 0.67 | 6.00 | 0.143 | Prioritizes Shade first, then higher-health and farther-forward targets. Deals full damage to Shade. |
-| Gatling Turret | `tower.gatling` | Foundry | 30 | 2 | 2 | 1 | 0.25 | 4.00 | 8.00 | 0.267 | None yet. Fires every tick — the roster’s fastest plain single-target tower. |
-| Tesla Coil Spire | `tower.tesla` | Foundry | 38 | 3 | 5 | 3 | 0.75 | 1.33 | 6.67 | 0.175 | None yet. |
-| Foundry Core | `tower.foundry` | Foundry | 52 | 2 | 14 | 6 | 1.50 | 0.67 | 9.33 | 0.179 | PENDING: indirect fire. Shell leaves the stacks vertically and lands on the creep. Immediate-vs-delayed resolution is an open design question. |
-| Barricade Bastion | `tower.barricade` | Foundry | 18 | 1 | 3 | 4 | 1.00 | 1.00 | 3.00 | 0.167 | PENDING: never rotates; fires along one fixed direction only, with bonus damage as compensation. |
-| Repair Drone Spire | `tower.repair_drone` | Foundry | 34 | 3 | 3 | 2 | 0.50 | 2.00 | 6.00 | 0.176 | None yet. |
-| Elder Canopy | `tower.elder_canopy` | Grove | 46 | 5 | 8 | 6 | 1.50 | 0.67 | 5.33 | 0.116 | None yet. Longest range on the roster (5). |
-| Sapling Sentinel | `tower.sapling` | Grove | 10 | 2 | 2 | 3 | 0.75 | 1.33 | 2.67 | 0.267 | None yet. Cheapest tower (10g). |
-| Bloomheart Totem | `tower.bloomheart` | Grove | 22 | 2 | 4 | 3 | 0.75 | 1.33 | 5.33 | 0.242 | None yet. |
-| Thorn Snare Totem | `tower.thorn_snare` | Grove | 26 | 1 | 5 | 3 | 0.75 | 1.33 | 6.67 | 0.256 | None yet. Damage trimmed 7 to 5 before landing: at 7 its damage-per-gold was nearly double Pulse Ward’s despite the same range-1 shape. |
-| Spore Cloud Bloom | `tower.spore_cloud` | Grove | 36 | 3 | 6 | 4 | 1.00 | 1.00 | 6.00 | 0.167 | None yet. |
+Nine of the fifteen have a special behaviour. "Baseline DPS" is single-target damage BEFORE any of
+them apply, so it understates Spore Cloud against fat creeps and overstates Foundry Core, whose
+shells can miss.
+
+| Tower | ID | Line | Cost | Range | Damage / shot | Cooldown ticks | Baseline DPS | DPS/gold | Special behavior |
+| --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | --- |
+| Arrow Tower | `tower.arrow` | Arcane | 14 | 2 | 2 | 2 | 4.00 | 0.286 | Targets the front-most creep. Shade takes reduced damage. |
+| Control Ward | `tower.control` | Arcane | 24 | 3 | 2 | 3 | 2.67 | 0.111 | Front-most target, full damage to Shade. Range raised 2 to 3 because at 2 it was strictly dominated by Arrow. |
+| Relay Ward | `tower.relay` | Arcane | 28 | 2 | 2 | 4 | 2.00 | 0.071 | +1 gold to its owner on every hit. Deliberately weak on stats; exempt from the no-domination test for that reason. |
+| Pulse Ward | `tower.pulse` | Arcane | 32 | 1 | 6 | 4 | 6.00 | 0.188 | Half-damage splash to up to 2 creeps within 1 cell of the target. |
+| Prism Ward | `tower.prism` | Arcane | 42 | 4 | 9 | 6 | 6.00 | 0.143 | Prioritises Shade, then higher health, then farther forward. Full damage to Shade. |
+| Gatling Turret | `tower.gatling` | Foundry | 30 | 2 | 2 | 1 | 8.00 | 0.267 | None. Fires every tick - the roster's fastest plain single-target tower. |
+| Tesla Coil Spire | `tower.tesla` | Foundry | 38 | 3 | 5 | 3 | 6.67 | 0.175 | None yet. |
+| Foundry Core | `tower.foundry` | Foundry | 52 | 2 | 14 | 6 | 9.33 | 0.179 | **Stack Mortar.** No damage when it fires. The shell leaves the stacks and lands 2 ticks later on a pre-computed cell, hitting every creep standing there. Leads the target with the same step function movement uses, so it can genuinely miss if the creep dies or the lane re-paths. Cannot fire while a shell is in the air. |
+| Barricade Bastion | `tower.barricade` | Foundry | 18 | 2 | 5 | 4 | 5.00 | 0.278 | **Fixed Emplacement.** Never turns; engages only creeps that have not passed its own row. Paid for with range 1-to-2 and damage 3-to-5. The reach bump also halves the placements that could hit nothing (66 of 110 down to 34). |
+| Repair Drone Spire | `tower.repair_drone` | Foundry | 34 | 3 | 3 | 2 | 6.00 | 0.176 | None yet. |
+| Elder Canopy | `tower.elder_canopy` | Grove | 46 | 5 | 8 | 6 | 5.33 | 0.116 | None yet. Longest range on the roster (5). |
+| Sapling Sentinel | `tower.sapling` | Grove | 10 | 2 | 2 | 3 | 2.67 | 0.267 | **Grovebond.** +1 damage per orthogonally adjacent Grove tower of the same owner and lane, capped at +3. Diagonals do not bond. Self-limiting: in a solid block the highest-bonus towers are interior ones, which see no route cells and never fire. |
+| Bloomheart Totem | `tower.bloomheart` | Grove | 22 | 2 | 4 | 3 | 5.33 | 0.242 | **Reaping Bloom.** Shoots the creep it can kill outright this shot, else the weakest, else the leader. Lethality is tested AFTER role adjustments, so a damage-resistant Shade cannot bait the shot. |
+| Thorn Snare Totem | `tower.thorn_snare` | Grove | 30 | 2 | 5 | 3 | 6.67 | 0.222 | **Bramble Hold.** Creeps that start a tick in its zone move at exactly half speed. Range 1-to-2 is required by the mechanic - at range 1 the zone could not reliably cover 3 cells and a fast creep would step over it. |
+| Spore Cloud Bloom | `tower.spore_cloud` | Grove | 34 | 3 | 4 | 6 | 2.67 | 0.078 | **Rot.** Damage is max(authored, target max health / 6): inert against chaff, the roster's hardest counter to anything fat. Reads AUTHORED max health, so chipping a creep first cannot inflate the hit. |
 
 ## Tower Role Map
 

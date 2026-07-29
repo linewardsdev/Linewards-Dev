@@ -134,7 +134,15 @@ public sealed class CreepSpawnedEvent : ISimulationEvent
 
 public sealed class TowerFiredEvent : ISimulationEvent
 {
-    public TowerFiredEvent(SimulationTick tick, LaneId laneId, EntityId towerEntityId, GridPosition towerPosition, EntityId targetCreepEntityId, GridPosition targetPosition)
+    public TowerFiredEvent(
+        SimulationTick tick,
+        LaneId laneId,
+        EntityId towerEntityId,
+        GridPosition towerPosition,
+        EntityId targetCreepEntityId,
+        GridPosition targetPosition,
+        SimulationTick impactTick,
+        GridPosition impactPosition)
     {
         Tick = tick;
         LaneId = laneId;
@@ -142,6 +150,8 @@ public sealed class TowerFiredEvent : ISimulationEvent
         TowerPosition = towerPosition;
         TargetCreepEntityId = targetCreepEntityId;
         TargetPosition = targetPosition;
+        ImpactTick = impactTick;
+        ImpactPosition = impactPosition;
     }
 
     public SimulationTick Tick { get; }
@@ -155,6 +165,24 @@ public sealed class TowerFiredEvent : ISimulationEvent
     public EntityId TargetCreepEntityId { get; }
 
     public GridPosition TargetPosition { get; }
+
+    /// <summary>
+    /// Tick this shot actually lands. Equal to <see cref="Tick"/> for every direct-fire tower, and
+    /// that is honest rather than a fudge: an instant hit lands this tick.
+    /// </summary>
+    /// <remarks>
+    /// Only the Foundry Core's mortar sets a future tick. The launch event fully describing the
+    /// shell's destination and arrival is what lets the renderer animate the whole flight locally,
+    /// including a whiff — where the simulation emits no damage event at all and an event-driven
+    /// impact would make the shell visually evaporate in mid-air.
+    /// </remarks>
+    public SimulationTick ImpactTick { get; }
+
+    /// <summary>
+    /// Cell this shot lands on. Equal to <see cref="TargetPosition"/> for direct fire; for the
+    /// mortar it is the LED cell, which is where the target is predicted to be on impact.
+    /// </summary>
+    public GridPosition ImpactPosition { get; }
 }
 
 public sealed class CreepDamagedEvent : ISimulationEvent

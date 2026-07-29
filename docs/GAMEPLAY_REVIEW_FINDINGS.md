@@ -101,9 +101,23 @@ It seeds a match, captures the default HUD and both send-dock categories, and qu
       resolves them by convention, and `BindBakedSurfaceMaps` also binds metallic and emission, which
       the recipe never set — the original five had them only from hand-binding after generation.
 
-- [ ] **Six of the ten new towers have no special behaviour.** They are plain single-target towers
-      separated only by cost/range/damage/cooldown. Barricade and Foundry have owner-specified
-      mechanics pending; the four Grove totems have none designed.
+- [x] **FIXED — six mechanics landed** (Barricade fixed arc, Foundry mortar, Grovebond, Rot, Reaping
+      Bloom, Bramble Hold). Nine of fifteen towers now do something specific. See GD_TUNING_LOG
+      2026-07-29.
+
+- [ ] **Three towers still have no mechanic: Tesla Coil Spire, Repair Drone Spire, Elder Canopy.**
+      Each name promises something the simulation has no vocabulary for yet — chain lightning needs
+      multi-target chaining, repair needs a heal/buff channel, area denial needs a persistent zone
+      (Bramble Hold is the first of those and could be generalised).
+
+- [ ] **Foundry's whiff rate is unmeasured and is a ship/no-ship gate.** A 52-gold tower that
+      visibly does nothing some fraction of the time is a trap purchase, and the whiff sources
+      compound precisely when the player has defended well. Needs an impact telegraph in the
+      renderer to be fair information rather than hidden dice.
+
+- [ ] **None of the six mechanics has been seen in motion.** The simulation is tested; the
+      presentation work (Grovebond bond graphic, mortar flight arc and impact marker, bramble zone
+      decal, barricade recoil direction) is not built.
 
 - [ ] **P1: towers only get 1–3 shots per creep, and 10 of 15 cannot kill even a Runner.** Measured
       with `TowerDuelBalanceTests`, not estimated. `CombatService.MoveCreeps` adds `SpeedPerSecond`

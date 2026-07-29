@@ -609,3 +609,79 @@ semantics are wrong and creeps should be 4x slower, or the semantics are fine an
 asserting every tower could solo a Runner, which was wrong about the game rather than a finding
 about it — no single tower solos anything at current speeds, so the assertion was lowered to the
 real floor.
+
+
+## 2026-07-29 (mechanics): Nine Of Fifteen Towers Now Do Something Specific
+
+Six mechanics landed, designed through a panel of independent proposals and then adversarially
+reviewed — most proposals were refuted and are recorded here so they are not resurrected.
+
+**Barricade Bastion — Fixed Emplacement.** Never turns; can only engage creeps that have not passed
+its own row. Range 1→2, damage 3→5, cost unchanged at 18. The restriction is a net improvement even
+before the mechanic: at range 1 with a full diamond, 66 of the 110 legal placements could hit nothing
+at all; at range 2 with the up-lane half-plane that falls to 34, all of them columns 0 and 6, which no
+range-2 tower reaches the lane from anyway. Damage 5 also crosses the renderer's `damage >= 5`
+threshold, so the shot changes colour and starts printing numbers — the compensation is literally
+visible. Measured damage-per-gold 0.17 → 0.28.
+
+REFUTED: a 1-cell-wide, 4-cell-deep firing line. It required the route to run up the tower's own
+column, so barricades cannibalised each other by diverting the path, and dead placements rose to 96
+of 110.
+
+**Foundry Core — Stack Mortar.** Deals no damage when it fires. The shell leaves the stacks and lands
+2 ticks (0.5s) later on a pre-computed cell, damaging every live creep standing there. It leads the
+target by asking the same `StepCreep` function movement uses — computing the lead independently would
+silently miss every shot in a bramble-braked lane with no test failing. It can genuinely whiff, which
+is the point of aiming at ground rather than at an entity.
+
+Chose delayed over immediate resolution deliberately. Resolving at launch would leave the renderer
+two options, both broken: play the damage before the shell arrives, or animate a shell whose impact
+already happened. The delay also needs an impact telegraph to be fair rather than hidden dice — if
+that cannot be built, resolve immediately and drop the arc instead.
+
+**Sapling Sentinel — Grovebond.** +1 damage per orthogonally adjacent Grove tower of the same owner
+and lane, capped at +3. Diagonals do not bond. Self-limiting in a way that resists a runaway: in a
+solid block the highest-bonus towers are the interior ones, and interior towers see no route cells, so
+they never fire.
+
+**Spore Cloud Bloom — Rot.** Damage is `max(authored, target max health / 6)`. Cost 36→34, damage 6→4,
+cooldown 4→6: the authored number is now only a floor. Be honest about the shape — rot only exceeds
+the floor above 30 max health, so it is a step at the 32hp line rather than a curve, and it is inert
+on 8 of the 15 creeps. It reads AUTHORED max health, so chipping a creep first cannot inflate the hit.
+
+**Bloomheart Totem — Reaping Bloom.** Shoots the creep it can kill outright this shot, else the
+weakest, else the leader. Stats unchanged. Lethality is tested after `AdjustDamageForRoles`, not
+against raw damage: without that a 3hp Shade (which halves incoming damage) would enter the "lethal"
+partition, outrank a genuinely killable creep, and eat the totem's one shot per pass without dying —
+the mechanic visibly failing at the exact moment it should read as working.
+
+**Thorn Snare Totem — Bramble Hold.** Creeps that START a tick inside its zone advance at exactly half
+speed. Cost 26→30, range 1→2. The range bump is required by the mechanic, not a buff: at range 1 the
+zone could not reliably cover 3 route cells and a speed-3 creep would step clean over it. Uses the
+`MovementProgress` accumulator that already existed and was always zero until now.
+
+REFUTED: a version that only slowed slow creeps (inert on 8 of 15), and one that damaged everything in
+contact (assumed at most 4 creeps can touch a tower, but creeps stack on a cell — a quantity-N send
+spawns N creeps on one index).
+
+**Verified:** 124 tests pass, 19 of them new and specific to these mechanics. Headless Unity compile
+clean. Measured after the change: Barricade 0.28 damage-per-gold, Thorn now kills a Runner in 2.50s
+where it previously could not, Spore correctly drops to 0.12 against a 24hp Brute (inert) while
+scaling to 15 per shot against a 90hp Colossus, Foundry kills in 2.25s.
+
+**Not verified — needs real play, in priority order:**
+
+1. **Foundry's whiff rate is a ship/no-ship gate.** A 52-gold tower that visibly does nothing some of
+   the time is a trap, and the whiff sources compound exactly when the player has built WELL (an
+   over-defended lane kills the target before the shell lands). Measure whiffs bucketed by tower row
+   and creep speed. Above roughly 25%, the first lever is flight time 2→1, not more damage.
+2. **Thorn Snare may be a mandatory purchase.** A 30-gold tower that roughly doubles the shot
+   opportunities of every tower covering three cells is suspicious. The only safe lever is cost;
+   zone width cannot drop below 3.
+3. **Bloomheart may be a near-no-op.** In the modal case — a same-type send, which stays stacked at
+   one path index with equal health — all four sort keys tie and it degrades to the default rule.
+   Measure the fraction of its shots that pick a different creep than the default would.
+
+**Still without any mechanic:** Tesla Coil Spire, Repair Drone Spire, Elder Canopy. Their names all
+promise something (chain lightning, repair/support, area denial) that the simulation has no vocabulary
+for yet.

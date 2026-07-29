@@ -99,10 +99,10 @@ Current tower palette exposes Arrow, Control, Relay, selected-tower inspect, and
 
 - [x] Add first-pass content for five tower roles: reliable single-target, area/control, relay utility, pulse burst, and prism long-range.
 - [x] Expand to 15 towers in three build lines, surfaced through a category picker (2026-07-29).
-- [ ] Give the ten new towers special behaviour. Six of ten are currently plain single-target towers distinguished only by numbers.
-      Specified by the owner: Barricade Bastion never rotates and fires one fixed direction for bonus damage; Foundry Core is an indirect-fire mortar.
-      The four Grove totems have no mechanic yet.
-- [ ] Generate wrapper prefabs and `TowerVisualLibrary` profiles for the ten new towers. They currently render with procedural fallback visuals rather than their meshes.
+- [x] Give the new towers special behaviour (2026-07-29). Nine of fifteen now have one: Barricade's fixed up-lane arc, Foundry's delayed mortar, Grovebond, Rot, Reaping Bloom and Bramble Hold, alongside the existing Pulse splash, Prism priority and Relay gold.
+- [ ] Three towers still have none: Tesla Coil Spire, Repair Drone Spire, Elder Canopy. Each needs simulation vocabulary that does not exist yet (chaining, a heal/buff channel, a persistent zone).
+- [x] Generate wrapper prefabs and `TowerVisualLibrary` profiles for the ten new towers (2026-07-29). All fifteen render their own textured mesh.
+- [ ] Build the presentation for the six new mechanics. The simulation is tested but nothing is drawn: no Grovebond bond graphic, no mortar flight arc or impact telegraph, no bramble zone decal, and the barricade gets no recoil because `suppressRecoil` is still tied to `locksYaw`.
 - [x] Add first-pass content for five creep/send roles: runner, brute, swarm, shade, and siege.
 - [x] Give each creep/send a different cost, income gain, and pressure profile.
 - [x] Extend tests so new content validates through the existing simulation contracts.
