@@ -45,8 +45,11 @@ namespace LTW.UnityClient.Simulation
             }
 
             var snapshot = simulation.GetSnapshot();
+            // SimulationTick.Value is a long, so this subtraction is a long and needs an explicit
+            // narrowing cast to match this method's int return (CS0266 without it — main did not
+            // compile). Safe: remaining is bounded above by the send cooldown itself (30 ticks).
             var remaining = snapshot.Players.Get(simulation.LocalPlayerId).NextSendAvailableTick.Value - snapshot.Tick.Value;
-            return remaining > 0 ? remaining : 0;
+            return remaining > 0 ? (int)remaining : 0;
         }
 
         public VerticalSliceCommandResult PreviewSampleTower(int x, int y) => PreviewTower(SampleVerticalSliceContent.TowerId, x, y);
