@@ -299,3 +299,64 @@ cap, and a full batch playtest passed with a clean reset.
 
 **Not verified:** how this reads in motion to a human eye. The numbers are right; whether Siege
 now *feels* like the second-biggest threat is a judgement only a real playtest can make.
+
+## 2026-07-28 (art): Spire Turret Walker Split Off The Golem Rig; Foot Skate 51x -> 8.3x
+
+The walker read badly in play. Investigating from the *actual* game camera (per
+`docs/OPEN_ITEMS.md` item 4) found two measured causes, neither of which was the gait
+tuning it looked like.
+
+**1. Foot skate, 51x — the dominant problem.** Nothing syncs animator playback to
+movement speed; the clip loops at its authored rate while the simulation translates the
+creep independently. `SpeedPerSecond` is cells per *tick* at 4 ticks/sec, and the walker
+is the only rigged creep at speed 2 — so it crosses the board at 8 world units/sec (one
+grid cell = one world unit) while a measured 0.139-unit stride on a 1-second cycle implied
+0.157 units/sec of walking. Its feet needed to move 51x faster. It was being dragged.
+
+Note the body advances one stride per *leg cycle*, not per beat — all legs must agree on
+body displacement. An earlier estimate of 29x wrongly counted the trot's two beats as two
+strides.
+
+**2. A symmetric trot is self-cancelling from this camera.** The camera is orthographic,
+tilted 30 degrees off vertical, and creeps travel *toward* it, so the walker is seen
+head-on. A bilaterally symmetric diagonal trot's two contact poses are mirror images,
+which head-on look nearly identical. Measured screen-space foot travel was 92.7px vertical
+against **10.7px horizontal** — the screen's horizontal axis carried essentially nothing.
+
+**Fix: the walker now has its own rig script.** `tools/art_pipeline/rig_turret_walker.py`,
+split out of `rig_quadruped_creep.py` (which is built around the two rock golems — its
+armature is literally named `BruteArmature`). A mechanical spider does not share a gait
+with a squat golem, and keeping them together meant every walker change risked the golems.
+
+| | Before | After |
+| --- | ---: | ---: |
+| Gait | 2-beat diagonal trot | 4-beat wave (FL, BR, FR, BL) |
+| Stride (model units) | 0.139 | 0.213 |
+| Leg cycle | 1.00s | 0.25s |
+| Implied ground speed | 0.157 u/s | 0.965 u/s |
+| **Foot skate** | **51x** | **8.3x** |
+| Screen travel X / Y | 10.7 / 92.7 px | 27.5 / 153.3 px |
+
+Also added, both aimed at the unused screen-horizontal axis: a turret scan (22 degrees yaw,
+one sweep per clip) and a small chassis yaw. Clip length and leg cycle are deliberately
+decoupled — the clip is 24 frames with the legs running four gaits inside it and the turret
+scanning once, so the legs can be fast without the turret looking frantic, and it still
+loops cleanly because both complete whole cycles.
+
+**Honest residual: 8.3x skate remains.** 8 units/sec is roughly six body lengths per second;
+no legged gait reads as that. Pushing to 5.5x needs 24 footfalls/sec, which trades skating
+for blurring. The real fix is driving animator playback from creep speed at runtime, which
+would also help Brute and Obsidian Brute (~13x and ~12x, both unaddressed here) — deliberately
+left out of scope to keep this walker-only.
+
+**Verification:** golem rigs proved unchanged by *semantic* comparison — freshly re-rigged
+Brute and Obsidian Brute match their committed FBXs to 4 decimal places on every leg's stride
+and lift. (Byte comparison is useless here: FBX export is non-deterministic, and two identical
+runs of the same script produce different hashes.) Wrappers validated 10/10 with no issues,
+promoted, and a full batch playtest passes with a clean reset. Incidental regeneration churn on
+the golem prefabs/controllers was reverted — notably a 0.0132 drift in the Brute's ground
+offset that was not a correction.
+
+**Not verified:** how it reads in motion to a human eye. Frame renders from the game camera
+confirm the poses are now genuinely distinct; whether the walker *feels* right at speed is a
+judgement only a real playtest makes.
