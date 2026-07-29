@@ -83,7 +83,12 @@ namespace LTW.UnityClient.Simulation
         // tags only (no simulation-side coupling), so extending this enum is low-risk.
         Wisp,
         Coil,
-        Walker
+        Walker,
+        // Category 3 (Meshy-rigged bipeds). Only two new tags were needed: Zephyr Wraith takes
+        // the long-dormant Air, Umbral Stalker takes Stealth, and Siege Colossus finally gives
+        // Boss a user.
+        Warden,
+        Burrower
     }
 
     public enum CreepVisualMotionStyle

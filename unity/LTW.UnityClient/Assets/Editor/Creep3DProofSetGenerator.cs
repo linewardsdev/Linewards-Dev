@@ -208,6 +208,101 @@ namespace LTW.UnityClient.Editor
                 new Vector3(0f, 135f, 0f),
                 0.44f,
                 RiggedCreepSetup.TurretWalkerControllerPath),
+
+            // Category 3 — Meshy auto-rigged bipeds, used as delivered (24-bone humanoid rig,
+            // walk and run clips already authored). Unlike every creep above, these never go
+            // through ai_asset_intake.py: its normalize step exports MESH+EMPTY with no
+            // bake_anim and would strip the armature and clips outright. Scale and orientation
+            // are handled here instead, which is what importScale/importEulerAngles are for.
+            //
+            // importEulerAngles is Vector3.zero for all five, and unusually that is *verified*
+            // rather than a first guess: a render from the real game camera (30 degrees off
+            // vertical, creeps travelling toward it) shows them already facing the camera, which
+            // is the facing the game wants.
+            //
+            // motionStyle is Auto throughout. The renderer layers procedural motion on top of
+            // skeletal animation, and these carry real biped walk/run cycles — stacking a bob or
+            // windup on top risks double-animating. Start minimal, add only if a capture shows
+            // they need it.
+            //
+            // runtimeScale values are solved, not authored, using the rule in GD_TUNING_LOG.md:
+            // perceived size sqrt(effH*effW) tracks health along 0.62 + 0.52*sqrt((hp-4)/56),
+            // measured against each model's animated-pose bounds AS IMPORTED INTO UNITY (not the raw
+            // Blender bounds — FBX unit-scale conversion makes the imported mesh ~1.8x larger, and
+            // solving against Blender figures put every one of these creeps roughly double size)
+            // and clamped to width <= 1.45
+            // world units. The curve's denominator is deliberately left at 56 so none of the
+            // existing ten shift; creeps above 60 health simply extrapolate past Obsidian Brute.
+            new(
+                "Zephyr",
+                "creep.zephyr",
+                CreepVisualRole.Air,
+                CreepVisualMotionStyle.Auto,
+                CreepDeathCueStyle.SoftDissolve,
+                ModelRoot + "/Zephyr/AIDrop/zephyr_meshy_zephyr_v01_rigged.fbx",
+                ModelRoot + "/Zephyr/AIDrop/zephyr_meshy_zephyr_v01_rigged_Textures",
+                Creep3DImportPipeline.RuntimePrefabFolder + "/Creep_Zephyr_3D.prefab",
+                new Vector3(0.278f, 0.278f, 0.278f),
+                1f,
+                Vector3.zero,
+                0.38f,
+                RiggedCreepSetup.ZephyrControllerPath),
+            new(
+                "Stalker",
+                "creep.stalker",
+                CreepVisualRole.Stealth,
+                CreepVisualMotionStyle.Auto,
+                CreepDeathCueStyle.SoftDissolve,
+                ModelRoot + "/Stalker/AIDrop/stalker_meshy_stalker_v01_rigged.fbx",
+                ModelRoot + "/Stalker/AIDrop/stalker_meshy_stalker_v01_rigged_Textures",
+                Creep3DImportPipeline.RuntimePrefabFolder + "/Creep_Stalker_3D.prefab",
+                new Vector3(0.208f, 0.208f, 0.208f),
+                1f,
+                Vector3.zero,
+                0.42f,
+                RiggedCreepSetup.StalkerControllerPath),
+            new(
+                "Burrower",
+                "creep.burrower",
+                CreepVisualRole.Burrower,
+                CreepVisualMotionStyle.Auto,
+                CreepDeathCueStyle.HeavyShatter,
+                ModelRoot + "/Burrower/AIDrop/burrower_meshy_burrower_v01_rigged.fbx",
+                ModelRoot + "/Burrower/AIDrop/burrower_meshy_burrower_v01_rigged_Textures",
+                Creep3DImportPipeline.RuntimePrefabFolder + "/Creep_Burrower_3D.prefab",
+                new Vector3(0.245f, 0.245f, 0.245f),
+                1f,
+                Vector3.zero,
+                0.46f,
+                RiggedCreepSetup.BurrowerControllerPath),
+            new(
+                "Warden",
+                "creep.warden",
+                CreepVisualRole.Warden,
+                CreepVisualMotionStyle.Auto,
+                CreepDeathCueStyle.HeavyShatter,
+                ModelRoot + "/Warden/AIDrop/warden_meshy_warden_v01_rigged.fbx",
+                ModelRoot + "/Warden/AIDrop/warden_meshy_warden_v01_rigged_Textures",
+                Creep3DImportPipeline.RuntimePrefabFolder + "/Creep_Warden_3D.prefab",
+                new Vector3(0.428f, 0.428f, 0.428f),
+                1f,
+                Vector3.zero,
+                0.44f,
+                RiggedCreepSetup.WardenControllerPath),
+            new(
+                "Colossus",
+                "creep.colossus",
+                CreepVisualRole.Boss,
+                CreepVisualMotionStyle.Auto,
+                CreepDeathCueStyle.HeavyShatter,
+                ModelRoot + "/Colossus/AIDrop/colossus_meshy_colossus_v01_rigged.fbx",
+                ModelRoot + "/Colossus/AIDrop/colossus_meshy_colossus_v01_rigged_Textures",
+                Creep3DImportPipeline.RuntimePrefabFolder + "/Creep_Colossus_3D.prefab",
+                new Vector3(0.329f, 0.329f, 0.329f),
+                1f,
+                Vector3.zero,
+                0.50f,
+                RiggedCreepSetup.ColossusControllerPath),
         };
 
         [MenuItem(GenerateMenuPath)]
