@@ -65,6 +65,13 @@ any frame of the walk cycle. The knee-bend rig itself works and is kept
 (Unity-verified, 10/11 bones driven, no regression to the existing silhouette
 timing), but it produces no visible gameplay difference for this creature.
 
+Follow-up (2026-07-28): the Spire Turret Walker was checked from the game camera this
+way and its legs turned out fully visible, unlike the Brute's — but the check surfaced two
+different defects instead (51x foot skate, and a symmetric trot whose mirrored contact
+poses are indistinguishable head-on). It now has its own rig script,
+`tools/art_pipeline/rig_turret_walker.py`; see `docs/GD_TUNING_LOG.md`. The camera-angle
+check below remains the right first step and paid for itself again.
+
 If `rig_quadruped_creep.py` is ever reused for another quadruped-shaped creep,
 render-check from the actual game camera angle first, before investing in leg
 articulation — for a low, wide, or heavily-armored silhouette the legs may

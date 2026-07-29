@@ -56,6 +56,13 @@ PROFILE_NAME = argv[4] if len(argv) > 4 else "brute"
 # Reproduce for a new creep with the measurement scripts described in the module
 # docstring: quadrant centroids give legFL..legBR, and the height at which each
 # leg's vertex column thickens into body mass gives hip_z.
+# The Spire Turret Walker used to be a third profile here. It is now split out into
+# tools/art_pipeline/rig_turret_walker.py, because the 2-beat diagonal trot this script
+# authors is actively wrong for it: the gameplay camera views creeps head-on, where a
+# symmetric trot's mirrored contact poses are near-indistinguishable, and the walker
+# travels 8 world units/sec against a stride implying 0.157 -- 51x foot skate. It needs a
+# 4-beat wave gait, a far longer stride and a much faster leg cycle, none of which suit
+# these two golems. Keep this script golems-only.
 PROFILES = {
     # Rock Golem. Squat, legs well separated fore/aft.
     "brute": {
@@ -91,26 +98,6 @@ PROFILES = {
         # 0.27 forward, which is the waddle measure_creep_gait exists to catch, so it comes down.
         "swing_deg": 30.0, "body_bob": 0.06, "body_rock_deg": 5.0,
         "head_bob_deg": 12.0, "body_scale_pulse": 0.05,
-    },
-    # Spire Turret Walker. A mechanical walker, and the easiest of the three to
-    # rig: four thin legs land on clean corners (x +/-0.34, y -0.21 and +0.42, so
-    # ~0.62 apart fore/aft — better separated than either golem) and the vertical
-    # profile jumps sharply from ~20 verts per band in the legs to 543+ at
-    # z=0.178, which is where the chassis starts. Hip sits just under that.
-    #
-    # Gait is deliberately NOT the golems' lumber: this is a machine, so the body
-    # bob, rock and scale pulse are all much smaller. A rigid uniform scale pulse
-    # in particular reads as breathing on a creature and as a fault on a machine,
-    # so it is nearly off here.
-    "turretwalker": {
-        "legFL": (-0.336, -0.206), "legFR": (0.337, -0.206),
-        "legBL": (-0.335, 0.416),  "legBR": (0.335, 0.415),
-        "hip_z": 0.17, "foot_z": 0.01, "knee_z": 0.09, "body_z": 0.30,
-        "body_half": 0.22, "head_reach": 0.40, "leg_radius": 0.20,
-        # Roll trimmed with the same change: a machine should barely roll at all, and at 4 deg
-        # the lateral foot travel sat uncomfortably close to the fore-aft dominance guard.
-        "swing_deg": 22.0, "body_bob": 0.03, "body_rock_deg": 2.5,
-        "head_bob_deg": 5.0, "body_scale_pulse": 0.015,
     },
 }
 
