@@ -157,7 +157,9 @@ namespace LTW.UnityClient.UI
 
             // The cooldown is 7.5s, long enough that without a countdown the dock just looks
             // broken while it runs.
-            if (isSendCoolingDown)
+            // Hidden on the Category 2 grid: every card there is exempt and live, so a countdown
+            // beside them would read as a restriction that is not applying.
+            if (isSendCoolingDown && selectedCategory != 1)
             {
                 metaStyle.normal.textColor = SignalGold;
                 GUI.Label(
@@ -272,19 +274,19 @@ namespace LTW.UnityClient.UI
             var buttonWidth = (rect.width - 24f * scale - gap * 2f) / 3f;
             var x = rect.x + 12f * scale;
 
-            if (DrawSendButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "WISP", "5G  +1", CreepIconKind.Wisp, ArcaneBlue, gold >= 5, highlightedCreepRole == 5, scale))
+            if (DrawSendButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "WISP", "5G  +1", CreepIconKind.Wisp, ArcaneBlue, gold >= 5, highlightedCreepRole == 5, scale, ignoresCooldown: true))
             {
                 SendWisp();
             }
 
             x += buttonWidth + gap;
-            if (DrawSendButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "REVENANT", "16G  +4", CreepIconKind.Revenant, WardViolet, gold >= 16, highlightedCreepRole == 6, scale))
+            if (DrawSendButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "REVENANT", "16G  +4", CreepIconKind.Revenant, WardViolet, gold >= 16, highlightedCreepRole == 6, scale, ignoresCooldown: true))
             {
                 SendRevenant();
             }
 
             x += buttonWidth + gap;
-            if (DrawSendButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "OBSIDIAN", "30G  +3", CreepIconKind.ObsidianBrute, new Color(0.92f, 0.32f, 0.28f), gold >= 30, highlightedCreepRole == 7, scale))
+            if (DrawSendButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "OBSIDIAN", "30G  +3", CreepIconKind.ObsidianBrute, new Color(0.92f, 0.32f, 0.28f), gold >= 30, highlightedCreepRole == 7, scale, ignoresCooldown: true))
             {
                 SendObsidianBrute();
             }
@@ -292,13 +294,13 @@ namespace LTW.UnityClient.UI
             var secondRowY = buttonY + buttonHeight + gap;
             var secondRowWidth = (rect.width - 24f * scale - gap) / 2f;
             x = rect.x + 12f * scale;
-            if (DrawSendButton(new Rect(x, secondRowY, secondRowWidth, buttonHeight), "SERPENT", "22G  +2", CreepIconKind.Serpent, MintSignal, gold >= 22, highlightedCreepRole == 8, scale))
+            if (DrawSendButton(new Rect(x, secondRowY, secondRowWidth, buttonHeight), "SERPENT", "22G  +2", CreepIconKind.Serpent, MintSignal, gold >= 22, highlightedCreepRole == 8, scale, ignoresCooldown: true))
             {
                 SendSerpent();
             }
 
             x += secondRowWidth + gap;
-            if (DrawSendButton(new Rect(x, secondRowY, secondRowWidth, buttonHeight), "WALKER", "38G  +4", CreepIconKind.TurretWalker, new Color(0.42f, 0.82f, 0.86f), gold >= 38, highlightedCreepRole == 9, scale))
+            if (DrawSendButton(new Rect(x, secondRowY, secondRowWidth, buttonHeight), "WALKER", "38G  +4", CreepIconKind.TurretWalker, new Color(0.42f, 0.82f, 0.86f), gold >= 38, highlightedCreepRole == 9, scale, ignoresCooldown: true))
             {
                 SendTurretWalker();
             }
@@ -336,12 +338,14 @@ namespace LTW.UnityClient.UI
             }
         }
 
-        private static bool DrawSendButton(Rect rect, string label, string meta, CreepIconKind iconKind, Color accent, bool isAffordable, bool isSelected, float scale)
+        private static bool DrawSendButton(Rect rect, string label, string meta, CreepIconKind iconKind, Color accent, bool isAffordable, bool isSelected, float scale, bool ignoresCooldown = false)
         {
             // Cooling down reads as unaffordable, because for the player it is the same thing:
             // the card cannot be sent right now. Without this a card you could clearly afford
-            // looked ready and answered a tap with a bare refusal.
-            isAffordable = isAffordable && !isSendCoolingDown;
+            // looked ready and answered a tap with a bare refusal. Category 2 creeps are exempt
+            // from the cooldown in the simulation, so their cards must stay live through it —
+            // greying them out would tell the player the opposite of the rule.
+            isAffordable = isAffordable && (ignoresCooldown || !isSendCoolingDown);
             var displayAccent = isAffordable ? accent : DisabledText;
             var state = isAffordable
                 ? isSelected ? CommandCardState.Selected : CommandCardState.Normal

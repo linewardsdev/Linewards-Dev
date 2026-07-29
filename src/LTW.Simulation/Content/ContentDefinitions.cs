@@ -73,7 +73,16 @@ public sealed class TowerDefinition
 
 public sealed class CreepDefinition
 {
-    public CreepDefinition(ContentId id, string name, Gold cost, Income incomeGain, Gold killBounty, Gold leakBounty, int maxHealth, int speedPerSecond)
+    public CreepDefinition(
+        ContentId id,
+        string name,
+        Gold cost,
+        Income incomeGain,
+        Gold killBounty,
+        Gold leakBounty,
+        int maxHealth,
+        int speedPerSecond,
+        bool ignoresSendCooldown = false)
     {
         Id = id;
         Name = string.IsNullOrWhiteSpace(name) ? throw new ArgumentException("Name is required.", nameof(name)) : name;
@@ -83,6 +92,7 @@ public sealed class CreepDefinition
         LeakBounty = leakBounty;
         MaxHealth = maxHealth;
         SpeedPerSecond = speedPerSecond;
+        IgnoresSendCooldown = ignoresSendCooldown;
     }
 
     public ContentId Id { get; }
@@ -100,6 +110,18 @@ public sealed class CreepDefinition
     public int MaxHealth { get; }
 
     public int SpeedPerSecond { get; }
+
+    /// <summary>
+    /// When true this creep may be sent whenever the sender can afford it, and sending it neither
+    /// waits on nor starts the global send cooldown.
+    /// </summary>
+    /// <remarks>
+    /// Carried on the definition rather than checked against a list of ids in EconomyService, so
+    /// the exemption travels with the content and a new creep declares its own behaviour.
+    /// Sending an exempt creep deliberately does not arm the cooldown either — otherwise it would
+    /// still gate the next non-exempt send, which is the opposite of being exempt.
+    /// </remarks>
+    public bool IgnoresSendCooldown { get; }
 }
 
 public sealed class TechDefinition

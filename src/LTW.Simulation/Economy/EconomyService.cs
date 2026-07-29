@@ -77,7 +77,10 @@ public sealed class EconomyService
         // GD_TUNING_LOG have been describing was never actually running, leaving sends limited
         // only by gold. That is a rate-limit hole for remote clients specifically (see
         // ARCHITECTURE.md's "rate limits and command cooldowns are enforced server-side").
-        if (requestedTick.Value < sender.NextSendAvailableTick.Value)
+        // Category 2 creeps are exempt: they send whenever the player can afford them. The
+        // exemption is declared on the creep (CreepDefinition.IgnoresSendCooldown) rather than
+        // matched against ids here.
+        if (!creep.IgnoresSendCooldown && requestedTick.Value < sender.NextSendAvailableTick.Value)
         {
             return SendResult.Reject(players, CommandRejectionReason.CooldownActive);
         }
@@ -90,8 +93,16 @@ public sealed class EconomyService
 
         var updatedSender = sender
             .WithGold(new Gold(sender.Gold.Amount - cost))
-            .WithIncome(new Income(sender.Income.Amount + creep.IncomeGain.Amount * quantity))
-            .WithNextSendAvailableTick(new SimulationTick(requestedTick.Value + rules.SendCooldownTicks));
+            .WithIncome(new Income(sender.Income.Amount + creep.IncomeGain.Amount * quantity));
+
+        // An exempt send does not arm the cooldown either. Arming it would let a Category 2 send
+        // gate the next Category 1 send, which is not what "send at any time" means, and would
+        // make spamming the cheapest exempt creep a way to lock out everything else.
+        if (!creep.IgnoresSendCooldown)
+        {
+            updatedSender = updatedSender
+                .WithNextSendAvailableTick(new SimulationTick(requestedTick.Value + rules.SendCooldownTicks));
+        }
 
         return SendResult.Accept(players.Replace(updatedSender), targetId);
     }

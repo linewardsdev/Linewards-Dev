@@ -910,14 +910,21 @@ public sealed class VerticalSliceBridgeTests
         // P1's starting 100 gold while comfortably clearing the pressure threshold.
         Assert.True(simulation.QueueSend(new PlayerId(1), SampleVerticalSliceContent.BruteCreepId, quantity: 5).Accepted);
 
-        var decisionsBefore = simulation.GetBotDiagnostics().RecentDecisions.Count(d => d.PlayerId.Value == 2);
+        // Assert on the tick of P2's decisions rather than how many appear in RecentDecisions.
+        // That list is only the last 12 records across all bots, so a busier field evicts P2's
+        // older entries and the count falls even when P2 has decided nothing new — which made
+        // this test fail for a reason that had nothing to do with P2 holding its sends.
+        var markerTick = simulation.GetSnapshot().Tick.Value;
         for (var tick = 0; tick < 5; tick++)
         {
             simulation.AdvanceOneTick();
         }
-        var decisionsAfter = simulation.GetBotDiagnostics().RecentDecisions.Count(d => d.PlayerId.Value == 2);
 
-        Assert.Equal(decisionsBefore, decisionsAfter);
+        var newDecisionsByP2 = simulation.GetBotDiagnostics().RecentDecisions
+            .Where(d => d.PlayerId.Value == 2 && d.Tick.Value > markerTick)
+            .ToArray();
+
+        Assert.Empty(newDecisionsByP2);
     }
 
     [Fact]

@@ -157,8 +157,81 @@ public sealed class EconomyTests
         });
     }
 
+    /// <summary>
+    /// Category 2 creeps send whenever the player can afford them.
+    /// </summary>
+    [Fact]
+    public void Exempt_creeps_ignore_the_send_cooldown()
+    {
+        var service = CreateService(sendCooldownTicks: 30);
+        var players = CreatePlayers();
+
+        var first = service.QueueSend(players, new PlayerId(1), ExemptCreep(), quantity: 1, new SimulationTick(10));
+        Assert.True(first.Accepted);
+
+        var immediatelyAgain = service.QueueSend(first.Players, new PlayerId(1), ExemptCreep(), quantity: 1, new SimulationTick(11));
+
+        Assert.True(immediatelyAgain.Accepted);
+    }
+
+    /// <summary>
+    /// An exempt send must not arm the cooldown, or spamming the cheapest Category 2 creep would
+    /// lock out every Category 1 send.
+    /// </summary>
+    [Fact]
+    public void Exempt_sends_do_not_arm_the_cooldown_for_other_creeps()
+    {
+        var service = CreateService(sendCooldownTicks: 30);
+        var players = CreatePlayers();
+
+        var exempt = service.QueueSend(players, new PlayerId(1), ExemptCreep(), quantity: 1, new SimulationTick(10));
+        Assert.True(exempt.Accepted);
+
+        var gated = service.QueueSend(exempt.Players, new PlayerId(1), Runner(), quantity: 1, new SimulationTick(11));
+
+        Assert.True(gated.Accepted);
+    }
+
+    /// <summary>
+    /// The exemption must not leak into the normal path: a non-exempt creep is still gated.
+    /// </summary>
+    [Fact]
+    public void Exempt_creeps_do_not_bypass_the_cooldown_for_non_exempt_creeps()
+    {
+        var service = CreateService(sendCooldownTicks: 30);
+        var players = CreatePlayers();
+
+        var first = service.QueueSend(players, new PlayerId(1), Runner(), quantity: 1, new SimulationTick(10));
+        Assert.True(first.Accepted);
+
+        var exemptStillFine = service.QueueSend(first.Players, new PlayerId(1), ExemptCreep(), quantity: 1, new SimulationTick(11));
+        var runnerStillGated = service.QueueSend(first.Players, new PlayerId(1), Runner(), quantity: 1, new SimulationTick(11));
+
+        Assert.True(exemptStillFine.Accepted);
+        Assert.False(runnerStillGated.Accepted);
+        Assert.Equal(CommandRejectionReason.CooldownActive, runnerStillGated.RejectionReason);
+    }
+
+    /// <summary>
+    /// Gold is still the gate for exempt creeps — "send at any time" means no timer, not free.
+    /// </summary>
+    [Fact]
+    public void Exempt_creeps_are_still_gated_by_gold()
+    {
+        var service = CreateService(sendCooldownTicks: 30);
+        var players = CreatePlayers(gold: 4);
+
+        var result = service.QueueSend(players, new PlayerId(1), ExemptCreep(), quantity: 1, new SimulationTick(10));
+
+        Assert.False(result.Accepted);
+        Assert.Equal(CommandRejectionReason.InsufficientGold, result.RejectionReason);
+    }
+
     private static CreepDefinition Runner() =>
         new(new ContentId("creep.runner"), "Runner", new Gold(10), new Income(1), new Gold(1), new Gold(2), maxHealth: 15, speedPerSecond: 2);
+
+    private static CreepDefinition ExemptCreep() =>
+        new(new ContentId("creep.wisp"), "Crystal Wisp", new Gold(5), new Income(1), new Gold(1), new Gold(1), maxHealth: 4, speedPerSecond: 3, ignoresSendCooldown: true);
 
     private static TowerDefinition ArrowTower() =>
         new(new ContentId("tower.arrow"), "Arrow Tower", new Gold(25), rangeCells: 3, damage: 5, attackCooldownTicks: 10);
