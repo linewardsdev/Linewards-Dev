@@ -10,11 +10,20 @@ namespace LTW.UnityClient.Editor
     /// that drives it.
     /// </summary>
     /// <remarks>
-    /// The Meshy source models ship unrigged, so rigs are authored separately (see
-    /// tools/art_pipeline/rig_quadruped_creep.py) and re-exported alongside the prepared mesh.
-    /// A freshly imported rigged FBX defaults to no rig and non-looping clips, which reads as a
-    /// creature that animates once and then freezes, so both have to be set explicitly here
-    /// rather than left to the importer defaults.
+    /// Two sources of rig feed this. Meshy auto-rigs bipeds and ships them with walk and run
+    /// clips already authored, so the Category 3 creeps below are used as delivered. It cannot
+    /// rig quadrupeds, so those carry hand-authored rigs instead (see
+    /// tools/art_pipeline/rig_quadruped_creep.py for the golems and rig_turret_walker.py for the
+    /// walker) re-exported alongside the prepared mesh.
+    ///
+    /// Either way a freshly imported rigged FBX defaults to no rig and non-looping clips, which
+    /// reads as a creature that animates once and then freezes, so both have to be set explicitly
+    /// here rather than left to the importer defaults.
+    ///
+    /// Note the Category 3 models deliberately skip tools/art_pipeline/ai_asset_intake.py: its
+    /// normalize step exports object_types={"MESH","EMPTY"} with no bake_anim, which would
+    /// silently strip the armature and every clip. Their scale and orientation are handled by
+    /// Creep3DImportSpec's importScale/importEulerAngles instead.
     /// </remarks>
     public static class RiggedCreepSetup
     {
@@ -27,24 +36,57 @@ namespace LTW.UnityClient.Editor
         public const string TurretWalkerRiggedModelPath =
             "Assets/Art/AIStaging/Models/Creeps/Turretwalker/AIDrop/turretwalker_meshy_turretwalker_v01_prepared_rigged.fbx";
 
+        // Category 3: Meshy-rigged bipeds, used as delivered. The clip each carries follows the
+        // creep's speed — the running clip for the fast ones (Zephyr, Stalker), walking for the
+        // slow ones — because a run cycle's longer stride and faster cadence measurably reduces
+        // the foot skate that comes from creeps translating faster than any gait can carry them.
+        private const string Category3Root = "Assets/Art/AIStaging/Models/Creeps";
+
+        public const string ZephyrRiggedModelPath =
+            Category3Root + "/Zephyr/AIDrop/zephyr_meshy_zephyr_v01_rigged.fbx";
+
+        public const string StalkerRiggedModelPath =
+            Category3Root + "/Stalker/AIDrop/stalker_meshy_stalker_v01_rigged.fbx";
+
+        public const string BurrowerRiggedModelPath =
+            Category3Root + "/Burrower/AIDrop/burrower_meshy_burrower_v01_rigged.fbx";
+
+        public const string WardenRiggedModelPath =
+            Category3Root + "/Warden/AIDrop/warden_meshy_warden_v01_rigged.fbx";
+
+        public const string ColossusRiggedModelPath =
+            Category3Root + "/Colossus/AIDrop/colossus_meshy_colossus_v01_rigged.fbx";
+
         public const string ControllerFolder = "Assets/Animation/Creeps";
         public const string BruteControllerPath = ControllerFolder + "/Creep_Brute_3D.controller";
         public const string ObsidianBruteControllerPath = ControllerFolder + "/Creep_ObsidianBrute_3D.controller";
         public const string TurretWalkerControllerPath = ControllerFolder + "/Creep_TurretWalker_3D.controller";
+        public const string ZephyrControllerPath = ControllerFolder + "/Creep_Zephyr_3D.controller";
+        public const string StalkerControllerPath = ControllerFolder + "/Creep_Stalker_3D.controller";
+        public const string BurrowerControllerPath = ControllerFolder + "/Creep_Burrower_3D.controller";
+        public const string WardenControllerPath = ControllerFolder + "/Creep_Warden_3D.controller";
+        public const string ColossusControllerPath = ControllerFolder + "/Creep_Colossus_3D.controller";
 
         /// <summary>
         /// Every creep carrying a hand-authored rig, paired with the controller built for it.
         /// </summary>
         /// <remarks>
-        /// Rigs are produced by tools/art_pipeline/rig_quadruped_creep.py, which holds the measured
-        /// per-creep bone geometry in its PROFILES table. Meshy only auto-rigs bipeds, so every
-        /// quadruped here is rigged by that script instead.
+        /// The quadruped rigs are produced by tools/art_pipeline/rig_quadruped_creep.py, which
+        /// holds the measured per-creep bone geometry in its PROFILES table. Meshy only auto-rigs
+        /// bipeds, so every quadruped here is rigged by that script instead — and conversely the
+        /// Category 3 bipeds need no script at all, arriving with a 24-bone humanoid rig and
+        /// clips already authored.
         /// </remarks>
         private static readonly (string ModelPath, string ControllerPath)[] RiggedCreeps =
         {
             (BruteRiggedModelPath, BruteControllerPath),
             (ObsidianBruteRiggedModelPath, ObsidianBruteControllerPath),
             (TurretWalkerRiggedModelPath, TurretWalkerControllerPath),
+            (ZephyrRiggedModelPath, ZephyrControllerPath),
+            (StalkerRiggedModelPath, StalkerControllerPath),
+            (BurrowerRiggedModelPath, BurrowerControllerPath),
+            (WardenRiggedModelPath, WardenControllerPath),
+            (ColossusRiggedModelPath, ColossusControllerPath),
         };
 
         [MenuItem("Line Wards/Art/Configure Rigged Creep Animation")]

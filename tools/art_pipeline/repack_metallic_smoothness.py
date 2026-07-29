@@ -15,6 +15,13 @@ Baked_MetallicSmoothness.png in Unity's layout:
     B = 0
     A = 1 - source G      (smoothness)
 
+Meshy also emits a second, unpacked shape: separate texture_0_metallic_png.png and
+texture_0_roughness_png.png files with no combined map. Folders in that shape are handled
+too, reading metallic from the metallic map's red channel and smoothness from the inverse
+of the roughness map's red channel. Without this, those creeps silently bind no
+_MetallicGlossMap at all and render with no metal response — which is the state every
+Category 2 creep shipped in.
+
 Run under Blender's bundled Python, which provides numpy:
 
     /Applications/Blender.app/Contents/MacOS/Blender --background \
@@ -34,6 +41,8 @@ import numpy as np
 
 SOURCE_NAME = "Baked_MetallicRoughness.png"
 OUTPUT_NAME = "Baked_MetallicSmoothness.png"
+SEPARATE_METALLIC_NAME = "texture_0_metallic_png.png"
+SEPARATE_ROUGHNESS_NAME = "texture_0_roughness_png.png"
 
 
 def parse_args() -> argparse.Namespace:
@@ -95,6 +104,48 @@ def repack(source_path: Path, max_size: int) -> tuple[int, int]:
         bpy.data.images.remove(image)
 
 
+def _load_rgba(path: Path) -> tuple[np.ndarray, int, int]:
+    image = bpy.data.images.load(str(path))
+    try:
+        width, height = image.size
+        return np.array(image.pixels[:], dtype=np.float32).reshape(height, width, 4), width, height
+    finally:
+        bpy.data.images.remove(image)
+
+
+def repack_separate(metallic_path: Path, roughness_path: Path, max_size: int) -> tuple[int, int]:
+    """Combine separate metallic and roughness maps into Unity's packed layout.
+
+    Both are authored greyscale, so the red channel carries the signal in each.
+    """
+    metallic, width, height = _load_rgba(metallic_path)
+    roughness, r_width, r_height = _load_rgba(roughness_path)
+    if (r_width, r_height) != (width, height):
+        raise ValueError(
+            f"{metallic_path.name} is {width}x{height} but {roughness_path.name} is "
+            f"{r_width}x{r_height}; cannot combine maps of differing size"
+        )
+
+    packed = np.zeros_like(metallic)
+    packed[:, :, 0] = metallic[:, :, 0]           # metallic   <- metallic map red
+    packed[:, :, 3] = 1.0 - roughness[:, :, 0]    # smoothness <- inverse roughness red
+
+    packed, width, height = box_downsample(packed.reshape(-1, 4), width, height, max_size)
+
+    output = bpy.data.images.new(OUTPUT_NAME, width=width, height=height, alpha=True)
+    try:
+        output.colorspace_settings.name = "Non-Color"
+        output.alpha_mode = "CHANNEL_PACKED"
+        output.pixels = packed.reshape(-1).tolist()
+        output.filepath_raw = str(metallic_path.with_name(OUTPUT_NAME))
+        output.file_format = "PNG"
+        output.save()
+    finally:
+        bpy.data.images.remove(output)
+
+    return width, height
+
+
 def main() -> int:
     args = parse_args()
     root = Path(args.root).resolve()
@@ -103,8 +154,21 @@ def main() -> int:
         return 1
 
     sources = sorted(root.rglob(SOURCE_NAME))
-    if not sources:
-        print(f"error: no {SOURCE_NAME} found under {root}", file=sys.stderr)
+    # Folders in the unpacked shape, skipping any that also carry a combined map (the
+    # combined one is authoritative) or that have already been repacked.
+    separate = sorted(
+        path
+        for path in root.rglob(SEPARATE_METALLIC_NAME)
+        if (path.with_name(SEPARATE_ROUGHNESS_NAME).exists()
+            and not path.with_name(SOURCE_NAME).exists())
+    )
+
+    if not sources and not separate:
+        print(
+            f"error: found neither {SOURCE_NAME} nor "
+            f"{SEPARATE_METALLIC_NAME}+{SEPARATE_ROUGHNESS_NAME} under {root}",
+            file=sys.stderr,
+        )
         return 1
 
     for source in sources:
@@ -115,7 +179,17 @@ def main() -> int:
         width, height = repack(source, args.max_size)
         print(f"repacked {relative} ({width}x{height}) -> {OUTPUT_NAME}")
 
-    print(f"done: {len(sources)} map(s)")
+    for metallic in separate:
+        relative = metallic.relative_to(root)
+        if args.dry_run:
+            print(f"would combine {relative} + {SEPARATE_ROUGHNESS_NAME}")
+            continue
+        width, height = repack_separate(
+            metallic, metallic.with_name(SEPARATE_ROUGHNESS_NAME), args.max_size
+        )
+        print(f"combined {relative} + {SEPARATE_ROUGHNESS_NAME} ({width}x{height}) -> {OUTPUT_NAME}")
+
+    print(f"done: {len(sources)} packed map(s), {len(separate)} separate pair(s)")
     return 0
 
 
