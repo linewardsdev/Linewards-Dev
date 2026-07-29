@@ -16,6 +16,25 @@ namespace LTW.UnityClient.Editor
 
         private const string ModelRoot = "Assets/Art/AIStaging/Models/Creeps";
 
+        // Runtime scales below are solved, not hand-picked (2026-07-28 silhouette pass). They are
+        // not comparable to each other on their own: every source FBX has a different intrinsic
+        // mesh size, and the renderer applies a further 1.18/1.12/1.18 on top, so equal scales do
+        // not mean equal on-screen size. Before this pass they were effectively arbitrary, and
+        // silhouette carried no threat information — Siege (48 health) rendered *shorter* than
+        // Shade (14 health), and Serpent Coil (32 health) was the smallest creep on the board.
+        //
+        // The rule: perceived size, taken as sqrt(effectiveHeight * effectiveWidth), tracks the
+        // creep's health along 0.62 + 0.52*sqrt((hp-4)/56). Each scale is then solved from the
+        // creep's *measured* prefab bounds to hit that target, subject to two clamps — effective
+        // width <= 1.45 world units (one grid cell is 1 unit; beyond this creeps foul neighbouring
+        // lane content) and a health-tracking height ceiling so slender meshes cannot tower over
+        // heavier creeps.
+        //
+        // Consequence worth knowing before editing: changing a number here by hand will usually be
+        // wrong. Re-measure prefab bounds and re-solve. Two residual inversions are accepted and
+        // understood — Shade and Revenant are slender meshes that hit the height ceiling before
+        // reaching their size target, so both sit slightly below where health alone would put
+        // them. See docs/GD_TUNING_LOG.md for the measured before/after table.
         private static readonly Creep3DImportSpec[] Specs =
         {
             new(
@@ -27,7 +46,7 @@ namespace LTW.UnityClient.Editor
                 ModelRoot + "/Runner/AIDrop/runner_meshy_blade_claw_blend_0725021347_prepared.fbx",
                 ModelRoot + "/Runner/AIDrop/runner_meshy_blade_claw_blend_0725021347_prepared_Textures",
                 Creep3DImportPipeline.RuntimePrefabFolder + "/Creep_Runner_3D.prefab",
-                new Vector3(1.13f, 1.13f, 1.13f),
+                new Vector3(1.08f, 1.08f, 1.08f),
                 1f,
                 // The blade-claw mesh is 0.90 wide but only 0.23 tall, so at board scale it reads
                 // as a sliver no scale can rescue without overflowing the lane. Pitching it nose-up
@@ -49,7 +68,7 @@ namespace LTW.UnityClient.Editor
                 ModelRoot + "/Brute/AIDrop/brute_meshy_rock_golem_blend_0725021355_prepared_rigged.fbx",
                 ModelRoot + "/Brute/AIDrop/brute_meshy_rock_golem_blend_0725021355_prepared_Textures",
                 Creep3DImportPipeline.RuntimePrefabFolder + "/Creep_Brute_3D.prefab",
-                new Vector3(1.18f, 1.18f, 1.18f),
+                new Vector3(1.07f, 1.07f, 1.07f),
                 1f,
                 // Unlike Runner/Siege, Brute's long axis was already aligned with the lane (no 90
                 // degree fix needed) but faced the wrong end of it — reported backwards, not
@@ -66,7 +85,7 @@ namespace LTW.UnityClient.Editor
                 ModelRoot + "/Swarm/AIDrop/swarm_meshy_crystal_swarm_blend_0725021324_prepared.fbx",
                 ModelRoot + "/Swarm/AIDrop/swarm_meshy_crystal_swarm_blend_0725021324_prepared_Textures",
                 Creep3DImportPipeline.RuntimePrefabFolder + "/Creep_Swarm_3D.prefab",
-                new Vector3(0.80f, 0.80f, 0.80f),
+                new Vector3(0.82f, 0.82f, 0.82f),
                 1f,
                 Vector3.zero,
                 0.40f),
@@ -79,7 +98,7 @@ namespace LTW.UnityClient.Editor
                 ModelRoot + "/Shade/AIDrop/shade_meshy_shard_wraith_blend_0725021339_prepared.fbx",
                 ModelRoot + "/Shade/AIDrop/shade_meshy_shard_wraith_blend_0725021339_prepared_Textures",
                 Creep3DImportPipeline.RuntimePrefabFolder + "/Creep_Shade_3D.prefab",
-                new Vector3(0.82f, 0.82f, 0.82f),
+                new Vector3(0.99f, 0.99f, 0.99f),
                 1f,
                 Vector3.zero,
                 0.38f),
@@ -92,7 +111,7 @@ namespace LTW.UnityClient.Editor
                 ModelRoot + "/Siege/AIDrop/siege_meshy_beast_hybrid_blend_0725021332_prepared.fbx",
                 ModelRoot + "/Siege/AIDrop/siege_meshy_beast_hybrid_blend_0725021332_prepared_Textures",
                 Creep3DImportPipeline.RuntimePrefabFolder + "/Creep_Siege_3D.prefab",
-                new Vector3(1.13f, 1.13f, 1.13f),
+                new Vector3(1.36f, 1.36f, 1.36f),
                 1f,
                 // Raw mesh bounds are long on X, short on Y, same profile as Runner (which needed
                 // yaw 90 to face down the lane) — same fix, verify with a capture.
@@ -114,7 +133,7 @@ namespace LTW.UnityClient.Editor
                 ModelRoot + "/Wisp/AIDrop/wisp_meshy_wisp_v01_prepared.fbx",
                 ModelRoot + "/Wisp/AIDrop/wisp_meshy_wisp_v01_prepared_Textures",
                 Creep3DImportPipeline.RuntimePrefabFolder + "/Creep_Wisp_3D.prefab",
-                new Vector3(0.75f, 0.75f, 0.75f),
+                new Vector3(0.68f, 0.68f, 0.68f),
                 1f,
                 // Small orbital-ring silhouette with no obvious front, same as Swarm — no yaw fix.
                 Vector3.zero,
@@ -128,16 +147,14 @@ namespace LTW.UnityClient.Editor
                 ModelRoot + "/Revenant/AIDrop/revenant_meshy_revenant_v01_prepared.fbx",
                 ModelRoot + "/Revenant/AIDrop/revenant_meshy_revenant_v01_prepared_Textures",
                 Creep3DImportPipeline.RuntimePrefabFolder + "/Creep_Revenant_3D.prefab",
-                // Raised 0.85 -> 1.05 (2026-07-28). At 0.85 the Revenant sat inside the small
-                // cluster (Wisp 0.75, Swarm 0.80, Shade 0.82) and read as chaff, which works
-                // against its whole design question — "does the defender finish off a fragile,
-                // high-value target, or let it feed the sender's economy?" — since a player can
-                // only prioritise what they can pick out. 1.05 clears that cluster decisively
-                // while staying under the heavies (Runner/Siege 1.13, Brute 1.18, Obsidian Brute
-                // 1.20) so it still does not read as a tank; it has 8 health, second-lowest in
-                // the roster. Note the accent pool is a child of the root and the renderer applies
-                // a further 1.18/1.12/1.18 to every creep, so both scale with this automatically —
-                // accentRadius below is deliberately left at 0.40.
+                // The one deliberate exception to the health-driven rule above (see the Specs
+                // header). By health alone (8, second-lowest) the Revenant would be near the
+                // bottom, but its threat is economic rather than durability — it carries the
+                // roster's best income-per-cost, so ignoring it feeds the sender. Its design
+                // question is "does the defender finish off a fragile, high-value target, or let
+                // it feed the enemy economy?", and a player can only prioritise what they can
+                // pick out of a wave. Held at 1.05 so it stays visible. Its slender mesh keeps
+                // the footprint honest: tall, but second-narrowest, so it does not read as a tank.
                 new Vector3(1.05f, 1.05f, 1.05f),
                 1f,
                 Vector3.zero,
@@ -151,7 +168,7 @@ namespace LTW.UnityClient.Editor
                 ModelRoot + "/Obsidianbrute/AIDrop/obsidianbrute_meshy_obsidianbrute_v01_prepared_rigged.fbx",
                 ModelRoot + "/Obsidianbrute/AIDrop/obsidianbrute_meshy_obsidianbrute_v01_prepared_Textures",
                 Creep3DImportPipeline.RuntimePrefabFolder + "/Creep_ObsidianBrute_3D.prefab",
-                new Vector3(1.20f, 1.20f, 1.20f),
+                new Vector3(1.23f, 1.23f, 1.23f),
                 1f,
                 // Gorilla-stance golem, same general build as the original Brute, which needed
                 // yaw 180 despite looking front-facing before correction — using the same fix as
@@ -171,7 +188,7 @@ namespace LTW.UnityClient.Editor
                 ModelRoot + "/Serpent/AIDrop/serpent_meshy_serpent_v01_prepared.fbx",
                 ModelRoot + "/Serpent/AIDrop/serpent_meshy_serpent_v01_prepared_Textures",
                 Creep3DImportPipeline.RuntimePrefabFolder + "/Creep_Serpent_3D.prefab",
-                new Vector3(0.85f, 0.85f, 0.85f),
+                new Vector3(1.23f, 1.23f, 1.23f),
                 1f,
                 Vector3.zero,
                 0.42f),
@@ -184,7 +201,7 @@ namespace LTW.UnityClient.Editor
                 ModelRoot + "/Turretwalker/AIDrop/turretwalker_meshy_turretwalker_v01_prepared_rigged.fbx",
                 ModelRoot + "/Turretwalker/AIDrop/turretwalker_meshy_turretwalker_v01_prepared_Textures",
                 Creep3DImportPipeline.RuntimePrefabFolder + "/Creep_TurretWalker_3D.prefab",
-                new Vector3(1.00f, 1.00f, 1.00f),
+                new Vector3(0.96f, 0.96f, 0.96f),
                 1f,
                 // Cannon barrel measured pointing off-axis in a Blender-space check; yaw 135 there
                 // aligned it with the travel direction, used here as the first guess.

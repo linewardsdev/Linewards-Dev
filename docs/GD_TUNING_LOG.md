@@ -241,6 +241,61 @@ backwards relative to threat:
 - **Runner** (authored 1.13) is the shortest creep in the roster at 0.567.
 - **Serpent Coil** (authored 0.85) is the shortest overall at 0.519 despite 32 health.
 
-Worth a dedicated pass: threat and silhouette size should broadly correlate, and right now a
-player cannot infer danger from size. Tuning the authored numbers blind will not fix it —
-they need to be set against measured bounds, as above.
+This got its own pass immediately — see the entry below.
+
+## 2026-07-28 (art): Creep Silhouette Pass — Size Now Tracks Health
+
+Follow-up to the Revenant entry above, which exposed the problem. Every creep's authored
+`runtimeScale` in `Creep3DProofSetGenerator.Specs` was re-solved from measured geometry and
+promoted into `CreepVisualLibrary.asset`.
+
+**The problem.** Authored scale was effectively arbitrary, because it is not comparable across
+creeps: each source FBX has a different intrinsic mesh size, and the renderer applies a further
+1.18/1.12/1.18 on top. Silhouette therefore carried no threat information, and in places
+actively lied — Siege (48 health) rendered *shorter* than Shade (14 health), and Serpent Coil
+(32 health) was the smallest creep on the board despite being a mid-tier tank.
+
+**Root cause.** The art intake normalises every creep with `--target-height 0.75
+--max-footprint 0.9`, whichever binds first. Measuring intrinsic prefab bounds shows Runner,
+Siege, Serpent and Wisp all sit at *exactly* 0.900 width — they hit the footprint cap, which
+squashed their heights to 0.45-0.55 while the height-bound models kept a full 0.75. Uniform
+intake normalisation is precisely what strips size of meaning.
+
+**The rule now applied.** Perceived size, taken as `sqrt(effectiveHeight * effectiveWidth)`,
+tracks health along `0.62 + 0.52*sqrt((hp-4)/56)`. Each scale is solved from that creep's
+measured prefab bounds, subject to two clamps: effective width <= 1.45 world units (one grid
+cell is 1 unit; wider fouls neighbouring lane content) and a health-tracking height ceiling so
+slender meshes cannot tower over heavier creeps.
+
+| Creep | Health | Scale (old -> new) | Eff. height | Eff. width | Size (old -> new) |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Crystal Wisp | 4 | 0.75 -> 0.68 | 0.537 | 0.722 | 0.688 -> 0.623 |
+| Swarm | 5 | 0.80 -> 0.82 | 0.689 | 0.690 | 0.672 -> 0.689 |
+| Ash Revenant | 8 | 1.05 (held) | 0.882 | 0.621 | 0.740 -> 0.740 |
+| Runner | 10 | 1.13 -> 1.08 | 0.541 | 1.147 | 0.825 -> 0.788 |
+| Shade | 14 | 0.82 -> 0.99 | 0.832 | 0.619 | 0.595 -> 0.718 |
+| Brute | 24 | 1.18 -> 1.07 | 0.742 | 1.158 | 1.022 -> 0.927 |
+| Serpent Coil | 32 | 0.85 -> 1.23 | 0.751 | 1.306 | 0.685 -> 0.991 |
+| Spire Turret Walker | 40 | 1.00 -> 0.96 | 0.794 | 1.349 | 1.078 -> 1.035 |
+| Siege | 48 | 1.13 -> 1.36 | 0.770 | 1.444 | 0.876 -> 1.055 |
+| Obsidian Brute | 60 | 1.20 -> 1.23 | 1.058 | 1.225 | 1.111 -> 1.138 |
+
+Biggest corrections: **Siege** 7th largest -> 2nd, and **Serpent Coil** last -> 4th. Brute and
+Turret Walker came *down* slightly so they no longer outrank creeps that outlast them.
+
+**Two accepted inversions, both understood.** Shade (14 health) and Ash Revenant (8 health) are
+slender meshes that hit the height ceiling before reaching their size target, so both sit
+slightly below where health alone would place them. Revenant is additionally a deliberate
+exception: its threat is economic, not durability — best income-per-cost in the roster — so it
+is held at 1.05 to stay pickable out of a wave, per the entry above.
+
+**Note for anyone editing these numbers.** Changing a scale by hand will usually be wrong,
+because the same number means a different on-screen size for every creep. Re-measure prefab
+bounds and re-solve against the rule.
+
+**Verification:** wrappers validated (10, no issues), promoted (9 of 10 library scales changed,
+Revenant held), re-measured to confirm solved values landed, max width 1.444 within the 1.45
+cap, and a full batch playtest passed with a clean reset.
+
+**Not verified:** how this reads in motion to a human eye. The numbers are right; whether Siege
+now *feels* like the second-biggest threat is a judgement only a real playtest can make.
