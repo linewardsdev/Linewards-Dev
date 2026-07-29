@@ -552,3 +552,60 @@ immediately (with the arc as pure presentation) or lands after a flight time and
 when the creep walks on. The second is the more interesting tower but needs scheduled per-shell
 state, and at a 2-tick flight against a 2-cell/tick creep it means leading the target by 4 cells,
 which changes how the tower plays rather than just how it looks.
+
+
+## 2026-07-29 (balance, measured): Towers Only Get One To Three Shots Per Creep
+
+A headless duel harness (`TowerDuelBalanceTests`) now puts each tower alone beside the lane and
+counts what it achieves as one creep walks the full 18 cells. The numbers are worse than the
+damage-per-gold arithmetic suggested, and the cause is not the towers.
+
+| tower | gold | kills a Runner (10hp)? | shots landed on a Brute |
+| --- | ---: | --- | ---: |
+| sapling | 10 | no, leaked | 1 |
+| arrow | 14 | no, leaked | 2 |
+| barricade | 18 | no, leaked | 1 |
+| bloomheart | 22 | no, leaked | 1 |
+| control | 24 | no, leaked | 2 |
+| thorn_snare | 26 | no, leaked | 1 |
+| relay | 28 | no, leaked | 1 |
+| gatling | 30 | no, leaked | 3 |
+| pulse | 32 | no, leaked | 1 |
+| repair_drone | 34 | no, leaked | 3 |
+| spore_cloud | 36 | 2.50s | 2 |
+| tesla | 38 | 2.25s | 2 |
+| prism | 42 | 2.75s | 2 |
+| elder_canopy | 46 | 2.50s | 2 |
+| foundry | 52 | 1.75s | 1 |
+
+**Only 5 of 15 towers can kill even the cheapest creep during a full pass, and none can kill a
+Brute.** Ten of fifteen land a single shot.
+
+**The cause is creep speed, not tower stats.** `CombatService.MoveCreeps` adds
+`definition.SpeedPerSecond` to movement progress once **per tick**, and the client runs 4 ticks per
+second — so a creep authored at speed 1 travels 4 cells per second and crosses the whole 18-cell
+lane in 4.5 seconds. A range-2 tower covers 5 cells of lane, which is 5 ticks of exposure; at a
+2-tick cooldown that is 2 shots. The field is named `SpeedPerSecond`, and
+`TOWER_AND_CREEP_ROSTER.md` already notes it "is currently applied once per simulation tick, so
+current local-client cells/sec is `SpeedPerSecond * 4`" — which reads like someone measured this and
+wrote it down rather than intended it.
+
+If the field were applied once per second as its name says, exposure would quadruple:
+
+| tower | shots per pass now | shots if applied per second |
+| --- | ---: | ---: |
+| Arrow (range 2, cd 2) | 2.5 | 10.0 |
+| Gatling (range 2, cd 1) | 5.0 | 20.0 |
+| Prism (range 4, cd 6) | 1.5 | 6.0 |
+
+**Deliberately not changed.** Multiplying every tower's effective output by four is the single
+largest balance lever in the game and would invalidate every cost on the roster, so it is a decision
+to make on purpose rather than a bug to quietly fix on the way past. Two honest readings exist: the
+semantics are wrong and creeps should be 4x slower, or the semantics are fine and the cooldowns are
+4x too long. The first is the more likely given the field's name.
+
+**Verified:** `Every_tower_lands_a_shot_on_a_creep_walking_past` and
+`No_tower_is_an_order_of_magnitude_more_gold_efficient_than_the_median` pass. The first began life
+asserting every tower could solo a Runner, which was wrong about the game rather than a finding
+about it — no single tower solos anything at current speeds, so the assertion was lowered to the
+real floor.

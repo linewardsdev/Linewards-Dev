@@ -95,20 +95,28 @@ It seeds a match, captures the default HUD and both send-dock categories, and qu
 
 ## P2 — Open after the 15-tower expansion (2026-07-29)
 
-- [ ] **Ten of fifteen towers render with procedural fallback visuals, not their meshes.** The models
-      are imported and pass every intake gate, but no wrapper prefab or `TowerVisualLibrary` profile
-      exists for them yet, so the board shows placeholder geometry where a Gatling Turret should be.
+- [x] **FIXED — ten of fifteen towers rendered untextured white.** `FindSourceAlbedo` read whatever
+      the FBX importer bound, which assumes external image files; Meshy GLBs carry packed images so
+      Blender wrote no texture path. The maps were on disk the whole time. `FindBakedTexture` now
+      resolves them by convention, and `BindBakedSurfaceMaps` also binds metallic and emission, which
+      the recipe never set — the original five had them only from hand-binding after generation.
 
 - [ ] **Six of the ten new towers have no special behaviour.** They are plain single-target towers
       separated only by cost/range/damage/cooldown. Barricade and Foundry have owner-specified
       mechanics pending; the four Grove totems have none designed.
 
-- [ ] **Nothing in the tower expansion has been playtested.** Stats were sized off damage-per-gold
-      arithmetic. Damage per gold spans 0.071 (Relay, subsidised by signal gold) to 0.286 (Arrow).
+- [ ] **P1: towers only get 1–3 shots per creep, and 10 of 15 cannot kill even a Runner.** Measured
+      with `TowerDuelBalanceTests`, not estimated. `CombatService.MoveCreeps` adds `SpeedPerSecond`
+      once per TICK against a 4-tick/second clock, so a speed-1 creep crosses the whole 18-cell lane
+      in 4.5 seconds and a range-2 tower gets 5 ticks of exposure. Applying the field once per second
+      as its name says would quadruple every tower's shots per pass (Arrow 2.5 → 10). Left alone
+      deliberately: it is the largest balance lever in the game and would invalidate every cost on
+      the roster, so it needs a decision rather than a drive-by fix. See GD_TUNING_LOG 2026-07-29.
 
-- [ ] **`TowerVisualRole` is a five-value enum driving 19 call sites.** Ten new towers currently have
-      to borrow one of the original five roles for motion. Worth generalising the way the palette's
-      role switches were, before the next batch of towers rather than after.
+- [x] **FIXED — `TowerVisualRole` was a five-value enum driving three separate role-keyed switches.**
+      Now 15 values with rest heading, idle motion and yaw lock collapsed into one
+      `TowerMotionProfile` table, so a new tower is one row rather than three edits. `locksYaw` is
+      per-role data instead of hardcoded to Pulse.
 
 ## P2 — Found once the mock stopped covering the board
 
