@@ -393,9 +393,9 @@ zero-sends bug in milliseconds instead of via replay analysis.
   records having fixed once already.
 - **`repack_metallic_smoothness.py` gained a second input shape.** Meshy emits separate metallic
   and roughness maps as well as the combined glTF one, and the script only understood the latter.
-  Worth noting: this means **every Category 2 creep shipped with no metallic response at all**,
-  since none of them ever got a `Baked_MetallicSmoothness.png`. Category 3 now does. Retro-fixing
-  Category 2 is a one-command follow-up, deliberately not done here.
+  This meant **every Category 2 creep had been shipping with no metallic response at all**, since
+  none of them ever got a `Baked_MetallicSmoothness.png`. Now fixed for all five — see the
+  follow-up entry below.
 
 **Verification:** 97/97 tests pass; 15 wrappers validate with no issues; scales re-measured after
 promote; batch playtest passes with a clean reset. Incidental regeneration churn on the three
@@ -405,3 +405,35 @@ reverted, same as on the walker pass.
 **Not verified:** how these look in motion. The models carry real skeletal animation while the
 renderer also layers procedural motion on top, so `CreepVisualMotionStyle` is `Auto` for all five
 to avoid double-animating — whether they need more is a judgement for a real playtest.
+
+
+## 2026-07-28 (art, follow-up): Every Creep Now Has A Correct Metallic Map
+
+Closing the Category 2 gap found during the Category 3 work, plus a colour-space bug that would
+otherwise have shipped with Category 3 itself.
+
+**Category 2 had no metal response.** Those five creeps arrived from Meshy with separate metallic
+and roughness maps rather than the combined glTF map the repack tool understood, so none of them
+ever got a `Baked_MetallicSmoothness.png` and their materials bound no `_MetallicGlossMap`. All
+five now have one.
+
+**Category 3's maps were importing as sRGB.** A packed metallic-smoothness map is data — metallic
+in R, smoothness in A — so importing it through the sRGB transfer curve gives wrong metal and
+gloss. Unity defaults new PNGs to sRGB, and the Category 1 maps have `sRGBTexture: 0` only because
+someone set it by hand. The five Category 3 maps did not, and would have rendered subtly wrong.
+
+Both are fixed durably rather than by hand:
+
+- A `LinearMetallicMapPostprocessor` (`CreepMaterialMapBackfill.cs`) forces `sRGBTexture` off for
+  any `Baked_MetallicSmoothness.png` at import, so this cannot be forgotten for a future creep.
+- A one-time `Line Wards/Art/Backfill Creep Metallic Maps` menu item binds the map into body
+  materials that predate it. This is needed because `Creep3DImportPipeline.CreateBodyMaterial`
+  deliberately returns existing materials untouched so hand-tuning survives regeneration — which
+  also means a map added later never gets picked up.
+
+**Verified:** all 15 metallic maps now import linear (`sRGBTexture: 0`), all 15 creep body
+materials have a bound `_MetallicGlossMap`, and a batch playtest passes with a clean reset.
+
+**Not verified:** how much visual difference this actually makes. The maps are bound and correctly
+interpreted, but whether Category 2's creeps now read as convincingly metallic is a judgement for
+a real look at the board.
