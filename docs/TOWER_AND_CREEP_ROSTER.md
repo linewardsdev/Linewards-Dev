@@ -45,7 +45,7 @@ Repair Drone (whose contribution is other towers' reach).
 | Elder Canopy | `tower.elder_canopy` | Grove | 46 | 5 | 8 | 6 | 5.33 | 0.116 | **Deep Roots.** Targets the creep furthest BACK in range rather than the leader. With the roster's longest reach (5) it engages arrivals at the mouth of the lane, softening a wave before anything else sees it. |
 | Sapling Sentinel | `tower.sapling` | Grove | 10 | 2 | 2 | 3 | 2.67 | 0.267 | **Grovebond.** +1 damage per orthogonally adjacent Grove tower of the same owner and lane, capped at +3. Diagonals do not bond. |
 | Bloomheart Totem | `tower.bloomheart` | Grove | 22 | 2 | 4 | 3 | 5.33 | 0.242 | **Reaping Bloom.** Finish the weakest, else lead. Lethality is tested AFTER role adjustments, so a damage-resistant Shade cannot bait the shot. |
-| Thorn Snare Totem | `tower.thorn_snare` | Grove | 30 | 2 | 5 | 3 | 6.67 | 0.222 | **Bramble Hold.** Creeps that start a tick in its zone move at exactly half speed. Range 1-to-2 is required by the mechanic. |
+| Thorn Snare Totem | `tower.thorn_snare` | Grove | 34 | 2 | 5 | 3 | 6.67 | 0.196 | **Bramble Hold.** Creeps that start a tick in its zone move at exactly half speed. The zone is exactly 3 route cells - it used to widen to every cell the tower could see (5 at range 2), which made it an automatic purchase. Range 1-to-2 is required by the mechanic. |
 | Spore Cloud Bloom | `tower.spore_cloud` | Grove | 34 | 3 | 4 | 6 | 2.67 | 0.078 | **Rot.** Damage is max(authored, target max health / 6): inert against chaff, the hardest counter to anything fat. Reads AUTHORED max health. |
 
 ## Tower Role Map

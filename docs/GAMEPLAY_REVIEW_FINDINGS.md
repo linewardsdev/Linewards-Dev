@@ -122,9 +122,21 @@ It seeds a match, captures the default HUD and both send-dock categories, and qu
 - [ ] **Chain Arc reuses the generic beam cue.** The hops should each draw as their own arc so the
       chain reads as a chain.
 
-- [ ] **Nothing has been played.** All balance is measured arithmetic, not play data. The three
-      priority questions remain: is Thorn Snare a mandatory purchase, is Bloomheart a near-no-op in
-      the modal same-type send, and does the mortar's 0.5s delay feel fair at the board camera.
+- [x] **ADDRESSED — Thorn Snare was a mandatory purchase.** Its bramble zone widened to every route
+      cell it could see (5 at range 2) rather than the intended 3, because the width took whichever
+      was larger of the covered span and the minimum. Now exactly 3, cost 30 to 34.
+
+- [x] **REMOVED — the send cooldown.** Gold is the only gate on a send. A test pins the shipped value
+      at zero, since the last one arrived as a side effect of an unrelated change.
+
+- [ ] **"No mandatory buys" cannot be enforced by a test.** Strict domination catches a tower nobody
+      would build; a tower EVERYONE builds looks fine on all four stat axes. Thorn Snare was caught by
+      reasoning about the mechanic. **Repair Drone's +1 range to neighbours is the same shape of risk**
+      — strictly additive, helps every neighbour, no downside — and should be watched in play.
+
+- [ ] **Nothing has been played.** All balance is measured arithmetic. Two priority questions remain:
+      is Bloomheart a near-no-op in the modal same-type send, and does the mortar's 0.5s delay feel
+      fair at the board camera.
 
 - [ ] **P1: towers only get 1–3 shots per creep, and 10 of 15 cannot kill even a Runner.** Measured
       with `TowerDuelBalanceTests`, not estimated. `CombatService.MoveCreeps` adds `SpeedPerSecond`

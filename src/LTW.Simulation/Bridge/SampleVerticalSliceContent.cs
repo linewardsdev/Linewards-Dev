@@ -119,7 +119,7 @@ public static class SampleVerticalSliceContent
                 // whole thing in one tick. Cost 26 to 30 pays for slowing every creep that crosses
                 // it, which roughly doubles the shot opportunities of every tower covering those
                 // cells.
-                new TowerDefinition(ThornSnareTowerId, "Thorn Snare Totem", new Gold(30), rangeCells: 2, damage: 5, attackCooldownTicks: 3),
+                new TowerDefinition(ThornSnareTowerId, "Thorn Snare Totem", new Gold(34), rangeCells: 2, damage: 5, attackCooldownTicks: 3),
                 // Authored damage is now only the FLOOR: Rot scales the real number off the target's max
                 // health (CombatService.RotDamage), so 4 is what it does to chaff and 15 is what it
                 // does to a Colossus. Cooldown slows to 6 because the payoff is per-shot magnitude

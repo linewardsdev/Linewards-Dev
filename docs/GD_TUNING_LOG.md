@@ -720,3 +720,34 @@ unchanged for every tower whose stats did not move, so none of this rebalanced t
 **Not verified:** Repair Drone's range buff has no visual yet — the neighbour's range halo should grow,
 and without that the mechanic is invisible. Chain Arc reuses the generic beam cue rather than drawing
 the hops as separate arcs.
+
+
+## 2026-07-29 (design): No Mandatory Buys, And No Purchase Timers
+
+Two directions from the owner, both acted on.
+
+**The send cooldown is gone.** `sendCooldownTicks` goes 30 to 0, so gold is the only thing that gates a
+send. The rule had been described in the design docs for a long time without ever being enforced; the
+seats/authority pass switched it on, and in play it was clearly wrong for this game. 7.5 seconds between
+any two sends makes 5-gold chaff like the Crystal Wisp unusable AS chaff, and the send dock had to grow
+a countdown purely to explain why a card the player could plainly afford refused to work. When the UI
+has to apologise for a rule, the rule is the problem.
+
+`EconomyService`'s enforcement and `CreepDefinition.IgnoresSendCooldown` are deliberately left intact
+and still covered by tests with explicit non-zero values, so the rule can return by changing one
+number. A new test pins the shipped value at zero, because the last cooldown arrived as a side effect
+of an unrelated change and should not be able to do that again.
+
+**Thorn Snare was the one mandatory buy, and it has been cut back.** Its bramble zone widened to every
+route cell the tower could see — 5 cells at range 2 — because the width calculation took whichever was
+LARGER of the covered span and the 3-cell minimum. Slowing everything that crosses is a force
+multiplier for every other tower, and at 5 cells wide that is value no build would decline. The zone is
+now exactly 3 cells, which still guarantees a speed-3 creep cannot step clean over it (the only
+constraint the width exists to satisfy) while cutting the affected span by 40%. Cost 30 to 34 prices
+what remains. Damage-per-gold 0.33 to 0.29.
+
+Worth stating plainly: "no mandatory buys" cannot be enforced by a test the way strict domination can.
+`No_tower_is_strictly_dominated_by_another` catches the opposite failure — a tower nobody would ever
+build — but a tower EVERYONE builds looks fine on all four stat axes and is only visible in play. Thorn
+Snare was caught by reasoning about the mechanic, not by a measurement, and the same class of problem
+could hide in Repair Drone's range buff (also strictly additive, also helps every neighbour).

@@ -235,7 +235,13 @@ public sealed class CombatService
             return null;
         }
 
-        var end = Math.Min(Math.Max(last, first + BrambleZoneCells - 1), route.Count - 1);
+        // Exactly BrambleZoneCells wide, not "at least". This used to widen to whichever was LARGER
+        // of the covered span and the minimum, so a range-2 thorn braked all 5 route cells it could
+        // see. Slowing everything that crosses is a force multiplier for every other tower, and at 5
+        // cells wide it was strong enough to be an automatic purchase in any build — which is exactly
+        // what "no mandatory buys" rules out. Three cells still guarantees a speed-3 creep cannot step
+        // clean over the zone, which is the constraint the width exists to satisfy.
+        var end = Math.Min(first + BrambleZoneCells - 1, route.Count - 1);
         return (first, end);
     }
 

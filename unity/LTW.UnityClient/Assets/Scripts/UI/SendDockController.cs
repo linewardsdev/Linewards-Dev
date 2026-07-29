@@ -179,6 +179,8 @@ namespace LTW.UnityClient.UI
             }
 
             var gold = CurrentPlayerGold();
+            // Reads 0 while the shipped send cooldown is 0. Kept as a live read rather than deleted so
+            // the dock explains itself again the moment a cooldown returns.
             var cooldownSeconds = CurrentSendCooldownSeconds();
             isSendCoolingDown = cooldownSeconds > 0f;
 

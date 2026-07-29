@@ -65,7 +65,18 @@ public sealed class LocalVerticalSlice
         this.content = content;
         this.options = options;
         topology = new LocalMatchTopology(options.LaneCount);
-        economy = new EconomyService(new EconomyRules(incomeIntervalTicks: 50, sendCooldownTicks: 30, sellRefundPercent: 50, leakLifeLoss: 1));
+        // sendCooldownTicks: 0 — gold is the only thing that gates a send.
+        //
+        // This was 30 ticks (7.5 seconds at 4 ticks/second). The rule had been described in the design
+        // docs for a long time but never actually enforced until the seats/authority pass switched it
+        // on, and once it ran it was clearly wrong for the game: 7.5s between any two sends made cheap
+        // chaff like the 5-gold Crystal Wisp impossible to use as chaff, and the dock had to grow a
+        // countdown just to explain why a card you could plainly afford refused to work.
+        //
+        // The enforcement in EconomyService is left intact and still tested with explicit values, so
+        // the rule can be turned back on by changing this one number. CreepDefinition.IgnoresSendCooldown
+        // also stays: it is inert at 0, but if a cooldown ever returns, Category 2 remains exempt.
+        economy = new EconomyService(new EconomyRules(incomeIntervalTicks: 50, sendCooldownTicks: 0, sellRefundPercent: 50, leakLifeLoss: 1));
         pathService = new GridPathService();
         combat = new CombatService();
         commandValidator = new CommandContentValidator();

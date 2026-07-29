@@ -535,13 +535,23 @@ public sealed class VerticalSliceBridgeTests
     }
 
     /// <summary>
-    /// Replaces an earlier "Repeat_sends_are_limited_by_gold_only", which asserted a player could
-    /// spam sends within a single tick until gold ran out. That was only true because the 30-tick
-    /// send cooldown, though configured and tracked in player state, was never enforced. Sends are
-    /// now gated by the cooldown first and gold second.
+    /// Gold is the only thing that gates a send: repeat sends in a single tick are all accepted until
+    /// the player cannot pay.
     /// </summary>
+    /// <remarks>
+    /// This assertion has now flipped twice, so the history is worth keeping. It began as
+    /// "Repeat_sends_are_limited_by_gold_only", which passed only because the configured 30-tick send
+    /// cooldown was never actually enforced. The seats/authority pass switched enforcement on and the
+    /// test was rewritten to expect a CooldownActive rejection. In play that rule was clearly wrong for
+    /// this game — 7.5 seconds between any two sends makes 5-gold chaff unusable as chaff — so the
+    /// shipped cooldown is now 0 and gold is the only gate again.
+    ///
+    /// The enforcement code and CreepDefinition.IgnoresSendCooldown are deliberately left in place and
+    /// still covered by EconomyTests with explicit non-zero values, so the rule can return by changing
+    /// one number.
+    /// </remarks>
     [Fact]
-    public void Repeat_sends_within_the_cooldown_window_are_rejected()
+    public void Repeat_sends_in_one_tick_are_gated_only_by_gold()
     {
         var simulation = new LocalVerticalSlice(SampleVerticalSliceContent.Create(), enableBots: false);
 
@@ -549,19 +559,41 @@ public sealed class VerticalSliceBridgeTests
         var immediate = simulation.QueueSend(new PlayerId(1), SampleVerticalSliceContent.CreepId);
 
         Assert.True(first.Accepted);
-        Assert.False(immediate.Accepted);
-        Assert.Equal(CommandRejectionReason.CooldownActive, immediate.RejectionReason);
+        Assert.True(immediate.Accepted);
     }
 
     /// <summary>
-    /// The companion to the test above: the cooldown throttles cadence, it does not permanently
-    /// stop a player sending. Spacing each send a full cooldown apart must let every one through.
-    /// Gold-exhaustion is deliberately not asserted here — over this many ticks income outgrows
-    /// Runner's cost, so a gold rejection never fires; that rule is covered directly by
+    /// Pins the shipped value directly, so reintroducing a purchase timer has to be a deliberate act
+    /// rather than something that arrives with an unrelated change — which is how the last one landed.
+    /// </summary>
+    [Fact]
+    public void The_shipped_rules_have_no_send_cooldown()
+    {
+        var simulation = new LocalVerticalSlice(SampleVerticalSliceContent.Create(), enableBots: false);
+
+        // Sixteen sends in a single tick, well past any plausible cooldown window.
+        var rejectedForCooldown = 0;
+        for (var attempt = 0; attempt < 16; attempt++)
+        {
+            var result = simulation.QueueSend(new PlayerId(1), SampleVerticalSliceContent.SwarmCreepId);
+            if (!result.Accepted && result.RejectionReason == CommandRejectionReason.CooldownActive)
+            {
+                rejectedForCooldown++;
+            }
+        }
+
+        Assert.Equal(0, rejectedForCooldown);
+    }
+
+    /// <summary>
+    /// Spaced sends are all accepted. Retained from when a cooldown existed: with none, this now only
+    /// checks that repeated sends over time do not accumulate some other block, which is still worth
+    /// knowing. Gold-exhaustion is deliberately not asserted — over this many ticks income outgrows
+    /// Runner's cost, so a gold rejection never fires; that rule is covered by
     /// <c>EconomyTests.Insufficient_gold_rejects_without_changing_state</c>.
     /// </summary>
     [Fact]
-    public void Sends_spaced_past_the_cooldown_are_all_accepted()
+    public void Sends_spaced_over_time_are_all_accepted()
     {
         var simulation = new LocalVerticalSlice(SampleVerticalSliceContent.Create(), enableBots: false);
         var accepted = 0;
