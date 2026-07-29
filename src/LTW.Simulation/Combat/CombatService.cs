@@ -284,6 +284,19 @@ public sealed class CombatService
                 .Where(creep => !creep.IsDead && !creep.HasLeaked && creep.LaneId.Equals(tower.LaneId))
                 .Where(creep => CanEngage(tower, ResolvePosition(creep, routes), towerDefinition.RangeCells))
                 .ToArray();
+            if (IsFoundryTower(tower.TowerId))
+            {
+                // Artillery cannot hit something that will have left the board. Measured before this
+                // filter existed: a Foundry in the last rows whiffed 100% of its shells against
+                // speed-2 and speed-3 creeps, because the lead carried the impact cell onto the leak
+                // index, which is filtered out of the impact check — a guaranteed miss, every shot,
+                // forever. Selecting only leadable creeps turns that from a trap into the tower
+                // holding fire or shooting something further back that it CAN lead.
+                availableTargets = availableTargets
+                    .Where(creep => CanLeadTarget(next, content, routes, tower, creep))
+                    .ToArray();
+            }
+
             var target = SelectTarget(tower, towerDefinition, availableTargets);
 
             if (target is null)
@@ -295,21 +308,9 @@ public sealed class CombatService
 
             if (IsFoundryTower(tower.TowerId))
             {
-                // Indirect fire: no damage now. Lead the target by asking StepCreep where it will be
-                // after the flight, using the SAME step function movement uses — computing the lead
-                // independently would silently miss every shot in a bramble-braked lane.
-                var route = routes[tower.LaneId];
-                var creepDefinition = content.GetCreep(target.CreepId);
-                var brambleZones = BuildBrambleZones(next, content, routes);
-                var leadIndex = target.PathIndex;
-                var leadMovement = target.MovementProgress;
-                for (var step = 0; step < FoundryShellFlightTicks; step++)
-                {
-                    var braked = IsUnderBramble(brambleZones, target.LaneId, leadIndex);
-                    (leadIndex, leadMovement) = StepCreep(leadIndex, leadMovement, creepDefinition.SpeedPerSecond, route.Count, braked);
-                }
-
-                var impactCell = route[Math.Min(leadIndex, route.Count - 1)];
+                // Indirect fire: no damage now. The target was already filtered to one this tower can
+                // lead, so LeadPathIndex cannot be null here.
+                var impactCell = routes[tower.LaneId][LeadPathIndex(next, content, routes, tower, target)!.Value];
                 var impactTick = new SimulationTick(tick.Value + FoundryShellFlightTicks);
 
                 events.Add(new TowerFiredEvent(tick, tower.LaneId, tower.EntityId, tower.Position, target.EntityId, targetCell, impactTick, impactCell));
@@ -360,6 +361,47 @@ public sealed class CombatService
     private const int FoundryShellFlightTicks = 2;
 
     private static bool IsFoundryTower(ContentId towerId) => ContainsRole(towerId, "foundry");
+
+    /// <summary>
+    /// Where a creep will stand once a Foundry shell has finished its flight.
+    /// </summary>
+    /// <remarks>
+    /// Uses the same <see cref="StepCreep"/> the movement phase uses, including the bramble brake, so
+    /// the lead cannot drift from actual movement. Returns null when the creep would reach the end of
+    /// the route — it leaks there and is no longer a valid impact, so a shell aimed at it is a
+    /// guaranteed miss.
+    /// </remarks>
+    private static int? LeadPathIndex(
+        CombatState state,
+        CombatContent content,
+        IReadOnlyDictionary<LaneId, IReadOnlyList<GridPosition>> routes,
+        TowerCombatState tower,
+        CreepCombatState target)
+    {
+        var route = routes[tower.LaneId];
+        var creepDefinition = content.GetCreep(target.CreepId);
+        var brambleZones = BuildBrambleZones(state, content, routes);
+        var index = target.PathIndex;
+        var movement = target.MovementProgress;
+
+        for (var step = 0; step < FoundryShellFlightTicks; step++)
+        {
+            var braked = IsUnderBramble(brambleZones, target.LaneId, index);
+            (index, movement) = StepCreep(index, movement, creepDefinition.SpeedPerSecond, route.Count, braked);
+        }
+
+        // route.Count - 1 is the leak index: a creep arriving there is marked leaked and filtered out
+        // of the impact check, so it can never be hit.
+        return index < route.Count - 1 ? index : null;
+    }
+
+    private static bool CanLeadTarget(
+        CombatState state,
+        CombatContent content,
+        IReadOnlyDictionary<LaneId, IReadOnlyList<GridPosition>> routes,
+        TowerCombatState tower,
+        CreepCombatState target) =>
+        LeadPathIndex(state, content, routes, tower, target) is not null;
 
     /// <summary>
     /// Lands any Foundry shell whose impact tick has arrived, damaging every live creep standing on
