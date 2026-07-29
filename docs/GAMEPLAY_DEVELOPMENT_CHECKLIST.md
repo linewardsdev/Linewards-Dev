@@ -9,7 +9,8 @@ Resume iOS TestFlight work only after this fork produces a local desktop/Unity s
 ## Current Baseline
 
 - The local Unity scene loads `Assets/Scenes/LocalVerticalSlice.unity` without current console errors.
-- The simulation supports three side-by-side 7x18 long north-south lanes, one human player, two bots, placement, sends, selling, replay export, carousel creep handoff, and match summaries.
+- The simulation supports eight side-by-side 7x18 long north-south lanes, an explicit local seat, bots on the remaining lanes, placement with lane-ownership authority, sends under an enforced cooldown, selling, replay export, carousel creep handoff, and match summaries.
+- Content roster: 15 towers in three build lines (ARCANE / FOUNDRY / GROVE) and 15 creeps in three send categories (CORE / RAPID / ELITE). Costs live only in `ContentCatalog`; the client reads them at display time.
 - Automated .NET tests pass, including deterministic local-match coverage.
 - Presentation systems exist for lane cells, towers, creeps, events, pooled objects, audio cues, vibration hooks, and presentation modes.
 
@@ -97,17 +98,22 @@ Current tower palette exposes Arrow, Control, Relay, selected-tower inspect, and
 ### Deliverables
 
 - [x] Add first-pass content for five tower roles: reliable single-target, area/control, relay utility, pulse burst, and prism long-range.
+- [x] Expand to 15 towers in three build lines, surfaced through a category picker (2026-07-29).
+- [ ] Give the ten new towers special behaviour. Six of ten are currently plain single-target towers distinguished only by numbers.
+      Specified by the owner: Barricade Bastion never rotates and fires one fixed direction for bonus damage; Foundry Core is an indirect-fire mortar.
+      The four Grove totems have no mechanic yet.
+- [ ] Generate wrapper prefabs and `TowerVisualLibrary` profiles for the ten new towers. They currently render with procedural fallback visuals rather than their meshes.
 - [x] Add first-pass content for five creep/send roles: runner, brute, swarm, shade, and siege.
 - [x] Give each creep/send a different cost, income gain, and pressure profile.
 - [x] Extend tests so new content validates through the existing simulation contracts.
 
-Current sends have distinct cost, income, speed/health, and quantity pressure across the 5x2 prototype roster. Tower art now has stronger role silhouettes for Arrow/focused, Control/area, Relay/utility, Pulse/burst, and Prism/long-range wards, including owner trim, role props, role-shaped placement previews, and selected-tower rings. Pulse now splashes nearby creeps, Prism prioritizes Shade/high-health pressure, Shade resists non-detection damage, and Siege leaks for extra life loss. Cooldown remains global through economy rules.
+Current sends have distinct cost, income, speed/health, and quantity pressure across the 15-creep roster. Tower art now has stronger role silhouettes for Arrow/focused, Control/area, Relay/utility, Pulse/burst, and Prism/long-range wards, including owner trim, role props, role-shaped placement previews, and selected-tower rings. Pulse now splashes nearby creeps, Prism prioritizes Shade/high-health pressure, Shade resists non-detection damage, and Siege leaks for extra life loss. Cooldown remains global through economy rules.
 
 ### Acceptance Checks
 
-- [ ] Each tower is best at a different problem.
+- [ ] Each tower is best at a different problem. Partly enforced now: `TowerRosterTests.No_tower_is_strictly_dominated_by_another` rules out towers nobody would ever build (it caught the Control Ward being strictly worse than the Arrow Tower), but "not dominated" is a floor, not a distinct role. Six of the fifteen have no special behaviour.
 - [ ] Each creep/send creates a different defensive response.
-- [ ] Content can be tuned without changing Unity presentation code.
+- [x] Content can be tuned without changing Unity presentation code. Tower costs, ranges, damage and cooldowns are read from `ContentCatalog`; the client holds no copy.
 
 ## GD-04: Economy, Pacing, And Match Length
 

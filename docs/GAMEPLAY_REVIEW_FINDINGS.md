@@ -93,6 +93,23 @@ It seeds a match, captures the default HUD and both send-dock categories, and qu
       Left open deliberately. The merge itself is sound — 92 tests pass — but these scenarios need
       retuning against the new match dynamics, and that is separate work from the merge.
 
+## P2 — Open after the 15-tower expansion (2026-07-29)
+
+- [ ] **Ten of fifteen towers render with procedural fallback visuals, not their meshes.** The models
+      are imported and pass every intake gate, but no wrapper prefab or `TowerVisualLibrary` profile
+      exists for them yet, so the board shows placeholder geometry where a Gatling Turret should be.
+
+- [ ] **Six of the ten new towers have no special behaviour.** They are plain single-target towers
+      separated only by cost/range/damage/cooldown. Barricade and Foundry have owner-specified
+      mechanics pending; the four Grove totems have none designed.
+
+- [ ] **Nothing in the tower expansion has been playtested.** Stats were sized off damage-per-gold
+      arithmetic. Damage per gold spans 0.071 (Relay, subsidised by signal gold) to 0.286 (Arrow).
+
+- [ ] **`TowerVisualRole` is a five-value enum driving 19 call sites.** Ten new towers currently have
+      to borrow one of the original five roles for motion. Worth generalising the way the palette's
+      role switches were, before the next batch of towers rather than after.
+
 ## P2 — Found once the mock stopped covering the board
 
 - [ ] **World-space combat text overlaps itself and is hard to read under load.** In

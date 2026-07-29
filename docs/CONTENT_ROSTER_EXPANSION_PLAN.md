@@ -1,5 +1,14 @@
 # LTW Content Roster Expansion Plan
 
+> **Status: delivered and superseded (2026-07-29).** This document planned the move from a 3-role
+> starter set to a 10-role roster (5 towers, 5 sends). That shipped, and the roster has since grown
+> past it to **15 towers in three build lines** and **15 creeps in three send categories**. Read it
+> as the design reasoning behind the original five of each — the "Proposed 5 Tower Categories" table
+> below still explains why Arrow/Control/Relay/Pulse/Prism answer different pressure — but for the
+> current roster see `docs/TOWER_AND_CREEP_ROSTER.md`, which is generated from
+> `SampleVerticalSliceContent.cs`. Two figures in the baseline section below are now stale: there are
+> 15 towers and 15 sends, not 3 and 3.
+
 ## Purpose
 
 Expand Line Wards from the current starter set into a readable 10-role roster:

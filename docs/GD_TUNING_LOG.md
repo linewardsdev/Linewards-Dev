@@ -497,3 +497,58 @@ materials have a bound `_MetallicGlossMap`, and a batch playtest passes with a c
 **Not verified:** how much visual difference this actually makes. The maps are bound and correctly
 interpreted, but whether Category 2's creeps now read as convincingly metallic is a judgement for
 a real look at the board.
+
+
+## 2026-07-29 (content): Ten New Towers, Three Build Lines, And One Price
+
+The tower roster goes from 5 to 15: a Foundry line (Gatling Turret, Tesla Coil Spire, Foundry Core,
+Barricade Bastion, Repair Drone Spire) and a Grove line (Elder Canopy, Sapling Sentinel, Bloomheart
+Totem, Thorn Snare Totem, Spore Cloud Bloom). The build palette is now a category picker over
+ARCANE / FOUNDRY / GROVE, mirroring the send dock.
+
+**The palette had three different prices for the same tower.** The buttons advertised 20 gold for
+the Arrow Tower, `SelectedTowerCost()` returned 25, and the simulation charged 14. Both the
+displayed price and the affordability gate disagreed with what the player was actually charged, on
+every tower. The cause was six parallel switch statements on the palette's role index, each
+extended by hand per tower. `TowerCatalog` replaces them with one table, and cost is deliberately
+NOT in it — the client reads `ContentCatalog` at display time, because a client-side copy of a price
+is exactly what went stale.
+
+**The Control Ward was unbuildable by any rational player.** At 24 gold, range 2, damage 2, cooldown
+3 it was strictly worse than the 14-gold Arrow Tower on every axis at once — dearer, same reach,
+same damage, slower — and unlike the Relay Ward it has no compensating mechanic. Range goes 2 to 3,
+making it the only tower under 30 gold with reach. `TowerRosterTests.No_tower_is_strictly_dominated_by_another`
+now enforces this; the Relay Ward is explicitly exempt because its gold-per-hit payoff cannot be
+expressed in those four numbers.
+
+**Thorn Snare Totem was trimmed before it landed.** At 26 gold for 7 damage on a 3-tick cooldown its
+damage-per-gold was 0.359 against the Pulse Ward's 0.188 — nearly double, for the same range-1
+shape. Damage dropped to 5 (0.256).
+
+Damage-per-gold across the roster now spans 0.071 (Relay Ward, subsidised by signal gold) to 0.286
+(Arrow Tower). First pass only.
+
+**Verified:** all ten models pass `ai_asset_intake` (~15k triangles each against 25k, one material,
+footprint inside 1.45; the whole batch shares a soft "no normal map" warning because Meshy did not
+export normals). 102 tests pass. Headless Unity compile clean.
+
+**Also fixed here, both pre-existing:**
+
+- The send dock's category picker overflowed its panel again. An earlier fix sized cards to fit two
+  categories; a third arrived later, putting the last card's bottom edge at 352 inside a 282-tall
+  panel, hanging over the board. Card height is now divided out of the panel's actual height, so a
+  fourth category cannot bring it back.
+- `render_send_icon.py` never downsampled. Its docstring promised "renders at 4x and downsamples"
+  and it set resolution to `ICON_SIZE * SUPERSAMPLE`, but nothing resolved it back down, so every
+  icon it ever produced was 512x512 against the 128x128 the hand-authored originals use. Five creep
+  icons had already shipped that way. Fixed, and those five brought down; all 30 icons are uniform.
+
+**Not verified:** balance. Nothing here has been playtested — the stats are a first pass sized off
+damage-per-gold arithmetic, not play. Six of the ten also have no special behaviour yet, so they are
+currently plain single-target towers distinguished only by numbers.
+
+**Open design question, deliberately not settled:** whether the Foundry Core's mortar shell resolves
+immediately (with the arc as pure presentation) or lands after a flight time and can therefore miss
+when the creep walks on. The second is the more interesting tower but needs scheduled per-shell
+state, and at a 2-tick flight against a 2-cell/tick creep it means leading the target by 4 cells,
+which changes how the tower plays rather than just how it looks.
