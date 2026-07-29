@@ -69,12 +69,36 @@ namespace LTW.UnityClient.Simulation
             string.Equals(towerId, contentId, StringComparison.OrdinalIgnoreCase);
     }
 
+    /// <summary>
+    /// Presentation identity of a tower. Drives idle motion, yaw locking and the head's rest
+    /// heading, all of which are looked up in one place (UnityVerticalSliceRenderer's
+    /// TowerMotionProfileFor).
+    /// </summary>
+    /// <remarks>
+    /// Values are appended, never reordered: the enum is serialised by index into
+    /// TowerVisualLibrary.asset, so inserting in the middle would silently repoint every existing
+    /// profile at a different role.
+    /// </remarks>
     public enum TowerVisualRole
     {
-        Arrow,
-        Control,
-        Relay,
-        Pulse,
-        Prism
+        Arrow = 0,
+        Control = 1,
+        Relay = 2,
+        Pulse = 3,
+        Prism = 4,
+
+        // Foundry line.
+        Gatling = 5,
+        Tesla = 6,
+        Foundry = 7,
+        Barricade = 8,
+        RepairDrone = 9,
+
+        // Grove line.
+        ElderCanopy = 10,
+        Sapling = 11,
+        Bloomheart = 12,
+        ThornSnare = 13,
+        SporeCloud = 14
     }
 }

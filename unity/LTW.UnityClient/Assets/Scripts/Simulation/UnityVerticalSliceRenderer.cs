@@ -1976,7 +1976,10 @@ namespace LTW.UnityClient.Simulation
             // stays fixed entirely; only its Ring spins, and only its idle pulse carries the
             // "Pulse" identity — it's a splash/AOE emitter, not a turret that needs to point at a
             // specific target.
-            var locksYaw = visualProfile.Role == TowerVisualRole.Pulse;
+            // Was hardcoded to Pulse. Now a per-role trait, because Foundry Core fires upward out
+            // of its stacks and Barricade Bastion is a fixed emplacement that fires one direction
+            // only — both would contradict their own mechanic if they turned to track a target.
+            var locksYaw = TowerMotionProfileFor(visualProfile.Role).LocksYaw;
             var yaw = locksYaw ? 0f : towerAimYaw.TryGetValue(key, out var currentYaw) ? currentYaw : 0f;
             if (!locksYaw && towerAimTarget.TryGetValue(key, out var aimTarget))
             {
@@ -3334,83 +3337,162 @@ namespace LTW.UnityClient.Simulation
         /// pending the same per-mesh measurement; none have shown the same symptom yet, but none
         /// have an isolated barrel-like part to reveal it either.
         /// </summary>
-        private static float TowerHeadRestHeadingDegrees(TowerVisualRole role)
+        /// <summary>
+        /// Everything the presentation layer needs to know about a tower role, in one row.
+        /// </summary>
+        /// <remarks>
+        /// This replaces three separate role-keyed switches (rest heading, idle motion, yaw lock).
+        /// With five towers that was tolerable; at fifteen it meant three places to edit per tower
+        /// and three places to forget. Adding a tower is now one row.
+        ///
+        /// BreatheAmp is a uniform scale pulse, not a deformation — these are hard-surface
+        /// structures and should not squash. DriftAmp is a lateral sway in local units. Sharpness
+        /// above 1 makes the pulse peaked rather than sinusoidal, which is what reads as a
+        /// heartbeat instead of a sway.
+        /// </remarks>
+        private readonly struct TowerMotionProfile
         {
-            if (role == TowerVisualRole.Arrow)
+            public TowerMotionProfile(
+                float breatheHz,
+                float breatheAmp,
+                float driftHz = 0f,
+                float driftAmp = 0f,
+                float sharpness = 1f,
+                bool locksYaw = false,
+                float restHeadingDegrees = 0f)
             {
-                // Measured directly in Unity (not Blender — its FBX export mirrors X during the
-                // right-handed-to-left-handed conversion, which silently flipped the sign of an
-                // earlier Blender-side measurement): the barrel tip sits at local (x=0.725,
-                // z=0.001), heading +90 degrees.
-                return 90f;
+                BreatheHz = breatheHz;
+                BreatheAmp = breatheAmp;
+                DriftHz = driftHz;
+                DriftAmp = driftAmp;
+                Sharpness = sharpness;
+                LocksYaw = locksYaw;
+                RestHeadingDegrees = restHeadingDegrees;
             }
 
-            return 0f;
+            public float BreatheHz { get; }
+            public float BreatheAmp { get; }
+            public float DriftHz { get; }
+            public float DriftAmp { get; }
+            public float Sharpness { get; }
+
+            /// <summary>Tower never rotates to face its target.</summary>
+            public bool LocksYaw { get; }
+
+            /// <summary>
+            /// Heading the head's mesh already points at in its rest pose, subtracted from the aim
+            /// heading. Must be MEASURED IN UNITY, not Blender: Blender's FBX export mirrors X
+            /// during the right-handed to left-handed conversion, which silently flips the sign.
+            /// </summary>
+            public float RestHeadingDegrees { get; }
         }
+
+        private static TowerMotionProfile TowerMotionProfileFor(TowerVisualRole role)
+        {
+            switch (role)
+            {
+                // Aim and recoil live on the split Head turret (UpdateTowerMotion), so Body only
+                // needs a faint idle presence — an alert, mostly-still gun emplacement.
+                // Rest heading measured in Unity: barrel tip at local (x=0.725, z=0.001) = +90.
+                case TowerVisualRole.Arrow:
+                    return new TowerMotionProfile(1.4f, 0.015f, restHeadingDegrees: 90f);
+
+                // The arms+core+ring assembly turns to aim and the ring spins independently, both
+                // real visible motion, so Body-level sway on top was pure excess. Reads as a
+                // mostly-still ancient structure with a faint pulse of life.
+                case TowerVisualRole.Control:
+                    return new TowerMotionProfile(1.6f, 0.01f);
+
+                // The split Dish spins continuously; Body adds a slow mast sway underneath rather
+                // than competing with the dish for attention.
+                case TowerVisualRole.Relay:
+                    return new TowerMotionProfile(1.1f, 0.02f, driftHz: 0.6f, driftAmp: 0.025f);
+
+                // No cleanly separable emitter part on this mesh, so the name is carried by a
+                // heartbeat-shaped pulse on the whole Body: peaked, not sinusoidal. Yaw locked —
+                // a dome has no facing, and rotating it read as the whole tower spinning.
+                case TowerVisualRole.Pulse:
+                    return new TowerMotionProfile(1.1f, 0.022f, sharpness: 3f, locksYaw: true);
+
+                // The split Spire spins continuously; Body adds a faint glow-breathe underneath.
+                case TowerVisualRole.Prism:
+                    return new TowerMotionProfile(1.8f, 0.025f);
+
+                // --- Foundry line -------------------------------------------------------------
+                // Machines: tight, fast, mechanical. Small amplitudes, no lazy drift.
+                case TowerVisualRole.Gatling:
+                    return new TowerMotionProfile(2.4f, 0.012f);
+
+                // A coil under load. Fast shallow pulse reads as electrical rather than breathing.
+                case TowerVisualRole.Tesla:
+                    return new TowerMotionProfile(3.2f, 0.014f, sharpness: 2f);
+
+                // A furnace. Slow heavy peaked pulse, like a bellows. Yaw locked: it fires upward
+                // out of its stacks, so it has no facing to turn toward a target.
+                case TowerVisualRole.Foundry:
+                    return new TowerMotionProfile(0.8f, 0.02f, sharpness: 2.5f, locksYaw: true);
+
+                // Yaw locked and nearly inert by design — a fixed emplacement that fires along one
+                // direction only. Any turn or sway would contradict the mechanic.
+                case TowerVisualRole.Barricade:
+                    return new TowerMotionProfile(0.7f, 0.006f, locksYaw: true);
+
+                // A thin spire with a drone. Light bob plus a wider drift than anything else,
+                // reading as something hovering rather than planted.
+                case TowerVisualRole.RepairDrone:
+                    return new TowerMotionProfile(1.5f, 0.018f, driftHz: 0.9f, driftAmp: 0.04f);
+
+                // --- Grove line ---------------------------------------------------------------
+                // Living things: slower and larger than the machines, with real sway.
+                // A huge canopy. Slow, wide sway — the only tower whose drift is meant to read
+                // from across the board.
+                case TowerVisualRole.ElderCanopy:
+                    return new TowerMotionProfile(0.6f, 0.03f, driftHz: 0.4f, driftAmp: 0.055f);
+
+                // Small and eager. Quicker and springier than its elders.
+                case TowerVisualRole.Sapling:
+                    return new TowerMotionProfile(2.0f, 0.028f, driftHz: 1.2f, driftAmp: 0.03f);
+
+                // A flower. Slow open-and-close bloom, peaked so it reads as breathing.
+                case TowerVisualRole.Bloomheart:
+                    return new TowerMotionProfile(0.9f, 0.035f, sharpness: 2f, driftHz: 0.5f, driftAmp: 0.02f);
+
+                // Coiled and tense. Very little motion until it strikes, so almost static.
+                case TowerVisualRole.ThornSnare:
+                    return new TowerMotionProfile(0.5f, 0.008f);
+
+                // A fungal bloom venting spores. Slow swell with a lazy drift.
+                case TowerVisualRole.SporeCloud:
+                    return new TowerMotionProfile(0.7f, 0.032f, sharpness: 1.6f, driftHz: 0.35f, driftAmp: 0.035f);
+
+                default:
+                    return new TowerMotionProfile(1.3f, 0.02f);
+            }
+        }
+
+        private static float TowerHeadRestHeadingDegrees(TowerVisualRole role) =>
+            TowerMotionProfileFor(role).RestHeadingDegrees;
 
         private static TowerMotion TowerRoleMotion(TowerVisualRole role)
         {
+            var profile = TowerMotionProfileFor(role);
             var time = Time.time;
-            switch (role)
+
+            var wave = Mathf.Sin(time * profile.BreatheHz);
+            var breathe = profile.Sharpness > 1f
+                ? Mathf.Pow(Mathf.Abs(wave), profile.Sharpness) * profile.BreatheAmp
+                : wave * profile.BreatheAmp;
+
+            var drift = Vector3.zero;
+            if (profile.DriftAmp > 0f)
             {
-                case TowerVisualRole.Control:
-                {
-                    // Now that the arms+core+ring assembly genuinely turns to aim and the ring
-                    // spins independently (both real, visible motion), the Body-level idle sway
-                    // and pitch wobble this had were pure excess on top — it should read as mostly
-                    // a still, ancient structure with only a faint pulse of life, not something
-                    // constantly swaying/tilting on its own.
-                    var breathe = Mathf.Sin(time * 1.6f) * 0.01f;
-                    return new TowerMotion(Vector3.zero, 0f, breathe);
-                }
-
-                case TowerVisualRole.Arrow:
-                {
-                    // Aim and recoil now live on the split Head turret (UpdateTowerMotion), so
-                    // Body itself only needs a faint idle presence — an alert, mostly-still
-                    // gun emplacement rather than a swaying one.
-                    var breathe = Mathf.Sin(time * 1.4f) * 0.015f;
-                    return new TowerMotion(Vector3.zero, 0f, breathe);
-                }
-
-                case TowerVisualRole.Relay:
-                {
-                    // The split Dish already spins continuously (UpdateTowerMotion's spin-part
-                    // search), so Body just adds a slow, subtle mast sway underneath it rather
-                    // than competing with the dish for attention.
-                    var breathe = Mathf.Sin(time * 1.1f) * 0.02f;
-                    var driftX = Mathf.Sin(time * 0.6f) * 0.025f;
-                    var driftZ = Mathf.Cos(time * 0.5f) * 0.02f;
-                    return new TowerMotion(new Vector3(driftX, 0f, driftZ), 0f, breathe);
-                }
-
-                case TowerVisualRole.Pulse:
-                {
-                    // No cleanly separable emitter part exists on this mesh (the dome/spikes/core
-                    // blend continuously with no seam — see the tower-survey notes), so the
-                    // tower's name is carried by a heartbeat-shaped uniform pulse on the whole Body
-                    // instead of a literal separate part: peaked rather than smooth sine, so it
-                    // reads as a pulse, not a sway. 0.09 amplitude read as an unwanted "in-out
-                    // sizing" wobble once Pulse's Body stopped rotating/kicking (locksYaw in
-                    // UpdateTowerMotion) and had nothing else to share attention with — quartered.
-                    var pulse = Mathf.Pow(Mathf.Abs(Mathf.Sin(time * 1.1f)), 3f) * 0.022f;
-                    return new TowerMotion(Vector3.zero, 0f, pulse);
-                }
-
-                case TowerVisualRole.Prism:
-                {
-                    // The split Spire already spins continuously; Body adds only a faint
-                    // glow-breathe underneath it.
-                    var breathe = Mathf.Sin(time * 1.8f) * 0.025f;
-                    return new TowerMotion(Vector3.zero, 0f, breathe);
-                }
-
-                default:
-                {
-                    var defaultBreathe = Mathf.Sin(time * 1.3f) * 0.02f;
-                    return new TowerMotion(Vector3.zero, 0f, defaultBreathe);
-                }
+                drift = new Vector3(
+                    Mathf.Sin(time * profile.DriftHz) * profile.DriftAmp,
+                    0f,
+                    Mathf.Cos(time * profile.DriftHz * 0.85f) * profile.DriftAmp * 0.8f);
             }
+
+            return new TowerMotion(drift, 0f, breathe);
         }
 
         /// <summary>

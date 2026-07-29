@@ -58,3 +58,93 @@ MonoBehaviour:
     roleMarkerRendererPath: RoleMarker
     ownerTrimRendererPath: OwnerTrim
     rangeHaloRendererPath: RangeHalo
+  - towerId: tower.gatling
+    role: 5
+    prefab: {fileID: 8102138440826606003, guid: 1bc2b73a79f124fdf8cf836c836e639d, type: 3}
+    scale: {x: 0.72, y: 0.72, z: 0.72}
+    lift: 0
+    bodyRendererPath: BodyTintAnchor
+    roleMarkerRendererPath: RoleMarker
+    ownerTrimRendererPath: OwnerTrim
+    rangeHaloRendererPath: RangeHalo
+  - towerId: tower.tesla
+    role: 6
+    prefab: {fileID: 5967126495634670740, guid: 8f9a2d1cf61a249afa3fb05ae7df9285, type: 3}
+    scale: {x: 0.9, y: 0.9, z: 0.9}
+    lift: 0
+    bodyRendererPath: BodyTintAnchor
+    roleMarkerRendererPath: RoleMarker
+    ownerTrimRendererPath: OwnerTrim
+    rangeHaloRendererPath: RangeHalo
+  - towerId: tower.foundry
+    role: 7
+    prefab: {fileID: 8160737055410962608, guid: 3cc0bbc29cbb14f459e0225ae31a9bd7, type: 3}
+    scale: {x: 0.83, y: 0.83, z: 0.83}
+    lift: 0
+    bodyRendererPath: BodyTintAnchor
+    roleMarkerRendererPath: RoleMarker
+    ownerTrimRendererPath: OwnerTrim
+    rangeHaloRendererPath: RangeHalo
+  - towerId: tower.barricade
+    role: 8
+    prefab: {fileID: 3647702054739979878, guid: ce65f00e31b584183b28557356e88f61, type: 3}
+    scale: {x: 0.71, y: 0.71, z: 0.71}
+    lift: 0
+    bodyRendererPath: BodyTintAnchor
+    roleMarkerRendererPath: RoleMarker
+    ownerTrimRendererPath: OwnerTrim
+    rangeHaloRendererPath: RangeHalo
+  - towerId: tower.repair_drone
+    role: 9
+    prefab: {fileID: 1740272045062943185, guid: 0c518c48a68ef4b34b27c76f24c5fa89, type: 3}
+    scale: {x: 0.9, y: 0.9, z: 0.9}
+    lift: 0
+    bodyRendererPath: BodyTintAnchor
+    roleMarkerRendererPath: RoleMarker
+    ownerTrimRendererPath: OwnerTrim
+    rangeHaloRendererPath: RangeHalo
+  - towerId: tower.elder_canopy
+    role: 10
+    prefab: {fileID: 8277212482823850005, guid: 6945ff723c81245c1a83d467cc282239, type: 3}
+    scale: {x: 0.66, y: 0.66, z: 0.66}
+    lift: 0
+    bodyRendererPath: BodyTintAnchor
+    roleMarkerRendererPath: RoleMarker
+    ownerTrimRendererPath: OwnerTrim
+    rangeHaloRendererPath: RangeHalo
+  - towerId: tower.sapling
+    role: 11
+    prefab: {fileID: 7934094337152013291, guid: 4e3ffdd50397847088d16b8a277c9994, type: 3}
+    scale: {x: 0.59, y: 0.59, z: 0.59}
+    lift: 0
+    bodyRendererPath: BodyTintAnchor
+    roleMarkerRendererPath: RoleMarker
+    ownerTrimRendererPath: OwnerTrim
+    rangeHaloRendererPath: RangeHalo
+  - towerId: tower.bloomheart
+    role: 12
+    prefab: {fileID: 1771164166425797450, guid: 1b621eec0f66445be86612b11ccbb2c6, type: 3}
+    scale: {x: 0.67, y: 0.67, z: 0.67}
+    lift: 0
+    bodyRendererPath: BodyTintAnchor
+    roleMarkerRendererPath: RoleMarker
+    ownerTrimRendererPath: OwnerTrim
+    rangeHaloRendererPath: RangeHalo
+  - towerId: tower.thorn_snare
+    role: 13
+    prefab: {fileID: 7246575682573352483, guid: 9adcb13b6b3904f2daec7fec4cdf2e1e, type: 3}
+    scale: {x: 0.68, y: 0.68, z: 0.68}
+    lift: 0
+    bodyRendererPath: BodyTintAnchor
+    roleMarkerRendererPath: RoleMarker
+    ownerTrimRendererPath: OwnerTrim
+    rangeHaloRendererPath: RangeHalo
+  - towerId: tower.spore_cloud
+    role: 14
+    prefab: {fileID: 7587142534495020481, guid: 2d56ba0022c5548a5a5a8b09f98f1a8a, type: 3}
+    scale: {x: 0.85, y: 0.85, z: 0.85}
+    lift: 0
+    bodyRendererPath: BodyTintAnchor
+    roleMarkerRendererPath: RoleMarker
+    ownerTrimRendererPath: OwnerTrim
+    rangeHaloRendererPath: RangeHalo

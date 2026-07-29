@@ -551,13 +551,27 @@ namespace LTW.UnityClient.Editor
 
             roleLineupPrepared = true;
             driver.StartMatch();
-            GrantPlaytestGold(commands, 1, 2000);
+            GrantPlaytestGold(commands, 1, 6000);
 
             LogCommandResult("lineup Arrow tower", commands.PlaceSampleTower(1, 14));
             LogCommandResult("lineup Control tower", commands.PlaceControlTower(5, 14));
             LogCommandResult("lineup Relay tower", commands.PlaceUtilityTower(1, 11));
             LogCommandResult("lineup Pulse tower", commands.PlacePulseTower(5, 11));
             LogCommandResult("lineup Prism tower", commands.PlacePrismTower(2, 8));
+
+            // Roles 5..14 are the Foundry and Grove lines. Placed down the two free columns beside
+            // the lane so all fifteen meshes appear in one frame — this state exists to review
+            // silhouettes, and reviewing only a third of the roster defeats it.
+            // Outer columns 0 and 6, five rows each. The original five sit at x 1, 2 and 5, and
+            // y 16 is out of bounds, so an earlier pass down x 1/5 from y 16 lost three towers to
+            // CellOccupied and one to InvalidLane without that being obvious in the capture.
+            for (var role = 5; role < 15; role++)
+            {
+                var slot = role - 5;
+                var x = slot < 5 ? 0 : 6;
+                var y = 15 - slot % 5 * 2;
+                LogCommandResult($"lineup role {role}", commands.PlaceTowerByRole(role, x, y));
+            }
 
             GrantPlaytestGold(commands, 3, 2000);
             LogCommandResult("lineup Runner visible send", QueueVisibleLineupCreep(commands, SampleVerticalSliceContent.CreepId, 1));

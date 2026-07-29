@@ -550,11 +550,14 @@ namespace LTW.UnityClient.Editor
 
         private static Tower3DMaterialRecipe CreateMaterialRecipe(Tower3DImportSpec spec, GameObject rawPrefab, Material bodyMaterialOverride)
         {
-            var sourceTexture = FindSourceAlbedo(rawPrefab);
+            var sourceTexture = FindSourceAlbedo(rawPrefab) ?? FindBakedTexture(spec, "Baked_BaseColor");
+            var bodyMaterial = bodyMaterialOverride != null
+                ? ConfigureBodyMaterial(bodyMaterialOverride, BodyColor, sourceTexture, spec.PreserveSourceAlpha)
+                : CreateBodyMaterial(BodyMaterialPath(spec), BodyColor, sourceTexture, spec.PreserveSourceAlpha);
+            BindBakedSurfaceMaps(bodyMaterial, spec);
+
             return new Tower3DMaterialRecipe(
-                bodyMaterialOverride != null
-                    ? ConfigureBodyMaterial(bodyMaterialOverride, BodyColor, sourceTexture, spec.PreserveSourceAlpha)
-                    : CreateBodyMaterial(BodyMaterialPath(spec), BodyColor, sourceTexture, spec.PreserveSourceAlpha),
+                bodyMaterial,
                 CreateOpaqueMaterial(BucketMaterialPath(spec, "trim"), TrimColor, null),
                 CreateOpaqueMaterial(BucketMaterialPath(spec, "energy"), EnergyColor, null, emission: new Color(0.08f, 0.18f, 0.24f, 1f)),
                 CreateSoftPoolMaterial(BucketMaterialPath(spec, "owner"), OwnerColor),
@@ -584,6 +587,101 @@ namespace LTW.UnityClient.Editor
                     {
                         return material.GetTexture("_BaseMap");
                     }
+                }
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Loads a baked map from the source model's sibling <c>*_Textures</c> folder by convention.
+        /// </summary>
+        /// <remarks>
+        /// FindSourceAlbedo reads whatever texture the FBX importer managed to bind to the raw
+        /// prefab's material, which assumes the FBX references its images as external files. That
+        /// does not hold for the Meshy GLB pipeline: the GLB carries PACKED images, Blender's FBX
+        /// exporter logs "Image not available. Keeping packed image" and writes no texture path, so
+        /// the imported material has no albedo at all. The maps exist on disk the whole time — the
+        /// prepare step writes Baked_BaseColor/Emit/MetallicRoughness next to the FBX — nothing was
+        /// looking for them. Ten towers rendered pure untextured white because of it.
+        ///
+        /// Looking them up by path removes the dependency on what the exporter chose to embed.
+        /// </remarks>
+        /// <summary>
+        /// Binds the metallic-smoothness and emission maps if the material does not already have
+        /// them.
+        /// </summary>
+        /// <remarks>
+        /// The recipe only ever passed an albedo, yet the original five towers' materials carry
+        /// _MetallicGlossMap and _EmissionMap — those were bound by hand after generation, so a
+        /// newly generated tower silently got neither and rendered flat and matte. Existing
+        /// bindings are left alone for the same reason CreateBodyMaterial returns an existing
+        /// material untouched: hand-tuning has to survive regeneration.
+        ///
+        /// The metallic map must be sampled linearly (metallic in R, smoothness in A is data, not
+        /// colour); the intake's repack step writes Baked_MetallicSmoothness and the creep pipeline
+        /// already has an importer that forces sRGB off for that filename.
+        /// </remarks>
+        private static void BindBakedSurfaceMaps(Material material, Tower3DImportSpec spec)
+        {
+            if (material == null)
+            {
+                return;
+            }
+
+            if (material.HasProperty("_MetallicGlossMap") && material.GetTexture("_MetallicGlossMap") == null)
+            {
+                var metallic = FindBakedTexture(spec, "Baked_MetallicSmoothness");
+                if (metallic != null)
+                {
+                    material.SetTexture("_MetallicGlossMap", metallic);
+                    material.EnableKeyword("_METALLICSPECGLOSSMAP");
+                }
+            }
+
+            if (material.HasProperty("_EmissionMap") && material.GetTexture("_EmissionMap") == null)
+            {
+                var emission = FindBakedTexture(spec, "Baked_Emit");
+                if (emission != null)
+                {
+                    material.SetTexture("_EmissionMap", emission);
+                    // The _EMISSION keyword has been stripped by material regeneration before, which
+                    // is why TowerEmissionKeywordGuard exists. Set it here too so a freshly
+                    // generated tower is not born without it.
+                    material.EnableKeyword("_EMISSION");
+                    material.globalIlluminationFlags = MaterialGlobalIlluminationFlags.None;
+                }
+            }
+
+            EditorUtility.SetDirty(material);
+        }
+
+        private static Texture FindBakedTexture(Tower3DImportSpec spec, string mapName)
+        {
+            var directory = Path.GetDirectoryName(spec.RawPrefabPath)?.Replace("\\", "/");
+            var stem = Path.GetFileNameWithoutExtension(spec.RawPrefabPath);
+            if (string.IsNullOrEmpty(directory) || string.IsNullOrEmpty(stem))
+            {
+                return null;
+            }
+
+            var candidate = $"{directory}/{stem}_Textures/{mapName}.png";
+            var texture = AssetDatabase.LoadAssetAtPath<Texture>(candidate);
+            if (texture != null)
+            {
+                return texture;
+            }
+
+            // Split meshes are exported under their own name (arrow_split_base_head_0727.fbx) while
+            // the textures keep the prepared mesh's name, so the stem will not match. Fall back to
+            // any sibling *_Textures folder that has the map.
+            var guids = AssetDatabase.FindAssets(mapName, new[] { directory });
+            for (var index = 0; index < guids.Length; index++)
+            {
+                var path = AssetDatabase.GUIDToAssetPath(guids[index]);
+                if (path.EndsWith($"/{mapName}.png", StringComparison.Ordinal))
+                {
+                    return AssetDatabase.LoadAssetAtPath<Texture>(path);
                 }
             }
 
