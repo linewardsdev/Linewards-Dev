@@ -29,6 +29,26 @@ namespace LTW.UnityClient.Simulation
             return simulation is null ? 0 : simulation.GetSnapshot().Players.Get(simulation.LocalPlayerId).Gold.Amount;
         }
 
+        /// <summary>
+        /// Ticks remaining before the local player may send again, or 0 if a send is available.
+        /// </summary>
+        /// <remarks>
+        /// The send cooldown is enforced but was invisible: a card the player could afford looked
+        /// perfectly sendable, and tapping it produced a bare rejection. Surfacing the remaining
+        /// time lets the dock show why.
+        /// </remarks>
+        public int CurrentPlayerSendCooldownTicks()
+        {
+            if (simulation is null)
+            {
+                return 0;
+            }
+
+            var snapshot = simulation.GetSnapshot();
+            var remaining = snapshot.Players.Get(simulation.LocalPlayerId).NextSendAvailableTick.Value - snapshot.Tick.Value;
+            return remaining > 0 ? remaining : 0;
+        }
+
         public VerticalSliceCommandResult PreviewSampleTower(int x, int y) => PreviewTower(SampleVerticalSliceContent.TowerId, x, y);
 
         public VerticalSliceCommandResult PreviewControlTower(int x, int y) => PreviewTower(SampleVerticalSliceContent.ControlTowerId, x, y);

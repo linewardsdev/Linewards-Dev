@@ -48,6 +48,7 @@ namespace LTW.UnityClient.UI
         private int selectedCategory = -1;
         private int highlightedCreepRole = -1;
         private int reviewGoldOverride = -1;
+        private static bool isSendCoolingDown;
 
         public bool IsExpanded => isExpanded;
 
@@ -147,9 +148,23 @@ namespace LTW.UnityClient.UI
             }
 
             var gold = CurrentPlayerGold();
+            var cooldownSeconds = CurrentSendCooldownSeconds();
+            isSendCoolingDown = cooldownSeconds > 0f;
+
             metaStyle!.fontSize = Mathf.RoundToInt(11f * scale);
             metaStyle.normal.textColor = MintSignal;
             GUI.Label(new Rect(rect.xMax - 204f * scale, rect.y + 12f * scale, 58f * scale, 18f * scale), $"G{gold}", metaStyle);
+
+            // The cooldown is 7.5s, long enough that without a countdown the dock just looks
+            // broken while it runs.
+            if (isSendCoolingDown)
+            {
+                metaStyle.normal.textColor = SignalGold;
+                GUI.Label(
+                    new Rect(rect.x + 12f * scale, rect.y + 28f * scale, 200f * scale, 18f * scale),
+                    $"READY IN {cooldownSeconds:0.0}s",
+                    metaStyle);
+            }
 
             var buttonY = rect.y + 84f * scale;
             var buttonHeight = 84f * scale;
@@ -323,6 +338,10 @@ namespace LTW.UnityClient.UI
 
         private static bool DrawSendButton(Rect rect, string label, string meta, CreepIconKind iconKind, Color accent, bool isAffordable, bool isSelected, float scale)
         {
+            // Cooling down reads as unaffordable, because for the player it is the same thing:
+            // the card cannot be sent right now. Without this a card you could clearly afford
+            // looked ready and answered a tap with a bare refusal.
+            isAffordable = isAffordable && !isSendCoolingDown;
             var displayAccent = isAffordable ? accent : DisabledText;
             var state = isAffordable
                 ? isSelected ? CommandCardState.Selected : CommandCardState.Normal
@@ -540,6 +559,32 @@ namespace LTW.UnityClient.UI
             GUI.DrawTexture(rect, Texture2D.whiteTexture);
             GUI.color = previousColor;
         }
+
+        /// <summary>
+        /// Seconds until the local player may send again, 0 when a send is ready.
+        /// </summary>
+        /// <remarks>
+        /// The simulation runs at UnitySimulationDriver.ticksPerSecond (4), and the cooldown is 30
+        /// ticks, so a send is available roughly every 7.5s. Converted to seconds here because the
+        /// player has no reason to care about ticks.
+        /// </remarks>
+        private float CurrentSendCooldownSeconds()
+        {
+            if (reviewGoldOverride >= 0)
+            {
+                return 0f;
+            }
+
+            if (commandAdapter == null)
+            {
+                commandAdapter = Object.FindAnyObjectByType<UnityCommandAdapter>();
+            }
+
+            var ticks = commandAdapter?.CurrentPlayerSendCooldownTicks() ?? 0;
+            return ticks <= 0 ? 0f : ticks / SimulationTicksPerSecond;
+        }
+
+        private const float SimulationTicksPerSecond = 4f;
 
         private int CurrentPlayerGold()
         {

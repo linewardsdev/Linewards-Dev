@@ -37,7 +37,7 @@ namespace LTW.UnityClient.UI
             var message = reason switch
             {
                 CommandRejectionReason.InsufficientGold => "Need more gold",
-                CommandRejectionReason.CooldownActive => "Action unavailable",
+                CommandRejectionReason.CooldownActive => "Send cooling down",
                 CommandRejectionReason.MatchPaused => "Start or resume match",
                 CommandRejectionReason.CellOccupied => "Cell already has a tower",
                 CommandRejectionReason.PathBlocked => "Keep a path open",
