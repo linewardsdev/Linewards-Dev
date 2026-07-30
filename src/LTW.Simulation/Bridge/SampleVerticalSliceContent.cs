@@ -98,7 +98,11 @@ public static class SampleVerticalSliceContent
                 // more over time, Foundry trades Prism's reach for a much harder single hit,
                 // and Barricade is the cheapest way to hold a cell at all.
                 new TowerDefinition(GatlingTowerId, "Gatling Turret", new Gold(30), rangeCells: 2, damage: 2, attackCooldownTicks: 1),
-                new TowerDefinition(TeslaTowerId, "Tesla Coil Spire", new Gold(38), rangeCells: 3, damage: 5, attackCooldownTicks: 3),
+                // 38 to 44. Chain Arc turned out to be the strongest mechanic on the roster relative to
+                // its own baseline (+60% against a stack, +49% in a trickle), and at 38 the
+                // opportunity-cost test failed: a Tesla returned 1.37 damage per gold against 1.24 for
+                // equal gold spent on plain Arrow Towers, so taking one was strictly correct.
+                new TowerDefinition(TeslaTowerId, "Tesla Coil Spire", new Gold(44), rangeCells: 3, damage: 5, attackCooldownTicks: 3),
                 new TowerDefinition(FoundryTowerId, "Foundry Core", new Gold(52), rangeCells: 2, damage: 14, attackCooldownTicks: 6),
                 // Range 1 to 2 and damage 3 to 5: the price of the fixed up-lane arc, and also a repair.
                 // At range 1 with a full diamond, 66 of 110 legal placements could hit nothing at

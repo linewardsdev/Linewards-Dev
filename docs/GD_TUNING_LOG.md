@@ -847,3 +847,50 @@ than the extra towers needed to match it, and cells are the scarcest resource on
 **The opportunity-cost comparison is the reusable part.** Strict domination catches a tower nobody would
 build; nothing catches a tower everyone builds. Comparing a bundle containing the tower against equal
 gold spent on plain damage does, and it is now a standing test rather than a judgement call.
+
+
+## 2026-07-29 (measured): Every Mechanic Contribution, And A Harness Bug That Faked The First Answer
+
+Ran all the mechanics through the stat-identical-control harness, now generalised into
+`MechanicContributionTests` so a future change cannot quietly make one inert.
+
+**First, the harness itself was wrong, and its first table was fiction.** On the control run it mirrored
+`tower.arrow`'s stats instead of the subject's, so the "stat-identical baseline" carried Arrow's cost,
+range, damage and cooldown whatever tower was under test. Every number in the first run was a comparison
+between two different towers. Two of my own no-op assertions caught it — Grovebond and Chain Arc both
+reported a contribution in scenarios where they should have reported none — which is the argument for
+writing the no-op cases as well as the positive ones.
+
+Contributions after the fix, measured as the difference against a control with identical stats:
+
+| mechanic | metric | stacked send | trickle |
+| --- | --- | ---: | ---: |
+| Grovebond (sapling) | own damage | +100% | +100% |
+| Rot (spore cloud) | own damage | +275% | +275% |
+| Bramble Hold (thorn) | lane damage | +78% | +15% |
+| Crowd Bloom (bloomheart) | own damage | +75% | 0% |
+| Chain Arc (tesla) | own damage | +60% | +49% |
+| Servicing (repair drone) | neighbour damage | 0% | +25% |
+| *Pulse splash (reference)* | own damage | +100% | 0% |
+
+**Grovebond and Chain Arc were both fine** — the suspicion that prompted this was wrong for both. But the
+run found two other things.
+
+**Chain Arc was 0% against a stacked send, which is the modal case.** The hop test was "strictly behind",
+and a quantity-N send puts every creep on the SAME path index, so the strict inequality excluded all of
+them and the chain died on the leader. That is precisely the failure that killed Reaping Bloom — a
+comparison that ties in the common case — arrived at independently in a different mechanic. Changed to
+"at or behind"; already-struck creeps are excluded by entity id so it cannot loop. Now +60% stacked.
+
+**Chain Arc then became a mandatory buy.** At 38 gold a Tesla returned 1.37 damage per gold against 1.24
+for equal gold spent on plain Arrow Towers, so taking one was strictly correct. Cost 38 to 44.
+
+**The 20% contribution bar is applied to each mechanic's DESIGNED case, not uniformly.** Crowd Bloom is
++75% stacked and 0% in a trickle; Servicing is the reverse. Pulse's long-standing splash has exactly the
+same shape as Crowd Bloom, which is the reference point for calling it correct rather than a shortfall.
+Demanding 20% in every scenario would be demanding that every mechanic be unconditional — which is the
+definition of the mandatory buys we are trying to avoid. The off case is required only to be
+non-negative.
+
+Bramble Hold's +15% in a trickle is the direct result of cutting it back from 5 zone cells to 3: one
+creep walking past loses a single tick, while a stack of six loses it all at once.

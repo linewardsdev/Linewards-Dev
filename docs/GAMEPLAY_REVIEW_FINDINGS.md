@@ -145,8 +145,14 @@ It seeds a match, captures the default HUD and both send-dock categories, and qu
       fire one tick faster (48 to 72 damage). The mandatory-buy test then failed at 34 gold, so cost is
       40. Both are standing tests, not judgement calls.
 
+- [x] **CHECKED — every mechanic now has a measured contribution**, in `MechanicContributionTests`.
+      Grovebond +100%, Rot +275%, Bramble Hold +78% (burst), Crowd Bloom +75% (burst), Chain Arc +60%,
+      Servicing +25% (sustained). The suspicion that Grovebond and Chain Arc were inert was wrong, but
+      the run found Chain Arc contributing 0% against a stacked send — the same tie-in-the-common-case
+      failure as Reaping Bloom — and then found it a mandatory buy once fixed (Tesla 38 to 44 gold).
+
 - [ ] **Nothing has been played.** All balance is measured arithmetic. The open question is whether the
-      mortar's 0.5s delay feels fair at the board camera.
+      mortar's 0.5s delay feels fair at the board camera, which no test can answer.
 
 - [ ] **P1: towers only get 1–3 shots per creep, and 10 of 15 cannot kill even a Runner.** Measured
       with `TowerDuelBalanceTests`, not estimated. `CombatService.MoveCreeps` adds `SpeedPerSecond`

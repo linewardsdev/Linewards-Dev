@@ -508,8 +508,16 @@ public sealed class CombatService
     /// Hitting the leader and jumping back through the queue behind it is also the more natural read
     /// of a lightning arc.
     ///
-    /// Restricting hops to one direction is what keeps the chain order a property of the board rather
-    /// than of iteration order.
+    /// The hop test is "at or behind", not "strictly behind". Strictly behind measured at 0%
+    /// contribution against a stacked send, which is the modal case: a quantity-N send puts every creep
+    /// on the SAME path index, so a strict inequality excluded all of them and the chain died on the
+    /// leader. This is the same failure that killed Reaping Bloom — a comparison that ties in the common
+    /// case — and it was caught the same way, by measuring against a stat-identical control rather than
+    /// by reading the code.
+    ///
+    /// Already-struck creeps are excluded by entity id, so "at or behind" cannot re-hit the primary or
+    /// loop, and ordering by descending index then entity id keeps the chain a property of the board
+    /// rather than of iteration order.
     /// </remarks>
     private static CombatState ChainArc(
         CombatState state,
@@ -534,7 +542,7 @@ public sealed class CombatService
             var link = next.Creeps
                 .Where(creep => !creep.IsDead && !creep.HasLeaked && creep.LaneId.Equals(tower.LaneId))
                 .Where(creep => !struck.Contains(creep.EntityId.Value))
-                .Where(creep => creep.PathIndex < fromIndex)
+                .Where(creep => creep.PathIndex <= fromIndex)
                 .Where(creep => IsInRange(fromPosition, ResolvePosition(creep, routes), ChainArcHopRangeCells))
                 .OrderByDescending(creep => creep.PathIndex)
                 .ThenBy(creep => creep.EntityId.Value)
