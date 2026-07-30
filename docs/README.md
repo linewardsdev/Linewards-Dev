@@ -8,7 +8,7 @@ This folder contains the durable project documentation for Line Wards, the mobil
 - [Architecture](ARCHITECTURE.md)
 - [MVP status snapshot](MVP_STATUS.md)
 - [Agent and contributor guidance](AGENTS.md)
-- [Open items](OPEN_ITEMS.md)
+- [Open items](OPEN_ITEMS.md) — known gaps and decisions, plus the 2026-07-29 repo and working-tree review (items 5–9: uncommitted work, dead code, `.gitignore` and git-state hygiene)
 
 ## Planning And Delivery
 

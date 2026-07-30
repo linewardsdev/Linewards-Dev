@@ -178,9 +178,13 @@ It seeds a match, captures the default HUD and both send-dock categories, and qu
 
 - [ ] **Two mazing bots stalemate forever.** Verified to 80,000 ticks (~5.5 hours of game time) with no
       match summary. The undefended seat is eliminated on schedule; the two surviving bots then hold above
-      180 lives each indefinitely. Needs a closing mechanism — escalating creep strength, an income cap, or
-      a sudden-death phase. `LocalThreePlayerMatchTests` has two tests skipped against this, deliberately
-      still asserting the behaviour we want.
+      180 lives each indefinitely. `LocalThreePlayerMatchTests` has two tests skipped against this,
+      deliberately still asserting the behaviour we want.
+      **Proposed fix designed 2026-07-29: `docs/CATEGORY_UPGRADE_TIERS_PLAN.md`.** Creep tiers give attack
+      a way to scale that defence cannot out-build, with creep scaling set ahead of tower scaling at
+      maximum investment (225% health against 190% damage). "Two tier-3 bots still reach a result" is that
+      plan's ship/no-ship gate, because a version where towers scale as fast as creeps would simply
+      re-create this stalemate at a higher number.
 
 - [ ] **Every balance measurement on record was taken against a STRAIGHT route and needs redoing.** The
       duel, contribution, whiff and opportunity-cost harnesses all build a straight lane, which is what the

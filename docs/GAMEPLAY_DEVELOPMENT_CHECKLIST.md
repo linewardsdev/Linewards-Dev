@@ -115,6 +115,43 @@ Current sends have distinct cost, income, speed/health, and quantity pressure ac
 - [ ] Each creep/send creates a different defensive response.
 - [x] Content can be tuned without changing Unity presentation code. Tower costs, ranges, damage and cooldowns are read from `ContentCatalog`; the client holds no copy.
 
+## GD-09: Category Upgrade Tiers
+
+Design: `docs/CATEGORY_UPGRADE_TIERS_PLAN.md` (designed 2026-07-29, not implemented).
+
+Three tiers for each of the six categories — tower lines ARCANE / FOUNDRY / GROVE and send categories
+CORE / RAPID / ELITE. Tier 1 is free and default; tiers 2 and 3 are purchased at roughly 2.5x the
+previous cost. Creeps scale on health (100 / 150 / 225%), towers on damage (100 / 140 / 190%).
+
+This is also the closing mechanism the game currently lacks — see the P1 stalemate in
+`GAMEPLAY_REVIEW_FINDINGS.md`. Creep scaling is set deliberately ahead of tower scaling at maximum
+investment so a fully-invested attacker can break a fully-invested defence.
+
+### Deliverables
+
+- [ ] Per-player, per-category tier state on `PlayerEconomyState`, defaulting to tier 1, with the
+      existing `With*` methods copying it through.
+- [ ] `BuyCategoryTierCommand` plus an `InvalidTier` rejection reason. Tiers must be bought in order.
+- [ ] Creep health multiplier applied at SPAWN, so upgrading never retroactively heals creeps already
+      walking.
+- [ ] Tower damage multiplier applied at SHOT TIME, so it improves towers already standing. Must land
+      before the per-tower mechanics modify `shotDamage`, and must also cover Pulse's splash, which
+      reads `towerDefinition.Damage` directly.
+- [ ] Tier controls on the existing category picker cards in both the build palette and the send dock,
+      without reintroducing the fixed card height that overflowed the panel twice.
+- [ ] Bots buy tiers. Without this the feature makes them strictly worse opponents than they are now.
+
+### Acceptance Checks
+
+- [ ] Tier 1 is free and default for all six categories.
+- [ ] Skipping a tier is rejected, so the escalating cost is actually paid.
+- [ ] A tier-3 attacker beats a tier-1 defender.
+- [ ] **Two tier-3 bots still reach a result.** This is the ship/no-ship gate: if fully-invested
+      defences still stalemate, the feature has moved the P1 problem rather than fixed it.
+- [ ] All four existing measurement harnesses re-run at tier 3. Flat mechanic bonuses (Grovebond's
+      `+1 per neighbour` especially) are worth proportionally less against scaled damage and may need
+      to scale too.
+
 ## GD-04: Economy, Pacing, And Match Length
 
 ### Deliverables

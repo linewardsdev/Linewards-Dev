@@ -78,3 +78,71 @@ articulation — for a low, wide, or heavily-armored silhouette the legs may
 again be fully occluded, in which case body/head motion (bob, rock, and a
 rigid uniform scale pulse — added for the Brute in this same pass) is the only
 lever that will actually read to a player.
+
+---
+
+# Repo and Working-Tree Review (2026-07-29)
+
+Findings from a codebase and git-state review while two agents were working
+the repo in parallel (one in the `main` worktree, one in the
+`repair-drone-servicing-tether` worktree). No functional bugs were found in
+static review; the items below are working-tree hygiene and one unfinished
+refactor. The build was not compiled during this review — there was no .NET 10
+SDK on the review machine — so items 6 and 7 should be confirmed with
+`dotnet build`/`dotnet test` before relying on them.
+
+## 5. Uncommitted bot-mazing rework sitting in the `main` worktree
+
+`src/LTW.Simulation/Bridge/LocalVerticalSlice.cs` has a substantial, coherent
+but **uncommitted** change: bots now choose placements by lengthening the
+creep route (real mazing via `BestMazingPlacement`) instead of the old
+hardcoded nine-cell list. A new **untracked** test file
+`tests/LTW.Tests/BotMazingTests.cs` covers it. The work looks good, but while a
+second agent is active in another worktree, uncommitted + untracked work is at
+risk of being lost or clobbered. Commit it (or stash it) rather than leaving it
+loose. Its tests make strong assertions (route grows `> 2x`, busiest bot builds
+`> 9` towers, lane never sealed) that were not executed during this review —
+run `dotnet test` before committing.
+
+## 6. Orphaned `BotPlacementCandidates` left behind by that refactor
+
+The mazing change replaced every caller of `BotPlacementCandidates(...)`
+(`LocalVerticalSlice.cs`, ~line 666), but the method itself was left in place.
+It now has no callers in source (the only remaining matches are stale build
+DLLs under `bin/`/`obj/`). It is dead code — a half-finished refactor, not a
+build break: an unused private method is an analyzer suggestion (IDE0051), not
+a compiler warning, so `TreatWarningsAsErrors` does not catch it. Delete it
+when committing item 5.
+
+## 7. `.gitignore` ignores all `*.csproj` and `*.sln` globally
+
+The bottom of `.gitignore` (under "Unity-generated IDE files") lists bare
+`*.csproj` and `*.sln`. The currently tracked `LTW.sln` and the two hand-authored
+`.csproj` files are unaffected because they are already tracked, but any **new**
+.NET project's `.csproj` would be silently untracked — a trap for a second agent
+adding a project, who would see it build locally and never appear in a commit.
+If the intent is only to ignore Unity-generated project files, scope these
+patterns to the Unity directory instead of matching repo-wide.
+
+## 8. Two git author identities for the same contributor
+
+Commit history carries `nanncee` under two emails —
+`132762218+nanncee@users.noreply.github.com` (~157 commits) and
+`eng.chase@gmail.com` (~145). This splits attribution and blame. Set a single
+consistent `user.email` (per worktree if the two agents commit as the same
+person) so history stays clean going forward.
+
+## 9. Stale git lock and dangling worktree (housekeeping)
+
+Two transient git-state issues observed during the review, neither affecting
+committed code:
+
+- A zero-byte `.git/index.lock` was present (created 2026-07-29), which blocks
+  git writes and usually indicates a crashed or interrupted git operation. If
+  no git process is actually running, remove it (`rm .git/index.lock`) or the
+  next commit fails.
+- `git worktree list` shows `/Users/admin/LTW-servicing-tether`
+  (branch `repair-drone-servicing-tether`) marked **prunable** — its directory
+  is gone but the registration lingers, and the branch cannot be deleted while
+  still registered. Run `git worktree prune`, then delete the branch if the
+  work is merged (it was one commit behind `main` at review time).

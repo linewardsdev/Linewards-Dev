@@ -996,3 +996,38 @@ than rewritten to bless the stalemate, because completion is the behaviour we wa
 
 The game needs a closing mechanism against competent defence: escalating creep strength over time, an
 income cap, or a sudden-death phase. That is a design decision, not a tuning one.
+
+
+## 2026-07-29 (design): Category Upgrade Tiers
+
+Designed, not implemented: `docs/CATEGORY_UPGRADE_TIERS_PLAN.md`, tracked as GD-09 in
+`GAMEPLAY_DEVELOPMENT_CHECKLIST.md`.
+
+Three tiers for each of the six categories. Tier 1 free and default, tiers 2 and 3 purchased at roughly
+2.5x the previous cost. Creeps scale on health (100 / 150 / 225%), towers on damage (100 / 140 / 190%),
+one stat each and nothing else.
+
+Numbers worth recording here because they are the balance claims the plan will be judged on:
+
+- Creep tier 2 costs 120, tier 3 costs 300. Tower tier 2 costs 100, tier 3 costs 260. Grounded against
+  towers at 10–52 gold, creeps at 5–52, and mid-match income of 30–80 per interval, so tier 2 is about
+  three towers' worth and tier 3 about eight.
+- Tower tiers are priced under creep tiers at the same level because a tower tier applies to every tower
+  in the line forever, while a creep tier only helps creeps bought afterwards. Equal pricing would make
+  tower tiers strictly better.
+- **Creep scaling is deliberately ahead of tower scaling at maximum investment**, 225% against 190%.
+  That gap is the closing mechanism for the P1 stalemate where two mazing bots hold out past 80,000
+  ticks. Defence still wins early and mid-game, which is correct; a fully-invested attacker gets ahead.
+
+Two things the plan flags that will bite whoever implements it:
+
+- Flat mechanic bonuses do not scale. Grovebond's `+1 damage per adjacent Grove tower` is worth
+  proportionally less at tier 3 than tier 1, so tiers quietly weaken it. Every mechanic needs
+  re-measuring at tier 3 through `MechanicContributionTests`.
+- Pulse's splash reads `towerDefinition.Damage` directly rather than the shared `shotDamage` local, so
+  it will silently stay at tier 1 unless updated. That separation was deliberate when Grovebond landed
+  and is now a trap.
+
+Also recorded: the existing `TechDefinition` / `BuyTechCommand` scaffolding is NOT reused. It models
+unlocking content, not levelling it, and no tech content has ever been authored — the catalog passes
+`Array.Empty<TechDefinition>()`. Whether to delete it is a separate decision.
