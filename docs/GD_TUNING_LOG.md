@@ -906,3 +906,52 @@ changes the shot three times in four.
 That closes the sweep: every mechanic on the roster now has a measured contribution, and the three that
 were keyed on strict creep ordering have each been checked against the tie case that a quantity-N send
 produces.
+
+
+## 2026-07-29 (investigated, NOT shipped): What Slowing Creeps Actually Costs
+
+The owner confirmed creeps feel too fast, which matches the arithmetic: `MoveCreeps` adds
+`SpeedPerSecond` once per TICK against a 4-tick/second clock, so a creep authored at 1 cell per second
+travels 4. I implemented the correction, measured the consequences, and then reverted it, because it is a
+balance initiative rather than the one-line bug fix it looks like. The numbers are recorded here so the
+decision can be made once rather than rediscovered.
+
+The fix itself is clean: `MovementProgress` already exists as a sub-cell accumulator, so making a cell
+cost `TicksPerSecond` movement instead of 1 gives exact integer arithmetic and Bramble Hold's doubling
+still works untouched. That part is three lines.
+
+**At the semantically correct 4x slower, the game stops working.**
+
+- Matches never complete. A seed that finished at tick 331 did not finish in 24,000.
+- Bots stop sending entirely at around tick 811 and then hoard gold — one reached 3,700 gold at income
+  82 with zero creeps on the board and its tower count frozen. Their thresholds were tuned against creeps
+  that crossed a lane in 4.5 seconds.
+- Defence becomes overwhelming, which is the mirror image of the original complaint: towers get four
+  times the shots, so almost nothing leaks and the 220-life pool never drains.
+
+**At 2x slower the game still works**, and this is the shippable increment:
+
+- Matches complete around tick 1,500 (the seed above finished with two players eliminated).
+- Bots keep sending; creep counts stay healthy.
+- Lane transit goes from 4.5 to 9 seconds.
+
+**But even 2x is not free.** It changed enough that seven tests needed retuning, and the retuning kept
+surfacing more:
+
+- Every "advance N ticks and expect a leak" budget encodes the old speed.
+- Tests that trickle creeps to form a single file need their spacing rescaled, or the trickle silently
+  becomes a stack and the scenario stops measuring what it claims to.
+- The Foundry's whiff rate went from 0% to 46% against a Runner with any supporting tower, because a
+  10-health creep now spends long enough in range for a Gatling to finish it inside the shell's flight.
+  Fixing that meant raising the mortar's minimum target from half a shell's damage to a full one, which
+  changes which creeps it engages — from 13 of 15 to 10 of 15.
+- Repair Drone and Tesla both became mandatory buys again on the opportunity-cost test, because the
+  longer engagement window scales their mechanics more than it scales plain damage.
+
+**What shipping this properly requires, in order:** the movement change; a bot-threshold pass so
+`IsLaneUnderPressure` and the gold-reserve logic are sized for the new transit time; a starting-lives
+number chosen against the new leak rate; re-pricing Repair Drone and Tesla; and a re-run of all four
+measurement harnesses, since every damage-per-gold figure in this document was measured at the old speed.
+
+Not shipped, and the repo is green at the old speed. The change is right and the game will be better for
+it, but it is a coordinated rebalance, not a constant.

@@ -154,7 +154,14 @@ It seeds a match, captures the default HUD and both send-dock categories, and qu
 - [ ] **Nothing has been played.** All balance is measured arithmetic. The open question is whether the
       mortar's 0.5s delay feels fair at the board camera, which no test can answer.
 
-- [ ] **P1: towers only get 1–3 shots per creep, and 10 of 15 cannot kill even a Runner.** Measured
+- [ ] **P1: towers only get 1–3 shots per creep, and 10 of 15 cannot kill even a Runner.**
+      **Investigated 2026-07-29 and not shipped.** The owner confirmed creeps are too fast. The fix is
+      three lines, but at the correct 4x slower the game stops working — matches never complete and bots
+      stop sending and hoard gold, because their thresholds were tuned against a 4.5-second lane transit.
+      At 2x slower the game does work (matches finish around tick 1,500), but it still needed seven tests
+      retuned, changed which creeps the mortar will engage, and made Repair Drone and Tesla mandatory buys
+      again. Shipping it needs a coordinated pass over bot thresholds, starting lives, two tower prices,
+      and every measurement in GD_TUNING_LOG. See that log's 2026-07-29 entry for the numbers. Measured
       with `TowerDuelBalanceTests`, not estimated. `CombatService.MoveCreeps` adds `SpeedPerSecond`
       once per TICK against a 4-tick/second clock, so a speed-1 creep crosses the whole 18-cell lane
       in 4.5 seconds and a range-2 tower gets 5 ticks of exposure. Applying the field once per second
