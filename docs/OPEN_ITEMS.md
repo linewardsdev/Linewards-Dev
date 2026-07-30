@@ -649,7 +649,27 @@ the affordability early-out keeps it off the hot path. Worth profiling on device
 before it is treated as settled; caching per-cell length-gain and invalidating
 on placement would remove most of it.
 
-## 22. Replay records cannot reproduce a match
+## 22. ~~Replay records cannot reproduce a match~~ — resolved 2026-07-30 (documented, not built)
+
+**Decision: mark it as send-only telemetry rather than build out full replay.**
+Finishing replay (recording `PlaceTower`/`SellTower` with enough detail to
+reconstruct a match) is a real feature — a new field shape on
+`AcceptedCommandRecord`, a real replay driver to replace `ScenarioRunner`'s
+economy-only model, and test coverage for all of it — not a bug fix, and nothing
+in this review pass calls for building it right now.
+
+Documented the actual scope instead, so nobody reads more into this than it
+provides: `ReplayRecord` and `AcceptedCommandRecord` both now carry class-level
+remarks stating plainly that this is send-only telemetry, not a reproducible
+replay, and why (`PlaceTower`/`SellTower` are never recorded, and the record
+type has no fields that could hold them). `GetReplayRecord()` and `Seed` each
+got a one-line pointer to that explanation. Left `IRandomSource`/`SeededRandomSource`
+in place rather than deleting them (they have zero production callers, per this
+item's original finding) — they're cheap-to-keep scaffolding for a future
+non-deterministic need, not dead weight, and deleting them would mean
+re-authoring the same seeded-repeatability contract from scratch if one comes
+up — but added a doc comment saying so explicitly, since "zero callers" without
+that context reads as an invitation to delete.
 
 `acceptedCommands` is appended to only in `QueueSend`. `PlaceTower` and
 `SellTower` are never recorded, and `AcceptedCommandRecord` has no fields
@@ -658,13 +678,6 @@ the route and every kill, `GetReplayRecord()` cannot reproduce a
 `LocalVerticalSlice` match, and no code path replays one —
 `ScenarioRunner.Replay` runs a separate economy-only model. Tests assert
 command *counts* only, so nothing catches it.
-
-Related: `LocalMatchOptions.Seed` is recorded into `ReplayRecord` and consumed
-nowhere, and the whole `Random/` namespace (`IRandomSource`,
-`SeededRandomSource`) is referenced only from one contract test. The sim is
-all-integer and deterministic today, so the seed is decorative — fine, but the
-replay format implies a guarantee it does not provide. Either finish replay or
-mark `GetReplayRecord` as send-only telemetry.
 
 ## 23. ~~Determinism: one real hazard, otherwise clean~~ — resolved 2026-07-30
 
