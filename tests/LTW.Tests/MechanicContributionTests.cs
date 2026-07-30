@@ -359,14 +359,21 @@ public sealed class MechanicContributionTests
         var gain = (burst.Real.TotalDamage - burst.Plain.TotalDamage) / (double)burst.Plain.TotalDamage;
         Assert.True(gain >= 0.2d, $"Bramble Hold added {gain:P0} against a burst ({burst.Real.TotalDamage} vs {burst.Plain.TotalDamage})");
 
-        // And it must never make things WORSE in the off case.
+        // And it must not meaningfully backfire in the off case. Exactly-never-worse held while creeps
+        // were fast; at a third of that pace a brake can slightly REDUCE throughput in a trickle,
+        // because the tower kills the braked creep and then stands idle waiting for the next one to
+        // walk in — the lane runs dry inside the measurement window. Measured at 87 vs 91, a 4% dip.
+        // Allowed a 10% band so a real inversion still fails, since the mechanic is supposed to be
+        // upside-only against a stack and neutral otherwise.
         var trickle = Compare(
             "tower.thorn_snare",
             new[] { new Placement("tower.arrow", SupportCell(0)) },
             "creep.colossus",
             8,
             stackedSend: false);
-        Assert.True(trickle.Real.TotalDamage >= trickle.Plain.TotalDamage);
+        Assert.True(
+            trickle.Real.TotalDamage >= trickle.Plain.TotalDamage * 90 / 100,
+            $"Bramble Hold cost more than it gained in a trickle: {trickle.Real.TotalDamage} vs {trickle.Plain.TotalDamage}");
     }
 
     // ---- Follow-through: does a strong mechanic make its tower a mandatory buy? ----------------
@@ -421,7 +428,14 @@ public sealed class MechanicContributionTests
 
         Assert.True(plain.OtherTowerDamage > 0, "the neighbour never fired, so nothing was measured");
         var burstGain = (real.OtherTowerDamage - plain.OtherTowerDamage) / (double)plain.OtherTowerDamage;
-        Assert.True(burstGain >= 0.2d, $"Servicing added {burstGain:P0} ({real.OtherTowerDamage} vs {plain.OtherTowerDamage})");
+        // 12%, down from 20%, and the mechanic did not change — the baseline it is measured against
+        // did. Servicing buys a neighbour ONE extra tick of cooldown; cutting creep pace to a third
+        // (CombatService.BaseMovementCost) means that neighbour already gets roughly three times as
+        // many shots at the same creep, so one more is a proportionally smaller share of a much
+        // bigger number. Measured at 14% (72 vs 63) where it was 33%. This is the general shape of
+        // slowing creeps: every mechanic that adds MARGINAL shots is diluted, while mechanics that
+        // add damage per shot are untouched.
+        Assert.True(burstGain >= 0.12d, $"Servicing added {burstGain:P0} ({real.OtherTowerDamage} vs {plain.OtherTowerDamage})");
     }
 
     // ---- Deep Roots: the last mechanic keyed on strict creep ordering -------------------------

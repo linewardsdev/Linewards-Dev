@@ -1,6 +1,8 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using LTW.Simulation.Bots;
+using LTW.Simulation.Combat;
 using LTW.Simulation.Bridge;
 using LTW.Simulation.Commands;
 using LTW.Simulation.Content;
@@ -500,8 +502,17 @@ public sealed class VerticalSliceBridgeTests
         var goldBeforeCombat = simulation.GetSnapshot().Players.Get(playerOne).Gold.Amount;
 
         Assert.True(simulation.QueueSend(new PlayerId(8), SampleVerticalSliceContent.CreepId).Accepted);
-        simulation.AdvanceOneTick();
-        var events = simulation.DrainEvents();
+
+        // Advances until the ward actually connects rather than assuming one tick is enough. It was,
+        // back when a creep covered a whole cell per tick; at CombatService.BaseMovementCost it takes
+        // three ticks per cell, so the creep is still out of range on tick one. What this test is
+        // about is that a Relay hit pays gold, not how many ticks the walk into range takes.
+        var events = new List<ISimulationEvent>();
+        for (var tick = 0; tick < 40 && !events.Any(e => e is CreepDamagedEvent); tick++)
+        {
+            simulation.AdvanceOneTick();
+            events.AddRange(simulation.DrainEvents());
+        }
 
         Assert.Contains(events, simulationEvent => simulationEvent is CreepDamagedEvent damaged && damaged.DefenderId.Equals(playerOne));
         Assert.Equal(goldBeforeCombat + 1, simulation.GetSnapshot().Players.Get(playerOne).Gold.Amount);
@@ -665,22 +676,41 @@ public sealed class VerticalSliceBridgeTests
         Assert.Contains(events, simulationEvent => simulationEvent is CreepDamagedEvent);
     }
 
+    /// <summary>
+    /// Advances until <paramref name="senderId"/>'s creep shows up in <paramref name="laneId"/>.
+    /// </summary>
+    /// <remarks>
+    /// These tests used to run a fixed tick count and then assert the creep sat on an exact cell,
+    /// which pinned them to how fast creeps happened to move. CombatService.BaseMovementCost made
+    /// that a third of what it was, and the fixed budgets then landed the creep a cell or two past
+    /// where the assertions looked. Waiting for the arrival instead asserts what these tests are
+    /// actually about — that a creep which finishes a lane continues into the next one, carrying its
+    /// health — and survives the next pacing change without edits.
+    /// </remarks>
+    private static CreepPresentationSnapshot RunUntilCreepReachesLane(
+        LocalVerticalSlice simulation, PlayerId senderId, LaneId laneId, int maxTicks = 400)
+    {
+        for (var tick = 0; tick < maxTicks; tick++)
+        {
+            simulation.AdvanceOneTick();
+            var arrived = simulation.GetSnapshot().Creeps
+                .FirstOrDefault(creep => creep.SenderId.Equals(senderId) && creep.LaneId.Equals(laneId));
+            if (arrived is not null)
+            {
+                return arrived;
+            }
+        }
+
+        throw new InvalidOperationException($"no creep from {senderId.Value} reached lane {laneId.Value} within {maxTicks} ticks");
+    }
+
     [Fact]
     public void Leaked_creeps_continue_into_the_next_lane()
     {
         var simulation = new LocalVerticalSlice(SampleVerticalSliceContent.Create(), ThreeLaneOptions(), enableBots: false);
         Assert.True(simulation.QueueSend(new PlayerId(1), SampleVerticalSliceContent.CreepId).Accepted);
 
-        for (var tick = 0; tick < 15; tick++)
-        {
-            simulation.AdvanceOneTick();
-        }
-
-        var snapshot = simulation.GetSnapshot();
-        var transferred = snapshot.Creeps.Single(creep =>
-            creep.SenderId.Equals(new PlayerId(1)) &&
-            creep.LaneId.Equals(new LaneId(3)) &&
-            creep.Position.Equals(new GridPosition(3, 0)));
+        var transferred = RunUntilCreepReachesLane(simulation, new PlayerId(1), new LaneId(3));
         var events = simulation.DrainEvents();
 
         Assert.Equal(new LaneId(3), transferred.LaneId);
@@ -696,18 +726,15 @@ public sealed class VerticalSliceBridgeTests
         Assert.True(simulation.PlaceTower(new PlayerId(2), new LaneId(2), SampleVerticalSliceContent.UtilityTowerId, new GridPosition(2, 8)).Accepted);
         Assert.True(simulation.QueueSend(new PlayerId(1), SampleVerticalSliceContent.CreepId).Accepted);
 
-        for (var tick = 0; tick < 15; tick++)
-        {
-            simulation.AdvanceOneTick();
-        }
+        var transferred = RunUntilCreepReachesLane(simulation, new PlayerId(1), new LaneId(3));
 
-        var snapshot = simulation.GetSnapshot();
-        var transferred = snapshot.Creeps.Single(creep =>
-            creep.SenderId.Equals(new PlayerId(1)) &&
-            creep.LaneId.Equals(new LaneId(3)) &&
-            creep.Position.Equals(new GridPosition(3, 0)));
-
-        Assert.Equal(8, transferred.Health);
+        // The claim is that a transferred creep carries the damage it took, instead of arriving at
+        // full health — asserted as a property rather than an exact number, because the number moves
+        // with pacing. It was 8 when the relay ward got one shot in during the walk; at
+        // CombatService.BaseMovementCost the creep is in range three times as long and arrives on 4.
+        var runnerMaxHealth = SampleVerticalSliceContent.Create().Creeps
+            .Single(creep => creep.Id.Equals(SampleVerticalSliceContent.CreepId)).MaxHealth;
+        Assert.InRange(transferred.Health, 1, runnerMaxHealth - 1);
     }
 
     [Fact]
@@ -716,27 +743,12 @@ public sealed class VerticalSliceBridgeTests
         var simulation = new LocalVerticalSlice(SampleVerticalSliceContent.Create(), enableBots: false);
         Assert.True(simulation.QueueSend(new PlayerId(1), SampleVerticalSliceContent.CreepId).Accepted);
 
-        for (var tick = 0; tick < 15; tick++)
-        {
-            simulation.AdvanceOneTick();
-        }
+        var intoLaneThree = RunUntilCreepReachesLane(simulation, new PlayerId(1), new LaneId(3));
+        Assert.Equal(new GridPosition(3, 0), intoLaneThree.Position);
 
-        Assert.Contains(simulation.GetSnapshot().Creeps, creep =>
-            creep.SenderId.Equals(new PlayerId(1)) &&
-            creep.LaneId.Equals(new LaneId(3)) &&
-            creep.Position.Equals(new GridPosition(3, 0)));
-
-        for (var tick = 0; tick < 15; tick++)
-        {
-            simulation.AdvanceOneTick();
-        }
-
-        var snapshot = simulation.GetSnapshot();
+        var intoLaneFour = RunUntilCreepReachesLane(simulation, new PlayerId(1), new LaneId(4));
+        Assert.Equal(new GridPosition(3, 0), intoLaneFour.Position);
         var events = simulation.DrainEvents();
-        Assert.Contains(snapshot.Creeps, creep =>
-            creep.SenderId.Equals(new PlayerId(1)) &&
-            creep.LaneId.Equals(new LaneId(4)) &&
-            creep.Position.Equals(new GridPosition(3, 0)));
         Assert.Contains(events, simulationEvent => simulationEvent is LeakEvent leak && leak.SenderId.Equals(new PlayerId(1)) && leak.DefenderId.Equals(new PlayerId(3)));
         Assert.Contains(events, simulationEvent => simulationEvent is CreepSpawnedEvent spawned && spawned.SenderId.Equals(new PlayerId(1)) && spawned.DefenderId.Equals(new PlayerId(4)));
     }
@@ -767,7 +779,7 @@ public sealed class VerticalSliceBridgeTests
         var simulation = new LocalVerticalSlice(SampleVerticalSliceContent.Create(), enableBots: false);
         Assert.True(simulation.QueueSend(new PlayerId(1), SampleVerticalSliceContent.CreepId).Accepted);
 
-        for (var tick = 0; tick < 36; tick++)
+        for (var tick = 0; tick < 108; tick++)
         {
             simulation.AdvanceOneTick();
         }
@@ -814,7 +826,7 @@ public sealed class VerticalSliceBridgeTests
         var simulation = new LocalVerticalSlice(SampleVerticalSliceContent.Create(), ThreeLaneOptions(), enableBots: false);
         Assert.True(simulation.QueueSend(new PlayerId(1), SampleVerticalSliceContent.CreepId).Accepted);
 
-        for (var tick = 0; tick < 36; tick++)
+        for (var tick = 0; tick < 108; tick++)
         {
             simulation.AdvanceOneTick();
         }

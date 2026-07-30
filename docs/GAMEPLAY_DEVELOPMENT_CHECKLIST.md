@@ -385,6 +385,25 @@ eight, so the clips never fight the renderer's own transform writes.
       legged gait reads correctly at that speed, so this is a units/pacing question, not an
       animation one, and it caps how good any gait work can look.
 
+### Follow-ups from the 2026-07-30 pacing change
+
+- [x] **Creep pace cut to a third** (`CombatService.BaseMovementCost` 1 → 3). The slowest creep
+      crossed an undefended lane in 4.0s and the fastest in 1.33s; now 11.0s and 3.5s. Full
+      measurements and the options considered are in `docs/GD_TUNING_LOG.md`.
+- [x] **Sub-cell movement interpolation**, so slowing creeps did not just trade speed for stutter.
+      The snapshot carries the next cell and progress toward it; the renderer glides between them.
+- [ ] **The Foundry Core wastes almost every shell when built beside a Gatling** — 100% whiff
+      against Swarm, 95% against Wisp. Its lead arithmetic is exact (0% unsupported); the problem is
+      that it commits a shell three ticks before impact and creeps now spend three times as long
+      under a neighbour's fire. Needs a design answer: re-target on landing, shorten the flight, or
+      accept it as an anti-heavy tower and price it accordingly.
+- [ ] **Re-check every mechanic contribution at the new pace.** Mechanics that buy marginal shots
+      were diluted (Servicing 33% → 14%); mechanics that buy damage per shot were untouched. Any
+      contribution number in the tuning log taken before this change is measured against a
+      three-times-faster baseline.
+- [ ] **Play the new pace and judge it.** The numbers say the fastest creep now moves about as fast
+      as the slowest used to. Whether that is right is a judgement only playing it makes.
+
 ### Acceptance Checks
 
 - [ ] No two towers in the same build line read as the same object in motion.

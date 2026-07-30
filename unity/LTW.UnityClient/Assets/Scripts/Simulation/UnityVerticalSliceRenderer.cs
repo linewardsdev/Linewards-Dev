@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using LTW.Simulation.Combat;
 using LTW.Simulation.Events;
 using LTW.Simulation.Primitives;
 using LTW.UnityClient.UI;
@@ -648,7 +649,7 @@ namespace LTW.UnityClient.Simulation
                 }
 
                 var hitFlashUntil = creepHitFlashUntil.TryGetValue(key, out var flashUntilValue) ? flashUntilValue : 0f;
-                SetCreepTransform(creepObject, creep.Position, creep.LaneId, creep.CreepId.Value, visualProfile, isNewCreep, hitFlashUntil, key);
+                SetCreepTransform(creepObject, CreepTravelPosition(creep), creep.LaneId, creep.CreepId.Value, visualProfile, isNewCreep, hitFlashUntil, key);
                 UpdateCreepAnimationSpeed(key, creepObject, creep.CreepId.Value, creep.SpeedPerSecond);
                 var healthFraction = CreepHealthFraction(creep.Health, creep.MaxHealth);
                 var isHitFlashing = creepHitFlashUntil.TryGetValue(key, out var flashUntil) && Time.time < flashUntil;
@@ -2637,10 +2638,38 @@ namespace LTW.UnityClient.Simulation
         /// </remarks>
         private const float CreepTeleportSnapDistance = LaneSpacing * 0.5f;
 
-        private static void SetCreepTransform(GameObject instance, GridPosition position, LaneId laneId, string creepId, CreepVisualProfile visualProfile, bool snapToTarget, float hitFlashUntil, string key)
+        /// <summary>
+        /// Where a creep actually sits between its current cell and the one it is walking toward.
+        /// </summary>
+        /// <remarks>
+        /// The simulation moves a creep in whole cells: it banks MovementProgress each tick and steps
+        /// exactly one cell when that reaches MovementCost. At the original pace that was one cell per
+        /// tick, so "current cell" was never more than 0.25s stale and the lerp below hid it. Slowing
+        /// creeps to a third of that (CombatService.BaseMovementCost) makes it up to 0.75s stale, at
+        /// which point a creep visibly holds still and then hops.
+        ///
+        /// So the cell pair and the progress between them are read from the snapshot and resolved
+        /// here, on the presentation side of the boundary — the simulation stays all-integer and the
+        /// float division happens in the only layer that wants a float. Clamped because a braked
+        /// creep's real cost is double what MovementCost reports (see the snapshot's own remark), so
+        /// its progress legitimately runs past one cell's worth.
+        /// </remarks>
+        private static Vector3 CreepTravelPosition(CreepPresentationSnapshot creep)
+        {
+            var from = GridToWorld(creep.Position, creep.LaneId);
+            if (creep.MovementCost <= 0 || creep.NextPosition.Equals(creep.Position))
+            {
+                return from;
+            }
+
+            var fraction = Mathf.Clamp01(creep.MovementProgress / (float)creep.MovementCost);
+            return Vector3.Lerp(from, GridToWorld(creep.NextPosition, creep.LaneId), fraction);
+        }
+
+        private static void SetCreepTransform(GameObject instance, Vector3 lanePosition, LaneId laneId, string creepId, CreepVisualProfile visualProfile, bool snapToTarget, float hitFlashUntil, string key)
         {
             var roleMotion = CreepRoleMotion(creepId, visualProfile, hitFlashUntil, IsRiggedCreep(instance, creepId), key);
-            var targetPosition = GridToWorld(position, laneId) + CreepRoleOffset(creepId) + roleMotion.PositionOffset;
+            var targetPosition = lanePosition + CreepRoleOffset(creepId) + roleMotion.PositionOffset;
             instance.transform.position = snapToTarget || Vector3.Distance(instance.transform.position, targetPosition) > CreepTeleportSnapDistance
                 ? targetPosition
                 : Vector3.Lerp(instance.transform.position, targetPosition, Mathf.Clamp01(Time.deltaTime * 8f));

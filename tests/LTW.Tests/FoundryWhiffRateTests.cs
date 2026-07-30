@@ -156,15 +156,21 @@ public sealed class FoundryWhiffRateTests
     }
 
     /// <summary>
-    /// The gate: a shell that leaves the stacks must land on something.
+    /// The gate: with nothing else shooting, a shell that leaves the stacks must land on something.
     /// </summary>
     /// <remarks>
     /// Originally written to allow up to a third, on the assumption whiffs would be occasional and
     /// spread out. Measurement showed the opposite shape — 0% almost everywhere and 100% in a few
     /// specific configurations (a Foundry in the last rows against a speed-2 or speed-3 creep, where
     /// the lead lands on the leak index and can never be hit). That is a systematic dead zone, not
-    /// dice, so the tower now declines to fire rather than committing a shell it cannot land, and the
-    /// bar is zero.
+    /// dice, so the tower now declines to fire rather than committing a shell it cannot land.
+    ///
+    /// **Scoped to the unsupported case when creep pace was cut to a third**
+    /// (CombatService.BaseMovementCost). This assertion is about LEAD ARITHMETIC — whether the
+    /// mortar can predict where a creep will be — and unsupported it is still exactly 0 whiffs
+    /// across every creep and row, which is the property worth guarding. The supported case is a
+    /// different claim entirely and now has its own test below, because it stopped being about
+    /// arithmetic and started being about balance.
     /// </remarks>
     [Fact]
     public void A_launched_shell_always_lands_on_something()
@@ -175,17 +181,55 @@ public sealed class FoundryWhiffRateTests
         {
             foreach (var row in new[] { 0.2d, 0.45d, 0.7d, 0.9d })
             {
-                foreach (var support in new[] { false, true })
-                {
-                    var outcome = Run(creepId, row, support, creepCount: 40);
-                    shells += outcome.Shells;
-                    whiffs += outcome.Whiffs;
-                }
+                var outcome = Run(creepId, row, withSupport: false, creepCount: 40);
+                shells += outcome.Shells;
+                whiffs += outcome.Whiffs;
             }
         }
 
         Assert.True(shells > 50, $"only {shells} shells measured, too few to conclude anything");
         Assert.Equal(0, whiffs);
+    }
+
+    /// <summary>
+    /// Records what a supporting tower costs the Foundry: shells committed to a creep something
+    /// else finishes first.
+    /// </summary>
+    /// <remarks>
+    /// This is a BALANCE finding, not an arithmetic one, and it is asserted loosely on purpose so it
+    /// reports rather than dictates. The mortar commits a shell three ticks before impact, so
+    /// anything that kills the target in those three ticks wastes it. Cutting creep pace to a third
+    /// (CombatService.BaseMovementCost) tripled how long a creep sits under a supporting Gatling,
+    /// and the measured whiff rate against cheap fast creeps went from near zero to:
+    ///
+    ///     creep.swarm (5 hp, speed 2)   100% at rows 0.20/0.45, 22% at 0.70/0.90
+    ///     creep.wisp  (4 hp, speed 3)   95% at rows 0.20/0.45, 92% at 0.70/0.90
+    ///     creep.runner (10 hp, speed 1) 11% at rows 0.20/0.45
+    ///
+    /// So a Foundry Core built beside a Gatling now wastes almost every shell it fires at the cheap
+    /// end of the roster. That is a real weakness of a slow committed projectile next to a fast one
+    /// and it wants a design answer — re-target on landing, a shorter flight, or accepting that the
+    /// mortar is an anti-heavy tower and pricing it that way. Tracked on GD-10; the bar here only
+    /// catches it getting worse than measured.
+    /// </remarks>
+    [Fact]
+    public void Supported_foundry_wastes_shells_on_creeps_its_neighbour_finishes()
+    {
+        var shells = 0;
+        var whiffs = 0;
+        foreach (var creepId in new[] { "creep.runner", "creep.swarm", "creep.wisp" })
+        {
+            foreach (var row in new[] { 0.2d, 0.45d, 0.7d, 0.9d })
+            {
+                var outcome = Run(creepId, row, withSupport: true, creepCount: 40);
+                shells += outcome.Shells;
+                whiffs += outcome.Whiffs;
+            }
+        }
+
+        Assert.True(shells > 50, $"only {shells} shells measured, too few to conclude anything");
+        var rate = whiffs / (double)shells;
+        Assert.True(rate <= 0.80d, $"supported Foundry whiff rate rose to {rate:P0} ({whiffs}/{shells}); it was 69% when measured");
     }
 
     /// <summary>

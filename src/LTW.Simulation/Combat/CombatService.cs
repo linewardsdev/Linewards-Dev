@@ -73,7 +73,10 @@ public sealed class CombatService
                 ResolvePosition(creep, routes),
                 creep.Health,
                 content.GetCreep(creep.CreepId).MaxHealth,
-                content.GetCreep(creep.CreepId).SpeedPerSecond))
+                content.GetCreep(creep.CreepId).SpeedPerSecond,
+                ResolveNextPosition(creep, routes),
+                creep.MovementProgress,
+                BaseMovementCost))
             .ToArray();
     }
 
@@ -143,8 +146,39 @@ public sealed class CombatService
 
     private const int BrambleZoneCells = 3;
 
-    /// <summary>Cells under bramble cost this much movement instead of 1, so exactly half speed.</summary>
-    private const int BrambleMovementCost = 2;
+    /// <summary>
+    /// Movement a creep must accumulate to advance one route cell, so a creep's real ground speed is
+    /// SpeedPerSecond / BaseMovementCost cells per tick.
+    /// </summary>
+    /// <remarks>
+    /// This exists so creep pace can be tuned WITHOUT rewriting every creep's SpeedPerSecond, which
+    /// is a small integer (1-3) and cannot express anything slower than one cell per tick.
+    ///
+    /// At 1 — the original value — a creep moved a whole cell every tick, and at 4 ticks/second on a
+    /// board where one cell is one world unit that is 4 cells/second for the SLOWEST creep in the
+    /// roster. The straight lane is 16 cells, so an undefended lane was crossed in 4.0s by a Brute
+    /// or Colossus and 1.33s by a Crystal Wisp or Zephyr Wraith. Two independent observations landed
+    /// on this: play testing ("all creeps move too fast"), and rig_turret_walker.py measuring that
+    /// 8 world units/second is roughly six body lengths per second, which no legged gait can read as
+    /// anything but skating.
+    ///
+    /// Raising it divides every creep's speed by the same factor, so the roster's relative pacing —
+    /// which the balance record is built on — is preserved exactly.
+    /// </remarks>
+    /// <remarks>
+    /// Public because tests have to reason about it: several seed a creep on a cell and assert that
+    /// one Advance steps it exactly one further, which is only true if they bank
+    /// BaseMovementCost minus the creep's speed first. Leaving them to hardcode the old
+    /// one-cell-per-tick assumption is what broke them when this went from 1 to 3.
+    /// </remarks>
+    public const int BaseMovementCost = 3;
+
+    /// <summary>
+    /// Cells under bramble cost this much movement, so exactly half speed. Defined as a multiple of
+    /// <see cref="BaseMovementCost"/> rather than a bare number, so retuning the global pace cannot
+    /// silently change what Thorn Snare's brake is worth.
+    /// </summary>
+    private const int BrambleMovementCost = BaseMovementCost * 2;
 
     /// <summary>
     /// Advances one creep by one tick, returning its new path index and leftover movement.
@@ -156,7 +190,9 @@ public sealed class CombatService
     /// failing.
     ///
     /// MovementProgress is a real accumulator for the first time here. Before Bramble Hold it was
-    /// always zero, because every cost was 1 and SpeedPerSecond is a whole number.
+    /// always zero, because every cost was 1 and SpeedPerSecond is a whole number. With
+    /// BaseMovementCost above 1 it carries a genuine fraction of a cell between ticks for every
+    /// creep, braked or not, which is what lets a whole-number speed express a sub-cell pace.
     /// </remarks>
     private static (int PathIndex, int Movement) StepCreep(
         int pathIndex,
@@ -165,7 +201,7 @@ public sealed class CombatService
         int routeCount,
         bool braked)
     {
-        var step = braked ? BrambleMovementCost : 1;
+        var step = braked ? BrambleMovementCost : BaseMovementCost;
         var movement = movementProgress + speedPerSecond;
         while (movement >= step && pathIndex < routeCount - 1)
         {
@@ -717,6 +753,15 @@ public sealed class CombatService
     {
         var route = routes[creep.LaneId];
         return route[Math.Min(creep.PathIndex, route.Count - 1)];
+    }
+
+    /// <summary>The cell a creep is walking toward, clamped to the route end.</summary>
+    private static GridPosition ResolveNextPosition(
+        CreepCombatState creep,
+        IReadOnlyDictionary<LaneId, IReadOnlyList<GridPosition>> routes)
+    {
+        var route = routes[creep.LaneId];
+        return route[Math.Min(creep.PathIndex + 1, route.Count - 1)];
     }
 
     private static bool IsInRange(GridPosition tower, GridPosition creep, int rangeCells)

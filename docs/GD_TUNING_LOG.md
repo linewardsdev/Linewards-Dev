@@ -1283,3 +1283,81 @@ mazed lane, or that relied on the old 4-tower bot roster, should be treated the 
 fix and item 10/11's stalemate fix were: re-measured, not adjusted.
 
 176 tests passing, zero skipped.
+
+## 2026-07-30: Creep Pace Cut To A Third, And What That Did To Three Mechanics
+
+Playtest note: "all creeps move too fast." Measured, it was worse than it sounded. `SpeedPerSecond`
+is cells per TICK at 4 ticks/second on a board where one cell is one world unit, so:
+
+| creep | cells/sec | crosses a straight 16-cell lane in |
+| --- | ---: | ---: |
+| Brute, Colossus, Runner, Warden (speed 1) | 4 | **4.0s** |
+| Shade, Swarm, Stalker (speed 2) | 8 | 2.0s |
+| Wisp, Zephyr (speed 3) | 12 | **1.33s** |
+
+The *slowest* creep in the roster crossed an undefended lane in four seconds. This is the same
+number `rig_turret_walker.py` ran into from the art side on 2026-07-28 — 8 world units/sec is about
+six body lengths per second, which no legged gait can read as anything but skating. Two independent
+routes to the same finding.
+
+**Fix: `CombatService.BaseMovementCost`, 1 → 3.** A creep banks movement each tick and steps one
+cell when it reaches the cost, so this divides every creep's speed by three while preserving the
+roster's relative pacing exactly. It was chosen over editing 15 `SpeedPerSecond` values because
+those are small integers and cannot express anything slower than one cell per tick. Thorn Snare's
+brake is now defined as `BaseMovementCost * 2` rather than a bare 2, so retuning pace cannot
+silently change what the brake is worth.
+
+Measured at three candidate values before choosing:
+
+| cost | Runner crosses | Wisp crosses | match length |
+| ---: | ---: | ---: | ---: |
+| 1 (was) | 3.50s | 1.00s | 12.1 min |
+| 2 | 7.25s | 2.25s | 13.9 min |
+| **3 (chosen)** | **11.0s** | **3.5s** | **14.7 min** |
+
+At 3 the FASTEST creep now takes about as long as the slowest one used to, which is what "all
+creeps" being too fast asks for.
+
+### Three consequences, none of which were the pacing itself
+
+**1. Movement had to stop being cell-quantised on screen.** A creep now holds a cell for three ticks
+and then jumps, and the renderer could not smooth it because the snapshot only carried the current
+cell. `CreepPresentationSnapshot` gained `NextPosition`, `MovementProgress` and `MovementCost`, and
+the renderer interpolates between the two cells. Exposed as two integers rather than a ready-made
+fraction because the simulation is deliberately all-integer and `ArchitectureBoundaryTests` guards
+that; the division happens client-side. Without this the change would have traded speed for stutter.
+
+**2. Mechanics that buy MARGINAL SHOTS were diluted; mechanics that buy damage per shot were not.**
+This is the general shape and worth remembering before reading any contribution number taken at a
+different pace. A tower already gets ~3x as many shots at the same creep, so one more is a smaller
+share of a bigger total:
+
+| mechanic | contribution before | after |
+| --- | ---: | ---: |
+| Servicing (neighbour fires 1 tick sooner) | 33% | **14%** |
+| Bramble Hold, trickle case | never worse | **-4%** (87 vs 91) |
+
+Bramble Hold's small trickle regression is explainable rather than noise: at this pace the tower
+kills the braked creep and then stands idle waiting for the next one to walk in, so the lane runs
+dry inside the measurement window. Its burst case is unaffected, which is the case it exists for.
+
+**3. A real balance problem surfaced: the Foundry Core beside a Gatling now wastes almost every
+shell.** The mortar commits a shell three ticks before impact, so anything that kills the target in
+those three ticks wastes it — and creeps now spend three times as long under a supporting tower.
+Measured whiff rates with support:
+
+| creep | rows 0.20 / 0.45 | rows 0.70 / 0.90 |
+| --- | ---: | ---: |
+| `creep.swarm` (5 hp) | **100%** | 22% |
+| `creep.wisp` (4 hp) | **95%** | 92% |
+| `creep.runner` (10 hp) | 11% | 0% |
+
+Crucially this is **not** a lead-arithmetic bug: unsupported, the mortar still whiffs 0% across
+every creep and every row, so its prediction is exact. `A_launched_shell_always_lands_on_something`
+was scoped to the unsupported case, which is the property it was really guarding, and the supported
+case became its own reporting test rather than being folded in and hidden. It wants a design answer
+— re-target on landing, a shorter flight, or accept it as an anti-heavy tower and price it there.
+Tracked on GD-10.
+
+**Not verified:** how the new pace actually feels in a played match. The numbers say the fastest
+creep now moves like the slowest used to; whether that is right is a judgement only playing it makes.

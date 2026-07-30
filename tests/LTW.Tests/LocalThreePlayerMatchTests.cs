@@ -83,7 +83,10 @@ public sealed class LocalThreePlayerMatchTests
         // completes at 2911 with the fix — still comfortably inside the outer 6,000-tick safety net
         // this test also asserts against (MatchSummary is not null), so it is a timing shift from a
         // real mechanic correction, not a new stalemate.
-        Assert.InRange(slice.MatchSummary!.CompletedAtTick.Value, 150, 3_500);
+        // Upper bound raised to 5000 alongside CombatService.BaseMovementCost. Creeps cover a third
+        // of the ground per tick, so a match that used to finish at 2,911 ticks now takes 3,527 —
+        // in wall-clock terms 12.1 minutes became 14.7, since the tick rate itself did not change.
+        Assert.InRange(slice.MatchSummary!.CompletedAtTick.Value, 150, 5_000);
         Assert.NotEmpty(slice.GetReplayRecord().AcceptedCommands);
     }
 

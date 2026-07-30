@@ -75,8 +75,8 @@ public sealed class CombatTests
             new[] { service.SpawnCreep(new EntityId(1), Runner(), new PlayerId(2), LaneOne) },
             Array.Empty<TowerCombatState>());
 
-        var first = service.Advance(state, content, routes, new SimulationTick(1));
-        var second = service.Advance(first.State, content, routes, new SimulationTick(2));
+        var first = AdvanceUntilLeak(service, state, content, routes);
+        var second = service.Advance(first.State, content, routes, new SimulationTick(99));
 
         Assert.Single(first.Events.OfType<LeakEvent>());
         Assert.Empty(second.Events.OfType<LeakEvent>());
@@ -119,7 +119,17 @@ public sealed class CombatTests
             new[] { service.SpawnCreep(new EntityId(1), Runner(), new PlayerId(2), LaneOne) },
             Array.Empty<TowerCombatState>());
 
-        state = service.Advance(state, content, routes, new SimulationTick(0)).State;
+        // Advances until the creep actually steps a cell rather than assuming one tick does it: a
+        // cell now costs CombatService.BaseMovementCost ticks of banked movement.
+        for (var tick = 0; tick < 20; tick++)
+        {
+            state = service.Advance(state, content, routes, new SimulationTick(tick)).State;
+            if (!service.GetCreepSnapshots(state, content, routes)[0].Position.Equals(new GridPosition(0, 1)))
+            {
+                break;
+            }
+        }
+
         var snapshot = Assert.Single(service.GetCreepSnapshots(state, content, routes));
 
         Assert.Equal(new EntityId(1), snapshot.EntityId);
@@ -200,7 +210,7 @@ public sealed class CombatTests
             new[] { service.SpawnCreep(new EntityId(1), Siege(), new PlayerId(2), LaneOne) },
             Array.Empty<TowerCombatState>());
 
-        var result = service.Advance(state, content, routes, new SimulationTick(1));
+        var result = AdvanceUntilLeak(service, state, content, routes);
         var leak = Assert.Single(result.Events.OfType<LeakEvent>());
 
         Assert.Equal(2, leak.LivesLost.Amount);
@@ -222,10 +232,41 @@ public sealed class CombatTests
             new[] { service.SpawnCreep(new EntityId(1), Colossus(), new PlayerId(2), LaneOne) },
             Array.Empty<TowerCombatState>());
 
-        var result = service.Advance(state, content, routes, new SimulationTick(1));
+        var result = AdvanceUntilLeak(service, state, content, routes);
         var leak = Assert.Single(result.Events.OfType<LeakEvent>());
 
         Assert.Equal(2, leak.LivesLost.Amount);
+    }
+
+    /// <summary>
+    /// Advances until a <see cref="LeakEvent"/> is emitted, returning the tick result that carried it.
+    /// </summary>
+    /// <remarks>
+    /// These tests used to call Advance once and assume the creep had crossed a two-cell route,
+    /// which was true while a creep covered a whole cell per tick. CombatService.BaseMovementCost
+    /// makes a cell cost three ticks, so a single Advance no longer reaches the exit. Waiting for the
+    /// leak keeps the assertions about what a leak COSTS, which is what these tests are for, rather
+    /// than about how many ticks the walk to the exit takes.
+    /// </remarks>
+    private static CombatTickResult AdvanceUntilLeak(
+        CombatService service,
+        CombatState state,
+        CombatContent content,
+        IReadOnlyDictionary<LaneId, IReadOnlyList<GridPosition>> routes,
+        int maxTicks = 40)
+    {
+        for (var tick = 1; tick <= maxTicks; tick++)
+        {
+            var result = service.Advance(state, content, routes, new SimulationTick(tick));
+            if (result.Events.OfType<LeakEvent>().Any())
+            {
+                return result;
+            }
+
+            state = result.State;
+        }
+
+        throw new InvalidOperationException($"no creep leaked within {maxTicks} ticks");
     }
 
     private static readonly LaneId LaneOne = new(1);

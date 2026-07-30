@@ -38,11 +38,24 @@ public sealed class TowerMechanicTests
     private static TowerCombatState Tower(string towerId, int entityId, int x, int y) =>
         new(new EntityId(entityId), new ContentId(towerId), Defender, Lane, new GridPosition(x, y));
 
+    /// <summary>
+    /// A creep parked on <paramref name="pathIndex"/> and primed so the next unbraked tick advances
+    /// it exactly one cell.
+    /// </summary>
+    /// <remarks>
+    /// These tests are about what a tower does to a creep at a given place, and were written when a
+    /// creep covered one cell per tick, so "put it here, advance once, it is one further" was free.
+    /// CombatService.BaseMovementCost makes a cell cost three ticks, so banking cost-minus-speed
+    /// here restores that property instead of scattering tick counts through every test.
+    /// </remarks>
     private static CreepCombatState CreepAt(CombatService service, int entityId, string creepId, int pathIndex)
     {
         var spawned = service.SpawnCreep(new EntityId(entityId), Creep(creepId), Attacker, Lane);
-        return spawned.WithMovement(pathIndex, 0);
+        return spawned.WithMovement(pathIndex, PrimedMovement(creepId));
     }
+
+    private static int PrimedMovement(string creepId) =>
+        CombatService.BaseMovementCost - Creep(creepId).SpeedPerSecond;
 
     // ---- Barricade: fixed up-lane arc ---------------------------------------------------------
 
@@ -336,11 +349,12 @@ public sealed class TowerMechanicTests
         };
         var towers = new[] { Tower("tower.thorn_snare", 10, x: 5, y: 5) };
         // Colossus: speed 1 and 90 max health, so a single Thorn Snare hit (5 damage) cannot kill it
-        // and the only thing this test measures is movement. At speed 1, braked (cost 2) means the
-        // tick's movement (1) cannot even afford one step, so the creep does not move at all; unbraked
-        // (cost 1) advances exactly one index. Starting at index 3 — the middle of the unreachable
-        // detour — is the case the old single-span bug got wrong.
-        var creep = service.SpawnCreep(new EntityId(1), Creep("creep.colossus"), Attacker, Lane).WithMovement(pathIndex: 3, movementProgress: 0);
+        // and the only thing this test measures is movement. Primed with cost-minus-speed banked, so
+        // one unbraked tick affords exactly one step while a braked one (double cost) still cannot —
+        // which is the whole distinction being tested. Starting at index 3, the middle of the
+        // unreachable detour, is the case the old single-span bug got wrong.
+        var creep = service.SpawnCreep(new EntityId(1), Creep("creep.colossus"), Attacker, Lane)
+            .WithMovement(pathIndex: 3, movementProgress: PrimedMovement("creep.colossus"));
         var state = new CombatState(new[] { creep }, towers);
 
         var result = service.Advance(state, content, routes, new SimulationTick(0));
