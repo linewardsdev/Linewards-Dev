@@ -19,8 +19,8 @@ dotnet test LTW.sln --no-restore --configuration Release
 ```
 
 Latest local result: the full suite passes. (A hardcoded count isn't kept
-here deliberately — three docs have quoted three different stale counts; see
-`docs/OPEN_ITEMS.md` item 16.)
+here deliberately — three docs have quoted three different stale counts
+before.)
 
 Unity compile smoke also passes locally when `LTW.Simulation.dll` is built and copied to
 `unity/LTW.UnityClient/Assets/Plugins`. The latest batch Play Mode evidence run loaded
@@ -55,7 +55,7 @@ Current code evidence:
 - `LocalVerticalSlice` runs a three-player carousel with Player 1 as the human lane and two bot players.
 - The local sample map uses three 7x16 lanes.
 - The bridge supports placement, sends, selling, reset, match summary, and replay records.
-- `LocalThreePlayerMatchTests` verifies a deterministic local bot match completes in the current 150-2000 tick pacing target window (widened from an earlier 900-1800 after the bot-stalemate fix in `docs/OPEN_ITEMS.md` item 10 — the same seed now completes at tick 926 instead of never completing).
+- `LocalThreePlayerMatchTests` verifies a deterministic local bot match completes in the current 150-2000 tick pacing target window (widened from an earlier 900-1800 after fixing a bot-pressure bug that stopped bots from ever sending again — see `docs/GD_TUNING_LOG.md`, "The Stalemate Was A Bug, Not Balance" — the same seed now completes at tick 926 instead of never completing).
 - Creeps that leak through a lane now continue through active non-sender lanes, preserving carousel pressure while preventing a sender's own creeps from entering their lane.
 - Bot opponents now build opening defensive packages before send pressure: Balanced builds two early towers, Defensive builds three and keeps a higher opening gold reserve.
 - `LocalReplayExporter` writes diagnostic replay JSON.

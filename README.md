@@ -2,7 +2,7 @@
 
 LTW is a Unity and C# mobile adaptation of Line Tower Wars. The current milestone is an offline three-player MVP with one human player and two simulated opponents.
 
-The Unity client renders on URP 17.5.0 with 15 3D towers and 15 3D creeps (Meshy-generated, Blender-prepared) fully wired into the match presentation — the roster grew from the original five of each; see [docs/TOWER_AND_CREEP_ROSTER.md](docs/TOWER_AND_CREEP_ROSTER.md) for the current list. See [docs/OPEN_ITEMS.md](docs/OPEN_ITEMS.md) for what's still outstanding from that work before you touch tower materials or bloom tuning.
+The Unity client renders on URP 17.5.0 with 15 3D towers and 15 3D creeps (Meshy-generated, Blender-prepared) fully wired into the match presentation — the roster grew from the original five of each; see [docs/TOWER_AND_CREEP_ROSTER.md](docs/TOWER_AND_CREEP_ROSTER.md) for the current list. A guard (`Assets/Editor/TowerEmissionKeywordGuard.cs`) self-heals a recurring `_EMISSION` keyword loss on tower body materials; its root cause is still unknown, so watch the Editor log for repeated corrections if tower emission ever looks wrong. Bloom cost on a physical Android device is still unmeasured.
 
 ## Project Documentation
 
@@ -14,7 +14,6 @@ See [docs/README.md](docs/README.md) for the organized documentation index.
 - [MVP implementation checklist](docs/MVP_IMPLEMENTATION_CHECKLIST.md)
 - [Gameplay development checklist](docs/GAMEPLAY_DEVELOPMENT_CHECKLIST.md)
 - [MVP status snapshot](docs/MVP_STATUS.md)
-- [Open items](docs/OPEN_ITEMS.md)
 - [Monetization and payments](docs/MONETIZATION_AND_PAYMENTS.md)
 - [Branding guide](docs/BRANDING_GUIDE.md)
 - [Agent and contributor guidance](docs/AGENTS.md)
@@ -42,8 +41,8 @@ dotnet test LTW.sln --no-restore --configuration Release
 
 The full simulation test suite passes under `tests/LTW.Tests/`. A hardcoded
 test count belongs in CI output, not prose — three docs have quoted three
-different stale counts (see `docs/OPEN_ITEMS.md` item 16), so this one
-deliberately doesn't state a number.
+different stale counts before, so this one deliberately doesn't state a
+number.
 
 ## Unity Editor
 

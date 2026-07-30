@@ -2,8 +2,7 @@
 
 Captured 2026-07-25 with `Line Wards/Review/Capture Role Contact Sheet` under Unity
 6000.5.3f1, after the Tier 1 lighting changes (three-point light rig, linear colour space,
-gradient ambient). See [docs/OPEN_ITEMS.md](../../OPEN_ITEMS.md) for what remains open from
-the graphics work this evidence is part of.
+gradient ambient).
 
 | File | What it shows |
 | --- | --- |

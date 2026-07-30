@@ -188,8 +188,8 @@ It seeds a match, captures the default HUD and both send-dock categories, and qu
       whole match and every bot eventually crossed its own `PressureThreshold` and stopped sending forever.
       Adding `!HasLeaked` — which every other creep filter in the codebase already had — makes the same
       seed complete at **tick 926** instead of running past 80,000. Both skipped tests are live again.
-      Credit to the second-pass code review in `docs/OPEN_ITEMS.md` item 10, which found it by reading the
-      code; four sessions of measurement did not.
+      Credit to a second-pass code review that found it by reading the code; four sessions of
+      measurement did not.
 
 - [ ] **Consequences to re-examine, because several conclusions rested on frozen bots.** Every measurement
       taken against a bot opponent was taken against one that eventually stopped attacking:

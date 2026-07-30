@@ -9,7 +9,7 @@ Resume iOS TestFlight work only after this fork produces a local desktop/Unity s
 ## Current Baseline
 
 - The local Unity scene loads `Assets/Scenes/LocalVerticalSlice.unity` without current console errors.
-- The simulation supports eight side-by-side 7x16 long north-south lanes, an explicit local seat, bots on the remaining lanes, placement with lane-ownership authority, sends under an enforced cooldown, selling, replay export, carousel creep handoff, and match summaries.
+- The simulation supports eight side-by-side 7x16 long north-south lanes, an explicit local seat, bots on the remaining lanes, placement with lane-ownership authority, sends (cooldown-free — the send cooldown was deliberately removed), selling, replay export, carousel creep handoff, and match summaries.
 - Content roster: 15 towers in three build lines (ARCANE / FOUNDRY / GROVE) and 15 creeps in three send categories (CORE / RAPID / ELITE). Costs live only in `ContentCatalog`; the client reads them at display time.
 - Automated .NET tests pass, including deterministic local-match coverage.
 - Presentation systems exist for lane cells, towers, creeps, events, pooled objects, audio cues, vibration hooks, and presentation modes.
@@ -85,7 +85,7 @@ The first art-upgrade pass also aligns board material bands, endpoint halos, gat
 - [x] Add sell and upgrade hooks or disabled states with clear affordance.
 - [x] Make confirm/cancel, invalid feedback, and recovery fast enough for repeated play.
 
-Current tower palette exposes Arrow, Control, Relay, selected-tower inspect, and selected/last-tower selling for the local vertical slice. The screen-fit UI layout follows an arena-first frame: persistent match state hugs the top edge, primary actions stay in bottom corners, and secondary view controls sit on the right rail. The build palette and send dock now collapse into compact bottom-corner popout buttons with clearer costs, role labels, affordability/cooldown states, and mobile-safe spacing so the board stays visible during normal play. The tower UI now shares the upgraded role language with the board: role-shaped placement ghosts, stronger invalid-state tinting, selected-tower range rings, and a role-purpose inspect panel make the build/inspect flow easier to read. Upgrade remains intentionally out of scope until tower progression exists.
+The tower palette now exposes all 15 towers through a three-category picker (ARCANE/FOUNDRY/GROVE), plus selected-tower inspect and selected/last-tower selling for the local vertical slice. The screen-fit UI layout follows an arena-first frame: persistent match state hugs the top edge, primary actions stay in bottom corners, and secondary view controls sit on the right rail. The build palette and send dock now collapse into compact bottom-corner popout buttons with clearer costs, role labels, affordability/cooldown states, and mobile-safe spacing so the board stays visible during normal play. The tower UI now shares the upgraded role language with the board: role-shaped placement ghosts, stronger invalid-state tinting, selected-tower range rings, and a role-purpose inspect panel make the build/inspect flow easier to read. Upgrade remains intentionally out of scope until tower progression exists.
 
 ### Acceptance Checks
 
@@ -99,15 +99,15 @@ Current tower palette exposes Arrow, Control, Relay, selected-tower inspect, and
 
 - [x] Add first-pass content for five tower roles: reliable single-target, area/control, relay utility, pulse burst, and prism long-range.
 - [x] Expand to 15 towers in three build lines, surfaced through a category picker (2026-07-29).
-- [x] Give the new towers special behaviour (2026-07-29). **All fifteen** now have one: Barricade's fixed up-lane arc, Foundry's delayed mortar, Tesla's chain arc, Repair Drone's +1 range to neighbours, Elder Canopy's back-most targeting, Grovebond, Rot, Reaping Bloom and Bramble Hold, alongside the existing Pulse splash, Prism priority and Relay gold.
+- [x] Give the new towers special behaviour (2026-07-29). **All fifteen** now have one: Barricade's fixed up-lane arc, Foundry's delayed mortar, Tesla's chain arc, Repair Drone's Servicing (adjacent towers fire one tick faster — replaced an earlier range-buff version that measured as decoration, see `docs/GD_TUNING_LOG.md`), Elder Canopy's back-most targeting, Grovebond, Rot, Reaping Bloom and Bramble Hold, alongside the existing Pulse splash, Prism priority and Relay gold.
 - [x] Generate wrapper prefabs and `TowerVisualLibrary` profiles for the ten new towers (2026-07-29). All fifteen render their own textured mesh.
-- [x] Build the presentation for the mechanics (2026-07-29). Mortar arc and contracting impact telegraph, bramble zone decal, Grovebond ring scaled to the bonus, and Barricade recoil.
-- [ ] Two mechanics are still invisible: Repair Drone's range buff (the neighbour's halo should grow) and Chain Arc's hops (each should draw its own arc rather than reusing the generic beam).
+- [x] Build the presentation for the mechanics (2026-07-29). Mortar arc and contracting impact telegraph, bramble zone decal, Grovebond ring scaled to the bonus, Barricade recoil, and Repair Drone's Servicing tether (a persistent line to the tower it's servicing).
+- [ ] Chain Arc's hops are still invisible — it reuses the generic beam cue rather than drawing its own arc per hop.
 - [x] Add first-pass content for five creep/send roles: runner, brute, swarm, shade, and siege.
 - [x] Give each creep/send a different cost, income gain, and pressure profile.
 - [x] Extend tests so new content validates through the existing simulation contracts.
 
-Current sends have distinct cost, income, speed/health, and quantity pressure across the 15-creep roster. Tower art now has stronger role silhouettes for Arrow/focused, Control/area, Relay/utility, Pulse/burst, and Prism/long-range wards, including owner trim, role props, role-shaped placement previews, and selected-tower rings. Pulse now splashes nearby creeps, Prism prioritizes Shade/high-health pressure, Shade resists non-detection damage, and Siege leaks for extra life loss. Cooldown remains global through economy rules.
+Current sends have distinct cost, income, speed/health, and quantity pressure across the 15-creep roster. Tower art now has stronger role silhouettes for Arrow/focused, Control/area, Relay/utility, Pulse/burst, and Prism/long-range wards, including owner trim, role props, role-shaped placement previews, and selected-tower rings. Pulse now splashes nearby creeps, Prism prioritizes Shade/high-health pressure, Shade resists non-detection damage, and Siege leaks for extra life loss. The send cooldown was deliberately removed (see `docs/GD_TUNING_LOG.md`); sends are paced by cost and income alone now.
 
 ### Acceptance Checks
 
@@ -123,9 +123,18 @@ Three tiers for each of the six categories — tower lines ARCANE / FOUNDRY / GR
 CORE / RAPID / ELITE. Tier 1 is free and default; tiers 2 and 3 are purchased at roughly 2.5x the
 previous cost. Creeps scale on health (100 / 150 / 225%), towers on damage (100 / 140 / 190%).
 
-This is also the closing mechanism the game currently lacks — see the P1 stalemate in
-`GAMEPLAY_REVIEW_FINDINGS.md`. Creep scaling is set deliberately ahead of tower scaling at maximum
-investment so a fully-invested attacker can break a fully-invested defence.
+**Correction (2026-07-30): the "closing mechanism" justification below no longer holds.** The P1
+stalemate this section cites was a bug — a bot pressure check counted creeps that had already left
+the lane, so bots stopped sending permanently — not a design gap. Fixed, the same seed completes at
+tick 926. The tier structure (three independent tiers per category, escalating cost, one stat per
+side) is still worth building on its own merits, but the 225%/190% calibration was chosen to let a
+maxed attacker break a maxed defender's stalemate, a problem that no longer exists, and the
+"two tier-3 bots still reach a result" ship gate below now passes trivially. Both need redoing
+before implementation. Full detail in `docs/CATEGORY_UPGRADE_TIERS_PLAN.md`'s own revision note.
+
+~~This is also the closing mechanism the game currently lacks~~ — see the correction above. Creep
+scaling is set deliberately ahead of tower scaling at maximum investment so a fully-invested attacker
+can break a fully-invested defence.
 
 ### Deliverables
 
@@ -152,8 +161,11 @@ investment so a fully-invested attacker can break a fully-invested defence.
 - [ ] Tier 1 is free and default for all six categories.
 - [ ] Skipping a tier is rejected, so the escalating cost is actually paid.
 - [ ] A tier-3 attacker beats a tier-1 defender.
-- [ ] **Two tier-3 bots still reach a result.** This is the ship/no-ship gate: if fully-invested
-      defences still stalemate, the feature has moved the P1 problem rather than fixed it.
+- [ ] ~~**Two tier-3 bots still reach a result.**~~ No longer a meaningful gate — the stalemate this
+      guarded against was a bot-pressure bug, already fixed, so two tier-3 bots now reach a result
+      regardless of this feature. Replace with a gate that still tests something: e.g. a tier-3
+      attacker still beats a tier-3 defender in a comparable number of ticks to today's baseline,
+      rather than merely "a match ends."
 - [ ] All four existing measurement harnesses re-run at tier 3. Flat mechanic bonuses (Grovebond's
       `+1 per neighbour` especially) are worth proportionally less against scaled damage and may need
       to scale too.
@@ -167,7 +179,7 @@ investment so a fully-invested attacker can break a fully-invested defence.
 - [x] Add scenario tests for low-pressure, normal-pressure, and heavy-pressure matches.
 - [x] Record current known balance problems in a tuning log.
 
-Initial target ranges and known balance questions are recorded in `docs/GD_TUNING_LOG.md`. The first pacing pass raises local lives to 220, delays bot send spending during the opening, and guards the deterministic local match against a 150-2000 tick completion target (widened from an earlier 900-1800 after the bot-stalemate fix in `docs/OPEN_ITEMS.md` item 10). `tests/LTW.Tests/GameplayScenarioTests.cs` now covers low-pressure (stable opening defense), normal-pressure (income and active combat), and heavy-pressure (escalation without hidden bot advantages) scenarios; the full solution test suite passes under `dotnet test LTW.sln --configuration Release` (a specific count isn't quoted deliberately — see `docs/OPEN_ITEMS.md` item 16).
+Initial target ranges and known balance questions are recorded in `docs/GD_TUNING_LOG.md`. The first pacing pass raises local lives to 220, delays bot send spending during the opening, and guards the deterministic local match against a 150-2000 tick completion target (widened from an earlier 900-1800 after a bot-pressure bug that stopped bots from ever sending again was fixed — see `docs/GD_TUNING_LOG.md`, "The Stalemate Was A Bug, Not Balance"). `tests/LTW.Tests/GameplayScenarioTests.cs` now covers low-pressure (stable opening defense), normal-pressure (income and active combat), and heavy-pressure (escalation without hidden bot advantages) scenarios; the full solution test suite passes under `dotnet test LTW.sln --configuration Release` (a specific count isn't quoted deliberately — it has drifted stale in prose before and will again).
 
 ### Acceptance Checks
 
