@@ -106,6 +106,15 @@ public sealed class LocalVerticalSlice
     public ContentCatalog Content => content;
 
     /// <summary>
+    /// Number of cells creeps must walk in a lane, which is the measure of how well it has been mazed.
+    /// </summary>
+    /// <remarks>
+    /// Exposed because mazing is the core skill this game is about, and it was previously impossible to
+    /// assert on from outside — so nothing noticed that the bots never did it.
+    /// </remarks>
+    public int RouteLength(LaneId laneId) => routes.TryGetValue(laneId, out var route) ? route.Count : 0;
+
+    /// <summary>
     /// The seat the local client drives. Presentation and input code should ask for this rather
     /// than assuming player 1, so the same client can be seated anywhere in the match — the
     /// prerequisite for remote players each driving their own seat.
@@ -540,16 +549,92 @@ public sealed class LocalVerticalSlice
         }
 
         var laneId = topology.HomeLaneFor(playerId);
-        var candidates = BotPlacementCandidates(bot.Profile, ownedTowerCount);
-
-        foreach (var position in candidates)
+        var position = BestMazingPlacement(playerId, laneId, towerId, content.Towers.First(t => t.Id.Equals(towerId)).RangeCells);
+        if (position is not null)
         {
-            if (PlaceTower(playerId, laneId, towerId, position).Accepted)
-            {
-                return;
-            }
+            PlaceTower(playerId, laneId, towerId, position.Value);
         }
     }
+
+    /// <summary>
+    /// Picks the cell that best lengthens the creep route while still covering it — mazing.
+    /// </summary>
+    /// <remarks>
+    /// This replaced a hardcoded list of nine positions in columns 1 and 5, chosen with no reference to
+    /// the route at all. That arrangement had two consequences worth stating, because both distorted
+    /// every balance measurement taken against these bots. It never mazed, so bots defended a straight
+    /// lane no human would leave straight; and once those nine cells were occupied the bot could never
+    /// build again, which is why a bot in an earlier probe sat on 3,700 gold with its tower count frozen
+    /// at nine.
+    ///
+    /// Scoring is deliberately simple and explainable rather than clever:
+    ///   route length gained x MazeLengthWeight   — how much longer the creeps' walk becomes
+    ///   + route cells this tower covers          — how much of that walk it can actually shoot
+    /// Length dominates, because a cell that adds ten steps of walking helps every tower already built,
+    /// while coverage only helps this one. Cells that would block the route entirely are rejected by
+    /// GridPathService before they are ever scored.
+    ///
+    /// Cost: one BFS per candidate cell per placement. The grid is 7x18 and a bot places a tower at most
+    /// once per tick, so this is bounded and small, but it is the reason the search is a single pass over
+    /// empty cells rather than a lookahead.
+    /// </remarks>
+    private GridPosition? BestMazingPlacement(PlayerId playerId, LaneId laneId, ContentId towerId, int rangeCells)
+    {
+        if (!grids.TryGetValue(laneId, out var grid) || !routes.TryGetValue(laneId, out var currentRoute))
+        {
+            return null;
+        }
+
+        var map = content.Maps[0];
+        GridPosition? best = null;
+        var bestScore = int.MinValue;
+
+        for (var y = 0; y < map.Height; y++)
+        {
+            for (var x = 0; x < map.Width; x++)
+            {
+                var candidate = new GridPosition(x, y);
+                var validation = ValidateTowerPlacement(playerId, laneId, towerId, candidate);
+                if (!validation.Result.Accepted)
+                {
+                    continue;
+                }
+
+                var route = validation.Placement!.Route;
+                var lengthGain = route.Count - currentRoute.Count;
+                var covered = 0;
+                for (var index = 0; index < route.Count; index++)
+                {
+                    var cell = route[index];
+                    if (System.Math.Abs(cell.X - candidate.X) + System.Math.Abs(cell.Y - candidate.Y) <= rangeCells)
+                    {
+                        covered++;
+                    }
+                }
+
+                var score = lengthGain * MazeLengthWeight + covered;
+                if (score <= bestScore)
+                {
+                    continue;
+                }
+
+                bestScore = score;
+                best = candidate;
+            }
+        }
+
+        return best;
+    }
+
+    /// <summary>
+    /// How many route cells of coverage one extra step of creep walking is worth.
+    /// </summary>
+    /// <remarks>
+    /// Above 1 so lengthening wins ties against merely covering more. Extra route length multiplies
+    /// across every tower the bot owns and every one it will build later, whereas coverage from a single
+    /// placement only ever helps that placement.
+    /// </remarks>
+    private const int MazeLengthWeight = 4;
 
     private static ContentId BotTowerForSlot(BotDecisionProfile profile, int ownedTowerCount)
     {

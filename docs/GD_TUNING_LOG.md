@@ -955,3 +955,44 @@ measurement harnesses, since every damage-per-gold figure in this document was m
 
 Not shipped, and the repo is green at the old speed. The change is right and the game will be better for
 it, but it is a coordinated rebalance, not a constant.
+
+
+## 2026-07-29 (bots): They Were Not Playing The Game, And Fixing That Broke The Ending
+
+The owner's call, and it is correct: the bots were dumb scripts, and this game is about mazing. Their
+placements came from a hardcoded list of NINE cells in columns 1 and 5, picked with no reference to the
+creep route. Two consequences, both worse than "the bots are weak":
+
+1. **They never mazed.** They defended a straight lane that no human player would leave straight.
+2. **They stopped building after nine towers**, because once those cells were occupied nothing else was
+   ever tried. This is what left a bot in an earlier probe sitting on 3,700 gold at income 82 with its
+   tower count frozen at nine — which I had misread as a send-gate bug.
+
+`BestMazingPlacement` replaces the list. It scores every legal empty cell in the bot's lane as
+`route length gained x 4 + route cells this tower covers`, and takes the best. Length dominates because
+an extra step of walking helps every tower the bot owns and every one it builds later, while coverage
+only helps the one being placed. Blocking placements never get scored — GridPathService rejects them
+first. Cost is one BFS per candidate per placement, bounded by a 7x18 grid and one placement per tick.
+
+Measured on lane 2, seed 1, after 1,200 ticks: **route length 16 cells straight to 40 cells mazed**, and
+the busiest bot goes from 9 towers to 68.
+
+**This invalidates a lot of the balance work in this document, and that needs saying plainly.** Every
+figure in the tower duel, mechanic contribution, whiff rate and opportunity cost harnesses was measured
+against a STRAIGHT route, because that is what the harnesses construct and what the bots produced. Real
+play has a 40-cell path. A tower beside a 40-cell maze sees roughly two and a half times the exposure it
+saw in those measurements, which means:
+
+- "Towers only get 1-3 shots per creep, and 10 of 15 cannot kill a Runner" was measured on a straight
+  lane and overstates the problem.
+- The creep-speed conclusion from earlier today needs revisiting BEFORE any of it is acted on. Slowing
+  creeps 4x on top of a 2.5x longer path would compound to roughly 10x more exposure.
+
+**And competent bots exposed that the game cannot end.** With both bots mazing, neither can break the
+other: verified to 80,000 ticks — about five and a half hours of game time — with no match summary. The
+undefended human seat dies on schedule, then the two surviving bots sit above 180 lives each, sending
+into defences that hold forever. Two match-completion tests are skipped with that reason recorded rather
+than rewritten to bless the stalemate, because completion is the behaviour we want.
+
+The game needs a closing mechanism against competent defence: escalating creep strength over time, an
+income cap, or a sudden-death phase. That is a design decision, not a tuning one.

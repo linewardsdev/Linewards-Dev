@@ -174,6 +174,21 @@ It seeds a match, captures the default HUD and both send-dock categories, and qu
       `TowerMotionProfile` table, so a new tower is one row rather than three edits. `locksYaw` is
       per-role data instead of hardcoded to Pulse.
 
+## P1 — Open: the game cannot end against competent defence (2026-07-29)
+
+- [ ] **Two mazing bots stalemate forever.** Verified to 80,000 ticks (~5.5 hours of game time) with no
+      match summary. The undefended seat is eliminated on schedule; the two surviving bots then hold above
+      180 lives each indefinitely. Needs a closing mechanism — escalating creep strength, an income cap, or
+      a sudden-death phase. `LocalThreePlayerMatchTests` has two tests skipped against this, deliberately
+      still asserting the behaviour we want.
+
+- [ ] **Every balance measurement on record was taken against a STRAIGHT route and needs redoing.** The
+      duel, contribution, whiff and opportunity-cost harnesses all build a straight lane, which is what the
+      old bots produced. Real play now has a 40-cell mazed path against a 16-cell straight one, so a tower
+      sees ~2.5x the exposure those measurements assumed. In particular "towers only get 1-3 shots per
+      creep" overstates the problem, and the creep-speed decision should not be acted on until it is
+      re-measured against a maze.
+
 ## P2 — Found once the mock stopped covering the board
 
 - [ ] **World-space combat text overlaps itself and is hard to read under load.** In
