@@ -134,9 +134,17 @@ It seeds a match, captures the default HUD and both send-dock categories, and qu
       reasoning about the mechanic. **Repair Drone's +1 range to neighbours is the same shape of risk**
       — strictly additive, helps every neighbour, no downside — and should be watched in play.
 
-- [ ] **Nothing has been played.** All balance is measured arithmetic. Two priority questions remain:
-      is Bloomheart a near-no-op in the modal same-type send, and does the mortar's 0.5s delay feel
-      fair at the board camera.
+- [x] **ANSWERED — Bloomheart's Reaping Bloom was a near-no-op, and is replaced.** Measured at 0%
+      divergence in every organic scenario against a stat-identical control (5% overall, and that came
+      from a hand-seeded case). Now Crowd Bloom: +1 damage per creep sharing the target's cell. Deals 7
+      vs the control's 4 against a stacked send and exactly baseline against a trickle.
+
+- [ ] **Repair Drone's +1 range to neighbours has not been checked for the same problem.** The
+      run-it-twice-against-a-stat-identical-control harness in `BloomheartDivergenceTests` generalises
+      and needs no production changes.
+
+- [ ] **Nothing has been played.** All balance is measured arithmetic. The open question is whether the
+      mortar's 0.5s delay feels fair at the board camera.
 
 - [ ] **P1: towers only get 1–3 shots per creep, and 10 of 15 cannot kill even a Runner.** Measured
       with `TowerDuelBalanceTests`, not estimated. `CombatService.MoveCreeps` adds `SpeedPerSecond`

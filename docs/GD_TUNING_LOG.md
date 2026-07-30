@@ -751,3 +751,55 @@ Worth stating plainly: "no mandatory buys" cannot be enforced by a test the way 
 build — but a tower EVERYONE builds looks fine on all four stat axes and is only visible in play. Thorn
 Snare was caught by reasoning about the mechanic, not by a measurement, and the same class of problem
 could hide in Repair Drone's range buff (also strictly additive, also helps every neighbour).
+
+
+## 2026-07-29 (measured): Reaping Bloom Was Decoration, So It Was Replaced
+
+Bloomheart Totem was flagged as possibly a near-no-op. It was, and the measurement is worth keeping
+because the method generalises.
+
+`BloomheartDivergenceTests` runs each scenario TWICE against bit-identical state — once with the real
+Bloomheart, once with a baseline tower carrying Bloomheart's exact stats under an id the mechanic does
+not match — and compares shot-by-shot target choice. The difference between the two runs is the
+mechanic's entire contribution, measured through the real CombatService rather than inferred.
+
+Reaping Bloom (finish the weakest, else lead) changed the shot in:
+
+| scenario | shots | shot changed |
+| --- | ---: | ---: |
+| same-type send x6 (the modal case) | 1 | 0% |
+| same-type send x6 + a second tower chipping them | 1 | 0% |
+| trickle x8 | 8 | 0% |
+| trickle x8 + support | 8 | 0% |
+| wounded trailer (hand-seeded) | 2 | 50% |
+| **overall** | **20** | **5%** |
+
+Zero in every organic scenario. The only divergence came from a wounded trailer constructed by hand.
+The cause is structural: a quantity-N send spawns all N creeps on one cell, in one tick, at full health,
+and they move as a pure function of position and speed — so all four of that rule's tie-breakers
+(is-lethal, lowest health, furthest forward, entity id) tied, and the last one picked the same creep the
+default front-most rule would. Adding a second tower to wound the group did not help, because creeps
+cross the whole lane in 4.5 seconds and there is no time for health to diverge while they are in range.
+
+**Replaced with Crowd Bloom:** +1 damage for every other creep sharing the target's cell, capped at +3.
+This keys off exactly the thing that made the old rule inert — a stacked send is the modal case — so the
+mechanic engages in the common situation rather than an exotic one.
+
+Re-measured, same harness, now reading damage rather than target choice, since it is a damage rule:
+
+| scenario | Bloomheart | stat-identical baseline |
+| --- | ---: | ---: |
+| same-type send x6 (stacked) | 7 | 4 |
+| trickle x8 (single file) | 32 | 32 |
+
+Strong against a stacked send, exactly baseline against a trickle. That shape matters for "no mandatory
+buys": it counters a specific play rather than adding flat value, so declining it is a real option.
+
+It is also not a duplicate of Pulse, which is the roster's other answer to a clump. Pulse SPREADS half
+damage across the group and thins it; Crowd Bloom CONCENTRATES on one creep because the others are
+there. Thin the crowd or punch through it.
+
+**Method note worth reusing:** the "run it twice against a stat-identical control" comparison is how any
+mechanic can be checked for being decoration, and it needs no production changes. Repair Drone's +1
+range to neighbours is the obvious next candidate, since strictly-additive buffs are hard to judge by
+eye.

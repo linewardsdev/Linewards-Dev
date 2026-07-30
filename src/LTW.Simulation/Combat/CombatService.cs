@@ -337,6 +337,10 @@ public sealed class CombatService
             {
                 shotDamage = RotDamage(content, target.CreepId, towerDefinition.Damage);
             }
+            else if (IsBloomheartTower(tower.TowerId))
+            {
+                shotDamage += CrowdBloomBonus(next, routes, tower, target);
+            }
 
             next = DamageCreep(next, content, tower, target, shotDamage, tick, events);
 
@@ -589,21 +593,6 @@ public sealed class CombatService
                 .FirstOrDefault();
         }
 
-        if (IsBloomheartTower(tower.TowerId))
-        {
-            // Finish the weakest, else lead. The lethality test goes through AdjustDamageForRoles
-            // rather than raw damage: a 3hp Shade takes halved damage from this tower, so without
-            // the adjustment it would enter the "lethal" partition, outrank a genuinely killable
-            // creep on PathIndex, and eat the totem's one shot per pass without dying — the
-            // mechanic visibly failing at the moment it should read as working.
-            return targets
-                .OrderByDescending(creep => creep.Health <= AdjustDamageForRoles(tower.TowerId, creep.CreepId, towerDefinition.Damage))
-                .ThenBy(creep => creep.Health)
-                .ThenByDescending(creep => creep.PathIndex)
-                .ThenBy(creep => creep.EntityId.Value)
-                .FirstOrDefault();
-        }
-
         if (IsPrismTower(tower.TowerId))
         {
             return targets
@@ -746,6 +735,53 @@ public sealed class CombatService
     private static bool IsSaplingTower(ContentId towerId) => ContainsRole(towerId, "sapling");
 
     private static bool IsBloomheartTower(ContentId towerId) => ContainsRole(towerId, "bloomheart");
+
+    private const int CrowdBloomMaxBonus = 3;
+
+    /// <summary>
+    /// Extra damage a Bloomheart Totem gets for every OTHER creep sharing its target's cell, capped at
+    /// <see cref="CrowdBloomMaxBonus"/>.
+    /// </summary>
+    /// <remarks>
+    /// This replaced "Reaping Bloom" (finish the weakest, else lead) after measuring it. That rule was
+    /// inert: BloomheartDivergenceTests ran the totem against a stat-identical baseline tower and it
+    /// picked a different creep in 0% of shots in every organic scenario — same-type send, trickle, and
+    /// both of those with a second tower chipping the group. The only divergence came from a wounded
+    /// trailer seeded by hand. The reason is that a quantity-N send spawns all N creeps on one cell in
+    /// one tick at full health, and they move as a pure function of position and speed, so every one of
+    /// that rule's tie-breakers tied and the last one picked the same creep the default rule would.
+    ///
+    /// Crowd Bloom keys off exactly the thing that made the old rule inert. A stacked send is the modal
+    /// case, so the mechanic now engages in the common situation rather than an exotic one, and the
+    /// tower answers a dense queue by deleting its leader.
+    ///
+    /// Not a duplicate of Pulse's splash, which is the other answer to a clump: Pulse SPREADS half
+    /// damage across the group and thins it, while this CONCENTRATES on one creep because the others
+    /// are there. Thin the crowd or punch through it — different answers to the same board.
+    /// </remarks>
+    private static int CrowdBloomBonus(
+        CombatState state,
+        IReadOnlyDictionary<LaneId, IReadOnlyList<GridPosition>> routes,
+        TowerCombatState tower,
+        CreepCombatState target)
+    {
+        var targetCell = ResolvePosition(target, routes);
+        var crowd = 0;
+        foreach (var creep in state.Creeps)
+        {
+            if (creep.EntityId.Equals(target.EntityId) || creep.IsDead || creep.HasLeaked)
+            {
+                continue;
+            }
+
+            if (creep.LaneId.Equals(tower.LaneId) && ResolvePosition(creep, routes).Equals(targetCell))
+            {
+                crowd++;
+            }
+        }
+
+        return Math.Min(CrowdBloomMaxBonus, crowd);
+    }
 
     private static bool IsThornTower(ContentId towerId) => ContainsRole(towerId, "thorn");
 

@@ -197,38 +197,76 @@ public sealed class TowerMechanicTests
         Assert.Equal(10, result.Events.OfType<CreepDamagedEvent>().Single().DamageDealt);
     }
 
-    // ---- Bloomheart: Reaping Bloom -----------------------------------------------------------
+    // ---- Bloomheart: Crowd Bloom --------------------------------------------------------------
 
     [Fact]
-    public void Bloomheart_finishes_a_killable_creep_instead_of_the_leader()
+    public void Bloomheart_deals_its_authored_damage_against_a_lone_creep()
     {
         var service = new CombatService();
-        var leader = CreepAt(service, 1, "creep.brute", pathIndex: 8);
-        var woundedTrailer = CreepAt(service, 2, "creep.brute", pathIndex: 6).WithHealth(2);
         var state = new CombatState(
-            new[] { leader, woundedTrailer },
+            new[] { CreepAt(service, 1, "creep.colossus", pathIndex: 8) },
             new[] { Tower("tower.bloomheart", 10, x: 2, y: 8) });
 
-        var result = service.Advance(state, Content(), Routes(), new SimulationTick(0));
-
-        var killed = Assert.Single(result.Events.OfType<CreepKilledEvent>());
-        Assert.Equal(new EntityId(2), killed.CreepEntityId);
+        Assert.Equal(4, DamageFrom(service, state));
     }
 
     [Fact]
-    public void Bloomheart_falls_back_to_the_leader_when_nothing_is_killable()
+    public void Bloomheart_gains_damage_for_each_creep_sharing_the_targets_cell()
     {
         var service = new CombatService();
-        var leader = CreepAt(service, 1, "creep.brute", pathIndex: 8);
-        var trailer = CreepAt(service, 2, "creep.brute", pathIndex: 6);
+        // Three creeps stacked on one cell, which is what a quantity-N send looks like.
         var state = new CombatState(
-            new[] { leader, trailer },
+            new[]
+            {
+                CreepAt(service, 1, "creep.colossus", pathIndex: 8),
+                CreepAt(service, 2, "creep.colossus", pathIndex: 8),
+                CreepAt(service, 3, "creep.colossus", pathIndex: 8)
+            },
             new[] { Tower("tower.bloomheart", 10, x: 2, y: 8) });
 
         var result = service.Advance(state, Content(), Routes(), new SimulationTick(0));
+        var damage = result.Events.OfType<CreepDamagedEvent>().Single().DamageDealt;
 
-        var fired = Assert.Single(result.Events.OfType<TowerFiredEvent>());
-        Assert.Equal(new EntityId(1), fired.TargetCreepEntityId);
+        // 4 authored + 2 others on the cell.
+        Assert.Equal(6, damage);
+    }
+
+    [Fact]
+    public void Crowd_bloom_bonus_is_capped()
+    {
+        var service = new CombatService();
+        var creeps = Enumerable.Range(1, 8)
+            .Select(index => CreepAt(service, index, "creep.colossus", pathIndex: 8))
+            .ToArray();
+        var state = new CombatState(creeps, new[] { Tower("tower.bloomheart", 10, x: 2, y: 8) });
+
+        var result = service.Advance(state, Content(), Routes(), new SimulationTick(0));
+        var damage = result.Events.OfType<CreepDamagedEvent>().Single().DamageDealt;
+
+        // 4 authored + 3 cap, not + 7.
+        Assert.Equal(7, damage);
+    }
+
+    [Fact]
+    public void Crowd_bloom_ignores_creeps_on_other_cells()
+    {
+        var service = new CombatService();
+        var state = new CombatState(
+            new[]
+            {
+                CreepAt(service, 1, "creep.colossus", pathIndex: 8),
+                CreepAt(service, 2, "creep.colossus", pathIndex: 7),
+                CreepAt(service, 3, "creep.colossus", pathIndex: 6)
+            },
+            new[] { Tower("tower.bloomheart", 10, x: 2, y: 8) });
+
+        var result = service.Advance(state, Content(), Routes(), new SimulationTick(0));
+        var primary = result.Events.OfType<CreepDamagedEvent>()
+            .OrderByDescending(damaged => damaged.DamageDealt)
+            .First();
+
+        // Spread out in single file, so no crowd bonus at all.
+        Assert.Equal(4, primary.DamageDealt);
     }
 
     // ---- Thorn Snare: Bramble Hold -----------------------------------------------------------
