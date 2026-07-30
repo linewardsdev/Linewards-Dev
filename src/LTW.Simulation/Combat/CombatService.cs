@@ -328,18 +328,32 @@ public sealed class CombatService
 
             events.Add(new TowerFiredEvent(tick, tower.LaneId, tower.EntityId, tower.Position, target.EntityId, targetCell, tick, targetCell));
 
-            var shotDamage = towerDefinition.Damage;
+            // Two levels, and the split is what lets a future damage multiplier (see
+            // docs/CATEGORY_UPGRADE_TIERS_PLAN.md) apply to EVERYTHING a tower does rather than only its
+            // primary hit.
+            //
+            //   baseDamage  — the tower's damage before any mechanic. Splash and any other secondary
+            //                 effect must read this, so scaling it scales the whole tower.
+            //   shotDamage  — baseDamage plus this tower's own mechanic. Primary hit only.
+            //
+            // Splash previously read towerDefinition.Damage directly, deliberately, so a hypothetical
+            // tower that matched both the pulse and sapling role tokens could not have its splash
+            // inflated by Grovebond. That still holds — splash reads baseDamage, not shotDamage — but it
+            // now goes through the seam, so a tier multiplier applied to baseDamage reaches it.
+            var baseDamage = towerDefinition.Damage;
+
+            var shotDamage = baseDamage;
             if (IsSaplingTower(tower.TowerId))
             {
-                shotDamage += GrovebondBonus(next, tower);
+                shotDamage += GrovebondBonus(next, tower, baseDamage);
             }
             else if (IsSporeTower(tower.TowerId))
             {
-                shotDamage = RotDamage(content, target.CreepId, towerDefinition.Damage);
+                shotDamage = RotDamage(content, target.CreepId, baseDamage);
             }
             else if (IsBloomheartTower(tower.TowerId))
             {
-                shotDamage += CrowdBloomBonus(next, routes, tower, target);
+                shotDamage += CrowdBloomBonus(next, routes, tower, target, baseDamage);
             }
 
             next = DamageCreep(next, content, tower, target, shotDamage, tick, events);
@@ -351,7 +365,7 @@ public sealed class CombatService
 
             if (IsPulseTower(tower.TowerId))
             {
-                var splashDamage = Math.Max(1, towerDefinition.Damage / 2);
+                var splashDamage = Math.Max(1, baseDamage / 2);
                 var targetPosition = ResolvePosition(target, routes);
                 var splashTargets = next.Creeps
                     .Where(creep => !creep.EntityId.Equals(target.EntityId))
@@ -706,11 +720,22 @@ public sealed class CombatService
 
     private static bool IsBarricadeTower(ContentId towerId) => ContainsRole(towerId, "barricade");
 
-    private const int GrovebondMaxBonus = 3;
+    /// <summary>Percent of base damage each bonded Grove neighbour adds.</summary>
+    /// <remarks>
+    /// A PERCENTAGE of base damage rather than a flat +1, and that is the point. A flat bonus silently
+    /// decays as base damage grows: at the Sapling's authored 2 damage, +1 per neighbour is +50% each, but
+    /// against a tier-scaled base (docs/CATEGORY_UPGRADE_TIERS_PLAN.md) the same +1 would be an ever
+    /// smaller share, so investing in the line would quietly weaken its own mechanic. 50% reproduces
+    /// today's numbers exactly at damage 2 — isolated 2, three neighbours 2 + 3 = 5 — and scales with any
+    /// future multiplier.
+    /// </remarks>
+    private const int GrovebondPercentPerNeighbour = 50;
+
+    private const int GrovebondMaxNeighbours = 3;
 
     /// <summary>
     /// Extra damage a Sapling Sentinel gets from orthogonally adjacent Grove towers of the same
-    /// owner and lane, capped at <see cref="GrovebondMaxBonus"/>.
+    /// owner and lane, capped at <see cref="GrovebondMaxNeighbours"/>.
     /// </summary>
     /// <remarks>
     /// The Sapling is the cheapest tower on the roster (10 gold) and deliberately weak alone. This
@@ -718,7 +743,7 @@ public sealed class CombatService
     /// self-limiting in a way that resists a runaway: in a solid block the highest-bonus towers are
     /// the interior ones, and interior towers see no route cells, so they never fire.
     /// </remarks>
-    private static int GrovebondBonus(CombatState state, TowerCombatState sapling)
+    private static int GrovebondBonus(CombatState state, TowerCombatState sapling, int baseDamage)
     {
         var adjacent = 0;
         foreach (var other in state.Towers)
@@ -739,7 +764,8 @@ public sealed class CombatService
             }
         }
 
-        return Math.Min(GrovebondMaxBonus, adjacent);
+        var bonded = Math.Min(GrovebondMaxNeighbours, adjacent);
+        return baseDamage * GrovebondPercentPerNeighbour * bonded / 100;
     }
 
     /// <summary>
@@ -756,11 +782,19 @@ public sealed class CombatService
 
     private static bool IsBloomheartTower(ContentId towerId) => ContainsRole(towerId, "bloomheart");
 
-    private const int CrowdBloomMaxBonus = 3;
+    /// <summary>Percent of base damage each additional creep on the target's cell adds.</summary>
+    /// <remarks>
+    /// Proportional for the same reason as Grovebond: a flat +1 shrinks as a share of base damage. 25%
+    /// reproduces today's numbers at the Totem's authored 4 — two others on the cell give 4 + 2 = 6, a
+    /// full crowd gives 4 + 3 = 7 — and scales with any future multiplier.
+    /// </remarks>
+    private const int CrowdBloomPercentPerCreep = 25;
+
+    private const int CrowdBloomMaxCreeps = 3;
 
     /// <summary>
     /// Extra damage a Bloomheart Totem gets for every OTHER creep sharing its target's cell, capped at
-    /// <see cref="CrowdBloomMaxBonus"/>.
+    /// <see cref="CrowdBloomMaxCreeps"/>.
     /// </summary>
     /// <remarks>
     /// This replaced "Reaping Bloom" (finish the weakest, else lead) after measuring it. That rule was
@@ -783,7 +817,8 @@ public sealed class CombatService
         CombatState state,
         IReadOnlyDictionary<LaneId, IReadOnlyList<GridPosition>> routes,
         TowerCombatState tower,
-        CreepCombatState target)
+        CreepCombatState target,
+        int baseDamage)
     {
         var targetCell = ResolvePosition(target, routes);
         var crowd = 0;
@@ -800,7 +835,8 @@ public sealed class CombatService
             }
         }
 
-        return Math.Min(CrowdBloomMaxBonus, crowd);
+        var counted = Math.Min(CrowdBloomMaxCreeps, crowd);
+        return baseDamage * CrowdBloomPercentPerCreep * counted / 100;
     }
 
     private static bool IsThornTower(ContentId towerId) => ContainsRole(towerId, "thorn");

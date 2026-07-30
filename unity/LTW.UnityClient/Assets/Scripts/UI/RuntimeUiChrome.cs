@@ -45,6 +45,37 @@ namespace LTW.UnityClient.UI
             return new Rect(rect.x + 7f * scale, rect.yMax - 32f * scale, rect.width - 14f * scale, 15f * scale);
         }
 
+        /// <summary>
+        /// Height for one card in a vertical category picker, derived from the panel it sits in.
+        /// </summary>
+        /// <remarks>
+        /// Shared by the send dock and the build palette because this has now been got wrong twice, in
+        /// both of them, the same way: a FIXED card height. At two categories the cards fitted; a third
+        /// pushed the last one's bottom edge to 352 inside a 282-tall panel, so it hung outside the dock
+        /// and over the board with its lower half off-screen.
+        ///
+        /// Deriving the height means adding a category — or a fourth, or a tier row inside each card —
+        /// cannot bring that back. Anything that wants MORE space per card should raise
+        /// <paramref name="preferredHeight"/> and let this clamp it, never bypass it.
+        /// </remarks>
+        public static float CategoryCardHeight(
+            Rect panel,
+            float contentTop,
+            float gap,
+            int cardCount,
+            float preferredHeight,
+            float scale)
+        {
+            if (cardCount <= 0)
+            {
+                return 0f;
+            }
+
+            var top = contentTop - panel.y;
+            var available = panel.height - top - 12f * scale - gap * (cardCount - 1);
+            return Mathf.Min(preferredHeight, Mathf.Max(1f, available / cardCount));
+        }
+
         public static Rect CommandCardMetaRect(Rect rect, float scale)
         {
             return new Rect(rect.x + 7f * scale, rect.yMax - 17f * scale, rect.width - 14f * scale, 12f * scale);

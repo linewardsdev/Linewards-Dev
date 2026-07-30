@@ -1031,3 +1031,37 @@ Two things the plan flags that will bite whoever implements it:
 Also recorded: the existing `TechDefinition` / `BuyTechCommand` scaffolding is NOT reused. It models
 unlocking content, not levelling it, and no tech content has ever been authored — the catalog passes
 `Array.Empty<TechDefinition>()`. Whether to delete it is a separate decision.
+
+
+## 2026-07-29 (prep): The Three Upgrade-Tier Traps Are Now Removed
+
+Owner confirmed the 225% creep / 190% tower scaling gap, and asked for the three implementation traps in
+the tier plan to be fixed up front rather than left as warnings. Done, with all 159 tests unchanged —
+which is the point: none of this alters current behaviour, it only makes the behaviour reachable by a
+multiplier.
+
+**Pulse splash now scales.** `AttackWithTowers` computes two locals instead of one. `baseDamage` is the
+tower's damage before any mechanic and is what every secondary effect reads; `shotDamage` is `baseDamage`
+plus that tower's own mechanic, and applies to the primary hit only. Splash moved from
+`towerDefinition.Damage` onto `baseDamage`, so a tier multiplier applied in one place reaches the primary
+hit, the mechanics and the splash together. Splash still does not read `shotDamage` — that separation was
+deliberate, so a tower matching both the pulse and sapling tokens cannot have its splash inflated by
+Grovebond.
+
+**Flat mechanic bonuses are now proportional.** Grovebond was `+1 damage per adjacent Grove tower` and
+Crowd Bloom `+1 per creep sharing the cell`. Both are now percentages of `baseDamage` — 50% and 25% —
+because a flat bonus shrinks as a share of a scaled base, so investing in a line would have quietly
+weakened that line's own mechanic. The percentages were picked to reproduce the current numbers exactly
+at authored damage: Grovebond 2 → 3/4/5 for one/two/three neighbours, Crowd Bloom 4 → 5/6/7. That is why
+the test suite did not move.
+
+**Both category pickers now share one sizing helper.** `RuntimeUiChrome.CategoryCardHeight` derives card
+height from the panel and clamps a preferred height against it. This had been got wrong twice, in both
+pickers, the same way — a fixed height, which at three categories pushed the last card's bottom edge to
+352 inside a 282-tall panel and hung it over the board. A tier row that wants more space raises the
+preferred height and lets the helper clamp it.
+
+**Also clarified in the plan, at the owner's direction: each category upgrades on its own.** Six
+independent tracks, no shared "tower tier" or "creep tier" and no cross-category discount. A player
+wanting tier 3 in all three tower lines pays 100 + 260 three times. The intent is specialisation — twelve
+purchases exist and gold only ever covers a few, so a player commits to the lines they actually build.

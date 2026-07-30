@@ -40,6 +40,20 @@ Send categories (`SendDockController.CategoryLabels`, 5 creeps each):
 | RAPID | Wisp, Revenant, Obsidian Brute, Serpent, Turret Walker |
 | ELITE | Wraith, Burrower, Stalker, Warden, Colossus |
 
+## Each category upgrades on its own
+
+**Six independent tracks.** Upgrading one category does nothing to any other. ARCANE tier 2 leaves
+FOUNDRY and GROVE at tier 1; CORE tier 3 leaves RAPID and ELITE at tier 1. There is no shared "tower
+tier" or "creep tier" and no cross-category discount.
+
+That is why the state is six separate integers rather than one number per side, and why the cost table
+below is per category — a player who wants tier 3 in all three tower lines pays for all three
+separately, at 100 + 260 each.
+
+The intended consequence is specialisation: with twelve purchases available and gold that only ever
+covers a few, a player commits to the lines they are actually building rather than levelling
+everything. It also means the tier control belongs on each category card, not in a global panel.
+
 ## Tier structure
 
 **Tier 1 is the default and costs nothing.** Every category starts at tier 1; tiers 2 and 3 are
@@ -126,11 +140,23 @@ The two sides apply at **different moments**, and the asymmetry is deliberate:
   line is an ongoing investment; upgrading it should improve towers already standing, which is the
   whole reason to buy a line tier rather than more towers.
 
-`CombatService` already has the seam for the tower side: `AttackWithTowers` computes a `shotDamage`
-local that Grovebond, Rot and Crowd Bloom all modify. The tier multiplier goes in there, **before**
-those mechanics, so a mechanic's bonus is added to already-scaled damage rather than being scaled
-itself. Pulse's splash reads `towerDefinition.Damage` directly and must be updated too, or splash
-silently stays at tier 1.
+`CombatService` has the seam ready, and it was **prepared for this in advance** (2026-07-29) so the
+implementation does not have to find these three problems for itself:
+
+- `AttackWithTowers` now computes **two** locals. `baseDamage` is the tower's damage before any mechanic
+  and is what every secondary effect reads; `shotDamage` is `baseDamage` plus this tower's own mechanic
+  and applies to the primary hit only. **The tier multiplier goes on `baseDamage`**, which means it
+  reaches everything in one place, and mechanic bonuses are added to already-scaled damage rather than
+  being scaled themselves.
+- **Pulse's splash reads `baseDamage`.** It previously read `towerDefinition.Damage` directly, which
+  would have left splash permanently at tier 1. It still does not read `shotDamage`, deliberately, so a
+  tower matching both the pulse and sapling role tokens could not have its splash inflated by Grovebond.
+- **Flat mechanic bonuses were converted to proportional ones.** Grovebond was `+1 damage per adjacent
+  Grove tower` and Crowd Bloom `+1 per creep on the cell`; both are now percentages of `baseDamage`
+  (50% and 25% respectively). A flat bonus shrinks as a share of a scaled base, so tiers would have
+  quietly weakened the very lines being invested in. The percentages were chosen to reproduce today's
+  numbers exactly at the authored damage — Grovebond 2 → 3/4/5, Crowd Bloom 4 → 5/6/7 — so the change
+  landed with all 159 tests unchanged.
 
 `CombatService` is static and stateless, so it needs the tiers passed in. The cleanest route is through
 `CombatContent`, which already carries per-lane ownership — add a tier lookup keyed by `PlayerId`.
@@ -172,11 +198,16 @@ control belongs on those cards:
   affordability styling so it reads consistently with the send and build cards.
 - Card accent brightness stepping with tier, so a maxed category is visible without reading text.
 
-Two existing hazards to respect. The picker's card height is **derived from the panel height**, not
-fixed — that was fixed twice already after cards overflowed the panel and hung over the board, so
-adding a button must not reintroduce a fixed height. And `CommandCardMetaRect` is where the cost line
-goes; the accent bar sits below it at `yMax - 4*scale`, so a second line of text on these cards needs
-its own space rather than borrowing that.
+Card sizing is **already safe** as of 2026-07-29. Both pickers now call
+`RuntimeUiChrome.CategoryCardHeight`, one shared helper that derives the height from the panel and
+clamps a preferred height against it. This had been got wrong twice, in both pickers, the same way — a
+fixed height, which at three categories pushed the last card's bottom edge to 352 inside a 282-tall
+panel so it hung over the board. A tier row that wants more space should raise the preferred height and
+let the helper clamp it, never bypass it.
+
+One hazard remains: `CommandCardMetaRect` is where the cost line goes, and the accent bar sits just
+below it at `yMax - 4*scale`. A second line of text on these cards needs its own space rather than
+borrowing that.
 
 ### Bots
 
@@ -198,9 +229,10 @@ measurement. Four harnesses already exist and all of them need extending:
 
 - `TowerDuelBalanceTests` — per-tier time-to-kill, so the tower tiers' real value is measured rather
   than assumed from the multiplier.
-- `MechanicContributionTests` — every mechanic re-measured at tier 3, since a mechanic that adds a flat
-  bonus is worth proportionally less against scaled damage. Grovebond's `+1 per neighbour` is the
-  clearest case: it does not scale, so it quietly weakens as tiers rise.
+- `MechanicContributionTests` — every mechanic re-measured at tier 3. The two flat bonuses have been
+  converted to proportional ones so they no longer decay, but that is an argument for checking, not a
+  reason to skip it: Rot keys off creep max health and Chain Arc halves, so both interact with scaling in
+  ways the percentages do not obviously cover.
 - `RepairDroneValueTests` — the opportunity-cost comparison now has a third option (buy a tier instead
   of a tower or a drone), and a tier that beats both is a mandatory buy.
 - `BotMazingTests` — extend to assert bots actually purchase tiers.
@@ -225,7 +257,8 @@ stalemate, the multipliers are wrong and the gap between 225% and 190% needs wid
 
 1. **Should tier purchases be per-lane or account-wide?** This design is per-player, so a player's
    ARCANE tier applies to all their ARCANE towers. In a multi-lane match with one lane each, that is the
-   same thing — but it stops being once a player can build in more than one lane.
+   same thing — but it stops being once a player can build in more than one lane. (Confirmed independent
+   per CATEGORY; this question is about lanes, not categories.)
 2. **Should a creep tier raise income too?** Currently no: it is health only. Raising income as well
    would make send tiers compound with themselves and is the most likely route to a mandatory buy.
 3. **Should tower tiers be refundable on sell?** Selling a tower currently refunds 50%. A line tier is

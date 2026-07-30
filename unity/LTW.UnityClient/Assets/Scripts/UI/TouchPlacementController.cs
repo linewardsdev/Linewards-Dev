@@ -945,9 +945,8 @@ namespace LTW.UnityClient.UI
         private void DrawTowerCategoryPicker(Rect rect, float buttonY, float buttonHeight, float gap, float scale)
         {
             var labels = LTW.UnityClient.Simulation.TowerCatalog.CategoryLabels;
-            var top = buttonY - rect.y;
-            var available = rect.height - top - 12f * scale - gap * (labels.Length - 1);
-            var cardHeight = Mathf.Min(buttonHeight, available / labels.Length);
+            var cardHeight = RuntimeUiChrome.CategoryCardHeight(
+                rect, buttonY, gap, labels.Length, buttonHeight, scale);
             var cardWidth = rect.width - 24f * scale;
             var x = rect.x + 12f * scale;
 

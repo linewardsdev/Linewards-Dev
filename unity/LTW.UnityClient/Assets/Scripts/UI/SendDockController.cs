@@ -247,10 +247,8 @@ namespace LTW.UnityClient.UI
             // panel, so the last one hung outside the dock and over the board — the same defect a
             // two-card version of this picker had, reintroduced when a third category landed.
             // Deriving the height means adding a fourth category cannot bring it back.
-            var count = CategoryLabels.Length;
-            var top = buttonY - rect.y;
-            var available = rect.height - top - 12f * scale - gap * (count - 1);
-            var cardHeight = Mathf.Min(buttonHeight, available / count);
+            var cardHeight = RuntimeUiChrome.CategoryCardHeight(
+                rect, buttonY, gap, CategoryLabels.Length, buttonHeight, scale);
             var cardWidth = rect.width - 24f * scale;
             var x = rect.x + 12f * scale;
             var accents = new[] { ArcaneBlue, WardViolet, SignalGold };

@@ -130,13 +130,19 @@ investment so a fully-invested attacker can break a fully-invested defence.
 ### Deliverables
 
 - [ ] Per-player, per-category tier state on `PlayerEconomyState`, defaulting to tier 1, with the
-      existing `With*` methods copying it through.
+      existing `With*` methods copying it through. **Six independent tracks** — upgrading one category
+      never upgrades another, so this is six integers, not one per side.
 - [ ] `BuyCategoryTierCommand` plus an `InvalidTier` rejection reason. Tiers must be bought in order.
 - [ ] Creep health multiplier applied at SPAWN, so upgrading never retroactively heals creeps already
       walking.
-- [ ] Tower damage multiplier applied at SHOT TIME, so it improves towers already standing. Must land
-      before the per-tower mechanics modify `shotDamage`, and must also cover Pulse's splash, which
-      reads `towerDefinition.Damage` directly.
+- [ ] Tower damage multiplier applied at SHOT TIME, so it improves towers already standing. The seam is
+      already prepared: apply it to `baseDamage` in `AttackWithTowers` and it reaches the primary hit, the
+      mechanics and Pulse's splash in one place.
+- [x] Prepare the damage seam so tiers cannot silently miss things (2026-07-29). `baseDamage` / `shotDamage`
+      split, Pulse's splash moved onto `baseDamage`, and Grovebond and Crowd Bloom converted from flat
+      bonuses to percentages of base so they do not decay as damage scales. All 159 tests unchanged.
+- [x] Make the category pickers safe for an extra control (2026-07-29). Both now share
+      `RuntimeUiChrome.CategoryCardHeight`, which derives card height from the panel.
 - [ ] Tier controls on the existing category picker cards in both the build palette and the send dock,
       without reintroducing the fixed card height that overflowed the panel twice.
 - [ ] Bots buy tiers. Without this the feature makes them strictly worse opponents than they are now.
