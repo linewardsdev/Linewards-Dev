@@ -41,6 +41,8 @@ public sealed class LocalVerticalSlice
 
     public MatchSummary? MatchSummary { get; private set; }
 
+    public int IncomeIntervalTicks => economy.IncomeIntervalTicks;
+
     /// <summary>Send-only telemetry, not a reproducible replay — see ReplayRecord's remarks.</summary>
     public ReplayRecord GetReplayRecord() => new ReplayRecord(options.Seed, content.Version, content.Maps[0].Id, players.Players.Select(player => player.PlayerId).ToArray(), tick, acceptedCommands);
 

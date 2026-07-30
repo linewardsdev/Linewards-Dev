@@ -10,6 +10,9 @@ namespace LTW.UnityClient.UI
 {
     public sealed class HudView : MonoBehaviour
     {
+        // Startup default only, before a UnitySimulationDriver is attached — every runtime read
+        // goes through simulationDriver.IncomeIntervalTicks instead (OPEN_ITEMS.md item 24; this
+        // used to be the only copy and could silently disagree with the sim's real value).
         private const long IncomeIntervalTicks = 50;
         private static readonly Color NightInk = new(0.063f, 0.094f, 0.184f, 0.9f);
         private static readonly Color PanelInk = new(0.08f, 0.12f, 0.22f, 0.94f);
@@ -106,7 +109,8 @@ namespace LTW.UnityClient.UI
             MatchTimeText = snapshot.Tick.Value.ToString();
             KillsText = kills.ToString();
             LeaksText = leaks.ToString();
-            incomeTicksRemaining = IncomeIntervalTicks - snapshot.Tick.Value % IncomeIntervalTicks;
+            var incomeIntervalTicks = simulationDriver.IncomeIntervalTicks;
+            incomeTicksRemaining = incomeIntervalTicks - snapshot.Tick.Value % incomeIntervalTicks;
             IncomeTimerText = incomeTicksRemaining.ToString();
             IncomeTickSoon = incomeTicksRemaining <= 5;
         }
@@ -281,7 +285,11 @@ namespace LTW.UnityClient.UI
             var barBack = new Rect(rect.x + 10f * scale, rect.yMax - 11f * scale, rect.width - 20f * scale, 4f * scale);
             DrawAccent(barBack, new Color(Cloud.r, Cloud.g, Cloud.b, 0.16f));
 
-            var fill = 1f - Mathf.Clamp01((float)incomeTicksRemaining / IncomeIntervalTicks);
+            // DrawTimerPill can run before Initialize (OnGUI draws the HUD frame regardless of
+            // whether a driver is attached yet), so this cannot assume simulationDriver is non-null
+            // the way Render already safely does.
+            var incomeIntervalTicks = simulationDriver != null ? simulationDriver.IncomeIntervalTicks : IncomeIntervalTicks;
+            var fill = 1f - Mathf.Clamp01((float)incomeTicksRemaining / incomeIntervalTicks);
             DrawAccent(new Rect(barBack.x, barBack.y, barBack.width * fill, barBack.height), accent);
             return rect.xMax;
         }

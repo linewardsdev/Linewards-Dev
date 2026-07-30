@@ -15,6 +15,10 @@ public sealed class EconomyService
         this.rules = rules;
     }
 
+    /// <summary>Exposed so presentation layers can derive an income countdown without duplicating
+    /// this number (OPEN_ITEMS.md item 24 — the Unity client had its own hardcoded copy).</summary>
+    public int IncomeIntervalTicks => rules.IncomeIntervalTicks;
+
     public bool IsIncomeTick(SimulationTick tick) =>
         tick.Value > 0 && tick.Value % rules.IncomeIntervalTicks == 0;
 

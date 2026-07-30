@@ -34,6 +34,10 @@ corrections firing every session, which would mean something is fighting it
 faster than expected; that would be the signal to actually root-cause this
 rather than lean on the guard indefinitely.
 
+**Update 2026-07-30 (item 24)**: the guard's list covered only these original
+5 materials, so the 10 towers added since were exposed to the same stripping
+this guard exists to absorb. `TowerBodyMaterialPaths` now lists all 15.
+
 ## 2. Bloom cost on a physical Android device is unmeasured
 
 Bloom and tonemapping were tuned and verified in the Editor and via headless
@@ -763,48 +767,71 @@ Simulation:
 
 Unity client:
 
-- Three orphaned UI scripts with zero references: `RuntimeMatchHud.cs` (a
-  complete second IMGUI HUD duplicating `HudView`), `MatchHudPresenter.cs`
-  (would double-count kills/leaks if wired, since `HudView` self-drives from
-  its own `Update`), and `ViewSwapController.cs`. Delete or wire deliberately.
-- `TowerEmissionKeywordGuard` (item 1 of this document) lists **5** materials;
-  `Assets/Art/Towers/Production/Materials/` now has **15**
-  `mat_tower_*_3d_body_runtime_v01.mat`. The 10 newer towers are still exposed
-  to the `_EMISSION` stripping the guard exists to absorb. **Update item 1's
-  "five tower body materials" wording along with the guard's list.**
+- ~~Three orphaned UI scripts with zero references~~ — **resolved 2026-07-30.**
+  `RuntimeMatchHud.cs`, `MatchHudPresenter.cs` and `ViewSwapController.cs`
+  deleted (with their `.meta` files); confirmed zero references anywhere
+  (scenes, prefabs, assets, other scripts) before removing.
+- ~~`TowerEmissionKeywordGuard` lists 5 materials~~ — **resolved 2026-07-30.**
+  `TowerBodyMaterialPaths` now lists all 15; item 1's wording updated with a
+  pointer to this fix.
 - Per-frame allocations in `UnityVerticalSliceRenderer.Update`: `new int[]`,
   four `new List<string>()` release sweeps, two `new HashSet<string>()`, plus
   ~3 string allocations per entity per frame (`EntityId.Value.ToString()`,
   `"t" + key`, `"c" + key`, and a `$"{lane}:{x}:{y}"` tower key). The class
   already holds ~40 reusable `readonly` collections, so the convention exists
-  and these were missed.
-- `DiagnosticsOverlay` builds its text with LINQ and a `StringBuilder` every
-  frame per player and per lane, gated only at `OnGUI` — so a hidden overlay
-  still costs full price at 60 Hz.
-- `RuntimeUiIconLibrary` and `RuntimeUiArtLibrary` are the same class with
-  different roots and two divergences: the art library does not cache nulls (so
-  a missing texture re-hits `Resources.Load` every `OnGUI` pass) and has an
-  `#if UNITY_EDITOR` `AssetDatabase` fallback the icon library lacks — meaning a
-  texture missing from a player build resolves fine in the Editor and in every
-  headless capture, hiding exactly the case that matters.
+  and these were missed. Left as-is — worth profiling on device before
+  changing the hottest, most load-bearing file in the client, same reasoning
+  as item 21.
+- **Re-checked, not a bug**: `DiagnosticsOverlay` building its text every frame
+  regardless of `OnGUI` visibility looked like waste, but the code's own
+  comment (`LatestText is still produced either way, since the playtest
+  recorder consumes it`) already explains this is deliberate — `LatestText` is
+  a real, consumed output for playtest evidence, not a byproduct of a hidden
+  overlay. Same shape as item 18: the review read "always runs" as an oversight
+  without reading the comment explaining why.
+- ~~`RuntimeUiIconLibrary` and `RuntimeUiArtLibrary`... two divergences~~ —
+  **half-resolved 2026-07-30.** `RuntimeUiArtLibrary.LoadChromeTexture` now
+  caches a miss the same way `RuntimeUiIconLibrary` always did, so a missing
+  chrome texture no longer re-hits `Resources.Load` (and, in-editor, an
+  `AssetDatabase` lookup) every `OnGUI` pass. The `#if UNITY_EDITOR`
+  `AssetDatabase` fallback divergence was left alone deliberately: removing it
+  risks surfacing (or breaking) currently-working in-editor behavior that
+  can't be verified without a full Play Mode pass checking every chrome
+  texture, and adding the same fallback to the icon library is the same risk
+  in the other direction. Flagging without touching felt safer than guessing.
 - Four editor capture runners reflect into a private `simulation` field by
   string name and return `false` on failure, so a rename presents as a
   60–180 second timeout rather than an error.
-- `TouchPlacementController` does `Camera.main!` then dereferences it —
-  `NullReferenceException` on every tap if no camera is tagged `MainCamera`.
-  The renderer handles the same case correctly.
-- Duplicated sim constants in the client: `IncomeIntervalTicks = 50`,
-  `SimulationTicksPerSecond = 4f` (already exposed as
-  `UnitySimulationDriver.TicksPerSecond`), and `LaneCount = 8` hardcoded in two
-  scripts against a runtime-configurable 2–8 `LocalMatchOptions.LaneCount` that
-  `LocalPlaytestBatchRunner` already overrides.
-- Dead 5-tower icon path inside `TouchPlacementController`
-  (`DrawPaletteButton`, `TowerIconResourceName`, `CompactTowerLabel`, ~55
-  lines); the live path is `DrawCatalogCard`. Development hotkeys and the
-  in-placement switch strip also still cover only the 5 original towers.
-- Two orphaned Python scripts in `tools/art_pipeline/`:
-  `blender_build_control_tower_source.py` (2,211 lines, superseded by the Meshy
-  intake path) and `measure_creep_gait.py`. Zero references to either.
+- ~~`TouchPlacementController` does `Camera.main!` then dereferences it~~ —
+  **resolved 2026-07-30.** Now null-checks and skips the tap, matching
+  `UnityVerticalSliceRenderer.ConfigureDefaultCamera`'s existing handling of
+  the same case.
+- Duplicated sim constants in the client — **two of three resolved
+  2026-07-30**: `SendDockController`'s local `SimulationTicksPerSecond = 4f`
+  now reads `UnitySimulationDriver.TicksPerSecond` instead; `HudView`'s local
+  `IncomeIntervalTicks = 50` now reads a new `UnitySimulationDriver.IncomeIntervalTicks`
+  (added, backed by a new `EconomyService.IncomeIntervalTicks` /
+  `LocalVerticalSlice.IncomeIntervalTicks` passthrough), keeping the constant
+  only as a documented pre-`Initialize` startup default. **`LaneCount = 8`
+  (two copies, `LaneViewToggleController` and `UnityVerticalSliceRenderer`)
+  left alone deliberately**: `LaneViewToggleController`'s own lane switching
+  ultimately delegates to the renderer's `ActiveLaneCameraId`/`SetActiveLaneCameraId`,
+  which use the renderer's copy — so fixing only one side wouldn't actually
+  close the gap, and giving the renderer (the largest, most central file in
+  the client) a new live-lane-count field is a real change deserving its own
+  pass, not a rider on this one.
+- ~~Dead 5-tower icon path inside `TouchPlacementController`~~ — **resolved
+  2026-07-30.** Deleted `DrawPaletteButton`, `TowerIconResourceName` and
+  `CompactTowerLabel` (confirmed zero callers beyond each other); the live
+  path (`DrawCatalogCard`) and its still-used `DrawTowerIcon` procedural
+  fallback / `TowerIconKind` enum were untouched. Development hotkeys and the
+  in-placement switch strip covering only 5 of 15 towers is a separate,
+  smaller UI-scope gap, left open.
+- ~~Two orphaned Python scripts in `tools/art_pipeline/`~~ — **resolved
+  2026-07-30.** `blender_build_control_tower_source.py` and
+  `measure_creep_gait.py` deleted; confirmed zero real references (one
+  descriptive comment mentioning the latter by name in
+  `rig_quadruped_creep.py` is not a dependency).
 
 Docs:
 

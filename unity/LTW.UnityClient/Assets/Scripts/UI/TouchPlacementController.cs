@@ -220,7 +220,15 @@ namespace LTW.UnityClient.UI
 
             if (inputCamera == null)
             {
-                inputCamera = Camera.main!;
+                inputCamera = Camera.main;
+            }
+
+            // No camera tagged MainCamera yet (e.g. a scene still loading) — skip this tap rather
+            // than dereference null, matching how UnityVerticalSliceRenderer.ConfigureDefaultCamera
+            // handles the same case (OPEN_ITEMS.md item 24).
+            if (inputCamera == null)
+            {
+                return;
             }
 
             var ray = inputCamera.ScreenPointToRay(Input.mousePosition);
@@ -1115,57 +1123,6 @@ namespace LTW.UnityClient.UI
 
                 return sendDockController;
             }
-        }
-
-        private static bool DrawPaletteButton(Rect rect, string label, string meta, TowerIconKind iconKind, Color accent, bool isAffordable, bool isSelected, float scale)
-        {
-            var displayAccent = isAffordable ? accent : DisabledText;
-            var state = isAffordable
-                ? isSelected ? CommandCardState.Selected : CommandCardState.Normal
-                : isSelected ? CommandCardState.Selected : CommandCardState.Normal;
-            var style = buttonStyle ?? GUI.skin.button;
-            var pressed = RuntimeUiChrome.DrawCommandCard(rect, accent, state, scale);
-
-            var iconRect = RuntimeUiChrome.CommandCardIconRect(rect, scale);
-            if (!RuntimeUiIconLibrary.DrawIcon(iconRect, TowerIconResourceName(iconKind), isAffordable))
-            {
-                DrawTowerIcon(iconRect, iconKind, displayAccent, scale);
-            }
-
-            buttonStyle!.fontSize = Mathf.RoundToInt(10f * scale);
-            buttonStyle.normal.textColor = isAffordable ? Cloud : DisabledText;
-            buttonStyle.hover.textColor = buttonStyle.normal.textColor;
-            buttonStyle.active.textColor = buttonStyle.normal.textColor;
-            GUI.Label(RuntimeUiChrome.CommandCardLabelRect(rect, scale), CompactTowerLabel(label), style);
-
-            metaStyle!.fontSize = Mathf.RoundToInt(9f * scale);
-            metaStyle.normal.textColor = displayAccent;
-            GUI.Label(RuntimeUiChrome.CommandCardMetaRect(rect, scale), meta, metaStyle);
-            return pressed;
-        }
-
-        private static string CompactTowerLabel(string label)
-        {
-            return label switch
-            {
-                "ARROW" => "ARW",
-                "RELAY" => "RLY",
-                "PULSE" => "PLS",
-                "PRISM" => "PRM",
-                _ => label
-            };
-        }
-
-        private static string TowerIconResourceName(TowerIconKind iconKind)
-        {
-            return iconKind switch
-            {
-                TowerIconKind.Control => "ui_icon_tower_control_v01",
-                TowerIconKind.Relay => "ui_icon_tower_relay_v01",
-                TowerIconKind.Pulse => "ui_icon_tower_pulse_v01",
-                TowerIconKind.Prism => "ui_icon_tower_prism_v01",
-                _ => "ui_icon_tower_arrow_v01"
-            };
         }
 
         private static void DrawTowerIcon(Rect rect, TowerIconKind iconKind, Color accent, float scale)

@@ -59,6 +59,13 @@ namespace LTW.UnityClient.Simulation
         /// <summary>The lane the local seat defends. Derived from the seat, never hardcoded.</summary>
         public LaneId LocalPlayerLaneId => simulation is null ? new LaneId(1) : simulation.LocalPlayerLaneId;
 
+        /// <summary>
+        /// Ticks between income payouts, read from the sim rather than a client-side copy
+        /// (OPEN_ITEMS.md item 24 — HudView used to hardcode this separately). Falls back to the
+        /// sim's current default only before <see cref="Initialize"/> has run.
+        /// </summary>
+        public int IncomeIntervalTicks => simulation is null ? 50 : simulation.IncomeIntervalTicks;
+
         public void Initialize(LocalVerticalSlice localSimulation)
         {
             simulation = localSimulation;

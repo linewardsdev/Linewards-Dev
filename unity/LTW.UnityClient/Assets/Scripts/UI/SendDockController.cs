@@ -716,8 +716,10 @@ namespace LTW.UnityClient.UI
         /// The shipped cooldown is 0 ticks (74b8519 removed it), so this currently always returns 0.
         /// Reads CurrentPlayerSendCooldownTicks() live rather than assuming that, so if the cooldown
         /// is ever restored this converts whatever tick count comes back at
-        /// UnitySimulationDriver.ticksPerSecond (4) into seconds without needing a code change —
-        /// the player has no reason to care about ticks either way.
+        /// UnitySimulationDriver.TicksPerSecond into seconds without needing a code change — the
+        /// player has no reason to care about ticks either way. Reads TicksPerSecond from the driver
+        /// instance rather than a local duplicate constant (OPEN_ITEMS.md item 24) so a future change
+        /// to the sim rate can't silently desync this conversion from the real one.
         /// </remarks>
         private float CurrentSendCooldownSeconds()
         {
@@ -731,11 +733,15 @@ namespace LTW.UnityClient.UI
                 commandAdapter = Object.FindAnyObjectByType<UnityCommandAdapter>();
             }
 
-            var ticks = commandAdapter?.CurrentPlayerSendCooldownTicks() ?? 0;
-            return ticks <= 0 ? 0f : ticks / SimulationTicksPerSecond;
-        }
+            if (simulationDriver == null)
+            {
+                simulationDriver = Object.FindAnyObjectByType<UnitySimulationDriver>();
+            }
 
-        private const float SimulationTicksPerSecond = 4f;
+            var ticks = commandAdapter?.CurrentPlayerSendCooldownTicks() ?? 0;
+            var ticksPerSecond = simulationDriver != null ? simulationDriver.TicksPerSecond : 4f;
+            return ticks <= 0 ? 0f : ticks / ticksPerSecond;
+        }
 
         private int CurrentPlayerGold()
         {
