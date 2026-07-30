@@ -847,6 +847,9 @@ namespace LTW.UnityClient.UI
             return LTW.UnityClient.Simulation.TowerCatalog.ForRole(selectedTowerRole).RoleId;
         }
 
+        // Unlike name/colour below, ring scale has no per-tower value in TowerCatalog to fall back to
+        // — the fallback here is a deliberate shared default size for the 10 towers added since this
+        // was written, not a wrong answer borrowed from Arrow's branch.
         private static Vector3 TowerSelectionRingScale(string towerId)
         {
             if (towerId.Contains("control")) return new Vector3(1.42f, 0.03f, 1.42f);
@@ -861,17 +864,11 @@ namespace LTW.UnityClient.UI
             return LTW.UnityClient.Simulation.TowerCatalog.ForRole(selectedTowerRole).DisplayName;
         }
 
-        private static string TowerRoleName(string towerId)
-        {
-            if (towerId.Contains("control")) return "Control ward";
-            if (towerId.Contains("relay") || towerId.Contains("economy")) return "Relay ward";
-            if (towerId.Contains("pulse")) return "Pulse ward";
-            if (towerId.Contains("prism")) return "Prism ward";
-            return "Arrow ward";
-        }
+        private static string TowerRoleName(string towerId) =>
+            LTW.UnityClient.Simulation.TowerCatalog.ForContentId(towerId).DisplayName;
 
         private static Color TowerAccent(string towerId) =>
-            LTW.UnityClient.Simulation.TowerRolePalette.For(towerId);
+            LTW.UnityClient.Simulation.TowerCatalog.ForContentId(towerId).Accent;
 
         private Color SelectedTowerAccent()
         {

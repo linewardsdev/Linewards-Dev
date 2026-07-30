@@ -467,7 +467,26 @@ placeholders. `TowerVisualPrefabGenerator` contains *both* conventions about 25
 lines apart. Delete the destructive paths, or gate them behind a confirmation
 that names what will be lost.
 
-## 14. CRITICAL — board tower colour and name still only know the 5 original roles
+## 14. ~~CRITICAL — board tower colour and name still only know the 5 original roles~~ — resolved 2026-07-30
+
+**Fixed by pointing every call site at `TowerCatalog`, which already carried
+correct data for all 15 towers** (it exists specifically to replace parallel
+per-role switches, per its own doc comment — these four just weren't converted
+along with the rest). Added `TowerCatalog.ForContentId(string)`, a
+`ContentId → Entry` lookup alongside the existing `ForRole(int)`, since board
+markers and placed towers only have the content-id string, not the palette
+role index. `UnityVerticalSliceRenderer.TowerMarkerColor`,
+`TouchPlacementController.TowerRoleName` and `TouchPlacementController.TowerAccent`
+now all resolve through it instead of a 5-branch substring match, so a Gatling
+Turret now reports its own name and its own accent instead of Arrow's.
+`TowerRolePalette.For` (the old lookup) had no remaining callers and was
+deleted; the five colour constants stay, since `TowerCatalog`'s own arcane
+entries and a couple of UI call sites still reference them by name.
+`TowerSelectionRingScale` was left alone — unlike colour/name, it has no
+catalog-backed value to fall back to, so its shared default for the 10 newer
+towers is a deliberate placeholder, not a wrong answer inherited from Arrow.
+Verified with a headless Unity batchmode compile in a scratch worktree: 0
+`error CS`.
 
 `TowerRolePalette` documents itself as "the single source of truth for tower
 role colour," written because "the colour a player learned from a card was not

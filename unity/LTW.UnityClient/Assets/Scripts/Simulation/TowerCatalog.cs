@@ -85,6 +85,7 @@ namespace LTW.UnityClient.Simulation
         };
 
         private static readonly Dictionary<int, Entry> ByRole = BuildByRole();
+        private static readonly Dictionary<string, Entry> ByContentId = BuildByContentId();
 
         private static Dictionary<int, Entry> BuildByRole()
         {
@@ -97,11 +98,30 @@ namespace LTW.UnityClient.Simulation
             return map;
         }
 
+        private static Dictionary<string, Entry> BuildByContentId()
+        {
+            var map = new Dictionary<string, Entry>(Entries.Length);
+            foreach (var entry in Entries)
+            {
+                map[entry.ContentId] = entry;
+            }
+
+            return map;
+        }
+
         /// <summary>
         /// Never returns null: an unknown role falls back to the first entry, matching the old
         /// switch statements, which all used Arrow as their default arm.
         /// </summary>
         public static Entry ForRole(int role) => ByRole.TryGetValue(role, out var entry) ? entry : Entries[0];
+
+        /// <summary>
+        /// Resolves a tower's simulation ContentId (e.g. "tower.arrow") to its catalog entry. For
+        /// board-placed towers, where only the content id string is known, not the palette role index.
+        /// Never returns null, same Arrow fallback as <see cref="ForRole"/>.
+        /// </summary>
+        public static Entry ForContentId(string contentId) =>
+            contentId is not null && ByContentId.TryGetValue(contentId, out var entry) ? entry : Entries[0];
 
         public static IEnumerable<Entry> InCategory(int category)
         {

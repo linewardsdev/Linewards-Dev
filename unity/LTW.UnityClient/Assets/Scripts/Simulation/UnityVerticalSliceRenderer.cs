@@ -4293,7 +4293,7 @@ namespace LTW.UnityClient.Simulation
         /// the explicit predicates rather than loose substring tests, which is what let prism fall
         /// through to control's branch.
         /// </remarks>
-        private static Color TowerMarkerColor(string towerId) => TowerRolePalette.For(towerId);
+        private static Color TowerMarkerColor(string towerId) => TowerCatalog.ForContentId(towerId).Accent;
 
         private static void ConfigureCreepRoleMarker(GameObject creepObject, string creepId, int senderId, float healthFraction, bool isHitFlashing)
         {

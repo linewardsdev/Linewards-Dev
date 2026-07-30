@@ -3,19 +3,23 @@ using UnityEngine;
 namespace LTW.UnityClient.Simulation
 {
     /// <summary>
-    /// The single source of truth for tower role colour.
+    /// The five arcane-role colour constants, seeded into <see cref="TowerCatalog"/>'s entries for
+    /// those roles.
     /// </summary>
     /// <remarks>
-    /// Role colour was previously defined twice: <c>UnityVerticalSliceRenderer.TowerMarkerColor</c>
-    /// for board markers, halos and the derived base tint, and <c>TouchPlacementController</c> for
-    /// the build palette cards and selection ring. The two disagreed on three of the five roles, so
-    /// the colour a player learned from a card was not the colour the placed tower carried.
+    /// This used to also be the lookup itself (a <c>For(string towerId)</c> substring-matcher), which
+    /// was the single source of truth for tower role colour back when arcane was the whole roster.
+    /// That lookup only ever recognised the 5 arcane roles, so all 10 Foundry/Grove towers silently
+    /// fell through to Arrow's blue once the roster grew — <c>TowerCatalog.ForContentId(...).Accent</c>
+    /// replaces it now, covering all 15 towers from one array instead of a hand-maintained switch.
+    /// The constants stay here because <see cref="TowerCatalog"/>'s 5 arcane entries and a couple of
+    /// UI call sites (the in-placement switch strip) still reference them directly by name.
     ///
-    /// Hues are also kept apart. The board mapping used to return the same pale blue for control
-    /// and prism, and the card palette gave arrow and prism two shades of blue, so in both places a
-    /// pair of roles was effectively indistinguishable. Prism takes the warm coral slot, which is
-    /// the only hue neither definition was already using, so the four associations players have
-    /// already formed are preserved.
+    /// Hues are kept apart deliberately: the board mapping used to return the same pale blue for
+    /// control and prism, and the card palette gave arrow and prism two shades of blue, so in both
+    /// places a pair of roles was effectively indistinguishable. Prism takes the warm coral slot,
+    /// which is the only hue neither definition was already using, so the four associations players
+    /// have already formed are preserved.
     /// </remarks>
     public static class TowerRolePalette
     {
@@ -24,40 +28,5 @@ namespace LTW.UnityClient.Simulation
         public static readonly Color Relay = new Color(1f, 0.784f, 0.29f);
         public static readonly Color Pulse = new Color(0.349f, 0.882f, 0.714f);
         public static readonly Color Prism = new Color(1f, 0.45f, 0.3f);
-
-        /// <summary>
-        /// Resolves a tower id to its role colour. Matching is ordered most specific first so a
-        /// role cannot fall through into another's branch, which is how prism previously inherited
-        /// control's colour.
-        /// </summary>
-        public static Color For(string towerId)
-        {
-            if (string.IsNullOrEmpty(towerId))
-            {
-                return Arrow;
-            }
-
-            if (towerId.Contains("prism"))
-            {
-                return Prism;
-            }
-
-            if (towerId.Contains("pulse") || towerId.Contains("splash") || towerId.Contains("fire") || towerId.Contains("area"))
-            {
-                return Pulse;
-            }
-
-            if (towerId.Contains("relay") || towerId.Contains("economy") || towerId.Contains("utility"))
-            {
-                return Relay;
-            }
-
-            if (towerId.Contains("control") || towerId.Contains("slow") || towerId.Contains("ice"))
-            {
-                return Control;
-            }
-
-            return Arrow;
-        }
     }
 }
