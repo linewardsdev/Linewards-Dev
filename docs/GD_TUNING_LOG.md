@@ -803,3 +803,47 @@ there. Thin the crowd or punch through it.
 mechanic can be checked for being decoration, and it needs no production changes. Repair Drone's +1
 range to neighbours is the obvious next candidate, since strictly-additive buffs are hard to judge by
 eye.
+
+
+## 2026-07-29 (measured): Repair Drone's Range Buff Was Decoration; Servicing Replaces It
+
+Ran the Repair Drone Spire through the same run-it-twice-against-a-stat-identical-control harness that
+condemned Reaping Bloom, and asked two separate questions.
+
+**Question 1, is it decoration?** The +1 range to neighbours moved an adjacent Arrow Tower from 48 damage
+to 50 across twelve creeps — one extra shot in the whole run, about 4%. Technically non-zero, which is
+why the first version of the test (greater than zero) passed it. The bar is now a ratio: a support tower
+that cannot move its neighbour by a fifth is not doing anything a player would notice.
+
+The reason generalises and is the useful part. **Under continuous pressure every tower is
+COOLDOWN-limited, not range-limited.** Extra reach only helps a tower idling for want of a target, so the
+buff paid out in the sparse case where you did not need it and paid nothing in the dense case where you
+did — exactly backwards for a support tower.
+
+**Servicing replaces it:** every orthogonally adjacent tower of the same owner fires one tick faster,
+floored at 1. That attacks the binding constraint directly. Re-measured, the adjacent Arrow goes 48 to 72
+damage — a 50% gain, which a player can see.
+
+It is deliberately NOT universally useful: a Gatling already at cooldown 1 gains nothing, so the drone is
+good beside slow, heavy towers and worthless beside fast ones. That is a placement decision rather than a
+flat buff, and there is a test for it.
+
+**Question 2, is it a mandatory buy?** At its old 34 gold, yes — and the test caught it: a drone bundle
+returned 3.00 damage per gold against 2.86 for the best plain-damage bundle at comparable gold, so taking
+one was strictly correct and the choice was fake. Cost 34 to 40 brings both drone bundles just under
+plain damage:
+
+| bundle | gold | damage | dmg/gold |
+| --- | ---: | ---: | ---: |
+| arrow x3 (best plain damage) | 42 | 120 | 2.86 |
+| arrow + drone | 54 | 144 | 2.67 |
+| drone + two arrows | 68 | 192 | 2.82 |
+| arrow + stat-identical control spire | 54 | 120 | 2.22 |
+
+Just under, not far under, which is what a support tower should be — a lateral option whose real
+advantage is board cells rather than raw throughput. One drone lifting one tower occupies fewer cells
+than the extra towers needed to match it, and cells are the scarcest resource on the board.
+
+**The opportunity-cost comparison is the reusable part.** Strict domination catches a tower nobody would
+build; nothing catches a tower everyone builds. Comparing a bundle containing the tower against equal
+gold spent on plain damage does, and it is now a standing test rather than a judgement call.

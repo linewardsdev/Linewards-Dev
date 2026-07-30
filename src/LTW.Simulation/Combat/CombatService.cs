@@ -93,7 +93,7 @@ public sealed class CombatService
         foreach (var tower in state.Towers)
         {
             var towerDefinition = content.GetTower(tower.TowerId);
-            var visionRangeCells = EffectiveRange(state, tower, towerDefinition.RangeCells) + VisionBufferCells;
+            var visionRangeCells = towerDefinition.RangeCells + VisionBufferCells;
             var visibleTargets = state.Creeps
                 .Where(creep => !creep.IsDead && !creep.HasLeaked && creep.LaneId.Equals(tower.LaneId))
                 .Where(creep => CanEngage(tower, ResolvePosition(creep, routes), visionRangeCells))
@@ -288,7 +288,7 @@ public sealed class CombatService
             var towerDefinition = content.GetTower(tower.TowerId);
             var availableTargets = next.Creeps
                 .Where(creep => !creep.IsDead && !creep.HasLeaked && creep.LaneId.Equals(tower.LaneId))
-                .Where(creep => CanEngage(tower, ResolvePosition(creep, routes), EffectiveRange(next, tower, towerDefinition.RangeCells)))
+                .Where(creep => CanEngage(tower, ResolvePosition(creep, routes), towerDefinition.RangeCells))
                 .ToArray();
             if (IsFoundryTower(tower.TowerId))
             {
@@ -322,7 +322,7 @@ public sealed class CombatService
                 events.Add(new TowerFiredEvent(tick, tower.LaneId, tower.EntityId, tower.Position, target.EntityId, targetCell, impactTick, impactCell));
                 next = next.ReplaceTower(tower
                     .WithShellInFlight(impactTick, impactCell)
-                    .WithNextAttackTick(new SimulationTick(tick.Value + towerDefinition.AttackCooldownTicks)));
+                    .WithNextAttackTick(new SimulationTick(tick.Value + EffectiveCooldown(next, tower, towerDefinition.AttackCooldownTicks))));
                 continue;
             }
 
@@ -368,7 +368,8 @@ public sealed class CombatService
                 }
             }
 
-            next = next.ReplaceTower(tower.WithNextAttackTick(new SimulationTick(tick.Value + towerDefinition.AttackCooldownTicks)));
+            next = next.ReplaceTower(tower.WithNextAttackTick(
+                new SimulationTick(tick.Value + EffectiveCooldown(next, tower, towerDefinition.AttackCooldownTicks))));
         }
 
         return next;
@@ -386,21 +387,12 @@ public sealed class CombatService
 
     private const int ChainArcMaxHops = 2;
     private const int ChainArcHopRangeCells = 2;
-    private const int RepairDroneRangeBonus = 1;
 
     /// <summary>
-    /// A tower's range including any bonus from an adjacent Repair Drone Spire.
+    /// Whether a tower has a Repair Drone Spire servicing it — orthogonally adjacent, same owner, same
+    /// lane.
     /// </summary>
-    /// <remarks>
-    /// The Repair Drone Spire has nothing to repair — towers never take damage — so its support role
-    /// is expressed as reach instead: every orthogonally adjacent tower of the same owner and lane
-    /// gets +1 range. This is the only mechanic in the game that modifies another tower's range, and
-    /// it interacts well with the Barricade, whose whole limitation is a shallow forward arc.
-    ///
-    /// Bonuses do not stack: two drones beside one tower still give +1. Otherwise a drone sandwich
-    /// would be a strictly better Prism for less gold.
-    /// </remarks>
-    private static int EffectiveRange(CombatState state, TowerCombatState tower, int authoredRange)
+    private static bool IsServicedByDrone(CombatState state, TowerCombatState tower)
     {
         foreach (var other in state.Towers)
         {
@@ -416,12 +408,32 @@ public sealed class CombatService
 
             if (IsRepairDroneTower(other.TowerId) && IsOrthogonallyAdjacent(tower.Position, other.Position))
             {
-                return authoredRange + RepairDroneRangeBonus;
+                return true;
             }
         }
 
-        return authoredRange;
+        return false;
     }
+
+    /// <summary>
+    /// A tower's attack cooldown after any Repair Drone Spire servicing it — one tick faster, never
+    /// below one.
+    /// </summary>
+    /// <remarks>
+    /// This replaced a +1 RANGE buff, which measurement showed was very nearly inert. Over 12 creeps an
+    /// adjacent Arrow Tower gained 2 damage — one extra shot in the whole run — against 48 unaided.
+    /// RepairDroneValueTests has the numbers.
+    ///
+    /// The reason is worth recording, because it generalises: under continuous pressure every tower is
+    /// COOLDOWN-limited, not range-limited. Extra reach only helps a tower that is idle for want of a
+    /// target, so the old buff paid out in the sparse case where you did not need it and paid nothing in
+    /// the dense case where you did — exactly backwards for a support tower.
+    ///
+    /// Cooldown is the binding constraint, so that is what the drone now relieves. Bonuses do not stack:
+    /// two drones beside one tower still give one tick, or a drone sandwich would trivialise cadence.
+    /// </remarks>
+    private static int EffectiveCooldown(CombatState state, TowerCombatState tower, int authoredCooldown) =>
+        IsServicedByDrone(state, tower) ? Math.Max(1, authoredCooldown - 1) : authoredCooldown;
 
     /// <summary>
     /// Where a creep will stand once a Foundry shell has finished its flight.

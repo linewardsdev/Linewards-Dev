@@ -107,7 +107,12 @@ public static class SampleVerticalSliceContent
                 // renderer's damage >= 5 threshold, so the shot changes colour and starts printing
                 // numbers — the bonus is literally visible.
                 new TowerDefinition(BarricadeTowerId, "Barricade Bastion", new Gold(18), rangeCells: 2, damage: 5, attackCooldownTicks: 4),
-                new TowerDefinition(RepairDroneTowerId, "Repair Drone Spire", new Gold(34), rangeCells: 3, damage: 3, attackCooldownTicks: 2),
+                // 34 to 40. At 34 the mandatory-buy test failed outright: a drone bundle returned
+                // 3.00 damage per gold against 2.86 for the best plain-damage bundle at comparable
+                // gold, so taking one was strictly correct and the choice was fake. 40 brings both
+                // drone bundles just under plain damage, which is what a support tower should be -
+                // a lateral option, not a free upgrade.
+                new TowerDefinition(RepairDroneTowerId, "Repair Drone Spire", new Gold(40), rangeCells: 3, damage: 3, attackCooldownTicks: 2),
 
                 // Grove line. Cheap and individually weak — the line you spam early and outgrow,
                 // except Elder Canopy, which is the roster's long-range anchor and priced for it.

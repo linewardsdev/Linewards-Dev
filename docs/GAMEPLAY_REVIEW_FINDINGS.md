@@ -139,9 +139,11 @@ It seeds a match, captures the default HUD and both send-dock categories, and qu
       from a hand-seeded case). Now Crowd Bloom: +1 damage per creep sharing the target's cell. Deals 7
       vs the control's 4 against a stacked send and exactly baseline against a trickle.
 
-- [ ] **Repair Drone's +1 range to neighbours has not been checked for the same problem.** The
-      run-it-twice-against-a-stat-identical-control harness in `BloomheartDivergenceTests` generalises
-      and needs no production changes.
+- [x] **CHECKED — Repair Drone's +1 range was decoration too, and is replaced.** It moved an adjacent
+      Arrow from 48 damage to 50 across twelve creeps. Under pressure towers are cooldown-limited, not
+      range-limited, so the buff helped only when you did not need it. Now Servicing: adjacent towers
+      fire one tick faster (48 to 72 damage). The mandatory-buy test then failed at 34 gold, so cost is
+      40. Both are standing tests, not judgement calls.
 
 - [ ] **Nothing has been played.** All balance is measured arithmetic. The open question is whether the
       mortar's 0.5s delay feels fair at the board camera.

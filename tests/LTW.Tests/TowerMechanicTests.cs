@@ -465,45 +465,114 @@ public sealed class TowerMechanicTests
         Assert.Equal(5, DamageFrom(service, state));
     }
 
-    // ---- Repair Drone Spire: range support ---------------------------------------------------
+    // ---- Repair Drone Spire: cooldown servicing ----------------------------------------------
 
     [Fact]
-    public void Repair_drone_extends_an_adjacent_towers_range()
+    public void Repair_drone_makes_an_adjacent_tower_fire_faster()
     {
         var service = new CombatService();
-        // Arrow at (2,8) has range 2, which reaches route rows 7..9. The creep lands on 10, one cell
-        // beyond, so only the +1 from the drone can bring it into reach.
-        var creeps = new[] { CreepAt(service, 1, "creep.brute", pathIndex: 9) };
-        var arrow = Tower("tower.arrow", 10, x: 2, y: 8);
+        var content = Content();
+        var routes = Routes();
 
-        var without = service.Advance(new CombatState(creeps, new[] { arrow }), Content(), Routes(), new SimulationTick(0));
-        var with = service.Advance(
-            new CombatState(creeps, new[] { arrow, Tower("tower.repair_drone", 11, x: 1, y: 8) }),
-            Content(),
-            Routes(),
-            new SimulationTick(0));
+        int ShotsOverTicks(bool withDrone)
+        {
+            var towers = new List<TowerCombatState> { Tower("tower.arrow", 10, x: 2, y: 8) };
+            if (withDrone)
+            {
+                towers.Add(Tower("tower.repair_drone", 11, x: 1, y: 8));
+            }
 
-        Assert.DoesNotContain(without.Events.OfType<TowerFiredEvent>(), f => f.TowerEntityId.Equals(new EntityId(10)));
-        Assert.Single(with.Events.OfType<TowerFiredEvent>(), f => f.TowerEntityId.Equals(new EntityId(10)));
+            // One creep with enough health to survive the whole window, parked in range by respawning
+            // it each tick so only cadence is measured, not target availability.
+            var shots = 0;
+            var state = new CombatState(
+                new[] { CreepAt(service, 1, "creep.colossus", pathIndex: 6) },
+                towers);
+
+            for (var tick = 0; tick < 6; tick++)
+            {
+                var result = service.Advance(state, content, routes, new SimulationTick(tick));
+                state = result.State;
+                shots += result.Events.OfType<TowerFiredEvent>().Count(f => f.TowerEntityId.Equals(new EntityId(10)));
+            }
+
+            return shots;
+        }
+
+        var unaided = ShotsOverTicks(withDrone: false);
+        var serviced = ShotsOverTicks(withDrone: true);
+
+        Assert.True(unaided > 0, "the Arrow never fired, so nothing was measured");
+        Assert.True(serviced > unaided, $"serviced Arrow fired {serviced} times against {unaided} unaided");
     }
 
     [Fact]
-    public void Repair_drone_bonus_does_not_stack()
+    public void Repair_drone_cooldown_bonus_does_not_stack()
     {
         var service = new CombatService();
-        var state = new CombatState(
-            new[] { CreepAt(service, 1, "creep.brute", pathIndex: 10) },   // lands on 11, two beyond range 2
-            new[]
+        var content = Content();
+        var routes = Routes();
+
+        int ShotsWith(int droneCount)
+        {
+            var towers = new List<TowerCombatState> { Tower("tower.prism", 10, x: 2, y: 8) };
+            if (droneCount >= 1)
             {
-                Tower("tower.arrow", 10, x: 2, y: 8),
-                Tower("tower.repair_drone", 11, x: 1, y: 8),
-                Tower("tower.repair_drone", 12, x: 3, y: 8)
-            });
+                towers.Add(Tower("tower.repair_drone", 11, x: 1, y: 8));
+            }
 
-        var result = service.Advance(state, Content(), Routes(), new SimulationTick(0));
+            if (droneCount >= 2)
+            {
+                towers.Add(Tower("tower.repair_drone", 12, x: 3, y: 8));
+            }
 
-        // Two drones must not give +2, or a drone sandwich would be a cheaper Prism.
-        Assert.DoesNotContain(result.Events.OfType<TowerFiredEvent>(), f => f.TowerEntityId.Equals(new EntityId(10)));
+            var shots = 0;
+            var state = new CombatState(new[] { CreepAt(service, 1, "creep.colossus", pathIndex: 6) }, towers);
+            for (var tick = 0; tick < 12; tick++)
+            {
+                var result = service.Advance(state, content, routes, new SimulationTick(tick));
+                state = result.State;
+                shots += result.Events.OfType<TowerFiredEvent>().Count(f => f.TowerEntityId.Equals(new EntityId(10)));
+            }
+
+            return shots;
+        }
+
+        // Prism's cooldown is 6, so one drone takes it to 5 and two must not take it to 4.
+        Assert.Equal(ShotsWith(1), ShotsWith(2));
+    }
+
+    /// <summary>
+    /// A tower already firing every tick has nothing to gain, so the drone is not universally useful.
+    /// </summary>
+    [Fact]
+    public void Repair_drone_does_nothing_for_a_tower_already_at_minimum_cooldown()
+    {
+        var service = new CombatService();
+        var content = Content();
+        var routes = Routes();
+
+        int ShotsWith(bool withDrone)
+        {
+            var towers = new List<TowerCombatState> { Tower("tower.gatling", 10, x: 2, y: 8) };
+            if (withDrone)
+            {
+                towers.Add(Tower("tower.repair_drone", 11, x: 1, y: 8));
+            }
+
+            var shots = 0;
+            var state = new CombatState(new[] { CreepAt(service, 1, "creep.colossus", pathIndex: 6) }, towers);
+            for (var tick = 0; tick < 6; tick++)
+            {
+                var result = service.Advance(state, content, routes, new SimulationTick(tick));
+                state = result.State;
+                shots += result.Events.OfType<TowerFiredEvent>().Count(f => f.TowerEntityId.Equals(new EntityId(10)));
+            }
+
+            return shots;
+        }
+
+        Assert.Equal(ShotsWith(withDrone: false), ShotsWith(withDrone: true));
     }
 
     // ---- Elder Canopy: back-most targeting ---------------------------------------------------
