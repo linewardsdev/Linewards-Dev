@@ -666,7 +666,15 @@ all-integer and deterministic today, so the seed is decorative — fine, but the
 replay format implies a guarantee it does not provide. Either finish replay or
 mark `GetReplayRecord` as send-only telemetry.
 
-## 23. Determinism: one real hazard, otherwise clean
+## 23. ~~Determinism: one real hazard, otherwise clean~~ — resolved 2026-07-30
+
+**Fixed exactly as suggested**: `foreach (var bot in bots)` in
+`AdvanceOneTick` now reads `foreach (var bot in bots.OrderBy(bot => bot.Key.Value))`,
+matching `SeedExpandedLaneBotOpeners`'s existing sort. 176/176 tests pass
+unchanged — insertion order and sorted order coincide for every current test
+scenario (player ids are added ascending), which is exactly why this hazard
+was invisible until someone reasoned about `Dictionary` enumeration
+guarantees rather than observed behavior.
 
 `LocalVerticalSlice` ~line 333 does `foreach (var bot in bots)` over a
 `Dictionary<PlayerId, BotController>`. Iteration order sets the order of

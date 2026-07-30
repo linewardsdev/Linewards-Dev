@@ -338,7 +338,14 @@ public sealed class LocalVerticalSlice
         // even though they were reachable on paper. Giving the send its claim on gold first,
         // with towers only spending what's left, fixes the starvation without adding a new
         // tunable cap.
-        foreach (var bot in bots)
+        //
+        // OrderBy(bot.Key.Value): Dictionary<PlayerId, BotController> enumeration order is
+        // documented-unspecified, and it feeds NextEntityId() assignment (via QueueSend/PlaceTower)
+        // here, which is the final tie-breaker in SelectTarget, Pulse's splash Take(2) and ChainArc.
+        // It happens to be insertion order today (no removals from this dictionary), but a sim that
+        // records and replays should not rely on that — SeedExpandedLaneBotOpeners already sorts for
+        // the same reason (OPEN_ITEMS.md item 23).
+        foreach (var bot in bots.OrderBy(bot => bot.Key.Value))
         {
             if (HasMinimumDefenseCoverage(bot.Key, bot.Value) && !IsLaneUnderPressure(bot.Key, bot.Value))
             {
