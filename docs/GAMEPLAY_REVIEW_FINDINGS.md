@@ -180,25 +180,33 @@ It seeds a match, captures the default HUD and both send-dock categories, and qu
       `TowerMotionProfile` table, so a new tower is one row rather than three edits. `locksYaw` is
       per-role data instead of hardcoded to Pulse.
 
-## P1 — Open: the game cannot end against competent defence (2026-07-29)
+## P1 — RESOLVED: the game could not end, and the cause was a bug, not balance (2026-07-30)
 
-- [ ] **Two mazing bots stalemate forever.** Verified to 80,000 ticks (~5.5 hours of game time) with no
-      match summary. The undefended seat is eliminated on schedule; the two surviving bots then hold above
-      180 lives each indefinitely. `LocalThreePlayerMatchTests` has two tests skipped against this,
-      deliberately still asserting the behaviour we want.
-      **Proposed fix designed 2026-07-29: `docs/CATEGORY_UPGRADE_TIERS_PLAN.md`.** Creep tiers give attack
-      a way to scale that defence cannot out-build, with creep scaling set ahead of tower scaling at
-      maximum investment (225% health against 190% damage). "Two tier-3 bots still reach a result" is that
-      plan's ship/no-ship gate, because a version where towers scale as fast as creeps would simply
-      re-create this stalemate at a higher number.
+- [x] **The "two mazing bots stalemate forever" finding was misdiagnosed.** It was attributed to defence
+      out-scaling attack. The actual cause was a single missing filter: the bot pressure check counted
+      creeps that had already finished walking the lane, so its `incomingHealth` grew monotonically for the
+      whole match and every bot eventually crossed its own `PressureThreshold` and stopped sending forever.
+      Adding `!HasLeaked` — which every other creep filter in the codebase already had — makes the same
+      seed complete at **tick 926** instead of running past 80,000. Both skipped tests are live again.
+      Credit to the second-pass code review in `docs/OPEN_ITEMS.md` item 10, which found it by reading the
+      code; four sessions of measurement did not.
 
-- [x] **DONE — every balance measurement re-taken against a real maze.** `MazedLane` builds one with the
-      real `GridPathService` against the real map: straight 16 cells, mazed 52. Exposure roughly doubled;
-      damage-per-gold went 0.07–0.43 to 0.14–0.64, and two towers can now solo a Brute where none could.
-      Two verdicts REVERSED: Bramble Hold's 3-cell cap contributed 0% on a maze (it was nerfed on
-      straight-lane data) and now follows the tower's real coverage again; Servicing's designed case flipped
-      from trickle to burst. Everything else held, including both mandatory-buy checks and the Foundry's 0%
-      whiff rate. See GD_TUNING_LOG 2026-07-29.
+- [ ] **Consequences to re-examine, because several conclusions rested on frozen bots.** Every measurement
+      taken against a bot opponent was taken against one that eventually stopped attacking:
+      - The bot that "sat on 3,700 gold with a frozen tower count" was blamed on the placement ceiling
+        alone. The ceiling was real, but this was the other half.
+      - The creep-speed experiment concluded 4x slower made defence overwhelming and matches unendable.
+        That was measured with bots that had stopped sending, so it needs redoing.
+      - `BotMazingTests`' route-length bar was 2x (16 to 40 cells); with sends working, bots split gold and
+        reach 24, so it is now 1.4x. The 40-cell figure was measuring the bug.
+      - Matches now complete in **245–926 ticks** depending on scenario, which may be too FAST. That is the
+        opposite of the problem we thought we had.
+
+- [ ] **The upgrade-tier plan's central justification is now wrong.**
+      `docs/CATEGORY_UPGRADE_TIERS_PLAN.md` argues the feature is "the closing mechanism the game
+      currently lacks". The game does close. The tiers may still be worth building, but they need a
+      reason that survives this correction, and the 225%/190% gap was chosen specifically to break a
+      stalemate that no longer exists.
 
 ## P2 — Found once the mock stopped covering the board
 

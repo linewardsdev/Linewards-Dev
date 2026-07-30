@@ -43,6 +43,14 @@ public sealed class LocalVerticalSlice
 
     public ReplayRecord GetReplayRecord() => new ReplayRecord(options.Seed, content.Version, content.Maps[0].Id, players.Players.Select(player => player.PlayerId).ToArray(), tick, acceptedCommands);
 
+    /// <summary>
+    /// Total creep entities held in combat state, unfiltered by HasLeaked. GetSnapshot's creep list goes
+    /// through GetCreepSnapshots, which already excludes spent lane-transfer entities, so it cannot show
+    /// whether one is still sitting in CombatState. Exists to verify the count stays bounded to live
+    /// creeps instead of accumulating a tombstone per lane hop — see OPEN_ITEMS.md item 11.
+    /// </summary>
+    public int DiagnosticCombatEntityCount() => combatState.Creeps.Count;
+
     public BotDiagnosticsSnapshot GetBotDiagnostics()
     {
         var profiles = bots
@@ -358,6 +366,12 @@ public sealed class LocalVerticalSlice
         }
 
         players = economy.ApplyIncomeTick(players, tick);
+        // Read pre-combat rather than post-combat (result.State below) deliberately: a leaked creep is read
+        // out of this snapshot when building its transfer below, and that is only safe because MoveCreeps
+        // runs first inside combat.Advance and the two damage phases after it both skip HasLeaked creeps —
+        // so a creep's health cannot change between here and its leak this same tick. If that phase order
+        // ever changes, a transferred creep would silently carry its start-of-tick health instead of what
+        // it actually had when it left the lane.
         var creepsBeforeCombat = combatState.Creeps.ToDictionary(creep => creep.EntityId, creep => creep);
         var result = combat.Advance(combatState, combatContent, routes, tick);
         combatState = result.State;
@@ -379,6 +393,16 @@ public sealed class LocalVerticalSlice
                 {
                     pendingEvents.Add(new PlayerEliminatedEvent(tick, leak.DefenderId));
                 }
+
+                // The spent entity is removed unconditionally, not just when it transfers. Reaching a lane
+                // end is not death (health carries forward per the design note in OPEN_ITEMS.md item 11),
+                // but the entity that just left this lane is done regardless of whether a next lane exists
+                // for it: on transfer its successor is the new entity below, and if every other seat is
+                // already eliminated (nextLaneId is null) it simply has nowhere left to go. Leaving it in
+                // CombatState either way makes it a tombstone: still HasLeaked, still holding the health it
+                // exited with, invisible to every filter except one (the bot pressure check, item 10) that
+                // forgot to exclude HasLeaked — which is what let these accumulate for a whole match.
+                combatState = combatState.RemoveCreep(leak.CreepEntityId);
 
                 var nextLaneId = NextActiveOpponentLaneId(leakedCreep.LaneId, leakedCreep.SenderId);
                 if (nextLaneId is not null)
@@ -530,8 +554,25 @@ public sealed class LocalVerticalSlice
         }
 
         var myLane = topology.HomeLaneFor(playerId);
+
+        // !HasLeaked is load-bearing, not defensive tidiness. A creep that finishes a lane is not
+        // despawned — it transfers to the next opponent's lane as a NEW entity, and the spent entity stays
+        // in CombatState tagged with the lane it exited, still holding the health it left with. So without
+        // this filter, incomingHealth counts every creep that has ever finished walking this lane and grows
+        // monotonically for the whole match. Once it crosses PressureThreshold the bot stops sending and
+        // never sends again.
+        //
+        // Every other creep filter in the codebase already excludes HasLeaked (eight sites in
+        // CombatService, plus GetCreepSnapshots), which is why nothing looked wrong on screen — this was
+        // the only consumer that saw the spent entities.
+        //
+        // Measured consequence of the fix, and it corrects an earlier diagnosis of mine: the "two mazing
+        // bots stalemate forever" finding was attributed to defence out-scaling attack. It was not. With
+        // this filter the same seed completes at tick 926 instead of running past 80,000. It is also the
+        // real cause of the bot that sat on 3,700 gold with a frozen tower count, which I previously
+        // blamed on the placement ceiling alone.
         var incomingHealth = combatState.Creeps
-            .Where(creep => creep.LaneId.Equals(myLane) && !creep.IsDead)
+            .Where(creep => creep.LaneId.Equals(myLane) && !creep.IsDead && !creep.HasLeaked)
             .Sum(creep => creep.Health);
         var ownedTowerCount = combatState.Towers.Count(tower => tower.OwnerId.Equals(playerId));
         return incomingHealth >= bot.PressureThreshold(content, ownedTowerCount);
@@ -574,7 +615,7 @@ public sealed class LocalVerticalSlice
     /// while coverage only helps this one. Cells that would block the route entirely are rejected by
     /// GridPathService before they are ever scored.
     ///
-    /// Cost: one BFS per candidate cell per placement. The grid is 7x18 and a bot places a tower at most
+    /// Cost: one BFS per candidate cell per placement. The grid is 7x16 and a bot places a tower at most
     /// once per tick, so this is bounded and small, but it is the reason the search is a single pass over
     /// empty cells rather than a lookahead.
     /// </remarks>
@@ -663,24 +704,6 @@ public sealed class LocalVerticalSlice
         return ownedTowerCount == 1 ? SampleVerticalSliceContent.PrismTowerId : SampleVerticalSliceContent.TowerId;
     }
 
-    private static IReadOnlyList<GridPosition> BotPlacementCandidates(BotDecisionProfile profile, int ownedTowerCount)
-    {
-        if (profile == BotDecisionProfile.Defensive)
-        {
-            return ownedTowerCount switch
-            {
-                0 => new[] { new GridPosition(1, 3), new GridPosition(5, 5), new GridPosition(1, 7) },
-                1 => new[] { new GridPosition(5, 3), new GridPosition(1, 5), new GridPosition(5, 7) },
-                _ => new[] { new GridPosition(5, 9), new GridPosition(1, 11), new GridPosition(5, 13) }
-            };
-        }
-
-        return ownedTowerCount switch
-        {
-            0 => new[] { new GridPosition(5, 3), new GridPosition(1, 5), new GridPosition(5, 7) },
-            _ => new[] { new GridPosition(1, 7), new GridPosition(5, 9), new GridPosition(1, 11) }
-        };
-    }
 
     private TowerPlacementValidation ValidateTowerPlacement(PlayerId playerId, LaneId laneId, ContentId towerId, GridPosition position)
     {

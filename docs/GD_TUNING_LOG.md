@@ -1203,3 +1203,50 @@ someone with eyes on a live capture, not a batch log.
 **Verification performed:** a full `LocalPlaytestBatchRunner` run across the current 15-tower
 roster passes with a clean reset (326 peak creeps, 25 peak towers). No `dotnet test` changes —
 this is a Unity presentation-layer change only, `src/LTW.Simulation` untouched.
+
+
+## 2026-07-30 (correction): The Stalemate Was A Bug, Not Balance
+
+A second-pass code review (`docs/OPEN_ITEMS.md` items 10 and 11) found by READING the simulation what four
+sessions of measurement did not. The bot pressure check filtered `!IsDead` but not `!HasLeaked`:
+
+```csharp
+.Where(creep => creep.LaneId.Equals(myLane) && !creep.IsDead)
+```
+
+Creeps that finish a lane are not despawned — they transfer to the next opponent's lane as a new entity,
+and the spent entity stays in `CombatState` tagged with the lane it exited, health intact. So this filter
+counted every creep that had ever finished walking the lane. `incomingHealth` grew monotonically for the
+whole match, crossed `PressureThreshold`, and the bot stopped sending **permanently**. Every other creep
+filter in the codebase already excluded `HasLeaked` — eight sites in `CombatService` plus
+`GetCreepSnapshots` — which is why nothing looked wrong on screen. This was the only consumer that saw them.
+
+**Adding one condition makes the same seed complete at tick 926 instead of running past 80,000 ticks.**
+
+What this corrects, and it is a lot:
+
+- **The P1 "two mazing bots stalemate" finding was misdiagnosed.** I attributed it to defence out-scaling
+  attack and designed an entire upgrade-tier system as the closing mechanism. The game closes fine; the
+  attackers had stopped attacking.
+- **The bot sitting on 3,700 gold** was blamed on the placement ceiling alone. The ceiling was real, but
+  this was the other half, and fixing the ceiling did not fix this.
+- **The creep-speed experiment needs redoing.** Its conclusion — that 4x slower makes defence overwhelming
+  and matches unendable — was measured with bots that had stopped sending.
+- **`BotMazingTests`' 2x route bar was measuring the bug.** With sends working, bots split gold between
+  towers and creeps and reach 24 cells rather than 40. Rebased to 1.4x.
+- **Two scenario expectations were rebased**, both for the same reason: bots that cannot send dump all gold
+  into towers, so tower counts in a fixed window were inflated. `Mixed_pressure`'s Greedy bot now builds 1
+  tower rather than 2, which is correct behaviour for a profile defined as prioritising sends.
+- **Matches now complete in 245–926 ticks**, which may be too FAST. The opposite of the problem we thought
+  we had, and the next thing to look at.
+
+Also landed from the same review: `BotPlacementCandidates` deleted (dead since the mazing rework, item 6),
+and my own `BestMazingPlacement` comment corrected from "7x18" to the actual 7x16 map (item 17).
+
+**The transferable lesson is about method.** Four sessions of increasingly careful measurement — duel
+harnesses, contribution harnesses, whiff rates, opportunity cost — all produced real findings and none of
+them found this, because every one measured OUTPUTS while the bug was in an INPUT they all shared. A review
+that reads the code found it in one pass. The review's own note says it best: treat "a review found nothing"
+as a claim about the review, not the code.
+
+174 tests passing, zero skipped.

@@ -107,8 +107,17 @@ public sealed class GameplayScenarioTests
         output.WriteLine(evidence.ToString());
         Assert.Contains(replay.AcceptedCommands, command => command.ContentId.Equals(SampleVerticalSliceContent.SiegeCreepId));
         Assert.Contains(replay.AcceptedCommands, command => command.ContentId.Equals(SampleVerticalSliceContent.SwarmCreepId));
-        Assert.True(evidence.PlayerTwoTowers >= 2);
-        Assert.True(evidence.PlayerThreeTowers >= 3);
+        // Lowered from 2. Player two is the GREEDY profile, which is defined as prioritising sends over
+        // towers — one tower is correct behaviour for it. The old bar of 2 was only ever met because a
+        // bot-pressure bug (a filter missing !HasLeaked) froze bots out of sending, so even a Greedy bot had
+        // nothing to spend gold on but towers. The scenario's actual claim — distinct send roles plus a
+        // defensive response — is carried by the Siege and Swarm sends below and player three's tower count.
+        Assert.True(evidence.PlayerTwoTowers >= 1);
+        // Lowered from 3: with the bot-pressure fix (a filter missing !HasLeaked previously froze bots out
+        // of sending) bots now split gold between sends and towers instead of pouring it all into towers, so
+        // tower counts in a fixed window are lower. The scenario's point is that a defensive bot builds
+        // WHILE under pressure, which 2 still demonstrates.
+        Assert.True(evidence.PlayerThreeTowers >= 2);
         Assert.True(evidence.DamageEvents >= 1);
         Assert.True(evidence.RecentBotDecisions >= 2);
     }

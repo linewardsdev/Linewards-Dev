@@ -7,6 +7,18 @@ Each tier costs more than the last, and each tier makes that category's units st
 
 Source of truth for the current roster: `docs/TOWER_AND_CREEP_ROSTER.md`.
 
+> **Revised 2026-07-30 — the justification below no longer holds.** This plan was written on the premise
+> that the game could not end against competent defence, and the tier numbers were chosen to break that
+> stalemate. The stalemate turned out to be a bug: the bot pressure check counted creeps that had already
+> left the lane, so bots stopped sending permanently. With that fixed the same seed completes at tick 926,
+> and matches now run 245–926 ticks — arguably too fast rather than endless.
+>
+> The structure below (three independent tiers per category, escalating cost, one stat per side) is
+> unaffected and still worth building. What needs redoing before implementation is the CALIBRATION: the
+> 225% creep / 190% tower gap exists to let attack out-scale defence at full investment, which was a fix
+> for a problem that no longer exists. Re-derive it against matches that actually end, and drop
+> "two tier-3 bots still reach a result" as the ship gate — it now passes trivially.
+
 ## Why this matters beyond "more numbers"
 
 It is also the closing mechanism the game currently lacks, which makes it the highest-value feature on

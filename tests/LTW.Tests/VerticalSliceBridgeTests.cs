@@ -742,6 +742,26 @@ public sealed class VerticalSliceBridgeTests
     }
 
     [Fact]
+    public void Spent_transfer_entities_do_not_accumulate_across_lane_hops()
+    {
+        var simulation = new LocalVerticalSlice(SampleVerticalSliceContent.Create(), enableBots: false);
+        Assert.True(simulation.QueueSend(new PlayerId(1), SampleVerticalSliceContent.CreepId).Accepted);
+
+        // No towers anywhere, so the one creep in flight never dies — it only ever hops lane to lane.
+        // Run long enough to cross multiple lane boundaries (each lane is 16 ticks) and check after
+        // every hop that CombatState holds exactly the one live entity, not a growing pile of tombstones.
+        for (var hop = 0; hop < 5; hop++)
+        {
+            for (var tick = 0; tick < 16; tick++)
+            {
+                simulation.AdvanceOneTick();
+            }
+
+            Assert.Equal(1, simulation.DiagnosticCombatEntityCount());
+        }
+    }
+
+    [Fact]
     public void Sent_creeps_do_not_wrap_back_into_the_senders_own_lane()
     {
         var simulation = new LocalVerticalSlice(SampleVerticalSliceContent.Create(), enableBots: false);

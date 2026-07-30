@@ -193,10 +193,60 @@ Static review of `src/LTW.Simulation/` and `unity/LTW.UnityClient/`, reading the
 code rather than grepping it. Line numbers were accurate at `c92d6fb` and the
 file is moving; re-locate by symbol name, not line.
 
-The five criticals (items 10–14) share a shape worth naming: **each is a place
-where one concept is computed in two places, and the copies disagree.** That is
-the characteristic failure of two agents working in parallel, and it is the
-thing to grep for when looking for the next one.
+The criticals (items 10, 12, 13, 14) share a shape worth naming: **each is a
+place where one concept is computed in two places, and the copies disagree.**
+That is the characteristic failure of two agents working in parallel, and it is
+the thing to grep for when looking for the next one.
+
+> **Revised 2026-07-29 after a design clarification.** The first version of this
+> section misread the lane-transfer mechanic and described creeps continuing
+> lane-to-lane as if it were unimplemented. It is implemented, intentional, and
+> tested — see the design note below. Item 11 was reclassified from Critical to
+> Moderate as a result, and item 10's recommended fix changed. The design note is
+> placed before the items because two of them cannot be read correctly without it.
+
+## Design note — creeps flow lane to lane, carrying damage
+
+The intended mechanic, confirmed by the project owner and verified against the
+code: **a creep that reaches the end of a lane is not despawned. It continues
+into the next active opponent's lane, carrying its current damaged health, and
+keeps flowing lane to lane until something kills it.**
+
+This is implemented and correct. The path, end to end:
+
+1. `CombatService.MoveCreeps` — when `pathIndex >= route.Count - 1`, calls
+   `CreepCombatState.MarkLeaked()` and emits a `LeakEvent`.
+2. `LocalVerticalSlice.AdvanceOneTick` — handles that `LeakEvent`: applies the
+   lives loss and bounty via `EconomyService.ApplyLeak`, asks
+   `NextActiveOpponentLaneId` (→ `LocalMatchTopology.NextActiveOpponentLaneAfterLeak`)
+   for the next lane, and if one exists calls `CombatService.TransferCreep`.
+3. `CombatService.TransferCreep` — constructs the continuing creep with
+   **`creep.Health` passed straight through**, `pathIndex: 0`,
+   `movementProgress: 0`, `hasLeaked: false`, under a **new `EntityId`**.
+
+Health preservation is covered by tests, not just by inspection:
+`VerticalSliceBridgeTests.Leaked_creeps_keep_current_health_when_entering_next_lane`
+damages a 10 hp creep in lane 2 and asserts it arrives in lane 3 at **8** hp
+(not `MaxHealth`), alongside `Leaked_creeps_continue_into_the_next_lane` and
+`Eight_lane_leaked_creeps_flow_across_expanded_opponent_lanes`.
+
+Two properties of the implementation are worth knowing before changing anything
+here:
+
+- **Identity is not preserved across lanes.** Each hop mints a new `EntityId`.
+  The Unity renderer keys its GameObjects by `EntityId`, so a hopping creep is
+  destroyed and recreated rather than continuing — animation and any
+  interpolation reset at the lane boundary. There are deliberate "TRANSFER
+  arrival" cues in the renderer, so this may be intended masking; if a creep is
+  ever meant to visibly *flow* across the boundary, this is the thing that has
+  to change. It also means per-creep telemetry cannot follow one creep across
+  lanes.
+- **`HasLeaked` is load-bearing within a tick, not a leftover.** `MoveCreeps`
+  marks it partway through `CombatService.Advance`, and the two later phases in
+  that same `Advance` — `ResolveLandedShells` and `AttackWithTowers` — must skip
+  the spent creep. Removal cannot happen inside `Advance`, because choosing the
+  next lane needs topology the `CombatService` does not have. So the flag is
+  correct; only its *persistence beyond the tick* is wrong (item 11).
 
 ## 10. CRITICAL — bot pressure check omits `HasLeaked`, so bots stop sending
 
@@ -210,39 +260,131 @@ Every other creep filter in the codebase uses `!IsDead && !HasLeaked` —
 verified at eight sites in `CombatService.cs` (lines 66, 98, 121, 290, 372,
 562, 603 and the guard at 129). This one drops `HasLeaked`.
 
-Because leaked creeps are never removed from `CombatState` (item 11) and keep
-their full `Health` — they leaked, they were not killed — `incomingHealth` for
-a bot's own lane **grows monotonically for the entire match**. Once it crosses
-`PressureThreshold` (`BotController.cs`, ~line 65: roughly `70 + 15 × towers`
-for Balanced), the bot never sends again for the rest of the match.
+**This bug survives the design clarification, and is now the primary finding.**
+The reasoning is if anything stronger than before. Per the design note, a
+transferred creep is a *new entity in a new lane*; the spent entity it left
+behind stays in `CombatState` forever (item 11), still tagged with the lane it
+exited and still holding the health it had when it exited — it left the lane, it
+was not killed, so its `Health` is `> 0` and `IsDead` is `false`.
 
-This is exactly the failure mode the `PressureThreshold` doc comment claims to
-have fixed, and it is a plausible cause of the "bot sitting on thousands of
-gold" symptom that `2cf96e1` attributed solely to the placement ceiling. Fixing
-the placement ceiling did not fix this. **Any balance measurement involving bot
-sends is suspect until this is fixed and re-measured.**
+So this filter counts, as "incoming pressure in my lane", every creep that has
+ever *finished* walking that lane. `incomingHealth` **grows monotonically for the
+whole match**. Once it crosses `PressureThreshold` (`BotController.cs`, ~line 65:
+roughly `70 + 15 × towers` for Balanced), the bot never sends again.
 
-## 11. CRITICAL — leaked creeps are never removed from `CombatState`
+What makes this the primary finding: those spent entities are filtered out
+**everywhere else** — all eight `CombatService` sites above, and
+`GetCreepSnapshots`, which is why nothing is visibly wrong on screen. This one
+filter is the *only* consumer in the codebase that sees them. It is exactly the
+failure mode the `PressureThreshold` doc comment claims to have fixed, and a
+plausible second cause of the "bot sitting on thousands of gold" symptom that
+`2cf96e1` attributed solely to the placement ceiling. Fixing the placement
+ceiling did not fix this. **Any balance measurement involving bot sends is
+suspect until this is fixed and re-measured.**
 
-`CombatState.RemoveCreep` has exactly one caller: `CombatService.cs` ~line 672,
-in the death path (`DamageCreep`). `MoveCreeps` marks a leaked creep with
-`MarkLeaked()` and calls `ReplaceCreep(moved)` — it never removes it. So every
-creep that ever leaks stays in `state.Creeps` for the rest of the match.
+**Recommended fix — fix item 11, not this line.** Adding `&& !creep.HasLeaked`
+here makes the symptom go away and is consistent with the other eight sites, so
+it is a reasonable belt-and-braces addition. But it leaves a growing collection
+of dead entries that every per-tick filter still pays for, and leaves the next
+person who writes a creep query free to make the same mistake. Removing the spent
+entity at transfer time (item 11) makes this filter correct as written.
 
-With `StartingLives = 220` across up to 8 seats, and each leak also spawning a
-transferred entity that can leak again down the carousel, this reaches the order
-of 10⁴ permanently-resident entities. Every one of them is then paid for on
-**every tick** by: the `MoveCreeps` filter, each tower's candidate filter in
-`AttackWithTowers` / `ResolveLandedShells` / `GetTowerAimSnapshots`,
-`CrowdBloomBonus`, the `creepsBeforeCombat` dictionary rebuild in
-`LocalVerticalSlice`, and every `ReplaceCreep` copy.
+## 11. ~~MODERATE — every lane hop leaves a permanent spent entity behind~~ — resolved 2026-07-30
 
-That last one makes it quadratic: `CombatState.Replace` does `values.ToArray()`
-and the `CombatState` constructor `ToArray()`s both lists again, so movement
-alone is O(creeps × (creeps + towers)) array copies per tick — where `creeps`
-means *all creeps ever*, not live ones. This is the single highest-value fix in
-the codebase: it is both a correctness bug (it feeds item 10) and the dominant
-performance cost, on a mobile target.
+**Fixed as recommended below.** `LocalVerticalSlice.AdvanceOneTick`'s `LeakEvent`
+handler now calls `combatState.RemoveCreep(leak.CreepEntityId)` unconditionally,
+before the transfer branch, so a spent entity is removed whether or not a next
+lane exists for it. Verified: all three lane-transfer tests pass unchanged, and
+a new test, `Spent_transfer_entities_do_not_accumulate_across_lane_hops`, sends
+one creep through 5 lane hops with no towers present (so it never dies, only
+hops) and asserts `CombatState.Creeps.Count` stays at 1 after every hop instead
+of growing — 175/175 tests pass. `DiagnosticCombatEntityCount()` was added to
+`LocalVerticalSlice` to make the count observable, since `GetSnapshot` already
+filters `HasLeaked` and so cannot show a tombstone even if one were still there.
+
+**Reclassified from Critical before the fix, and re-framed.** The original text
+said "leaked creeps are never removed" and implied they *should* be despawned on
+reaching the lane end. That was the wrong design assumption — despawning them
+would break the intended mechanic. The real defect was narrower and still real.
+
+When a creep transfers, `TransferCreep` mints a **new** entity for the next lane
+and the **old** entity is left in `combatState.Creeps`, frozen, `HasLeaked`, with
+health `> 0`. `CombatState.RemoveCreep` has exactly one caller —
+`CombatService.DamageCreep` (~line 672), the death path — so nothing ever removes
+it. It is a tombstone: its successor is alive elsewhere, and it is not.
+
+Under the clarified design this accumulates *faster* than the original text
+assumed, because hopping many lanes is the normal life of a creep, not an edge
+case: one creep crossing eight lanes leaves eight tombstones, and only the entity
+that finally dies is ever removed. The transfer path also never removes the spent
+entity when `nextLaneId is null` (every other seat eliminated), so those persist
+too.
+
+Consequences, stated precisely, because most of them are *not* correctness bugs:
+
+- **Correctness: one site.** Only the bot pressure check (item 10) reads these.
+  Combat targeting, movement and `GetCreepSnapshots` all filter `!HasLeaked`, so
+  there are no phantom targets and **no ghost creeps rendered** at lane ends.
+- **Performance: real, and quadratic.** Every tombstone is paid for on every tick
+  by the `MoveCreeps` filter, each tower's candidate filter in `AttackWithTowers`
+  / `ResolveLandedShells` / `GetTowerAimSnapshots`, `CrowdBloomBonus`, and the
+  `creepsBeforeCombat` dictionary rebuild. Worse, `CombatState.Replace` does
+  `values.ToArray()` and the constructor `ToArray()`s both lists again, so
+  movement alone is O(creeps × (creeps + towers)) array copies per tick — where
+  `creeps` counts tombstones. On a 4 Hz mobile sim over a long match this is the
+  dominant cost, and it grows without bound.
+
+### Minimal correct change
+
+Remove the spent entity at the moment of transfer, in the `LeakEvent` handler in
+`LocalVerticalSlice.AdvanceOneTick`. It currently does:
+
+```csharp
+var transferred = combat.TransferCreep(NextEntityId(), leakedCreep, laneId);
+combatState = new CombatState(combatState.Creeps.Concat(new[] { transferred }), combatState.Towers);
+```
+
+Drop the spent entity in the same rebuild, and do it **unconditionally** — outside
+the `if (nextLaneId is not null)` branch — so a creep with nowhere left to go is
+also removed rather than becoming a permanent tombstone:
+
+```csharp
+combatState = combatState.RemoveCreep(leak.CreepEntityId);   // always
+if (nextLaneId is not null)
+{
+    // ... existing transfer, then Concat the new entity
+}
+```
+
+That is the whole fix. It gives `RemoveCreep` its second caller, makes item 10's
+filter correct as written, and bounds `CombatState.Creeps` to live creeps. Keep
+`MarkLeaked`/`HasLeaked` — per the design note they are still needed *within* the
+tick, and the existing filters should stay as defence in depth.
+
+Two things to verify rather than assume when making this change:
+
+- **The three lane-transfer tests must still pass unchanged** —
+  `Leaked_creeps_continue_into_the_next_lane`,
+  `Leaked_creeps_keep_current_health_when_entering_next_lane`, and
+  `Eight_lane_leaked_creeps_flow_across_expanded_opponent_lanes`. They assert on
+  the *transferred* entity, so removing the spent one should not affect them. If
+  one breaks, the removal is catching the wrong entity.
+- **Add the test that is missing**: `CombatState.Creeps.Count` returns to zero
+  after a creep flows through every lane and dies (or is removed at the end of
+  the carousel). Nothing currently asserts that the collection is bounded, which
+  is why this went unnoticed.
+
+### Related fragility, worth a comment either way
+
+The transfer reads `leakedCreep` from `creepsBeforeCombat` — the snapshot taken
+*before* `combat.Advance` — rather than from the post-combat state. Today that is
+equivalent, because `MoveCreeps` runs first in `Advance` and the two later damage
+phases both skip `HasLeaked` creeps, so a creep's health cannot change after it
+leaks within the same tick. But it is an unstated dependency on phase ordering: if
+damage ever resolved before movement, transferred creeps would silently rewind to
+their start-of-tick health — carrying *less* damage than they took. Either read
+the creep from `result.State`, or add a comment recording why the pre-combat
+snapshot is safe.
 
 ## 12. CRITICAL — client invents creep max health; wrong for 10 of 15 creeps
 
@@ -266,6 +408,14 @@ guesses are stale at the 5-creep roster and wrong for every creep added since:
 This feeds `CreepHealthFraction` → health bars and damage tinting every frame.
 A full-health Colossus clamps to 1.0 and its bar does not visibly move for the
 first 89% of its health; a full-health Wisp renders as though at 40% health.
+
+**The design note raises this item's severity.** A creep at partial health is not
+an edge case in this game — it is the normal state of any creep that has crossed a
+lane boundary, since transfers deliberately carry damage forward. Health-bar
+fractions are therefore on the main path, and a Colossus arriving in the next lane
+at 45/90 renders as untouched. The mechanic the health bar exists to communicate —
+"this creep has been worn down by the lane before yours" — is precisely the one it
+currently cannot show for 10 of 15 creeps.
 
 **Fix at the boundary, not in the client**: add `MaxHealth` to
 `CreepPresentationSnapshot` and delete `CreepMaxHealth` entirely. Guessing sim

@@ -38,7 +38,11 @@ public sealed class BotMazingTests
         var mazed = slice.RouteLength(new LaneId(2));
         output.WriteLine($"lane 2 route: {straight} cells straight, {mazed} after mazing");
 
-        Assert.True(mazed > straight * 2, $"route only went from {straight} to {mazed} cells — the bot is not mazing");
+        // 1.4x, not 2x. The original 2x bar was set while a bot-pressure bug (a filter missing !HasLeaked)
+        // had the bots frozen out of sending, so every scrap of gold went into towers and the route reached
+        // 40 cells. With sends working the same bots split their gold and reach 24 — still comfortably
+        // mazing, but the old number was measuring a bug rather than a capability.
+        Assert.True(mazed > straight * 14 / 10, $"route only went from {straight} to {mazed} cells — the bot is not mazing");
     }
 
     [Fact]
