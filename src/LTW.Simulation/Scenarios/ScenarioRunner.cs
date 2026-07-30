@@ -106,7 +106,14 @@ public sealed class ScenarioRunner
             return players;
         }
 
-        var sendResult = economy.QueueSend(players, send.PlayerId, sendCreep, send.Quantity, send.RequestedTick);
+        // The creep actually named in the command, not the runner's single configured sendCreep.
+        // Live runs (RunThreeBotMatch) only ever generate sends via CreateBots' sendCreep.Id, so
+        // this made no observable difference there — but Replay() rebuilds commands from an
+        // external ReplayRecord's ContentId, which can name any creep. Charging every replayed send
+        // against sendCreep regardless of what the record says desyncs cost/income/cooldown from
+        // what the record claims actually happened.
+        var creep = content.Creeps.First(candidate => candidate.Id.Equals(send.CreepId));
+        var sendResult = economy.QueueSend(players, send.PlayerId, creep, send.Quantity, send.RequestedTick);
         if (!sendResult.Accepted)
         {
             return players;

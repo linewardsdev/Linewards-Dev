@@ -83,6 +83,25 @@ public sealed class EconomyTests
     }
 
     [Fact]
+    public void Leak_does_not_credit_gold_to_an_already_eliminated_sender()
+    {
+        // A sender's creep can still be mid-lane and leak after its owner is eliminated (queued
+        // before the elimination). The defender must still lose lives, but the eliminated sender —
+        // out of the match — should not gain gold from it, matching ApplyKillBounty's existing
+        // refusal to pay out against an eliminated participant.
+        var service = CreateService(leakLifeLoss: 2);
+        var players = CreatePlayers();
+        var eliminatedSender = players.Get(new PlayerId(1)).WithLives(new Lives(0));
+        players = players.Replace(eliminatedSender);
+
+        var result = service.ApplyLeak(players, new PlayerId(1), new PlayerId(2), Runner());
+
+        Assert.Equal(2, result.LivesLost.Amount);
+        Assert.Equal(18, result.Players.Get(new PlayerId(2)).Lives.Amount);
+        Assert.Equal(100, result.Players.Get(new PlayerId(1)).Gold.Amount);
+    }
+
+    [Fact]
     public void Explicit_leak_loss_can_exceed_default_rule_for_special_pressure()
     {
         var service = CreateService(leakLifeLoss: 1);

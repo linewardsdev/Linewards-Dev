@@ -129,7 +129,17 @@ public sealed class EconomyService
         var defender = players.Get(defenderId);
         var livesLost = Math.Min(defender.Lives.Amount, Math.Max(1, requestedLivesLost.Amount));
         var updatedDefender = defender.WithLives(new Lives(defender.Lives.Amount - livesLost));
-        var updatedSender = sender.WithGold(new Gold(sender.Gold.Amount + creep.LeakBounty.Amount));
+
+        // An eliminated sender's own creep can still be mid-lane and leak after they're already out
+        // of the match (queued before elimination), so the defender still takes the lives loss — but
+        // ApplyKillBounty already refuses to pay out against an eliminated participant, and crediting
+        // gold to a sender who is out of the game is the same kind of no-op payout, just on the other
+        // side of the transaction (OPEN_ITEMS.md item 24). LeakResult still reports the creep's
+        // nominal LeakBounty either way, matching the LeakEvent CombatService already raised for this
+        // same leak (computed independently, before elimination status is known here) — only the
+        // actual gold credit is suppressed.
+        var goldCredited = sender.IsEliminated ? 0 : creep.LeakBounty.Amount;
+        var updatedSender = sender.WithGold(new Gold(sender.Gold.Amount + goldCredited));
 
         var next = players.Replace(updatedDefender).Replace(updatedSender);
         return new LeakResult(next, new Lives(livesLost), creep.LeakBounty);

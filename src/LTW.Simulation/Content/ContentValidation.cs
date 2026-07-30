@@ -8,7 +8,9 @@ public sealed class ContentValidationResult
 {
     private ContentValidationResult(IReadOnlyList<string> errors)
     {
-        Errors = errors;
+        // Copies rather than storing the caller's list as-is (OPEN_ITEMS.md item 24) — the same
+        // defensive-copy convention used elsewhere for exactly this reason.
+        Errors = errors.ToArray();
     }
 
     public IReadOnlyList<string> Errors { get; }

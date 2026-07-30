@@ -205,6 +205,28 @@ public sealed class CombatTests
         Assert.Equal(2, leak.LivesLost.Amount);
     }
 
+    /// <summary>
+    /// LeakLifeLossFor matches "siege" or "colossus" in the content id, not the creep's display
+    /// name or its actual max health. creep.colossus is "Siege Colossus" and, at 90 max health, the
+    /// highest-health creep in the roster (creep.siege is 48) — it must not fall through to the
+    /// same 1-life cost as the cheapest creep in the game (OPEN_ITEMS.md item 24).
+    /// </summary>
+    [Fact]
+    public void Colossus_creep_emits_extra_leak_loss()
+    {
+        var service = new CombatService();
+        var content = CreateContent();
+        var routes = CreateRoutes(length: 2);
+        var state = new CombatState(
+            new[] { service.SpawnCreep(new EntityId(1), Colossus(), new PlayerId(2), LaneOne) },
+            Array.Empty<TowerCombatState>());
+
+        var result = service.Advance(state, content, routes, new SimulationTick(1));
+        var leak = Assert.Single(result.Events.OfType<LeakEvent>());
+
+        Assert.Equal(2, leak.LivesLost.Amount);
+    }
+
     private static readonly LaneId LaneOne = new(1);
 
     private static readonly ContentId ArrowTowerId = new("tower.arrow");
@@ -219,9 +241,11 @@ public sealed class CombatTests
 
     private static readonly ContentId SiegeCreepId = new("creep.siege");
 
+    private static readonly ContentId ColossusCreepId = new("creep.colossus");
+
     private static CombatContent CreateContent() =>
         new(
-            new[] { Runner(), Shade(), Siege() },
+            new[] { Runner(), Shade(), Siege(), Colossus() },
             new[] { ArrowTower(), PulseTower(), PrismTower() },
             new Dictionary<LaneId, PlayerId> { [LaneOne] = new PlayerId(1) });
 
@@ -242,6 +266,9 @@ public sealed class CombatTests
 
     private static CreepDefinition Siege() =>
         new(SiegeCreepId, "Siege", new Gold(40), new Income(4), new Gold(4), new Gold(6), maxHealth: 48, speedPerSecond: 1);
+
+    private static CreepDefinition Colossus() =>
+        new(ColossusCreepId, "Siege Colossus", new Gold(52), new Income(5), new Gold(5), new Gold(8), maxHealth: 90, speedPerSecond: 1);
 
     private static TowerDefinition ArrowTower() =>
         new(ArrowTowerId, "Arrow Tower", new Gold(25), rangeCells: 2, damage: 5, attackCooldownTicks: 2);

@@ -130,7 +130,12 @@ public sealed class BotController
             }
         }
 
-        return content.Creeps.First(creep => creep.Id.Equals(creepId));
+        // Throws with a clear message rather than a bare "sequence contains no matching element" if
+        // this bot's configured primary creep isn't in content — matching the same "detect missing
+        // content before play" principle as ResolveProfile above. BotLaneOptions.PrimaryCreepId is
+        // never validated at construction time, so this is the first point a typo would surface.
+        return content.Creeps.FirstOrDefault(creep => creep.Id.Equals(creepId))
+            ?? throw new InvalidOperationException($"No CreepDefinition found for this bot's configured primary creep '{creepId.Value}'.");
     }
 
     private int GetSendQuantity(PlayerEconomyState player, ContentCatalog content, CreepDefinition creep)

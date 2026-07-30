@@ -708,15 +708,25 @@ and has no callers — a latent trap if anyone starts using it.
 
 Simulation:
 
-- `ScenarioRunner.TryApplySend` charges the runner's single configured creep
-  rather than `send.CreepId`, so cost, income and cooldown are computed against
-  a creep that was not sent, while the record stores the real one. Live and
-  replay are wrong identically, so `ScenarioReplayTests` passes.
+- ~~`ScenarioRunner.TryApplySend` charges the runner's single configured creep
+  rather than `send.CreepId`~~ — **resolved 2026-07-30.** Now resolves the
+  actual `CreepDefinition` matching `send.CreepId` from `content.Creeps`. This
+  had zero effect on `RunThreeBotMatch` (its own bots only ever send the
+  runner's configured creep), so it only mattered for `Replay()` against a
+  record naming a different creep — added
+  `Replay_charges_the_creep_the_record_actually_names_not_the_runners_configured_default`,
+  confirmed to fail pre-fix and pass post-fix.
 - Two sources of truth for lives-lost-per-leak: `EconomyRules.LeakLifeLoss`
   (used by `ScenarioRunner` and tests) vs `CombatService.LeakLifeLossFor`
   (substring `"siege"`, used by the real match). The configured number and the
-  production number are unrelated. Consequence to check: `creep.siege` (48 hp)
-  costs 2 lives while `creep.colossus` (90 hp, *named* "Siege Colossus") costs 1.
+  production number are unrelated — this is a real architectural split
+  (`ScenarioRunner` is a deliberately separate economy-only model, see item 22)
+  and consolidating the two is a design decision, not resolved here. **The one
+  concrete inconsistency this item named was fixed**: `LeakLifeLossFor` now
+  also matches `"colossus"`, so `creep.colossus` (90 hp, *named* "Siege
+  Colossus", the roster's highest health) costs 2 lives on leak like
+  `creep.siege` (48 hp), not 1 like the cheapest creep in the game. New test:
+  `Colossus_creep_emits_extra_leak_loss`.
 - Selling a tower shortens the route without remapping live creep `PathIndex`,
   so any creep past the new end leaks immediately on the next tick.
 - `LeadPathIndex` rebuilds all bramble zones on every call — once per candidate
@@ -729,14 +739,23 @@ Simulation:
   ignoring its `grid` argument, and nothing calls `Invalidate` — so it would
   return stale routes if adopted. It duplicates the `routes` dictionary
   `LocalVerticalSlice` already maintains. Delete or fix before someone uses it.
-- `VerticalSliceSnapshot` hands out the live `TowerCombatState[]` behind an
-  `IReadOnlyList`, unlike `State/Snapshots.cs` and `ReplayRecord`, which copy.
-  `ContentValidation` likewise stores the caller's list without copying.
-- `ApplyLeak` does not guard participants the way `ApplyKillBounty` does: an
-  eliminated sender is still credited bounty, and a defender at 0 lives yields
-  `livesLost == 0` but still pays out.
-- `BotController.SelectCreep`'s `.First(...)` fallback can throw —
-  `BotLaneOptions.PrimaryCreepId` is never validated against `content.Creeps`.
+- ~~`VerticalSliceSnapshot` hands out the live `TowerCombatState[]`... `ContentValidation`
+  likewise stores the caller's list without copying~~ — **resolved 2026-07-30.**
+  Both now copy at construction (`.ToArray()`), matching the convention
+  `State/Snapshots.cs` and `ReplayRecord` already followed.
+- ~~`ApplyLeak` does not guard participants the way `ApplyKillBounty` does~~ —
+  **partially resolved 2026-07-30.** An eliminated sender is no longer credited
+  gold for a leak (`Leak_does_not_credit_gold_to_an_already_eliminated_sender`);
+  the defender-at-0-lives case was left as-is, since `Math.Min(defender.Lives.Amount, ...)`
+  already correctly yields `livesLost == 0` there and changing whether the
+  sender's bounty pays out in that case felt like a design call rather than an
+  obvious bug, unlike the eliminated-sender case.
+- ~~`BotController.SelectCreep`'s `.First(...)` fallback can throw~~ — **resolved
+  2026-07-30.** Now throws a clear, actionable `InvalidOperationException`
+  naming the missing creep id if `BotLaneOptions.PrimaryCreepId` isn't in
+  content, matching `ResolveProfile`'s existing "detect missing content before
+  play" convention, instead of a bare LINQ "sequence contains no matching
+  element."
 - `LocalVerticalSlice` route lookup uses `FindRoute(...).Route` without checking
   `.Found`, and `ContentValidator.ValidateMap` never checks spawn→exit
   reachability, so a map that seals a lane validates clean and then indexes

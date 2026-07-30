@@ -2,6 +2,7 @@ using LTW.Simulation.Bots;
 using LTW.Simulation.Content;
 using LTW.Simulation.Economy;
 using LTW.Simulation.Primitives;
+using LTW.Simulation.Replay;
 using LTW.Simulation.Scenarios;
 
 namespace LTW.Tests;
@@ -36,6 +37,28 @@ public sealed class ScenarioReplayTests
         var replayed = runner.Replay(result.Replay);
 
         Assert.Equal(result.FinalStateHash, replayed.FinalStateHash);
+    }
+
+    [Fact]
+    public void Replay_charges_the_creep_the_record_actually_names_not_the_runners_configured_default()
+    {
+        // The runner is configured with Runner (cost 10) as its default send creep, but the replay
+        // record below names Brute (cost 30). TryApplySend used to charge every replayed send
+        // against the runner's own configured creep regardless of what the record said, so this
+        // would have deducted 10 gold instead of 30.
+        var runner = CreateRunner();
+        var players = new[] { new PlayerId(1), new PlayerId(2) };
+        var replay = new ReplayRecord(
+            seed: 1,
+            contentVersion: "scenario-test",
+            mapId: TestMapId,
+            players: players,
+            completedAtTick: new SimulationTick(1),
+            acceptedCommands: new[] { new AcceptedCommandRecord(new SimulationTick(1), new PlayerId(1), BruteCreepId, quantity: 1) });
+
+        var result = runner.Replay(replay);
+
+        Assert.Equal(70, result.Players.Get(new PlayerId(1)).Gold.Amount);
     }
 
     [Fact]
@@ -78,6 +101,8 @@ public sealed class ScenarioReplayTests
 
     private static readonly ContentId RunnerCreepId = new("creep.runner");
 
+    private static readonly ContentId BruteCreepId = new("creep.brute");
+
     private static readonly ContentId ArrowTowerId = new("tower.arrow");
 
     private static readonly ContentId TestMapId = new("map.test");
@@ -86,7 +111,11 @@ public sealed class ScenarioReplayTests
         new(
             "scenario-test",
             new[] { new TowerDefinition(ArrowTowerId, "Arrow Tower", new Gold(25), rangeCells: 3, damage: 5, attackCooldownTicks: 10) },
-            new[] { new CreepDefinition(RunnerCreepId, "Runner", new Gold(10), new Income(1), new Gold(1), new Gold(2), maxHealth: 15, speedPerSecond: 2) },
+            new[]
+            {
+                new CreepDefinition(RunnerCreepId, "Runner", new Gold(10), new Income(1), new Gold(1), new Gold(2), maxHealth: 15, speedPerSecond: 2),
+                new CreepDefinition(BruteCreepId, "Brute", new Gold(30), new Income(2), new Gold(2), new Gold(3), maxHealth: 24, speedPerSecond: 1)
+            },
             Array.Empty<TechDefinition>(),
             new[] { new MapDefinition(TestMapId, "Test", width: 8, height: 6, new GridPosition(0, 3), new GridPosition(7, 3), Array.Empty<GridPosition>()) },
             new[]

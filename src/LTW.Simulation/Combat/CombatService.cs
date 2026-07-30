@@ -938,7 +938,15 @@ public sealed class CombatService
 
     private static bool IsShadeCreep(ContentId creepId) => ContainsRole(creepId, "shade") || ContainsRole(creepId, "stealth") || ContainsRole(creepId, "invisible");
 
-    private static Lives LeakLifeLossFor(ContentId creepId) => ContainsRole(creepId, "siege") ? new Lives(2) : new Lives(1);
+    // "siege" alone missed creep.colossus — its content id doesn't contain the word, but its full
+    // name is "Siege Colossus" and, at 90 max health, it is the highest-health creep in the roster
+    // (creep.siege itself is 48). Matching only the id meant the biggest, most expensive creep to
+    // leak cost the same one life as the cheapest, while the smaller Siege cost two — the opposite
+    // of what a "siege" classification is for. See OPEN_ITEMS.md item 24; the broader question of
+    // whether this substring approach should become a real per-creep content field instead of a
+    // name heuristic is a design decision left open, not resolved here.
+    private static Lives LeakLifeLossFor(ContentId creepId) =>
+        ContainsRole(creepId, "siege") || ContainsRole(creepId, "colossus") ? new Lives(2) : new Lives(1);
 
     private static bool ContainsRole(ContentId contentId, string role) => contentId.Value.IndexOf(role, StringComparison.OrdinalIgnoreCase) >= 0;
 }
