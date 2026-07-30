@@ -528,36 +528,42 @@ roster rather than another cheap repeat. Route length still reaches 30 cells
 to 1600 rather than the bar being lowered — this is a timing shift, not a
 mazing regression. 175/175 tests pass.
 
-## 16. `README.md` test count is wrong by 92, and three docs disagree
+## 16. ~~`README.md` test count is wrong by 92, and three docs disagree~~ — resolved 2026-07-30
+
+**Fixed by dropping the hardcoded numbers, as recommended**, in all three docs
+(`README.md`, `docs/MVP_STATUS.md`, `docs/GAMEPLAY_DEVELOPMENT_CHECKLIST.md`) —
+each now says the suite passes and points at this item rather than quoting a
+count that will just rot again as the suite grows. The two previously-`Skip`ped
+tests this item flagged were already un-skipped earlier in this same review
+pass (item 10's fix made them pass), so `MVP_STATUS.md`'s claim that they
+verify the completion window is true again; that line was also updated to the
+current 150-2000 tick window (see item 17's fix below — the old 900-1800
+number was itself stale).
 
 Actual count in `tests/LTW.Tests/` (19 files): **169** `[Fact]`/`[Theory]`
 attributes — 167 `[Fact]` (2 of them `Skip`ped) plus 2 `[Theory]` with 7
 `[InlineData]` rows, so ~174 discovered cases.
 
-Claims in the repo: `README.md` line 43 says **77**;
-`docs/MVP_STATUS.md` says **55**; `docs/GAMEPLAY_DEVELOPMENT_CHECKLIST.md`
-says **78**. All three are stale and all three disagree.
+## 17. ~~Lane geometry documented as 7x18; the actual map is 7x16~~ — resolved 2026-07-30
 
-A hardcoded test count in prose is guaranteed to rot. Either drop the number
-and say "the suite passes", or have CI write it. The two `Skip`ped tests are
-the "two mazing bots stalemate" cases in `LocalThreePlayerMatchTests` — and
-`MVP_STATUS.md` still cites those same tests as *verifying* the tick window
-they no longer run.
-
-## 17. Lane geometry documented as 7x18; the actual map is 7x16
+**Fixed**: `docs/MVP_STATUS.md` (3 occurrences, including the `(3, 17)` life-loss
+coordinate corrected to `(3, 15)`) and `docs/GAMEPLAY_DEVELOPMENT_CHECKLIST.md`
+(2 occurrences) now say 7x16. `docs/GD_TUNING_LOG.md`'s occurrence was left
+alone deliberately — it's an append-only historical log, and a later entry in
+that same file already records the correction (search "item 17"), so rewriting
+the earlier entry would misrepresent what was known at the time it was
+written. `MVP09_INTEGRATION_NOTES.md` was retired (deleted; recoverable via
+`git log --all --full-history -- MVP09_INTEGRATION_NOTES.md`) rather than
+repaired, since repairing it would still leave a fully-superseded, unlinked doc
+in the repo root for the next person to trip over.
 
 `SampleVerticalSliceContent` defines `width: 7, height: 16`, spawn `(3,0)`,
 leak `(3,15)`, and `LaneLength = 16` is duplicated in three Unity scripts.
-Docs saying 7x18 with life loss at `(3,17)`: `docs/MVP_STATUS.md`,
-`docs/GAMEPLAY_DEVELOPMENT_CHECKLIST.md`, `docs/GD_TUNING_LOG.md` — and the
-`BestMazingPlacement` doc comment added in `2cf96e1` also says "7x18".
-Lane count is also inconsistent (`MVP_STATUS.md` three, the checklist eight;
-the default is eight).
-
-`MVP09_INTEGRATION_NOTES.md` in the repo root is worse and fully stale — it
-describes a 12x9 grid, spawn `(0,4)`, exit `(11,4)`, 10 ticks/second (actual: 4)
-and a 3,000–6,000 tick window (actual: 900–1800, in skipped tests). It is not
-linked from `docs/README.md`. **Retire it** rather than repair it.
+Lane count was also inconsistent (`MVP_STATUS.md` three, the checklist eight;
+the default is eight) — both are actually correct simultaneously: three lanes
+is the local three-player carousel default, eight is the full expanded-lane
+default, and the checklist/status docs were each describing a different mode,
+not disagreeing. Left as-is; not a defect.
 
 ## 18. Send cooldown is 0, but the UI still describes a 7.5-second one
 

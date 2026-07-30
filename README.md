@@ -40,7 +40,10 @@ dotnet format LTW.sln --no-restore --verify-no-changes
 dotnet test LTW.sln --no-restore --configuration Release
 ```
 
-77 simulation tests currently pass under `tests/LTW.Tests/`.
+The full simulation test suite passes under `tests/LTW.Tests/`. A hardcoded
+test count belongs in CI output, not prose — three docs have quoted three
+different stale counts (see `docs/OPEN_ITEMS.md` item 16), so this one
+deliberately doesn't state a number.
 
 ## Unity Editor
 

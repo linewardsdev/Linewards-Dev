@@ -9,7 +9,7 @@ Resume iOS TestFlight work only after this fork produces a local desktop/Unity s
 ## Current Baseline
 
 - The local Unity scene loads `Assets/Scenes/LocalVerticalSlice.unity` without current console errors.
-- The simulation supports eight side-by-side 7x18 long north-south lanes, an explicit local seat, bots on the remaining lanes, placement with lane-ownership authority, sends under an enforced cooldown, selling, replay export, carousel creep handoff, and match summaries.
+- The simulation supports eight side-by-side 7x16 long north-south lanes, an explicit local seat, bots on the remaining lanes, placement with lane-ownership authority, sends under an enforced cooldown, selling, replay export, carousel creep handoff, and match summaries.
 - Content roster: 15 towers in three build lines (ARCANE / FOUNDRY / GROVE) and 15 creeps in three send categories (CORE / RAPID / ELITE). Costs live only in `ContentCatalog`; the client reads them at display time.
 - Automated .NET tests pass, including deterministic local-match coverage.
 - Presentation systems exist for lane cells, towers, creeps, events, pooled objects, audio cues, vibration hooks, and presentation modes.
@@ -61,7 +61,7 @@ The batch runner also accepts local-match variants:
 
 ### Deliverables
 
-- [x] Frame the side-by-side 7x18 long north-south lane grid clearly for the current local Unity camera baseline.
+- [x] Frame the side-by-side 7x16 long north-south lane grid clearly for the current local Unity camera baseline.
 - [x] Make own lane, target lanes, spawn, exit, towers, and creep paths visually distinct.
 - [x] Add an obvious selected-lane or inspected-lane state.
 - [x] Add placement preview feedback for legal, blocked, unaffordable, and path-blocking cells.
@@ -167,7 +167,7 @@ investment so a fully-invested attacker can break a fully-invested defence.
 - [x] Add scenario tests for low-pressure, normal-pressure, and heavy-pressure matches.
 - [x] Record current known balance problems in a tuning log.
 
-Initial target ranges and known balance questions are recorded in `docs/GD_TUNING_LOG.md`. The first pacing pass raises local lives to 220, delays bot send spending during the opening, and guards the deterministic local match against the 900-1800 tick completion target. `tests/LTW.Tests/GameplayScenarioTests.cs` now covers low-pressure (stable opening defense), normal-pressure (income and active combat), and heavy-pressure (escalation without hidden bot advantages) scenarios; all 78 solution tests pass under `dotnet test LTW.sln --configuration Release`.
+Initial target ranges and known balance questions are recorded in `docs/GD_TUNING_LOG.md`. The first pacing pass raises local lives to 220, delays bot send spending during the opening, and guards the deterministic local match against a 150-2000 tick completion target (widened from an earlier 900-1800 after the bot-stalemate fix in `docs/OPEN_ITEMS.md` item 10). `tests/LTW.Tests/GameplayScenarioTests.cs` now covers low-pressure (stable opening defense), normal-pressure (income and active combat), and heavy-pressure (escalation without hidden bot advantages) scenarios; the full solution test suite passes under `dotnet test LTW.sln --configuration Release` (a specific count isn't quoted deliberately — see `docs/OPEN_ITEMS.md` item 16).
 
 ### Acceptance Checks
 

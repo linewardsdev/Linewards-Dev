@@ -18,7 +18,9 @@ dotnet format LTW.sln --no-restore --verify-no-changes
 dotnet test LTW.sln --no-restore --configuration Release
 ```
 
-Latest local result: 55 tests passed.
+Latest local result: the full suite passes. (A hardcoded count isn't kept
+here deliberately — three docs have quoted three different stale counts; see
+`docs/OPEN_ITEMS.md` item 16.)
 
 Unity compile smoke also passes locally when `LTW.Simulation.dll` is built and copied to
 `unity/LTW.UnityClient/Assets/Plugins`. The latest batch Play Mode evidence run loaded
@@ -35,7 +37,7 @@ that editor after the mobile HUD treatment merge.
 Current code evidence:
 
 - `UnityVerticalSliceRenderer` renders side-by-side lane cells, towers, creeps, ownership colors, spawn boxes, and life-loss boxes.
-- The current vertical-slice lane layout uses three side-by-side 7x18 long north-south lanes, with spawn at `(3, 0)` and life loss at `(3, 17)`.
+- The current vertical-slice lane layout uses three side-by-side 7x16 long north-south lanes, with spawn at `(3, 0)` and life loss at `(3, 15)`.
 - Presentation pools exist for towers, creeps, effects, and floating text.
 - Simulation events create visual feedback for tower placement, tower damage, creep spawn, creep kill, leak, income tick, and elimination.
 - Basic generated audio cues, mobile vibration hooks, reduced-effects preference, text scale, and disabled/simplified presentation modes exist.
@@ -51,9 +53,9 @@ Remaining acceptance evidence:
 Current code evidence:
 
 - `LocalVerticalSlice` runs a three-player carousel with Player 1 as the human lane and two bot players.
-- The local sample map uses three 7x18 lanes.
+- The local sample map uses three 7x16 lanes.
 - The bridge supports placement, sends, selling, reset, match summary, and replay records.
-- `LocalThreePlayerMatchTests` verifies a deterministic local bot match completes in the current 900-1800 tick pacing target window.
+- `LocalThreePlayerMatchTests` verifies a deterministic local bot match completes in the current 150-2000 tick pacing target window (widened from an earlier 900-1800 after the bot-stalemate fix in `docs/OPEN_ITEMS.md` item 10 — the same seed now completes at tick 926 instead of never completing).
 - Creeps that leak through a lane now continue through active non-sender lanes, preserving carousel pressure while preventing a sender's own creeps from entering their lane.
 - Bot opponents now build opening defensive packages before send pressure: Balanced builds two early towers, Defensive builds three and keeps a higher opening gold reserve.
 - `LocalReplayExporter` writes diagnostic replay JSON.
@@ -105,6 +107,6 @@ Current code evidence:
 
 Remaining acceptance evidence:
 
-- Manually confirm the side-by-side 7x18 lane view is framed well across desktop and mobile aspect ratios.
+- Manually confirm the side-by-side 7x16 lane view is framed well across desktop and mobile aspect ratios.
 - Confirm the new path, spawn, life-loss, and lane labels remain readable during active creeps and combat feedback.
 - Confirm runtime HUD controls do not cover the active placement area during real Play Mode placement.
