@@ -33,10 +33,10 @@ ModelImporter:
     clipAnimations:
     - serializedVersion: 16
       name: Walk
-      takeName: Scene
+      takeName: BruteArmature|Scene
       internalID: -623603649343465320
       firstFrame: 1
-      lastFrame: 24
+      lastFrame: 35
       wrapMode: 0
       orientationOffsetY: 0
       level: 0

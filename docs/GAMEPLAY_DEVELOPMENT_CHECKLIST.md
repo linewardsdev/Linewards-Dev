@@ -349,16 +349,24 @@ eight, so the clips never fight the renderer's own transform writes.
       under-correcting because full correction is unreachable and the fast creeps are already
       partly compensated by clip choice — but nobody has watched it. It is the one number in this
       pass set without eyes on it.
-- [ ] **Give rigged creeps something other than a walk cycle.** One `Walk` state each is still the
-      whole state machine — no death, no hit reaction, no idle clip. The per-creep secondary layer
-      above differentiates them within that limit, but it is layered motion, not animation: a real
-      hit or death reaction needs authored clips and an animator transition, which is Blender work
-      per creep rather than a renderer change.
-- [ ] **Gait-review the five Meshy auto-rigs from the game camera.** Brute, Obsidian Brute and
-      Turret Walker were each reviewed this way and each review found real defects (occluded legs,
-      51x foot skate, a self-cancelling symmetric trot). Zephyr, Stalker, Burrower, Warden and
-      Colossus arrived as vendor auto-rigs and have never had that check — and the check has a
-      100% hit rate so far.
+- [x] **Every rigged creep has its own walk clip** (2026-07-30). They shared FOUR animations
+      between eight creeps, verified by reading the actions out of the FBXs: the Meshy stock
+      `running` (Zephyr, Stalker), the Meshy stock `walking_man` (Burrower, Warden, Colossus —
+      Warden and Colossus byte-identical), one `rig_quadruped_creep.py` gait (Brute, Obsidian
+      Brute), and the Turret Walker's own. `tools/art_pipeline/rig_biped_creep.py` now gives each
+      its own cycle length, amplitude and posture: 18 / 26 / 32 / 30 / 44 / 23 / 33 / 23 frames,
+      eight distinct curve-data hashes, all eight animator bindings verified intact in Unity.
+- [ ] **Rigged creeps still have no clip but Walk.** One state each is the whole state machine —
+      no death, no hit reaction, no idle. The hit response is still a scale punch. Real reactions
+      need new authored clips and animator transitions, not a transform of the walk.
+- [x] **Gait-reviewed all eight rigs from the game camera** (2026-07-30), keeping the check's
+      100% hit rate: it caught a facing axis measured 31 degrees off (hips-to-toes is nearly
+      vertical in an A-pose, so it was reading noise — heel-to-toe fixed it), amplitude damping
+      pulling arms back toward the T-POSE rest instead of the clip's mean, and a first attempt at
+      authoring gaits from scratch that deformed the meshes badly.
+- [ ] **The Aegis Warden model carries its arms out sideways**, in the vendor's own stock clip as
+      much as in the new one — confirmed by rendering both. Not a regression and not fixable by
+      animation; it needs either a mesh/rig correction or accepting the silhouette.
 - [ ] **Make Bramble Hold visibly slow its victims.** Thorn Snare halves creep speed
       (`BrambleMovementCost`), and walk playback is now speed-driven, so a braked creep *should*
       visibly slow its legs — which would also make an otherwise-invisible mechanic legible.

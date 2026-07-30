@@ -33,7 +33,7 @@ ModelImporter:
     clipAnimations:
     - serializedVersion: 16
       name: Walk
-      takeName: Armature|Armature|running|baselayer
+      takeName: Armature|Scene
       internalID: -8892899532014023212
       firstFrame: 0
       lastFrame: 19
