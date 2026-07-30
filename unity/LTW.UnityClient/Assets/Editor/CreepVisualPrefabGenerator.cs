@@ -406,12 +406,15 @@ namespace LTW.UnityClient.Editor
                 AssetDatabase.CreateAsset(library, LibraryPath);
             }
 
+            // Non-destructive find-or-append: the shipped library carries 15 profiles (10 authored via
+            // Creep3DImportPipeline since this generator predates them), and this method only knows how
+            // to build the original 5. Truncating arraySize to 5 here used to wipe the other 10 on a
+            // single menu click.
             var serializedLibrary = new SerializedObject(library);
             var profiles = serializedLibrary.FindProperty("profiles");
-            profiles.arraySize = 5;
 
             ConfigureProfile(
-                profiles.GetArrayElementAtIndex(0),
+                FindOrAppendProfile(profiles, "creep.runner"),
                 "creep.runner",
                 CreepVisualRole.Runner,
                 runnerPrefab,
@@ -422,7 +425,7 @@ namespace LTW.UnityClient.Editor
                 new[] { "Damage" },
                 CreepDeathCueStyle.SparkBurst);
             ConfigureProfile(
-                profiles.GetArrayElementAtIndex(1),
+                FindOrAppendProfile(profiles, "creep.brute"),
                 "creep.brute",
                 CreepVisualRole.Brute,
                 brutePrefab,
@@ -433,7 +436,7 @@ namespace LTW.UnityClient.Editor
                 new[] { "PlateLeft", "PlateRight", "Damage/RearPlate" },
                 CreepDeathCueStyle.HeavyShatter);
             ConfigureProfile(
-                profiles.GetArrayElementAtIndex(2),
+                FindOrAppendProfile(profiles, "creep.swarm"),
                 "creep.swarm",
                 CreepVisualRole.Swarm,
                 swarmPrefab,
@@ -444,7 +447,7 @@ namespace LTW.UnityClient.Editor
                 new[] { "Damage/CrackedShard" },
                 CreepDeathCueStyle.ShardScatter);
             ConfigureProfile(
-                profiles.GetArrayElementAtIndex(3),
+                FindOrAppendProfile(profiles, "creep.shade"),
                 "creep.shade",
                 CreepVisualRole.Stealth,
                 shadePrefab,
@@ -455,7 +458,7 @@ namespace LTW.UnityClient.Editor
                 new[] { "Damage" },
                 CreepDeathCueStyle.SoftDissolve);
             ConfigureProfile(
-                profiles.GetArrayElementAtIndex(4),
+                FindOrAppendProfile(profiles, "creep.siege"),
                 "creep.siege",
                 CreepVisualRole.Siege,
                 siegePrefab,
@@ -468,6 +471,21 @@ namespace LTW.UnityClient.Editor
 
             serializedLibrary.ApplyModifiedProperties();
             EditorUtility.SetDirty(library);
+        }
+
+        private static SerializedProperty FindOrAppendProfile(SerializedProperty profiles, string creepId)
+        {
+            for (var index = 0; index < profiles.arraySize; index++)
+            {
+                if (profiles.GetArrayElementAtIndex(index).FindPropertyRelative("creepId").stringValue == creepId)
+                {
+                    return profiles.GetArrayElementAtIndex(index);
+                }
+            }
+
+            var appendedIndex = profiles.arraySize;
+            profiles.InsertArrayElementAtIndex(appendedIndex);
+            return profiles.GetArrayElementAtIndex(appendedIndex);
         }
 
         private static void ConfigureProfile(

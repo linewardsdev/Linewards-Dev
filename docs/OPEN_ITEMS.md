@@ -436,7 +436,19 @@ stats from an id string in the presentation layer is the bug; the wrong numbers
 are a symptom. A test comparing every `CreepDefinition.MaxHealth` against
 whatever the client uses would have caught this the day the roster grew.
 
-## 13. CRITICAL — two placeholder generators truncate the 15-entry visual libraries to 5
+## 13. ~~CRITICAL — two placeholder generators truncate the 15-entry visual libraries to 5~~ — resolved 2026-07-30
+
+**Fixed by converting both to the same non-destructive find-or-append
+convention the rest of the pipeline already uses**, rather than deleting the
+generators outright — they still have legitimate standalone value for
+regenerating placeholder art for the original 5. `TowerVisualPrefabGenerator.UpdateVisualLibrary`
+now delegates to the already-non-destructive `UpdateSingleVisualProfile` per
+entry instead of truncating `profiles.arraySize` to `TowerSpecs.Length`.
+`CreepVisualPrefabGenerator` had no such method to reuse, so it gained a new
+`FindOrAppendProfile` helper (matches an entry by `creepId`, appends if none is
+found) used by all 5 of its `ConfigureProfile` calls in place of the
+`profiles.arraySize = 5` truncation. Verified with a headless Unity batchmode
+compile in a scratch worktree: 0 `error CS`.
 
 `Assets/Resources/TowerVisualLibrary.asset` and `CreepVisualLibrary.asset` each
 carry 15 profiles, written by a non-destructive find-or-append convention

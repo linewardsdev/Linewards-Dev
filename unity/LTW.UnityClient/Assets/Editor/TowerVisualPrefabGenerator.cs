@@ -426,24 +426,14 @@ namespace LTW.UnityClient.Editor
 
         private static void UpdateVisualLibrary(GameObject[] prefabs)
         {
-            var library = AssetDatabase.LoadAssetAtPath<TowerVisualLibrary>(LibraryPath);
-            if (library == null)
-            {
-                library = ScriptableObject.CreateInstance<TowerVisualLibrary>();
-                AssetDatabase.CreateAsset(library, LibraryPath);
-            }
-
-            var serializedLibrary = new SerializedObject(library);
-            var profiles = serializedLibrary.FindProperty("profiles");
-            profiles.arraySize = TowerSpecs.Length;
-
+            // Delegates to the non-destructive find-or-append below instead of truncating the array to
+            // TowerSpecs.Length. The shipped library carries 15 profiles (10 authored via
+            // Tower3DImportPipeline since this generator predates them), and this method only knows how
+            // to build the original 5 — truncating here used to wipe the other 10 on a single menu click.
             for (var index = 0; index < TowerSpecs.Length; index++)
             {
-                ConfigureProfile(profiles.GetArrayElementAtIndex(index), TowerSpecs[index], prefabs[index]);
+                UpdateSingleVisualProfile(TowerSpecs[index], prefabs[index]);
             }
-
-            serializedLibrary.ApplyModifiedProperties();
-            EditorUtility.SetDirty(library);
         }
 
         private static void UpdateSingleVisualProfile(TowerSpec spec, GameObject prefab)
