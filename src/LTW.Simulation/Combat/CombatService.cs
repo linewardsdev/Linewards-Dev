@@ -72,7 +72,8 @@ public sealed class CombatService
                 creep.LaneId,
                 ResolvePosition(creep, routes),
                 creep.Health,
-                content.GetCreep(creep.CreepId).MaxHealth))
+                content.GetCreep(creep.CreepId).MaxHealth,
+                content.GetCreep(creep.CreepId).SpeedPerSecond))
             .ToArray();
     }
 

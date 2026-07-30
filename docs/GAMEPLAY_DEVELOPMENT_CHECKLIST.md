@@ -27,6 +27,8 @@ Resume iOS TestFlight work only after this fork produces a local desktop/Unity s
 | GD-06 | Session flow and results | Integration | GD-04 | Start, pause, reset, win/loss, results, and replay export form a complete local session. |
 | GD-07 | Game feel and feedback | Presentation | GD-01, GD-04 | Builds, hits, kills, leaks, income ticks, and eliminations are satisfying and legible. |
 | GD-08 | Playtest evidence and tuning notes | Design QA | GD-01 through GD-07 | At least three local playtest runs produce notes, metrics, and prioritized fixes. |
+| GD-09 | Category upgrade tiers | Simulation | GD-03, GD-04 | Six categories upgrade independently and a tiered attacker can break a tiered defence. |
+| GD-10 | Unit animation across the full roster | Presentation | GD-03 | Every one of the 15 towers and 15 creeps reads as its own thing in motion, not just at rest. |
 
 ## GD-00: Playable-Loop Baseline
 
@@ -268,3 +270,96 @@ Current prioritized fixes:
 - [x] There is enough evidence to explain what is fun, confusing, slow, or broken.
 - [x] The next work queue is based on playtest observations, not only implementation completeness.
 - [x] iOS TestFlight work is resumed only if local play is coherent enough to benefit from device testing.
+
+## GD-10: Unit Animation Across The Full Roster
+
+Reviewed 2026-07-30 against the shipped assets rather than the code alone — prefabs, animator
+controllers and the visual libraries were all read directly, because three of the findings below
+are invisible from the C# side.
+
+### Where the roster actually stands
+
+**Towers — 15/15 have authored idle motion.** `TowerMotionProfileFor` carries a real per-role row
+for every tower (breathe rate and amplitude, drift, pulse sharpness, yaw lock, rest heading), on
+top of aim-yaw tracking, a firing kick, and independently spinning sub-parts (Control's ring,
+Relay's dish, Prism's spire). Arrow additionally has a split `HeadPivot` so only its barrel
+swivels and kicks. There is no tower sitting on a shared fallback.
+
+**Creeps — 7 procedural, 8 rigged, and the split is not the one the docs implied.**
+
+| | Creeps | Motion source |
+| --- | --- | --- |
+| Procedural | runner, swarm, shade, siege, wisp, revenant, serpent | Authored curves in `CreepRoleMotion` |
+| Blender-rigged | brute, obsidian_brute, turret_walker | `rig_quadruped_creep.py`, `rig_turret_walker.py` |
+| Meshy auto-rigged | zephyr, stalker, burrower, warden, colossus | Meshy 24-bone biped rigs (`a88dae1`) |
+
+Every rigged creep has exactly **one** state, `Walk`, and one clip. Root motion is off on all
+eight, so the clips never fight the renderer's own transform writes.
+
+### Landed in this pass
+
+- [x] **Walk-clip playback now follows creep speed** (2026-07-30). Nothing synced animator
+      playback to movement speed — the exact gap `docs/GD_TUNING_LOG.md`'s 2026-07-28 entry named
+      ("the clip loops at its authored rate while the simulation translates the creep
+      independently") and then attacked from inside the rig, because a Blender script has no other
+      lever. This is the lever it could not reach. All eight rigged creeps previously played at
+      1.0x across a 3x speed spread, so a 90 hp Siege Colossus and a Zephyr Wraith cycled their
+      limbs identically.
+- [x] **Speed reaches the client from the simulation, not a guess.** `CreepPresentationSnapshot`
+      now carries `SpeedPerSecond`, sourced from the creep definition — the same correction made
+      for max health, and for the same reason. Guarded by
+      `CreepSpeedTests.Presentation_snapshots_report_each_creeps_own_speed_and_max_health`, which
+      asserts over the whole roster by construction rather than over whatever a scenario can
+      afford to send.
+- [x] **Firing kick is per-role instead of one shared magnitude.** A 10-gold Sapling Sentinel used
+      to kick exactly as hard as a 52-gold Foundry Core. `TowerMotionProfile.RecoilScale` now
+      spans 0.35 (Tesla, an arc with no projectile mass) to 1.8 (Foundry, the heaviest shell on
+      the board).
+- [x] **Foundry Core has a firing reaction at all.** It had none, purely because `SuppressRecoil`
+      defaults to `LocksYaw` and it locks yaw — the same conflation the Barricade Bastion had
+      already been rescued from. Having no facing is a reason not to turn, not a reason to lob a
+      14-damage shell with no reaction.
+- [x] **All 15 creeps name an explicit motion style.** Five sat on `Auto`, which resolves by
+      substring; none of those five ids match any branch, so the fallback was `RunnerDart` — a
+      13 Hz twitch authored for the 10 hp Runner. Inert while the rigs hold, and a trap the moment
+      one does not.
+
+### Deliverables
+
+- [ ] **Watch the speed-scaled playback and tune the exponent.** `CreepWalkSpeedExponent` is 0.5,
+      giving 1.00x / 1.41x / 1.73x at speeds 1 / 2 / 3. That is a *reasoned* value — deliberately
+      under-correcting because full correction is unreachable and the fast creeps are already
+      partly compensated by clip choice — but nobody has watched it. It is the one number in this
+      pass set without eyes on it.
+- [ ] **Give rigged creeps something other than a walk cycle.** One `Walk` state each is the whole
+      state machine. No death, no hit reaction, no idle. The hit response is a uniform scale punch
+      of 0.28 applied identically to all eight, so a Colossus flinches exactly like a Zephyr.
+- [ ] **Gait-review the five Meshy auto-rigs from the game camera.** Brute, Obsidian Brute and
+      Turret Walker were each reviewed this way and each review found real defects (occluded legs,
+      51x foot skate, a self-cancelling symmetric trot). Zephyr, Stalker, Burrower, Warden and
+      Colossus arrived as vendor auto-rigs and have never had that check — and the check has a
+      100% hit rate so far.
+- [ ] **Make Bramble Hold visibly slow its victims.** Thorn Snare halves creep speed
+      (`BrambleMovementCost`), and walk playback is now speed-driven, so a braked creep *should*
+      visibly slow its legs — which would also make an otherwise-invisible mechanic legible.
+      Blocked on effective speed reaching the client: doing it in `GetCreepSnapshots` would
+      rebuild bramble zones once per rendered frame instead of once per tick. The clean route is a
+      braked flag on `CreepCombatState`, where `MoveCreeps` already computes it.
+- [ ] **Chain Arc's hops still draw the generic beam** rather than an arc per hop (also tracked in
+      GD-03; it is the last mechanic with no presentation of its own).
+- [ ] **Creep death is still instantaneous.** A collapse tween needs a dying creep to outlive the
+      snapshot by a few hundred milliseconds, which means touching `ReleaseMissingCreeps` and the
+      pooling lifecycle rather than adding motion to an existing update path. Deferred
+      deliberately since the first animation pass; still the right shape of work.
+- [ ] **Decide whether residual foot skate is acceptable or the board scale is wrong.** Even after
+      rig tuning the Turret Walker measured 8.3x. `SpeedPerSecond` is cells per *tick* at 4
+      ticks/sec, so a speed-2 creep crosses 8 world units/sec — roughly six body lengths. No
+      legged gait reads correctly at that speed, so this is a units/pacing question, not an
+      animation one, and it caps how good any gait work can look.
+
+### Acceptance Checks
+
+- [ ] No two towers in the same build line read as the same object in motion.
+- [ ] A creep's weight class is legible from how it moves, before its health bar is read.
+- [ ] Firing, being hit, and dying are each distinguishable without colour cues.
+- [ ] Nothing in the roster falls back to another unit's motion when its own asset is missing.

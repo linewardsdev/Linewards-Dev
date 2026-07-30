@@ -128,6 +128,7 @@ public sealed class CombatTests
         Assert.Equal(new GridPosition(1, 1), snapshot.Position);
         Assert.Equal(10, snapshot.Health);
         Assert.Equal(10, snapshot.MaxHealth);
+        Assert.Equal(1, snapshot.SpeedPerSecond);
     }
 
     [Fact]

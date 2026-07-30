@@ -1,4 +1,9 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using LTW.Simulation.Bridge;
+using LTW.Simulation.Combat;
+using LTW.Simulation.Primitives;
 
 namespace LTW.Tests;
 
@@ -47,6 +52,58 @@ public sealed class CreepSpeedTests
         foreach (var creep in content.Creeps)
         {
             Assert.True(creep.SpeedPerSecond > 0, $"{creep.Id.Value} has a non-positive speed and would never advance.");
+        }
+    }
+
+    /// <summary>
+    /// Every creep's presentation snapshot reports the same speed and max health as its definition,
+    /// for all fifteen — not just the handful a scenario happens to spawn.
+    /// </summary>
+    /// <remarks>
+    /// This is the test that was missing when the client guessed both of these from the creep id
+    /// string (OPEN_ITEMS.md item 12). That guess was correct for the original five and wrong for
+    /// ten of the fifteen added since, and nothing failed, because no test ever compared the two
+    /// sides across the whole roster. Both fields now come from the definition, so this asserts the
+    /// property that makes guessing unnecessary rather than re-checking specific numbers that the
+    /// balance record is free to change.
+    ///
+    /// Speed matters to presentation for the same reason max health does: the renderer scales a
+    /// rigged creep's walk-clip playback by it, so a wrong value shows up as foot skate rather than
+    /// as a wrong health bar.
+    /// </remarks>
+    [Fact]
+    public void Presentation_snapshots_report_each_creeps_own_speed_and_max_health()
+    {
+        // Built straight against CombatService rather than through LocalVerticalSlice: sending all
+        // fifteen costs 369 gold, well past any starting balance, so a match-level version of this
+        // test would only ever cover the creeps the economy happened to afford — which is the exact
+        // gap that let item 12 through. This spawns one of every creep directly, so the assertion is
+        // over the whole roster by construction.
+        var content = SampleVerticalSliceContent.Create();
+        var service = new CombatService();
+        var lane = new LaneId(1);
+        var combatContent = new CombatContent(
+            content.Creeps,
+            content.Towers,
+            new Dictionary<LaneId, PlayerId> { [lane] = new PlayerId(2) });
+        var routes = new Dictionary<LaneId, IReadOnlyList<GridPosition>>
+        {
+            [lane] = Enumerable.Range(0, 16).Select(y => new GridPosition(3, y)).ToArray()
+        };
+
+        var entityId = 1;
+        var state = new CombatState(
+            content.Creeps.Select(creep => service.SpawnCreep(new EntityId(entityId++), creep, new PlayerId(1), lane)),
+            Array.Empty<TowerCombatState>());
+
+        var snapshots = service.GetCreepSnapshots(state, combatContent, routes);
+
+        Assert.Equal(content.Creeps.Count, snapshots.Count);
+        foreach (var creep in content.Creeps)
+        {
+            var snapshot = Assert.Single(snapshots, candidate => candidate.CreepId.Equals(creep.Id));
+            Assert.Equal(creep.SpeedPerSecond, snapshot.SpeedPerSecond);
+            Assert.Equal(creep.MaxHealth, snapshot.MaxHealth);
         }
     }
 }

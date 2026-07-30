@@ -84,6 +84,7 @@ namespace LTW.UnityClient.Simulation
         private readonly Dictionary<string, string> towerRolesByCell = new Dictionary<string, string>();
         private readonly Dictionary<string, int> lastCreepHealth = new Dictionary<string, int>();
         private readonly Dictionary<string, float> creepHitFlashUntil = new Dictionary<string, float>();
+        private readonly Dictionary<string, Animator> creepAnimators = new Dictionary<string, Animator>();
         private readonly Dictionary<string, float> towerLastFiredAt = new Dictionary<string, float>();
         private readonly Dictionary<string, Vector3> towerAimTarget = new Dictionary<string, Vector3>();
         private readonly Dictionary<string, float> towerAimYaw = new Dictionary<string, float>();
@@ -648,6 +649,7 @@ namespace LTW.UnityClient.Simulation
 
                 var hitFlashUntil = creepHitFlashUntil.TryGetValue(key, out var flashUntilValue) ? flashUntilValue : 0f;
                 SetCreepTransform(creepObject, creep.Position, creep.LaneId, creep.CreepId.Value, visualProfile, isNewCreep, hitFlashUntil);
+                UpdateCreepAnimationSpeed(key, creepObject, creep.CreepId.Value, creep.SpeedPerSecond);
                 var healthFraction = CreepHealthFraction(creep.Health, creep.MaxHealth);
                 var isHitFlashing = creepHitFlashUntil.TryGetValue(key, out var flashUntil) && Time.time < flashUntil;
                 ApplyCreepColor(creepObject, creep.CreepId.Value, creep.SenderId.Value, visualProfile, healthFraction, isHitFlashing);
@@ -2189,6 +2191,7 @@ namespace LTW.UnityClient.Simulation
                 activeCreepPoolKeys.Remove(key);
                 lastCreepHealth.Remove(key);
                 creepHitFlashUntil.Remove(key);
+                creepAnimators.Remove(key);
             }
         }
 
@@ -2354,7 +2357,8 @@ namespace LTW.UnityClient.Simulation
             // Pulse is a stationary splash/AOE emitter, not a mechanical weapon with a kickback —
             // it should show zero recoil-driven position/pitch motion when it fires, only its own
             // VFX flash and ring spin. locksYaw (Pulse-only, see above) doubles as that flag here.
-            var recoilKickScale = TowerMotionProfileFor(visualProfile.Role).SuppressRecoil ? 0f : 1f;
+            var recoilProfile = TowerMotionProfileFor(visualProfile.Role);
+            var recoilKickScale = recoilProfile.SuppressRecoil ? 0f : recoilProfile.RecoilScale;
             var recoilKick = recoil * 0.16f * recoilKickScale;
             var kickDirection = Quaternion.Euler(0f, yaw, 0f) * Vector3.back;
             var recoilPosition = kickDirection * recoilKick + Vector3.down * (recoil * 0.04f * recoilKickScale);
@@ -2378,9 +2382,10 @@ namespace LTW.UnityClient.Simulation
                 // (Base and Head always moved together, so no gap could ever show) instead reads
                 // as the barrel flying off its mount, since nothing hides the separation anymore.
                 // Scaled down substantially so recoil stays a tight, visibly-connected kick.
-                var headRecoilPosition = kickDirection * (recoil * 0.05f) + Vector3.down * (recoil * 0.015f);
+                var headRecoilPosition = kickDirection * (recoil * 0.05f * recoilKickScale)
+                    + Vector3.down * (recoil * 0.015f * recoilKickScale);
                 headPivot.localPosition = headRecoilPosition;
-                headPivot.localRotation = Quaternion.Euler(-recoil * 6f, yaw, 0f);
+                headPivot.localRotation = Quaternion.Euler(-recoil * 6f * recoilKickScale, yaw, 0f);
             }
             else
             {
@@ -2507,6 +2512,92 @@ namespace LTW.UnityClient.Simulation
             // without one keep using Body, unchanged.
             var headPivot = FindDeepChild(body, "HeadPivot");
             return headPivot != null ? headPivot : body;
+        }
+
+        /// <summary>
+        /// Reference creep speed, in cells per tick, that a walk clip is treated as authored for.
+        /// A creep at this speed plays its clip at 1.0x.
+        /// </summary>
+        /// <remarks>
+        /// 1 because five of the eight rigged creeps ship at speed 1 (Brute, Obsidian Brute,
+        /// Fracture Burrower, Aegis Warden, Siege Colossus) — normalising on the majority means the
+        /// common case keeps exactly the playback its rig was tuned against.
+        /// </remarks>
+        private const int CreepWalkReferenceSpeed = 1;
+
+        /// <summary>
+        /// How much of the speed difference the playback rate actually takes up, as an exponent.
+        /// </summary>
+        /// <remarks>
+        /// 0.5, not 1.0, and the under-correction is deliberate. Matching stride to ground speed
+        /// exactly would want a linear exponent, but two things make linear the wrong target here:
+        ///
+        /// - Full correction is unreachable anyway. SpeedPerSecond is cells per TICK at 4 ticks/sec,
+        ///   so a speed-2 creep crosses 8 world units/sec on a board where a cell is one unit. The
+        ///   Spire Turret Walker's rig was measured at 8.3x residual foot skate even after its stride
+        ///   and leg cycle were tuned specifically for this (docs/GD_TUNING_LOG.md, 2026-07-28), and
+        ///   that entry also records that pushing the leg cycle further "starts to read as a blur at
+        ///   24 footfalls/sec, which trades one artefact for another". Playing a clip at 8x would be
+        ///   squarely in that territory.
+        /// - The fast creeps are already partly compensated. The five Meshy-rigged bipeds got their
+        ///   clip chosen BY speed when they landed — running for the fast ones, walking for the slow
+        ///   ones (commit a88dae1) — precisely because a run cycle's longer stride and faster cadence
+        ///   cut skate. Layering full linear scaling on top would double-count that.
+        ///
+        /// So the goal is not to eliminate skate, which the board's scale forbids. It is to stop the
+        /// roster sharing ONE playback rate across a 3x speed spread, so a Siege Colossus lumbers and
+        /// a Zephyr Wraith scurries instead of both cycling their limbs identically. Yields 1.00x /
+        /// 1.41x / 1.73x at speeds 1 / 2 / 3.
+        ///
+        /// These are reasoned values, not observed ones — nobody has watched them yet. Tracked as its
+        /// own visual-tuning item on the gameplay checklist.
+        /// </remarks>
+        private const float CreepWalkSpeedExponent = 0.5f;
+
+        /// <summary>Playback clamp, so a future speed value cannot drive the clip to a blur or a stall.</summary>
+        private const float CreepWalkPlaybackMin = 0.6f;
+        private const float CreepWalkPlaybackMax = 2.2f;
+
+        /// <summary>
+        /// Matches a rigged creep's clip playback to how fast it actually crosses the board.
+        /// </summary>
+        /// <remarks>
+        /// Without this every rigged creep played its clip at the authored rate no matter how fast it
+        /// travelled, which is the runtime half of the foot-skate finding in GD_TUNING_LOG's
+        /// 2026-07-28 entry: "Nothing syncs animator playback to movement speed; the clip loops at its
+        /// authored rate while the simulation translates the creep independently." That entry attacked
+        /// the problem from inside the rig, which was the only lever a Blender script has. This is the
+        /// lever it could not reach.
+        ///
+        /// Speed comes from the presentation snapshot rather than a client-side table keyed on the
+        /// creep id — the same correction item 12 made for max health, and for the same reason.
+        /// </remarks>
+        private void UpdateCreepAnimationSpeed(string key, GameObject instance, string creepId, int speedPerSecond)
+        {
+            if (!IsRiggedCreep(instance, creepId))
+            {
+                return;
+            }
+
+            if (!creepAnimators.TryGetValue(key, out var animator) || animator == null)
+            {
+                // Cached per active creep: GetComponentInChildren walks the hierarchy, which is far
+                // too expensive to repeat every frame per creep (OPEN_ITEMS.md item 24 already flags
+                // per-frame work in this Update path).
+                animator = instance.GetComponentInChildren<Animator>(true);
+                creepAnimators[key] = animator;
+            }
+
+            if (animator == null)
+            {
+                return;
+            }
+
+            var ratio = Mathf.Max(1, speedPerSecond) / (float)CreepWalkReferenceSpeed;
+            animator.speed = Mathf.Clamp(
+                Mathf.Pow(ratio, CreepWalkSpeedExponent),
+                CreepWalkPlaybackMin,
+                CreepWalkPlaybackMax);
         }
 
         /// <summary>
@@ -3700,7 +3791,8 @@ namespace LTW.UnityClient.Simulation
                 float sharpness = 1f,
                 bool locksYaw = false,
                 float restHeadingDegrees = 0f,
-                bool? suppressRecoil = null)
+                bool? suppressRecoil = null,
+                float recoilScale = 1f)
             {
                 SuppressRecoil = suppressRecoil ?? locksYaw;
                 BreatheHz = breatheHz;
@@ -3710,6 +3802,7 @@ namespace LTW.UnityClient.Simulation
                 Sharpness = sharpness;
                 LocksYaw = locksYaw;
                 RestHeadingDegrees = restHeadingDegrees;
+                RecoilScale = recoilScale;
             }
 
             public float BreatheHz { get; }
@@ -3733,6 +3826,20 @@ namespace LTW.UnityClient.Simulation
             public bool SuppressRecoil { get; }
 
             /// <summary>
+            /// Multiplier on the firing kick, where 1 is the original uniform magnitude.
+            /// </summary>
+            /// <remarks>
+            /// Recoil used to be one hardcoded magnitude shared by every tower that showed any, so a
+            /// 10-gold Sapling Sentinel kicked exactly as hard as a 52-gold Foundry Core lobbing a
+            /// mortar shell. Weight is most of what separates these towers visually, and firing was
+            /// the one moment that said nothing about it.
+            ///
+            /// Scales the whole kick — backward travel, downward drop and pitch — so a value stays a
+            /// statement about the tower's weight rather than about one axis.
+            /// </remarks>
+            public float RecoilScale { get; }
+
+            /// <summary>
             /// Heading the head's mesh already points at in its rest pose, subtracted from the aim
             /// heading. Must be MEASURED IN UNITY, not Blender: Blender's FBX export mirrors X
             /// during the right-handed to left-handed conversion, which silently flips the sign.
@@ -3748,18 +3855,18 @@ namespace LTW.UnityClient.Simulation
                 // needs a faint idle presence — an alert, mostly-still gun emplacement.
                 // Rest heading measured in Unity: barrel tip at local (x=0.725, z=0.001) = +90.
                 case TowerVisualRole.Arrow:
-                    return new TowerMotionProfile(1.4f, 0.015f, restHeadingDegrees: 90f);
+                    return new TowerMotionProfile(1.4f, 0.015f, restHeadingDegrees: 90f, recoilScale: 1.2f);
 
                 // The arms+core+ring assembly turns to aim and the ring spins independently, both
                 // real visible motion, so Body-level sway on top was pure excess. Reads as a
                 // mostly-still ancient structure with a faint pulse of life.
                 case TowerVisualRole.Control:
-                    return new TowerMotionProfile(1.6f, 0.01f);
+                    return new TowerMotionProfile(1.6f, 0.01f, recoilScale: 0.5f);
 
                 // The split Dish spins continuously; Body adds a slow mast sway underneath rather
                 // than competing with the dish for attention.
                 case TowerVisualRole.Relay:
-                    return new TowerMotionProfile(1.1f, 0.02f, driftHz: 0.6f, driftAmp: 0.025f);
+                    return new TowerMotionProfile(1.1f, 0.02f, driftHz: 0.6f, driftAmp: 0.025f, recoilScale: 0.4f);
 
                 // No cleanly separable emitter part on this mesh, so the name is carried by a
                 // heartbeat-shaped pulse on the whole Body: peaked, not sinusoidal. Yaw locked —
@@ -3769,54 +3876,68 @@ namespace LTW.UnityClient.Simulation
 
                 // The split Spire spins continuously; Body adds a faint glow-breathe underneath.
                 case TowerVisualRole.Prism:
-                    return new TowerMotionProfile(1.8f, 0.025f);
+                    return new TowerMotionProfile(1.8f, 0.025f, recoilScale: 0.8f);
 
                 // --- Foundry line -------------------------------------------------------------
                 // Machines: tight, fast, mechanical. Small amplitudes, no lazy drift.
+                // Light recoil because it fires every other tick — a full-weight kick repeated that
+                // often stops reading as a reaction and turns into a permanent shake.
                 case TowerVisualRole.Gatling:
-                    return new TowerMotionProfile(2.4f, 0.012f);
+                    return new TowerMotionProfile(2.4f, 0.012f, recoilScale: 0.45f);
 
                 // A coil under load. Fast shallow pulse reads as electrical rather than breathing.
+                // The lightest kick of any tower that has one: an arc discharge has no projectile
+                // mass behind it, so what little movement there is comes from the coil, not a barrel.
                 case TowerVisualRole.Tesla:
-                    return new TowerMotionProfile(3.2f, 0.014f, sharpness: 2f);
+                    return new TowerMotionProfile(3.2f, 0.014f, sharpness: 2f, recoilScale: 0.35f);
 
                 // A furnace. Slow heavy peaked pulse, like a bellows. Yaw locked: it fires upward
                 // out of its stacks, so it has no facing to turn toward a target.
+                //
+                // Recoil explicitly un-suppressed, and the heaviest in the game. It had none at all
+                // before, purely because SuppressRecoil defaults to LocksYaw and this tower locks yaw
+                // — the same conflation the Barricade Bastion already had to be rescued from. Having
+                // no facing is a reason not to TURN; it is not a reason to lob the heaviest shell on
+                // the board (14 damage on a 6-tick cooldown) with no reaction whatsoever.
                 case TowerVisualRole.Foundry:
-                    return new TowerMotionProfile(0.8f, 0.02f, sharpness: 2.5f, locksYaw: true);
+                    return new TowerMotionProfile(0.8f, 0.02f, sharpness: 2.5f, locksYaw: true, suppressRecoil: false, recoilScale: 1.8f);
 
                 // Yaw locked and nearly inert by design — a fixed emplacement that fires along one
-                // direction only. Any turn or sway would contradict the mechanic.
+                // direction only. Any turn or sway would contradict the mechanic. The kick is
+                // oversized to match: with the idle almost dead, firing is the only motion it has,
+                // so it has to carry the whole read on its own.
                 case TowerVisualRole.Barricade:
-                    return new TowerMotionProfile(0.7f, 0.006f, locksYaw: true, suppressRecoil: false);
+                    return new TowerMotionProfile(0.7f, 0.006f, locksYaw: true, suppressRecoil: false, recoilScale: 1.5f);
 
                 // A thin spire with a drone. Light bob plus a wider drift than anything else,
                 // reading as something hovering rather than planted.
                 case TowerVisualRole.RepairDrone:
-                    return new TowerMotionProfile(1.5f, 0.018f, driftHz: 0.9f, driftAmp: 0.04f);
+                    return new TowerMotionProfile(1.5f, 0.018f, driftHz: 0.9f, driftAmp: 0.04f, recoilScale: 0.5f);
 
                 // --- Grove line ---------------------------------------------------------------
                 // Living things: slower and larger than the machines, with real sway.
                 // A huge canopy. Slow, wide sway — the only tower whose drift is meant to read
                 // from across the board.
                 case TowerVisualRole.ElderCanopy:
-                    return new TowerMotionProfile(0.6f, 0.03f, driftHz: 0.4f, driftAmp: 0.055f);
+                    return new TowerMotionProfile(0.6f, 0.03f, driftHz: 0.4f, driftAmp: 0.055f, recoilScale: 0.9f);
 
                 // Small and eager. Quicker and springier than its elders.
                 case TowerVisualRole.Sapling:
-                    return new TowerMotionProfile(2.0f, 0.028f, driftHz: 1.2f, driftAmp: 0.03f);
+                    return new TowerMotionProfile(2.0f, 0.028f, driftHz: 1.2f, driftAmp: 0.03f, recoilScale: 0.5f);
 
                 // A flower. Slow open-and-close bloom, peaked so it reads as breathing.
                 case TowerVisualRole.Bloomheart:
-                    return new TowerMotionProfile(0.9f, 0.035f, sharpness: 2f, driftHz: 0.5f, driftAmp: 0.02f);
+                    return new TowerMotionProfile(0.9f, 0.035f, sharpness: 2f, driftHz: 0.5f, driftAmp: 0.02f, recoilScale: 0.6f);
 
-                // Coiled and tense. Very little motion until it strikes, so almost static.
+                // Coiled and tense. Very little motion until it strikes, so almost static — which is
+                // exactly why the strike itself is one of the hardest kicks here. A snare whose whole
+                // character is stored tension needs the release to land.
                 case TowerVisualRole.ThornSnare:
-                    return new TowerMotionProfile(0.5f, 0.008f);
+                    return new TowerMotionProfile(0.5f, 0.008f, recoilScale: 1.4f);
 
                 // A fungal bloom venting spores. Slow swell with a lazy drift.
                 case TowerVisualRole.SporeCloud:
-                    return new TowerMotionProfile(0.7f, 0.032f, sharpness: 1.6f, driftHz: 0.35f, driftAmp: 0.035f);
+                    return new TowerMotionProfile(0.7f, 0.032f, sharpness: 1.6f, driftHz: 0.35f, driftAmp: 0.035f, recoilScale: 0.4f);
 
                 default:
                     return new TowerMotionProfile(1.3f, 0.02f);
@@ -3867,6 +3988,15 @@ namespace LTW.UnityClient.Simulation
             // A rigged creep's walk clip already animates its body, so the procedural idle bob and
             // sway are redundant and fight it. Keep only the hit reaction, which the clip does not
             // cover, expressed as a scale punch so it still reads under this camera angle.
+            //
+            // Rigged creeps still carry a real MotionStyle in CreepVisualLibrary even though this
+            // return means it is never read for them. Five of them (Zephyr, Stalker, Burrower,
+            // Warden, Colossus) sat on Auto instead, which was harmless only for as long as the rig
+            // held: Auto resolves by substring, none of those five ids match any branch below, and
+            // the fallback at the bottom of this method is RunnerDart — a 13 Hz twitch authored for
+            // the 10 hp Runner. Losing a rig would have quietly put a 90 hp Siege Colossus on it.
+            // They now name the style they would actually want, so the degraded case degrades to
+            // something deliberate.
             if (isRigged)
             {
                 var riggedFlinch = Mathf.Clamp01((hitFlashUntil - time) / CreepHitFlashDuration);

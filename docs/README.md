@@ -49,6 +49,24 @@ This folder contains the durable project documentation for Line Wards, the mobil
 - [Screenshot reviews](screenshot-reviews/)
 - [Archived planning docs](archive/)
 
+## Retired Documents
+
+Retired because the work they tracked is finished, not because it was abandoned. Source
+comments across `src/` and `unity/` still cite these by name and item number; that is fine, and
+the content is recoverable in full from git history rather than being lost:
+
+| Document | Retired | Recover with |
+| --- | --- | --- |
+| `OPEN_ITEMS.md` | 2026-07-30 | `git log --all --full-history -- docs/OPEN_ITEMS.md` |
+| `URP_MIGRATION.md` | 2026-07-29 | `git log --all --full-history -- docs/URP_MIGRATION.md` |
+| `GRAPHICS_QUALITY_DIAGNOSIS_AND_PLAN.md` | 2026-07-29 | `git log --all --full-history -- docs/GRAPHICS_QUALITY_DIAGNOSIS_AND_PLAN.md` |
+| `MVP09_INTEGRATION_NOTES.md` | 2026-07-30 | `git log --all --full-history -- MVP09_INTEGRATION_NOTES.md` |
+
+`OPEN_ITEMS.md` is the one most often cited in code: roughly 30 comments name an item number
+from its 2026-07-29 review (e.g. "item 24"). Those numbers are stable in history — the file was
+retired with every item resolved or explicitly deferred, so a citation still resolves to a real,
+findable entry.
+
 ## Related Context
 
 - [Line Wards LTW graphics art-direction skill](../skill/line-wards-ltw-graphics-art-direction.md)

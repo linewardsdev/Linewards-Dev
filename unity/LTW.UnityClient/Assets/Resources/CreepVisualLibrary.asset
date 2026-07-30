@@ -117,7 +117,7 @@ MonoBehaviour:
     role: 4
     prefab: {fileID: 3497944744853869810, guid: b54d7f25e43da4751845eea191b3839b, type: 3}
     scale: {x: 0.278, y: 0.278, z: 0.278}
-    motionStyle: 0
+    motionStyle: 4
     bodyRendererPath: BodyTintAnchor
     senderAccentRendererPaths:
     - SenderAccent
@@ -127,7 +127,7 @@ MonoBehaviour:
     role: 5
     prefab: {fileID: 5333069619673684550, guid: 94f7734afd52d41179b49bde9d3aa3a1, type: 3}
     scale: {x: 0.208, y: 0.208, z: 0.208}
-    motionStyle: 0
+    motionStyle: 5
     bodyRendererPath: BodyTintAnchor
     senderAccentRendererPaths:
     - SenderAccent
@@ -137,7 +137,7 @@ MonoBehaviour:
     role: 12
     prefab: {fileID: 7736060809766721340, guid: c1430de9760754435ab55b3da46e3828, type: 3}
     scale: {x: 0.245, y: 0.245, z: 0.245}
-    motionStyle: 0
+    motionStyle: 2
     bodyRendererPath: BodyTintAnchor
     senderAccentRendererPaths:
     - SenderAccent
@@ -147,7 +147,7 @@ MonoBehaviour:
     role: 11
     prefab: {fileID: 2772710173301440966, guid: 82e51a7140a19464e80c3b86cd3131b7, type: 3}
     scale: {x: 0.428, y: 0.428, z: 0.428}
-    motionStyle: 0
+    motionStyle: 2
     bodyRendererPath: BodyTintAnchor
     senderAccentRendererPaths:
     - SenderAccent
@@ -157,7 +157,7 @@ MonoBehaviour:
     role: 3
     prefab: {fileID: 6609125957750365330, guid: c2cbcef6144b24594a854dd069b0be18, type: 3}
     scale: {x: 0.329, y: 0.329, z: 0.329}
-    motionStyle: 0
+    motionStyle: 2
     bodyRendererPath: BodyTintAnchor
     senderAccentRendererPaths:
     - SenderAccent
