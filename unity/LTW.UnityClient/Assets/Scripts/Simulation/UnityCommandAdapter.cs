@@ -47,7 +47,9 @@ namespace LTW.UnityClient.Simulation
             var snapshot = simulation.GetSnapshot();
             // SimulationTick.Value is a long, so this subtraction is a long and needs an explicit
             // narrowing cast to match this method's int return (CS0266 without it — main did not
-            // compile). Safe: remaining is bounded above by the send cooldown itself (30 ticks).
+            // compile). Safe: remaining is bounded above by the send cooldown itself, which is
+            // currently 0 ticks (74b8519 removed it) — this reads the live value rather than
+            // assuming that, so it stays correct if the cooldown is ever restored.
             var remaining = snapshot.Players.Get(simulation.LocalPlayerId).NextSendAvailableTick.Value - snapshot.Tick.Value;
             return remaining > 0 ? (int)remaining : 0;
         }

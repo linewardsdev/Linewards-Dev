@@ -188,8 +188,11 @@ namespace LTW.UnityClient.UI
             metaStyle.normal.textColor = MintSignal;
             GUI.Label(new Rect(rect.xMax - 204f * scale, rect.y + 12f * scale, 58f * scale, 18f * scale), $"G{gold}", metaStyle);
 
-            // The cooldown is 7.5s, long enough that without a countdown the dock just looks
-            // broken while it runs.
+            // The shipped cooldown is 0 ticks (74b8519), so isSendCoolingDown is always false and
+            // this whole block is currently inert — kept, not deleted, so the dock explains itself
+            // again the moment a cooldown returns, the same reasoning as CurrentSendCooldownSeconds
+            // above. When a cooldown is active, without a countdown the dock just looks broken while
+            // it runs.
             // Hidden on a grid whose every card is cooldown-exempt (Category 2 / RAPID), where a
             // countdown would read as a restriction that is not applying. Asked as a question
             // about the category rather than compared against an index, so Category 3 — which is
@@ -699,9 +702,11 @@ namespace LTW.UnityClient.UI
         /// Seconds until the local player may send again, 0 when a send is ready.
         /// </summary>
         /// <remarks>
-        /// The simulation runs at UnitySimulationDriver.ticksPerSecond (4), and the cooldown is 30
-        /// ticks, so a send is available roughly every 7.5s. Converted to seconds here because the
-        /// player has no reason to care about ticks.
+        /// The shipped cooldown is 0 ticks (74b8519 removed it), so this currently always returns 0.
+        /// Reads CurrentPlayerSendCooldownTicks() live rather than assuming that, so if the cooldown
+        /// is ever restored this converts whatever tick count comes back at
+        /// UnitySimulationDriver.ticksPerSecond (4) into seconds without needing a code change —
+        /// the player has no reason to care about ticks either way.
         /// </remarks>
         private float CurrentSendCooldownSeconds()
         {

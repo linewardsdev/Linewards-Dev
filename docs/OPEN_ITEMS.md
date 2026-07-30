@@ -565,21 +565,30 @@ is the local three-player carousel default, eight is the full expanded-lane
 default, and the checklist/status docs were each describing a different mode,
 not disagreeing. Left as-is; not a defect.
 
-## 18. Send cooldown is 0, but the UI still describes a 7.5-second one
+## 18. ~~Send cooldown is 0, but the UI still describes a 7.5-second one~~ — re-read, narrower than described, resolved 2026-07-30
 
-`LocalVerticalSlice` constructs with `sendCooldownTicks: 0` (per
-`74b8519 Remove the send cooldown…`). Left behind in `SendDockController`: two
-comments asserting a 7.5s / 30-tick cooldown, the `isSendCoolingDown` greying
-branch, the `ignoresCooldown` parameter, and the RAPID category name —
-documented in `docs/GAME_MENU_AND_RUNTIME_FLOW.md` as meaning "the
-cooldown-exempt set", which is now every category. All inert. Either restore a
-cooldown or delete the machinery; leaving it makes the dock's behaviour
-unpredictable to the next person who reads it.
+**The machinery itself is not left-behind cruft — it's a deliberate,
+already-justified decision, and it was made in the very same commit
+(`74b8519`) that removed the cooldown.** `CurrentSendCooldownSeconds` and
+`CurrentPlayerSendCooldownTicks` both already carried a comment to that
+effect before this pass ("kept as a live read... so the dock explains itself
+again the moment a cooldown returns") — this item's original framing missed
+that comment and read the dormant machinery as accidental drift. It isn't:
+both methods read the sim's actual cooldown value live rather than assuming
+0, `isSendCoolingDown`/the greying branch/`ignoresCooldown`/`CategoryHasCooldownGatedCards`
+all key off that live read, and none of it needs touching if the cooldown is
+ever restored. Deleting it would just mean re-adding it later.
 
-Same file, same shape: `CategoryHasCooldownGatedCards(int category) =>
-category != 1;` sits directly beneath a comment stating it "replaces a
-hardcoded `selectedCategory != 1` test" and is "keyed off the same fact the
-cards themselves use". It is that hardcoded test.
+**What genuinely was stale, and is now fixed**: two comments (one in
+`SendDockController.CurrentSendCooldownSeconds`, one in
+`UnityCommandAdapter.CurrentPlayerSendCooldownTicks`) asserted "the cooldown
+is 30 ticks (7.5s)" as a present-tense fact rather than describing the
+conversion math generically — both now say the shipped cooldown is 0 and
+explain *why* the live read exists instead of stating a specific number that
+hasn't been true since `74b8519`. The RAPID category doc in
+`docs/GAME_MENU_AND_RUNTIME_FLOW.md` was re-checked and is fine as written —
+it describes `ignoresSendCooldown` as the flag the category name refers to,
+not a claim that cooldowns are currently active.
 
 ## 19. Creep costs are hardcoded three times each in the client
 
