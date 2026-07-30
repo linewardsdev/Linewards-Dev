@@ -30,7 +30,13 @@ public sealed class BotMazingTests
         var slice = new LocalVerticalSlice(SampleVerticalSliceContent.Create(), ThreeLanes());
         var straight = slice.RouteLength(new LaneId(2));
 
-        for (var tick = 0; tick < 1200; tick++)
+        // 1600, not 1200. Once bots could build all 15 towers (item 15 in OPEN_ITEMS.md) instead of
+        // repeating the same 2-3 cheap ones forever, the early gold that used to go straight into
+        // another Arrow/Pulse now sometimes buys a costlier tower on the way to the rest of the
+        // roster, so the same lane took until tick ~1400 to clear this bar instead of well before
+        // 1200 — it still reaches 30 cells (1.875x) by tick 1600 and holds there, so this is a timing
+        // shift, not a mazing regression.
+        for (var tick = 0; tick < 1600; tick++)
         {
             slice.AdvanceOneTick();
         }

@@ -505,20 +505,28 @@ the colour the placed tower carried." Its `For(string)` substring-matches the
 statements on the palette's role index" — these four switches survived that
 conversion, in the file that consumes `TowerCatalog`.
 
-## 15. Bots can only ever build 5 of the 15 towers
+## 15. ~~Bots can only ever build 5 of the 15 towers~~ — resolved 2026-07-30
 
-`LocalVerticalSlice.BotTowerForSlot` (~line 639) can return only Arrow,
-Control, Pulse and Prism. Gatling, Tesla, Foundry, Barricade, Repair Drone,
-Elder Canopy, Sapling, Bloomheart, Thorn Snare and Spore Cloud are unreachable
-— so **every tower mechanic added in the 15-tower expansion, and every
-mechanic-contribution measurement taken against a bot opponent, was measured
-with a bot that never builds the tower in question.** Read alongside item 5's
-note about mazing and item 10's about sends, the honest position is that the
-bot-derived balance record needs re-taking, not adjusting.
+**Fixed by replacing `BotTowerForSlot`'s switch with a per-profile build-order
+array, cycled by `ownedTowerCount % array.Length`** instead of a few hardcoded
+slots falling through to one repeated tower forever. Each profile's array
+keeps its *original* early slots byte-for-byte identical (same tower, same
+cost, in the same order) before extending into the rest of the roster —
+deliberate, because income only ticks every 50 simulation ticks
+(`IncomeIntervalTicks`), so gold is flat between jumps and even a few gold of
+difference in an early slot can push a bot's opening coverage gate
+(`HasMinimumDefenseCoverage`) past a 50-tick boundary and shift observable
+timing by a whole income cycle — confirmed by first reordering from slot 0,
+which broke three tests purely on timing, then fixing it by preserving the
+original prefixes instead. The three arrays' union covers all 15 towers.
 
-Also: `Defensive` builds an unbounded run of 42-gold Prisms and `Greedy` an
-unbounded run of Arrows, so `BotMazingTests`' "keeps building past nine towers"
-assertion is satisfied by repeating a single tower forever.
+This did shift `BotMazingTests`' mazing window: reaching the existing 1.4x bar
+now takes until ~tick 1400 instead of comfortably clearing it by 1200, because
+some early gold now goes to a costlier tower on the way to the rest of the
+roster rather than another cheap repeat. Route length still reaches 30 cells
+(1.875x) by tick 1600 and holds there, so the test's tick budget was widened
+to 1600 rather than the bar being lowered — this is a timing shift, not a
+mazing regression. 175/175 tests pass.
 
 ## 16. `README.md` test count is wrong by 92, and three docs disagree
 

@@ -677,31 +677,72 @@ public sealed class LocalVerticalSlice
     /// </remarks>
     private const int MazeLengthWeight = 4;
 
+    // Cycled by ownedTowerCount rather than switched on a few slots with a repeating tail arm, for two
+    // reasons (OPEN_ITEMS.md item 15): the old shape could only ever reach 5 of the 15 towers (Arrow,
+    // Control, Pulse, Prism plus whatever the tail arm was), so every mechanic added since the 15-tower
+    // expansion was measured against a bot that never builds it; and its tail arm repeated a single
+    // tower forever once reached (Defensive -> endless Prism, Greedy -> endless Arrow), which is why
+    // BotMazingTests' "keeps building past nine towers" assertion passed on a bot spamming one tower.
+    // Each profile's array is a flavour (Defensive leans control/area/support, Greedy leans cheap, both
+    // fully reachable but not the only towers that profile builds), and the three arrays' union covers
+    // all 15 towers, not just each profile's own list.
+    // Each array's first few entries deliberately match the old hardcoded switch's early slots
+    // exactly (same tower, same cost, same order) rather than reshuffling from slot 0. Income only
+    // ticks every 50 simulation ticks (IncomeIntervalTicks), so gold is flat between jumps and a
+    // bot's opening tower-count gate (HasMinimumDefenseCoverage) clears on whichever jump first
+    // covers the cumulative cost — even a few gold of difference in an early slot can push that
+    // past a 50-tick boundary and shift the observable timing by up to a full income cycle. Keeping
+    // the opening identical avoids re-tuning every test that depends on early bot timing; the fix
+    // for item 15 only needs the array to stop repeating forever once it reaches its old tail.
+    private static readonly ContentId[] DefensiveBuildOrder =
+    {
+        SampleVerticalSliceContent.ControlTowerId,
+        SampleVerticalSliceContent.TowerId,
+        SampleVerticalSliceContent.TowerId,
+        SampleVerticalSliceContent.PulseTowerId,
+        SampleVerticalSliceContent.PrismTowerId,
+        SampleVerticalSliceContent.RepairDroneTowerId,
+        SampleVerticalSliceContent.ElderCanopyTowerId,
+        SampleVerticalSliceContent.ThornSnareTowerId,
+        SampleVerticalSliceContent.BarricadeTowerId
+    };
+
+    private static readonly ContentId[] BalancedBuildOrder =
+    {
+        SampleVerticalSliceContent.TowerId,
+        SampleVerticalSliceContent.ControlTowerId,
+        SampleVerticalSliceContent.PulseTowerId,
+        SampleVerticalSliceContent.PulseTowerId,
+        SampleVerticalSliceContent.GatlingTowerId,
+        SampleVerticalSliceContent.SaplingTowerId,
+        SampleVerticalSliceContent.TeslaTowerId,
+        SampleVerticalSliceContent.BloomheartTowerId,
+        SampleVerticalSliceContent.PrismTowerId,
+        SampleVerticalSliceContent.FoundryTowerId,
+        SampleVerticalSliceContent.SporeCloudTowerId
+    };
+
+    private static readonly ContentId[] GreedyBuildOrder =
+    {
+        SampleVerticalSliceContent.TowerId,
+        SampleVerticalSliceContent.PrismTowerId,
+        SampleVerticalSliceContent.TowerId,
+        SampleVerticalSliceContent.SaplingTowerId,
+        SampleVerticalSliceContent.GatlingTowerId,
+        SampleVerticalSliceContent.UtilityTowerId,
+        SampleVerticalSliceContent.SporeCloudTowerId
+    };
+
     private static ContentId BotTowerForSlot(BotDecisionProfile profile, int ownedTowerCount)
     {
-        if (profile == BotDecisionProfile.Defensive)
+        var buildOrder = profile switch
         {
-            return ownedTowerCount switch
-            {
-                0 => SampleVerticalSliceContent.ControlTowerId,
-                1 => SampleVerticalSliceContent.TowerId,
-                2 => SampleVerticalSliceContent.TowerId,
-                3 => SampleVerticalSliceContent.PulseTowerId,
-                _ => SampleVerticalSliceContent.PrismTowerId
-            };
-        }
+            BotDecisionProfile.Defensive => DefensiveBuildOrder,
+            BotDecisionProfile.Balanced => BalancedBuildOrder,
+            _ => GreedyBuildOrder
+        };
 
-        if (profile == BotDecisionProfile.Balanced)
-        {
-            return ownedTowerCount switch
-            {
-                0 => SampleVerticalSliceContent.TowerId,
-                1 => SampleVerticalSliceContent.ControlTowerId,
-                _ => SampleVerticalSliceContent.PulseTowerId
-            };
-        }
-
-        return ownedTowerCount == 1 ? SampleVerticalSliceContent.PrismTowerId : SampleVerticalSliceContent.TowerId;
+        return buildOrder[ownedTowerCount % buildOrder.Length];
     }
 
 
