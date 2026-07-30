@@ -116,8 +116,11 @@ It seeds a match, captures the default HUD and both send-dock categories, and qu
       decal, Grovebond ring scaled to the bonus, and Barricade recoil (which needed `suppressRecoil`
       split from `locksYaw`). Verified by capture.
 
-- [ ] **Repair Drone's range buff is invisible.** The adjacent tower's range halo should grow. Until
-      it does, the only evidence is a tower shooting one cell further than you expect.
+- [x] **FIXED — Repair Drone's buff is now visible, as a servicing tether.** This item was written
+      against the mechanic's earlier +1 RANGE shape ("the adjacent tower's range halo should grow")
+      and went stale when Servicing replaced it three entries below — a range halo would now show
+      the wrong thing, since range no longer changes. A persistent tether now connects a serviced
+      tower to its drone, in the drone's own catalog colour. See GD_TUNING_LOG 2026-07-29.
 
 - [ ] **Chain Arc reuses the generic beam cue.** The hops should each draw as their own arc so the
       chain reads as a chain.

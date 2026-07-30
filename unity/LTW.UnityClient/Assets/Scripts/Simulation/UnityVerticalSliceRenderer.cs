@@ -147,6 +147,13 @@ namespace LTW.UnityClient.Simulation
         private readonly List<ExpandingRingEffect> activeShockwaveRings = new List<ExpandingRingEffect>();
         private readonly List<MortarShellEffect> activeMortarShells = new List<MortarShellEffect>();
         private readonly Dictionary<string, GameObject> towerMechanicMarkers = new Dictionary<string, GameObject>();
+        // Keyed by the SERVICED tower's id, not the drone's — a tower can have at most one tether
+        // regardless of how many drones are adjacent to it (see UpdateTowerServicingTether), so this
+        // stays a strict one-per-tower dictionary just like towerMechanicMarkers above. Kept separate
+        // from that dictionary rather than merged into it because the two hold different pooled
+        // shapes (a flat ring vs. a stretched cube) drawn from different pools; see GetPooled's own
+        // comment on why ring and beam pools must not mix.
+        private readonly Dictionary<string, GameObject> towerServicingTethers = new Dictionary<string, GameObject>();
         private bool laneCreated;
 
         public PresentationDetail Detail => presentationDetail;
@@ -602,6 +609,7 @@ namespace LTW.UnityClient.Simulation
                 ApplyTowerColor(towerObject, tower.TowerId.Value, tower.OwnerId.Value, visualProfile);
 
                 UpdateTowerMechanicMarker(key, tower.TowerId.Value, tower.Position, tower.LaneId, snapshot);
+                UpdateTowerServicingTether(key, tower, snapshot);
 
                 if (towerVisionTargetsScratch.TryGetValue(key, out var visionTargetPosition))
                 {
@@ -1378,6 +1386,108 @@ namespace LTW.UnityClient.Simulation
             return Mathf.Min(3, adjacent);
         }
 
+        /// <summary>
+        /// Draws a persistent tether from a tower to the Repair Drone Spire servicing it, if any.
+        /// </summary>
+        /// <remarks>
+        /// CombatService.EffectiveCooldown reduces a serviced tower's cooldown by one tick and does
+        /// nothing else visible, so without this the only evidence was a tower firing slightly
+        /// faster than its stated cooldown — not something a player can see, only measure
+        /// (GAMEPLAY_REVIEW_FINDINGS.md's open "Repair Drone's [buff] is invisible" item, written
+        /// against the mechanic's earlier +1 range shape and stale since Servicing replaced it — a
+        /// range halo would now show the wrong thing, since range no longer changes).
+        ///
+        /// Mirrors CombatService.IsServicedByDrone client-side, the same tradeoff already accepted
+        /// for CountAdjacentGroveTowers above: duplicating the adjacency rule here risks drift from
+        /// the simulation, but the alternative is a snapshot field that exists only to be drawn, and
+        /// the tether being the only consumer keeps it honest — if it disagrees with a tower's
+        /// actual fire rate, the tether is wrong, not the mechanic.
+        ///
+        /// A tower gets at most one tether even if multiple drones are adjacent, since Servicing
+        /// does not stack (see EffectiveCooldown's own comment on why). The lowest EntityId among
+        /// adjacent drones is picked so the choice is stable and independent of snapshot ordering,
+        /// not because the specific choice of drone matters.
+        /// </remarks>
+        private void UpdateTowerServicingTether(string key, LTW.Simulation.Combat.TowerCombatState tower, LTW.Simulation.Bridge.VerticalSliceSnapshot snapshot)
+        {
+            if (PresentationPreferences.ReducedEffects || IsRepairDroneTower(tower.TowerId.Value))
+            {
+                // The drone itself never grows a tether toward whichever neighbour happens to
+                // service IT in turn (two adjacent drones is a legal, if unusual, placement) — a
+                // tether reads as "this tower is being helped", which is not the drone's story.
+                ReleaseTowerServicingTether(key);
+                return;
+            }
+
+            LTW.Simulation.Combat.TowerCombatState drone = null;
+            for (var index = 0; index < snapshot.Towers.Count; index++)
+            {
+                var other = snapshot.Towers[index];
+                if (other.EntityId.Equals(tower.EntityId))
+                {
+                    continue;
+                }
+
+                if (!other.LaneId.Equals(tower.LaneId) || !other.OwnerId.Equals(tower.OwnerId))
+                {
+                    continue;
+                }
+
+                if (!IsRepairDroneTower(other.TowerId.Value))
+                {
+                    continue;
+                }
+
+                if (Mathf.Abs(other.Position.X - tower.Position.X) + Mathf.Abs(other.Position.Y - tower.Position.Y) != 1)
+                {
+                    continue;
+                }
+
+                if (drone == null || other.EntityId.Value < drone.EntityId.Value)
+                {
+                    drone = other;
+                }
+            }
+
+            if (drone == null)
+            {
+                ReleaseTowerServicingTether(key);
+                return;
+            }
+
+            if (!towerServicingTethers.TryGetValue(key, out var tether) || tether == null)
+            {
+                tether = GetPooled(beamPool, "ServicingTether", PrimitiveType.Cube);
+                towerServicingTethers[key] = tether;
+            }
+
+            var from = GridToWorld(tower.Position, tower.LaneId) + Vector3.up * ServicingTetherHeight;
+            var to = GridToWorld(drone.Position, drone.LaneId) + Vector3.up * ServicingTetherHeight;
+            var midpoint = Vector3.Lerp(from, to, 0.5f);
+            var distance = Vector3.Distance(from, to);
+            tether.transform.position = midpoint;
+            tether.transform.LookAt(to);
+            tether.transform.localScale = new Vector3(ServicingTetherThickness, ServicingTetherThickness, Mathf.Max(0.1f, distance));
+            SetColor(tether, ServicingTetherColor);
+        }
+
+        private static bool IsRepairDroneTower(string towerId) => towerId.IndexOf("repair_drone", StringComparison.OrdinalIgnoreCase) >= 0;
+
+        private void ReleaseTowerServicingTether(string key)
+        {
+            if (!towerServicingTethers.TryGetValue(key, out var tether))
+            {
+                return;
+            }
+
+            if (tether != null)
+            {
+                ReleaseToPool(tether, beamPool);
+            }
+
+            towerServicingTethers.Remove(key);
+        }
+
         private void ReleaseTowerMechanicMarker(string key)
         {
             if (!towerMechanicMarkers.TryGetValue(key, out var marker))
@@ -1972,6 +2082,12 @@ namespace LTW.UnityClient.Simulation
                 towerSpinPartState.Remove(key);
                 // Sold or destroyed towers must not leave their mechanic decal on the board.
                 ReleaseTowerMechanicMarker(key);
+                // Covers a removed tower that was itself the serviced end of a tether. If it was
+                // instead the DRONE end, the tower on the other end self-heals on its own next
+                // UpdateTowerServicingTether call (it re-scans for an adjacent drone every frame,
+                // same as Grovebond's ring already does when an adjacent Grove tower is sold) —
+                // no special case needed for that direction.
+                ReleaseTowerServicingTether(key);
             }
         }
 
@@ -4943,6 +5059,19 @@ namespace LTW.UnityClient.Simulation
         private const float BrambleMarkerScale = 2.6f;
         private static readonly Color BrambleMarkerColor = new Color(0.42f, 0.24f, 0.58f, 0.34f);
         private static readonly Color GrovebondMarkerColor = new Color(0.55f, 0.95f, 0.38f, 0.7f);
+
+        // Repair Drone Spire's own catalog accent (TowerCatalog.cs, id 9, label "DRONE"), reused here
+        // rather than an invented color so the tether reads as belonging to the drone at a glance.
+        // Thickness/height/alpha were raised past a first guess (0.05/0.18/0.62) after a capture at
+        // the actual in-game ActiveLane camera distance showed it lost against both towers' own
+        // range-halo spheres — the same failure Grovebond's ring hit originally ("invisible under
+        // the tower mesh... starts wide enough to clear the silhouette"). A further attempt at 0.48
+        // rose into the always-on-top role-marker text layer and read WORSE, not better, so this
+        // stayed at the value that measurably improved on the first guess without competing with
+        // that text.
+        private static readonly Color ServicingTetherColor = new Color(0.95f, 0.82f, 0.45f, 0.85f);
+        private const float ServicingTetherThickness = 0.11f;
+        private const float ServicingTetherHeight = 0.34f;
 
         private const float MortarLaunchHeight = 0.62f;
         private const float MortarArcHeight = 1.15f;

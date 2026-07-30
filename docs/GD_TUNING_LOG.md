@@ -1157,3 +1157,49 @@ lane. Roster domination unchanged.
 diagonals, that a shell lands where the event advertised. Those need a geometry a reader can hold in their
 head, not a realistic one; converting them would add noise without adding truth. Only the harnesses that
 produce balance MAGNITUDES were moved.
+
+## 2026-07-29: Repair Drone's Servicing Buff Gets A Visual — The Servicing Tether
+
+Closes the P2 finding "Repair Drone's range buff is invisible" in `GAMEPLAY_REVIEW_FINDINGS.md`,
+which had gone stale: it was written against the mechanic's original +1 RANGE shape, three entries
+before that same document replaced it with Servicing (adjacent towers fire one tick faster). A
+range halo would now show the wrong thing, since Servicing does not touch range at all — the
+finding's own "or a servicing tether" alternative was the one that still matched the shipped
+mechanic.
+
+A persistent tether now connects a serviced tower to whichever Repair Drone Spire is servicing it,
+in the drone's own catalog colour (`TowerCatalog.cs` id 9, `(0.95, 0.82, 0.45)`) so it reads as
+belonging to the drone rather than as a generic effect. Mirrors `CombatService.IsServicedByDrone`
+client-side in `UnityVerticalSliceRenderer.UpdateTowerServicingTether` — the same tradeoff already
+accepted for Grovebond's ring (`CountAdjacentGroveTowers`): duplicating the adjacency rule risks
+drift from the simulation, but the tether being its only consumer keeps that honest, and the
+alternative is a snapshot field that exists only to be drawn.
+
+**Verified two ways, not one.** Reflected directly into the renderer's private
+`towerServicingTethers` dictionary in a throwaway probe (removed after use) to confirm the object
+count, position and scale independent of reading pixels — a tether between grid (1,8) and (2,8)
+landed exactly at their midpoint with the expected 1-unit length, before any screenshot was taken.
+Then captured both a close-up and the real in-game `ActiveLane` camera distance to check it
+actually reads, not just exists.
+
+**That capture caught a real miss, the same one Grovebond's own comment already warns about**
+("Floors were originally 0.55 scale / 0.16 alpha, which at the common bonus of 1 was invisible
+under the tower mesh"). The first-guess tether (0.05 thick, height 0.18, alpha 0.62) was
+essentially invisible at the real gameplay camera distance, lost against both towers' own
+range-halo spheres. Thickness, height and alpha were raised (0.11 / 0.34 / 0.85) to clear the
+halo rather than cut through its middle, which is a measurable improvement over the first guess.
+A further push to 0.48 height read WORSE, not better — it rose into a role-marker text layer that
+renders on top of world geometry regardless of depth, so more height stopped helping past that
+point and started hurting. Stayed at the value that improved on the first guess without competing
+with that text.
+
+**Known limitation, not fixed here:** at real gameplay zoom the tether is genuinely visible but
+still modest, competing with existing on-screen elements (the towers' own range-halo spheres and
+role-marker text) that were present before this change and are unrelated to it. Getting it to read
+as clearly as Grovebond's ring likely needs the same kind of iteration Grovebond went through, or a
+different visual language entirely (a pulsing glow rather than a static bar) — a follow-up for
+someone with eyes on a live capture, not a batch log.
+
+**Verification performed:** a full `LocalPlaytestBatchRunner` run across the current 15-tower
+roster passes with a clean reset (326 peak creeps, 25 peak towers). No `dotnet test` changes —
+this is a Unity presentation-layer change only, `src/LTW.Simulation` untouched.
