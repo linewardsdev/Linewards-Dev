@@ -60,6 +60,7 @@ public sealed class CombatService
 
     public IReadOnlyList<CreepPresentationSnapshot> GetCreepSnapshots(
         CombatState state,
+        CombatContent content,
         IReadOnlyDictionary<LaneId, IReadOnlyList<GridPosition>> routes)
     {
         return state.Creeps
@@ -70,7 +71,8 @@ public sealed class CombatService
                 creep.SenderId,
                 creep.LaneId,
                 ResolvePosition(creep, routes),
-                creep.Health))
+                creep.Health,
+                content.GetCreep(creep.CreepId).MaxHealth))
             .ToArray();
     }
 

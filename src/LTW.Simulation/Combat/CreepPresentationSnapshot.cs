@@ -5,7 +5,7 @@ namespace LTW.Simulation.Combat;
 
 public sealed class CreepPresentationSnapshot
 {
-    public CreepPresentationSnapshot(EntityId entityId, ContentId creepId, PlayerId senderId, LaneId laneId, GridPosition position, int health)
+    public CreepPresentationSnapshot(EntityId entityId, ContentId creepId, PlayerId senderId, LaneId laneId, GridPosition position, int health, int maxHealth)
     {
         EntityId = entityId;
         CreepId = creepId;
@@ -13,6 +13,7 @@ public sealed class CreepPresentationSnapshot
         LaneId = laneId;
         Position = position;
         Health = health;
+        MaxHealth = maxHealth;
     }
 
     public EntityId EntityId { get; }
@@ -26,4 +27,6 @@ public sealed class CreepPresentationSnapshot
     public GridPosition Position { get; }
 
     public int Health { get; }
+
+    public int MaxHealth { get; }
 }

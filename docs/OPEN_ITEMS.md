@@ -386,7 +386,20 @@ their start-of-tick health — carrying *less* damage than they took. Either rea
 the creep from `result.State`, or add a comment recording why the pre-combat
 snapshot is safe.
 
-## 12. CRITICAL — client invents creep max health; wrong for 10 of 15 creeps
+## 12. ~~CRITICAL — client invents creep max health; wrong for 10 of 15 creeps~~ — resolved 2026-07-30
+
+**Fixed at the boundary, as recommended.** `CreepPresentationSnapshot` now
+carries `MaxHealth`, populated in `CombatService.GetCreepSnapshots` from
+`CombatContent.GetCreep(creep.CreepId).MaxHealth` — the same source of truth
+combat itself uses, not a guess. `GetCreepSnapshots` picked up a `CombatContent`
+parameter to make that lookup possible; its two call sites
+(`LocalVerticalSlice.GetSnapshot`, `CombatTests.cs`) were updated to pass it.
+`UnityVerticalSliceRenderer.CreepMaxHealth` (the substring-matching guesser) is
+deleted; `CreepHealthFraction` now takes `(health, maxHealth)` straight from the
+snapshot instead of re-deriving it from the id string. Verified: a headless
+Unity batchmode compile in a scratch worktree came back with 0 `error CS`, and
+`dotnet test` is 175/175 with a new `MaxHealth` assertion added to
+`Presentation_snapshots_include_lightweight_creep_state`.
 
 `UnityVerticalSliceRenderer.CreepMaxHealth(string creepId)` (~line 3976) guesses
 max health by substring-matching the creep id, because

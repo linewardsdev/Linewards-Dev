@@ -102,7 +102,7 @@ public sealed class CombatTests
                 events += result.Events.Count;
             }
 
-            var snapshot = service.GetCreepSnapshots(state, routes).FirstOrDefault();
+            var snapshot = service.GetCreepSnapshots(state, content, routes).FirstOrDefault();
             return (state.Creeps.Count, events, snapshot?.Position.X ?? -1);
         }
 
@@ -120,13 +120,14 @@ public sealed class CombatTests
             Array.Empty<TowerCombatState>());
 
         state = service.Advance(state, content, routes, new SimulationTick(0)).State;
-        var snapshot = Assert.Single(service.GetCreepSnapshots(state, routes));
+        var snapshot = Assert.Single(service.GetCreepSnapshots(state, content, routes));
 
         Assert.Equal(new EntityId(1), snapshot.EntityId);
         Assert.Equal(RunnerCreepId, snapshot.CreepId);
         Assert.Equal(new PlayerId(2), snapshot.SenderId);
         Assert.Equal(new GridPosition(1, 1), snapshot.Position);
         Assert.Equal(10, snapshot.Health);
+        Assert.Equal(10, snapshot.MaxHealth);
     }
 
     [Fact]

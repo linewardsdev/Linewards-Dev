@@ -426,7 +426,7 @@ public sealed class LocalVerticalSlice
         new VerticalSliceSnapshot(
             tick,
             players,
-            combat.GetCreepSnapshots(combatState, routes),
+            combat.GetCreepSnapshots(combatState, combatContent, routes),
             combatState.Towers,
             combat.GetTowerAimSnapshots(combatState, combatContent, routes));
 

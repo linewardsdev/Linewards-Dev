@@ -648,7 +648,7 @@ namespace LTW.UnityClient.Simulation
 
                 var hitFlashUntil = creepHitFlashUntil.TryGetValue(key, out var flashUntilValue) ? flashUntilValue : 0f;
                 SetCreepTransform(creepObject, creep.Position, creep.LaneId, creep.CreepId.Value, visualProfile, isNewCreep, hitFlashUntil);
-                var healthFraction = CreepHealthFraction(creep.CreepId.Value, creep.Health);
+                var healthFraction = CreepHealthFraction(creep.Health, creep.MaxHealth);
                 var isHitFlashing = creepHitFlashUntil.TryGetValue(key, out var flashUntil) && Time.time < flashUntil;
                 ApplyCreepColor(creepObject, creep.CreepId.Value, creep.SenderId.Value, visualProfile, healthFraction, isHitFlashing);
                 if (UsesMeshVisual(creepObject) && ContainsRole(creep.CreepId.Value, "swarm"))
@@ -4084,39 +4084,9 @@ namespace LTW.UnityClient.Simulation
             return Color.Lerp(baseColor, damageTint, amount);
         }
 
-        private static float CreepHealthFraction(string creepId, int health)
+        private static float CreepHealthFraction(int health, int maxHealth)
         {
-            return Mathf.Clamp01(health / (float)Mathf.Max(1, CreepMaxHealth(creepId)));
-        }
-
-        private static int CreepMaxHealth(string creepId)
-        {
-            if (ContainsRole(creepId, "swarm"))
-            {
-                return 5;
-            }
-
-            if (ContainsRole(creepId, "brute") || ContainsRole(creepId, "tank"))
-            {
-                return 24;
-            }
-
-            if (ContainsRole(creepId, "shade") || ContainsRole(creepId, "invisible") || ContainsRole(creepId, "stealth"))
-            {
-                return 14;
-            }
-
-            if (ContainsRole(creepId, "siege") || ContainsRole(creepId, "attacker"))
-            {
-                return 48;
-            }
-
-            if (ContainsRole(creepId, "boss"))
-            {
-                return 60;
-            }
-
-            return 10;
+            return Mathf.Clamp01(health / (float)Mathf.Max(1, maxHealth));
         }
 
         private static void ConfigureTowerRoleMarker(GameObject towerObject, string towerId, int ownerId)
