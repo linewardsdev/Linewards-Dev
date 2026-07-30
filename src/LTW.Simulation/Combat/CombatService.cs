@@ -192,8 +192,8 @@ public sealed class CombatService
                 continue;
             }
 
-            var zone = BrambleZoneFor(tower, content.GetTower(tower.TowerId).RangeCells, route);
-            if (zone is null)
+            var towerZones = BrambleZonesFor(tower, content.GetTower(tower.TowerId).RangeCells, route);
+            if (towerZones.Count == 0)
             {
                 continue;
             }
@@ -204,54 +204,71 @@ public sealed class CombatService
                 zones[tower.LaneId] = list;
             }
 
-            list.Add(zone.Value);
+            list.AddRange(towerZones);
         }
 
         return zones;
     }
 
     /// <summary>
-    /// The route indices a thorn tower covers, widened forward to at least
-    /// <see cref="BrambleZoneCells"/> so a fast creep cannot step clean over the whole zone in one
-    /// tick. A tower covering no route cell has no zone.
+    /// The route index spans a thorn tower covers, one span per contiguous run of in-range cells,
+    /// each widened forward to at least <see cref="BrambleZoneCells"/> so a fast creep cannot step
+    /// clean over that run in one tick. A tower covering no route cell returns no spans.
     /// </summary>
-    private static (int Start, int End)? BrambleZoneFor(TowerCombatState tower, int rangeCells, IReadOnlyList<GridPosition> route)
+    /// <remarks>
+    /// A single (first-covered, last-covered) span used to be returned here, which is only correct
+    /// on a straight lane. A serpentine maze can carry a route past the same tower more than once —
+    /// near it, away, then back — so "in range" is not contiguous, and collapsing first..last into
+    /// one span braked every index in between, including the stretch the route spent nowhere near
+    /// the tower. Segmenting into one span per run fixes that: cells the tower cannot reach are
+    /// never braked, and every run still gets its own minimum-width guarantee.
+    /// </remarks>
+    private static IReadOnlyList<(int Start, int End)> BrambleZonesFor(TowerCombatState tower, int rangeCells, IReadOnlyList<GridPosition> route)
     {
-        var first = -1;
-        var last = -1;
+        var spans = new List<(int Start, int End)>();
+        var runStart = -1;
         for (var index = 0; index < route.Count; index++)
         {
             if (IsInRange(tower.Position, route[index], rangeCells))
             {
-                if (first < 0)
+                if (runStart < 0)
                 {
-                    first = index;
+                    runStart = index;
                 }
 
-                last = index;
+                continue;
+            }
+
+            if (runStart >= 0)
+            {
+                spans.Add(WidenedSpan(runStart, index - 1, route.Count));
+                runStart = -1;
             }
         }
 
-        if (first < 0)
+        if (runStart >= 0)
         {
-            return null;
+            spans.Add(WidenedSpan(runStart, route.Count - 1, route.Count));
         }
 
-        // Every route cell the tower can reach, with BrambleZoneCells as a MINIMUM rather than a cap.
-        //
-        // This has been both ways round, and the second version was calibrated against the wrong board.
-        // Capping at 3 was a deliberate nerf after the zone measured as an automatic purchase — but that
-        // measurement used a straight 16-cell lane, where 3 braked cells is a fifth of the whole walk.
-        // Re-measured against a real 52-cell maze the same cap contributed 0%: three slowed cells out of
-        // fifty-two is noise. Covering what the tower actually reaches is also the more honest rule on a
-        // maze, where a snaking route can pass a single tower several times and legitimately spend much
-        // longer in its brambles.
-        //
-        // The minimum still guarantees a speed-3 creep cannot step clean over the zone in one tick, which
-        // is the constraint the width exists to satisfy.
-        var end = Math.Min(Math.Max(last, first + BrambleZoneCells - 1), route.Count - 1);
-        return (first, end);
+        return spans;
     }
+
+    // Every route cell one contiguous run actually covers, with BrambleZoneCells as a MINIMUM
+    // rather than a cap.
+    //
+    // This has been both ways round, and the second version was calibrated against the wrong board.
+    // Capping at 3 was a deliberate nerf after the zone measured as an automatic purchase — but that
+    // measurement used a straight 16-cell lane, where 3 braked cells is a fifth of the whole walk.
+    // Re-measured against a real 52-cell maze the same cap contributed 0%: three slowed cells out of
+    // fifty-two is noise. Covering what the tower actually reaches is also the more honest rule on a
+    // maze, where a snaking route can pass a single tower several times and legitimately spend much
+    // longer in its brambles.
+    //
+    // The minimum still guarantees a speed-3 creep cannot step clean over the zone in one tick, which
+    // is the constraint the width exists to satisfy.
+    private static (int Start, int End) WidenedSpan(int runStart, int lastCoveredIndex, int routeCount) =>
+        (runStart, Math.Min(Math.Max(lastCoveredIndex, runStart + BrambleZoneCells - 1), routeCount - 1));
 
     /// <summary>
     /// Whether a creep STARTS its tick inside a bramble zone. Using the start-of-tick index is what

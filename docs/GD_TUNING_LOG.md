@@ -1250,3 +1250,36 @@ that reads the code found it in one pass. The review's own note says it best: tr
 as a claim about the review, not the code.
 
 174 tests passing, zero skipped.
+
+## 2026-07-30: Two More Balance-Relevant Fixes From The Same Review Pass
+
+Continuing through `docs/OPEN_ITEMS.md`'s remaining items, two more turned out to change actual match
+economics rather than being cosmetic:
+
+- **Item 15 — bots could only ever build 4 of the 15 towers** (`BotTowerForSlot`'s switch fell through to
+  a single repeated tower once past its first few slots). Every mechanic-contribution measurement taken
+  against a bot opponent in this log was therefore measured against a bot that could never build the
+  tower being measured, and `BotMazingTests`' "keeps building past nine towers" check passed by watching a
+  bot repeat one tower forever. Fixed with a per-profile build-order array cycled by
+  `ownedTowerCount % array.Length`; the three profiles' arrays collectively reach all 15. Deliberately kept
+  each array's opening slots identical to the old switch's early cases (same tower, same cost) rather than
+  reordering from scratch, because income only ticks every 50 simulation ticks and even a few gold of
+  difference in an early slot can shift a bot's opening send/build timing by a whole income cycle —
+  confirmed the hard way when a first attempt reordered from slot 0 and broke three tests purely on timing.
+- **Item 20 — Thorn Snare's bramble zone collapsed a tower's first-and-last covered route index into one
+  contiguous span**, which is only correct when coverage is one unbroken run. On a mazed route a tower can
+  be passed twice with an unreached stretch in between, and the old code braked that stretch anyway. Fixed
+  by segmenting into one span per contiguous covered run (`BrambleZonesFor`, plural) instead of one span
+  total. This makes Thorn Snare weaker than previously measured on any mazed lane with a double-visit
+  tower — it was over-braking before.
+
+Both required rebasing a test that measures match-level outcomes rather than the mechanic directly:
+`BotMazingTests`' mazing-window test needed more ticks (1200 → 1600) since bots now spend some early gold
+on a costlier tower on the way to the rest of the roster; `Two_bots_complete_a_local_carousel_match`'s
+completion window widened again (150-2000 → 150-3500, completes at 2911) since Thorn Snare's real strength
+dropped. Neither is a new stalemate — both matches still complete comfortably inside their tests' outer
+safety nets. Every mechanic-contribution number in this log that involved a bot-built Thorn Snare on a
+mazed lane, or that relied on the old 4-tower bot roster, should be treated the same way item 5's mazing
+fix and item 10/11's stalemate fix were: re-measured, not adjusted.
+
+176 tests passing, zero skipped.

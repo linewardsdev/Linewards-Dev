@@ -307,6 +307,48 @@ public sealed class TowerMechanicTests
         Assert.True(braked > clean, $"bramble did not slow the creep (clean={clean}, braked={braked})");
     }
 
+    /// <summary>
+    /// A route can pass a single Thorn Snare twice — near it, away, then back — which is normal on a
+    /// mazed lane. BrambleZonesFor must brake each visit as its own span rather than collapsing the
+    /// first and last covered indices into one span that also brakes the stretch in between where
+    /// the tower cannot actually reach (OPEN_ITEMS.md item 20).
+    /// </summary>
+    [Fact]
+    public void Bramble_does_not_brake_a_stretch_the_tower_cannot_reach_between_two_visits()
+    {
+        var service = new CombatService();
+        var content = Content();
+        // Thorn Snare's real range is 2 (SampleVerticalSliceContent). Index 0 (5,4) and index 5
+        // (5,6) are both distance 1 from a tower at (5,5) — in range. Indices 1-4 detour to x=0,
+        // all distance >= 6 — nowhere near in range, unlike a naive "only check the endpoints"
+        // route where a wider minimum-width span could still reach a middle index by accident.
+        var routes = new Dictionary<LaneId, IReadOnlyList<GridPosition>>
+        {
+            [Lane] = new[]
+            {
+                new GridPosition(5, 4),
+                new GridPosition(0, 4),
+                new GridPosition(0, 3),
+                new GridPosition(0, 2),
+                new GridPosition(0, 1),
+                new GridPosition(5, 6)
+            }
+        };
+        var towers = new[] { Tower("tower.thorn_snare", 10, x: 5, y: 5) };
+        // Colossus: speed 1 and 90 max health, so a single Thorn Snare hit (5 damage) cannot kill it
+        // and the only thing this test measures is movement. At speed 1, braked (cost 2) means the
+        // tick's movement (1) cannot even afford one step, so the creep does not move at all; unbraked
+        // (cost 1) advances exactly one index. Starting at index 3 — the middle of the unreachable
+        // detour — is the case the old single-span bug got wrong.
+        var creep = service.SpawnCreep(new EntityId(1), Creep("creep.colossus"), Attacker, Lane).WithMovement(pathIndex: 3, movementProgress: 0);
+        var state = new CombatState(new[] { creep }, towers);
+
+        var result = service.Advance(state, content, routes, new SimulationTick(0));
+
+        var moved = result.State.Creeps.Single();
+        Assert.Equal(4, moved.PathIndex);
+    }
+
     // ---- Foundry: Stack Mortar ---------------------------------------------------------------
 
     [Fact]

@@ -75,7 +75,15 @@ public sealed class LocalThreePlayerMatchTests
         // Upper bound raised to 2000 for the mazing bots: they build real defences now, so matches run
         // longer than the 1,643 ticks this seed took against the old nine-tower scripts. It completes at
         // 926 with the HasLeaked pressure fix — before that fix it never completed at all.
-        Assert.InRange(slice.MatchSummary!.CompletedAtTick.Value, 150, 2_000);
+        // Raised again to 3500 after fixing Thorn Snare's bramble zone (OPEN_ITEMS.md item 20):
+        // BrambleZoneFor used to collapse a tower's first-and-last covered route indices into one
+        // contiguous span, over-braking every index in between even on a maze where the tower's real
+        // coverage is two or more separate visits with an unreached stretch between them.
+        // BrambleZonesFor (plural) now emits one span per contiguous covered run instead. This seed
+        // completes at 2911 with the fix — still comfortably inside the outer 6,000-tick safety net
+        // this test also asserts against (MatchSummary is not null), so it is a timing shift from a
+        // real mechanic correction, not a new stalemate.
+        Assert.InRange(slice.MatchSummary!.CompletedAtTick.Value, 150, 3_500);
         Assert.NotEmpty(slice.GetReplayRecord().AcceptedCommands);
     }
 

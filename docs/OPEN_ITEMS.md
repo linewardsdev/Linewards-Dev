@@ -606,15 +606,33 @@ a headless Unity batchmode compile in a scratch worktree: 0 `error CS`. No
 sim-side change, so `dotnet test` (175/175) is unaffected but was re-run to
 confirm.
 
-## 20. Bramble zone is computed from one index and is wrong on a mazed route
+## 20. ~~Bramble zone is computed from one index and is wrong on a mazed route~~ — resolved 2026-07-30
 
-`CombatService.BrambleZoneFor` (~line 216) assigns a local `last` that is never
-read, and derives the zone as the contiguous *index* range `(first, first + 2)`
-from the first covered route index. On a route that weaves in and out of the
-tower's radius, covered indices are non-contiguous, so Thorn Snare brakes up to
-3 indices it may not cover while leaving covered ones unbraked. Rare on a
-straight lane; **normal on every route the new bot mazing produces** — so this
-regressed in practice the moment `2cf96e1` landed, without being touched.
+**Note: the `last`-is-never-read part of this item was already stale** — an
+earlier pass in this same session (the maze re-measurement work) had already
+fixed `BrambleZoneFor` to read `last` via `Math.Max(last, first + BrambleZoneCells - 1)`.
+What survived was the real defect the item described: a *single* contiguous
+span from the first covered index to the last, which is only correct when a
+tower's coverage is one unbroken run. On a serpentine maze a route can pass
+the same tower twice — near it, away, then back — and the old code braked
+every index in between as if the tower reached all of it.
+
+**Fixed** by renaming `BrambleZoneFor` to `BrambleZonesFor` (plural) and
+segmenting the route into one span per contiguous covered run instead of one
+span total, each still widened to `BrambleZoneCells` as a minimum. The per-lane
+zone list (already `List<(int Start, int End)>`, already supporting multiple
+entries) now receives one entry per run via `AddRange` instead of a single
+`Add`. Added `Bramble_does_not_brake_a_stretch_the_tower_cannot_reach_between_two_visits`,
+which places a Thorn Snare so a hand-built route touches its range at both
+ends with an unreachable detour in the middle — confirmed to fail against the
+pre-fix code (creep stuck braked mid-detour) and pass against the fix.
+
+This did shift match economics enough to need a test rebase:
+`Two_bots_complete_a_local_carousel_match`'s completion window widened from
+150-2000 to 150-3500 (this seed now completes at 2911, still comfortably
+inside the test's outer 6,000-tick safety net) — a timing shift from a real
+mechanic correction, not a new stalemate, same shape as item 15's rebase.
+176/176 tests pass.
 
 ## 21. `BestMazingPlacement` is a full-grid BFS scan per bot per tick
 
