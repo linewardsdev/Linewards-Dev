@@ -18,7 +18,20 @@ namespace LTW.UnityClient.Editor
     public static class LocalPlaytestBatchRunner
     {
         private const string ScenePath = "Assets/Scenes/LocalVerticalSlice.unity";
-        private const double TimeoutSeconds = 60d;
+        /// <summary>
+        /// Wall-clock budget for a whole batch run, not sim time.
+        /// </summary>
+        /// <remarks>
+        /// Raised from 60s alongside CombatService.BaseMovementCost. Creeps now take three ticks per
+        /// route cell instead of one, so the same seed runs ~3,500 ticks rather than ~900, and the
+        /// old budget left very little headroom on a cold Library.
+        /// </remarks>
+        private const double TimeoutSeconds = 180d;
+
+        /// <summary>
+        /// Marks a batch run as in-flight, in storage that outlives a domain reload.
+        /// </summary>
+        private const string SessionKeyActive = "LTW.LocalPlaytestBatchRunner.Active";
 
         private static readonly FieldInfo? TicksPerSecondField = typeof(UnitySimulationDriver).GetField(
             "ticksPerSecond",
@@ -45,6 +58,7 @@ namespace LTW.UnityClient.Editor
 
         public static void Run()
         {
+            SessionState.SetBool(SessionKeyActive, true);
             state = BatchState.WaitingForPlayMode;
             startedAt = EditorApplication.timeSinceStartup;
             completedAt = 0d;
@@ -72,8 +86,72 @@ namespace LTW.UnityClient.Editor
             EditorApplication.EnterPlaymode();
         }
 
+        /// <summary>
+        /// Drives <see cref="Update"/> from inside Play Mode, where the editor's own update loop does
+        /// not reach.
+        /// </summary>
+        /// <remarks>
+        /// This is the whole reason batch runs used to hang. The runner is driven by
+        /// EditorApplication.update, and in BATCHMODE that callback is not pumped once Play Mode
+        /// starts. So the match ran with nothing watching it — and the timeout could not fire either,
+        /// because the timeout lives inside the same unpumped Update. The symptom was a process
+        /// sitting at 80% CPU with a completely healthy log and no progress, forever.
+        ///
+        /// It was diagnosable from one line in that log: UnityVerticalSliceRenderer.Update() WAS
+        /// running. MonoBehaviour ticks are fine in batchmode Play Mode; only the editor callback is
+        /// not. So the runner borrows a MonoBehaviour tick instead of inventing one.
+        ///
+        /// RuntimeInitializeOnLoadMethod is used rather than an EditorApplication play-mode callback
+        /// for the same reason — it is a runtime hook, so it does not depend on the mechanism that is
+        /// broken here.
+        /// </remarks>
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
+        private static void InstallPlayModePump()
+        {
+            if (!SessionState.GetBool(SessionKeyActive, false))
+            {
+                return;
+            }
+
+            // A domain reload would zero the statics below and make the first timeout check fire
+            // instantly against startedAt = 0. Command-line arguments outlive a reload, so the run is
+            // re-derived from them rather than persisted — one source of truth that cannot drift.
+            if (startedAt <= 0d)
+            {
+                matchOptions = ReadOptionsFromCommandLine();
+                evidenceLabel = ReadStringArgument("-ltwEvidenceLabel") ?? $"seed-{matchOptions.Seed}";
+                state = BatchState.WaitingForPlayMode;
+                startedAt = EditorApplication.timeSinceStartup;
+            }
+
+            var pump = new GameObject("~LTWBatchPump");
+            pump.hideFlags = HideFlags.HideAndDontSave;
+            UnityEngine.Object.DontDestroyOnLoad(pump);
+            pump.AddComponent<BatchPump>();
+        }
+
+        private sealed class BatchPump : MonoBehaviour
+        {
+            private void Update() => LocalPlaytestBatchRunner.Update();
+        }
+
+        private static int lastPumpedFrame = -1;
+
         private static void Update()
         {
+            // The editor loop and the play-mode pump can both reach this in the same frame. The state
+            // machine counts FRAMES (VerifyingReset waits 40 of them), so ticking twice per frame
+            // would quietly halve every such window.
+            if (Application.isPlaying)
+            {
+                if (Time.frameCount == lastPumpedFrame)
+                {
+                    return;
+                }
+
+                lastPumpedFrame = Time.frameCount;
+            }
+
             if (EditorApplication.timeSinceStartup - startedAt > TimeoutSeconds)
             {
                 Finish("Timed out before the local Unity playtest completed.");
@@ -224,6 +302,7 @@ namespace LTW.UnityClient.Editor
         private static void Finish(string? error)
         {
             failure = error;
+            SessionState.SetBool(SessionKeyActive, false);
             EditorApplication.update -= Update;
             Time.timeScale = 1f;
             LocalMatchRuntimeOptions.PendingOptions = LocalMatchOptions.Default;

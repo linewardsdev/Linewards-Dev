@@ -26,6 +26,26 @@ namespace LTW.UnityClient.Simulation
         private float openingBuildCountdownSeconds = 30f;
 
         private LocalVerticalSlice simulation = null!;
+        /// <summary>
+        /// Ceiling on simulation ticks advanced in a single frame.
+        /// </summary>
+        /// <remarks>
+        /// The catch-up loop below was unbounded, which is the classic fixed-timestep spiral of
+        /// death: a frame that runs long banks a large deltaTime, which runs even longer, and the
+        /// game never recovers. At the shipped 4 ticks/second it stayed hidden, because a frame would
+        /// have to stall for seconds to bank a meaningful backlog.
+        ///
+        /// The batch playtest runner is where it actually bit. It sets ticksPerSecond to 1200 and
+        /// timeScale to 20 to run a match quickly, so a single 0.33s frame (Unity's default
+        /// maximumDeltaTime) banks 0.33 x 20 x 1200 = roughly 8,000 ticks — an entire match, attempted
+        /// inside one frame, while every creep and tower is simulated. Runs stalled on frame 3 and
+        /// looked like a hang.
+        ///
+        /// 250 is chosen to be far above any real frame's need at 4 ticks/second (that is 62 seconds
+        /// of simulation in one frame) while still bounding the worst case to something that finishes.
+        /// </remarks>
+        private const int MaxTicksPerFrame = 250;
+
         private float accumulator;
         private float openingBuildCountdownEndsAt;
 
@@ -95,10 +115,20 @@ namespace LTW.UnityClient.Simulation
             {
                 accumulator += Time.deltaTime;
                 var tickDuration = 1f / ticksPerSecond;
-                while (accumulator >= tickDuration)
+                var ticksThisFrame = 0;
+                while (accumulator >= tickDuration && ticksThisFrame < MaxTicksPerFrame)
                 {
                     simulation.AdvanceOneTick();
                     accumulator -= tickDuration;
+                    ticksThisFrame++;
+                }
+
+                // Drop the backlog rather than carry it. Keeping it is what turns one slow frame into
+                // a permanent one: the catch-up work makes the next frame slower still, which banks
+                // more catch-up, and the loop never gets back to real time.
+                if (ticksThisFrame >= MaxTicksPerFrame)
+                {
+                    accumulator = 0f;
                 }
             }
 
