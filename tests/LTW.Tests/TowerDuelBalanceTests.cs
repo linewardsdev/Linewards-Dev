@@ -26,7 +26,7 @@ namespace LTW.Tests;
 /// </remarks>
 public sealed class TowerDuelBalanceTests
 {
-    private static readonly LaneId Lane = new(1);
+    private static readonly LaneId Lane = MazedLane.Lane;
     private const int TicksPerSecond = 4;
 
     private readonly ITestOutputHelper output;
@@ -42,24 +42,28 @@ public sealed class TowerDuelBalanceTests
     private static DuelResult Duel(ContentCatalog catalog, TowerDefinition tower, CreepDefinition creep)
     {
         var service = new CombatService();
-        var route = Enumerable.Range(0, 18).Select(y => new GridPosition(3, y)).ToArray();
-        var routes = new Dictionary<LaneId, IReadOnlyList<GridPosition>> { [Lane] = route };
+
+        // Measured against a MAZED route, not a straight line. The straight version of this harness
+        // reported that ten of fifteen towers could not kill a Runner — measured against a 16-cell lane no
+        // player would leave straight, while a real mazed route runs 52 cells. Exposure is what changed,
+        // not the towers.
+        var lane = MazedLane.Build();
+        var routes = lane.Routes();
         var content = new CombatContent(
             catalog.Creeps,
             catalog.Towers,
             new Dictionary<LaneId, PlayerId> { [Lane] = new PlayerId(1) });
 
-        // Placed level with the middle of the run so the creep spends the maximum time inside any
-        // tower's range, whatever that range is.
+        // Mid-route, so the creep spends the maximum time inside whatever range this tower has.
         var state = new CombatState(
             new[] { service.SpawnCreep(new EntityId(1), creep, new PlayerId(2), Lane) },
-            new[] { new TowerCombatState(new EntityId(10), tower.Id, new PlayerId(1), Lane, new GridPosition(2, 9)) });
+            new[] { new TowerCombatState(new EntityId(10), tower.Id, new PlayerId(1), Lane, lane.CellBesideRoute(0.5d)) });
 
         var shots = 0;
         var damage = 0;
         var leaked = false;
 
-        for (var tick = 0; tick < 400; tick++)
+        for (var tick = 0; tick < 1200; tick++)
         {
             var result = service.Advance(state, content, routes, new SimulationTick(tick));
             state = result.State;

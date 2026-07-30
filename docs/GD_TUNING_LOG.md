@@ -1100,3 +1100,60 @@ change against a single function. Six new ratio tests pin the shapes, so a futur
 accessor fails instead of silently sitting at tier 1.
 
 168 tests passing, 2 skipped against the stalemate.
+
+
+## 2026-07-29 (re-measured): Every Balance Number, Against A Real Maze
+
+The harnesses all built their own route as a straight line, which was wrong twice over: the real map is
+7x16 with spawn (3,0) and exit (3,15), so a straight route is 16 cells and not the 18 they used — and this
+game is about mazing, where a real route runs far longer. `MazedLane` now builds one with the real
+`GridPathService` against the real map, adding cells one at a time and keeping only those that leave a path,
+exactly as placement does in play. **Straight 16 cells, mazed 52 cells, 36 maze cells.** The maze is
+geometry only, so it does not shoot; that isolates the tower under test.
+
+### Tower duel, re-measured
+
+Exposure roughly doubled. Shots landed on a Brute went from 1–3 to 1–5, damage-per-gold from 0.07–0.43 to
+0.14–0.64, and towers that can kill a Runner alone went from 5 of 15 to 7. Two towers can now kill a Brute
+single-handed (Prism 11.50s, Elder Canopy 11.25s) where none could before.
+
+**So the earlier "towers only get 1–3 shots per creep" finding was overstated, but not wrong.** Most towers
+still cannot solo a Brute, which is fine for a layered defence. The creep-speed question is softened, not
+answered — and it should be re-derived from these numbers rather than from the straight-lane ones.
+
+### Two mechanics had their verdicts reversed
+
+**Bramble Hold's nerf was calibrated on the wrong board.** Its zone was capped at 3 cells after it measured
+as an automatic purchase — on a straight 16-cell lane, where 3 braked cells is a fifth of the whole walk. On
+a 52-cell maze the same cap contributed **0%**: three slowed cells out of fifty-two is noise. The zone now
+follows the tower's real coverage again, with 3 as a minimum rather than a cap, and measures +24% against a
+burst and +36% in a trickle. Covering what the tower actually reaches is also the more honest rule on a
+maze, where a snaking route can pass one tower several times.
+
+**Servicing's designed case flipped.** On a straight lane a stack crossed a slow tower's range inside a
+single cooldown, so the cadence buff measured 0% against a burst and +25% in a trickle. On a maze the stack
+lingers long enough for the extra shot to land: **+33% burst, +17% trickle**. The mechanic did not change;
+the board it was judged on did. Its test asserted the old 0% explicitly and is now reversed.
+
+### What held
+
+| mechanic | metric | burst | trickle |
+| --- | --- | ---: | ---: |
+| Rot | own damage | +275% | +275% |
+| Grovebond | own damage | +100% | +100% |
+| Crowd Bloom | own damage | +75% | 0% |
+| Chain Arc | own damage | +60% | +53% |
+| Bramble Hold | lane damage | +24% | +36% |
+| Servicing | neighbour damage | +33% | +17% |
+| *Pulse splash (reference)* | own damage | +100% | 0% |
+
+Foundry whiff rate stays 0% on the maze, so the lead filter and the worth-a-shell threshold both hold. Both
+mandatory-buy checks still pass, so the Tesla and Repair Drone repricing was not an artefact of the straight
+lane. Roster domination unchanged.
+
+### Deliberately left on a straight lane
+
+`TowerMechanicTests` asserts RULES — that the Barricade will not shoot behind itself, that Grovebond ignores
+diagonals, that a shell lands where the event advertised. Those need a geometry a reader can hold in their
+head, not a realistic one; converting them would add noise without adding truth. Only the harnesses that
+produce balance MAGNITUDES were moved.

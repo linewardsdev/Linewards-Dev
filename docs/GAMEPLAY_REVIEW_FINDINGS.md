@@ -155,7 +155,10 @@ It seeds a match, captures the default HUD and both send-dock categories, and qu
       mortar's 0.5s delay feels fair at the board camera, which no test can answer.
 
 - [ ] **P1: towers only get 1–3 shots per creep, and 10 of 15 cannot kill even a Runner.**
-      **Investigated 2026-07-29 and not shipped.** The owner confirmed creeps are too fast. The fix is
+      **Investigated 2026-07-29 and not shipped. Re-measure against the maze before revisiting:** on a
+      52-cell mazed route exposure roughly doubles, so this finding is softened — 7 of 15 towers kill a
+      Runner alone rather than 5, and two can kill a Brute. The 4x experiment's result (defence
+      overwhelming, matches never ending) was measured with straight-lane assumptions on top of that.** The owner confirmed creeps are too fast. The fix is
       three lines, but at the correct 4x slower the game stops working — matches never complete and bots
       stop sending and hoard gold, because their thresholds were tuned against a 4.5-second lane transit.
       At 2x slower the game does work (matches finish around tick 1,500), but it still needed seven tests
@@ -186,12 +189,13 @@ It seeds a match, captures the default HUD and both send-dock categories, and qu
       plan's ship/no-ship gate, because a version where towers scale as fast as creeps would simply
       re-create this stalemate at a higher number.
 
-- [ ] **Every balance measurement on record was taken against a STRAIGHT route and needs redoing.** The
-      duel, contribution, whiff and opportunity-cost harnesses all build a straight lane, which is what the
-      old bots produced. Real play now has a 40-cell mazed path against a 16-cell straight one, so a tower
-      sees ~2.5x the exposure those measurements assumed. In particular "towers only get 1-3 shots per
-      creep" overstates the problem, and the creep-speed decision should not be acted on until it is
-      re-measured against a maze.
+- [x] **DONE — every balance measurement re-taken against a real maze.** `MazedLane` builds one with the
+      real `GridPathService` against the real map: straight 16 cells, mazed 52. Exposure roughly doubled;
+      damage-per-gold went 0.07–0.43 to 0.14–0.64, and two towers can now solo a Brute where none could.
+      Two verdicts REVERSED: Bramble Hold's 3-cell cap contributed 0% on a maze (it was nerfed on
+      straight-lane data) and now follows the tower's real coverage again; Servicing's designed case flipped
+      from trickle to burst. Everything else held, including both mandatory-buy checks and the Foundry's 0%
+      whiff rate. See GD_TUNING_LOG 2026-07-29.
 
 ## P2 — Found once the mock stopped covering the board
 

@@ -26,7 +26,7 @@ namespace LTW.Tests;
 /// </remarks>
 public sealed class FoundryWhiffRateTests
 {
-    private static readonly LaneId Lane = new(1);
+    private static readonly LaneId Lane = MazedLane.Lane;
     private static readonly PlayerId Defender = new(1);
     private static readonly PlayerId Attacker = new(2);
     private static readonly ContentCatalog Catalog = SampleVerticalSliceContent.Create();
@@ -35,11 +35,14 @@ public sealed class FoundryWhiffRateTests
 
     public FoundryWhiffRateTests(ITestOutputHelper output) => this.output = output;
 
-    private static IReadOnlyDictionary<LaneId, IReadOnlyList<GridPosition>> Routes() =>
-        new Dictionary<LaneId, IReadOnlyList<GridPosition>>
-        {
-            [Lane] = Enumerable.Range(0, 18).Select(y => new GridPosition(3, y)).ToArray()
-        };
+    /// <summary>
+    /// A real mazed lane. The straight-lane version of this harness produced the 100%-whiff finding that
+    /// led to the lead filter, and that finding still stands — but a mortar's lead depends on where the
+    /// route goes, so the rate has to be confirmed against the route players actually build.
+    /// </summary>
+    private static readonly MazedLane Lane0 = MazedLane.Build();
+
+    private static IReadOnlyDictionary<LaneId, IReadOnlyList<GridPosition>> Routes() => Lane0.Routes();
 
     private static CombatContent Content() => new(
         Catalog.Creeps,
@@ -57,7 +60,7 @@ public sealed class FoundryWhiffRateTests
     /// Runs a Foundry at <paramref name="foundryRow"/> against a stream of creeps, optionally with a
     /// supporting Gatling to create the "well defended lane" case that causes the worst whiffs.
     /// </summary>
-    private static Outcome Run(string creepId, int foundryRow, bool withSupport, int creepCount)
+    private static Outcome Run(string creepId, double foundryFraction, bool withSupport, int creepCount)
     {
         var service = new CombatService();
         var content = Content();
@@ -66,13 +69,14 @@ public sealed class FoundryWhiffRateTests
 
         var towers = new List<TowerCombatState>
         {
-            new(new EntityId(100), new ContentId("tower.foundry"), Defender, Lane, new GridPosition(2, foundryRow))
+            new(new EntityId(100), new ContentId("tower.foundry"), Defender, Lane, Lane0.CellBesideRoute(foundryFraction))
         };
         if (withSupport)
         {
             // Deliberately upstream of the Foundry, so it finishes creeps the mortar has already
             // committed a shell to.
-            towers.Add(new TowerCombatState(new EntityId(101), new ContentId("tower.gatling"), Defender, Lane, new GridPosition(4, foundryRow)));
+            var support = Lane0.FreeNeighboursOf(Lane0.CellBesideRoute(foundryFraction));
+            towers.Add(new TowerCombatState(new EntityId(101), new ContentId("tower.gatling"), Defender, Lane, support[0]));
         }
 
         var state = new CombatState(System.Array.Empty<CreepCombatState>(), towers);
@@ -125,13 +129,13 @@ public sealed class FoundryWhiffRateTests
         foreach (var creepId in new[] { "creep.runner", "creep.swarm", "creep.wisp" })
         {
             var speed = Creep(creepId).SpeedPerSecond;
-            foreach (var row in new[] { 4, 8, 12, 15 })
+            foreach (var row in new[] { 0.2d, 0.45d, 0.7d, 0.9d })
             {
                 foreach (var support in new[] { false, true })
                 {
                     var outcome = Run(creepId, row, support, creepCount: 40);
                     output.WriteLine(
-                        $"{creepId,-16} {speed,5}  {row,3}  {support,7}  {outcome.Shells,6}  {outcome.Whiffs,6}  {outcome.WhiffRate,5:P0}");
+                        $"{creepId,-16} {speed,5}  {row,5:F2}  {support,7}  {outcome.Shells,6}  {outcome.Whiffs,6}  {outcome.WhiffRate,5:P0}");
                 }
             }
         }
@@ -145,7 +149,7 @@ public sealed class FoundryWhiffRateTests
     [Fact]
     public void Foundry_never_whiffs_on_a_slow_creep_with_room_ahead_and_no_support()
     {
-        var outcome = Run("creep.runner", foundryRow: 6, withSupport: false, creepCount: 30);
+        var outcome = Run("creep.brute", foundryFraction: 0.4d, withSupport: false, creepCount: 30);
 
         Assert.True(outcome.Shells > 0, "the Foundry never fired, so nothing was measured");
         Assert.Equal(0, outcome.Whiffs);
@@ -169,7 +173,7 @@ public sealed class FoundryWhiffRateTests
         var whiffs = 0;
         foreach (var creepId in new[] { "creep.runner", "creep.swarm", "creep.wisp" })
         {
-            foreach (var row in new[] { 4, 8, 12, 15 })
+            foreach (var row in new[] { 0.2d, 0.45d, 0.7d, 0.9d })
             {
                 foreach (var support in new[] { false, true })
                 {
@@ -195,7 +199,7 @@ public sealed class FoundryWhiffRateTests
         var total = 0;
         foreach (var creepId in new[] { "creep.runner", "creep.swarm", "creep.wisp" })
         {
-            foreach (var row in new[] { 4, 8, 12, 15 })
+            foreach (var row in new[] { 0.2d, 0.45d, 0.7d, 0.9d })
             {
                 total++;
                 if (Run(creepId, row, withSupport: false, creepCount: 40).Shells > 0)

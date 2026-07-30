@@ -235,13 +235,19 @@ public sealed class CombatService
             return null;
         }
 
-        // Exactly BrambleZoneCells wide, not "at least". This used to widen to whichever was LARGER
-        // of the covered span and the minimum, so a range-2 thorn braked all 5 route cells it could
-        // see. Slowing everything that crosses is a force multiplier for every other tower, and at 5
-        // cells wide it was strong enough to be an automatic purchase in any build — which is exactly
-        // what "no mandatory buys" rules out. Three cells still guarantees a speed-3 creep cannot step
-        // clean over the zone, which is the constraint the width exists to satisfy.
-        var end = Math.Min(first + BrambleZoneCells - 1, route.Count - 1);
+        // Every route cell the tower can reach, with BrambleZoneCells as a MINIMUM rather than a cap.
+        //
+        // This has been both ways round, and the second version was calibrated against the wrong board.
+        // Capping at 3 was a deliberate nerf after the zone measured as an automatic purchase — but that
+        // measurement used a straight 16-cell lane, where 3 braked cells is a fifth of the whole walk.
+        // Re-measured against a real 52-cell maze the same cap contributed 0%: three slowed cells out of
+        // fifty-two is noise. Covering what the tower actually reaches is also the more honest rule on a
+        // maze, where a snaking route can pass a single tower several times and legitimately spend much
+        // longer in its brambles.
+        //
+        // The minimum still guarantees a speed-3 creep cannot step clean over the zone in one tick, which
+        // is the constraint the width exists to satisfy.
+        var end = Math.Min(Math.Max(last, first + BrambleZoneCells - 1), route.Count - 1);
         return (first, end);
     }
 
