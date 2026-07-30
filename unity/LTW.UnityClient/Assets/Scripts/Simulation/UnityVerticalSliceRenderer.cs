@@ -648,7 +648,7 @@ namespace LTW.UnityClient.Simulation
                 }
 
                 var hitFlashUntil = creepHitFlashUntil.TryGetValue(key, out var flashUntilValue) ? flashUntilValue : 0f;
-                SetCreepTransform(creepObject, creep.Position, creep.LaneId, creep.CreepId.Value, visualProfile, isNewCreep, hitFlashUntil);
+                SetCreepTransform(creepObject, creep.Position, creep.LaneId, creep.CreepId.Value, visualProfile, isNewCreep, hitFlashUntil, key);
                 UpdateCreepAnimationSpeed(key, creepObject, creep.CreepId.Value, creep.SpeedPerSecond);
                 var healthFraction = CreepHealthFraction(creep.Health, creep.MaxHealth);
                 var isHitFlashing = creepHitFlashUntil.TryGetValue(key, out var flashUntil) && Time.time < flashUntil;
@@ -2637,9 +2637,9 @@ namespace LTW.UnityClient.Simulation
         /// </remarks>
         private const float CreepTeleportSnapDistance = LaneSpacing * 0.5f;
 
-        private static void SetCreepTransform(GameObject instance, GridPosition position, LaneId laneId, string creepId, CreepVisualProfile visualProfile, bool snapToTarget, float hitFlashUntil)
+        private static void SetCreepTransform(GameObject instance, GridPosition position, LaneId laneId, string creepId, CreepVisualProfile visualProfile, bool snapToTarget, float hitFlashUntil, string key)
         {
-            var roleMotion = CreepRoleMotion(creepId, visualProfile, hitFlashUntil, IsRiggedCreep(instance, creepId));
+            var roleMotion = CreepRoleMotion(creepId, visualProfile, hitFlashUntil, IsRiggedCreep(instance, creepId), key);
             var targetPosition = GridToWorld(position, laneId) + CreepRoleOffset(creepId) + roleMotion.PositionOffset;
             instance.transform.position = snapToTarget || Vector3.Distance(instance.transform.position, targetPosition) > CreepTeleportSnapDistance
                 ? targetPosition
@@ -3981,111 +3981,324 @@ namespace LTW.UnityClient.Simulation
         /// </remarks>
         private const float CreepHitFlashDuration = 0.16f;
 
-        private static CreepMotion CreepRoleMotion(string creepId, CreepVisualProfile visualProfile, float hitFlashUntil, bool isRigged = false)
+        /// <summary>
+        /// Everything that makes one creep move like itself and not like its neighbour, in one row.
+        /// </summary>
+        /// <remarks>
+        /// This replaces a dispatch on <see cref="CreepVisualMotionStyle"/>, which was a set of
+        /// SHARED curves: Shade and Ash Revenant executed byte-identical code, and five rigged
+        /// creeps all named HeavyBob. Sharing a curve is fine when a style is a family of two, and
+        /// stops being fine at fifteen creeps that are supposed to be individually recognisable.
+        /// Each creep now owns a row, exactly as each tower owns one in TowerMotionProfileFor.
+        ///
+        /// The style enum survives as the FALLBACK for a creep id with no row (see
+        /// <see cref="CreepMotionProfileForStyle"/>), so authoring a new creep in the visual library
+        /// without touching this file still yields sensible motion rather than nothing.
+        ///
+        /// What reaches the screen: the match camera is orthographic and tilted ~30 degrees off
+        /// vertical, so yaw, XZ drift and uniform scale arrive intact while vertical bob arrives at
+        /// roughly sin(tilt). Bob and roll are therefore flavour; sway, spin, drift and pulse carry
+        /// the read.
+        /// </remarks>
+        private readonly struct CreepMotionProfile
         {
-            var time = Time.time;
+            public CreepMotionProfile(
+                float bobHz = 0f,
+                float bobAmp = 0f,
+                bool bobRectified = false,
+                float swayHz = 0f,
+                float swayDegrees = 0f,
+                float spinDegreesPerSecond = 0f,
+                float driftHz = 0f,
+                float driftAmp = 0f,
+                float pulseHz = 0f,
+                float pulseAmp = 0f,
+                float rollDegrees = 0f,
+                float pitchDegrees = 0f,
+                float forwardOffset = 0f,
+                float flinchScale = 0.28f,
+                float flinchTilt = 0f)
+            {
+                BobHz = bobHz;
+                BobAmp = bobAmp;
+                BobRectified = bobRectified;
+                SwayHz = swayHz;
+                SwayDegrees = swayDegrees;
+                SpinDegreesPerSecond = spinDegreesPerSecond;
+                DriftHz = driftHz;
+                DriftAmp = driftAmp;
+                PulseHz = pulseHz;
+                PulseAmp = pulseAmp;
+                RollDegrees = rollDegrees;
+                PitchDegrees = pitchDegrees;
+                ForwardOffset = forwardOffset;
+                FlinchScale = flinchScale;
+                FlinchTilt = flinchTilt;
+            }
 
-            // A rigged creep's walk clip already animates its body, so the procedural idle bob and
-            // sway are redundant and fight it. Keep only the hit reaction, which the clip does not
-            // cover, expressed as a scale punch so it still reads under this camera angle.
-            //
-            // Rigged creeps still carry a real MotionStyle in CreepVisualLibrary even though this
-            // return means it is never read for them. Five of them (Zephyr, Stalker, Burrower,
-            // Warden, Colossus) sat on Auto instead, which was harmless only for as long as the rig
-            // held: Auto resolves by substring, none of those five ids match any branch below, and
-            // the fallback at the bottom of this method is RunnerDart — a 13 Hz twitch authored for
-            // the 10 hp Runner. Losing a rig would have quietly put a 90 hp Siege Colossus on it.
-            // They now name the style they would actually want, so the degraded case degrades to
-            // something deliberate.
+            public float BobHz { get; }
+            public float BobAmp { get; }
+
+            /// <summary>Use |sin| so the body settles and rises rather than oscillating evenly, which reads as weight bearing rather than floating.</summary>
+            public bool BobRectified { get; }
+
+            public float SwayHz { get; }
+
+            /// <summary>Yaw weave AROUND the direction of travel. Distinct from a spin, which never settles.</summary>
+            public float SwayDegrees { get; }
+
+            public float SpinDegreesPerSecond { get; }
+            public float DriftHz { get; }
+            public float DriftAmp { get; }
+            public float PulseHz { get; }
+
+            /// <summary>Uniform scale breathe. Never an axis squash — several of these are crystal or stone.</summary>
+            public float PulseAmp { get; }
+
+            public float RollDegrees { get; }
+            public float PitchDegrees { get; }
+            public float ForwardOffset { get; }
+
+            /// <summary>
+            /// Scale punch on taking a hit. Inversely tracks weight across the roster — Crystal Wisp
+            /// 0.42, Siege Colossus 0.15 — so how hard something rocks when struck says what it
+            /// weighs, before its health bar is read.
+            /// </summary>
+            public float FlinchScale { get; }
+
+            public float FlinchTilt { get; }
+        }
+
+        /// <summary>
+        /// The per-creep motion row. One per creep in the roster; unknown ids fall through to the
+        /// style-derived profile.
+        /// </summary>
+        private static CreepMotionProfile CreepMotionProfileFor(string creepId, CreepVisualProfile visualProfile, bool isRigged)
+        {
+            switch (creepId)
+            {
+                // --- CORE ---------------------------------------------------------------------
+                // Light and quick. The fast lateral dart is the whole silhouette read; the forward
+                // offset leans it into its own travel.
+                case "creep.runner":
+                    return new CreepMotionProfile(
+                        bobHz: 13f, bobAmp: 0.018f, driftHz: 13f, driftAmp: 0.055f,
+                        rollDegrees: 4f, pitchDegrees: 7f, forwardOffset: 0.06f, flinchScale: 0.34f);
+
+                // Rock golem, rigged. Secondary only: a slow load-bearing breathe under the walk.
+                case "creep.brute":
+                    return new CreepMotionProfile(swayHz: 1.1f, swayDegrees: 2.5f, pulseHz: 1.4f, pulseAmp: 0.020f, flinchScale: 0.24f);
+
+                // A cluster, not a body. Fast erratic jitter plus a continuous turn so the shards
+                // never present the same face twice.
+                case "creep.swarm":
+                    return new CreepMotionProfile(
+                        driftHz: 15f, driftAmp: 0.045f, spinDegreesPerSecond: 60f,
+                        pulseHz: 9f, pulseAmp: 0.030f, flinchScale: 0.38f);
+
+                // Cloaked drifter. Weaves around its facing rather than pirouetting, and the slow
+                // scale pulse does the ghostly fade.
+                case "creep.shade":
+                    return new CreepMotionProfile(
+                        bobHz: 1.9f, bobAmp: 0.050f, swayHz: 1.5f, swayDegrees: 14f,
+                        driftHz: 1.1f, driftAmp: 0.060f, pulseHz: 2.3f, pulseAmp: 0.045f, flinchScale: 0.30f);
+
+                // Beast hybrid. A slow shoulder roll winding up under its own mass.
+                case "creep.siege":
+                    return new CreepMotionProfile(
+                        bobHz: 6f, bobAmp: 0.020f, bobRectified: true, rollDegrees: 4f,
+                        pulseHz: 1.6f, pulseAmp: 0.030f, flinchScale: 0.22f);
+
+                // --- RAPID --------------------------------------------------------------------
+                // Crystal suspended in a cage. Slow turn so the facets read from above; the wide
+                // drift is what sells floating rather than hovering in place.
+                case "creep.wisp":
+                    return new CreepMotionProfile(
+                        bobHz: 2.6f, bobAmp: 0.075f, spinDegreesPerSecond: 52f,
+                        driftHz: 0.9f, driftAmp: 0.070f, pulseHz: 3.4f, pulseAmp: 0.035f, flinchScale: 0.42f);
+
+                // Ash Revenant. Deliberately NOT Shade's curve, which it used to share outright:
+                // where Shade is a slow wide weave, this is quicker, tighter and more agitated, with
+                // a strong fade pulse and a slight unresolved turn — ash coming apart and reforming
+                // rather than a hood gliding.
+                case "creep.revenant":
+                    return new CreepMotionProfile(
+                        bobHz: 3.1f, bobAmp: 0.070f, swayHz: 2.4f, swayDegrees: 9f,
+                        spinDegreesPerSecond: 18f, driftHz: 1.7f, driftAmp: 0.040f,
+                        pulseHz: 4.2f, pulseAmp: 0.070f, flinchScale: 0.44f);
+
+                // Bigger, slower golem. Reads as Brute's heavier cousin: lower frequency, wider sway.
+                case "creep.obsidian_brute":
+                    return new CreepMotionProfile(swayHz: 0.7f, swayDegrees: 3.2f, pulseHz: 0.9f, pulseAmp: 0.025f, flinchScale: 0.20f);
+
+                // No limbs, so the whole body carries the writhe: a coil turn plus a tightening and
+                // loosening pulse. Rectified bob so it settles and rises, reading muscular.
+                case "creep.serpent":
+                    return new CreepMotionProfile(
+                        bobHz: 2.2f, bobAmp: 0.035f, bobRectified: true, spinDegreesPerSecond: 34f,
+                        driftHz: 1.7f, driftAmp: 0.050f, pulseHz: 2.2f, pulseAmp: 0.055f, flinchScale: 0.26f);
+
+                // Machine, rigged, and its rig already scans its turret. Almost nothing added: a
+                // fast shallow pulse that reads as a servo holding load, and no sway at all, because
+                // a mechanical walker leaning would fight the gait it was rigged with.
+                case "creep.turret_walker":
+                    return new CreepMotionProfile(pulseHz: 2.8f, pulseAmp: 0.010f, flinchScale: 0.26f);
+
+                // --- ELITE (all rigged; secondary layer only) ---------------------------------
+                // Fast flyer. Banks into its own travel — the widest sway of the rigged set.
+                case "creep.zephyr":
+                    return new CreepMotionProfile(swayHz: 2.2f, swayDegrees: 6f, pulseHz: 3.0f, pulseAmp: 0.030f, flinchScale: 0.40f);
+
+                // Stealth. The strongest fade pulse of the rigged set, so it reads as phasing rather
+                // than merely walking.
+                case "creep.stalker":
+                    return new CreepMotionProfile(swayHz: 1.6f, swayDegrees: 4f, pulseHz: 2.0f, pulseAmp: 0.050f, flinchScale: 0.34f);
+
+                // Burrower. A slow deep swell, like something surfacing and sinking as it advances.
+                case "creep.burrower":
+                    return new CreepMotionProfile(swayHz: 0.9f, swayDegrees: 3f, pulseHz: 1.2f, pulseAmp: 0.045f, bobRectified: true, flinchScale: 0.22f);
+
+                // Shield tank. Deliberately the stillest thing in the roster — a guarded advance that
+                // gives away nothing. Stillness is the characterisation here, not an absence of one.
+                case "creep.warden":
+                    return new CreepMotionProfile(swayHz: 0.5f, swayDegrees: 1.5f, pulseHz: 0.8f, pulseAmp: 0.015f, flinchScale: 0.18f);
+
+                // Heaviest thing on the board at 90 hp. Ponderous: the lowest frequencies anywhere in
+                // the roster, and the smallest flinch, so hits visibly fail to move it.
+                case "creep.colossus":
+                    return new CreepMotionProfile(swayHz: 0.4f, swayDegrees: 3.5f, pulseHz: 0.55f, pulseAmp: 0.030f, flinchScale: 0.15f);
+
+                default:
+                    return CreepMotionProfileForStyle(creepId, visualProfile, isRigged);
+            }
+        }
+
+        /// <summary>
+        /// Fallback row for a creep with no entry of its own, derived from its authored
+        /// <see cref="CreepVisualMotionStyle"/>.
+        /// </summary>
+        /// <remarks>
+        /// Keeps the visual library meaningful: a creep added to CreepVisualLibrary without a row
+        /// above still moves like its declared family instead of defaulting to Runner's twitch.
+        /// </remarks>
+        private static CreepMotionProfile CreepMotionProfileForStyle(string creepId, CreepVisualProfile visualProfile, bool isRigged)
+        {
+            var style = visualProfile != null ? visualProfile.MotionStyle : CreepVisualMotionStyle.Auto;
+            if (style == CreepVisualMotionStyle.Auto)
+            {
+                if (ContainsRole(creepId, "swarm")) style = CreepVisualMotionStyle.ClusterJitter;
+                else if (ContainsRole(creepId, "brute") || ContainsRole(creepId, "tank") || ContainsRole(creepId, "boss")) style = CreepVisualMotionStyle.HeavyBob;
+                else if (ContainsRole(creepId, "flying") || ContainsRole(creepId, "air")) style = CreepVisualMotionStyle.Hover;
+                else if (ContainsRole(creepId, "shade") || ContainsRole(creepId, "invisible") || ContainsRole(creepId, "stealth")) style = CreepVisualMotionStyle.Shimmer;
+                else if (ContainsRole(creepId, "attacker") || ContainsRole(creepId, "siege")) style = CreepVisualMotionStyle.SiegeWindup;
+                else style = CreepVisualMotionStyle.RunnerDart;
+            }
+
+            switch (style)
+            {
+                case CreepVisualMotionStyle.ClusterJitter:
+                    return new CreepMotionProfile(driftHz: 15f, driftAmp: 0.045f, spinDegreesPerSecond: 60f, flinchScale: 0.36f);
+                case CreepVisualMotionStyle.HeavyBob:
+                    return new CreepMotionProfile(bobHz: 3.4f, bobAmp: 0.055f, bobRectified: true, swayHz: 3.4f, swayDegrees: 1.5f, flinchScale: 0.24f, flinchTilt: 26f);
+                case CreepVisualMotionStyle.Hover:
+                    return new CreepMotionProfile(bobHz: 2.6f, bobAmp: 0.075f, spinDegreesPerSecond: 52f, driftHz: 0.9f, driftAmp: 0.070f, pulseHz: 3.4f, pulseAmp: 0.035f, flinchScale: 0.40f);
+                case CreepVisualMotionStyle.Shimmer:
+                    return new CreepMotionProfile(bobHz: 1.9f, bobAmp: 0.050f, swayHz: 1.5f, swayDegrees: 14f, driftHz: 1.1f, driftAmp: 0.060f, pulseHz: 2.3f, pulseAmp: 0.045f, flinchScale: 0.32f);
+                case CreepVisualMotionStyle.Coil:
+                    return new CreepMotionProfile(bobHz: 2.2f, bobAmp: 0.035f, bobRectified: true, spinDegreesPerSecond: 34f, driftHz: 1.7f, driftAmp: 0.050f, pulseHz: 2.2f, pulseAmp: 0.055f, flinchScale: 0.26f);
+                case CreepVisualMotionStyle.SiegeWindup:
+                    return new CreepMotionProfile(bobHz: 6f, bobAmp: 0.020f, bobRectified: true, rollDegrees: 4f, flinchScale: 0.24f);
+                case CreepVisualMotionStyle.AuraPulse:
+                    return new CreepMotionProfile(bobHz: 5f, bobAmp: 0.035f, bobRectified: true, spinDegreesPerSecond: 35f, flinchScale: 0.30f);
+                default:
+                    return new CreepMotionProfile(bobHz: 13f, bobAmp: 0.018f, driftHz: 13f, driftAmp: 0.055f, rollDegrees: 4f, pitchDegrees: 7f, forwardOffset: 0.06f, flinchScale: 0.34f);
+            }
+        }
+
+        /// <summary>
+        /// Spreads instances of the same creep out of lockstep, in radians.
+        /// </summary>
+        /// <remarks>
+        /// Every creep drove its motion straight off Time.time, so every instance of a given creep
+        /// was in perfect phase with every other one. A Swarm send puts several on the board at once
+        /// and they jittered as one rigid body; the effect got worse the more of something you sent,
+        /// which is exactly backwards. Offsetting by a hash of the entity key makes a group read as
+        /// individuals, and is stable for the life of the entity so nothing jumps between frames.
+        /// </remarks>
+        private static float CreepMotionPhase(string key)
+        {
+            if (string.IsNullOrEmpty(key))
+            {
+                return 0f;
+            }
+
+            unchecked
+            {
+                var hash = 17;
+                for (var index = 0; index < key.Length; index++)
+                {
+                    hash = hash * 31 + key[index];
+                }
+
+                return (hash & 0xFFFF) / 65535f * (Mathf.PI * 2f);
+            }
+        }
+
+        private static CreepMotion CreepRoleMotion(string creepId, CreepVisualProfile visualProfile, float hitFlashUntil, bool isRigged = false, string key = null)
+        {
+            var profile = CreepMotionProfileFor(creepId, visualProfile, isRigged);
+            var time = Time.time + CreepMotionPhase(key);
+            var flinch = Mathf.Clamp01((hitFlashUntil - Time.time) / CreepHitFlashDuration);
+            var scale = 1f + flinch * profile.FlinchScale;
+
+            // A rigged creep's clip already animates its body, so bob, roll, pitch and drift would
+            // fight it — those all describe things a walk cycle is already doing. Sway and the scale
+            // pulse are applied to the ROOT transform, which the clip never touches (root motion is
+            // off on all eight rigs), so they layer cleanly and are what makes one rigged creep
+            // distinguishable from another without re-authoring anyone's skeleton.
             if (isRigged)
             {
-                var riggedFlinch = Mathf.Clamp01((hitFlashUntil - time) / CreepHitFlashDuration);
-                return new CreepMotion(Vector3.zero, Quaternion.identity, 1f + riggedFlinch * 0.28f);
+                var riggedSway = profile.SwayDegrees == 0f ? 0f : Mathf.Sin(time * profile.SwayHz) * profile.SwayDegrees;
+                var riggedPulse = profile.PulseAmp == 0f ? 0f : Mathf.Sin(time * profile.PulseHz) * profile.PulseAmp;
+                return new CreepMotion(
+                    Vector3.zero,
+                    Quaternion.Euler(0f, riggedSway, 0f),
+                    scale * (1f + riggedPulse));
             }
 
-            var motionStyle = visualProfile != null ? visualProfile.MotionStyle : CreepVisualMotionStyle.Auto;
-            if (motionStyle == CreepVisualMotionStyle.ClusterJitter || motionStyle == CreepVisualMotionStyle.Auto && ContainsRole(creepId, "swarm"))
+            var bobWave = profile.BobHz == 0f
+                ? 0f
+                : profile.BobRectified
+                    ? Mathf.Abs(Mathf.Sin(time * profile.BobHz))
+                    : Mathf.Sin(time * profile.BobHz);
+            var bob = bobWave * profile.BobAmp;
+
+            var drift = Vector3.zero;
+            if (profile.DriftAmp != 0f)
             {
-                var pulse = Mathf.Sin(time * 15f) * 0.045f;
-                return new CreepMotion(new Vector3(pulse, 0f, -pulse * 0.65f), Quaternion.Euler(0f, time * 60f, 0f));
+                drift = new Vector3(
+                    Mathf.Sin(time * profile.DriftHz) * profile.DriftAmp,
+                    0f,
+                    Mathf.Cos(time * profile.DriftHz * 0.85f) * profile.DriftAmp * 0.8f);
             }
 
-            if (motionStyle == CreepVisualMotionStyle.HeavyBob || motionStyle == CreepVisualMotionStyle.Auto && (ContainsRole(creepId, "brute") || ContainsRole(creepId, "tank") || ContainsRole(creepId, "boss")))
-            {
-                var weight = Mathf.Abs(Mathf.Sin(time * 3.4f)) * 0.055f;
-                var sway = Mathf.Sin(time * 3.4f) * 1.5f;
-                // Hit-flinch: a quick opposite-direction tilt plus a squash/stretch punch, layered
-                // on top of the continuous idle sway, decaying over the same 0.16s window
-                // creepHitFlashUntil already tracks for the colour flash. The scale punch is what
-                // actually carries this — the match camera is orthographic and tilted only ~19
-                // degrees off vertical (see UpdateTowerMotion's remark), so tilt/position changes
-                // mostly project away and read as almost nothing on screen.
-                var flinch = Mathf.Clamp01((hitFlashUntil - time) / CreepHitFlashDuration);
-                var flinchTilt = -Mathf.Sign(sway == 0f ? 1f : sway) * flinch * 26f;
-                var flinchScale = 1f + flinch * 0.28f;
-                return new CreepMotion(new Vector3(0f, -weight - flinch * 0.09f, 0f), Quaternion.Euler(flinch * 20f, 0f, sway + flinchTilt), flinchScale);
-            }
+            var yaw = profile.SpinDegreesPerSecond * time
+                + (profile.SwayDegrees == 0f ? 0f : Mathf.Sin(time * profile.SwayHz) * profile.SwayDegrees);
+            var roll = profile.RollDegrees == 0f ? 0f : Mathf.Sin(time * profile.BobHz) * profile.RollDegrees;
+            var pulse = profile.PulseAmp == 0f ? 0f : Mathf.Sin(time * profile.PulseHz) * profile.PulseAmp;
 
-            // The three limbless creeps below carry their whole read through these curves — none of
-            // them has legs to rig, so this is the animation, not a garnish on top of one. All
-            // three lean on yaw, XZ drift and uniform scale, which reach the screen unattenuated;
-            // vertical bob only arrives at ~sin(camera tilt) and so is used for flavour, never as
-            // the primary motion.
-            if (motionStyle == CreepVisualMotionStyle.Hover || motionStyle == CreepVisualMotionStyle.Auto && (ContainsRole(creepId, "flying") || ContainsRole(creepId, "air")))
-            {
-                // Crystal suspended in a cage: a slow turn lets the facets and the cage opening
-                // actually read from above. The old 80 deg/sec was fast enough that the silhouette
-                // blurred into a spinning lump. The wide, slow drift is what sells "floating"
-                // rather than "hovering in place".
-                var bob = Mathf.Sin(time * 2.6f) * 0.075f;
-                var driftX = Mathf.Sin(time * 0.9f) * 0.07f;
-                var driftZ = Mathf.Cos(time * 0.7f) * 0.055f;
-                var glow = 1f + Mathf.Sin(time * 3.4f) * 0.035f;
-                return new CreepMotion(new Vector3(driftX, bob, driftZ), Quaternion.Euler(0f, time * 52f, 0f), glow);
-            }
+            // The flinch tilt kicks AGAINST the current roll so a hit visibly interrupts the idle
+            // rather than blending into it. The scale punch is what actually carries the reaction:
+            // this camera is tilted only ~30 degrees off vertical, so tilt and vertical displacement
+            // mostly project away, while uniform scale survives intact.
+            var flinchTilt = profile.FlinchTilt == 0f
+                ? 0f
+                : -Mathf.Sign(roll == 0f ? 1f : roll) * flinch * profile.FlinchTilt;
 
-            if (motionStyle == CreepVisualMotionStyle.Shimmer || motionStyle == CreepVisualMotionStyle.Auto && (ContainsRole(creepId, "shade") || ContainsRole(creepId, "invisible") || ContainsRole(creepId, "stealth")))
-            {
-                // Cloaked drifters (Shade, Ash Revenant). These used a constant 45 deg/sec yaw,
-                // which made a hooded silhouette read as pirouetting rather than advancing. It now
-                // weaves around its facing instead, and the slow scale pulse does the ghostly fade
-                // the old 8Hz positional jitter was reaching for — that jitter was fast enough to
-                // look like a rendering fault rather than a shimmer.
-                var weave = Mathf.Sin(time * 1.5f) * 14f;
-                var driftX = Mathf.Sin(time * 1.1f) * 0.06f;
-                var driftZ = Mathf.Cos(time * 0.8f) * 0.045f;
-                var rise = Mathf.Sin(time * 1.9f) * 0.05f;
-                var fade = 1f + Mathf.Sin(time * 2.3f) * 0.045f;
-                return new CreepMotion(new Vector3(driftX, rise, driftZ), Quaternion.Euler(0f, weave, 0f), fade);
-            }
-
-            if (motionStyle == CreepVisualMotionStyle.Coil)
-            {
-                // Serpent Coil. With no limbs, the writhe has to come from the whole body: a slow
-                // yaw rotation of the coil plus a uniform scale pulse reading as the coil
-                // tightening and loosening, both of which survive the camera projection intact.
-                // The vertical component is deliberately a rectified sine, so the body settles and
-                // rises rather than oscillating evenly, which reads as muscular rather than floaty.
-                var writhe = 1f + Mathf.Sin(time * 2.2f) * 0.055f;
-                var weaveX = Mathf.Sin(time * 1.7f) * 0.05f;
-                var settle = Mathf.Abs(Mathf.Sin(time * 2.2f)) * 0.035f;
-                return new CreepMotion(new Vector3(weaveX, settle, 0f), Quaternion.Euler(0f, time * 34f, 0f), writhe);
-            }
-
-            if (motionStyle == CreepVisualMotionStyle.SiegeWindup || motionStyle == CreepVisualMotionStyle.Auto && (ContainsRole(creepId, "attacker") || ContainsRole(creepId, "siege")))
-            {
-                var windup = Mathf.Sin(time * 6f) * 4f;
-                return new CreepMotion(Vector3.zero, Quaternion.Euler(0f, 0f, windup));
-            }
-
-            if (motionStyle == CreepVisualMotionStyle.AuraPulse)
-            {
-                var pulse = Mathf.Abs(Mathf.Sin(time * 5f)) * 0.035f;
-                return new CreepMotion(Vector3.up * pulse, Quaternion.Euler(0f, time * 35f, 0f));
-            }
-
-            var dart = Mathf.Sin(time * 13f) * 0.055f;
-            return new CreepMotion(new Vector3(dart, 0f, 0.06f), Quaternion.Euler(7f, 0f, -Mathf.Sin(time * 13f) * 4f));
+            return new CreepMotion(
+                new Vector3(drift.x, bob - flinch * 0.09f, drift.z + profile.ForwardOffset),
+                Quaternion.Euler(profile.PitchDegrees + flinch * 20f, yaw, roll + flinchTilt),
+                scale * (1f + pulse));
         }
 
         private static CreepDeathCueStyle CreepDeathCueStyleFor(string creepId, CreepVisualProfile visualProfile)

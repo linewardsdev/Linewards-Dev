@@ -323,6 +323,24 @@ eight, so the clips never fight the renderer's own transform writes.
       substring; none of those five ids match any branch, so the fallback was `RunnerDart` — a
       13 Hz twitch authored for the 10 hp Runner. Inert while the rigs hold, and a trap the moment
       one does not.
+- [x] **Every creep now has its own motion row, not a shared style** (2026-07-30). Motion used to
+      dispatch on `CreepVisualMotionStyle`, which is a set of SHARED curves: Shade and Ash Revenant
+      executed byte-identical code, and five rigged creeps all named `HeavyBob`. There is now one
+      `CreepMotionProfile` row per creep — the same shape towers have had in
+      `TowerMotionProfileFor` — and all 15 rows are verifiably distinct. The style enum survives as
+      the fallback for a creep with no row, so the visual library stays meaningful.
+- [x] **Rigged creeps are distinguishable from each other without re-rigging anyone.** They
+      previously got zero procedural motion beyond one uniform flinch, so all eight were identical
+      apart from their clip. Each now carries a secondary layer on the ROOT transform — a yaw sway
+      and a scale breathe, which the clips never touch since root motion is off on all eight — so
+      Warden advances stiffly, Colossus lumbers, Zephyr banks, Stalker phases.
+- [x] **Flinch is per-creep and tracks weight.** One shared 0.28 scale punch became a range from
+      0.42 (Crystal Wisp) to 0.15 (Siege Colossus), so how hard something rocks when hit says what
+      it weighs before its health bar is read.
+- [x] **Instances of the same creep no longer move in lockstep.** Every creep drove its motion
+      straight off `Time.time`, so a Swarm send jittered as one rigid body — and the effect got
+      worse the more of something you sent, which is backwards. Motion is now offset by a stable
+      hash of the entity key.
 
 ### Deliverables
 
@@ -331,9 +349,11 @@ eight, so the clips never fight the renderer's own transform writes.
       under-correcting because full correction is unreachable and the fast creeps are already
       partly compensated by clip choice — but nobody has watched it. It is the one number in this
       pass set without eyes on it.
-- [ ] **Give rigged creeps something other than a walk cycle.** One `Walk` state each is the whole
-      state machine. No death, no hit reaction, no idle. The hit response is a uniform scale punch
-      of 0.28 applied identically to all eight, so a Colossus flinches exactly like a Zephyr.
+- [ ] **Give rigged creeps something other than a walk cycle.** One `Walk` state each is still the
+      whole state machine — no death, no hit reaction, no idle clip. The per-creep secondary layer
+      above differentiates them within that limit, but it is layered motion, not animation: a real
+      hit or death reaction needs authored clips and an animator transition, which is Blender work
+      per creep rather than a renderer change.
 - [ ] **Gait-review the five Meshy auto-rigs from the game camera.** Brute, Obsidian Brute and
       Turret Walker were each reviewed this way and each review found real defects (occluded legs,
       51x foot skate, a self-cancelling symmetric trot). Zephyr, Stalker, Burrower, Warden and
