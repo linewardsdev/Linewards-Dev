@@ -272,7 +272,9 @@ reachable. Every one came from reading painted pixels as if they were the game.
 - The unreadable cost text is `PaintCard`'s painted meta string at the same 3px scale.
 - `+10P0` is painted; the real `HudView` format already has two spaces.
 - The "stray garbled text" is painted reference text sitting outside the board frame.
-- "Only 5 creeps" is the stale `PaintSendMenuOverlay` above.
+- "Only 5 creeps" is the stale painted HUD mock (`PaintBatchHudOverlay` and its
+  `Paint*`/`Draw*Overlay` helpers, deleted — see "P1 — The painted HUD mock (DELETED)" above),
+  which still painted the pre-expansion 5-creep send menu long after the roster reached 10.
 
 Two process lessons worth keeping:
 

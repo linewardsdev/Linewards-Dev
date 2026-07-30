@@ -85,7 +85,7 @@ Second five, wired in behind the send menu's Category 2 (`docs/CONTENT_ROSTER_EX
 | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |
 | Crystal Wisp | `creep.wisp` | Cheap fast chip pressure | 1 | 5 | +1 | 4 | 3 | 12 | 1 | 1 | Cheapest and fastest unit in the roster; tests constant, low-cost pressure. |
 | Ash Revenant | `creep.revenant` | Fragile economy-enabling glass cannon | 1 | 16 | +4 | 8 | 2 | 8 | 1 | 2 | Highest income-per-cost ratio; punishes a defender who doesn't finish it off. Visual scale raised 0.85→1.05 on 2026-07-28 so it reads as a distinct target rather than chaff; the one deliberate exception to the health-driven silhouette rule — see `docs/GD_TUNING_LOG.md`. |
-| Obsidian Brute | `creep.obsidian_brute` | Heavier, later-tier tank | 1 | 30 | +3 | 60 | 1 | 4 | 3 | 4 | Highest health in the roster — a heavier, later-game answer to `creep.brute`, not a duplicate of it. |
+| Obsidian Brute | `creep.obsidian_brute` | Heavier, later-tier tank | 1 | 30 | +3 | 60 | 1 | 4 | 3 | 4 | Second-highest health in the roster (Siege Colossus, 90, is highest) — a heavier, later-game answer to `creep.brute`, not a duplicate of it. |
 | Serpent Coil | `creep.serpent` | Sustained midgame grinder | 1 | 20 | +2 | 32 | 1 | 4 | 2 | 3 | No gimmick — a solid all-rounder that punishes overinvestment. Cost cut 22→20 on 2026-07-28 (see `docs/GD_TUNING_LOG.md`); was strictly dominated by Obsidian Brute at 22. |
 | Spire Turret Walker | `creep.turret_walker` | Fast heavy threat | 1 | 38 | +4 | 40 | 2 | 8 | 4 | 5 | Comparable cost/health to Siege but faster and with no leak-life penalty — tests whether towers can keep up with a heavy that isn't slow. |
 
@@ -101,7 +101,7 @@ first ten, paced by price rather than by a cooldown exemption.
 | Zephyr Wraith | `creep.zephyr` | Fast evasive skirmisher | 1 | 22 | +2 | 12 | 3 | 12 | 2 | 3 | Ties Crystal Wisp as the fastest unit, with real health behind it. Uses the running clip. |
 | Fracture Burrower | `creep.burrower` | Mid-tier sustained tank | 1 | 26 | +2 | 44 | 1 | 4 | 3 | 4 | No gimmick — steady health pressure that punishes thin coverage. |
 | Umbral Stalker | `creep.stalker` | Ambusher | 1 | 28 | +3 | 20 | 2 | 8 | 2 | 4 | Fast for its cost; tests whether defence reaches past the opening cluster. Uses the running clip. |
-| Aegis Warden | `creep.warden` | Armoured advance | 1 | 34 | +3 | 55 | 1 | 4 | 3 | 4 | Second-highest health in the roster; asks whether defence DPS has scaled. |
+| Aegis Warden | `creep.warden` | Armoured advance | 1 | 34 | +3 | 55 | 1 | 4 | 3 | 4 | Third-highest health in the roster (behind Siege Colossus at 90 and Obsidian Brute at 60); asks whether defence DPS has scaled. |
 | Siege Colossus | `creep.colossus` | Late-game wall | 1 | 52 | +5 | 90 | 1 | 4 | 5 | 8 | Highest cost and health anywhere in the roster. Named Colossus, not Siege, to stay distinct from `creep.siege`, which it outclasses rather than duplicates. |
 
 ## Creep Role Map

@@ -11,15 +11,21 @@ using UnityEngine;
 namespace LTW.UnityClient.Editor
 {
     /// <summary>
-    /// Captures the REAL runtime UI, unlike <see cref="VisualReviewCaptureRunner"/>, whose output
-    /// contains a CPU-painted mock of the HUD rather than anything the game drew.
+    /// Captures the REAL runtime UI, unlike <see cref="VisualReviewCaptureRunner"/>, whose captures
+    /// contain the board only and miss IMGUI entirely.
     /// </summary>
     /// <remarks>
     /// The difference is the capture mechanism. Reading pixels back from a RenderTexture in
-    /// batchmode misses IMGUI entirely, because OnGUI does not draw into an offscreen target —
-    /// which is why the other runner has to paint a replacement, and why that replacement silently
-    /// drifts out of date. ScreenCapture grabs the composited frame the editor actually presented,
-    /// IMGUI included.
+    /// batchmode misses IMGUI entirely, because OnGUI does not draw into an offscreen target.
+    /// ScreenCapture grabs the composited frame the editor actually presented, IMGUI included.
+    ///
+    /// <see cref="VisualReviewCaptureRunner"/> used to paper over that gap with a CPU-painted mock
+    /// of the HUD — convincing enough to review, but it silently drifted out of date (it kept
+    /// painting the pre-expansion 5-creep send menu long after the roster reached 10) and produced
+    /// several UI "defects" that were artefacts of the paint code, not the game. That mock was
+    /// deleted (see docs/GAMEPLAY_REVIEW_FINDINGS.md, "The painted HUD mock (DELETED)"); an empty
+    /// region in a <see cref="VisualReviewCaptureRunner"/> capture is now honest about missing IMGUI
+    /// rather than a convincing painting of stale UI. This runner is how to actually see the UI.
     ///
     /// The cost is that this needs a real Game view, so it must run WITHOUT -batchmode:
     ///

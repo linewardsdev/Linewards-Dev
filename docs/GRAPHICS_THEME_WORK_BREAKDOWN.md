@@ -10,6 +10,12 @@ Break the next Line Wards graphics work into parallel-friendly chunks that combi
 
 Use this as the coordination layer when multiple agents split the art/theme work.
 
+> **Superseded.** The audit below describes the AIPlate sprite era for the original 5 towers and
+> 5 creeps. The roster has since grown to **15 towers in three build lines** and **15 creeps in
+> three send categories**, on the newer Meshy 3D mesh pipeline — see
+> `docs/TOWER_AND_CREEP_ROSTER.md` for the current roster. Read below as history, not current
+> runtime state.
+
 ## Audit Reconciliation (2026-07-16)
 
 The active runtime baseline is the V1 **AIPlate sprite pipeline**, not the generated placeholders or stylized-weapon-kit wrappers. `TowerVisualLibrary` maps Arrow, Control, Relay, Pulse, and Prism to `Tower_*_AIPlate.prefab`; `CreepVisualLibrary` maps Runner, Brute, Swarm, Shade, and Siege to `Creep_*_AIPlate.prefab`. The Builder uses `builder_candidate_v01_trimmed.png` over its procedural placement avatar.

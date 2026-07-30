@@ -835,22 +835,39 @@ Unity client:
 
 Docs:
 
-- `docs/README.md` omits 9 of 32 docs, including `GD_TUNING_LOG.md` — the
-  primary balance record, and the largest doc in the repo.
-- "five towers / five creeps" is still stated as the current baseline in
-  `README.md`, `docs/AI_ART_PIPELINE.md`,
-  `docs/PROPER_ART_REPLACEMENT_PASS_CHECKLIST.md`,
-  `docs/STYLIZED_WEAPON_KIT_INTEGRATION_CHECKLIST.md` and
-  `docs/GRAPHICS_THEME_WORK_BREAKDOWN.md`.
-  `docs/CONTENT_ROSTER_EXPANSION_PLAN.md` handles it correctly with an explicit
-  superseded banner — copy that pattern.
-- `docs/TOWER_AND_CREEP_ROSTER.md` calls Obsidian Brute (60) "highest health in
-  the roster" in one table and Colossus (90) the same in another. Otherwise all
-  30 rows were verified against `SampleVerticalSliceContent` and match exactly.
-- `docs/GAMEPLAY_REVIEW_FINDINGS.md` still points at `PaintSendMenuOverlay`,
-  which no longer exists in any source file, and `RealUiCaptureRunner`'s class
-  comment still justifies itself against the painted HUD mock that was deleted
-  in `ece2ae8`.
+- ~~`docs/README.md` omits 9 of 32 docs~~ — **resolved 2026-07-30.** Added
+  links for all 8 actually-missing docs (`GD_TUNING_LOG.md`,
+  `CATEGORY_UPGRADE_TIERS_PLAN.md`, `MULTIPLAYER_SEATS_AND_AUTHORITY.md`,
+  `ART_PREFAB_CONTRACT.md`, `PROPER_ART_REPLACEMENT_PASS_CHECKLIST.md`,
+  `STYLIZED_WEAPON_KIT_INTEGRATION_CHECKLIST.md`,
+  `ANDROID_DEVICE_VALIDATION.md`, `STORE_SIGNING_PREREQUISITES.md`); re-counted
+  against the actual file list rather than trusting the original "9".
+- ~~"five towers / five creeps" is still stated as the current baseline~~ —
+  **resolved 2026-07-30.** Root `README.md`'s claim was corrected outright (it
+  stated present-tense fact, not history) to 15/15 with a pointer to
+  `docs/TOWER_AND_CREEP_ROSTER.md`. The four AIPlate-era checklists
+  (`docs/AI_ART_PIPELINE.md`, `docs/PROPER_ART_REPLACEMENT_PASS_CHECKLIST.md`,
+  `docs/STYLIZED_WEAPON_KIT_INTEGRATION_CHECKLIST.md`,
+  `docs/GRAPHICS_THEME_WORK_BREAKDOWN.md`) each got the same superseded banner
+  `docs/CONTENT_ROSTER_EXPANSION_PLAN.md` already used, rather than editing
+  their historical "five" claims in place.
+- ~~`docs/TOWER_AND_CREEP_ROSTER.md` calls Obsidian Brute (60) "highest health
+  in the roster" in one table and Colossus (90) the same in another~~ —
+  **resolved 2026-07-30.** A third row (Aegis Warden, 55) also claimed
+  "second-highest," which was equally wrong once Obsidian Brute (60) is
+  counted. Correct ranking is Colossus (90) > Obsidian Brute (60) > Warden
+  (55); Colossus's claim was already right, Obsidian Brute's now says
+  "second-highest" and Warden's now says "third-highest," each naming what
+  outranks it.
+- ~~`docs/GAMEPLAY_REVIEW_FINDINGS.md` still points at `PaintSendMenuOverlay`...
+  and `RealUiCaptureRunner`'s class comment still justifies itself against the
+  painted HUD mock that was deleted~~ — **resolved 2026-07-30.** The doc now
+  names the mock's real surviving identifier (`PaintBatchHudOverlay`, per its
+  own earlier section) instead of a name that never existed in source.
+  `RealUiCaptureRunner`'s class comment no longer describes
+  `VisualReviewCaptureRunner` as if it still paints a mock HUD — it now
+  explains that the mock was deleted, why, and that a capture with the HUD
+  missing is now honestly empty rather than convincingly faked.
 
 ## What is solid, and worth not breaking
 

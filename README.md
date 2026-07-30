@@ -2,7 +2,7 @@
 
 LTW is a Unity and C# mobile adaptation of Line Tower Wars. The current milestone is an offline three-player MVP with one human player and two simulated opponents.
 
-The Unity client renders on URP 17.5.0 with five 3D towers and five 3D creeps (Meshy-generated, Blender-prepared) fully wired into the match presentation. See [docs/OPEN_ITEMS.md](docs/OPEN_ITEMS.md) for what's still outstanding from that work before you touch tower materials or bloom tuning.
+The Unity client renders on URP 17.5.0 with 15 3D towers and 15 3D creeps (Meshy-generated, Blender-prepared) fully wired into the match presentation — the roster grew from the original five of each; see [docs/TOWER_AND_CREEP_ROSTER.md](docs/TOWER_AND_CREEP_ROSTER.md) for the current list. See [docs/OPEN_ITEMS.md](docs/OPEN_ITEMS.md) for what's still outstanding from that work before you touch tower materials or bloom tuning.
 
 ## Project Documentation
 

@@ -3,6 +3,12 @@
 Date created: 2026-07-15
 Status reconciled: 2026-07-16
 
+> **Superseded.** This describes the AIPlate sprite pipeline for the original 5 towers and 5
+> creeps. The roster has since grown to **15 towers in three build lines** and **15 creeps in
+> three send categories**, on the newer Meshy 3D mesh pipeline — see
+> `docs/TOWER_AND_CREEP_ROSTER.md` for the current roster and `docs/GD_TUNING_LOG.md` for the
+> pipeline history. Read below for the AIPlate-era design reasoning, not as current runtime state.
+
 ## Current Runtime Baseline
 
 The V1 AIPlate sprite pipeline is active for all five towers and all five creeps. Arrow, Control, Relay, Pulse, and Prism resolve through `Tower_*_AIPlate.prefab`; Runner, Brute, Swarm, Shade, and Siege resolve through `Creep_*_AIPlate.prefab`. The Builder uses `builder_candidate_v01_trimmed.png` as an authored layer over the procedural placement avatar.

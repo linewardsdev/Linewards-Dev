@@ -6,6 +6,11 @@ Source folder: `unity/LTW.UnityClient/Assets/ThirdParty/StylizedWeaponKit/Art/We
 Dependency record: `docs/MVP_DEPENDENCIES.md`
 Status reconciled: 2026-07-16
 
+> **Superseded.** This describes the AIPlate sprite era for the original 5 towers and 5 creeps.
+> The roster has since grown to **15 towers in three build lines** and **15 creeps in three send
+> categories**, on the newer Meshy 3D mesh pipeline — see `docs/TOWER_AND_CREEP_ROSTER.md` for the
+> current roster. Read below as history, not current runtime state.
+
 ## Runtime Status After AIPlate Promotion
 
 This checklist records a completed exploratory integration track. The active runtime baseline is now the V1 AIPlate sprite pipeline for all five towers and all five creeps, with an authored Builder sprite layer. Weapon-kit wrappers and generated placeholder assets remain isolated fallback/history; agents must not treat unfinished wrapper boxes below as current runtime requirements.

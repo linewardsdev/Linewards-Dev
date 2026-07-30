@@ -3,6 +3,11 @@
 Date created: 2026-07-15
 Status reconciled: 2026-07-16
 
+> **Superseded.** This describes the AIPlate sprite era for the original 5 towers and 5 creeps.
+> The roster has since grown to **15 towers in three build lines** and **15 creeps in three send
+> categories**, on the newer Meshy 3D mesh pipeline — see `docs/TOWER_AND_CREEP_ROSTER.md` for the
+> current roster. Read below as history, not current runtime state.
+
 ## Audit Reconciliation
 
 The current runtime baseline is the complete V1 AIPlate sprite set for all five towers and all five creeps, plus the authored Builder sprite layer. Earlier source-kit mesh promotion and generated-placeholder work is retained below as proof history and fallback context; it is not the current promotion target.

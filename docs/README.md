@@ -16,16 +16,24 @@ This folder contains the durable project documentation for Line Wards, the mobil
 - [MVP implementation checklist](MVP_IMPLEMENTATION_CHECKLIST.md)
 - [Gameplay development checklist](GAMEPLAY_DEVELOPMENT_CHECKLIST.md)
 - [Gameplay review findings](GAMEPLAY_REVIEW_FINDINGS.md) — open defects found by capture review, with evidence
+- [GD tuning log](GD_TUNING_LOG.md) — the primary balance record: every measurement, fix and reversal, in order
 - [Tower and creep roster](TOWER_AND_CREEP_ROSTER.md)
+- [Category upgrade tiers plan](CATEGORY_UPGRADE_TIERS_PLAN.md)
 - [Game menu and runtime flow](GAME_MENU_AND_RUNTIME_FLOW.md)
 - [Content roster expansion plan](CONTENT_ROSTER_EXPANSION_PLAN.md)
+- [Multiplayer seats and authority](MULTIPLAYER_SEATS_AND_AUTHORITY.md)
 - [Builder placement concept](BUILDER_PLACEMENT_CONCEPT.md)
 - [Graphics theme work breakdown](GRAPHICS_THEME_WORK_BREAKDOWN.md)
 - [Mobile art direction improvement cycle](MOBILE_ART_DIRECTION_IMPROVEMENT_CYCLE.md)
-- [AI-assisted art pipeline](AI_ART_PIPELINE.md)
+- [AI-assisted art pipeline](AI_ART_PIPELINE.md) — superseded; see `TOWER_AND_CREEP_ROSTER.md` for the current roster
+- [Art prefab contract](ART_PREFAB_CONTRACT.md)
+- [Proper art replacement pass checklist](PROPER_ART_REPLACEMENT_PASS_CHECKLIST.md) — superseded
+- [Stylized weapon kit integration checklist](STYLIZED_WEAPON_KIT_INTEGRATION_CHECKLIST.md) — superseded
 - [Tower 3D cohesion pass](art-pipeline/tower-3d-cohesion-pass.md)
 - [Unity MCP Codex workflow](UNITY_MCP_CODEX_WORKFLOW.md)
 - [iOS device validation](IOS_DEVICE_VALIDATION.md)
+- [Android device validation](ANDROID_DEVICE_VALIDATION.md)
+- [Store signing prerequisites](STORE_SIGNING_PREREQUISITES.md)
 
 ## Product And Brand
 
