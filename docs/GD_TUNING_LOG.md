@@ -894,3 +894,15 @@ non-negative.
 
 Bramble Hold's +15% in a trickle is the direct result of cutting it back from 5 zone cells to 3: one
 creep walking past loses a single tick, while a stack of six loses it all at once.
+
+
+**Deep Roots checked too, and it holds.** Elder Canopy orders candidates by ascending path index, the same
+shape as the two rules that failed, so it was measured rather than assumed: 0% target divergence against a
+stacked send and 75% in a trickle. The stacked result is correct degenerate behaviour rather than a bug —
+when every creep shares one path index, "furthest back" has no meaning and falling through to the default
+is the only sensible answer. Its designed case is a spread stream at the mouth of the lane, and there it
+changes the shot three times in four.
+
+That closes the sweep: every mechanic on the roster now has a measured contribution, and the three that
+were keyed on strict creep ordering have each been checked against the tie case that a quantity-N send
+produces.

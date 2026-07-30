@@ -401,4 +401,44 @@ public sealed class MechanicContributionTests
 
         Assert.Equal(plain.OtherTowerDamage, real.OtherTowerDamage);
     }
+
+    // ---- Deep Roots: the last mechanic keyed on strict creep ordering -------------------------
+
+    /// <summary>
+    /// Elder Canopy orders candidates by ascending path index to shoot the creep furthest back. That is
+    /// the same SHAPE as the two rules that already failed — a comparison over creep ordering — so it
+    /// gets checked rather than assumed.
+    /// </summary>
+    /// <remarks>
+    /// A selection rule's contribution is not damage, it is which creep gets shot, so this compares
+    /// target sequences rather than totals. Against a stacked send every index ties and the rule can only
+    /// fall through to entity id, exactly as Reaping Bloom did; against a trickle the indices genuinely
+    /// differ and it should diverge from the default front-most rule on nearly every shot.
+    /// </remarks>
+    [Fact]
+    public void Deep_roots_changes_the_target_when_creeps_are_spread_out()
+    {
+        var (real, plain) = Compare("tower.elder_canopy", System.Array.Empty<Placement>(), "creep.colossus", 8, stackedSend: false);
+
+        var shots = System.Math.Min(real.Targets.Count, plain.Targets.Count);
+        Assert.True(shots > 0, "the canopy never fired, so nothing was measured");
+
+        var diverged = Enumerable.Range(0, shots).Count(index => real.Targets[index] != plain.Targets[index]);
+        Assert.True(
+            diverged > 0,
+            $"Deep Roots picked the same creep as the default rule on all {shots} shots — the mechanic is inert");
+    }
+
+    [Fact]
+    public void Report_deep_roots_target_divergence()
+    {
+        foreach (var stacked in new[] { true, false })
+        {
+            var (real, plain) = Compare("tower.elder_canopy", System.Array.Empty<Placement>(), "creep.colossus", 8, stacked);
+            var shots = System.Math.Min(real.Targets.Count, plain.Targets.Count);
+            var diverged = Enumerable.Range(0, shots).Count(index => real.Targets[index] != plain.Targets[index]);
+            var rate = shots == 0 ? 0d : diverged / (double)shots;
+            output.WriteLine($"elder_canopy / Deep Roots  {(stacked ? "stacked" : "trickle"),-8} shots={shots,3} diverged={diverged,3} {rate,6:P0}");
+        }
+    }
 }
