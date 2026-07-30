@@ -151,12 +151,21 @@ implementation does not have to find these three problems for itself:
 - **Pulse's splash reads `baseDamage`.** It previously read `towerDefinition.Damage` directly, which
   would have left splash permanently at tier 1. It still does not read `shotDamage`, deliberately, so a
   tower matching both the pulse and sapling role tokens could not have its splash inflated by Grovebond.
-- **Flat mechanic bonuses were converted to proportional ones.** Grovebond was `+1 damage per adjacent
-  Grove tower` and Crowd Bloom `+1 per creep on the cell`; both are now percentages of `baseDamage`
-  (50% and 25% respectively). A flat bonus shrinks as a share of a scaled base, so tiers would have
-  quietly weakened the very lines being invested in. The percentages were chosen to reproduce today's
-  numbers exactly at the authored damage — Grovebond 2 → 3/4/5, Crowd Bloom 4 → 5/6/7 — so the change
-  landed with all 159 tests unchanged.
+- **Every mechanic is now proportional to `baseDamage`.** Grovebond was `+1 per adjacent Grove tower`
+  and Crowd Bloom `+1 per creep on the cell`; both are percentages now (50% and 25%). Rot was
+  `max(baseDamage, maxHealth / 6)`, where a tier would have raised only the FLOOR — so investing in GROVE
+  would have done nothing for that tower against exactly the fat targets it exists to answer; it is now
+  `baseDamage × (maxHealth / 24)`, floored at 100%. Chain Arc's hops now decay from `baseDamage` rather
+  than from the primary hit. All four reproduce today's numbers exactly at authored damage — Grovebond
+  2 → 3/4/5, Crowd Bloom 4 → 5/6/7, Rot 4 → 4/5/6/7/8/10/15 across the roster — which is why the change
+  landed with the suite unmoved.
+
+- **There is now exactly ONE place a tier multiplier belongs: `BaseDamageFor(towerDefinition)`.** Four
+  separate paths deal damage on a tower's behalf — the primary shot, Pulse's splash, Chain Arc's hops and
+  the Foundry's shell — and all four read that accessor. Two of them were found only by grepping for the
+  raw field after the first two were fixed; the Foundry's shell was the easiest to miss because it
+  resolves in a different phase where the shot's local is out of scope. Six tests pin the ratios so a
+  future path that bypasses the accessor fails rather than silently sitting at tier 1.
 
 `CombatService` is static and stateless, so it needs the tiers passed in. The cleanest route is through
 `CombatContent`, which already carries per-lane ownership — add a tier lookup keyed by `PlayerId`.
@@ -229,10 +238,11 @@ measurement. Four harnesses already exist and all of them need extending:
 
 - `TowerDuelBalanceTests` — per-tier time-to-kill, so the tower tiers' real value is measured rather
   than assumed from the multiplier.
-- `MechanicContributionTests` — every mechanic re-measured at tier 3. The two flat bonuses have been
-  converted to proportional ones so they no longer decay, but that is an argument for checking, not a
-  reason to skip it: Rot keys off creep max health and Chain Arc halves, so both interact with scaling in
-  ways the percentages do not obviously cover.
+- `MechanicContributionTests` — every mechanic re-measured at tier 3. All four damage mechanics are now
+  proportional and pinned by ratio tests, so none should decay, but measuring is still the point: the
+  interaction between a creep-category tier (which raises max health, and therefore Rot) and a tower-line
+  tier (which raises base damage) is the one place two multipliers compound, and no test covers that until
+  tiers exist.
 - `RepairDroneValueTests` — the opportunity-cost comparison now has a third option (buy a tier instead
   of a tower or a drone), and a tier that beats both is a mandatory buy.
 - `BotMazingTests` — extend to assert bots actually purchase tiers.

@@ -340,7 +340,7 @@ public sealed class CombatService
             // tower that matched both the pulse and sapling role tokens could not have its splash
             // inflated by Grovebond. That still holds — splash reads baseDamage, not shotDamage — but it
             // now goes through the seam, so a tier multiplier applied to baseDamage reaches it.
-            var baseDamage = towerDefinition.Damage;
+            var baseDamage = BaseDamageFor(towerDefinition);
 
             var shotDamage = baseDamage;
             if (IsSaplingTower(tower.TowerId))
@@ -360,7 +360,7 @@ public sealed class CombatService
 
             if (IsTeslaTower(tower.TowerId))
             {
-                next = ChainArc(next, content, routes, tower, target, shotDamage, tick, events);
+                next = ChainArc(next, content, routes, tower, target, baseDamage, tick, events);
             }
 
             if (IsPulseTower(tower.TowerId))
@@ -532,6 +532,11 @@ public sealed class CombatService
     /// Already-struck creeps are excluded by entity id, so "at or behind" cannot re-hit the primary or
     /// loop, and ordering by descending index then entity id keeps the chain a property of the board
     /// rather than of iteration order.
+    ///
+    /// Hops decay from BASE damage, not from the primary hit. Identical today, since nothing modifies a
+    /// Tesla's shot — but reading base is what makes the whole chain scale with a tower-line tier in one
+    /// place, and it matches the rule Pulse's splash follows: secondary effects read base, so a mechanic
+    /// bonus can never propagate through them.
     /// </remarks>
     private static CombatState ChainArc(
         CombatState state,
@@ -539,12 +544,12 @@ public sealed class CombatService
         IReadOnlyDictionary<LaneId, IReadOnlyList<GridPosition>> routes,
         TowerCombatState tower,
         CreepCombatState primary,
-        int primaryDamage,
+        int baseDamage,
         SimulationTick tick,
         List<ISimulationEvent> events)
     {
         var next = state;
-        var damage = primaryDamage;
+        var damage = baseDamage;
         var fromIndex = primary.PathIndex;
         var struck = new List<long> { primary.EntityId.Value };
 
@@ -602,7 +607,11 @@ public sealed class CombatService
 
             foreach (var creep in hit)
             {
-                next = DamageCreep(next, content, tower, creep, towerDefinition.Damage, tick, events);
+                // Shell damage goes through the same accessor as a direct shot, so a tower-line tier
+                // reaches artillery too. This was the third site reading the authored damage directly,
+                // after Pulse's splash and Chain Arc, and the easiest to miss because it resolves in a
+                // different phase where baseDamage is not in scope.
+                next = DamageCreep(next, content, tower, creep, BaseDamageFor(towerDefinition), tick, events);
             }
         }
 
@@ -841,7 +850,15 @@ public sealed class CombatService
 
     private static bool IsThornTower(ContentId towerId) => ContainsRole(towerId, "thorn");
 
-    private const int SporeRotDivisor = 6;
+    /// <summary>
+    /// Target max health that buys one full multiple of the Spore Cloud Bloom's base damage.
+    /// </summary>
+    /// <remarks>
+    /// 24 is not arbitrary: it is the old formula's divisor of 6 times the tower's authored damage of 4, so
+    /// this reproduces every value the previous version produced across the whole roster — 4 up to Brute at
+    /// 24 health, then 5 / 5 / 6 / 7 / 8 / 10 / 15 for Serpent through Colossus.
+    /// </remarks>
+    private const int RotHealthPerDamageMultiple = 24;
 
     /// <summary>
     /// Spore Cloud Bloom's damage: a fraction of the target's AUTHORED max health, floored at the
@@ -852,14 +869,41 @@ public sealed class CombatService
     /// MaxHealth is authored content and never mutated, so the value is constant per creep TYPE and
     /// cannot be gamed by chipping the creep down first.
     ///
-    /// Integer floor division, matching the rounding-down convention Pulse's splash already uses.
-    /// Be honest about the shape: rot only exceeds the floor above 30 max health, so it is a STEP at
-    /// the 32hp line rather than a smooth curve, and it is inert on 8 of the 15 creeps.
+    /// Rewritten from max(baseDamage, maxHealth / 6) to a PERCENTAGE OF BASE for the same reason Grovebond
+    /// and Crowd Bloom were: so a tower-line tier actually improves it. Under the old form a tier raised
+    /// only the FLOOR, so investing in GROVE did nothing for this tower against exactly the fat targets it
+    /// exists to answer — the rot term dominated the floor and ignored the multiplier entirely.
+    ///
+    /// Deliberate consequence worth noting: a creep-category tier raises max health, so an attacker
+    /// upgrading their creeps makes this tower hit harder. That is right for the roster's anti-fat counter,
+    /// and it is one of the few places a defender benefits from the attacker's investment.
+    ///
+    /// Integer arithmetic throughout. The shape is still a step rather than a curve: it only exceeds base
+    /// above 24 max health, so it stays inert on 8 of the 15 creeps.
     /// </remarks>
-    private static int RotDamage(CombatContent content, ContentId creepId, int authoredDamage) =>
-        Math.Max(authoredDamage, content.GetCreep(creepId).MaxHealth / SporeRotDivisor);
+    private static int RotDamage(CombatContent content, ContentId creepId, int baseDamage)
+    {
+        var maxHealth = content.GetCreep(creepId).MaxHealth;
+        var percent = Math.Max(100, maxHealth * 100 / RotHealthPerDamageMultiple);
+        return baseDamage * percent / 100;
+    }
 
     private static bool IsSporeTower(ContentId towerId) => ContainsRole(towerId, "spore");
+
+    /// <summary>
+    /// A tower's damage before any per-tower mechanic applies.
+    /// </summary>
+    /// <remarks>
+    /// The single place a tower-line tier multiplier belongs (docs/CATEGORY_UPGRADE_TIERS_PLAN.md). Every
+    /// path that deals damage on a tower's behalf reads this — the primary shot, Pulse's splash, Chain
+    /// Arc's hops and the Foundry's shell — so scaling here scales the whole tower rather than only the
+    /// shot the player happens to be looking at.
+    ///
+    /// It is a pass-through today. That is intentional: the seam exists so the multiplier is a one-line
+    /// change against a single function instead of a hunt through four call sites, three of which were
+    /// found only by grepping for the raw field after the first two were fixed.
+    /// </remarks>
+    private static int BaseDamageFor(TowerDefinition towerDefinition) => towerDefinition.Damage;
 
     private static bool IsPulseTower(ContentId towerId) => ContainsRole(towerId, "pulse");
 

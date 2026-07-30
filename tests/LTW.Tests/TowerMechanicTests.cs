@@ -612,4 +612,158 @@ public sealed class TowerMechanicTests
 
         Assert.Equal(new EntityId(1), fired.TargetCreepEntityId);
     }
+
+    // ---- Scaling shape: every mechanic must be proportional to base damage -------------------
+
+    /// <summary>
+    /// Rot is a multiple of base damage, not a floor over a fixed health fraction.
+    /// </summary>
+    /// <remarks>
+    /// The distinction only shows up once a tower-line tier scales base damage, which is exactly why it is
+    /// pinned now rather than discovered then. Under the old form the rot term ignored base entirely, so
+    /// upgrading the GROVE line would have done nothing for this tower against the fat targets it exists to
+    /// answer. Asserting the RATIO rather than absolute numbers is what makes this a scaling test.
+    /// </remarks>
+    [Theory]
+    [InlineData("creep.brute", 100)]          // 24 max health: exactly one multiple, so base
+    [InlineData("creep.siege", 200)]          // 48 max health: two multiples
+    [InlineData("creep.obsidian_brute", 250)] // 60 max health
+    [InlineData("creep.colossus", 375)]       // 90 max health
+    public void Rot_is_a_fixed_multiple_of_base_damage_per_target(string creepId, int expectedPercentOfBase)
+    {
+        var service = new CombatService();
+        var state = new CombatState(
+            new[] { CreepAt(service, 1, creepId, pathIndex: 8) },
+            new[] { Tower("tower.spore_cloud", 10, x: 2, y: 8) });
+
+        var authored = Catalog.Towers.Single(tower => tower.Id.Value == "tower.spore_cloud").Damage;
+        var dealt = DamageFrom(service, state);
+
+        Assert.Equal(authored * expectedPercentOfBase / 100, dealt);
+    }
+
+    /// <summary>
+    /// Grovebond and Crowd Bloom are percentages of base, so their bonus is a fixed RATIO of the tower's
+    /// damage rather than a flat number that would shrink against a scaled base.
+    /// </summary>
+    [Fact]
+    public void Grovebond_bonus_is_a_ratio_of_base_damage()
+    {
+        var service = new CombatService();
+        var authored = Catalog.Towers.Single(tower => tower.Id.Value == "tower.sapling").Damage;
+        var state = new CombatState(
+            new[] { CreepAt(service, 1, "creep.colossus", pathIndex: 8) },
+            new[]
+            {
+                Tower("tower.sapling", 10, x: 2, y: 8),
+                Tower("tower.bloomheart", 11, x: 1, y: 8),
+                Tower("tower.thorn_snare", 12, x: 2, y: 7)
+            });
+
+        var result = service.Advance(state, Content(), Routes(), new SimulationTick(0));
+        var saplingDamage = result.Events.OfType<CreepDamagedEvent>()
+            .Where(damaged => damaged.TowerEntityId.Equals(new EntityId(10)))
+            .Sum(damaged => damaged.DamageDealt);
+
+        // Two bonded neighbours at 50% of base each: base + base.
+        Assert.Equal(authored * 200 / 100, saplingDamage);
+    }
+
+    [Fact]
+    public void Crowd_bloom_bonus_is_a_ratio_of_base_damage()
+    {
+        var service = new CombatService();
+        var authored = Catalog.Towers.Single(tower => tower.Id.Value == "tower.bloomheart").Damage;
+        var creeps = Enumerable.Range(1, 4)
+            .Select(index => CreepAt(service, index, "creep.colossus", pathIndex: 8))
+            .ToArray();
+        var state = new CombatState(creeps, new[] { Tower("tower.bloomheart", 10, x: 2, y: 8) });
+
+        var dealt = service.Advance(state, Content(), Routes(), new SimulationTick(0))
+            .Events.OfType<CreepDamagedEvent>().Single().DamageDealt;
+
+        // Three others on the cell at 25% of base each: base + 75%.
+        Assert.Equal(authored * 175 / 100, dealt);
+    }
+
+    /// <summary>
+    /// Pulse's splash is half of BASE damage, so it scales with the tower rather than sitting at the
+    /// authored value forever.
+    /// </summary>
+    [Fact]
+    public void Pulse_splash_is_half_of_base_damage()
+    {
+        var service = new CombatService();
+        var authored = Catalog.Towers.Single(tower => tower.Id.Value == "tower.pulse").Damage;
+        // Pulse has range 1, so the creeps must land LEVEL with the tower (route row 8), not one past it.
+        var state = new CombatState(
+            new[]
+            {
+                CreepAt(service, 1, "creep.colossus", pathIndex: 7),
+                CreepAt(service, 2, "creep.colossus", pathIndex: 7)
+            },
+            new[] { Tower("tower.pulse", 10, x: 2, y: 8) });
+
+        var damages = service.Advance(state, Content(), Routes(), new SimulationTick(0))
+            .Events.OfType<CreepDamagedEvent>()
+            .Select(damaged => damaged.DamageDealt)
+            .OrderByDescending(value => value)
+            .ToArray();
+
+        Assert.Equal(authored, damages[0]);
+        Assert.Equal(authored / 2, damages[1]);
+    }
+
+    /// <summary>
+    /// Chain Arc's hops halve from BASE damage. Proportional by construction, so it already scales — this
+    /// pins that the chain reads base rather than the primary hit's post-mechanic damage.
+    /// </summary>
+    [Fact]
+    public void Chain_arc_hops_halve_from_base_damage()
+    {
+        var service = new CombatService();
+        var authored = Catalog.Towers.Single(tower => tower.Id.Value == "tower.tesla").Damage;
+        var state = new CombatState(
+            new[]
+            {
+                CreepAt(service, 1, "creep.colossus", pathIndex: 7),
+                CreepAt(service, 2, "creep.colossus", pathIndex: 8),
+                CreepAt(service, 3, "creep.colossus", pathIndex: 9)
+            },
+            new[] { Tower("tower.tesla", 10, x: 2, y: 9) });
+
+        var byCreep = service.Advance(state, Content(), Routes(), new SimulationTick(0))
+            .Events.OfType<CreepDamagedEvent>()
+            .ToDictionary(damaged => damaged.CreepEntityId.Value, damaged => damaged.DamageDealt);
+
+        Assert.Equal(authored, byCreep[3]);
+        Assert.Equal(authored / 2, byCreep[2]);
+        Assert.Equal(authored / 2 / 2, byCreep[1]);
+    }
+
+    /// <summary>
+    /// The Foundry's shell reads base damage too. It resolves in a separate phase where the shot's local is
+    /// out of scope, which made it the easiest of the four damage paths to leave behind.
+    /// </summary>
+    [Fact]
+    public void Foundry_shell_deals_base_damage()
+    {
+        var service = new CombatService();
+        var content = Content();
+        var routes = Routes();
+        var authored = Catalog.Towers.Single(tower => tower.Id.Value == "tower.foundry").Damage;
+        var state = new CombatState(
+            new[] { CreepAt(service, 1, "creep.colossus", pathIndex: 8) },
+            new[] { Tower("tower.foundry", 10, x: 2, y: 8) });
+
+        var dealt = 0;
+        for (var tick = 0; tick <= 4 && dealt == 0; tick++)
+        {
+            var result = service.Advance(state, content, routes, new SimulationTick(tick));
+            state = result.State;
+            dealt = result.Events.OfType<CreepDamagedEvent>().Sum(damaged => damaged.DamageDealt);
+        }
+
+        Assert.Equal(authored, dealt);
+    }
 }

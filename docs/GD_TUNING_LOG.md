@@ -1065,3 +1065,38 @@ preferred height and lets the helper clamp it.
 independent tracks, no shared "tower tier" or "creep tier" and no cross-category discount. A player
 wanting tier 3 in all three tower lines pays 100 + 260 three times. The intent is specialisation — twelve
 purchases exist and gold only ever covers a few, so a player commits to the lines they actually build.
+
+
+## 2026-07-29 (prep, follow-up): Rot And Chain Arc, And A Fourth Damage Path Nobody Had Noticed
+
+The two mechanics flagged as interacting oddly with scaling are fixed, and looking for them turned up a
+site that had been missed twice.
+
+**Rot was the real problem of the two.** It was `max(baseDamage, maxHealth / 6)`, so a tower-line tier
+would have raised only the FLOOR. Against a Colossus the rot term is 15 against a floor of 4 — the floor
+never binds, so upgrading GROVE would have done nothing at all for this tower against exactly the fat
+targets it exists to answer. It is now `baseDamage × (maxHealth / 24)` floored at 100%, where 24 is the
+old divisor of 6 times the authored damage of 4. That reproduces every previous value across all fifteen
+creeps: 4 up to Brute at 24 health, then 5 / 5 / 6 / 7 / 8 / 10 / 15 for Serpent through Colossus.
+
+Deliberate consequence, now documented rather than accidental: a creep-category tier raises max health,
+so an attacker upgrading their creeps makes this tower hit harder. That is correct for the roster's
+anti-fat counter, and it is one of the few places a defender benefits from the attacker's investment.
+
+**Chain Arc needed less than expected.** Halving is already proportional, so it scaled fine; what it was
+doing wrong was decaying from the primary hit's post-mechanic damage rather than from base. Identical
+today, since nothing modifies a Tesla's shot — but reading base is what puts the whole chain behind one
+multiplier and matches the rule splash follows, so a mechanic bonus can never propagate through a
+secondary effect.
+
+**The find: the Foundry's shell was still reading authored damage directly.** It resolves in
+`ResolveLandedShells`, a different phase where the shot's `baseDamage` local is out of scope, which is why
+it survived both earlier passes. A 52-gold artillery piece would have been the one tower a GROVE-equivalent
+FOUNDRY tier did nothing for.
+
+All four paths now read one accessor, `BaseDamageFor(towerDefinition)` — primary shot, Pulse splash, Chain
+Arc hops, Foundry shell. It is a pass-through today and exists purely so the tier multiplier is a one-line
+change against a single function. Six new ratio tests pin the shapes, so a future path that bypasses the
+accessor fails instead of silently sitting at tier 1.
+
+168 tests passing, 2 skipped against the stalemate.
