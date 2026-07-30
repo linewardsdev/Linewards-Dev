@@ -1,5 +1,6 @@
 #nullable enable
 
+using LTW.Simulation.Bridge;
 using LTW.Simulation.Primitives;
 using LTW.UnityClient.Simulation;
 using UnityEngine;
@@ -78,37 +79,35 @@ namespace LTW.UnityClient.UI
             feedbackView = feedback;
         }
 
-        public void SendRunner() => Send(commandAdapter.SendSampleCreep(), "Runner sent", 10, 0);
+        public void SendRunner() => Send(commandAdapter.SendSampleCreep(), "Runner sent", commandAdapter.CreepCost(SampleVerticalSliceContent.CreepId), 0);
 
-        public void SendBrute() => Send(commandAdapter.SendBruteCreep(), "Brute sent", 18, 1);
+        public void SendBrute() => Send(commandAdapter.SendBruteCreep(), "Brute sent", commandAdapter.CreepCost(SampleVerticalSliceContent.BruteCreepId), 1);
 
-        public void SendSwarm() => Send(commandAdapter.SendSwarmCreep(), "Swarm sent", 18, 2);
+        public void SendSwarm() => Send(commandAdapter.SendSwarmCreep(), "Swarm sent", commandAdapter.CreepCost(SampleVerticalSliceContent.SwarmCreepId), 2);
 
-        public void SendShade() => Send(commandAdapter.SendShadeCreep(), "Shade sent", 24, 3);
+        public void SendShade() => Send(commandAdapter.SendShadeCreep(), "Shade sent", commandAdapter.CreepCost(SampleVerticalSliceContent.ShadeCreepId), 3);
 
-        public void SendSiege() => Send(commandAdapter.SendSiegeCreep(), "Siege sent", 40, 4);
+        public void SendSiege() => Send(commandAdapter.SendSiegeCreep(), "Siege sent", commandAdapter.CreepCost(SampleVerticalSliceContent.SiegeCreepId), 4);
 
-        public void SendWisp() => Send(commandAdapter.SendWispCreep(), "Wisp sent", 5, 5);
+        public void SendWisp() => Send(commandAdapter.SendWispCreep(), "Wisp sent", commandAdapter.CreepCost(SampleVerticalSliceContent.WispCreepId), 5);
 
-        public void SendRevenant() => Send(commandAdapter.SendRevenantCreep(), "Revenant sent", 16, 6);
+        public void SendRevenant() => Send(commandAdapter.SendRevenantCreep(), "Revenant sent", commandAdapter.CreepCost(SampleVerticalSliceContent.RevenantCreepId), 6);
 
-        public void SendObsidianBrute() => Send(commandAdapter.SendObsidianBruteCreep(), "Obsidian Brute sent", 30, 7);
+        public void SendObsidianBrute() => Send(commandAdapter.SendObsidianBruteCreep(), "Obsidian Brute sent", commandAdapter.CreepCost(SampleVerticalSliceContent.ObsidianBruteCreepId), 7);
 
-        // Cost 20, not 22: Serpent Coil's content cost was cut in the 2026-07-28 rebalance but the
-        // UI kept quoting, gating on, and reporting the old 22 (also fixed on its card below).
-        public void SendSerpent() => Send(commandAdapter.SendSerpentCreep(), "Serpent sent", 20, 8);
+        public void SendSerpent() => Send(commandAdapter.SendSerpentCreep(), "Serpent sent", commandAdapter.CreepCost(SampleVerticalSliceContent.SerpentCreepId), 8);
 
-        public void SendTurretWalker() => Send(commandAdapter.SendTurretWalkerCreep(), "Turret Walker sent", 38, 9);
+        public void SendTurretWalker() => Send(commandAdapter.SendTurretWalkerCreep(), "Turret Walker sent", commandAdapter.CreepCost(SampleVerticalSliceContent.TurretWalkerCreepId), 9);
 
-        public void SendZephyr() => Send(commandAdapter.SendZephyrCreep(), "Zephyr Wraith sent", 22, 10);
+        public void SendZephyr() => Send(commandAdapter.SendZephyrCreep(), "Zephyr Wraith sent", commandAdapter.CreepCost(SampleVerticalSliceContent.ZephyrCreepId), 10);
 
-        public void SendBurrower() => Send(commandAdapter.SendBurrowerCreep(), "Fracture Burrower sent", 26, 11);
+        public void SendBurrower() => Send(commandAdapter.SendBurrowerCreep(), "Fracture Burrower sent", commandAdapter.CreepCost(SampleVerticalSliceContent.BurrowerCreepId), 11);
 
-        public void SendStalker() => Send(commandAdapter.SendStalkerCreep(), "Umbral Stalker sent", 28, 12);
+        public void SendStalker() => Send(commandAdapter.SendStalkerCreep(), "Umbral Stalker sent", commandAdapter.CreepCost(SampleVerticalSliceContent.StalkerCreepId), 12);
 
-        public void SendWarden() => Send(commandAdapter.SendWardenCreep(), "Aegis Warden sent", 34, 13);
+        public void SendWarden() => Send(commandAdapter.SendWardenCreep(), "Aegis Warden sent", commandAdapter.CreepCost(SampleVerticalSliceContent.WardenCreepId), 13);
 
-        public void SendColossus() => Send(commandAdapter.SendColossusCreep(), "Siege Colossus sent", 52, 14);
+        public void SendColossus() => Send(commandAdapter.SendColossusCreep(), "Siege Colossus sent", commandAdapter.CreepCost(SampleVerticalSliceContent.ColossusCreepId), 14);
 
         private void OnGUI()
         {
@@ -287,19 +286,22 @@ namespace LTW.UnityClient.UI
             var buttonWidth = (rect.width - 24f * scale - gap * 2f) / 3f;
             var x = rect.x + 12f * scale;
 
-            if (DrawSendButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "RUNNER", "10G  +1", CreepIconKind.Runner, ArcaneBlue, gold >= 10, highlightedCreepRole == 0, scale))
+            var runnerCost = commandAdapter.CreepCost(SampleVerticalSliceContent.CreepId);
+            if (DrawSendButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "RUNNER", $"{runnerCost}G  +1", CreepIconKind.Runner, ArcaneBlue, gold >= runnerCost, highlightedCreepRole == 0, scale))
             {
                 SendRunner();
             }
 
             x += buttonWidth + gap;
-            if (DrawSendButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "BRUTE", "18G  +2", CreepIconKind.Brute, WardViolet, gold >= 18, highlightedCreepRole == 1, scale))
+            var bruteCost = commandAdapter.CreepCost(SampleVerticalSliceContent.BruteCreepId);
+            if (DrawSendButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "BRUTE", $"{bruteCost}G  +2", CreepIconKind.Brute, WardViolet, gold >= bruteCost, highlightedCreepRole == 1, scale))
             {
                 SendBrute();
             }
 
             x += buttonWidth + gap;
-            if (DrawSendButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "SWARM", "18G  +3", CreepIconKind.Swarm, SignalGold, gold >= 18, highlightedCreepRole == 2, scale))
+            var swarmCost = commandAdapter.CreepCost(SampleVerticalSliceContent.SwarmCreepId);
+            if (DrawSendButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "SWARM", $"{swarmCost}G  +3", CreepIconKind.Swarm, SignalGold, gold >= swarmCost, highlightedCreepRole == 2, scale))
             {
                 SendSwarm();
             }
@@ -307,13 +309,15 @@ namespace LTW.UnityClient.UI
             var secondRowY = buttonY + buttonHeight + gap;
             var secondRowWidth = (rect.width - 24f * scale - gap) / 2f;
             x = rect.x + 12f * scale;
-            if (DrawSendButton(new Rect(x, secondRowY, secondRowWidth, buttonHeight), "SHADE", "24G  +3", CreepIconKind.Shade, MintSignal, gold >= 24, highlightedCreepRole == 3, scale))
+            var shadeCost = commandAdapter.CreepCost(SampleVerticalSliceContent.ShadeCreepId);
+            if (DrawSendButton(new Rect(x, secondRowY, secondRowWidth, buttonHeight), "SHADE", $"{shadeCost}G  +3", CreepIconKind.Shade, MintSignal, gold >= shadeCost, highlightedCreepRole == 3, scale))
             {
                 SendShade();
             }
 
             x += secondRowWidth + gap;
-            if (DrawSendButton(new Rect(x, secondRowY, secondRowWidth, buttonHeight), "SIEGE", "40G  +4", CreepIconKind.Siege, new Color(1f, 0.62f, 0.26f), gold >= 40, highlightedCreepRole == 4, scale))
+            var siegeCost = commandAdapter.CreepCost(SampleVerticalSliceContent.SiegeCreepId);
+            if (DrawSendButton(new Rect(x, secondRowY, secondRowWidth, buttonHeight), "SIEGE", $"{siegeCost}G  +4", CreepIconKind.Siege, new Color(1f, 0.62f, 0.26f), gold >= siegeCost, highlightedCreepRole == 4, scale))
             {
                 SendSiege();
             }
@@ -324,19 +328,22 @@ namespace LTW.UnityClient.UI
             var buttonWidth = (rect.width - 24f * scale - gap * 2f) / 3f;
             var x = rect.x + 12f * scale;
 
-            if (DrawSendButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "WISP", "5G  +1", CreepIconKind.Wisp, ArcaneBlue, gold >= 5, highlightedCreepRole == 5, scale, ignoresCooldown: true))
+            var wispCost = commandAdapter.CreepCost(SampleVerticalSliceContent.WispCreepId);
+            if (DrawSendButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "WISP", $"{wispCost}G  +1", CreepIconKind.Wisp, ArcaneBlue, gold >= wispCost, highlightedCreepRole == 5, scale, ignoresCooldown: true))
             {
                 SendWisp();
             }
 
             x += buttonWidth + gap;
-            if (DrawSendButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "REVENANT", "16G  +4", CreepIconKind.Revenant, WardViolet, gold >= 16, highlightedCreepRole == 6, scale, ignoresCooldown: true))
+            var revenantCost = commandAdapter.CreepCost(SampleVerticalSliceContent.RevenantCreepId);
+            if (DrawSendButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "REVENANT", $"{revenantCost}G  +4", CreepIconKind.Revenant, WardViolet, gold >= revenantCost, highlightedCreepRole == 6, scale, ignoresCooldown: true))
             {
                 SendRevenant();
             }
 
             x += buttonWidth + gap;
-            if (DrawSendButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "OBSIDIAN", "30G  +3", CreepIconKind.ObsidianBrute, new Color(0.92f, 0.32f, 0.28f), gold >= 30, highlightedCreepRole == 7, scale, ignoresCooldown: true))
+            var obsidianCost = commandAdapter.CreepCost(SampleVerticalSliceContent.ObsidianBruteCreepId);
+            if (DrawSendButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "OBSIDIAN", $"{obsidianCost}G  +3", CreepIconKind.ObsidianBrute, new Color(0.92f, 0.32f, 0.28f), gold >= obsidianCost, highlightedCreepRole == 7, scale, ignoresCooldown: true))
             {
                 SendObsidianBrute();
             }
@@ -344,16 +351,15 @@ namespace LTW.UnityClient.UI
             var secondRowY = buttonY + buttonHeight + gap;
             var secondRowWidth = (rect.width - 24f * scale - gap) / 2f;
             x = rect.x + 12f * scale;
-            // 20G, not 22: matches the content cost after the 2026-07-28 rebalance. The card, its
-            // affordability gate and SendSerpent's reported cost were all still quoting the old
-            // value, so an affordable Serpent could read as unaffordable.
-            if (DrawSendButton(new Rect(x, secondRowY, secondRowWidth, buttonHeight), "SERPENT", "20G  +2", CreepIconKind.Serpent, MintSignal, gold >= 20, highlightedCreepRole == 8, scale, ignoresCooldown: true))
+            var serpentCost = commandAdapter.CreepCost(SampleVerticalSliceContent.SerpentCreepId);
+            if (DrawSendButton(new Rect(x, secondRowY, secondRowWidth, buttonHeight), "SERPENT", $"{serpentCost}G  +2", CreepIconKind.Serpent, MintSignal, gold >= serpentCost, highlightedCreepRole == 8, scale, ignoresCooldown: true))
             {
                 SendSerpent();
             }
 
             x += secondRowWidth + gap;
-            if (DrawSendButton(new Rect(x, secondRowY, secondRowWidth, buttonHeight), "WALKER", "38G  +4", CreepIconKind.TurretWalker, new Color(0.42f, 0.82f, 0.86f), gold >= 38, highlightedCreepRole == 9, scale, ignoresCooldown: true))
+            var walkerCost = commandAdapter.CreepCost(SampleVerticalSliceContent.TurretWalkerCreepId);
+            if (DrawSendButton(new Rect(x, secondRowY, secondRowWidth, buttonHeight), "WALKER", $"{walkerCost}G  +4", CreepIconKind.TurretWalker, new Color(0.42f, 0.82f, 0.86f), gold >= walkerCost, highlightedCreepRole == 9, scale, ignoresCooldown: true))
             {
                 SendTurretWalker();
             }
@@ -369,19 +375,22 @@ namespace LTW.UnityClient.UI
             var buttonWidth = (rect.width - 24f * scale - gap * 2f) / 3f;
             var x = rect.x + 12f * scale;
 
-            if (DrawSendButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "WRAITH", "22G  +2", CreepIconKind.Zephyr, ArcaneBlue, gold >= 22, highlightedCreepRole == 10, scale))
+            var zephyrCost = commandAdapter.CreepCost(SampleVerticalSliceContent.ZephyrCreepId);
+            if (DrawSendButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "WRAITH", $"{zephyrCost}G  +2", CreepIconKind.Zephyr, ArcaneBlue, gold >= zephyrCost, highlightedCreepRole == 10, scale))
             {
                 SendZephyr();
             }
 
             x += buttonWidth + gap;
-            if (DrawSendButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "BURROW", "26G  +2", CreepIconKind.Burrower, new Color(0.85f, 0.55f, 0.25f), gold >= 26, highlightedCreepRole == 11, scale))
+            var burrowerCost = commandAdapter.CreepCost(SampleVerticalSliceContent.BurrowerCreepId);
+            if (DrawSendButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "BURROW", $"{burrowerCost}G  +2", CreepIconKind.Burrower, new Color(0.85f, 0.55f, 0.25f), gold >= burrowerCost, highlightedCreepRole == 11, scale))
             {
                 SendBurrower();
             }
 
             x += buttonWidth + gap;
-            if (DrawSendButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "STALKER", "28G  +3", CreepIconKind.Stalker, WardViolet, gold >= 28, highlightedCreepRole == 12, scale))
+            var stalkerCost = commandAdapter.CreepCost(SampleVerticalSliceContent.StalkerCreepId);
+            if (DrawSendButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "STALKER", $"{stalkerCost}G  +3", CreepIconKind.Stalker, WardViolet, gold >= stalkerCost, highlightedCreepRole == 12, scale))
             {
                 SendStalker();
             }
@@ -389,13 +398,15 @@ namespace LTW.UnityClient.UI
             var secondRowY = buttonY + buttonHeight + gap;
             var secondRowWidth = (rect.width - 24f * scale - gap) / 2f;
             x = rect.x + 12f * scale;
-            if (DrawSendButton(new Rect(x, secondRowY, secondRowWidth, buttonHeight), "WARDEN", "34G  +3", CreepIconKind.Warden, MintSignal, gold >= 34, highlightedCreepRole == 13, scale))
+            var wardenCost = commandAdapter.CreepCost(SampleVerticalSliceContent.WardenCreepId);
+            if (DrawSendButton(new Rect(x, secondRowY, secondRowWidth, buttonHeight), "WARDEN", $"{wardenCost}G  +3", CreepIconKind.Warden, MintSignal, gold >= wardenCost, highlightedCreepRole == 13, scale))
             {
                 SendWarden();
             }
 
             x += secondRowWidth + gap;
-            if (DrawSendButton(new Rect(x, secondRowY, secondRowWidth, buttonHeight), "COLOSSUS", "52G  +5", CreepIconKind.Colossus, new Color(1f, 0.45f, 0.30f), gold >= 52, highlightedCreepRole == 14, scale))
+            var colossusCost = commandAdapter.CreepCost(SampleVerticalSliceContent.ColossusCreepId);
+            if (DrawSendButton(new Rect(x, secondRowY, secondRowWidth, buttonHeight), "COLOSSUS", $"{colossusCost}G  +5", CreepIconKind.Colossus, new Color(1f, 0.45f, 0.30f), gold >= colossusCost, highlightedCreepRole == 14, scale))
             {
                 SendColossus();
             }

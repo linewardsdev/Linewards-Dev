@@ -115,6 +115,33 @@ namespace LTW.UnityClient.Simulation
             return 0;
         }
 
+        /// <summary>
+        /// Gold cost of a creep, read from the simulation's catalog.
+        /// </summary>
+        /// <remarks>
+        /// Mirrors <see cref="TowerCost"/> for the same reason: <c>SendDockController</c> used to hold
+        /// its own copy of every creep price (in the Send* cost argument, the affordability gate, and
+        /// the card meta string — three copies per creep), and Serpent Coil already drifted once (22 vs
+        /// the simulation's 20) across all three before this existed.
+        /// </remarks>
+        public int CreepCost(LTW.Simulation.Content.ContentId creepId)
+        {
+            if (simulation is null)
+            {
+                return 0;
+            }
+
+            foreach (var creep in simulation.Content.Creeps)
+            {
+                if (creep.Id.Equals(creepId))
+                {
+                    return creep.Cost.Amount;
+                }
+            }
+
+            return 0;
+        }
+
         public VerticalSliceCommandResult PlaceSampleTower(int x, int y) => PlaceTower(SampleVerticalSliceContent.TowerId, x, y);
 
         public VerticalSliceCommandResult PlaceControlTower(int x, int y) => PlaceTower(SampleVerticalSliceContent.ControlTowerId, x, y);

@@ -590,16 +590,21 @@ hasn't been true since `74b8519`. The RAPID category doc in
 it describes `ignoresSendCooldown` as the flag the category name refers to,
 not a claim that cooldowns are currently active.
 
-## 19. Creep costs are hardcoded three times each in the client
+## 19. ~~Creep costs are hardcoded three times each in the client~~ — resolved 2026-07-30
 
-`UnityCommandAdapter.TowerCost` deliberately reads tower cost from the sim, with
-a comment explaining the drift that motivated it. Creeps never followed:
-`SendDockController` hardcodes each creep's cost in its `Send*` method, again in
-the `gold >= N` affordability gate, and a third time in the card meta string —
-~45 literals. All 15 currently match `SampleVerticalSliceContent`, but a comment
-in that same file records that Serpent already drifted once (22 vs 20) across
-all three copies. Highest-probability future drift point in the client; route
-creep cost and income through the adapter the way tower cost already is.
+**Fixed by adding `UnityCommandAdapter.CreepCost(ContentId)`**, mirroring the
+existing `TowerCost(int role)` exactly — reads `creep.Cost.Amount` from
+`simulation.Content.Creeps` instead of trusting a client-side copy. All ~45
+literals in `SendDockController` now route through it: the 15 `Send*`
+one-liners pass `commandAdapter.CreepCost(...)` instead of a numeral, each
+`DrawCategory*Creeps` method computes a local `xCost` per creep and uses it for
+both the `gold >= xCost` affordability gate and the card's `$"{xCost}G  +N"`
+meta string (income stays a literal — this item was about cost specifically).
+Removed the two comments warning about the Serpent 22-vs-20 drift, since the
+drift they were guarding against is now structurally impossible. Verified with
+a headless Unity batchmode compile in a scratch worktree: 0 `error CS`. No
+sim-side change, so `dotnet test` (175/175) is unaffected but was re-run to
+confirm.
 
 ## 20. Bramble zone is computed from one index and is wrong on a mazed route
 
