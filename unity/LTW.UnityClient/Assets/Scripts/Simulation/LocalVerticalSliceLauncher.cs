@@ -156,6 +156,57 @@ namespace LTW.UnityClient.Simulation
         /// This is a no-op under the Built-in pipeline, which has no volume system, so the launcher
         /// stays valid on both while the migration is in flight.
         /// </remarks>
+        /// <summary>Overrides the profile must carry: tonemapping, bloom, colour adjustments.</summary>
+        internal const int ExpectedPostProcessingOverrides = 3;
+
+        /// <summary>
+        /// Whether the profile is not merely present but actually carries its overrides.
+        /// </summary>
+        /// <remarks>
+        /// The previous check was `profile == null`, which tested the wrong thing — and is why this
+        /// shipped broken for the entire life of the URP migration. The asset existed, so the check
+        /// passed; but its three component references serialized as null, because the generator
+        /// created them as ScriptableObjects and never called AssetDatabase.AddObjectToAsset (see
+        /// UrpPostProcessingSetup.GetOrAdd). A Volume was built from an empty profile on every
+        /// launch: no tonemapper, no bloom, linear HDR clipping straight to sRGB, and every
+        /// 2.0-intensity emissive clamping to flat white.
+        ///
+        /// Nothing reported it from either side. The generator logged "3 override(s)" because they
+        /// existed in memory at that moment, and this guard said nothing because the file was on
+        /// disk. So the check is now on CONTENTS and it is an error rather than a warning: a wrong
+        /// render setup is invisible in a screenshot until someone compares against a much older
+        /// build.
+        /// </remarks>
+        internal static bool IsPostProcessingProfileUsable(VolumeProfile profile)
+        {
+            if (profile == null)
+            {
+                Debug.LogError("LTW_PostProcessing profile not found in Resources; rendering with no tonemapper and no bloom.");
+                return false;
+            }
+
+            if (profile.components == null || profile.components.Count != ExpectedPostProcessingOverrides)
+            {
+                Debug.LogError(
+                    $"LTW_PostProcessing has {(profile.components == null ? 0 : profile.components.Count)} override(s), expected {ExpectedPostProcessingOverrides}. " +
+                    "Re-run Line Wards/Migration/Create Post Processing Profile and commit the resulting sub-assets.");
+                return false;
+            }
+
+            for (var index = 0; index < profile.components.Count; index++)
+            {
+                if (profile.components[index] == null)
+                {
+                    Debug.LogError(
+                        $"LTW_PostProcessing override {index} is null — the profile's sub-assets never reached disk. " +
+                        "Re-run Line Wards/Migration/Create Post Processing Profile and commit the resulting sub-assets.");
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
         private static void CreatePostProcessing(GameObject matchObject, Camera camera)
         {
             if (GraphicsSettings.currentRenderPipeline == null)
@@ -164,9 +215,8 @@ namespace LTW.UnityClient.Simulation
             }
 
             var profile = Resources.Load<VolumeProfile>("LTW_PostProcessing");
-            if (profile == null)
+            if (!IsPostProcessingProfileUsable(profile))
             {
-                Debug.LogWarning("LTW_PostProcessing profile not found in Resources; rendering without bloom.");
                 return;
             }
 

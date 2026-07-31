@@ -25,6 +25,70 @@ namespace LTW.UnityClient.Editor
         private const string SettingsFolder = "Assets/Resources";
         private const string ProfilePath = SettingsFolder + "/LTW_PostProcessing.asset";
 
+        /// <summary>Tonemapping, Bloom, ColorAdjustments.</summary>
+        private const int ExpectedOverrides = 3;
+
+        /// <summary>
+        /// Fails if the committed profile is missing, short, or holds a null override.
+        /// </summary>
+        /// <remarks>
+        /// This is the CI half of the guard; LocalVerticalSliceLauncher.IsPostProcessingProfileUsable
+        /// is the runtime half. Both exist because the failure this catches was silent from every
+        /// direction: the generator reported success, the launcher's old null-check passed, and the
+        /// only symptom was that the game looked flat — which is indistinguishable from an art
+        /// problem unless you know to look at the asset.
+        ///
+        /// Runs headless and exits non-zero, so it can gate a build:
+        ///   Unity -batchmode -quit -executeMethod LTW.UnityClient.Editor.UrpPostProcessingSetup.ValidateProfile
+        /// </remarks>
+        [MenuItem("Line Wards/Migration/Validate Post Processing Profile")]
+        public static void ValidateProfile()
+        {
+            var failures = new System.Collections.Generic.List<string>();
+            var profile = AssetDatabase.LoadAssetAtPath<VolumeProfile>(ProfilePath);
+
+            if (profile == null)
+            {
+                failures.Add($"No VolumeProfile at {ProfilePath}.");
+            }
+            else if (profile.components == null || profile.components.Count != ExpectedOverrides)
+            {
+                failures.Add($"Expected {ExpectedOverrides} overrides, found {(profile.components == null ? 0 : profile.components.Count)}.");
+            }
+            else
+            {
+                for (var index = 0; index < profile.components.Count; index++)
+                {
+                    if (profile.components[index] == null)
+                    {
+                        failures.Add($"Override {index} is null — sub-assets were not written to disk.");
+                    }
+                }
+
+                // Presence is not enough: the point of the profile is these three specific effects.
+                if (!profile.TryGet<Tonemapping>(out _)) failures.Add("Missing Tonemapping override.");
+                if (!profile.TryGet<Bloom>(out _)) failures.Add("Missing Bloom override.");
+                if (!profile.TryGet<ColorAdjustments>(out _)) failures.Add("Missing ColorAdjustments override.");
+            }
+
+            if (failures.Count == 0)
+            {
+                Debug.Log($"POSTFX OK: {ProfilePath} has {ExpectedOverrides} non-null overrides (Tonemapping, Bloom, ColorAdjustments).");
+            }
+            else
+            {
+                foreach (var failure in failures)
+                {
+                    Debug.LogError($"POSTFX FAIL: {failure}");
+                }
+            }
+
+            if (Application.isBatchMode)
+            {
+                EditorApplication.Exit(failures.Count == 0 ? 0 : 1);
+            }
+        }
+
         [MenuItem("Line Wards/Migration/Create Post Processing Profile")]
         public static void CreateProfile()
         {
@@ -65,9 +129,43 @@ namespace LTW.UnityClient.Editor
             }
         }
 
+        /// <summary>
+        /// Gets or creates a volume override AND makes it a persisted sub-asset of the profile.
+        /// </summary>
+        /// <remarks>
+        /// The AddObjectToAsset call is the entire fix for the profile shipping empty.
+        ///
+        /// VolumeProfile.Add&lt;T&gt; creates the component and puts it in profile.components, so
+        /// everything downstream — including this file's own success log, which printed
+        /// "3 override(s)" — looked correct in the editor session that ran it. But a VolumeComponent
+        /// is a ScriptableObject, and a ScriptableObject that is never added to an asset file has
+        /// nowhere to serialize to. On the next domain reload the three entries deserialized as
+        /// {fileID: 0}, which is exactly what was committed in 746403b and has been shipping ever
+        /// since: a profile with three null components, a Volume built from it at runtime, no
+        /// tonemapper and no bloom.
+        ///
+        /// It failed silently in both directions. The generator reported success, and
+        /// LocalVerticalSliceLauncher's guard only tested `profile == null` — the asset exists, so
+        /// the guard passed and never warned. ValidateProfile below now checks the contents.
+        /// </remarks>
         private static T GetOrAdd<T>(VolumeProfile profile) where T : VolumeComponent
         {
-            return profile.TryGet<T>(out var existing) ? existing : profile.Add<T>(true);
+            if (profile.TryGet<T>(out var existing))
+            {
+                // An override from a previous run can still be an orphan if it was created before
+                // this fix, so adopt it into the asset rather than assuming it is already persisted.
+                if (existing != null && !AssetDatabase.Contains(existing))
+                {
+                    AssetDatabase.AddObjectToAsset(existing, profile);
+                }
+
+                return existing;
+            }
+
+            var created = profile.Add<T>(true);
+            created.name = typeof(T).Name;
+            AssetDatabase.AddObjectToAsset(created, profile);
+            return created;
         }
 
         private static void ConfigureTonemapping(VolumeProfile profile)
