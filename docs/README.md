@@ -23,6 +23,7 @@ This folder contains the durable project documentation for Line Wards, the mobil
 - [Archived: the 5-role, pre-Meshy art era](archive/2026-07-art-pipeline/README.md) — five superseded art-pipeline docs, moved 2026-07-31
 - [Tower animation alignment](TOWER_ANIMATION_ALIGNMENT.md) — every tower reviewed on Type / Style / Intent / Name / Perceived Animation, with the benchmark each verdict was taken from
 - [Category upgrade tiers plan](CATEGORY_UPGRADE_TIERS_PLAN.md)
+- [Tower weapon VFX review and proposal](TOWER_WEAPON_VFX_PROPOSAL.md)
 - [Game menu and runtime flow](GAME_MENU_AND_RUNTIME_FLOW.md)
 - [Multiplayer seats and authority](MULTIPLAYER_SEATS_AND_AUTHORITY.md)
 - [Builder placement concept](BUILDER_PLACEMENT_CONCEPT.md)
