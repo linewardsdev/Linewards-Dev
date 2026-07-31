@@ -1,3 +1,4 @@
+using System.Linq;
 using LTW.Simulation.Bridge;
 using LTW.Simulation.Commands;
 using LTW.Simulation.Economy;
@@ -149,6 +150,64 @@ namespace LTW.UnityClient.Simulation
                 ? TowerLineTier(categoryIndex)
                 : SendCategoryTier(categoryIndex);
             return RefreshAfterAccepted(simulation.BuyCategoryTier(simulation.LocalPlayerId, kind, categoryIndex, current + 1));
+        }
+
+        /// <summary>
+        /// Gold to raise the local player's tower at this cell by a tier, or 0 if there is none.
+        /// </summary>
+        public int TowerUpgradeCostAt(int x, int y) =>
+            simulation is null ? 0 : simulation.TowerUpgradeCostAt(simulation.LocalPlayerId, simulation.LocalPlayerLaneId, new GridPosition(x, y));
+
+        /// <summary>
+        /// Whether that tower can actually be raised right now: below the top tier, and below the
+        /// line tier its owner has bought.
+        /// </summary>
+        /// <remarks>
+        /// Asked separately from the cost so a card can show WHY the button is dead — at the line's
+        /// ceiling reads differently from cannot afford it, and answering both with one number
+        /// would collapse them.
+        /// </remarks>
+        public bool CanUpgradeTowerAt(int x, int y)
+        {
+            if (simulation is null)
+            {
+                return false;
+            }
+
+            var snapshot = simulation.GetSnapshot();
+            var tower = snapshot.Towers.FirstOrDefault(candidate =>
+                candidate.OwnerId.Equals(simulation.LocalPlayerId)
+                && candidate.LaneId.Equals(simulation.LocalPlayerLaneId)
+                && candidate.Position.X == x
+                && candidate.Position.Y == y);
+            if (tower is null)
+            {
+                return false;
+            }
+
+            var definition = simulation.Content.Towers.FirstOrDefault(candidate => candidate.Id.Equals(tower.TowerId));
+            if (definition is null)
+            {
+                return false;
+            }
+
+            var ceiling = snapshot.Players.Get(simulation.LocalPlayerId).TowerLineTier(definition.CategoryIndex);
+            return tower.Tier < ceiling && tower.Tier < LTW.Simulation.Content.CategoryTierRules.MaxTier;
+        }
+
+        public VerticalSliceCommandResult UpgradeTowerAt(int x, int y)
+        {
+            if (simulationDriver == null || !simulationDriver.HasStarted || simulationDriver.IsPaused)
+            {
+                return VerticalSliceCommandResult.Reject(CommandRejectionReason.MatchPaused);
+            }
+
+            if (simulation is null)
+            {
+                return VerticalSliceCommandResult.Reject(CommandRejectionReason.MatchPaused);
+            }
+
+            return RefreshAfterAccepted(simulation.UpgradeTower(simulation.LocalPlayerId, simulation.LocalPlayerLaneId, new GridPosition(x, y)));
         }
 
         public int TowerCost(int role)

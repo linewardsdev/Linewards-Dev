@@ -1446,3 +1446,47 @@ positions were proportions tuned for the shorter card.
 **Not verified:** how any of this feels to a human. Every number here comes from bot-versus-bot
 runs, which is what makes them reproducible and also what makes them a poor guide to whether
 spending 360 gold on a tower line is a satisfying decision to make.
+
+## 2026-07-30: Tower Tiers Became Per-Tower, And The Designed Multipliers Came Back
+
+Corrects the model shipped earlier the same day. A tower-line tier applied at SHOT time, so every
+tower already standing improved for free the moment the line was bought. That is the opposite of
+how this game is meant to work: a line tier should raise what NEW towers are built at, and bringing
+an existing tower up should cost gold, one tower at a time.
+
+Each tower now carries its own tier, fixed at build time. The damage seam reads the tower's tier
+rather than its owner's. A new `UpgradeTower` raises one placed tower for **60% of its build cost**,
+capped at the line tier its owner has bought — the category purchase unlocks progression, the
+per-tower gold realises it. A share of build cost rather than a flat number so it scales across a
+roster spanning 10 to 52 gold, and below 100% so it always beats selling and rebuilding, which a
+test pins for all fifteen towers.
+
+**This removed the stalemate cliff and let the design doc's original numbers return.** Tower scaling
+had been cut to 115/130 because at 190% two bot defences could no longer finish a match. Paying per
+tower makes the upgrade arrive gradually instead of transforming a whole line at once, and the cliff
+is simply gone:
+
+| Tower scaling | 2 lanes | 3 | 4 | 6 | 8 |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| 115 / 130 | 414 | 3290 | 2540 | 1987 | 2035 |
+| 130 / 160 | 414 | 3329 | 2588 | 2038 | 2081 |
+| **140 / 190 (restored)** | **414** | **3406** | **2591** | **2086** | **2085** |
+
+Every configuration completes, and the 3-lane match moves only 116 ticks across that whole range.
+Restored to the designed 140/190 against creep 150/225.
+
+**A measurement trap worth recording.** The first pass reported bots upgrading exactly zero towers
+at every lane count, which read as the bot path being dead code. It was not: a defeated player's
+lane is wiped, and the bot whose profile favours tower tiers is usually the one that loses, so by
+the final snapshot its upgraded towers no longer existed. Sampling during the match instead shows a
+peak of tier 3 and 35 towers upgraded at once. The test asserts on the peak during play for exactly
+this reason — the end-of-match number is measuring a corpse.
+
+**Verification:** 217 tests, including the retroactive test inverted rather than deleted so the
+change of model stays legible, per-tower upgrade rules, the ceiling, and bots upgrading. Batch
+playtest clean. The selected-tower panel captured through `RealUiCaptureRunner` and reviewed:
+`docs/screenshot-reviews/category-upgrade-tiers/tower-upgrade-panel.png` shows TIER 1 and a live
+UP 8G on an Arrow Ward, 8 being 60% of its 14-gold build price.
+
+**Not verified:** whether upgrading an existing tower or building a new one is the more satisfying
+call at the controls. The costs make it close on paper, which is the intent, but only play answers it.

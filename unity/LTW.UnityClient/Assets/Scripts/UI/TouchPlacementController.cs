@@ -429,13 +429,50 @@ namespace LTW.UnityClient.UI
             }
             GUI.Label(new Rect(rect.x + 12f * scale, rect.y + 32f * scale, rect.width - 24f * scale, 18f * scale), TowerPurpose(selectedTower.TowerId.Value), bodyStyle);
             GUI.Label(new Rect(rect.x + 12f * scale, rect.y + 51f * scale, rect.width - 24f * scale, 18f * scale), $"CELL {selectedTower.Position.X}, {selectedTower.Position.Y}  OWNER P{selectedTower.OwnerId.Value}", bodyStyle);
-            GUI.Label(new Rect(rect.x + 12f * scale, rect.y + 70f * scale, rect.width - 108f * scale, 18f * scale), "Tap another tower or sell this one", bodyStyle);
+            // Tier of THIS tower, which is not the same as its line's tier: a line tier only
+            // applies to towers built after it, so a veteran tower can sit below its own line.
+            // Showing it here is what makes "why is that one weaker" answerable.
+            var upgradeCost = commandAdapter != null ? commandAdapter.TowerUpgradeCostAt(selectedTower.Position.X, selectedTower.Position.Y) : 0;
+            var canUpgrade = commandAdapter != null && commandAdapter.CanUpgradeTowerAt(selectedTower.Position.X, selectedTower.Position.Y);
+            var affordable = canUpgrade && CurrentPlayerGold() >= upgradeCost;
+            GUI.Label(new Rect(rect.x + 12f * scale, rect.y + 70f * scale, rect.width - 190f * scale, 18f * scale), $"TIER {selectedTower.Tier}", bodyStyle);
 
             buttonStyle!.fontSize = Mathf.RoundToInt(11f * scale);
             if (RuntimeUiChrome.DrawPanelButton(new Rect(rect.x + rect.width - 86f * scale, rect.y + 36f * scale, 70f * scale, 42f * scale), "SELL", Danger, scale, buttonStyle))
             {
                 SellLastTower();
             }
+
+            // At the line's ceiling the button is replaced by a reason rather than a dead control,
+            // because "cannot upgrade" and "cannot afford" are different problems with different
+            // fixes — buy the line tier, or wait for gold.
+            var upgradeRect = new Rect(rect.x + rect.width - 170f * scale, rect.y + 36f * scale, 78f * scale, 42f * scale);
+            if (!canUpgrade)
+            {
+                metaStyle!.fontSize = Mathf.RoundToInt(9f * scale);
+                metaStyle.alignment = TextAnchor.MiddleCenter;
+                metaStyle.normal.textColor = DisabledText;
+                GUI.Label(upgradeRect, selectedTower.Tier >= 3 ? "MAX TIER" : "LINE\nCAPPED", metaStyle);
+                return;
+            }
+
+            var previousEnabled = GUI.enabled;
+            GUI.enabled = affordable;
+            if (RuntimeUiChrome.DrawPanelButton(upgradeRect, $"UP {upgradeCost}G", affordable ? MintSignal : DisabledText, scale, buttonStyle))
+            {
+                var result = commandAdapter!.UpgradeTowerAt(selectedTower.Position.X, selectedTower.Position.Y);
+                if (result.Accepted)
+                {
+                    feedbackView.ShowEconomy($"{TowerRoleName(selectedTower.TowerId.Value)} upgraded");
+                    RefreshSelectedTowerFromSnapshot();
+                }
+                else
+                {
+                    feedbackView.ShowRejected(result.RejectionReason, upgradeCost, CurrentPlayerGold());
+                }
+            }
+
+            GUI.enabled = previousEnabled;
         }
 
         private void Nudge(Vector2Int delta)
