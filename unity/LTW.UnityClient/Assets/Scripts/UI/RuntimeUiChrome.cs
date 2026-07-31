@@ -108,11 +108,21 @@ namespace LTW.UnityClient.UI
         /// Captured on 2026-07-31: the pre-match title panel rendered over a fully drawn, fully
         /// interactive build palette — two panels overlapping, neither dimmed, and the one
         /// underneath still taking input. A modal that was modal in neither sense.
+        ///
+        /// Alpha is 0.45, down from the 0.72 this shipped with for a few hours. That first value was
+        /// picked against a bright editor viewport and was far too strong for the actual game: this
+        /// board is already dark navy, so 0.72 of near-black on top of it measured a mean luminance
+        /// of 0.164 on a real device screenshot — the board stopped reading as a backdrop and became
+        /// a black void, and the first report from playing it was "the game is very dark".
+        ///
+        /// A scrim over a dark scene needs far less alpha than one over a light scene to achieve the
+        /// same separation, which is the thing that is easy to get wrong when tuning against an
+        /// editor window rather than the shipped frame.
         /// </remarks>
         public static void DrawModalScrim()
         {
             var priorColor = GUI.color;
-            GUI.color = new Color(0.004f, 0.008f, 0.016f, 0.72f);
+            GUI.color = new Color(0.004f, 0.008f, 0.016f, 0.45f);
             GUI.DrawTexture(new Rect(0f, 0f, Screen.width, Screen.height), Texture2D.whiteTexture);
             GUI.color = priorColor;
         }

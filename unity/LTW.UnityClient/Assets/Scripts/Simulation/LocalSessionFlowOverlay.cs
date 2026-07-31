@@ -64,9 +64,15 @@ namespace LTW.UnityClient.Simulation
         /// Mirrors the branch order in <see cref="OnGUI"/>; the live rail is the only state that
         /// coexists with the HUD.
         /// </remarks>
+        /// <remarks>
+        /// The opening build countdown is deliberately NOT in this list. It looks like a modal —
+        /// it is a centred panel drawn by this overlay — but it is a playable phase: its own body
+        /// text reads "Place opening towers. Sends unlock when LIVE begins." Treating it as modal
+        /// hid the build palette during the one phase that exists for building, so the panel
+        /// instructed the player to do something while suppressing the control that does it.
+        /// </remarks>
         private bool OwnsDisplay =>
             showSettings
-            || simulationDriver.IsOpeningBuildCountdown
             || simulationDriver.LatestMatchSummary is not null
             || !simulationDriver.HasStarted
             || simulationDriver.IsPaused;
@@ -90,7 +96,8 @@ namespace LTW.UnityClient.Simulation
 
             if (simulationDriver.IsOpeningBuildCountdown)
             {
-                RuntimeUiChrome.DrawModalScrim();
+                // No scrim: the build phase is playable, so dimming the board would be dimming the
+                // thing the player is being asked to place towers on. See OwnsDisplay.
                 DrawBuildCountdownPanel(scale);
                 return;
             }
