@@ -1,0 +1,41 @@
+# Local Unity Batch Playtest Evidence
+
+- Date: 2026-07-31 08:16:15
+- Scene: `Assets/Scenes/LocalVerticalSlice.unity`
+- Unity Version: `6000.5.3f1`
+- Evidence Label: `vfx-system`
+- Configured Seed: 1
+- Local Player Seat: P1 (lane 1)
+- P1 Bot: disabled, Profile: Balanced, Primary Creep: `default`
+- P2 Bot: enabled, Profile: Balanced, Primary Creep: `default`
+- P3 Bot: enabled, Profile: Defensive, Primary Creep: `default`
+- P4 Bot: enabled, Profile: Greedy, Primary Creep: `default`
+- P5 Bot: enabled, Profile: Greedy, Primary Creep: `default`
+- P6 Bot: enabled, Profile: Greedy, Primary Creep: `default`
+- P7 Bot: enabled, Profile: Greedy, Primary Creep: `default`
+- P8 Bot: enabled, Profile: Greedy, Primary Creep: `default`
+- Result: pass
+- Wall Time Seconds: 27.56
+- Completed Tick: 2085
+- Winner: P4
+- Accepted Replay Commands: 1003
+- Playtest Report: `/Users/admin/Library/Application Support/LTWPlaceholder/LTW_UnityClient/Playtests/playtest-2085.md`
+- Peak Creeps: 256
+- Peak Towers: 137
+- Simulation Tick Rate: 4/s (shipped is 4/s)
+- Unity Time Scale: 20.0x
+- Peak Active Presentation Objects: 2118
+- Peak Pooled Presentation Objects: 1853
+- Reset Clean: True
+- Active Presentation Objects After Reset: 0
+- Pooled Presentation Objects After Reset: 2614
+
+## Final Players
+- P1: lives 0, income 10, gold 240, eliminated True
+- P2: lives 0, income 166, gold 24, eliminated True
+- P3: lives 0, income 234, gold 1617, eliminated True
+- P4: lives 190, income 3191, gold 25, eliminated False
+- P5: lives 0, income 711, gold 5, eliminated True
+- P6: lives 0, income 281, gold 2, eliminated True
+- P7: lives 0, income 223, gold 2, eliminated True
+- P8: lives 0, income 173, gold 8, eliminated True

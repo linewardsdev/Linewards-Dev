@@ -1045,7 +1045,7 @@ namespace LTW.UnityClient.Simulation
                     case TowerPlacedEvent towerPlaced:
                         var buildPosition = GridToWorld(towerPlaced.Position, towerPlaced.LaneId);
                         SpawnCellFrameCue(buildPosition, MintSignal, 0.28f);
-                        SpawnEffect(buildPosition, MintSignal, 0.68f, 0.34f);
+                        SpawnEffect(buildPosition, MintSignal, 0.68f, 0.34f, BurstShape.Rise);
                         SpawnFloatingText(buildPosition, "WARD", MintSignal, 0.62f);
                         SpawnReducedEffectCue(buildPosition, "BUILD", MintSignal);
                         PlaySound(towerBuiltClip);
@@ -1079,7 +1079,7 @@ namespace LTW.UnityClient.Simulation
                             SpawnReducedEffectCue(spawnPosition, "SPAWN", spawnColor);
                         }
 
-                        SpawnEffect(spawnPosition, spawnColor, 0.52f, 0.28f);
+                        SpawnEffect(spawnPosition, spawnColor, 0.52f, 0.28f, BurstShape.Rise);
                         break;
                     case TowerFiredEvent fired:
                         var firedTowerKey = fired.TowerEntityId.Value.ToString();
@@ -1131,7 +1131,7 @@ namespace LTW.UnityClient.Simulation
                         var leakingCreepId = CreepIdFor(leakCreepKey);
                         SpawnLeakGateCue(leak.DefenderId.Value);
                         SpawnCreepLeakRoleCue(position, leakingCreepId);
-                        SpawnEffect(position, LeakRed, 0.86f, 0.42f);
+                        SpawnEffect(position, LeakRed, 0.86f, 0.42f, BurstShape.Sweep);
                         SpawnFloatingText(position, $"-{leak.LivesLost.Amount} LIFE", LeakRed, 0.72f);
                         SpawnReducedEffectCue(position, "LEAK", LeakRed);
                         if (leak.BountyAwarded.Amount > 0)
@@ -1144,14 +1144,14 @@ namespace LTW.UnityClient.Simulation
                         break;
                     case IncomeTickEvent incomeTick:
                         SpawnIncomeLaneCue(incomeTick.PlayerId.Value);
-                        SpawnEffect(IncomePosition(incomeTick.PlayerId.Value), SignalGold, 0.46f, 0.22f);
+                        SpawnEffect(IncomePosition(incomeTick.PlayerId.Value), SignalGold, 0.46f, 0.22f, BurstShape.Rise);
                         SpawnFloatingText(IncomePosition(incomeTick.PlayerId.Value), $"+{incomeTick.GoldAwarded.Amount} income", SignalGold, 0.58f);
                         SpawnReducedEffectCue(IncomePosition(incomeTick.PlayerId.Value), "INCOME", SignalGold);
                         PlaySound(incomeClip);
                         break;
                     case PlayerEliminatedEvent eliminated:
                         SpawnLaneShutdownCue(eliminated.PlayerId.Value);
-                        SpawnEffect(LaneCenter(eliminated.PlayerId.Value) + Vector3.up * 0.2f, LeakRed, 1.15f, 0.55f);
+                        SpawnEffect(LaneCenter(eliminated.PlayerId.Value) + Vector3.up * 0.2f, LeakRed, 1.15f, 0.55f, BurstShape.Sweep);
                         SpawnFloatingText(LaneCenter(eliminated.PlayerId.Value) + Vector3.up * 1.2f, $"PLAYER {eliminated.PlayerId.Value} OUT", LeakRed, 0.8f);
                         SpawnReducedEffectCue(LaneCenter(eliminated.PlayerId.Value), "OUT", LeakRed);
                         PlaySound(eliminationClip);
@@ -1176,18 +1176,73 @@ namespace LTW.UnityClient.Simulation
             }
         }
 
-        private void SpawnEffect(Vector3 position, Color color, float scale, float duration)
+        private void SpawnEffect(Vector3 position, Color color, float scale, float duration) =>
+            SpawnEffect(position, color, scale, duration, BurstShape.Impact);
+
+        /// <summary>
+        /// Emits a particle burst for a game event.
+        /// </summary>
+        /// <remarks>
+        /// Every effect in the game routes through here, which is why upgrading this one method from
+        /// a primitive to a particle system upgrades roughly twenty call sites at once — build, sell,
+        /// spawn, hit, kill, leak, income, elimination, muzzle flash and mortar impact.
+        ///
+        /// It used to spawn a pooled sphere, set its colour, and release it after `duration`. That is
+        /// a shape which appears, holds and vanishes: nothing about it moves, so it read as a debug
+        /// gizmo regardless of colour.
+        ///
+        /// No pooling and no TimedPresentation registration, unlike every other presentation object
+        /// here. A burst emits into a shared long-lived system (see LTWParticleBurst), so it costs
+        /// particles rather than GameObjects and there is nothing to release. Pooling an emitter per
+        /// burst was tried first and measured: peak active presentation objects went from 2,769 to
+        /// 6,082 on the same seed, because each emitter must outlive its own particles and most
+        /// effects here are shorter than the pad that requires.
+        ///
+        /// The signature is unchanged so the existing call sites keep their tuned scales and
+        /// durations. Those values were chosen against the old flash and still mean the same things —
+        /// how big the event is and how long it lasts.
+        /// </remarks>
+        private void SpawnEffect(Vector3 position, Color color, float scale, float duration, BurstShape shape, Vector3 direction = default)
         {
             if (PresentationPreferences.ReducedEffects)
             {
                 return;
             }
 
-            var effect = GetPooled(effectPool, "ImpactEffect", PrimitiveType.Sphere);
-            effect.transform.position = position;
-            effect.transform.localScale = Vector3.one * scale;
-            SetColor(effect, color);
-            timedPresentations.Add(new TimedPresentation(effect, Time.time + duration, effectPool));
+            BurstEmitter(shape)?.Emit(position, color, scale, duration, direction);
+        }
+
+        /// <summary>The shared emitter for one burst shape, created on first use.</summary>
+        /// <remarks>
+        /// Parented to this renderer so the emitters are torn down with the match rather than
+        /// leaking across resets, and so they never appear in the pooled-object accounting the
+        /// batch harness asserts on — they are fixtures, not pooled instances.
+        /// </remarks>
+        private LTWParticleBurst BurstEmitter(BurstShape shape)
+        {
+            if (burstEmitters.TryGetValue(shape, out var emitter) && emitter != null)
+            {
+                return emitter;
+            }
+
+            emitter = LTWParticleBurst.Create(transform, shape);
+            burstEmitters[shape] = emitter;
+            return emitter;
+        }
+
+        private readonly Dictionary<BurstShape, LTWParticleBurst> burstEmitters =
+            new Dictionary<BurstShape, LTWParticleBurst>();
+
+        /// <summary>Kills every live particle. Called on reset so effects do not survive a match.</summary>
+        private void ClearBurstEmitters()
+        {
+            foreach (var pair in burstEmitters)
+            {
+                if (pair.Value != null)
+                {
+                    pair.Value.ClearAll();
+                }
+            }
         }
 
         private void SpawnBeam(Vector3 start, Vector3 end, Color color, float duration)
@@ -1826,7 +1881,7 @@ namespace LTW.UnityClient.Simulation
                 SpawnBeam(At(new Vector3(0f, 0.58f, -0.32f)), At(new Vector3(0f, 0.66f, 0.26f)), SignalGold, 0.08f);
                 SpawnBeam(At(new Vector3(0f, 0.62f, 0.08f)), hitPosition + Vector3.up * 0.12f, shotColor, damage >= 5 ? 0.16f : 0.12f);
                 SpawnCellFrameCue(hitPosition, shotColor, damage >= 5 ? 0.15f : 0.1f);
-                SpawnEffect(At(new Vector3(0f, 0.62f, 0.12f)), shotColor, damage >= 5 ? 0.28f : 0.2f, 0.08f);
+                SpawnEffect(At(new Vector3(0f, 0.62f, 0.12f)), shotColor, damage >= 5 ? 0.28f : 0.2f, 0.08f, BurstShape.Muzzle, hitPosition - At(new Vector3(0f, 0.62f, 0.12f)));
                 return;
             }
 
@@ -1851,7 +1906,7 @@ namespace LTW.UnityClient.Simulation
                 SpawnBeam(At(new Vector3(-0.34f, 0.34f, 0f)), At(new Vector3(0.34f, 0.34f, 0f)), shotColor, 0.14f);
                 SpawnBeam(At(new Vector3(0f, 0.58f, -0.34f)), At(new Vector3(0f, 0.58f, 0.34f)), shotColor, 0.14f);
                 SpawnCellFrameCue(towerPosition, shotColor, 0.16f);
-                SpawnEffect(muzzle, shotColor, 0.26f, 0.12f);
+                SpawnEffect(muzzle, shotColor, 0.26f, 0.12f, BurstShape.Muzzle, hitPosition - muzzle);
                 return;
             }
 
@@ -2161,6 +2216,11 @@ namespace LTW.UnityClient.Simulation
             timedPresentations.Clear();
             foreach (var ring in activeShockwaveRings) ReleaseToPool(ring.Object, shockwaveRingPool);
             activeShockwaveRings.Clear();
+
+            // Particles are not pooled objects, so they are not covered by any of the releases
+            // above and would otherwise drift on across a reset — visible as sparks hanging over an
+            // empty board while the next match sets up.
+            ClearBurstEmitters();
         }
 
         private GameObject GetOrCreate(Dictionary<string, GameObject> activeObjects, Queue<GameObject> pool, string key, string name, PrimitiveType primitiveType)
