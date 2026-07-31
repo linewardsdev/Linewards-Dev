@@ -195,6 +195,34 @@ namespace LTW.UnityClient.Simulation
             return tower.Tier < ceiling && tower.Tier < LTW.Simulation.Content.CategoryTierRules.MaxTier;
         }
 
+        /// <summary>
+        /// Which tower line the tower at this cell belongs to, or -1 if there is none.
+        /// </summary>
+        /// <remarks>
+        /// Exists so the selected-tower panel can NAME the line a tower is waiting on rather than
+        /// saying it is capped and leaving the player to work out by what.
+        /// </remarks>
+        public int TowerLineIndexAt(int x, int y)
+        {
+            if (simulation is null)
+            {
+                return -1;
+            }
+
+            var tower = simulation.GetSnapshot().Towers.FirstOrDefault(candidate =>
+                candidate.OwnerId.Equals(simulation.LocalPlayerId)
+                && candidate.LaneId.Equals(simulation.LocalPlayerLaneId)
+                && candidate.Position.X == x
+                && candidate.Position.Y == y);
+            if (tower is null)
+            {
+                return -1;
+            }
+
+            var definition = simulation.Content.Towers.FirstOrDefault(candidate => candidate.Id.Equals(tower.TowerId));
+            return definition?.CategoryIndex ?? -1;
+        }
+
         public VerticalSliceCommandResult UpgradeTowerAt(int x, int y)
         {
             if (simulationDriver == null || !simulationDriver.HasStarted || simulationDriver.IsPaused)

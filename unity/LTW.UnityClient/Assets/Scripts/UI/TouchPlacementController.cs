@@ -443,24 +443,30 @@ namespace LTW.UnityClient.UI
                 SellLastTower();
             }
 
-            // At the line's ceiling the button is replaced by a reason rather than a dead control,
-            // because "cannot upgrade" and "cannot afford" are different problems with different
-            // fixes — buy the line tier, or wait for gold.
+            // The button is ALWAYS drawn, even when it cannot be pressed, and its label says what is
+            // missing. An earlier version replaced it with a bare "LINE CAPPED" whenever the tower
+            // had caught up to its line — which is the state every tower is in at the start of a
+            // match, so the whole feature looked like it did not exist, and the label named no way
+            // out of it. A disabled control that says NEED ARCANE 2 is discoverable; an absent one
+            // teaches nothing.
             var upgradeRect = new Rect(rect.x + rect.width - 170f * scale, rect.y + 36f * scale, 78f * scale, 42f * scale);
-            if (!canUpgrade)
-            {
-                metaStyle!.fontSize = Mathf.RoundToInt(9f * scale);
-                metaStyle.alignment = TextAnchor.MiddleCenter;
-                metaStyle.normal.textColor = DisabledText;
-                GUI.Label(upgradeRect, selectedTower.Tier >= 3 ? "MAX TIER" : "LINE\nCAPPED", metaStyle);
-                return;
-            }
+            var atMaxTier = selectedTower.Tier >= commandAdapter!.MaxCategoryTier;
+            var lineIndex = commandAdapter.TowerLineIndexAt(selectedTower.Position.X, selectedTower.Position.Y);
+            var lineLabel = lineIndex >= 0 && lineIndex < LTW.UnityClient.Simulation.TowerCatalog.CategoryLabels.Length
+                ? LTW.UnityClient.Simulation.TowerCatalog.CategoryLabels[lineIndex]
+                : "LINE";
+
+            var upgradeLabel = atMaxTier ? "MAX"
+                : !canUpgrade ? $"NEED\n{lineLabel} {selectedTower.Tier + 1}"
+                : $"UP {upgradeCost}G";
 
             var previousEnabled = GUI.enabled;
             GUI.enabled = affordable;
-            if (RuntimeUiChrome.DrawPanelButton(upgradeRect, $"UP {upgradeCost}G", affordable ? MintSignal : DisabledText, scale, buttonStyle))
+            buttonStyle.fontSize = Mathf.RoundToInt((canUpgrade ? 11f : 9f) * scale);
+            if (RuntimeUiChrome.DrawPanelButton(upgradeRect, upgradeLabel, affordable ? MintSignal : DisabledText, scale, buttonStyle)
+                && affordable)
             {
-                var result = commandAdapter!.UpgradeTowerAt(selectedTower.Position.X, selectedTower.Position.Y);
+                var result = commandAdapter.UpgradeTowerAt(selectedTower.Position.X, selectedTower.Position.Y);
                 if (result.Accepted)
                 {
                     feedbackView.ShowEconomy($"{TowerRoleName(selectedTower.TowerId.Value)} upgraded");
@@ -473,6 +479,7 @@ namespace LTW.UnityClient.UI
             }
 
             GUI.enabled = previousEnabled;
+            buttonStyle.fontSize = Mathf.RoundToInt(11f * scale);
         }
 
         private void Nudge(Vector2Int delta)

@@ -58,6 +58,9 @@ namespace LTW.UnityClient.Editor
             ("real-04-build-palette-open", OpenBuildPalette),
             // The selected-tower panel, which is where a placed tower is upgraded.
             ("real-05-selected-tower", SelectAnUpgradeableTower),
+            // A freshly built tower with NO line tier bought - the state every match starts in,
+            // and the one where the upgrade control used to vanish entirely.
+            ("real-06-selected-tower-no-tier", SelectAFreshTower),
         };
 
         public static void Run()
@@ -208,6 +211,40 @@ namespace LTW.UnityClient.Editor
             // ARCANE to tier 2, so the tower below it has somewhere to be upgraded to.
             sim.BuyCategoryTier(sim.LocalPlayerId, LTW.Simulation.Commands.CategoryKind.TowerLine, 0, 2);
 
+            var tower = sim.GetSnapshot().Towers.FirstOrDefault(t =>
+                t.OwnerId.Equals(sim.LocalPlayerId) && t.Position.X == cell.X && t.Position.Y == cell.Y);
+            if (tower != null)
+            {
+                SetPrivate(touch, "selectedTower", tower);
+            }
+        }
+
+        private static void SelectAFreshTower()
+        {
+            var touch = Object.FindAnyObjectByType<TouchPlacementController>();
+            var commands = Object.FindAnyObjectByType<UnityCommandAdapter>();
+            if (touch == null || commands == null)
+            {
+                return;
+            }
+
+            var dock = Dock();
+            if (dock != null)
+            {
+                SetPrivate(dock, "isExpanded", false);
+            }
+
+            SetPrivate(touch, "isPaletteExpanded", false);
+
+            var field = typeof(UnityCommandAdapter).GetField("simulation", BindingFlags.Instance | BindingFlags.NonPublic);
+            if (field?.GetValue(commands) is not LocalVerticalSlice sim)
+            {
+                return;
+            }
+
+            // A GROVE tower, whose line has had no tier bought, so the control shows what it needs.
+            var cell = new GridPosition(4, 10);
+            sim.PlaceTower(sim.LocalPlayerId, sim.LocalPlayerLaneId, new LTW.Simulation.Content.ContentId("tower.sapling"), cell);
             var tower = sim.GetSnapshot().Towers.FirstOrDefault(t =>
                 t.OwnerId.Equals(sim.LocalPlayerId) && t.Position.X == cell.X && t.Position.Y == cell.Y);
             if (tower != null)
