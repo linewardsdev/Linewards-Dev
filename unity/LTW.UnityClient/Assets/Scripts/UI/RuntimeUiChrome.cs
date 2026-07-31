@@ -23,15 +23,48 @@ namespace LTW.UnityClient.UI
         private static Texture2D? generatedPanelButton;
         private static Texture2D? generatedRoundButton;
 
-        public static bool DrawCommandCard(Rect rect, Color accent, CommandCardState state, float scale)
+        /// <summary>
+        /// Draws a command card and returns whether it was pressed.
+        /// </summary>
+        /// <remarks>
+        /// <paramref name="hitRect"/> narrows the clickable region without changing what is drawn.
+        /// A card that carries its own button — a category card with a tier upgrade on it — MUST
+        /// pass one, because this method's GUI.Button consumes the click for the whole card.
+        /// GUI.Button calls Event.Use() on both MouseDown and MouseUp, so any button drawn
+        /// afterwards inside the same rect never sees the event at all and silently does nothing.
+        /// That is not a z-order problem a later draw call can win; the event is already gone.
+        /// </remarks>
+        public static bool DrawCommandCard(Rect rect, Color accent, CommandCardState state, float scale, Rect? hitRect = null)
         {
             DrawCommandCardChrome(rect, accent, state, scale);
 
             var previousEnabled = GUI.enabled;
             GUI.enabled = state is not CommandCardState.Disabled and not CommandCardState.Error;
-            var pressed = GUI.Button(rect, GUIContent.none, GUIStyle.none);
+            var pressed = GUI.Button(hitRect ?? rect, GUIContent.none, GUIStyle.none);
             GUI.enabled = previousEnabled;
             return pressed;
+        }
+
+        // Tier row geometry, in unscaled units, measured up from the card's bottom edge. Shared so
+        // the row and the card's hit region derive from the same numbers — if they drift, the card
+        // either steals the upgrade button's clicks or leaves a dead strip that selects nothing.
+        private const float CategoryTierRowBottomInset = 26f;
+        private const float CategoryTierRowHeight = 20f;
+
+        /// <summary>Where the tier row sits on a category card.</summary>
+        public static Rect CategoryTierRowRect(Rect card, float scale) => new(
+            card.x + 7f * scale,
+            card.yMax - (CategoryTierRowBottomInset + CategoryTierRowHeight) * scale,
+            card.width - 14f * scale,
+            CategoryTierRowHeight * scale);
+
+        /// <summary>
+        /// The part of a category card that selects the category: everything above its tier row.
+        /// </summary>
+        public static Rect CategoryCardSelectRect(Rect card, float scale)
+        {
+            var row = CategoryTierRowRect(card, scale);
+            return new Rect(card.x, card.y, card.width, Mathf.Max(1f, row.y - card.y));
         }
 
         public static Rect CommandCardIconRect(Rect rect, float scale)
@@ -83,8 +116,7 @@ namespace LTW.UnityClient.UI
             GUIStyle tierStyle,
             GUIStyle buttonStyle)
         {
-            var rowHeight = 20f * scale;
-            var row = new Rect(card.x + 7f * scale, card.yMax - 26f * scale - rowHeight, card.width - 14f * scale, rowHeight);
+            var row = CategoryTierRowRect(card, scale);
 
             tierStyle.fontSize = Mathf.RoundToInt(9f * scale);
             tierStyle.alignment = TextAnchor.MiddleLeft;

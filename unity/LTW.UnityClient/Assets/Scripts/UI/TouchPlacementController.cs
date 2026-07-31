@@ -953,7 +953,10 @@ namespace LTW.UnityClient.UI
                 var y = buttonY + category * (cardHeight + gap);
                 var accent = CategoryAccent(category);
                 var cardRect = new Rect(x, y, cardWidth, cardHeight);
-                var pressed = RuntimeUiChrome.DrawCommandCard(cardRect, accent, CommandCardState.Normal, scale);
+                // Hit region excludes the tier row, or the card's own button eats the upgrade
+                // button's click before it is ever delivered.
+                var pressed = RuntimeUiChrome.DrawCommandCard(
+                    cardRect, accent, CommandCardState.Normal, scale, RuntimeUiChrome.CategoryCardSelectRect(cardRect, scale));
 
                 buttonStyle!.fontSize = Mathf.RoundToInt(13f * scale);
                 buttonStyle.normal.textColor = Cloud;

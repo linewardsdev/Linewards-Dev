@@ -310,7 +310,10 @@ namespace LTW.UnityClient.UI
 
         private static bool DrawCategoryCard(Rect rect, string label, Color accent, float scale)
         {
-            var pressed = RuntimeUiChrome.DrawCommandCard(rect, accent, CommandCardState.Normal, scale);
+            // Hit region excludes the tier row, or the card's own button eats the upgrade button's
+            // click before it is ever delivered.
+            var pressed = RuntimeUiChrome.DrawCommandCard(
+                rect, accent, CommandCardState.Normal, scale, RuntimeUiChrome.CategoryCardSelectRect(rect, scale));
 
             buttonStyle!.fontSize = Mathf.RoundToInt(13f * scale);
             buttonStyle.normal.textColor = Cloud;
