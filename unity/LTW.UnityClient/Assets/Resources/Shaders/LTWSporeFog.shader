@@ -13,6 +13,10 @@
 //
 // Deliberately ZWrite Off and unlit: fog is not a surface, it should not occlude the tower
 // standing in it or take lighting as though it were solid.
+//
+// Written against URP's shader library rather than UnityCG.cginc so it is SRP-Batcher
+// compatible; every material property must sit inside the UnityPerMaterial CBUFFER or the
+// batcher rejects the shader silently and falls back to per-object setup with no error.
 Shader "LTW/Spore Fog"
 {
     Properties
@@ -46,49 +50,57 @@ Shader "LTW/Spore Fog"
         Blend SrcAlpha OneMinusSrcAlpha
         ZWrite Off
         Cull Off
-        Lighting Off
 
         Pass
         {
-            CGPROGRAM
+            Name "SporeFog"
+
+            HLSLPROGRAM
             #pragma vertex vert
             #pragma fragment frag
             #pragma multi_compile_instancing
-            #include "UnityCG.cginc"
 
-            struct appdata
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
+
+            struct Attributes
             {
-                float4 vertex : POSITION;
+                float4 positionOS : POSITION;
                 float2 uv : TEXCOORD0;
                 UNITY_VERTEX_INPUT_INSTANCE_ID
             };
 
-            struct v2f
+            struct Varyings
             {
-                float4 pos : SV_POSITION;
+                float4 positionCS : SV_POSITION;
                 float2 uv : TEXCOORD0;
+                UNITY_VERTEX_INPUT_INSTANCE_ID
                 UNITY_VERTEX_OUTPUT_STEREO
             };
 
-            fixed4 _Color;
-            half _Softness;
-            half _Churn;
-            half _Speed;
+            CBUFFER_START(UnityPerMaterial)
+                half4 _Color;
+                half _Softness;
+                half _Churn;
+                half _Speed;
+            CBUFFER_END
 
-            v2f vert (appdata v)
+            Varyings vert (Attributes input)
             {
-                v2f o;
-                UNITY_SETUP_INSTANCE_ID(v);
-                UNITY_INITIALIZE_OUTPUT(v2f, o);
-                UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(o);
-                o.pos = UnityObjectToClipPos(v.vertex);
-                o.uv = v.uv;
-                return o;
+                Varyings output = (Varyings)0;
+                UNITY_SETUP_INSTANCE_ID(input);
+                UNITY_TRANSFER_INSTANCE_ID(input, output);
+                UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(output);
+                output.positionCS = TransformObjectToHClip(input.positionOS.xyz);
+                output.uv = input.uv;
+                return output;
             }
 
-            fixed4 frag (v2f i) : SV_Target
+            half4 frag (Varyings input) : SV_Target
             {
-                float2 offset = i.uv * 2.0 - 1.0;
+                UNITY_SETUP_INSTANCE_ID(input);
+                UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(input);
+
+                float2 offset = input.uv * 2.0 - 1.0;
                 float radius = saturate(length(offset));
 
                 // Linear-ish rather than squared (which is what the contact shadow uses to stay a
@@ -105,9 +117,9 @@ Shader "LTW/Spore Fog"
                 // alpha stays the ceiling and the tower never flashes brighter than intended.
                 float density = lerp(1.0 - _Churn, 1.0, billow);
 
-                return fixed4(_Color.rgb, _Color.a * falloff * density);
+                return half4(_Color.rgb, _Color.a * falloff * density);
             }
-            ENDCG
+            ENDHLSL
         }
     }
 
