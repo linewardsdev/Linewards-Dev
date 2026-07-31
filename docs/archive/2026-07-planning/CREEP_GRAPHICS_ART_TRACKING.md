@@ -1,5 +1,12 @@
 # Creep Graphics Art Tracking
 
+> **Editor version warning.** This document is archived and its commands are kept as a
+> historical record. Any Unity path in it has been rewritten to the pinned editor
+> `6000.5.3f1`. Do NOT restore `6000.3.12f1` from this file's history: that editor
+> silently downgrades `ProjectSettings.asset` from serialized version 29 to 28, and the
+> damage is not visible until something else fails. An archived document is still a
+> document someone copies a command out of.
+
 ## Purpose
 
 Track the creep readability and polished-art path for Line Wards. This document follows the Line Wards graphics art-direction skill: preserve mobile readability, pressure clarity, original ward-tech fantasy, and avoid Warcraft III names, silhouettes, assets, UI chrome, icons, sounds, or screenshots.
@@ -174,18 +181,18 @@ Suggested checks:
 Current local environment notes:
 
 - `dotnet` was not available on PATH during the creep visual pass.
-- Unity `6000.3.12f1` is installed at `/Applications/Unity/Hub/Editor/6000.3.12f1/Unity.app`.
+- Unity `6000.5.3f1` is installed at `/Applications/Unity/Hub/Editor/6000.5.3f1/Unity.app`.
 - Rosetta 2 is now installed, and Unity batch mode can run the art generator/validator locally.
 - Generator batch mode command used:
 
 ```text
-/Applications/Unity/Hub/Editor/6000.3.12f1/Unity.app/Contents/MacOS/Unity -batchmode -quit -projectPath /Users/admin/LTW/unity/LTW.UnityClient -executeMethod LTW.UnityClient.Editor.CreepVisualPrefabGenerator.GeneratePlaceholderCreepPrefabs -logFile /Users/admin/LTW/unity-generator.log
+/Applications/Unity/Hub/Editor/6000.5.3f1/Unity.app/Contents/MacOS/Unity -batchmode -quit -projectPath /Users/admin/LTW/unity/LTW.UnityClient -executeMethod LTW.UnityClient.Editor.CreepVisualPrefabGenerator.GeneratePlaceholderCreepPrefabs -logFile /Users/admin/LTW/unity-generator.log
 ```
 
 - Validator batch mode command used:
 
 ```text
-/Applications/Unity/Hub/Editor/6000.3.12f1/Unity.app/Contents/MacOS/Unity -batchmode -quit -projectPath /Users/admin/LTW/unity/LTW.UnityClient -executeMethod LTW.UnityClient.Editor.CreepVisualPrefabGenerator.ValidateCreepVisualLibrary -logFile /Users/admin/LTW/unity-validator.log
+/Applications/Unity/Hub/Editor/6000.5.3f1/Unity.app/Contents/MacOS/Unity -batchmode -quit -projectPath /Users/admin/LTW/unity/LTW.UnityClient -executeMethod LTW.UnityClient.Editor.CreepVisualPrefabGenerator.ValidateCreepVisualLibrary -logFile /Users/admin/LTW/unity-validator.log
 ```
 
 ## Current Completion Summary

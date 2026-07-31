@@ -1,5 +1,12 @@
 # Graphics Theme Work Breakdown
 
+> **Editor version warning.** This document is archived and its commands are kept as a
+> historical record. Any Unity path in it has been rewritten to the pinned editor
+> `6000.5.3f1`. Do NOT restore `6000.3.12f1` from this file's history: that editor
+> silently downgrades `ProjectSettings.asset` from serialized version 29 to 28, and the
+> damage is not visible until something else fails. An archived document is still a
+> document someone copies a command out of.
+
 ## Purpose
 
 Break the next Line Wards graphics work into parallel-friendly chunks that combine:
@@ -212,7 +219,7 @@ Line Wards/Review/Capture Visual Review Set
 For batchmode:
 
 ```text
-/Applications/Unity/Hub/Editor/6000.3.12f1/Unity.app/Contents/MacOS/Unity \
+/Applications/Unity/Hub/Editor/6000.5.3f1/Unity.app/Contents/MacOS/Unity \
   -projectPath /Users/admin/LTW/unity/LTW.UnityClient \
   -executeMethod LTW.UnityClient.Editor.VisualReviewCaptureRunner.CaptureVisualReviewSet \
   -logFile /Users/admin/LTW/unity-visual-capture.log \

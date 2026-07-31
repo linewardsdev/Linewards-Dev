@@ -55,4 +55,15 @@ All 5 first-pass orientation values (`importEulerAngles` in `Creep3DProofSetGene
 - VFX must be shorter and brighter than board material detail, but should not cover placement-critical cells for more than a fraction of a second.
 - Reduced-effects mode must keep text/shape cues for build, sell, send, hit, kill, leak, income, transfer, and results.
 - Use prefab names above when moving from runtime primitive cues to authored VFX.
-- Test every VFX pass in `05-active-combat.png`, `06-heavy-pressure.png`, and `07-reduced-effects-heavy.png`.
+- Test every VFX pass in `07-active-combat.png`, `10-heavy-pressure.png`, and
+  `11-reduced-effects-heavy.png`.
+
+  These were written as 05/06/07 against an earlier, shorter capture sequence. States were
+  later inserted ahead of them and the numbers shifted, so following this line literally
+  opened `05-send-card-disabled.png` and `06-lane-selector-open.png` — two static UI frames
+  with no creeps and no combat in them at all, which are the worst possible frames to judge
+  an effect in. Only the third landed on a combat frame, and only by coincidence.
+
+  Prefer the state NAME over the number when citing a capture anywhere: names are stable
+  under insertion and numbers are not. Verified against the 2026-07-31 set in
+  `docs/screenshot-reviews/aa-uplift-wave0-rebaseline/`.

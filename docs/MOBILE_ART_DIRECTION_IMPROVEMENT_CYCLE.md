@@ -65,7 +65,12 @@ Examples:
 
 At the time this cycle was created:
 
-- V1 runtime art covers all five tower roles, all five creep roles, and the Builder.
+- V1 runtime art covers all fifteen tower roles, all fifteen creep roles, and the Builder.
+  It was 5 + 5 when this section was written; the roster tripled in `c61e478` and this line
+  went on claiming five for long enough to be worth a note. The live count is whatever
+  `TowerVisualLibrary.asset` and `CreepVisualLibrary.asset` hold —
+  `docs/art-pipeline/v1-role-coverage-report.md` is generated from those two and is the
+  place to look rather than here.
 - AI-assisted plates are active for the current role set, with procedural fallbacks retained.
 - V02 command-card chrome and persistent lane-selector control chrome have been promoted.
 - Selected UI/board directions remain:
