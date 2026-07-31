@@ -13,12 +13,69 @@ current look is not primarily an art problem.
 
 ---
 
+## Execution status — updated 2026-07-31
+
+**Wave 0 is complete, including 0.8.** Wave 2.1 is complete. Wave 1.4 and three of Wave 4's
+four items are complete. Three planned items turned out to rest on wrong premises and were
+resolved differently; those are called out below because following the plan as written
+would have made two of them actively worse.
+
+| Wave item | State | Note |
+| --- | --- | --- |
+| 0.1–0.2 post-processing profile | **done** | The profile held three null sub-assets since `746403b`; the game had no tonemapper and no bloom for the whole URP migration |
+| 0.3, 0.4, 0.7 flags | **done** | Soft shadows, SMAA, HDR grading |
+| 0.5 reflections | **done, differently** | Generated from the scene's own ambient gradient rather than a probe — a probe captures at launch when the board is empty and would then be wrong all match |
+| 0.6 material split | **done** | 30 bodies at 0.45. The plan's caution against copying 1.0 was right; the plan's 0.35–0.5 range was right |
+| 0.8 re-baseline | **done** | `screenshot-reviews/aa-uplift-wave0-rebaseline/` |
+| 1.1 recover AO | **premise disproved** | See below |
+| 1.4 blocking intake gate | **done, gate off** | Silent-skip fixed; blocking mechanism ships behind `--strict`, off because it would fail every asset (blocked on 1.2) |
+| 2.1 particle system | **done** | See below |
+| 2.2 build the 14 VFX prefabs | **superseded** | Covered by the code system; the prefabs were never buildable |
+| 2.4 motion for 7 creeps | **partly wrong** | They already have per-creep procedural motion; what they lack is skeletal deformation |
+| 4.x LOD cross-fade, GPU skinning, quality tiers, SRP batching | **done** | Only LOD groups themselves remain, and that needs a decimation stage built first |
+
+### Three premises that did not survive contact
+
+**1.1 — "AO exists on disk and our script discards it."** It does not. The ORM red channel
+is exactly 0.000 in every pixel of all 21 packed maps, and no occlusion map exists anywhere
+in the art tree. Implementing this as written would have bound an all-zero `_OcclusionMap`,
+and zero means *fully occluded* — the change advertised as free image quality would have put
+all thirty assets into full ambient darkness. The repacker now extracts occlusion when there
+is occlusion and reports when there is not.
+
+**2.1/2.2 — "authoring never started."** `com.unity.modules.particlesystem` was not in the
+package manifest, so `ParticleSystem` did not exist as a type. The fourteen prefabs were
+unbuildable, not unbuilt.
+
+**0.6 second half — "give the 5 zero-emission creeps emission."** They have no emission map
+on disk, and emission without a map lights the whole body uniformly. They are left dark
+deliberately. It is also eight creeps, not five: three more have maps that are functionally
+blank.
+
+### Where the durable knowledge now lives
+
+This document stays the *plan*. What the work produced lives in:
+
+- [Render and art validation](RENDER_AND_ART_VALIDATION.md) — the validators, the invariants
+  they protect, exit codes, and the headless-run conventions
+- [Material language guide](MATERIAL_LANGUAGE_GUIDE.md) — the authoritative surface values
+- [VFX and animation targets](VFX_AND_ANIMATION_TARGETS.md) — the VFX system as built
+
+---
+
 ## 1. The three findings that reframe this work
 
 Do these before commissioning any new art. Each was verified directly against the repo
 on 2026-07-31, at commit `c92d6fb` or later.
 
 ### 1.1 Post-processing is not running in the committed build
+
+> **RESOLVED 2026-07-31 in `24ff842`.** Kept because it is the clearest worked example of the
+> failure mode this whole document is about — a defect that every system reported as success.
+> Root cause was one missing call: `UrpPostProcessingSetup` used `VolumeProfile.Add<T>` and
+> never `AssetDatabase.AddObjectToAsset`, so the components existed in memory, logged "3
+> override(s)", and deserialized as `{fileID: 0}` on the next reload. Guarded on both sides
+> now; see [Render and art validation](RENDER_AND_ART_VALIDATION.md).
 
 `Assets/Resources/LTW_PostProcessing.asset` — the profile loaded at runtime by
 `LocalVerticalSliceLauncher` — contains three **null** component references:
@@ -405,26 +462,33 @@ rigs on shell-bodied creeps (built, works, and is invisible from the game camera
 
 ## 8. Known blockers and stale references to clear
 
-- **The improvement cycle's acceptance gate points at deleted assets.**
-  `MOBILE_ART_DIRECTION_IMPROVEMENT_CYCLE.md` requires a "target-reference match score"
-  against the canonical targets in `art-pipeline/v1-role-coverage-report.md` — which lists
-  `Tower_*_AIPlate.prefab` and `Sprites/*_trimmed.png`. Those were deleted 2026-07-26.
-  **The mandatory promotion gate currently cannot be satisfied.** Fix before Wave 1.
-- **Two capture states land nothing in frame** — `runner-10-pressure` and
-  `swarm-heavy-pressure`. Heavy-pressure readability is a *blocking* category that
-  therefore cannot currently be reviewed.
-- **Three art docs still describe a 5+5 roster as current** —
-  `ART_THEME_AND_ROLE_GUIDE.md` (the primary theme authority, so 10 towers and 10 creeps
-  have no silhouette spec, no "Avoid" list and no phone-size test),
-  `MOBILE_ART_DIRECTION_IMPROVEMENT_CYCLE.md`, and `VFX_AND_ANIMATION_TARGETS.md`.
-- **"Creeps stay smaller than towers" is stated as non-negotiable in three docs and is now
-  false by design** — the health-tracking scale rule puts Siege Colossus at 1.247 against
-  towers at ~0.74. The decision was sound; the docs were never updated.
-- **`GRAPHICS_THEME_WORK_BREAKDOWN.md` gives a batchmode command using Unity
-  `6000.3.12f1`** — the version that silently downgrades `ProjectSettings.asset`. Running
-  the documented command as written corrupts project settings.
-- **Two incompatible capture-state numbering schemes** are in use; following
-  `VFX_AND_ANIMATION_TARGETS.md` literally now tests the wrong three frames.
+**Most of this section is cleared as of 2026-07-31.** What remains is listed first.
+
+Still open:
+
+- **`ART_THEME_AND_ROLE_GUIDE.md` still describes a 5+5 roster.** It is the primary theme
+  authority, so 10 towers and 10 creeps have no silhouette spec, no "Avoid" list and no
+  phone-size test. The other two docs that carried this have been corrected.
+- **"Creeps stay smaller than towers" is stated as non-negotiable and is false by design** —
+  the health-tracking scale rule puts Siege Colossus at 1.247 against towers at ~0.74. The
+  decision was sound; the docs were never updated.
+
+Cleared:
+
+- ~~The promotion gate points at deleted assets.~~ Fixed in `76deab8`. The coverage report is
+  regenerated from the two visual libraries, names the `_3D` prefabs, and is checked by
+  `tools/art_pipeline/validate_role_coverage.py`. **The larger finding it exposed is now
+  `OPEN_ITEMS.md` item 20**: production references exist only for the original ten roles, so
+  the gate scores ten against 2D plates their own 3D models superseded and cannot score the
+  other twenty at all.
+- ~~Two capture states land nothing in frame.~~ Already fixed in the tree; the item was stale.
+  Verified at 64 and 75 on-camera creeps in the framed lane.
+- ~~`GRAPHICS_THEME_WORK_BREAKDOWN.md` gives a command using Unity `6000.3.12f1`.~~ Fixed in
+  `892b64b`, and it was in **two** archived docs across three runnable commands, not one. Both
+  now carry a banner not to restore the version from history.
+- ~~Two incompatible capture-state numbering schemes.~~ Fixed in `892b64b`. Worse than
+  recorded: the cited numbers opened two static UI frames with no creeps in them. The rule is
+  now to cite the state NAME, never the number.
 
 ---
 

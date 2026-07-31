@@ -9,7 +9,7 @@ This folder contains the durable project documentation for Line Wards, the mobil
 - [MVP status snapshot](MVP_STATUS.md)
 - [Agent and contributor guidance](AGENTS.md)
 - [Open items](OPEN_ITEMS.md) — everything currently open or undecided, in one list
-- [Graphics AA uplift](GRAPHICS_AA_UPLIFT.md) — **the active graphics plan.** Raises the quality target above the retired "2000 baseline", and records three findings that must be fixed before any new art is commissioned or reviewed
+- [Graphics AA uplift](GRAPHICS_AA_UPLIFT.md) — **the active graphics plan.** Raises the quality target above the retired "2000 baseline". Wave 0 is complete; see its execution status block for which planned items turned out to rest on wrong premises
 
 ## Planning And Delivery
 
@@ -26,7 +26,8 @@ This folder contains the durable project documentation for Line Wards, the mobil
 - [Multiplayer seats and authority](MULTIPLAYER_SEATS_AND_AUTHORITY.md)
 - [Builder placement concept](BUILDER_PLACEMENT_CONCEPT.md)
 - [Graphics AA uplift](GRAPHICS_AA_UPLIFT.md) — current state, raised target, wave plan, and the craft scorecard extension
-- [Mobile art direction improvement cycle](MOBILE_ART_DIRECTION_IMPROVEMENT_CYCLE.md) — scorecard and promotion gate; its target-reference gate points at assets deleted 2026-07-26, see `GRAPHICS_AA_UPLIFT.md` §8
+- [Mobile art direction improvement cycle](MOBILE_ART_DIRECTION_IMPROVEMENT_CYCLE.md) — the two-axis scorecard (readability, blocking; craft, advisory until Wave 3) and the promotion gate
+- [Render and art validation](RENDER_AND_ART_VALIDATION.md) — **every render/material invariant and the script that asserts it.** Read before changing a render setting, a body material, or the URP asset
 - [Art prefab contract](ART_PREFAB_CONTRACT.md)
 - [Tower 3D cohesion pass](art-pipeline/tower-3d-cohesion-pass.md)
 - [Unity MCP Codex workflow](UNITY_MCP_CODEX_WORKFLOW.md)
@@ -38,8 +39,8 @@ This folder contains the durable project documentation for Line Wards, the mobil
 
 - [Branding guide](BRANDING_GUIDE.md)
 - [Art theme and role guide](ART_THEME_AND_ROLE_GUIDE.md)
-- [Material language guide](MATERIAL_LANGUAGE_GUIDE.md)
-- [VFX and animation targets](VFX_AND_ANIMATION_TARGETS.md)
+- [Material language guide](MATERIAL_LANGUAGE_GUIDE.md) — includes the authoritative runtime surface values for all 30 body materials
+- [VFX and animation targets](VFX_AND_ANIMATION_TARGETS.md) — the VFX system as built, and why it is code rather than the 14 prefabs originally specified
 - [Monetization and payments](MONETIZATION_AND_PAYMENTS.md)
 
 ## Evidence And Archives

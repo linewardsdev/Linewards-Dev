@@ -74,6 +74,30 @@ Do not add login, cloud saves, database storage, live networking, matchmaking, r
 - For Unity-facing changes, state a concise manual verification path.
 - Run the narrowest relevant tests before handoff and report any tests that could not be run.
 
+### Renderer and art changes
+
+`dotnet test` cannot see any of this. If you touch a render setting, a body material, the
+URP asset, or a shader, run the headless validators listed in
+[Render and art validation](RENDER_AND_ART_VALIDATION.md) — they exit non-zero and each one
+exists because of a defect that produced no error and no warning.
+
+- **When adding a check, break the thing it watches and confirm it fails for the right
+  reason.** The original post-processing guard tested `profile == null`, which passed
+  happily for a profile that existed and was completely hollow.
+- **Do not judge an art or render change from a contact sheet or a `-nographics` run.**
+  Neither has the board, the light rig or the post stack, so neither can show grounding,
+  lighting craft or tone.
+
+### Running Unity headlessly
+
+- **Editor is `6000.5.3f1` and nothing else.** `6000.3.12f1` silently downgrades
+  `ProjectSettings.asset` from serialized version 29 to 28.
+- **`rm -rf unity/LTW.UnityClient/Temp/__Backupscenes` before every batch run.** A leftover
+  backup opens a scene-recovery modal that blocks batchmode forever with a healthy-looking
+  log.
+- **Quit the interactive editor from its menu, not with a kill** — a force-kill is what
+  leaves those backups.
+
 ## Device Validation
 
 - Treat the available iOS devices as the first test matrix.

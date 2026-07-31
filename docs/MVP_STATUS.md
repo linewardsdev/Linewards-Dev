@@ -22,6 +22,26 @@ Latest local result: the full suite passes. (A hardcoded count isn't kept
 here deliberately — three docs have quoted three different stale counts
 before.)
 
+Those three cover the simulation. The renderer and the art assets have their own gates,
+which run headless and exit non-zero, and which the dotnet gates cannot see:
+
+```bash
+Unity -batchmode -quit -nographics -projectPath unity/LTW.UnityClient -executeMethod <method>
+```
+
+- `LTW.UnityClient.Editor.UrpPostProcessingSetup.ValidateProfile`
+- `LTW.UnityClient.Editor.RenderSetupValidation.ValidateRenderSetup`
+- `LTW.UnityClient.Editor.TowerBodyMaterialTuning.ValidateTuning`
+- `LTW.UnityClient.Editor.CreepBodyMaterialTuning.ValidateTuning`
+- `LTW.UnityClient.Editor.QualityTierSetup.ValidateTierAssets`
+- `python3 tools/art_pipeline/audit_intake_scores.py`
+- `python3 tools/art_pipeline/validate_role_coverage.py`
+
+What each one asserts, and why it exists, is in
+[Render and art validation](RENDER_AND_ART_VALIDATION.md). Every one of them was added
+after a defect that produced no error and no warning — a wrong render setting is invisible
+in a screenshot until someone compares against a much older build.
+
 Unity compile smoke also passes locally when `LTW.Simulation.dll` is built and copied to
 `unity/LTW.UnityClient/Assets/Plugins`. The latest batch Play Mode evidence run loaded
 `Assets/Scenes/LocalVerticalSlice.unity`, created the local match runtime objects, completed a

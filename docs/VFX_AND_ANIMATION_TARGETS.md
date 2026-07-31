@@ -2,9 +2,85 @@
 
 ## Purpose
 
-This is the Agent 2 handoff spec for replacing runtime primitive cues with authored Line Wards VFX prefabs and simple animation clips.
+Originally the handoff spec for replacing runtime primitive cues with authored VFX prefabs
+and animation clips. **The VFX half is now built, and not as prefabs** — see "The VFX
+system as built" below before treating the prefab table as a target.
 
-## Required VFX Prefabs
+## The VFX system as built (2026-07-31)
+
+Implemented in `Assets/Scripts/Simulation/LTWParticleBurst.cs` and
+`Assets/Resources/Shaders/LTWParticleAdditive.shader`, driven from
+`UnityVerticalSliceRenderer.SpawnEffect`.
+
+### Why the prefab table below was never buildable
+
+`com.unity.modules.particlesystem` was **not in the package manifest**, so `ParticleSystem`
+did not exist as a type in this project. The fourteen prefabs named below could not have
+been authored by anyone; the first attempt to write one produced a compile error, not a
+blank file. The module is now a declared dependency. Note the manifest is deliberately slim
+— only two non-URP entries — so adding a built-in module is a deliberate act, not a default.
+
+### The shape of it
+
+Effects are **code, not prefab assets**, for the same reason the rest of this renderer is:
+they have to stay in step with role colours, damage values and pooling that live in code,
+and a prefab set would be a second copy of those decisions that drifts. It also keeps the
+whole system diff-reviewable, which fourteen binary prefabs would not be.
+
+Every effect routes through one method, `SpawnEffect(position, colour, scale, duration,
+shape, direction)`, so the twenty-odd call sites — build, sell, spawn, hit, kill, leak,
+income, elimination, muzzle flash, mortar impact — all upgraded together and kept their
+already-tuned scales and durations.
+
+Four **burst shapes**, chosen by what an event *is* rather than by who raises it:
+
+| Shape | Used for | Behaviour |
+| --- | --- | --- |
+| `Impact` | hits, kills, generic impacts | omnidirectional spark burst |
+| `Rise` | spawns, income, build confirmation | upward drift with lateral spread |
+| `Sweep` | leaks, eliminations | flat across the board plane — these are ground events, and vertical spray at this camera angle reads as an explosion above the lane |
+| `Muzzle` | Arrow and Relay firing | tight, short, biased along the actual firing direction |
+
+### One shared emitter per shape, not one per burst
+
+This is the whole design and it was arrived at by measurement, not preference.
+
+Pooling an emitter per effect — the way this renderer pools everything else — was built
+first and measured: **peak active presentation objects went 2,769 → 6,082** on the same
+seed, because an emitter must be held past its own particles before it can be recycled and
+most effects here are very short (a muzzle flash is 0.08s). Trimming the hold from 0.25s to
+0.06s only reached 4,440. The cost was structural, not a tuning error.
+
+Four long-lived world-space systems remove it instead: four GameObjects exist for the whole
+match however many effects fire, and an effect costs particles rather than GameObjects.
+**Measured at 2,118 — below the 2,769 pre-VFX baseline**, because the old per-effect spheres
+are gone entirely.
+
+It works because tint travels per particle in `startColor`, and the colour-over-lifetime
+gradient is a white alpha envelope that multiplies it. One material serves every colour in
+the game.
+
+### Two values that came from captures rather than taste
+
+- **Peak alpha is 0.62, not 1.0.** Blending is additive, so a dozen overlapping particles at
+  full alpha sum well past 1.0 and clip to white — which discards the role colour that is the
+  entire point of tinting them, and then bloom amplifies the clipped white. The first capture
+  showed exactly that.
+- **Particles are scattered wider than they are large.** Sparks bigger than their own spread
+  cannot read as separate objects at any alpha; they are one shape with a lumpy edge.
+
+### Not yet done
+
+Particles are additive sprites with procedural round falloff and no texture. There are still
+no trails, no ribbons, no decals, and death remains instantaneous — a creep pops out of
+existence rather than collapsing, which needs the pooling lifecycle in `ReleaseMissingCreeps`
+to keep a dying object alive past the simulation's view of it.
+
+## Superseded: the original prefab table
+
+Kept for the gameplay-read column, which is still the design intent each effect serves. The
+prefab names are **not** targets any more — the events below are covered by the shape system
+above.
 
 | Event | Prefab Target | Gameplay Read |
 | --- | --- | --- |
