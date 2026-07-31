@@ -723,6 +723,23 @@ namespace LTW.UnityClient.Editor
             return ConfigureBodyMaterial(material, color, mainTexture, preserveAlpha);
         }
 
+        /// <summary>
+        /// A tower BODY is solid geometry and should be opaque. preserveAlpha exists for the rare
+        /// body that genuinely needs to be see-through, and is off for every shipped tower.
+        /// </summary>
+        /// <remarks>
+        /// Every spec passed true here, which made each newly-created body material Transparent:
+        /// render queue 3000, _ZWrite off, alpha blended. For solid stone and metal towers that is
+        /// wrong three ways — they cannot write depth, so they sort against each other and against
+        /// creeps by object rather than by pixel; they pay transparent-queue overdraw on a mobile
+        /// target; and nothing about them is actually translucent.
+        ///
+        /// It went unnoticed because CreateBodyMaterial returns an EXISTING material untouched (body
+        /// colour and emission are hand-tuned after creation), so the five original towers kept the
+        /// opaque state they were first authored with and only the ten added later were born
+        /// transparent. The two groups then disagreed silently, which is also why regenerating any
+        /// one tower kept rewriting the others' materials and producing churn in every commit.
+        /// </remarks>
         private static Material ConfigureBodyMaterial(Material material, Color color, Texture mainTexture, bool preserveAlpha) =>
             preserveAlpha
                 ? ConfigureTransparentMaterial(material, color, mainTexture)

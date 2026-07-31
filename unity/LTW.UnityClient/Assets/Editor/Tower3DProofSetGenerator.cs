@@ -27,7 +27,7 @@ namespace LTW.UnityClient.Editor
                 Quaternion.identity,
                 Vector3.zero,
                 Vector3.one,
-                true,
+                false,
                 true,
                 false),
             new(
@@ -44,7 +44,7 @@ namespace LTW.UnityClient.Editor
                 Quaternion.identity,
                 Vector3.zero,
                 Vector3.one,
-                true,
+                false,
                 true,
                 false),
             new(
@@ -61,7 +61,7 @@ namespace LTW.UnityClient.Editor
                 Quaternion.identity,
                 Vector3.zero,
                 Vector3.one,
-                true,
+                false,
                 true,
                 false),
             new(
@@ -78,7 +78,7 @@ namespace LTW.UnityClient.Editor
                 Quaternion.identity,
                 Vector3.zero,
                 Vector3.one,
-                true,
+                false,
                 true,
                 false),
             new(
@@ -95,7 +95,7 @@ namespace LTW.UnityClient.Editor
                 Quaternion.identity,
                 Vector3.zero,
                 Vector3.one,
-                true,
+                false,
                 true,
                 false),
 
@@ -124,7 +124,7 @@ namespace LTW.UnityClient.Editor
                 Quaternion.identity,
                 Vector3.zero,
                 Vector3.one,
-                true,
+                false,
                 true,
                 false),
 
@@ -142,7 +142,7 @@ namespace LTW.UnityClient.Editor
                 Quaternion.identity,
                 Vector3.zero,
                 Vector3.one,
-                true,
+                false,
                 true,
                 false),
 
@@ -160,7 +160,7 @@ namespace LTW.UnityClient.Editor
                 Quaternion.identity,
                 Vector3.zero,
                 Vector3.one,
-                true,
+                false,
                 true,
                 false),
 
@@ -178,7 +178,7 @@ namespace LTW.UnityClient.Editor
                 Quaternion.identity,
                 Vector3.zero,
                 Vector3.one,
-                true,
+                false,
                 true,
                 false),
 
@@ -196,7 +196,7 @@ namespace LTW.UnityClient.Editor
                 Quaternion.identity,
                 Vector3.zero,
                 Vector3.one,
-                true,
+                false,
                 true,
                 false),
 
@@ -214,7 +214,7 @@ namespace LTW.UnityClient.Editor
                 Quaternion.identity,
                 Vector3.zero,
                 Vector3.one,
-                true,
+                false,
                 true,
                 false),
 
@@ -232,7 +232,7 @@ namespace LTW.UnityClient.Editor
                 Quaternion.identity,
                 Vector3.zero,
                 Vector3.one,
-                true,
+                false,
                 true,
                 false),
 
@@ -250,7 +250,7 @@ namespace LTW.UnityClient.Editor
                 Quaternion.identity,
                 Vector3.zero,
                 Vector3.one,
-                true,
+                false,
                 true,
                 false),
 
@@ -268,7 +268,7 @@ namespace LTW.UnityClient.Editor
                 Quaternion.identity,
                 Vector3.zero,
                 Vector3.one,
-                true,
+                false,
                 true,
                 false),
 
@@ -286,7 +286,7 @@ namespace LTW.UnityClient.Editor
                 Quaternion.identity,
                 Vector3.zero,
                 Vector3.one,
-                true,
+                false,
                 true,
                 false)
         };
