@@ -4042,8 +4042,10 @@ namespace LTW.UnityClient.Simulation
                 // A coil under load. Fast shallow pulse reads as electrical rather than breathing.
                 // The lightest kick of any tower that has one: an arc discharge has no projectile
                 // mass behind it, so what little movement there is comes from the coil, not a barrel.
+                // Yaw locked: a tiered masonry pagoda cannot swivel on its foundations, and Chain Arc
+                // leaps between creeps rather than firing along a line, so it has nothing to point.
                 case TowerVisualRole.Tesla:
-                    return new TowerMotionProfile(3.2f, 0.014f, sharpness: 2f, recoilScale: 0.35f);
+                    return new TowerMotionProfile(3.2f, 0.014f, sharpness: 2f, locksYaw: true, suppressRecoil: false, recoilScale: 0.35f);
 
                 // A furnace. Slow heavy peaked pulse, like a bellows. Yaw locked: it fires upward
                 // out of its stacks, so it has no facing to turn toward a target.
@@ -4069,33 +4071,43 @@ namespace LTW.UnityClient.Simulation
                 // sliding around inside its cell rather than as flight. Drift removed and the pulse
                 // cut to a faint idle, near Barricade's deliberately-inert level. The thing that
                 // should look airborne is the servicing tether it projects, not the building.
+                // Yaw locked: a pillar bolted to a plinth cannot rotate, and what it actually projects is
+                // a servicing tether to a neighbour, not a shot at a creep.
                 case TowerVisualRole.RepairDrone:
-                    return new TowerMotionProfile(1.2f, 0.008f, recoilScale: 0.5f);
+                    return new TowerMotionProfile(1.2f, 0.008f, locksYaw: true, suppressRecoil: false, recoilScale: 0.5f);
 
                 // --- Grove line ---------------------------------------------------------------
                 // Living things: slower and larger than the machines, with real sway.
                 // A huge canopy. Slow, wide sway — the only tower whose drift is meant to read
                 // from across the board.
+                // Yaw locked: a rooted tree does not pivot to face anything. The widest sway in the roster
+                // now carries it alone instead of competing with a rotation.
                 case TowerVisualRole.ElderCanopy:
-                    return new TowerMotionProfile(0.6f, 0.03f, driftHz: 0.4f, driftAmp: 0.055f, recoilScale: 0.9f);
+                    return new TowerMotionProfile(0.6f, 0.03f, driftHz: 0.4f, driftAmp: 0.055f, locksYaw: true, suppressRecoil: false, recoilScale: 0.9f);
 
                 // Small and eager. Quicker and springier than its elders.
+                // Yaw locked, same reason as its elder. The quick springy sway is the whole read.
                 case TowerVisualRole.Sapling:
-                    return new TowerMotionProfile(2.0f, 0.028f, driftHz: 1.2f, driftAmp: 0.03f, recoilScale: 0.5f);
+                    return new TowerMotionProfile(2.0f, 0.028f, driftHz: 1.2f, driftAmp: 0.03f, locksYaw: true, suppressRecoil: false, recoilScale: 0.5f);
 
                 // A flower. Slow open-and-close bloom, peaked so it reads as breathing.
+                // Yaw locked: a flower on a stalk. The peaked open-and-close pulse already names the tower.
                 case TowerVisualRole.Bloomheart:
-                    return new TowerMotionProfile(0.9f, 0.035f, sharpness: 2f, driftHz: 0.5f, driftAmp: 0.02f, recoilScale: 0.6f);
+                    return new TowerMotionProfile(0.9f, 0.035f, sharpness: 2f, driftHz: 0.5f, driftAmp: 0.02f, locksYaw: true, suppressRecoil: false, recoilScale: 0.6f);
 
                 // Coiled and tense. Very little motion until it strikes, so almost static — which is
                 // exactly why the strike itself is one of the hardest kicks here. A snare whose whole
                 // character is stored tension needs the release to land.
+                // Yaw locked: a snare waits. One that turns to watch a creep approach is not a trap.
+                // suppressRecoil is explicitly false so locking yaw does not also remove the snap —
+                // stillness THEN a hard snap is the entire characterisation.
                 case TowerVisualRole.ThornSnare:
-                    return new TowerMotionProfile(0.5f, 0.008f, recoilScale: 1.4f);
+                    return new TowerMotionProfile(0.5f, 0.008f, locksYaw: true, suppressRecoil: false, recoilScale: 1.4f);
 
                 // A fungal bloom venting spores. Slow swell with a lazy drift.
+                // Yaw locked: a cloud has no facing, which its own name says.
                 case TowerVisualRole.SporeCloud:
-                    return new TowerMotionProfile(0.7f, 0.032f, sharpness: 1.6f, driftHz: 0.35f, driftAmp: 0.035f, recoilScale: 0.4f);
+                    return new TowerMotionProfile(0.7f, 0.032f, sharpness: 1.6f, driftHz: 0.35f, driftAmp: 0.035f, locksYaw: true, suppressRecoil: false, recoilScale: 0.4f);
 
                 default:
                     return new TowerMotionProfile(1.3f, 0.02f);
