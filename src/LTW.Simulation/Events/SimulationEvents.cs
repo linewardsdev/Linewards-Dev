@@ -121,6 +121,40 @@ public sealed class CategoryTierPurchasedEvent : ISimulationEvent
     public Gold Cost { get; }
 }
 
+/// <summary>
+/// One placed tower was raised a tier.
+/// </summary>
+public sealed class TowerUpgradedEvent : ISimulationEvent
+{
+    public TowerUpgradedEvent(SimulationTick tick, PlayerId playerId, LaneId laneId, EntityId towerEntityId, ContentId towerId, GridPosition position, int tier, Gold cost)
+    {
+        Tick = tick;
+        PlayerId = playerId;
+        LaneId = laneId;
+        TowerEntityId = towerEntityId;
+        TowerId = towerId;
+        Position = position;
+        Tier = tier;
+        Cost = cost;
+    }
+
+    public SimulationTick Tick { get; }
+
+    public PlayerId PlayerId { get; }
+
+    public LaneId LaneId { get; }
+
+    public EntityId TowerEntityId { get; }
+
+    public ContentId TowerId { get; }
+
+    public GridPosition Position { get; }
+
+    public int Tier { get; }
+
+    public Gold Cost { get; }
+}
+
 public sealed class CreepQueuedEvent : ISimulationEvent
 {
     public CreepQueuedEvent(SimulationTick tick, PlayerId senderId, PlayerId defenderId, ContentId creepId, int quantity)

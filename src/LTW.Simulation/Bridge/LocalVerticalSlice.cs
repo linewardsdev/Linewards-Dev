@@ -161,9 +161,13 @@ public sealed class LocalVerticalSlice
         grids[laneId] = grid.WithOccupied(position);
         routes[laneId] = placement.Route;
         players = players.Replace(player.WithGold(new Gold(player.Gold.Amount - tower.Cost.Amount)));
+        // The owner's line tier is baked in HERE, at build time. A tier bought later raises what
+        // new towers are built at and leaves this one where it is until it is paid for
+        // individually — see UpgradeTower.
+        var builtTier = player.TowerLineTier(tower.CategoryIndex);
         combatState = new CombatState(
             combatState.Creeps,
-            combatState.Towers.Concat(new[] { new TowerCombatState(towerEntityId, towerId, playerId, laneId, position) }));
+            combatState.Towers.Concat(new[] { new TowerCombatState(towerEntityId, towerId, playerId, laneId, position, builtTier) }));
         pendingEvents.Add(new TowerPlacedEvent(tick, playerId, laneId, towerEntityId, towerId, position));
         return VerticalSliceCommandResult.Accept();
     }
@@ -350,6 +354,66 @@ public sealed class LocalVerticalSlice
     }
 
     /// <summary>
+    /// Raises one placed tower by a tier, for gold.
+    /// </summary>
+    /// <remarks>
+    /// The counterpart to a line tier. Buying ARCANE tier 2 raises what new Arrows are built at;
+    /// this is how the Arrows already standing catch up, one at a time and one payment each. That
+    /// is the decision the feature exists to create — upgrade the twelve towers already on the
+    /// board, or spend the same gold building new ones that arrive at the higher tier already.
+    ///
+    /// The owner's line tier is the CEILING, so the category purchase stays the thing that unlocks
+    /// progression and this stays the thing that realises it. A tower at the ceiling reports
+    /// InvalidTier rather than silently taking the gold.
+    /// </remarks>
+    public VerticalSliceCommandResult UpgradeTower(PlayerId playerId, LaneId laneId, GridPosition position)
+    {
+        var tower = combatState.Towers.FirstOrDefault(candidate =>
+            candidate.OwnerId.Equals(playerId) && candidate.LaneId.Equals(laneId) && candidate.Position.Equals(position));
+        if (tower is null)
+        {
+            return VerticalSliceCommandResult.Reject(CommandRejectionReason.NotOwner);
+        }
+
+        var player = players.Get(playerId);
+        if (player.IsEliminated)
+        {
+            return VerticalSliceCommandResult.Reject(CommandRejectionReason.PlayerEliminated);
+        }
+
+        var definition = content.Towers.First(candidate => candidate.Id.Equals(tower.TowerId));
+        var ceiling = player.TowerLineTier(definition.CategoryIndex);
+        if (tower.Tier >= ceiling || tower.Tier >= CategoryTierRules.MaxTier)
+        {
+            return VerticalSliceCommandResult.Reject(CommandRejectionReason.InvalidTier);
+        }
+
+        var cost = CategoryTierRules.TowerUpgradeCost(definition.Cost.Amount);
+        if (player.Gold.Amount < cost)
+        {
+            return VerticalSliceCommandResult.Reject(CommandRejectionReason.InsufficientGold);
+        }
+
+        players = players.Replace(player.WithGold(new Gold(player.Gold.Amount - cost)));
+        var upgraded = tower.WithTier(tower.Tier + 1);
+        combatState = combatState.ReplaceTower(upgraded);
+        pendingEvents.Add(new TowerUpgradedEvent(tick, playerId, laneId, tower.EntityId, tower.TowerId, position, upgraded.Tier, new Gold(cost)));
+        return VerticalSliceCommandResult.Accept();
+    }
+
+    /// <summary>
+    /// Gold to raise the tower at this cell, or 0 when there is nothing there to raise.
+    /// </summary>
+    public int TowerUpgradeCostAt(PlayerId playerId, LaneId laneId, GridPosition position)
+    {
+        var tower = combatState.Towers.FirstOrDefault(candidate =>
+            candidate.OwnerId.Equals(playerId) && candidate.LaneId.Equals(laneId) && candidate.Position.Equals(position));
+        return tower is null
+            ? 0
+            : CategoryTierRules.TowerUpgradeCost(content.Towers.First(candidate => candidate.Id.Equals(tower.TowerId)).Cost.Amount);
+    }
+
+    /// <summary>
     /// Every player's category tiers, in the form combat reads them.
     /// </summary>
     private IReadOnlyDictionary<PlayerId, PlayerCategoryTiers> CurrentPlayerTiers()
@@ -435,6 +499,7 @@ public sealed class LocalVerticalSlice
 
             TryPlaceBotTower(bot.Key, bot.Value);
             TryBuyBotTier(bot.Key, bot.Value);
+            TryUpgradeBotTower(bot.Key, bot.Value);
         }
 
         tick = new SimulationTick(tick.Value + 1);
@@ -719,6 +784,52 @@ public sealed class LocalVerticalSlice
         }
 
         BuyCategoryTier(playerId, kind, categoryIndex, targetTier);
+    }
+
+    /// <summary>
+    /// Brings one of a bot's placed towers up to the line tier it has already bought.
+    /// </summary>
+    /// <remarks>
+    /// Without this a bot buys a line tier and never realises it: the tier only reaches towers
+    /// built afterwards, so a bot that has finished building would carry a tier it paid for and
+    /// gets nothing from. That would make the tier a pure waste of its gold and the bot a weaker
+    /// opponent than before the feature existed.
+    ///
+    /// Upgrades the LOWEST-tier tower first, so a bot levels its whole line evenly rather than
+    /// pouring everything into one tower — and ties break on entity id so the choice stays
+    /// deterministic for replays. Gated on the profile's gold reserve floor exactly as building
+    /// and tier-buying are, and runs after both, so upgrades come from what is genuinely spare.
+    /// </remarks>
+    private void TryUpgradeBotTower(PlayerId playerId, BotController bot)
+    {
+        var player = players.Get(playerId);
+        if (player.IsEliminated)
+        {
+            return;
+        }
+
+        var laneId = topology.HomeLaneFor(playerId);
+        var candidate = combatState.Towers
+            .Where(tower => tower.OwnerId.Equals(playerId) && tower.LaneId.Equals(laneId))
+            .Where(tower => tower.Tier < CategoryTierRules.MaxTier)
+            .Where(tower => tower.Tier < player.TowerLineTier(
+                content.Towers.First(definition => definition.Id.Equals(tower.TowerId)).CategoryIndex))
+            .OrderBy(tower => tower.Tier)
+            .ThenBy(tower => tower.EntityId.Value)
+            .FirstOrDefault();
+        if (candidate is null)
+        {
+            return;
+        }
+
+        var cost = CategoryTierRules.TowerUpgradeCost(
+            content.Towers.First(definition => definition.Id.Equals(candidate.TowerId)).Cost.Amount);
+        if (player.Gold.Amount - bot.GoldReserveFloor(content) < cost)
+        {
+            return;
+        }
+
+        UpgradeTower(playerId, laneId, candidate.Position);
     }
 
     /// <summary>

@@ -428,7 +428,7 @@ public sealed class CombatService
             // tower that matched both the pulse and sapling role tokens could not have its splash
             // inflated by Grovebond. That still holds — splash reads baseDamage, not shotDamage — but it
             // now goes through the seam, so a tier multiplier applied to baseDamage reaches it.
-            var baseDamage = BaseDamageFor(content, tower, towerDefinition);
+            var baseDamage = BaseDamageFor(tower, towerDefinition);
 
             var shotDamage = baseDamage;
             if (IsSaplingTower(tower.TowerId))
@@ -699,7 +699,7 @@ public sealed class CombatService
                 // reaches artillery too. This was the third site reading the authored damage directly,
                 // after Pulse's splash and Chain Arc, and the easiest to miss because it resolves in a
                 // different phase where baseDamage is not in scope.
-                next = DamageCreep(next, content, tower, creep, BaseDamageFor(content, tower, towerDefinition), tick, events);
+                next = DamageCreep(next, content, tower, creep, BaseDamageFor(tower, towerDefinition), tick, events);
             }
         }
 
@@ -1001,15 +1001,17 @@ public sealed class CombatService
     /// which were originally found only by grepping for the raw Damage field after the first two
     /// were fixed. That is now cashed in: the tier arrives here and nowhere else.
     ///
-    /// Unlike creep health, this applies at SHOT time rather than at build time, and the asymmetry
-    /// is deliberate. A tower line is an ongoing investment, so buying a tier should improve the
-    /// towers already standing — otherwise the only way to benefit would be to sell and rebuild.
+    /// Reads the TOWER's own tier, not its owner's current line tier. Buying a line tier raises the
+    /// tier new towers are built at and does nothing for the ones already standing; bringing an
+    /// existing tower up costs gold, one tower at a time. Reading the owner's tier here instead
+    /// would hand every placed tower the upgrade for free and delete that decision.
+    ///
+    /// This mirrors how creep health already works — baked in when the unit is paid for — so both
+    /// sides of the roster now behave the same way: an upgrade applies to what you buy next, not
+    /// retroactively to what you already own.
     /// </remarks>
-    private static int BaseDamageFor(CombatContent content, TowerCombatState tower, TowerDefinition towerDefinition)
-    {
-        var tier = content.TowerLineTierFor(tower.OwnerId, towerDefinition.CategoryIndex);
-        return CategoryTierRules.Scale(towerDefinition.Damage, CategoryTierRules.TowerDamagePercentFor(tier));
-    }
+    private static int BaseDamageFor(TowerCombatState tower, TowerDefinition towerDefinition) =>
+        CategoryTierRules.Scale(towerDefinition.Damage, CategoryTierRules.TowerDamagePercentFor(tower.Tier));
 
     private static bool IsPulseTower(ContentId towerId) => ContainsRole(towerId, "pulse");
 

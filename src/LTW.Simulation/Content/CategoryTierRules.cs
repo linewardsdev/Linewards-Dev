@@ -16,19 +16,20 @@ namespace LTW.Simulation.Content;
 /// Percentages are integers applied as <c>value * percent / 100</c>, so the arithmetic stays exact
 /// and deterministic. No floats reach a damage or health number.
 ///
-/// The starting numbers come from docs/CATEGORY_UPGRADE_TIERS_PLAN.md. That doc calibrated the
-/// creep/tower gap (225 vs 190 at the top) to let attack out-scale defence and break a permanent
-/// bot stalemate — which was later found to be a bug in the bots' own pressure check, not a
-/// balance property, and fixed. The gap is kept for now because a category you have invested two
-/// purchases in should out-trade one you have not, but it is a starting point to be measured, not
-/// a derived result. See GD_TUNING_LOG.md.
+/// The numbers are the design doc's original 140/190 and 150/225. They were cut to 115/130 while
+/// a line tier applied to every tower at once, because at 190% two bot defences could no longer
+/// finish a match. Making the tier per-tower — bought once per tower rather than once per line —
+/// removed that cliff: at 140/190 every lane count now completes, and the 3-lane match moves only
+/// from 3290 to 3406 ticks. Paying for each tower is what makes the designed numbers safe, because
+/// the upgrade arrives gradually instead of transforming a whole line the moment it is bought.
+/// See GD_TUNING_LOG.md.
 /// </remarks>
 public static class CategoryTierRules
 {
     public const int MaxTier = 3;
 
     // Index by tier: [unused, tier 1, tier 2, tier 3].
-    private static readonly int[] TowerDamagePercent = { 0, 100, 115, 130 };
+    private static readonly int[] TowerDamagePercent = { 0, 100, 140, 190 };
     private static readonly int[] CreepHealthPercent = { 0, 100, 150, 225 };
 
     // Cost to REACH the tier at that index. Tier 1 is free and default, so it costs nothing.
@@ -58,6 +59,23 @@ public static class CategoryTierRules
     }
 
     /// <summary>
+    /// Share of a tower's build cost charged to raise that one tower by a tier.
+    /// </summary>
+    /// <remarks>
+    /// A share rather than a flat number so it scales across a roster spanning 10 to 52 gold
+    /// without a second per-tower table: upgrading a Sapling stays cheap and upgrading a Foundry
+    /// Core stays a commitment. Below 100% on purpose — at full price, selling and rebuilding at
+    /// the higher tier would always match it and the button would have no reason to exist.
+    /// </remarks>
+    private const int TowerUpgradePercentOfCost = 60;
+
+    /// <summary>
+    /// Gold to raise one placed tower by a tier.
+    /// </summary>
+    public static int TowerUpgradeCost(int towerBuildCost) =>
+        Math.Max(1, towerBuildCost * TowerUpgradePercentOfCost / 100);
+
+    /// <summary>
     /// Scales an authored value by an integer percent, rounding to NEAREST, never below 1.
     /// </summary>
     /// <remarks>
@@ -73,9 +91,10 @@ public static class CategoryTierRules
     ///   nearest  — tier 2 improves 9 of 15, tier 3 improves 13 of those again, and every tower on
     ///              the roster is better at tier 3 than at tier 1. Chosen.
     ///
-    /// A 2-damage tower still gains nothing at tier 2 and +1 at tier 3. That is the floor of what
-    /// integers can express at this multiplier, and raising the multiplier is not available —
-    /// tower scaling above 130% is exactly what stops matches ending. See GD_TUNING_LOG.md.
+    /// The measurements above were taken at 115/130, when the multiplier was capped by the
+    /// stalemate. At the restored 140/190 truncation would hurt less, but nearest is kept: it is
+    /// the rule that guarantees every tower on the roster gains at every tier rather than only the
+    /// ones whose authored damage happens to divide well.
     ///
     /// The floor of 1 additionally stops a future sub-100% tier rounding a 1-damage tower to zero.
     /// </remarks>

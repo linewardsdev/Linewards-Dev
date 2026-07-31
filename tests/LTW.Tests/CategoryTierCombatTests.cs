@@ -30,29 +30,19 @@ public sealed class CategoryTierCombatTests
     /// <summary>
     /// Total damage one tower deals to one creep over a fixed window, at a given tower-line tier.
     /// </summary>
-    private static int DamageOverWindow(string towerId, string creepId, int towerLineTier)
+    private static int DamageOverWindow(string towerId, string creepId, int towerTier)
     {
         var catalog = SampleVerticalSliceContent.Create();
         var tower = catalog.Towers.Single(definition => definition.Id.Value == towerId);
         var creep = catalog.Creeps.Single(definition => definition.Id.Value == creepId);
         var service = new CombatService();
 
-        var tiers = new int[PlayerEconomyState.CategoryCount];
-        for (var index = 0; index < tiers.Length; index++)
-        {
-            tiers[index] = PlayerEconomyState.BaseTier;
-        }
-
-        tiers[tower.CategoryIndex] = towerLineTier;
-
+        // The tier goes on the TOWER, not on its owner. Damage reads the tower's own tier now,
+        // because buying a line tier deliberately does nothing for towers already standing.
         var content = new CombatContent(
-                catalog.Creeps,
-                catalog.Towers,
-                new System.Collections.Generic.Dictionary<LaneId, PlayerId> { [Lane] = Defender })
-            .WithPlayerTiers(new System.Collections.Generic.Dictionary<PlayerId, PlayerCategoryTiers>
-            {
-                [Defender] = new PlayerCategoryTiers(Defender, tiers, tiers)
-            });
+            catalog.Creeps,
+            catalog.Towers,
+            new System.Collections.Generic.Dictionary<LaneId, PlayerId> { [Lane] = Defender });
 
         var route = Enumerable.Range(0, 40).Select(step => new GridPosition(3, step)).ToArray();
         var routes = new System.Collections.Generic.Dictionary<LaneId, System.Collections.Generic.IReadOnlyList<GridPosition>>
@@ -62,7 +52,7 @@ public sealed class CategoryTierCombatTests
 
         var state = new CombatState(
             new[] { service.SpawnCreep(new EntityId(1), creep, Attacker, Lane) },
-            new[] { new TowerCombatState(new EntityId(100), tower.Id, Defender, Lane, new GridPosition(2, 2)) });
+            new[] { new TowerCombatState(new EntityId(100), tower.Id, Defender, Lane, new GridPosition(2, 2), towerTier) });
 
         var dealt = 0;
         for (var tick = 1; tick <= 60; tick++)
@@ -112,26 +102,47 @@ public sealed class CategoryTierCombatTests
     }
 
     /// <summary>
-    /// A tower line is an ongoing investment, so a tier must improve the towers already standing —
-    /// otherwise the only way to benefit would be to sell and rebuild everything.
+    /// A line tier does NOT improve towers already standing — that is what the per-tower upgrade
+    /// is for.
     /// </summary>
+    /// <remarks>
+    /// This asserts the OPPOSITE of what an earlier version of this feature did. Applying the line
+    /// tier at shot time handed every placed tower the upgrade for free the instant the line was
+    /// bought, which deletes the decision the feature exists to create: bring the towers you
+    /// already have up one at a time, or spend the same gold on new ones that arrive upgraded.
+    /// </remarks>
     [Fact]
-    public void A_tower_tier_improves_towers_that_were_already_built()
+    public void A_line_tier_leaves_towers_already_built_at_the_tier_they_were_built_at()
     {
         var slice = new LocalVerticalSlice(SampleVerticalSliceContent.Create(), new LocalMatchOptions(seed: 1, laneCount: 3), enableBots: false);
         slice.GrantLocalPlaytestGold(new PlayerId(1), new Gold(5000));
 
-        // Build FIRST, upgrade after.
+        // Build FIRST, buy the line tier after.
         Assert.True(slice.PlaceTower(new PlayerId(1), new LaneId(1), SampleVerticalSliceContent.TowerId, new GridPosition(2, 4)).Accepted);
-        var towerBefore = slice.GetSnapshot().Towers.Single();
+        var before = slice.GetSnapshot().Towers.Single();
+        Assert.Equal(1, before.Tier);
 
         Assert.True(slice.BuyCategoryTier(new PlayerId(1), CategoryKind.TowerLine, Arcane, 2).Accepted);
 
-        // Same tower entity, still standing — the upgrade applies to it rather than to some future
-        // replacement.
-        var towerAfter = slice.GetSnapshot().Towers.Single();
-        Assert.Equal(towerBefore.EntityId.Value, towerAfter.EntityId.Value);
+        var after = slice.GetSnapshot().Towers.Single();
+        Assert.Equal(before.EntityId.Value, after.EntityId.Value);
+        Assert.Equal(1, after.Tier);
         Assert.Equal(2, slice.GetSnapshot().Players.Get(new PlayerId(1)).TowerLineTier(Arcane));
+    }
+
+    /// <summary>
+    /// A tower built AFTER the line tier arrives already upgraded.
+    /// </summary>
+    [Fact]
+    public void A_tower_built_after_a_line_tier_starts_at_that_tier()
+    {
+        var slice = new LocalVerticalSlice(SampleVerticalSliceContent.Create(), new LocalMatchOptions(seed: 1, laneCount: 3), enableBots: false);
+        slice.GrantLocalPlaytestGold(new PlayerId(1), new Gold(5000));
+
+        Assert.True(slice.BuyCategoryTier(new PlayerId(1), CategoryKind.TowerLine, Arcane, 2).Accepted);
+        Assert.True(slice.PlaceTower(new PlayerId(1), new LaneId(1), SampleVerticalSliceContent.TowerId, new GridPosition(2, 4)).Accepted);
+
+        Assert.Equal(2, slice.GetSnapshot().Towers.Single().Tier);
     }
 
     /// <summary>

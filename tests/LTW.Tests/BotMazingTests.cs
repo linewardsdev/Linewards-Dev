@@ -150,4 +150,47 @@ public sealed class BotMazingTests
             Assert.True(boughtTower ^ boughtSend, $"P{player.PlayerId.Value} bought on both sides; the profile preference is not being respected");
         }
     }
+
+    /// <summary>
+    /// Bots bring their placed towers up to the line tier they bought.
+    /// </summary>
+    /// <remarks>
+    /// Without this a bot buys a line tier and never realises it: the tier reaches only towers
+    /// built afterwards, so a bot that has finished building would carry an upgrade it paid for and
+    /// gets nothing from — strictly worse than not buying it.
+    ///
+    /// Sampled DURING the match rather than from the final snapshot, and that is not incidental.
+    /// A defeated player's lane is wiped, and the bot that favours tower tiers is often the one
+    /// that loses, so the end-of-match snapshot showed zero upgraded towers while the peak during
+    /// play was 35 — a measurement that would have reported this feature as completely dead.
+    /// </remarks>
+    [Fact]
+    public void Bots_upgrade_the_towers_they_have_already_built()
+    {
+        var slice = new LocalVerticalSlice(SampleVerticalSliceContent.Create(), ThreeLanes());
+
+        var peakTier = 1;
+        var peakUpgraded = 0;
+        for (var tick = 0; tick < 2400; tick++)
+        {
+            slice.AdvanceOneTick();
+            if (tick % 25 != 0)
+            {
+                continue;
+            }
+
+            var towers = slice.GetSnapshot().Towers;
+            if (towers.Count == 0)
+            {
+                continue;
+            }
+
+            peakTier = System.Math.Max(peakTier, towers.Max(tower => tower.Tier));
+            peakUpgraded = System.Math.Max(peakUpgraded, towers.Count(tower => tower.Tier > 1));
+        }
+
+        output.WriteLine($"peak tower tier {peakTier}, peak upgraded towers {peakUpgraded}");
+        Assert.True(peakTier > 1, "no bot ever raised a tower above tier 1, so bots never realise the line tiers they buy");
+        Assert.True(peakUpgraded > 1, $"only {peakUpgraded} tower(s) were ever upgraded; bots should level a line, not a single tower");
+    }
 }
