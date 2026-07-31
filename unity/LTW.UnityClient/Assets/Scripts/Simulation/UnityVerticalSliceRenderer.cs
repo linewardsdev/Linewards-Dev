@@ -627,7 +627,7 @@ namespace LTW.UnityClient.Simulation
                 var visualProfile = towerVisualLibrary != null ? towerVisualLibrary.FindProfile(tower.TowerId.Value) : null;
                 var towerObject = GetOrCreateTower(key, visualProfile);
                 SetTowerTransform(towerObject, tower.Position, tower.LaneId, tower.TowerId.Value, visualProfile);
-                ApplyTowerColor(towerObject, tower.TowerId.Value, tower.OwnerId.Value, visualProfile);
+                ApplyTowerColor(towerObject, tower.TowerId.Value, tower.OwnerId.Value, visualProfile, tower.Tier);
 
                 UpdateTowerMechanicMarker(key, tower.TowerId.Value, tower.Position, tower.LaneId, snapshot);
                 UpdateTowerServicingTether(key, tower, snapshot);
@@ -4517,9 +4517,38 @@ namespace LTW.UnityClient.Simulation
             return OwnerAccent(ownerId);
         }
 
-        private static void ApplyTowerColor(GameObject towerObject, string towerId, int ownerId, TowerVisualProfile visualProfile)
+        /// <summary>
+        /// Brightness applied to a tower's role marker for each tier it has been upgraded to.
+        /// </summary>
+        /// <remarks>
+        /// An upgraded tower was otherwise pixel-identical to a fresh one, so a player who had
+        /// spent gold levelling eight towers had no way to see which eight without tapping each in
+        /// turn. Same defect the Repair Drone's buff had before it got a tether: a mechanic you
+        /// cannot see is a spreadsheet.
+        ///
+        /// The role marker carries it rather than the body, because the marker is a small accent
+        /// whose colour is already role-coded — shifting it reads as "this one is hotter" without
+        /// changing silhouette, footprint or the owner trim that identifies whose it is.
+        ///
+        /// KNOWN WEAK, and measured rather than assumed: the marker colour is already saturated at
+        /// tier 1 (HSV value 1.0), so this does not brighten so much as wash toward white, and the
+        /// steps are uneven — RGB delta 0.392 from tier 1 to 2 but only 0.136 from 2 to 3. It is
+        /// therefore a hint, not a readout, and telling tier 2 from tier 3 across a busy board is
+        /// not something it can be relied on for. The authoritative answer is the TIER line on the
+        /// selected-tower panel. A capture at the real game camera could not settle legibility
+        /// either way because the towers sit under their own range halos and role labels, so this
+        /// wants a human look before anything depends on it.
+        /// </remarks>
+        private static float TierMarkerBoost(int tier) => tier switch
         {
-            var roleColor = BoostValue(TowerMarkerColor(towerId), 1.16f);
+            >= 3 => 2.05f,
+            2 => 1.6f,
+            _ => 1.16f
+        };
+
+        private static void ApplyTowerColor(GameObject towerObject, string towerId, int ownerId, TowerVisualProfile visualProfile, int tier)
+        {
+            var roleColor = BoostValue(TowerMarkerColor(towerId), TierMarkerBoost(tier));
             var baseColor = BoostValue(TowerBaseColor(towerId), 1.08f);
             var ownerColor = OwnerAccent(ownerId);
             var rangeColor = DimValue(roleColor, 0.7f);

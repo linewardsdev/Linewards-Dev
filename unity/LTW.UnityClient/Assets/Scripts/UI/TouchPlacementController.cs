@@ -460,11 +460,14 @@ namespace LTW.UnityClient.UI
                 : !canUpgrade ? $"NEED\n{lineLabel} {selectedTower.Tier + 1}"
                 : $"UP {upgradeCost}G";
 
-            var previousEnabled = GUI.enabled;
-            GUI.enabled = affordable;
+            // Pressed even when it cannot succeed, on purpose. RuntimeUiChrome.DrawPanelButton is a
+            // hand-rolled MouseUp check that ignores GUI.enabled entirely, so setting that flag
+            // only greys the colour — the tap lands either way. Rather than swallow it silently,
+            // the command runs and its rejection explains itself ("Upgrade the line first", "Need
+            // more gold"), which is what the send and build cards already do. A tap that appears to
+            // do nothing is the worst of the three options.
             buttonStyle.fontSize = Mathf.RoundToInt((canUpgrade ? 11f : 9f) * scale);
-            if (RuntimeUiChrome.DrawPanelButton(upgradeRect, upgradeLabel, affordable ? MintSignal : DisabledText, scale, buttonStyle)
-                && affordable)
+            if (RuntimeUiChrome.DrawPanelButton(upgradeRect, upgradeLabel, affordable ? MintSignal : DisabledText, scale, buttonStyle))
             {
                 var result = commandAdapter.UpgradeTowerAt(selectedTower.Position.X, selectedTower.Position.Y);
                 if (result.Accepted)
@@ -478,7 +481,6 @@ namespace LTW.UnityClient.UI
                 }
             }
 
-            GUI.enabled = previousEnabled;
             buttonStyle.fontSize = Mathf.RoundToInt(11f * scale);
         }
 

@@ -61,6 +61,9 @@ namespace LTW.UnityClient.Editor
             // A freshly built tower with NO line tier bought - the state every match starts in,
             // and the one where the upgrade control used to vanish entirely.
             ("real-06-selected-tower-no-tier", SelectAFreshTower),
+            // Three Arrows side by side at tiers 1, 2 and 3, so the visual tell can be compared
+            // rather than taken on trust.
+            ("real-07-tier-comparison", ShowTierComparison),
         };
 
         public static void Run()
@@ -216,6 +219,50 @@ namespace LTW.UnityClient.Editor
             if (tower != null)
             {
                 SetPrivate(touch, "selectedTower", tower);
+            }
+        }
+
+        /// <summary>Three otherwise identical Arrows at tier 1, 2 and 3, side by side.</summary>
+        private static void ShowTierComparison()
+        {
+            var touch = Object.FindAnyObjectByType<TouchPlacementController>();
+            var commands = Object.FindAnyObjectByType<UnityCommandAdapter>();
+            if (touch == null || commands == null)
+            {
+                return;
+            }
+
+            SetPrivate(touch, "isPaletteExpanded", false);
+            SetPrivate(touch, "selectedTower", null);
+            var dock = Dock();
+            if (dock != null)
+            {
+                SetPrivate(dock, "isExpanded", false);
+            }
+
+            var field = typeof(UnityCommandAdapter).GetField("simulation", BindingFlags.Instance | BindingFlags.NonPublic);
+            if (field?.GetValue(commands) is not LocalVerticalSlice sim)
+            {
+                return;
+            }
+
+            var lane = sim.LocalPlayerLaneId;
+            var cells = new[] { new GridPosition(1, 7), new GridPosition(2, 7), new GridPosition(4, 7) };
+            foreach (var cell in cells)
+            {
+                sim.PlaceTower(sim.LocalPlayerId, lane, SampleVerticalSliceContent.TowerId, cell);
+            }
+
+            sim.BuyCategoryTier(sim.LocalPlayerId, LTW.Simulation.Commands.CategoryKind.TowerLine, 0, 2);
+            sim.BuyCategoryTier(sim.LocalPlayerId, LTW.Simulation.Commands.CategoryKind.TowerLine, 0, 3);
+            // Leave cells[0] at tier 1, take cells[1] to 2 and cells[2] to 3.
+            sim.UpgradeTower(sim.LocalPlayerId, lane, cells[1]);
+            sim.UpgradeTower(sim.LocalPlayerId, lane, cells[2]);
+            sim.UpgradeTower(sim.LocalPlayerId, lane, cells[2]);
+
+            foreach (var t in sim.GetSnapshot().Towers.Where(t => cells.Any(c => c.X == t.Position.X && c.Y == t.Position.Y)))
+            {
+                Debug.Log($"REALUI tierComparison cell=({t.Position.X},{t.Position.Y}) tier={t.Tier}");
             }
         }
 

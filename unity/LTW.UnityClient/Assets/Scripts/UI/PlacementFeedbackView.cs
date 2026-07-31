@@ -43,6 +43,9 @@ namespace LTW.UnityClient.UI
                 CommandRejectionReason.PathBlocked => "Keep a path open",
                 CommandRejectionReason.InvalidLane => "Choose your lane",
                 CommandRejectionReason.PlayerEliminated => "Player is eliminated",
+                // The most likely rejection the upgrade flow produces, and it had no message of
+                // its own: a tower already level with its line, or a line already at the top.
+                CommandRejectionReason.InvalidTier => "Upgrade the line first",
                 _ => "Action unavailable"
             };
             Show(message, Danger);
