@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.Rendering.Universal;
@@ -54,6 +55,8 @@ namespace LTW.UnityClient.Editor
                 Require(failures, pipeline.msaaSampleCount >= 2, $"msaaSampleCount is {pipeline.msaaSampleCount}; geometric edges are unfiltered.");
 
                 Require(failures, pipeline.supportsMainLightShadows, "supportsMainLightShadows is off; the board renders with no contact between units and ground.");
+
+                RequireLodCrossFadeMatchesReality(failures, pipeline);
             }
 
             if (failures.Count == 0)
@@ -71,6 +74,37 @@ namespace LTW.UnityClient.Editor
             if (Application.isBatchMode)
             {
                 EditorApplication.Exit(failures.Count == 0 ? 0 : 1);
+            }
+        }
+
+        /// <summary>
+        /// Ties LOD cross-fade to whether any LOD group exists to cross-fade between.
+        /// </summary>
+        /// <remarks>
+        /// The asset shipped with cross-fade enabled and zero LODGroup components anywhere in the
+        /// project. That is not a harmless default: enabling it compiles the LOD_FADE_CROSSFADE
+        /// variant of every shader in the build and adds the dither to their fragment path, for a
+        /// transition that can never occur. Pure cost, no effect, and invisible.
+        ///
+        /// Checked in both directions rather than pinned off, because the flag is not wrong in
+        /// itself — it is wrong RELATIVE to the project. Whoever eventually adds LOD groups should
+        /// be told to turn it back on rather than find it silently disabled.
+        /// </remarks>
+        private static void RequireLodCrossFadeMatchesReality(ICollection<string> failures, UniversalRenderPipelineAsset pipeline)
+        {
+            var lodGroups = AssetDatabase.FindAssets("t:Prefab")
+                .Select(AssetDatabase.GUIDToAssetPath)
+                .Select(AssetDatabase.LoadAssetAtPath<GameObject>)
+                .Where(prefab => prefab != null)
+                .Sum(prefab => prefab.GetComponentsInChildren<LODGroup>(true).Length);
+
+            if (lodGroups == 0 && pipeline.enableLODCrossFade)
+            {
+                failures.Add("enableLODCrossFade is on but no prefab in the project has a LODGroup; it compiles the LOD_FADE_CROSSFADE variant of every shader for a transition that cannot happen.");
+            }
+            else if (lodGroups > 0 && !pipeline.enableLODCrossFade)
+            {
+                failures.Add($"{lodGroups} LODGroup(s) exist but enableLODCrossFade is off, so LOD transitions will pop.");
             }
         }
 
