@@ -223,6 +223,39 @@ namespace LTW.UnityClient.Simulation
             return definition?.CategoryIndex ?? -1;
         }
 
+        /// <summary>
+        /// What raising every tower in one line would cost, and how much of that the player can
+        /// currently afford. Asked every frame the card is on screen, so it must not spend anything.
+        /// </summary>
+        public LineUpgradeQuote QuoteLineUpgrade(int lineIndex) =>
+            simulation is null
+                ? default
+                : simulation.QuoteTowerLineUpgrade(simulation.LocalPlayerId, simulation.LocalPlayerLaneId, lineIndex);
+
+        /// <summary>
+        /// Raises every tower in one line, spending as far as the player's gold reaches.
+        /// </summary>
+        /// <remarks>
+        /// Returns the outcome rather than a VerticalSliceCommandResult because a batch has no
+        /// single accepted/rejected answer: raising three of five towers is neither. The caller has
+        /// to say what actually happened, so it is given the numbers to say it with.
+        /// </remarks>
+        public LineUpgradeOutcome UpgradeLine(int lineIndex)
+        {
+            if (simulationDriver == null || !simulationDriver.HasStarted || simulationDriver.IsPaused || simulation is null)
+            {
+                return default;
+            }
+
+            var outcome = simulation.UpgradeTowerLine(simulation.LocalPlayerId, simulation.LocalPlayerLaneId, lineIndex);
+            if (outcome.Upgraded > 0)
+            {
+                simulationDriver.RefreshSnapshot();
+            }
+
+            return outcome;
+        }
+
         public VerticalSliceCommandResult UpgradeTowerAt(int x, int y)
         {
             if (simulationDriver == null || !simulationDriver.HasStarted || simulationDriver.IsPaused)

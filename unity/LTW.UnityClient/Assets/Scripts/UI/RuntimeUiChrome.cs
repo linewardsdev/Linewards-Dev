@@ -1,5 +1,6 @@
 #nullable enable
 
+using LTW.Simulation.Bridge;
 using UnityEngine;
 
 namespace LTW.UnityClient.UI
@@ -266,11 +267,16 @@ namespace LTW.UnityClient.UI
             return pressed;
         }
 
-        // Tier row geometry, in unscaled units, measured up from the card's bottom edge. Shared so
-        // the row and the card's hit region derive from the same numbers — if they drift, the card
-        // either steals the upgrade button's clicks or leaves a dead strip that selects nothing.
+        // Action-row geometry, in unscaled units, measured up from the card's bottom edge. The card
+        // now carries TWO buttons stacked above its bottom margin — the batch row above the tier row —
+        // and all three rects derive from these numbers. If they drift, the card's own button either
+        // steals a button's clicks or leaves a dead strip that selects nothing.
         private const float CategoryTierRowBottomInset = 26f;
         private const float CategoryTierRowHeight = 20f;
+        private const float CategoryBatchRowGap = 3f;
+        private const float CategoryBatchRowHeight = 20f;
+        private const float CategoryBatchRowBottomInset =
+            CategoryTierRowBottomInset + CategoryTierRowHeight + CategoryBatchRowGap;
 
         /// <summary>Where the tier row sits on a category card.</summary>
         public static Rect CategoryTierRowRect(Rect card, float scale) => new(
@@ -279,12 +285,26 @@ namespace LTW.UnityClient.UI
             card.width - 14f * scale,
             CategoryTierRowHeight * scale);
 
+        /// <summary>Where the whole-line upgrade row sits: directly above the tier row.</summary>
+        public static Rect CategoryBatchRowRect(Rect card, float scale) => new(
+            card.x + 7f * scale,
+            card.yMax - (CategoryBatchRowBottomInset + CategoryBatchRowHeight) * scale,
+            card.width - 14f * scale,
+            CategoryBatchRowHeight * scale);
+
         /// <summary>
-        /// The part of a category card that selects the category: everything above its tier row.
+        /// The part of a category card that selects the category: everything above its action rows.
         /// </summary>
+        /// <remarks>
+        /// Derived from the HIGHEST row rather than from the tier row directly. When the batch row
+        /// was added above it, a select rect still measured against the tier row would have covered
+        /// the new button — and DrawCommandCard's GUI.Button calls Event.Use() on both MouseDown and
+        /// MouseUp, so the batch button would never have seen a single click. That is not a z-order
+        /// problem a later draw call can win; the event is already gone.
+        /// </remarks>
         public static Rect CategoryCardSelectRect(Rect card, float scale)
         {
-            var row = CategoryTierRowRect(card, scale);
+            var row = CategoryBatchRowRect(card, scale);
             return new Rect(card.x, card.y, card.width, Mathf.Max(1f, row.y - card.y));
         }
 
@@ -327,6 +347,50 @@ namespace LTW.UnityClient.UI
         /// player cannot afford it the button uses the same Disabled state the send and build cards
         /// already use for unaffordable, so "cannot buy this" reads identically everywhere.
         /// </remarks>
+        /// <summary>
+        /// The whole-line upgrade button on a category card.
+        /// </summary>
+        /// <remarks>
+        /// Labels what the tap will ACTUALLY do, not what the player might wish it did. When gold
+        /// covers everything it reads "RAISE 5 · 84G"; when it does not it reads "RAISE 3/5 · 52G",
+        /// because a button offering five and silently delivering three is the shape of partial
+        /// result that reads as a bug rather than as a budget. With nothing eligible it says so
+        /// instead of disappearing — a control that vanishes when it cannot act teaches the player
+        /// nothing about why.
+        /// </remarks>
+        public static bool DrawCategoryBatchRow(
+            Rect card,
+            LineUpgradeQuote quote,
+            Color accent,
+            float scale,
+            GUIStyle labelStyle,
+            GUIStyle buttonStyle)
+        {
+            var row = CategoryBatchRowRect(card, scale);
+
+            if (!quote.HasWork)
+            {
+                labelStyle.fontSize = Mathf.RoundToInt(9f * scale);
+                labelStyle.alignment = TextAnchor.MiddleCenter;
+                labelStyle.normal.textColor = new Color(accent.r, accent.g, accent.b, 0.5f);
+                GUI.Label(row, "ALL AT TIER", labelStyle);
+                labelStyle.alignment = TextAnchor.MiddleLeft;
+                return false;
+            }
+
+            var label = quote.IsGoldLimited
+                ? $"RAISE {quote.Affordable}/{quote.Eligible}  {quote.AffordableCost}G"
+                : $"RAISE {quote.Eligible}  {quote.TotalCost}G";
+
+            // No GUI.enabled guard: DrawPanelButton rolls its own MouseUp check and ignores it
+            // entirely, so setting it would grey the button without actually blocking the click.
+            // Letting an unaffordable press through is also the behaviour this panel already
+            // settled on — the caller answers "not enough gold" out loud, which teaches more than a
+            // dead control that silently swallows the tap.
+            buttonStyle.fontSize = Mathf.RoundToInt(9f * scale);
+            return DrawPanelButton(row, label, quote.Affordable > 0 ? accent : DisabledEdge, scale, buttonStyle);
+        }
+
         public static bool DrawCategoryTierRow(
             Rect card,
             int tier,

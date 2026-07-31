@@ -402,6 +402,123 @@ public sealed class LocalVerticalSlice
     }
 
     /// <summary>
+    /// Raises every tower this player owns in one line, spending as far as their gold reaches.
+    /// </summary>
+    /// <remarks>
+    /// Deliberately a loop over <see cref="UpgradeTower"/> rather than a command of its own, so
+    /// every rejection rule — ownership, elimination, the line's tier ceiling, affordability — is
+    /// enforced by the code path a single upgrade already uses. A batch is therefore indistinguishable
+    /// from the taps it stands in for, and there is no second copy of those rules to drift.
+    ///
+    /// Note this adds nothing to acceptedCommands, because UpgradeTower does not: that list is
+    /// send-only telemetry rather than a reproducible command log (see ReplayRecord's remarks), so
+    /// upgrades have never appeared in it, single or batched.
+    ///
+    /// It lives in the simulation rather than in the Unity adapter because this is real logic —
+    /// which towers qualify, in what order, and how far the gold goes — and the client has no test
+    /// framework, so logic placed there cannot be regression-tested at all.
+    /// </remarks>
+    public LineUpgradeOutcome UpgradeTowerLine(PlayerId playerId, LaneId laneId, int lineIndex)
+    {
+        var player = players.Get(playerId);
+        if (player.IsEliminated)
+        {
+            return new LineUpgradeOutcome(0, 0, 0);
+        }
+
+        var eligible = EligibleLineUpgrades(playerId, laneId, lineIndex);
+
+        var upgraded = 0;
+        var spent = 0;
+        foreach (var candidate in eligible)
+        {
+            var result = UpgradeTower(playerId, laneId, candidate.Position);
+            if (result.Accepted)
+            {
+                upgraded++;
+                spent += candidate.Cost;
+                continue;
+            }
+
+            if (result.RejectionReason == CommandRejectionReason.InsufficientGold)
+            {
+                // Cheapest first means nothing later in the list is affordable either.
+                break;
+            }
+        }
+
+        return new LineUpgradeOutcome(upgraded, eligible.Count, spent);
+    }
+
+    /// <summary>
+    /// What a whole-line upgrade would cost right now, without spending anything.
+    /// </summary>
+    /// <remarks>
+    /// Shares its eligibility rule with <see cref="UpgradeTowerLine"/> through
+    /// <see cref="EligibleLineUpgradeCosts"/>, so the price a card shows and the price the batch
+    /// charges cannot disagree — the exact drift that had Arrow priced at three different numbers
+    /// across the palette, the panel and the simulation.
+    /// </remarks>
+    public LineUpgradeQuote QuoteTowerLineUpgrade(PlayerId playerId, LaneId laneId, int lineIndex)
+    {
+        var eligible = EligibleLineUpgrades(playerId, laneId, lineIndex);
+        var gold = players.Get(playerId).Gold.Amount;
+
+        var affordable = 0;
+        var running = 0;
+        foreach (var candidate in eligible)
+        {
+            if (running + candidate.Cost > gold)
+            {
+                // Cheapest first, so nothing later is affordable either.
+                break;
+            }
+
+            running += candidate.Cost;
+            affordable++;
+        }
+
+        return new LineUpgradeQuote(eligible.Count, eligible.Sum(candidate => candidate.Cost), affordable, running);
+    }
+
+    /// <summary>
+    /// The towers in one line this player could raise right now, cheapest first.
+    /// </summary>
+    /// <remarks>
+    /// The single definition of "eligible" for both the quote and the spend. Splitting them was the
+    /// obvious shape and the wrong one: a card that prices a batch by one rule and a batch that
+    /// charges by another is precisely how Arrow ended up costing 20, 25 and 14 gold in three
+    /// different places in this client.
+    /// </remarks>
+    private List<LineUpgradeCandidate> EligibleLineUpgrades(PlayerId playerId, LaneId laneId, int lineIndex)
+    {
+        var ceiling = players.Get(playerId).TowerLineTier(lineIndex);
+
+        // Resolved to a list up front. UpgradeTower replaces towers in combatState as it goes, so
+        // enumerating this lazily while spending would walk entries whose tier has already moved.
+        return combatState.Towers
+            .Where(candidate => candidate.OwnerId.Equals(playerId) && candidate.LaneId.Equals(laneId))
+            .Select(candidate =>
+            {
+                var definition = content.Towers.First(entry => entry.Id.Equals(candidate.TowerId));
+                return new LineUpgradeCandidate(
+                    candidate.Position,
+                    candidate.Tier,
+                    definition.CategoryIndex,
+                    CategoryTierRules.TowerUpgradeCost(definition.Cost.Amount));
+            })
+            .Where(candidate => candidate.LineIndex == lineIndex
+                && candidate.Tier < ceiling
+                && candidate.Tier < CategoryTierRules.MaxTier)
+            // Cheapest first, so "as many as you can afford" actually maximises how many go up.
+            // Position breaks ties, so the order is stable rather than dependent on tower iteration.
+            .OrderBy(candidate => candidate.Cost)
+            .ThenBy(candidate => candidate.Position.Y)
+            .ThenBy(candidate => candidate.Position.X)
+            .ToList();
+    }
+
+    /// <summary>
     /// Gold to raise the tower at this cell, or 0 when there is nothing there to raise.
     /// </summary>
     public int TowerUpgradeCostAt(PlayerId playerId, LaneId laneId, GridPosition position)

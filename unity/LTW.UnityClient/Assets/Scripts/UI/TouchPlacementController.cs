@@ -1002,8 +1002,8 @@ namespace LTW.UnityClient.UI
             {
                 var accent = CategoryAccent(category);
                 var cardRect = RuntimeUiChrome.CategoryCardRect(rect, buttonY, gap, category, labels.Length, scale);
-                // Hit region excludes the tier row, or the card's own button eats the upgrade
-                // button's click before it is ever delivered.
+                // Hit region excludes BOTH action rows, or the card's own button eats their clicks
+                // before either is ever delivered.
                 var pressed = RuntimeUiChrome.DrawCommandCard(
                     cardRect, accent, CommandCardState.Normal, scale, RuntimeUiChrome.CategoryCardSelectRect(cardRect, scale));
 
@@ -1020,6 +1020,7 @@ namespace LTW.UnityClient.UI
                 metaStyle.alignment = TextAnchor.MiddleCenter;
                 GUI.Label(new Rect(cardRect.x, cardRect.y + cardRect.height * 0.44f, cardRect.width, 18f * scale), "5 TOWERS", metaStyle);
 
+                DrawTowerCategoryBatch(cardRect, category, accent, scale);
                 DrawTowerCategoryTier(cardRect, category, accent, gold, scale);
 
                 if (pressed)
@@ -1027,6 +1028,56 @@ namespace LTW.UnityClient.UI
                     selectedTowerCategory = category;
                 }
             }
+        }
+
+        /// <summary>
+        /// Raise every already-placed tower in one line to the tier that line has reached.
+        /// </summary>
+        /// <remarks>
+        /// Buying a line tier only raises what you build NEXT; towers already standing keep the tier
+        /// they were built at and have to be paid up individually. That is the original game's rule
+        /// and it is being kept, but it left the player tapping the same tower-by-tower upgrade over
+        /// and over across a whole lane. This is that same sequence of taps behind one button, at
+        /// the same total price — a convenience, not a discount.
+        ///
+        /// The spend is best-effort by design: it raises as many as the gold reaches, cheapest
+        /// first, rather than refusing a batch it cannot finish. The button says up front how many
+        /// that will be, so a partial result is the advertised outcome rather than a surprise.
+        /// </remarks>
+        private void DrawTowerCategoryBatch(Rect cardRect, int category, Color accent, float scale)
+        {
+            if (commandAdapter == null)
+            {
+                return;
+            }
+
+            var quote = commandAdapter.QuoteLineUpgrade(category);
+            if (!RuntimeUiChrome.DrawCategoryBatchRow(cardRect, quote, accent, scale, metaStyle!, buttonStyle!))
+            {
+                return;
+            }
+
+            if (quote.Affordable <= 0)
+            {
+                // The typed overload, so this reads the same as every other "cannot afford it" in
+                // the HUD and quotes the shortfall in the same words.
+                feedbackView.ShowRejected(CommandRejectionReason.InsufficientGold, quote.TotalCost, CurrentPlayerGold());
+                return;
+            }
+
+            var outcome = commandAdapter.UpgradeLine(category);
+            if (outcome.Upgraded <= 0)
+            {
+                feedbackView.ShowRejected(CommandRejectionReason.InvalidTier);
+                return;
+            }
+
+            // Says what it did, and — when it could not finish — what stopped it. "Raised 3" alone
+            // would leave the player counting towers to work out whether the other two failed or
+            // were never eligible.
+            feedbackView.ShowAccepted(outcome.IsPartial
+                ? $"Raised {outcome.Upgraded} of {outcome.Eligible} for {outcome.GoldSpent}G — out of gold"
+                : $"Raised {outcome.Upgraded} for {outcome.GoldSpent}G");
         }
 
         /// <summary>

@@ -64,6 +64,9 @@ namespace LTW.UnityClient.Editor
             // Three Arrows side by side at tiers 1, 2 and 3, so the visual tell can be compared
             // rather than taken on trust.
             ("real-07-tier-comparison", ShowTierComparison),
+            // The category picker with a line that actually has work to do, so the whole-line
+            // upgrade button is shown carrying a real count and price rather than its empty state.
+            ("real-08-line-batch-ready", ShowLineBatchReady),
         };
 
         /// <summary>The portrait surface the HUD is authored against, matching MotionCaptureRunner.</summary>
@@ -313,6 +316,53 @@ namespace LTW.UnityClient.Editor
             {
                 SetPrivate(touch, "selectedTower", tower);
             }
+        }
+
+        /// <summary>
+        /// The category picker showing the whole-line upgrade button in BOTH of its states at once:
+        /// Arcane carrying a real count and price, Foundry and Grove with nothing to raise.
+        /// </summary>
+        /// <remarks>
+        /// Every shot shares one simulation and they run in order, so Arcane arrives here already at
+        /// tier 3 from the tier-comparison shot. Towers are born at their line's current tier, which
+        /// means the ones placed below are NOT what the button is counting — the pending towers come
+        /// from the earlier shots. That is left as it is because the point of this capture is the two
+        /// button states side by side, and it produces them reliably; it is not a fixture for
+        /// asserting a particular count, which is what the unit tests are for.
+        /// </remarks>
+        private static void ShowLineBatchReady()
+        {
+            var commands = Object.FindAnyObjectByType<UnityCommandAdapter>();
+            if (commands == null)
+            {
+                return;
+            }
+
+            var field = typeof(UnityCommandAdapter).GetField("simulation", BindingFlags.Instance | BindingFlags.NonPublic);
+            if (field?.GetValue(commands) is not LocalVerticalSlice sim)
+            {
+                return;
+            }
+
+            var lane = sim.LocalPlayerLaneId;
+            // Mixed types, so the total is a sum of different prices rather than a multiple of one.
+            var plan = new[]
+            {
+                (SampleVerticalSliceContent.TowerId, new GridPosition(1, 4)),
+                (SampleVerticalSliceContent.TowerId, new GridPosition(3, 4)),
+                (SampleVerticalSliceContent.ControlTowerId, new GridPosition(1, 6)),
+                (SampleVerticalSliceContent.UtilityTowerId, new GridPosition(3, 6)),
+                (SampleVerticalSliceContent.PulseTowerId, new GridPosition(1, 8)),
+                (SampleVerticalSliceContent.PrismTowerId, new GridPosition(3, 8)),
+            };
+
+            foreach (var (towerId, cell) in plan)
+            {
+                sim.PlaceTower(sim.LocalPlayerId, lane, towerId, cell);
+            }
+
+            sim.BuyCategoryTier(sim.LocalPlayerId, LTW.Simulation.Commands.CategoryKind.TowerLine, 0, 2);
+            OpenBuildPalette();
         }
 
         private static void OpenBuildPalette()
