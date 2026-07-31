@@ -96,6 +96,61 @@ namespace LTW.UnityClient.Simulation
         /// and the simulation charged 14. Asking the catalog means the displayed price and the
         /// affordability gate cannot disagree with the charge.
         /// </remarks>
+        /// <summary>
+        /// The local player's current tier for one tower line (0 ARCANE, 1 FOUNDRY, 2 GROVE).
+        /// </summary>
+        public int TowerLineTier(int lineIndex) =>
+            simulation is null ? 1 : simulation.GetSnapshot().Players.Get(simulation.LocalPlayerId).TowerLineTier(lineIndex);
+
+        /// <summary>
+        /// The local player's current tier for one send category (0 CORE, 1 RAPID, 2 ELITE).
+        /// </summary>
+        public int SendCategoryTier(int categoryIndex) =>
+            simulation is null ? 1 : simulation.GetSnapshot().Players.Get(simulation.LocalPlayerId).SendCategoryTier(categoryIndex);
+
+        /// <summary>
+        /// Gold to take a category from its current tier to the next, or 0 when already at the top.
+        /// </summary>
+        /// <remarks>
+        /// Read from CategoryTierRules rather than held as a UI constant, so a card can never
+        /// advertise a price the simulation would not charge.
+        /// </remarks>
+        public int NextTierCost(LTW.Simulation.Commands.CategoryKind kind, int categoryIndex)
+        {
+            var current = kind == LTW.Simulation.Commands.CategoryKind.TowerLine
+                ? TowerLineTier(categoryIndex)
+                : SendCategoryTier(categoryIndex);
+            return current >= LTW.Simulation.Content.CategoryTierRules.MaxTier
+                ? 0
+                : LTW.Simulation.Content.CategoryTierRules.CostFor(kind, current + 1);
+        }
+
+        public int MaxCategoryTier => LTW.Simulation.Content.CategoryTierRules.MaxTier;
+
+        public VerticalSliceCommandResult BuyTowerLineTier(int lineIndex) =>
+            BuyCategoryTier(LTW.Simulation.Commands.CategoryKind.TowerLine, lineIndex);
+
+        public VerticalSliceCommandResult BuySendCategoryTier(int categoryIndex) =>
+            BuyCategoryTier(LTW.Simulation.Commands.CategoryKind.SendCategory, categoryIndex);
+
+        private VerticalSliceCommandResult BuyCategoryTier(LTW.Simulation.Commands.CategoryKind kind, int categoryIndex)
+        {
+            if (simulationDriver == null || !simulationDriver.HasStarted || simulationDriver.IsPaused)
+            {
+                return VerticalSliceCommandResult.Reject(CommandRejectionReason.MatchPaused);
+            }
+
+            if (simulation is null)
+            {
+                return VerticalSliceCommandResult.Reject(CommandRejectionReason.MatchPaused);
+            }
+
+            var current = kind == LTW.Simulation.Commands.CategoryKind.TowerLine
+                ? TowerLineTier(categoryIndex)
+                : SendCategoryTier(categoryIndex);
+            return RefreshAfterAccepted(simulation.BuyCategoryTier(simulation.LocalPlayerId, kind, categoryIndex, current + 1));
+        }
+
         public int TowerCost(int role)
         {
             if (simulation is null)

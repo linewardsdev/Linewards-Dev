@@ -1,6 +1,12 @@
 # Category Upgrade Tiers — Design
 
-Status: **designed, not implemented** (2026-07-29).
+Status: **implemented** (2026-07-30).
+
+The structure below shipped as designed — six independent tracks, tier 1 free, escalating cost, one
+stat per side, applied at spawn for creeps and at shot time for towers. Three things did NOT survive
+implementation and are corrected in place below: the multipliers, the relative pricing of the two
+sides, and the claim that the multipliers are what govern pacing. See `docs/GD_TUNING_LOG.md`
+2026-07-30 for the measurements.
 
 Three tiers per category, for all six categories: the three tower lines and the three send categories.
 Each tier costs more than the last, and each tier makes that category's units stronger.
@@ -10,14 +16,52 @@ Source of truth for the current roster: `docs/TOWER_AND_CREEP_ROSTER.md`.
 > **Revised 2026-07-30 — the justification below no longer holds.** This plan was written on the premise
 > that the game could not end against competent defence, and the tier numbers were chosen to break that
 > stalemate. The stalemate turned out to be a bug: the bot pressure check counted creeps that had already
-> left the lane, so bots stopped sending permanently. With that fixed the same seed completes at tick 926,
-> and matches now run 245–926 ticks — arguably too fast rather than endless.
+> left the lane, so bots stopped sending permanently. With that fixed the same seed completes at tick 926.
 >
-> The structure below (three independent tiers per category, escalating cost, one stat per side) is
-> unaffected and still worth building. What needs redoing before implementation is the CALIBRATION: the
-> 225% creep / 190% tower gap exists to let attack out-scale defence at full investment, which was a fix
-> for a problem that no longer exists. Re-derive it against matches that actually end, and drop
-> "two tier-3 bots still reach a result" as the ship gate — it now passes trivially.
+> The structure below (three independent tiers per category, escalating cost, one stat per side) was
+> unaffected and shipped as written. The CALIBRATION was re-derived during implementation and the numbers
+> in this document are superseded — see the "As shipped" table below.
+
+> **What implementation changed, 2026-07-30.** Three of this document's conclusions were wrong, each
+> caught by measuring rather than reasoning:
+>
+> 1. **Tower damage of 140/190 makes the game unable to end.** Shipped at 115/130. At the designed
+>    numbers two bot defences ran past 6000 ticks with neither able to break the other — the exact
+>    "re-create the stalemate at a higher number" failure this document warned about. Isolating the two
+>    sides showed tower scaling causes it and creep scaling does not; a sweep put the cliff between 130
+>    and 140.
+> 2. **Tower tiers should cost MORE than send tiers, not less.** This document priced them lower
+>    (100/260 against 120/300) reasoning that a tower tier is worth less. The opposite is true and it
+>    says so itself two paragraphs later: a tower tier multiplies every tower in a line forever, while a
+>    send tier only helps creeps bought after it. Shipped at 140/360 against 120/300.
+> 3. **The multipliers are not what govern pacing — the BOTS' preference is.** This document's bot rule
+>    ("a tower tier while its lane is under pressure, a send tier otherwise") reads sensibly and measures
+>    terribly: bots are under pressure most of the time, so they bought almost only defence and could not
+>    finish a match at ANY tower multiplier, still stalemating at 112%. Driving the choice from each
+>    profile's own Aggression/DefenseBias instead lets the full 115/130 scaling stand and completes in
+>    3249 ticks — faster than the 3627 the game takes with no tiers at all.
+>
+> A fourth thing this document did not anticipate: damage is a small integer, so the rounding rule
+> decides whether a tier does anything at all. Truncating `2 * 130 / 100` returns 2, which meant a tier
+> purchase was worth literally nothing to the five 2-damage towers. Rounding to nearest ships instead.
+
+## As shipped
+
+| | Tier 1 | Tier 2 | Tier 3 |
+| --- | ---: | ---: | ---: |
+| Creep max health | 100% | 150% | 225% |
+| Tower damage | 100% | **115%** | **130%** |
+
+| Purchase | Cost |
+| --- | ---: |
+| Creep category tier 2 | 120 |
+| Creep category tier 3 | 300 |
+| Tower line tier 2 | **140** |
+| Tower line tier 3 | **360** |
+
+Values live in `CategoryTierRules`, which every consumer reads — the damage seam, the spawn path, the
+bot's purchase check and both menu cards — so a balance change is one edit and the UI cannot advertise
+a price the simulation does not charge.
 
 ## Why this matters beyond "more numbers"
 

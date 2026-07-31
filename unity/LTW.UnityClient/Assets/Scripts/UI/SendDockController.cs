@@ -145,11 +145,12 @@ namespace LTW.UnityClient.UI
 
             var width = Mathf.Min(frame.width - 16f * scale, 430f * scale);
             // The picker needs a taller panel than the creep grids do, and only while it is up.
-            // Grids are two rows: 84 header + 84 + 8 + 84 = 260, inside 282. The picker is now
-            // three full-width cards: 84 header + 3*84 + 2*8 = 352, which overflowed 282 and put
-            // the third card outside the panel — the same class of bug the DrawCategoryPicker
-            // remark below records having already been fixed once.
-            var height = (selectedCategory < 0 ? 374f : 282f) * scale;
+            // Grids are two rows: 84 header + 84 + 8 + 84 = 260, inside 282. The picker is three
+            // full-width cards, and since each now carries a tier row they are 104 rather than 84:
+            // 84 header + 3*104 + 2*8 + 12 bottom margin = 424. Grown from 374 to match, because
+            // CategoryCardHeight clamps to whatever the panel has — leaving it at 374 would not
+            // have overflowed, it would have quietly squashed the tier row instead.
+            var height = (selectedCategory < 0 ? 424f : 282f) * scale;
             var launcherClearance = 136f * scale;
             var rect = new Rect(frame.xMax - width - 8f * scale, frame.yMax - height - MobileViewportLayout.BottomMargin(scale) - launcherClearance, width, height);
 
@@ -250,18 +251,59 @@ namespace LTW.UnityClient.UI
             // panel, so the last one hung outside the dock and over the board — the same defect a
             // two-card version of this picker had, reintroduced when a third category landed.
             // Deriving the height means adding a fourth category cannot bring it back.
+            // Asks for the taller card now that each one carries a tier row. CategoryCardHeight
+            // still clamps against the panel, so this cannot push a card off the bottom — the
+            // panel height in OnGUI grows to match.
             var cardHeight = RuntimeUiChrome.CategoryCardHeight(
-                rect, buttonY, gap, CategoryLabels.Length, buttonHeight, scale);
+                rect, buttonY, gap, CategoryLabels.Length, RuntimeUiChrome.CategoryCardWithTierHeight * scale, scale);
             var cardWidth = rect.width - 24f * scale;
             var x = rect.x + 12f * scale;
             var accents = new[] { ArcaneBlue, WardViolet, SignalGold };
+            var gold = CurrentPlayerGold();
 
             for (var category = 0; category < CategoryLabels.Length; category++)
             {
                 var y = buttonY + category * (cardHeight + gap);
-                if (DrawCategoryCard(new Rect(x, y, cardWidth, cardHeight), CategoryLabels[category], accents[category], scale))
+                var cardRect = new Rect(x, y, cardWidth, cardHeight);
+                if (DrawCategoryCard(cardRect, CategoryLabels[category], accents[category], scale))
                 {
                     selectedCategory = category;
+                }
+
+                DrawCategoryTier(cardRect, category, accents[category], gold, scale);
+            }
+        }
+
+        /// <summary>
+        /// Tier readout and upgrade button for one send category.
+        /// </summary>
+        /// <remarks>
+        /// Drawn AFTER the card so the button sits above the card's own full-rect hit target;
+        /// otherwise tapping upgrade would also select the category and drop the player into its
+        /// creep grid.
+        /// </remarks>
+        private void DrawCategoryTier(Rect cardRect, int category, Color accent, int gold, float scale)
+        {
+            if (commandAdapter == null)
+            {
+                return;
+            }
+
+            var tier = commandAdapter.SendCategoryTier(category);
+            var cost = commandAdapter.NextTierCost(LTW.Simulation.Commands.CategoryKind.SendCategory, category);
+            var pressed = RuntimeUiChrome.DrawCategoryTierRow(
+                cardRect, tier, commandAdapter.MaxCategoryTier, cost, gold >= cost, accent, scale, metaStyle!, buttonStyle!);
+
+            if (pressed)
+            {
+                var result = commandAdapter.BuySendCategoryTier(category);
+                if (result.Accepted)
+                {
+                    feedbackView.ShowEconomy($"{CategoryLabels[category]} TIER {tier + 1}");
+                }
+                else
+                {
+                    feedbackView.ShowRejected(result.RejectionReason, cost, CurrentPlayerGold());
                 }
             }
         }
@@ -274,11 +316,15 @@ namespace LTW.UnityClient.UI
             buttonStyle.normal.textColor = Cloud;
             buttonStyle.hover.textColor = Cloud;
             buttonStyle.active.textColor = Cloud;
-            GUI.Label(new Rect(rect.x, rect.y + rect.height * 0.32f, rect.width, 22f * scale), label, buttonStyle);
+            // 0.20/0.44, not 0.32/0.58. Those were tuned for an 84-tall card; on the 104-tall card
+            // the tier row needs, 0.58 put "5 SENDS" straight on top of "TIER n" — confirmed in a
+            // real-UI capture, where the two labels rendered as one unreadable smear.
+            GUI.Label(new Rect(rect.x, rect.y + rect.height * 0.20f, rect.width, 22f * scale), label, buttonStyle);
 
             metaStyle!.fontSize = Mathf.RoundToInt(9f * scale);
             metaStyle.normal.textColor = accent;
-            GUI.Label(new Rect(rect.x, rect.y + rect.height * 0.58f, rect.width, 18f * scale), "5 SENDS", metaStyle);
+            metaStyle.alignment = TextAnchor.MiddleCenter;
+            GUI.Label(new Rect(rect.x, rect.y + rect.height * 0.44f, rect.width, 18f * scale), "5 SENDS", metaStyle);
             return pressed;
         }
 

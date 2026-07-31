@@ -951,9 +951,10 @@ namespace LTW.UnityClient.UI
         {
             var labels = LTW.UnityClient.Simulation.TowerCatalog.CategoryLabels;
             var cardHeight = RuntimeUiChrome.CategoryCardHeight(
-                rect, buttonY, gap, labels.Length, buttonHeight, scale);
+                rect, buttonY, gap, labels.Length, RuntimeUiChrome.CategoryCardWithTierHeight * scale, scale);
             var cardWidth = rect.width - 24f * scale;
             var x = rect.x + 12f * scale;
+            var gold = CurrentPlayerGold();
 
             for (var category = 0; category < labels.Length; category++)
             {
@@ -964,15 +965,52 @@ namespace LTW.UnityClient.UI
 
                 buttonStyle!.fontSize = Mathf.RoundToInt(13f * scale);
                 buttonStyle.normal.textColor = Cloud;
-                GUI.Label(RuntimeUiChrome.CommandCardLabelRect(cardRect, scale), labels[category], buttonStyle);
+                // Label and meta are positioned proportionally here, matching the send dock's
+                // category card. They previously used CommandCardLabelRect/CommandCardMetaRect,
+                // which anchor a fixed distance off the card's BOTTOM edge — on a card grown for a
+                // tier row that put both lines straight through the new row.
+                GUI.Label(new Rect(cardRect.x, cardRect.y + cardRect.height * 0.20f, cardRect.width, 22f * scale), labels[category], buttonStyle);
 
                 metaStyle!.fontSize = Mathf.RoundToInt(9f * scale);
                 metaStyle.normal.textColor = accent;
-                GUI.Label(RuntimeUiChrome.CommandCardMetaRect(cardRect, scale), "5 TOWERS", metaStyle);
+                metaStyle.alignment = TextAnchor.MiddleCenter;
+                GUI.Label(new Rect(cardRect.x, cardRect.y + cardRect.height * 0.44f, cardRect.width, 18f * scale), "5 TOWERS", metaStyle);
+
+                DrawTowerCategoryTier(cardRect, category, accent, gold, scale);
 
                 if (pressed)
                 {
                     selectedTowerCategory = category;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Tier readout and upgrade button for one tower line.
+        /// </summary>
+        private void DrawTowerCategoryTier(Rect cardRect, int category, Color accent, int gold, float scale)
+        {
+            if (commandAdapter == null)
+            {
+                return;
+            }
+
+            var tier = commandAdapter.TowerLineTier(category);
+            var cost = commandAdapter.NextTierCost(LTW.Simulation.Commands.CategoryKind.TowerLine, category);
+            var pressed = RuntimeUiChrome.DrawCategoryTierRow(
+                cardRect, tier, commandAdapter.MaxCategoryTier, cost, gold >= cost, accent, scale, metaStyle!, buttonStyle!);
+
+            if (pressed)
+            {
+                var result = commandAdapter.BuyTowerLineTier(category);
+                var label = LTW.UnityClient.Simulation.TowerCatalog.CategoryLabels[category];
+                if (result.Accepted)
+                {
+                    feedbackView.ShowEconomy($"{label} TIER {tier + 1}");
+                }
+                else
+                {
+                    feedbackView.ShowRejected(result.RejectionReason, cost, gold);
                 }
             }
         }
@@ -1377,10 +1415,15 @@ namespace LTW.UnityClient.UI
             return new Rect(frame.x + 12f * scale, frame.yMax - launcherHeight - MobileViewportLayout.BottomMargin(scale), launcherWidth, launcherHeight);
         }
 
-        private static Rect TowerPalettePanelRect(float scale, Rect frame)
+        private Rect TowerPalettePanelRect(float scale, Rect frame)
         {
             var width = Mathf.Min(frame.width - 16f * scale, 430f * scale);
-            var height = 282f * scale;
+            // Grows for the category picker, exactly as the send dock's panel does. This was fixed
+            // at 282 while its sibling grew to 374, so the build palette's three picker cards were
+            // silently being clamped shorter than the identical-looking send cards — a pre-existing
+            // mismatch that a tier row would have made obvious. Same arithmetic as the send dock:
+            // 84 header + 3*104 + 2*8 + 12 = 424.
+            var height = (selectedTowerCategory < 0 ? 424f : 282f) * scale;
             var launcherClearance = 136f * scale;
             return new Rect(frame.x + 8f * scale, frame.yMax - height - MobileViewportLayout.BottomMargin(scale) - launcherClearance, width, height);
         }

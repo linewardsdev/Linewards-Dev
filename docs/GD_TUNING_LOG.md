@@ -1361,3 +1361,88 @@ Tracked on GD-10.
 
 **Not verified:** how the new pace actually feels in a played match. The numbers say the fastest
 creep now moves like the slowest used to; whether that is right is a judgement only playing it makes.
+
+## 2026-07-30: Category Upgrade Tiers — Shipped, And What Measuring Them Changed
+
+Six independent upgrade tracks (three tower lines, three send categories), tiers 1-3, tier 1 free.
+A tower tier scales that line's damage at shot time; a send tier scales creep health at spawn. The
+design in `docs/CATEGORY_UPGRADE_TIERS_PLAN.md` shipped structurally intact. Four of its specific
+conclusions did not survive measurement.
+
+**The designed multipliers made the game unable to end.** At the documented 140% / 190% tower
+damage, two bot defences ran past 6000 ticks with neither able to break the other — the exact
+"re-create the stalemate at a higher number" outcome that document warned against, reproduced on
+the first run. Isolating the sides settled which one causes it:
+
+| Configuration | Result |
+| --- | --- |
+| No tiers at all (baseline) | completes, tick 3627 |
+| Creep tiers only, tower tiers inert | completes, tick 3337 |
+| Tower tiers only, creep tiers inert | **stalemate past 6000** |
+
+Creep scaling shortens matches, tower scaling lengthens them, and a sweep put the cliff between
+130% and 140%. Shipped at 115/130.
+
+**Tower tiers were priced backwards.** The design priced them BELOW send tiers (100/260 against
+120/300) on the reasoning that a tower tier is worth less — then, two paragraphs later, explained
+why the opposite is true: a tower tier multiplies every tower in that line forever, while a send
+tier only helps creeps bought after it. The cheaper option was the stronger one. Shipped at
+140/360 against 120/300, so the dearer purchase is the one that compounds.
+
+**The multipliers turned out not to govern pacing at all — the bots' preference does.** The design's
+bot rule was "a tower tier while its lane is under pressure, a send tier otherwise". It reads
+sensibly and measures terribly: bots are under pressure most of the time, so they bought almost
+only defence, and could not finish a match at ANY tower multiplier — still stalemating with tower
+scaling cut to 112%. Driving the choice from each bot profile's existing Aggression/DefenseBias
+instead lets the full 115/130 stand:
+
+| Bot tier preference | Tower scaling | Result |
+| --- | --- | --- |
+| Tower tier when pressured (as designed) | 115/130 | stalemate |
+| Tower tier when pressured | 112 (cut) | stalemate |
+| Profile-driven (shipped) | 115/130 | **tick 3249** |
+
+3249 is faster than the 3627 the game takes with no tiers at all, so the feature now shortens
+matches slightly rather than lengthening them. Verified completing at 2, 3, 4, 6 and 8 lanes
+(414 / 3249 / 2545 / 1986 / 1985 ticks).
+
+**Rounding decided whether the feature did anything.** Damage is a small integer and the multiplier
+is capped, so `2 * 130 / 100` truncates back to 2 — meaning a tier purchase was worth literally
+nothing to the five 2-damage towers (Arrow, Control, Relay, Gatling, Sapling). Measured all three
+rules across the roster:
+
+| Rule | Towers improved at tier 2 | Better at tier 3 than tier 1 |
+| --- | ---: | ---: |
+| Truncate | 3 of 15 | 9 of 15 |
+| Ceiling | 15 of 15 | 15 of 15 |
+| **Nearest (shipped)** | **9 of 15** | **15 of 15** |
+
+Ceiling improved everything by handing every cheap tower a flat +50% regardless of the percent,
+which was itself enough to re-trigger the stalemate. Nearest ships. A 2-damage tower still gains
+nothing at tier 2 and +1 at tier 3 — the floor of what integers express at this multiplier, and
+raising the multiplier is exactly what is not available.
+
+**Two defects the tests caught, unrelated to balance.** Creep health bars would have rendered wrong:
+`CreepCombatState` never stored a max health, so the presentation snapshot reported the AUTHORED
+value while Health carried the scaled one, drawing a tier-3 creep as a 225%-full bar. Max health is
+now per-creep, fixed at spawn and carried through damage and lane transfers. And the build palette's
+panel was hard-fixed at 282px while the send dock's grew to 374 — a pre-existing mismatch that
+silently squashed its category cards; both now grow to 424 for the tier row.
+
+**Bots maze slightly less**, and that is the measured cost of the feature: they have a third thing
+to spend on, so lane 2 settles at 22 cells instead of 24. Disabling bot tier buying alone restores
+exactly 24. `BotMazingTests`' bar moved 1.4x to 1.35x for that reason. A gate requiring bots to keep
+a tower's worth of gold before upgrading was tried to win those cells back — it did not, and cost
+1650 ticks of match length by starving the creep tiers that close a game out, so it was dropped.
+
+**Verification:** 205 tests passing, including 24 new ones covering the rules, all four damage paths
+(primary shot, Pulse splash, Chain Arc hops, Foundry shell), the not-retroactive property, and bot
+purchasing. Batch playtest passes with a clean reset. Both category pickers captured through
+`RealUiCaptureRunner` (the only capture path that sees IMGUI) and reviewed —
+`docs/screenshot-reviews/category-upgrade-tiers/`. That review caught a live layout defect: the
+"5 SENDS" line and the new "TIER n" line rendered on top of each other, because the card's label
+positions were proportions tuned for the shorter card.
+
+**Not verified:** how any of this feels to a human. Every number here comes from bot-versus-bot
+runs, which is what makes them reproducible and also what makes them a poor guide to whether
+spending 360 gold on a tower line is a satisfying decision to make.

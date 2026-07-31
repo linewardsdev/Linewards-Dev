@@ -51,6 +51,10 @@ namespace LTW.UnityClient.Editor
             ("real-01-default-hud", null),
             ("real-02-send-dock-open", OpenSendDock),
             ("real-03-send-category-two", OpenSendCategoryTwo),
+            // The build palette has its own category picker, and it is the one that had a fixed
+            // panel height while the send dock's grew — worth a shot of its own so the two can be
+            // compared rather than assumed to match.
+            ("real-04-build-palette-open", OpenBuildPalette),
         };
 
         public static void Run()
@@ -166,6 +170,26 @@ namespace LTW.UnityClient.Editor
             // Drive the same private state a tap would set, so the captured panel is the real one.
             SetPrivate(dock, "isExpanded", true);
             SetPrivate(dock, "selectedCategory", -1);
+        }
+
+        private static void OpenBuildPalette()
+        {
+            var touch = Object.FindAnyObjectByType<TouchPlacementController>();
+            if (touch == null)
+            {
+                Debug.LogWarning("REALUI no TouchPlacementController found");
+                return;
+            }
+
+            var dock = Dock();
+            if (dock != null)
+            {
+                // The palette hides itself while the send dock is expanded, so close that first.
+                SetPrivate(dock, "isExpanded", false);
+            }
+
+            SetPrivate(touch, "isPaletteExpanded", true);
+            SetPrivate(touch, "selectedTowerCategory", -1);
         }
 
         private static void OpenSendCategoryTwo()

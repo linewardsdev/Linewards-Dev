@@ -46,6 +46,70 @@ namespace LTW.UnityClient.UI
         }
 
         /// <summary>
+        /// Preferred height for a category card that carries a tier row, so both pickers ask for
+        /// the same thing.
+        /// </summary>
+        /// <remarks>
+        /// Passed as the preferred height to <see cref="CategoryCardHeight"/> rather than used
+        /// directly, exactly as that method's remarks require — it still clamps against the panel,
+        /// so a panel that has not been grown to match simply gets shorter cards instead of cards
+        /// hanging over the board.
+        /// </remarks>
+        public const float CategoryCardWithTierHeight = 104f;
+
+        /// <summary>
+        /// Draws the tier row on a category picker card: the tier it is at, and an upgrade button.
+        /// </summary>
+        /// <remarks>
+        /// Occupies its own strip carved out of the card's growth rather than borrowing space from
+        /// the existing stack. That stack has no room to lend: CommandCardMetaRect runs to
+        /// yMax - 5*scale and the accent strip starts at yMax - 4*scale, leaving a single scaled
+        /// pixel between them, and a previous attempt to put a second line of text through there
+        /// drew it straight across the cost digits.
+        ///
+        /// Returns true when the upgrade was pressed. At max tier the button is replaced by a
+        /// static "MAX" so the card never offers a purchase that would be rejected, and when the
+        /// player cannot afford it the button uses the same Disabled state the send and build cards
+        /// already use for unaffordable, so "cannot buy this" reads identically everywhere.
+        /// </remarks>
+        public static bool DrawCategoryTierRow(
+            Rect card,
+            int tier,
+            int maxTier,
+            int upgradeCost,
+            bool canAfford,
+            Color accent,
+            float scale,
+            GUIStyle tierStyle,
+            GUIStyle buttonStyle)
+        {
+            var rowHeight = 20f * scale;
+            var row = new Rect(card.x + 7f * scale, card.yMax - 26f * scale - rowHeight, card.width - 14f * scale, rowHeight);
+
+            tierStyle.fontSize = Mathf.RoundToInt(9f * scale);
+            tierStyle.alignment = TextAnchor.MiddleLeft;
+            tierStyle.normal.textColor = accent;
+            GUI.Label(new Rect(row.x, row.y, row.width * 0.42f, row.height), $"TIER {tier}", tierStyle);
+
+            var buttonRect = new Rect(row.x + row.width * 0.44f, row.y, row.width * 0.56f, row.height);
+            if (tier >= maxTier)
+            {
+                tierStyle.alignment = TextAnchor.MiddleRight;
+                tierStyle.normal.textColor = new Color(accent.r, accent.g, accent.b, 0.65f);
+                GUI.Label(buttonRect, "MAX", tierStyle);
+                tierStyle.alignment = TextAnchor.MiddleLeft;
+                return false;
+            }
+
+            var previousEnabled = GUI.enabled;
+            GUI.enabled = canAfford;
+            buttonStyle.fontSize = Mathf.RoundToInt(9f * scale);
+            var pressed = DrawPanelButton(buttonRect, $"UP {upgradeCost}G", canAfford ? accent : DisabledEdge, scale, buttonStyle);
+            GUI.enabled = previousEnabled;
+            return pressed;
+        }
+
+        /// <summary>
         /// Height for one card in a vertical category picker, derived from the panel it sits in.
         /// </summary>
         /// <remarks>
