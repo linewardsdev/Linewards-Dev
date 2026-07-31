@@ -1,14 +1,12 @@
 # Tower Weapon Effects — Review And Proposal
 
-Status: **implemented** (2026-07-31). All three layers built; see the per-layer notes below. Open questions answered by the owner; the answers are
-recorded in "Decisions" below and the body has been updated to match. All three layers are approved.
+Status: **implemented** (2026-07-31). All three layers are built; each section below carries a
+"Built" note recording what shipped and what was learned doing it. The owner's answers to the open
+questions are in "Decisions" at the end, and the body has been updated to match them.
 
 Prompted by a review note that the tower weapons "are basically cheap looking lasers and they do
 not align with the theme of the towers". Both halves of that are correct, and this document records
 what the code actually does, why it reads that way, and what to do about it.
-
-Nothing here is built. The per-tower table in Layer 3 is the part most worth marking up before any
-of it is.
 
 ## What the code actually does
 
@@ -30,6 +28,10 @@ because geometrically it *is* one: a long thin box that appears and disappears.
 
 This single primitive is the raw material of nearly every weapon effect on the board, so its
 cheapness is inherited by all fifteen towers at once.
+
+The three sections that follow describe the code **as it was before this work**, and are kept in the
+past tense deliberately: they are the argument for the change, and the "Built" notes below only make
+sense against them.
 
 ### 2. Ten of the fifteen towers share one generic effect
 
