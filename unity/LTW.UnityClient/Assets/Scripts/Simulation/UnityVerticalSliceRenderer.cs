@@ -2100,6 +2100,8 @@ namespace LTW.UnityClient.Simulation
                 activeTowerPoolKeys.Remove(key);
                 towerLastFiredAt.Remove(key);
                 towerAimTarget.Remove(key);
+                towerBarrelAngle.Remove(key);
+                towerBarrelState.Remove(key);
                 towerAimYaw.Remove(key);
                 towerSpinPartState.Remove(key);
                 // Sold or destroyed towers must not leave their mechanic decal on the board.
@@ -2366,7 +2368,8 @@ namespace LTW.UnityClient.Simulation
             }
 
             var timeSinceFired = towerLastFiredAt.TryGetValue(key, out var firedAt) ? Time.time - firedAt : float.MaxValue;
-            var recoil = timeSinceFired < TowerRecoilDuration ? 1f - timeSinceFired / TowerRecoilDuration : 0f;
+            var recoilDuration = Mathf.Max(0.01f, TowerMotionProfileFor(visualProfile.Role).RecoilDuration);
+            var recoil = timeSinceFired < recoilDuration ? 1f - timeSinceFired / recoilDuration : 0f;
 
             // Recoil is a rigid kick along the tower's current firing axis (position + a small
             // backward pitch), not a squash/stretch scale distortion — these towers are stone and
@@ -2421,6 +2424,8 @@ namespace LTW.UnityClient.Simulation
             // hierarchy happens to nest it at (e.g. Body/Imported3DVisual/LTW_Unity_ExportRoot/Ring),
             // which is an import-pipeline detail this call site shouldn't need to know. Each tower
             // has at most one spin part today, so the first name found wins.
+            UpdateBarrelSpin(key, body);
+
             var spinPart = FindSpinPart(body);
             if (spinPart != null)
             {
@@ -2445,6 +2450,82 @@ namespace LTW.UnityClient.Simulation
         private const float TowerRingSpinDegreesPerSecond = 32f;
 
         private static readonly string[] TowerSpinPartNames = { "Ring", "Dish", "Spire" };
+
+        /// <summary>Barrel spin, in degrees/second, while the gun is actively firing.</summary>
+        private const float BarrelFiringSpinDegreesPerSecond = 900f;
+
+        /// <summary>Barrel spin while idle. Not zero — a gatling that stops dead reads as broken.</summary>
+        private const float BarrelIdleSpinDegreesPerSecond = 40f;
+
+        /// <summary>How long the barrel takes to coast down from firing speed to idle.</summary>
+        private const float BarrelSpindownSeconds = 0.9f;
+
+        private readonly Dictionary<string, float> towerBarrelAngle = new Dictionary<string, float>();
+        private readonly Dictionary<string, SpinPartState> towerBarrelState = new Dictionary<string, SpinPartState>();
+
+        /// <summary>
+        /// Spins a gatling-style barrel about its own long axis, faster while it is firing.
+        /// </summary>
+        /// <remarks>
+        /// Deliberately NOT folded into the Ring/Dish/Spire spin above, for two reasons. That spin is
+        /// about world UP, which is right for a horizontal ring and meaningless for a barrel; and it
+        /// is a constant rate, whereas the whole read of a gatling is that it winds up when it starts
+        /// working and coasts down when it stops.
+        ///
+        /// The axis is taken from the barrel's own mesh bounds — its longest extent IS the bore — and
+        /// cached in the barrel's LOCAL space. Local matters: the barrel hangs under HeadPivot, which
+        /// yaws to aim, so a world-space axis would only be correct at the rotation it happened to be
+        /// sampled at. Deriving it from geometry also means it cannot drift out of step with the
+        /// measured rest heading the way a second hand-entered constant would.
+        ///
+        /// The angle is ACCUMULATED rather than computed from Time.time * rate, so that changing the
+        /// rate speeds the barrel up instead of teleporting it to a new phase.
+        /// </remarks>
+        private void UpdateBarrelSpin(string key, Transform body)
+        {
+            var barrel = FindDeepChild(body, "Barrel");
+            if (barrel == null)
+            {
+                return;
+            }
+
+            if (!towerBarrelState.TryGetValue(key, out var state))
+            {
+                state = new SpinPartState(LongestLocalAxis(barrel), barrel.localRotation);
+                towerBarrelState[key] = state;
+            }
+
+            var sinceFired = towerLastFiredAt.TryGetValue(key, out var firedAt) ? Time.time - firedAt : float.MaxValue;
+            var firing = Mathf.Clamp01(1f - sinceFired / BarrelSpindownSeconds);
+            var rate = Mathf.Lerp(BarrelIdleSpinDegreesPerSecond, BarrelFiringSpinDegreesPerSecond, firing);
+
+            var angle = (towerBarrelAngle.TryGetValue(key, out var previous) ? previous : 0f) + rate * Time.deltaTime;
+            if (angle > 360f)
+            {
+                angle -= 360f;
+            }
+
+            towerBarrelAngle[key] = angle;
+            barrel.localRotation = Quaternion.AngleAxis(angle, state.LocalSpinAxis) * state.RestLocalRotation;
+        }
+
+        /// <summary>The part's longest mesh-bounds extent, as a direction in its own local space.</summary>
+        private static Vector3 LongestLocalAxis(Transform part)
+        {
+            var filter = part.GetComponentInChildren<MeshFilter>();
+            if (filter == null || filter.sharedMesh == null)
+            {
+                return Vector3.forward;
+            }
+
+            var extents = filter.sharedMesh.bounds.extents;
+            var meshAxis = extents.x >= extents.y && extents.x >= extents.z
+                ? Vector3.right
+                : extents.y >= extents.z ? Vector3.up : Vector3.forward;
+            var world = filter.transform.TransformDirection(meshAxis);
+            var local = part.InverseTransformDirection(world);
+            return local.sqrMagnitude < 1e-6f ? Vector3.forward : local.normalized;
+        }
 
         private static Transform FindSpinPart(Transform body)
         {
@@ -3840,8 +3921,10 @@ namespace LTW.UnityClient.Simulation
                 bool locksYaw = false,
                 float restHeadingDegrees = 0f,
                 bool? suppressRecoil = null,
-                float recoilScale = 1f)
+                float recoilScale = 1f,
+                float recoilDuration = TowerRecoilDuration)
             {
+                RecoilDuration = recoilDuration;
                 SuppressRecoil = suppressRecoil ?? locksYaw;
                 BreatheHz = breatheHz;
                 BreatheAmp = breatheAmp;
@@ -3888,6 +3971,19 @@ namespace LTW.UnityClient.Simulation
             public float RecoilScale { get; }
 
             /// <summary>
+            /// How long one kick takes to decay. MUST stay under the tower's own firing interval.
+            /// </summary>
+            /// <remarks>
+            /// The shared 0.35s default silently breaks for anything fast. The Gatling Turret's
+            /// cooldown is 1 tick — 0.25s at 4 ticks/second — so each kick was re-triggered before
+            /// the previous one had decayed, and the gun sat pinned near full recoil instead of
+            /// pulsing. That reads as a tower shaking itself apart rather than as rate of fire, and
+            /// reducing the MAGNITUDE cannot fix it: the problem is that the animation never
+            /// finishes. Fast guns need a short kick, not only a small one.
+            /// </remarks>
+            public float RecoilDuration { get; }
+
+            /// <summary>
             /// Heading the head's mesh already points at in its rest pose, subtracted from the aim
             /// heading. Must be MEASURED IN UNITY, not Blender: Blender's FBX export mirrors X
             /// during the right-handed to left-handed conversion, which silently flips the sign.
@@ -3930,8 +4026,18 @@ namespace LTW.UnityClient.Simulation
                 // Machines: tight, fast, mechanical. Small amplitudes, no lazy drift.
                 // Light recoil because it fires every other tick — a full-weight kick repeated that
                 // often stops reading as a reaction and turns into a permanent shake.
+                // The gun is now split from its pedestal (Head/Base, split_tower_rigid_part.py at
+                // z=0.556 where the barrel housing's radius jumps clear of the dome), so aim and
+                // recoil drive HeadPivot alone and the base stays planted — previously the whole
+                // tower swung and kicked as one piece.
+                //
+                // Rest heading measured IN UNITY off the generated prefab (98.7 degrees), never in
+                // Blender: the FBX export mirrors X, which flips the sign.
+                //
+                // The kick is small AND short. Short is the load-bearing half: this fires every
+                // 0.25s, so anything at the 0.35s default never returns to rest between shots.
                 case TowerVisualRole.Gatling:
-                    return new TowerMotionProfile(2.4f, 0.012f, recoilScale: 0.45f);
+                    return new TowerMotionProfile(2.4f, 0.012f, restHeadingDegrees: 98.7f, recoilScale: 0.3f, recoilDuration: 0.12f);
 
                 // A coil under load. Fast shallow pulse reads as electrical rather than breathing.
                 // The lightest kick of any tower that has one: an arc discharge has no projectile
@@ -3957,10 +4063,14 @@ namespace LTW.UnityClient.Simulation
                 case TowerVisualRole.Barricade:
                     return new TowerMotionProfile(0.7f, 0.006f, locksYaw: true, suppressRecoil: false, recoilScale: 1.5f);
 
-                // A thin spire with a drone. Light bob plus a wider drift than anything else,
-                // reading as something hovering rather than planted.
+                // A bolted-down spire, not an aircraft. It previously carried the widest drift in the
+                // roster (0.04) to read as "hovering rather than planted" — but the mesh is a pillar
+                // on a plinth with a dish on top, so drifting it sideways read as the whole structure
+                // sliding around inside its cell rather than as flight. Drift removed and the pulse
+                // cut to a faint idle, near Barricade's deliberately-inert level. The thing that
+                // should look airborne is the servicing tether it projects, not the building.
                 case TowerVisualRole.RepairDrone:
-                    return new TowerMotionProfile(1.5f, 0.018f, driftHz: 0.9f, driftAmp: 0.04f, recoilScale: 0.5f);
+                    return new TowerMotionProfile(1.2f, 0.008f, recoilScale: 0.5f);
 
                 // --- Grove line ---------------------------------------------------------------
                 // Living things: slower and larger than the machines, with real sway.
@@ -5417,8 +5527,24 @@ namespace LTW.UnityClient.Simulation
             public Queue<GameObject> Pool { get; }
         }
 
+        /// <summary>
+        /// Bramble zone footprint, in cells. Deliberately NOT tuned for looks.
+        /// </summary>
+        /// <remarks>
+        /// CombatService.BrambleZoneCells is 3, and the zone starts at the first route cell in range,
+        /// so this shows the braked span rather than the tower. Shrinking it to calm the visual down
+        /// would make it lie about how much lane the brake actually covers — opacity is the knob for
+        /// that, not size.
+        /// </remarks>
         private const float BrambleMarkerScale = 2.6f;
-        private static readonly Color BrambleMarkerColor = new Color(0.42f, 0.24f, 0.58f, 0.34f);
+
+        /// <summary>
+        /// Alpha dropped from 0.34. The marker is 2.6 cells across, and until the decal was lifted
+        /// clear of the raised build plates most of that area was hidden under them — so 0.34 was
+        /// tuned against a fraction of the footprint that actually shows now. At full visibility the
+        /// same value read as a purple slab over the lane ("thorn ground bloom is too much").
+        /// </remarks>
+        private static readonly Color BrambleMarkerColor = new Color(0.42f, 0.24f, 0.58f, 0.15f);
         private static readonly Color GrovebondMarkerColor = new Color(0.55f, 0.95f, 0.38f, 0.7f);
 
         // Repair Drone Spire's own catalog accent (TowerCatalog.cs, id 9, label "DRONE"), reused here

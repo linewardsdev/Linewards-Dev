@@ -300,43 +300,31 @@ namespace LTW.UnityClient.UI
             var actionHint = placementPreview.Accepted ? "BUILDER ONLINE  •  TAP BUILD" : PlacementRecoveryText();
             GUI.Label(new Rect(rect.x + 12f * scale, rect.y + 57f * scale, rect.width - 24f * scale, 20f * scale), actionHint, bodyStyle);
 
+            // The quick-switch strip shows the category the SELECTED tower belongs to, not a fixed
+            // list. It used to hardcode the five arcane roles, so choosing a Foundry or Grove tower
+            // left the strip offering Arrow/Control/Relay/Pulse/Prism — reported from play as
+            // "when you choose a cat 3 or cat 2 tower, the quick switch buttons are still cat 1".
+            // Switching to a neighbour within the line you are already building is the point of the
+            // strip; jumping you back to arcane was the opposite.
             var switchY = rect.y + 82f * scale;
             var switchHeight = 24f * scale;
             var switchGap = 4f * scale;
-            var switchWidth = (rect.width - 24f * scale - switchGap * 4f) / 5f;
-            var switchX = rect.x + 12f * scale;
-            if (DrawPlacementSwitchButton(new Rect(switchX, switchY, switchWidth, switchHeight), "ARW", 0, LTW.UnityClient.Simulation.TowerRolePalette.Arrow, scale))
+            var switchEntries = CategoryEntriesByCost(LTW.UnityClient.Simulation.TowerCatalog.ForRole(selectedTowerRole).Category);
+            if (switchEntries.Count > 0)
             {
-                BeginTowerPlacement(0);
-                return;
-            }
+                var switchWidth = (rect.width - 24f * scale - switchGap * (switchEntries.Count - 1)) / switchEntries.Count;
+                var switchX = rect.x + 12f * scale;
+                for (var index = 0; index < switchEntries.Count; index++)
+                {
+                    var entry = switchEntries[index];
+                    if (DrawPlacementSwitchButton(new Rect(switchX, switchY, switchWidth, switchHeight), entry.ShortLabel, entry.Role, entry.Accent, scale))
+                    {
+                        BeginTowerPlacement(entry.Role);
+                        return;
+                    }
 
-            switchX += switchWidth + switchGap;
-            if (DrawPlacementSwitchButton(new Rect(switchX, switchY, switchWidth, switchHeight), "CTRL", 1, LTW.UnityClient.Simulation.TowerRolePalette.Control, scale))
-            {
-                BeginControlTowerPlacement();
-                return;
-            }
-
-            switchX += switchWidth + switchGap;
-            if (DrawPlacementSwitchButton(new Rect(switchX, switchY, switchWidth, switchHeight), "RLY", 2, LTW.UnityClient.Simulation.TowerRolePalette.Relay, scale))
-            {
-                BeginUtilityTowerPlacement();
-                return;
-            }
-
-            switchX += switchWidth + switchGap;
-            if (DrawPlacementSwitchButton(new Rect(switchX, switchY, switchWidth, switchHeight), "PLS", 3, LTW.UnityClient.Simulation.TowerRolePalette.Pulse, scale))
-            {
-                BeginPulseTowerPlacement();
-                return;
-            }
-
-            switchX += switchWidth + switchGap;
-            if (DrawPlacementSwitchButton(new Rect(switchX, switchY, switchWidth, switchHeight), "PRM", 4, LTW.UnityClient.Simulation.TowerRolePalette.Prism, scale))
-            {
-                BeginPrismTowerPlacement();
-                return;
+                    switchX += switchWidth + switchGap;
+                }
             }
 
             var buttonHeight = 30f * scale;
@@ -632,9 +620,13 @@ namespace LTW.UnityClient.UI
                 instance.name = "Model";
                 instance.transform.localPosition = Vector3.zero;
                 instance.transform.localRotation = Quaternion.identity;
-                // Raw mesh stands ~2.2 units tall; scaled down to sit roughly level with the other
-                // 3D units on the board (see measure_builder_bounds notes in the pipeline).
-                instance.transform.localScale = new Vector3(0.4f, 0.4f, 0.4f);
+                // Raw mesh stands ~2.2 units tall. 0.4 put it at ~0.88 world units — under a single
+                // board cell, which read as a dropped prop rather than as the unit doing the work,
+                // especially next to towers that occupy most of their own cell. 0.6 puts it at
+                // ~1.32, so it clears a cell and is legible at the tilted match camera's angle
+                // without overtopping the towers it builds. One number to dial if it wants to be
+                // larger still.
+                instance.transform.localScale = new Vector3(0.6f, 0.6f, 0.6f);
                 builderAvatarAnimator = instance.GetComponentInChildren<Animator>(true);
                 return;
             }
@@ -1026,8 +1018,7 @@ namespace LTW.UnityClient.UI
         private void DrawTowerCategoryGrid(Rect rect, float buttonY, float buttonHeight, float gap, float scale)
         {
             var gold = CurrentPlayerGold();
-            var entries = new System.Collections.Generic.List<LTW.UnityClient.Simulation.TowerCatalog.Entry>(
-                LTW.UnityClient.Simulation.TowerCatalog.InCategory(selectedTowerCategory));
+            var entries = CategoryEntriesByCost(selectedTowerCategory);
             if (entries.Count == 0)
             {
                 return;
@@ -1039,11 +1030,7 @@ namespace LTW.UnityClient.UI
             // exactly what went stale before), and Entry.Role is the palette's identity — reordering
             // the array would renumber roles that saved captures and review tooling refer to.
             // Sorting here means a cost rebalance reorders the palette on its own.
-            entries.Sort((left, right) =>
-            {
-                var byCost = TowerCostFor(left).CompareTo(TowerCostFor(right));
-                return byCost != 0 ? byCost : left.Role.CompareTo(right.Role);
-            });
+
 
             var firstRow = Mathf.Min(3, entries.Count);
             var firstRowWidth = (rect.width - 24f * scale - gap * (firstRow - 1)) / firstRow;
@@ -1069,6 +1056,30 @@ namespace LTW.UnityClient.UI
                 DrawCatalogPaletteButton(new Rect(x, secondRowY, secondRowWidth, buttonHeight), entries[index], gold, scale);
                 x += secondRowWidth + gap;
             }
+        }
+
+        /// <summary>
+        /// One category's towers, cheapest first. Shared by the build palette and the in-placement
+        /// quick-switch strip so the two can never disagree about order.
+        /// </summary>
+        /// <remarks>
+        /// Sorted against the SIMULATION's cost rather than by reordering TowerCatalog.Entries: the
+        /// catalog deliberately holds no cost (it is read from ContentCatalog at display time,
+        /// because a client-side copy is exactly what went stale before), and Entry.Role is the
+        /// palette's identity, so reordering that array would renumber roles saved captures and
+        /// review tooling refer to. Ties break by role for a stable order — Thorn Snare and Spore
+        /// Cloud are both 34 gold.
+        /// </remarks>
+        private System.Collections.Generic.List<LTW.UnityClient.Simulation.TowerCatalog.Entry> CategoryEntriesByCost(int category)
+        {
+            var entries = new System.Collections.Generic.List<LTW.UnityClient.Simulation.TowerCatalog.Entry>(
+                LTW.UnityClient.Simulation.TowerCatalog.InCategory(category));
+            entries.Sort((left, right) =>
+            {
+                var byCost = TowerCostFor(left).CompareTo(TowerCostFor(right));
+                return byCost != 0 ? byCost : left.Role.CompareTo(right.Role);
+            });
+            return entries;
         }
 
         /// <summary>Tower cost from the simulation, or 0 before the adapter is wired.</summary>
