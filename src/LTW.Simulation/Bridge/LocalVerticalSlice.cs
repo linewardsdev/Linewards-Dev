@@ -478,6 +478,7 @@ public sealed class LocalVerticalSlice
                 if (defenderLivesBefore > 0 && players.Get(leak.DefenderId).Lives.Amount == 0)
                 {
                     pendingEvents.Add(new PlayerEliminatedEvent(tick, leak.DefenderId));
+                    WipeEliminatedLane(leak.DefenderId);
                 }
 
                 // The spent entity is removed unconditionally, not just when it transfers. Reaching a lane
@@ -1032,6 +1033,57 @@ public sealed class LocalVerticalSlice
         }
 
         players = players.Replace(player.WithGold(new Gold(player.Gold.Amount + RelaySignalGoldPerHit)));
+    }
+
+    /// <summary>
+    /// Clears a defeated seat's lane so the match can carry on around it.
+    /// </summary>
+    /// <remarks>
+    /// Elimination was only ever an ECONOMY fact: an eliminated player earns no income, cannot
+    /// send, and is skipped when choosing a target or the next lane after a leak. CombatService
+    /// knows nothing about it, so a defeated seat's towers kept firing forever and creeps kept
+    /// walking a lane whose owner had already lost — still leaking, still deducting lives from
+    /// somebody on zero.
+    ///
+    /// Three things have to happen together, and the third is the one that is easy to miss:
+    ///
+    /// 1. The towers go. They belong to a player who is out.
+    /// 2. The creeps in the lane go. They were attacking a seat that no longer exists.
+    /// 3. The lane's GRID and ROUTE are rebuilt empty. Towers occupy cells and are what lengthens
+    ///    the route, so removing them without rebuilding leaves the maze standing as an invisible
+    ///    wall — creeps would keep walking the long way round obstacles that are no longer there.
+    ///
+    /// Creeps the eliminated player SENT are deliberately left alone. They are in other people's
+    /// lanes, they were paid for, and they are somebody else's problem now.
+    ///
+    /// The in-flight creeps are removed rather than pushed on to the next lane. Both readings are
+    /// defensible — the carousel exists precisely to move creeps onward — but "wiped" is the
+    /// literal ask, and forwarding them would hand the attacker free continued pressure as a reward
+    /// for the kill. Worth revisiting once it can be seen in play.
+    /// </remarks>
+    private void WipeEliminatedLane(PlayerId playerId)
+    {
+        var laneId = topology.HomeLaneFor(playerId);
+
+        // Announced per entity, not as one bulk event, so the presentation layer can play the sell
+        // and death cues it already has rather than having everything blink out in a single frame.
+        // These go straight onto pendingEvents: the economy hooks that pay kill bounty and refunds
+        // read combat's OWN event list, so nothing here pays out for a wipe.
+        foreach (var tower in combatState.Towers.Where(tower => tower.OwnerId.Equals(playerId)).ToArray())
+        {
+            pendingEvents.Add(new TowerSoldEvent(tick, playerId, laneId, tower.EntityId, new Gold(0)));
+        }
+
+        foreach (var creep in combatState.Creeps.Where(creep => creep.LaneId.Equals(laneId)).ToArray())
+        {
+            pendingEvents.Add(new CreepKilledEvent(tick, creep.EntityId, playerId, new Gold(0)));
+        }
+
+        combatState = combatState.WipeLane(laneId, playerId);
+
+        var map = content.Maps[0];
+        grids[laneId] = new LaneGrid(map);
+        routes[laneId] = pathService.FindRoute(grids[laneId]).Route;
     }
 
     private LaneId? NextActiveOpponentLaneId(LaneId currentLaneId, PlayerId senderId)

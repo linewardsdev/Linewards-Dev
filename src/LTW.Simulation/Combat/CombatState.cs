@@ -29,6 +29,21 @@ public sealed class CombatState
     public CombatState RemoveTower(EntityId towerEntityId) =>
         new CombatState(Creeps, Towers.Where(tower => !tower.EntityId.Equals(towerEntityId)));
 
+    /// <summary>
+    /// Clears an eliminated seat's lane: every tower it built, and every creep still walking it.
+    /// </summary>
+    /// <remarks>
+    /// Creeps are matched by LANE and towers by OWNER, which are deliberately different keys. A
+    /// tower only ever stands in its owner's own lane, so either key finds the same set. A creep in
+    /// this lane belongs to whoever SENT it, which is somebody else — filtering creeps by owner
+    /// would clear the dead player's creeps out of everyone else's lanes and leave the attackers
+    /// standing in theirs, which is precisely backwards.
+    /// </remarks>
+    public CombatState WipeLane(LaneId laneId, PlayerId ownerId) =>
+        new CombatState(
+            Creeps.Where(creep => !creep.LaneId.Equals(laneId)),
+            Towers.Where(tower => !tower.OwnerId.Equals(ownerId)));
+
     private static IReadOnlyList<T> Replace<T>(IReadOnlyList<T> values, T replacement, Func<T, bool> predicate)
     {
         var next = values.ToArray();
