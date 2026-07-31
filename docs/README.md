@@ -8,6 +8,7 @@ This folder contains the durable project documentation for Line Wards, the mobil
 - [Architecture](ARCHITECTURE.md)
 - [MVP status snapshot](MVP_STATUS.md)
 - [Agent and contributor guidance](AGENTS.md)
+- [Launch roadmap](LAUNCH_ROADMAP.md) — **proposal:** four weeks to a soft launch on 31 August, with the P0 gaps and external lead times
 - [Open items](OPEN_ITEMS.md) — everything currently open or undecided, in one list
 - [Graphics AA uplift](GRAPHICS_AA_UPLIFT.md) — **the active graphics plan.** Raises the quality target above the retired "2000 baseline". Wave 0 is complete; see its execution status block for which planned items turned out to rest on wrong premises
 
@@ -41,7 +42,8 @@ This folder contains the durable project documentation for Line Wards, the mobil
 - [Art theme and role guide](ART_THEME_AND_ROLE_GUIDE.md)
 - [Material language guide](MATERIAL_LANGUAGE_GUIDE.md) — includes the authoritative runtime surface values for all 30 body materials
 - [VFX and animation targets](VFX_AND_ANIMATION_TARGETS.md) — the VFX system as built, and why it is code rather than the 14 prefabs originally specified
-- [Monetization and payments](MONETIZATION_AND_PAYMENTS.md)
+- [Monetization and payments](MONETIZATION_AND_PAYMENTS.md) — the policy: cosmetic-only, store rails, explicit deferrals
+- [Early cosmetic SKUs](MONETIZATION_EARLY_SKUS.md) — proposal, 2026-07-31: 40 candidate $1–$2 items in six waves, with prerequisites
 
 ## Evidence And Archives
 

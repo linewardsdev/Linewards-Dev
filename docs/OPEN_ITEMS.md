@@ -348,3 +348,78 @@ Two ways out, and the coverage report deliberately does not pick one:
 
 Sequence before Wave 1: the promotion gate is what every other art item is checked by.
 
+---
+
+# Recommended next improvements (2026-07-31)
+
+Direction-level guidance from the 2026-07-31 whole-repo review (code, all docs, pipelines,
+and the reference study in `GRAPHICS_AA_UPLIFT.md`). These are recommendations, not
+defects — they rank what to do next across the whole project, and they are one reviewer's
+perspective for the owner and both agents to weigh. Remove entries as they are acted on or
+overruled.
+
+**The observation underneath all five:** this project has exceptional *measurement*
+discipline and near-zero *experience* verification. Roughly 20 acceptance boxes across
+GD-01→10 are blocked on nothing but a human playing the game; nearly every tuning-log
+entry ends "Not verified: how this feels to a human"; and every balance number is
+bot-vs-bot — measured, for most of the record, against bots that never mazed, could build
+only 5 of 15 towers, and stopped sending mid-match. The cheapest high-leverage act
+available is converting measurement into experience.
+
+## R1. Play the game with human hands — before more systems land
+
+One hour of play with written notes unblocks more acceptance boxes than any code change,
+and it is the only thing that can invalidate work *before* it compounds. The repo's own
+history shows the cost of skipping it: three art pipelines were built and abandoned
+because nobody looked, and the upgrade-tier system was designed to break a "stalemate"
+that turned out to be a bot bug. `MVP_STATUS.md`'s own Next Work Order starts with exactly
+this pass. Everything below is cheaper after it.
+
+## R2. Put a build on a physical phone immediately after
+
+A mobile-first game that has never run on a phone. Both device-validation docs now say
+the tooling blockers are gone — Xcode confirmed installed, free Personal Team signing
+suffices, Unity bundles the Android SDK. The self-imposed "prove the loop first" gate was
+sensible a month ago; at 217 tests and a playable loop it is inverted: thermal, touch-
+target and arm's-length readability findings will reshape the graphics uplift, and they
+should arrive **before** Wave 1 art spending, not after. Item 2 (bloom cost on device)
+becomes measurable the same day.
+
+## R3. Treat bot quality as a product feature, not a test harness
+
+Bots are simultaneously the measurement instrument for every balance number and the
+shipped opponent of the offline MVP — bot quality *is* product quality here. Mazing and
+the pressure bug are fixed; the remaining gap is that `BotTowerForSlot` reaches only 5 of
+15 towers, and two profiles degenerate into repeating one tower forever. Until closed,
+every mechanic-contribution measurement is measuring towers the opponent never builds,
+and every human playtest (R1) is against an opponent doing a fraction of what the game
+can do.
+
+## R4. Build the command queue at a tick boundary next, structurally
+
+`MULTIPLAYER_SEATS_AND_AUTHORITY.md` names it "the largest structural change remaining."
+It needs no networking, is testable with the existing batch harness, and everything
+online (seat table, lobby, transport, server) sits behind it. It also fixes a latent
+defect already on record: commands apply mid-tick, which is part of why the replay record
+cannot reproduce a match. The cost of this change only grows with every system built on
+the current assumption.
+
+## R5. Consolidate status into fewer living documents
+
+The status docs contradict each other faster than two agents reconcile them:
+`GAMEPLAY_DEVELOPMENT_CHECKLIST` GD-09 says the upgrade tiers are "not implemented" —
+they shipped 2026-07-30 with 217 tests; `MVP_IMPLEMENTATION_CHECKLIST` is 18 days stale;
+`MVP_STATUS` says three lanes where the sim runs eight. Suggested rule: declare
+`GAMEPLAY_DEVELOPMENT_CHECKLIST`, this file, and `GRAPHICS_AA_UPLIFT.md` the only live
+trackers; banner `MVP_IMPLEMENTATION_CHECKLIST` and `MVP_STATUS` as historical; and adopt
+the tuning log's habit repo-wide — every status claim carries the commit SHA it was true
+at. With two agents writing concurrently, every duplicated status is a future
+contradiction.
+
+## Explicitly not next
+
+Recorded so effort is not spent re-deciding: more balance tuning (invalid until R3 and
+R1); monetization (correctly deferred by its own doc); the match server (correctly gated
+on the loop being fun); graphics Waves 2–3 (blocked on Wave 0's re-baseline capture being
+looked at by a human — which is R1 again).
+
