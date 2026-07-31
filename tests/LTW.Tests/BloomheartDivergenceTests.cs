@@ -50,7 +50,8 @@ public sealed class BloomheartDivergenceTests
             bloomheart.Cost,
             bloomheart.RangeCells,
             bloomheart.Damage,
-            bloomheart.AttackCooldownTicks);
+            bloomheart.AttackCooldownTicks,
+            bloomheart.CategoryIndex);
 
         return new ContentCatalog(
             real.Version,

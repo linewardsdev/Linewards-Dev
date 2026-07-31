@@ -57,7 +57,8 @@ public sealed class MechanicContributionTests
             source.Cost,
             source.RangeCells,
             source.Damage,
-            source.AttackCooldownTicks);
+            source.AttackCooldownTicks,
+            source.CategoryIndex);
 
         return new ContentCatalog(
             real.Version,

@@ -101,7 +101,7 @@ public sealed class SimulationContractTests
     {
         var towers = new List<TowerDefinition>
         {
-            new(SampleContent.ArrowTowerId, "Arrow Tower", new Gold(25), rangeCells: 3, damage: 5, attackCooldownTicks: 10)
+            new(SampleContent.ArrowTowerId, "Arrow Tower", new Gold(25), rangeCells: 3, damage: 5, attackCooldownTicks: 10, categoryIndex: 0)
         };
 
         var content = new ContentCatalog(
@@ -161,11 +161,11 @@ internal static class SampleContent
             "mvp-01-test",
             new[]
             {
-                new TowerDefinition(ArrowTowerId, "Arrow Tower", new Gold(25), rangeCells: 3, damage: 5, attackCooldownTicks: 10)
+                new TowerDefinition(ArrowTowerId, "Arrow Tower", new Gold(25), rangeCells: 3, damage: 5, attackCooldownTicks: 10, categoryIndex: 0)
             },
             new[]
             {
-                new CreepDefinition(RunnerCreepId, "Runner", new Gold(10), new Income(1), new Gold(1), new Gold(2), maxHealth: 15, speedPerSecond: 2)
+                new CreepDefinition(RunnerCreepId, "Runner", new Gold(10), new Income(1), new Gold(1), new Gold(2), maxHealth: 15, speedPerSecond: 2, categoryIndex: 0)
             },
             new[]
             {
@@ -187,12 +187,12 @@ internal static class SampleContent
             "mvp-01-bad",
             new[]
             {
-                new TowerDefinition(ArrowTowerId, "Arrow Tower", new Gold(25), rangeCells: 3, damage: 5, attackCooldownTicks: 10),
-                new TowerDefinition(ArrowTowerId, "Duplicate Arrow Tower", new Gold(0), rangeCells: 3, damage: 5, attackCooldownTicks: 10)
+                new TowerDefinition(ArrowTowerId, "Arrow Tower", new Gold(25), rangeCells: 3, damage: 5, attackCooldownTicks: 10, categoryIndex: 0),
+                new TowerDefinition(ArrowTowerId, "Duplicate Arrow Tower", new Gold(0), rangeCells: 3, damage: 5, attackCooldownTicks: 10, categoryIndex: 0)
             },
             new[]
             {
-                new CreepDefinition(RunnerCreepId, "Runner", new Gold(10), new Income(1), new Gold(1), new Gold(2), maxHealth: 15, speedPerSecond: 2)
+                new CreepDefinition(RunnerCreepId, "Runner", new Gold(10), new Income(1), new Gold(1), new Gold(2), maxHealth: 15, speedPerSecond: 2, categoryIndex: 0)
             },
             new[]
             {

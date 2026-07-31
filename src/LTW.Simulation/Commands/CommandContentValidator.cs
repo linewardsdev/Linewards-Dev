@@ -1,5 +1,6 @@
 using System.Linq;
 using LTW.Simulation.Content;
+using LTW.Simulation.Economy;
 
 namespace LTW.Simulation.Commands;
 
@@ -58,6 +59,22 @@ public sealed class CommandContentValidator
             if (!content.Techs.Any(tech => tech.Id.Equals(buyTech.TechId)))
             {
                 return CommandResult.Reject(CommandRejectionReason.UnknownTech);
+            }
+        }
+
+        // Shape only. Whether this player can AFFORD the tier, and whether it is the next one in
+        // order, both need the player's current state, which this validator does not receive —
+        // those checks live in LocalVerticalSlice.BuyCategoryTier alongside the gold deduction.
+        if (command is BuyCategoryTierCommand buyTier)
+        {
+            if (buyTier.CategoryIndex < 0 || buyTier.CategoryIndex >= PlayerEconomyState.CategoryCount)
+            {
+                return CommandResult.Reject(CommandRejectionReason.InvalidContentId);
+            }
+
+            if (buyTier.TargetTier <= PlayerEconomyState.BaseTier || buyTier.TargetTier > CategoryTierRules.MaxTier)
+            {
+                return CommandResult.Reject(CommandRejectionReason.InvalidTier);
             }
         }
 

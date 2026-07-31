@@ -9,23 +9,47 @@ namespace LTW.Simulation.Combat;
 
 public sealed class CombatService
 {
+    /// <summary>
+    /// Spawns a creep, baking its sender's send-category tier into the health it starts with.
+    /// </summary>
+    /// <remarks>
+    /// The tier applies HERE, at spawn, and nowhere else. A creep is something the sender bought;
+    /// its strength is fixed when it is paid for. Applying the multiplier anywhere later would let
+    /// a player rescue a wave that is already losing by upgrading mid-flight, and would make a
+    /// creep's health depend on when you looked at it.
+    ///
+    /// <paramref name="healthPercent"/> defaults to 100 so a caller with no economy behind it — the
+    /// combat tests, the scenario harnesses — gets authored health rather than having to thread a
+    /// tier it does not model. The one caller that matters, LocalVerticalSlice.QueueSend, resolves
+    /// the real percent from the sender's tiers.
+    /// </remarks>
     public CreepCombatState SpawnCreep(
         EntityId entityId,
         CreepDefinition creep,
         PlayerId senderId,
-        LaneId laneId)
+        LaneId laneId,
+        int healthPercent = 100)
     {
         return new CreepCombatState(
             entityId,
             creep.Id,
             senderId,
             laneId,
-            creep.MaxHealth,
+            CategoryTierRules.Scale(creep.MaxHealth, healthPercent),
             pathIndex: 0,
             movementProgress: 0,
             hasLeaked: false);
     }
 
+    /// <summary>
+    /// Carries a leaked creep into the next opponent's lane, keeping the health it has left.
+    /// </summary>
+    /// <remarks>
+    /// Takes <c>creep.Health</c>, not the definition's MaxHealth, so a category tier is neither
+    /// re-applied nor lost when a creep crosses lanes — it is already baked into that number by
+    /// <see cref="SpawnCreep"/>. Re-resolving the tier here would re-scale an already-scaled value
+    /// and hand a creep more health for surviving.
+    /// </remarks>
     public CreepCombatState TransferCreep(
         EntityId entityId,
         CreepCombatState creep,
@@ -402,7 +426,7 @@ public sealed class CombatService
             // tower that matched both the pulse and sapling role tokens could not have its splash
             // inflated by Grovebond. That still holds — splash reads baseDamage, not shotDamage — but it
             // now goes through the seam, so a tier multiplier applied to baseDamage reaches it.
-            var baseDamage = BaseDamageFor(towerDefinition);
+            var baseDamage = BaseDamageFor(content, tower, towerDefinition);
 
             var shotDamage = baseDamage;
             if (IsSaplingTower(tower.TowerId))
@@ -673,7 +697,7 @@ public sealed class CombatService
                 // reaches artillery too. This was the third site reading the authored damage directly,
                 // after Pulse's splash and Chain Arc, and the easiest to miss because it resolves in a
                 // different phase where baseDamage is not in scope.
-                next = DamageCreep(next, content, tower, creep, BaseDamageFor(towerDefinition), tick, events);
+                next = DamageCreep(next, content, tower, creep, BaseDamageFor(content, tower, towerDefinition), tick, events);
             }
         }
 
@@ -965,16 +989,25 @@ public sealed class CombatService
     /// A tower's damage before any per-tower mechanic applies.
     /// </summary>
     /// <remarks>
-    /// The single place a tower-line tier multiplier belongs (docs/CATEGORY_UPGRADE_TIERS_PLAN.md). Every
-    /// path that deals damage on a tower's behalf reads this — the primary shot, Pulse's splash, Chain
-    /// Arc's hops and the Foundry's shell — so scaling here scales the whole tower rather than only the
-    /// shot the player happens to be looking at.
+    /// The single place the tower-line tier multiplier applies. Every path that deals damage on a
+    /// tower's behalf reads this — the primary shot, Pulse's splash, Chain Arc's hops and the
+    /// Foundry's shell — so scaling here scales the whole tower rather than only the shot the
+    /// player happens to be looking at.
     ///
-    /// It is a pass-through today. That is intentional: the seam exists so the multiplier is a one-line
-    /// change against a single function instead of a hunt through four call sites, three of which were
-    /// found only by grepping for the raw field after the first two were fixed.
+    /// The seam was built as a pass-through ahead of this feature precisely so the multiplier
+    /// would be one change against one function instead of a hunt through four call sites, two of
+    /// which were originally found only by grepping for the raw Damage field after the first two
+    /// were fixed. That is now cashed in: the tier arrives here and nowhere else.
+    ///
+    /// Unlike creep health, this applies at SHOT time rather than at build time, and the asymmetry
+    /// is deliberate. A tower line is an ongoing investment, so buying a tier should improve the
+    /// towers already standing — otherwise the only way to benefit would be to sell and rebuild.
     /// </remarks>
-    private static int BaseDamageFor(TowerDefinition towerDefinition) => towerDefinition.Damage;
+    private static int BaseDamageFor(CombatContent content, TowerCombatState tower, TowerDefinition towerDefinition)
+    {
+        var tier = content.TowerLineTierFor(tower.OwnerId, towerDefinition.CategoryIndex);
+        return CategoryTierRules.Scale(towerDefinition.Damage, CategoryTierRules.TowerDamagePercentFor(tier));
+    }
 
     private static bool IsPulseTower(ContentId towerId) => ContainsRole(towerId, "pulse");
 

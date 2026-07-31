@@ -110,11 +110,11 @@ public sealed class ScenarioReplayTests
     private static ContentCatalog CreateContent() =>
         new(
             "scenario-test",
-            new[] { new TowerDefinition(ArrowTowerId, "Arrow Tower", new Gold(25), rangeCells: 3, damage: 5, attackCooldownTicks: 10) },
+            new[] { new TowerDefinition(ArrowTowerId, "Arrow Tower", new Gold(25), rangeCells: 3, damage: 5, attackCooldownTicks: 10, categoryIndex: 0) },
             new[]
             {
-                new CreepDefinition(RunnerCreepId, "Runner", new Gold(10), new Income(1), new Gold(1), new Gold(2), maxHealth: 15, speedPerSecond: 2),
-                new CreepDefinition(BruteCreepId, "Brute", new Gold(30), new Income(2), new Gold(2), new Gold(3), maxHealth: 24, speedPerSecond: 1)
+                new CreepDefinition(RunnerCreepId, "Runner", new Gold(10), new Income(1), new Gold(1), new Gold(2), maxHealth: 15, speedPerSecond: 2, categoryIndex: 0),
+                new CreepDefinition(BruteCreepId, "Brute", new Gold(30), new Income(2), new Gold(2), new Gold(3), maxHealth: 24, speedPerSecond: 1, categoryIndex: 0)
             },
             Array.Empty<TechDefinition>(),
             new[] { new MapDefinition(TestMapId, "Test", width: 8, height: 6, new GridPosition(0, 3), new GridPosition(7, 3), Array.Empty<GridPosition>()) },

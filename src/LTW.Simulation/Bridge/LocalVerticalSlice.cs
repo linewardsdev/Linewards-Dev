@@ -24,7 +24,9 @@ public sealed class LocalVerticalSlice
     private readonly CommandContentValidator commandValidator;
     private readonly Dictionary<LaneId, LaneGrid> grids;
     private readonly Dictionary<LaneId, IReadOnlyList<GridPosition>> routes;
-    private readonly CombatContent combatContent;
+    // Not readonly: creeps, towers and lane ownership are fixed for a match but category tiers are
+    // not, and combat reads them through this. Refreshed once per tick in AdvanceOneTick.
+    private CombatContent combatContent;
     private readonly LocalMatchOptions options;
     private readonly LocalMatchTopology topology;
     private readonly List<ISimulationEvent> pendingEvents = new();
@@ -285,12 +287,80 @@ public sealed class LocalVerticalSlice
 
         players = send.Players;
         var laneId = topology.HomeLaneFor(send.TargetPlayerId!.Value);
-        var spawned = Enumerable.Range(0, quantity).Select(_ => combat.SpawnCreep(NextEntityId(), creep, playerId, laneId)).ToArray();
+        // The sender's send-category tier is baked into health here, at purchase time. A tier
+        // bought later does not reach these creeps.
+        var healthPercent = CategoryTierRules.CreepHealthPercentFor(players.Get(playerId).SendCategoryTier(creep.CategoryIndex));
+        var spawned = Enumerable.Range(0, quantity).Select(_ => combat.SpawnCreep(NextEntityId(), creep, playerId, laneId, healthPercent)).ToArray();
         combatState = new CombatState(combatState.Creeps.Concat(spawned), combatState.Towers);
         acceptedCommands.Add(new AcceptedCommandRecord(tick, playerId, creepId, quantity));
         pendingEvents.Add(new CreepQueuedEvent(tick, playerId, send.TargetPlayerId.Value, creepId, quantity));
         foreach (var spawnedCreep in spawned) pendingEvents.Add(new CreepSpawnedEvent(tick, spawnedCreep.EntityId, creepId, playerId, send.TargetPlayerId.Value));
         return VerticalSliceCommandResult.Accept();
+    }
+
+    /// <summary>
+    /// Buys the next tier for one of a player's six categories.
+    /// </summary>
+    /// <remarks>
+    /// Tiers must be bought in order, so the escalating cost is actually paid rather than skipped:
+    /// a request for tier 3 from tier 1 is rejected even when the player could afford it outright.
+    ///
+    /// Gold is deducted and the tier written in the same step, against the same state read, so a
+    /// purchase cannot half-apply. The new tier reaches combat on the next tick, when
+    /// AdvanceOneTick refreshes CombatContent — towers already standing start hitting harder, and
+    /// creeps already walking keep the health they spawned with.
+    /// </remarks>
+    public VerticalSliceCommandResult BuyCategoryTier(PlayerId playerId, CategoryKind categoryKind, int categoryIndex, int targetTier)
+    {
+        var command = new BuyCategoryTierCommand(playerId, tick, categoryKind, categoryIndex, targetTier);
+        var contentResult = commandValidator.Validate(command, content);
+        if (!contentResult.Accepted)
+        {
+            return VerticalSliceCommandResult.Reject(contentResult.RejectionReason);
+        }
+
+        var player = players.Get(playerId);
+        if (player.IsEliminated)
+        {
+            return VerticalSliceCommandResult.Reject(CommandRejectionReason.PlayerEliminated);
+        }
+
+        var currentTier = categoryKind == CategoryKind.TowerLine
+            ? player.TowerLineTier(categoryIndex)
+            : player.SendCategoryTier(categoryIndex);
+        if (targetTier != currentTier + 1)
+        {
+            return VerticalSliceCommandResult.Reject(CommandRejectionReason.InvalidTier);
+        }
+
+        var cost = CategoryTierRules.CostFor(categoryKind, targetTier);
+        if (player.Gold.Amount < cost)
+        {
+            return VerticalSliceCommandResult.Reject(CommandRejectionReason.InsufficientGold);
+        }
+
+        var purchased = player.WithGold(new Gold(player.Gold.Amount - cost));
+        purchased = categoryKind == CategoryKind.TowerLine
+            ? purchased.WithTowerLineTier(categoryIndex, targetTier)
+            : purchased.WithSendCategoryTier(categoryIndex, targetTier);
+        players = players.Replace(purchased);
+
+        pendingEvents.Add(new CategoryTierPurchasedEvent(tick, playerId, categoryKind, categoryIndex, targetTier, new Gold(cost)));
+        return VerticalSliceCommandResult.Accept();
+    }
+
+    /// <summary>
+    /// Every player's category tiers, in the form combat reads them.
+    /// </summary>
+    private IReadOnlyDictionary<PlayerId, PlayerCategoryTiers> CurrentPlayerTiers()
+    {
+        var tiers = new Dictionary<PlayerId, PlayerCategoryTiers>();
+        foreach (var player in players.Players)
+        {
+            tiers[player.PlayerId] = PlayerCategoryTiers.From(player);
+        }
+
+        return tiers;
     }
 
     public VerticalSliceCommandResult SellLastTower(PlayerId playerId)
@@ -364,6 +434,7 @@ public sealed class LocalVerticalSlice
             }
 
             TryPlaceBotTower(bot.Key, bot.Value);
+            TryBuyBotTier(bot.Key, bot.Value);
         }
 
         tick = new SimulationTick(tick.Value + 1);
@@ -383,6 +454,11 @@ public sealed class LocalVerticalSlice
         // ever changes, a transferred creep would silently carry its start-of-tick health instead of what
         // it actually had when it left the lane.
         var creepsBeforeCombat = combatState.Creeps.ToDictionary(creep => creep.EntityId, creep => creep);
+        // Tiers bought since the last tick reach combat here. Rebuilt rather than mutated so a
+        // snapshot handed out earlier in the tick keeps the tiers it was taken with; the creep,
+        // tower and lane dictionaries are carried across by reference, so this is one small
+        // allocation, not a re-index of the catalog.
+        combatContent = combatContent.WithPlayerTiers(CurrentPlayerTiers());
         var result = combat.Advance(combatState, combatContent, routes, tick);
         combatState = result.State;
         foreach (var simulationEvent in result.Events)
@@ -586,6 +662,112 @@ public sealed class LocalVerticalSlice
             .Sum(creep => creep.Health);
         var ownedTowerCount = combatState.Towers.Count(tower => tower.OwnerId.Equals(playerId));
         return incomingHealth >= bot.PressureThreshold(content, ownedTowerCount);
+    }
+
+    /// <summary>
+    /// Buys a bot the next tier it can afford, in whichever category it has already committed to.
+    /// </summary>
+    /// <remarks>
+    /// Bots must buy tiers or the feature makes them strictly worse opponents: they maze well
+    /// enough now that a tier-3 human against a tier-1 bot defence would be a walkover.
+    ///
+    /// Which category: whichever the bot has ALREADY invested in — the line it has built the most
+    /// towers in, or the category it has sent the most creeps from. That mirrors what the tiers do
+    /// (deepen a commitment rather than broaden one) and needs no new tuning knob. Ties go to the
+    /// lowest index, so the choice stays deterministic for replays.
+    ///
+    /// Which side: a tower tier while its own lane is under pressure, a send tier otherwise. The
+    /// pressure signal is the same one the send gate above uses.
+    ///
+    /// Spending is gated on the profile's gold reserve floor exactly as TryPlaceBotTower is, so a
+    /// bot cannot upgrade itself out of being able to defend. Because this runs after
+    /// TryPlaceBotTower, towers and sends both get first claim on gold and tiers are bought from
+    /// what is genuinely surplus — a bot that is still building never stalls to save for a tier.
+    /// </remarks>
+    private void TryBuyBotTier(PlayerId playerId, BotController bot)
+    {
+        var player = players.Get(playerId);
+        if (player.IsEliminated)
+        {
+            return;
+        }
+
+        var kind = IsLaneUnderPressure(playerId, bot) ? CategoryKind.TowerLine : CategoryKind.SendCategory;
+        var categoryIndex = kind == CategoryKind.TowerLine
+            ? MostBuiltTowerLine(playerId)
+            : MostSentCreepCategory(playerId);
+
+        var targetTier = (kind == CategoryKind.TowerLine
+            ? player.TowerLineTier(categoryIndex)
+            : player.SendCategoryTier(categoryIndex)) + 1;
+        if (targetTier > CategoryTierRules.MaxTier)
+        {
+            return;
+        }
+
+        // Gated on the reserve floor only, exactly like TryPlaceBotTower. An additional "must still
+        // afford the next tower afterwards" term was tried and measured worse on both counts it was
+        // meant to help: it did not recover the mazing it was added for (lane 2 stayed at 22 cells)
+        // and it pushed match completion from 3422 ticks to 5078 by starving the creep tiers that
+        // let an attack close a game out. Running after TryPlaceBotTower already gives towers first
+        // claim on the tick's gold, which turns out to be the whole of the protection worth having.
+        var cost = CategoryTierRules.CostFor(kind, targetTier);
+        if (player.Gold.Amount - bot.GoldReserveFloor(content) < cost)
+        {
+            return;
+        }
+
+        BuyCategoryTier(playerId, kind, categoryIndex, targetTier);
+    }
+
+    /// <summary>
+    /// The tower line this player has the most towers standing in, lowest index on a tie.
+    /// </summary>
+    private int MostBuiltTowerLine(PlayerId playerId)
+    {
+        var counts = new int[PlayerEconomyState.CategoryCount];
+        foreach (var tower in combatState.Towers.Where(tower => tower.OwnerId.Equals(playerId)))
+        {
+            var line = content.Towers.First(definition => definition.Id.Equals(tower.TowerId)).CategoryIndex;
+            if (line >= 0 && line < counts.Length)
+            {
+                counts[line]++;
+            }
+        }
+
+        return IndexOfMax(counts);
+    }
+
+    /// <summary>
+    /// The send category this player has sent the most creeps from, lowest index on a tie.
+    /// </summary>
+    private int MostSentCreepCategory(PlayerId playerId)
+    {
+        var counts = new int[PlayerEconomyState.CategoryCount];
+        foreach (var record in botDecisionRecords.Where(record => record.PlayerId.Equals(playerId)))
+        {
+            var creep = content.Creeps.FirstOrDefault(definition => definition.Id.Equals(record.ContentId));
+            if (creep is not null && creep.CategoryIndex >= 0 && creep.CategoryIndex < counts.Length)
+            {
+                counts[creep.CategoryIndex] += record.Quantity;
+            }
+        }
+
+        return IndexOfMax(counts);
+    }
+
+    private static int IndexOfMax(int[] counts)
+    {
+        var best = 0;
+        for (var index = 1; index < counts.Length; index++)
+        {
+            if (counts[index] > counts[best])
+            {
+                best = index;
+            }
+        }
+
+        return best;
     }
 
     private void TryPlaceBotTower(PlayerId playerId, BotController bot)

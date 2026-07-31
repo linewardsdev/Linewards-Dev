@@ -17,7 +17,17 @@ public enum CommandRejectionReason
     InsufficientGold,
     CooldownActive,
     CellOccupied,
-    PathBlocked
+    PathBlocked,
+
+    /// <summary>
+    /// A category tier purchase that does not follow tier 1 -> 2 -> 3 in order: already at the
+    /// top, or skipping a tier to reach a higher one without paying for the step between.
+    /// </summary>
+    /// <remarks>
+    /// Appended rather than inserted. Accepted commands are recorded and replayed from a seed, so
+    /// renumbering an existing member would change the meaning of an already-recorded replay.
+    /// </remarks>
+    InvalidTier
 }
 
 public sealed class CommandResult

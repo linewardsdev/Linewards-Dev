@@ -247,11 +247,11 @@ public sealed class EconomyTests
     }
 
     private static CreepDefinition Runner() =>
-        new(new ContentId("creep.runner"), "Runner", new Gold(10), new Income(1), new Gold(1), new Gold(2), maxHealth: 15, speedPerSecond: 2);
+        new(new ContentId("creep.runner"), "Runner", new Gold(10), new Income(1), new Gold(1), new Gold(2), maxHealth: 15, speedPerSecond: 2, categoryIndex: 0);
 
     private static CreepDefinition ExemptCreep() =>
-        new(new ContentId("creep.wisp"), "Crystal Wisp", new Gold(5), new Income(1), new Gold(1), new Gold(1), maxHealth: 4, speedPerSecond: 3, ignoresSendCooldown: true);
+        new(new ContentId("creep.wisp"), "Crystal Wisp", new Gold(5), new Income(1), new Gold(1), new Gold(1), maxHealth: 4, speedPerSecond: 3, categoryIndex: 0, ignoresSendCooldown: true);
 
     private static TowerDefinition ArrowTower() =>
-        new(new ContentId("tower.arrow"), "Arrow Tower", new Gold(25), rangeCells: 3, damage: 5, attackCooldownTicks: 10);
+        new(new ContentId("tower.arrow"), "Arrow Tower", new Gold(25), rangeCells: 3, damage: 5, attackCooldownTicks: 10, categoryIndex: 0);
 }

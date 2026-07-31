@@ -1,3 +1,4 @@
+using LTW.Simulation.Commands;
 using LTW.Simulation.Content;
 using LTW.Simulation.Primitives;
 
@@ -85,6 +86,39 @@ public sealed class TechPurchasedEvent : ISimulationEvent
     public PlayerId PlayerId { get; }
 
     public ContentId TechId { get; }
+}
+
+/// <summary>
+/// A player bought a new tier for one of their categories.
+/// </summary>
+/// <remarks>
+/// Carries the gold spent as well as the tier reached so the presentation layer can show what the
+/// purchase cost without re-deriving it from the rules table, and so a replay reads as a record of
+/// what happened rather than something that has to be recomputed to be understood.
+/// </remarks>
+public sealed class CategoryTierPurchasedEvent : ISimulationEvent
+{
+    public CategoryTierPurchasedEvent(SimulationTick tick, PlayerId playerId, CategoryKind categoryKind, int categoryIndex, int tier, Gold cost)
+    {
+        Tick = tick;
+        PlayerId = playerId;
+        CategoryKind = categoryKind;
+        CategoryIndex = categoryIndex;
+        Tier = tier;
+        Cost = cost;
+    }
+
+    public SimulationTick Tick { get; }
+
+    public PlayerId PlayerId { get; }
+
+    public CategoryKind CategoryKind { get; }
+
+    public int CategoryIndex { get; }
+
+    public int Tier { get; }
+
+    public Gold Cost { get; }
 }
 
 public sealed class CreepQueuedEvent : ISimulationEvent

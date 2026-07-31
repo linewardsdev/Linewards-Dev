@@ -51,7 +51,8 @@ public sealed class RepairDroneValueTests
             drone.Cost,
             drone.RangeCells,
             drone.Damage,
-            drone.AttackCooldownTicks);
+            drone.AttackCooldownTicks,
+            drone.CategoryIndex);
 
         return new ContentCatalog(
             real.Version,

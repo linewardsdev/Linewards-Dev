@@ -43,7 +43,7 @@ public sealed class ContentCatalog
 
 public sealed class TowerDefinition
 {
-    public TowerDefinition(ContentId id, string name, Gold cost, int rangeCells, int damage, int attackCooldownTicks)
+    public TowerDefinition(ContentId id, string name, Gold cost, int rangeCells, int damage, int attackCooldownTicks, int categoryIndex)
     {
         Id = id;
         Name = RequiredName(name, nameof(name));
@@ -51,6 +51,7 @@ public sealed class TowerDefinition
         RangeCells = rangeCells;
         Damage = damage;
         AttackCooldownTicks = attackCooldownTicks;
+        CategoryIndex = categoryIndex;
     }
 
     public ContentId Id { get; }
@@ -64,6 +65,21 @@ public sealed class TowerDefinition
     public int Damage { get; }
 
     public int AttackCooldownTicks { get; }
+
+    /// <summary>
+    /// Which tower LINE this belongs to: 0 ARCANE, 1 FOUNDRY, 2 GROVE. Selects the upgrade tier
+    /// that scales this tower's damage.
+    /// </summary>
+    /// <remarks>
+    /// Deliberately a required constructor argument with no default. The grouping is also stated
+    /// on the Unity side in TowerCatalog.Entries, which drives the build menu, and the two must
+    /// agree — a default here would let a new tower silently land in ARCANE and be scaled by a
+    /// tier its menu card never offered. Making it required means the compiler asks.
+    ///
+    /// An int rather than an enum because the simulation has no opinion about what the lines are
+    /// called; the labels live in TowerCatalog.CategoryLabels where the UI can read them.
+    /// </remarks>
+    public int CategoryIndex { get; }
 
     private static string RequiredName(string value, string parameterName) =>
         string.IsNullOrWhiteSpace(value)
@@ -82,6 +98,7 @@ public sealed class CreepDefinition
         Gold leakBounty,
         int maxHealth,
         int speedPerSecond,
+        int categoryIndex,
         bool ignoresSendCooldown = false)
     {
         Id = id;
@@ -92,6 +109,7 @@ public sealed class CreepDefinition
         LeakBounty = leakBounty;
         MaxHealth = maxHealth;
         SpeedPerSecond = speedPerSecond;
+        CategoryIndex = categoryIndex;
         IgnoresSendCooldown = ignoresSendCooldown;
     }
 
@@ -110,6 +128,17 @@ public sealed class CreepDefinition
     public int MaxHealth { get; }
 
     public int SpeedPerSecond { get; }
+
+    /// <summary>
+    /// Which send CATEGORY this belongs to: 0 CORE, 1 RAPID, 2 ELITE. Selects the upgrade tier
+    /// that scales this creep's health at spawn.
+    /// </summary>
+    /// <remarks>
+    /// Required for the same reason as <see cref="TowerDefinition.CategoryIndex"/>: the grouping is
+    /// also stated on the Unity side, in SendDockController's per-category draw methods, and a
+    /// default here would let a new creep be scaled by a tier whose card never listed it.
+    /// </remarks>
+    public int CategoryIndex { get; }
 
     /// <summary>
     /// When true this creep may be sent whenever the sender can afford it, and sending it neither

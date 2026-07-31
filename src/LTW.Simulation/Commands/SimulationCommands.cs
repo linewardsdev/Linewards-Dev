@@ -67,6 +67,45 @@ public sealed class QueueSendCommand : ISimulationCommand
     public int Quantity { get; }
 }
 
+/// <summary>
+/// Which side of the roster a category tier applies to.
+/// </summary>
+public enum CategoryKind
+{
+    TowerLine = 0,
+    SendCategory = 1
+}
+
+/// <summary>
+/// Buys the next tier for one category, raising that category's tower damage or creep health.
+/// </summary>
+/// <remarks>
+/// Deliberately NOT modelled as a <see cref="BuyTechCommand"/>. TechDefinition describes
+/// UNLOCKING content it names by id (UnlocksTowerIds/UnlocksCreepIds); this levels content the
+/// player already has. Reusing it would have left a type called "tech" doing neither job clearly.
+///
+/// <c>TargetTier</c> is stated rather than implied ("buy the next one") so the command is
+/// self-describing in a replay: reading the accepted-command stream tells you which tier was
+/// bought without also having to reconstruct what the player's tier was at that moment.
+/// </remarks>
+public sealed class BuyCategoryTierCommand : ISimulationCommand
+{
+    public BuyCategoryTierCommand(PlayerId playerId, SimulationTick requestedTick, CategoryKind categoryKind, int categoryIndex, int targetTier)
+    {
+        PlayerId = playerId;
+        RequestedTick = requestedTick;
+        CategoryKind = categoryKind;
+        CategoryIndex = categoryIndex;
+        TargetTier = targetTier;
+    }
+
+    public PlayerId PlayerId { get; }
+    public SimulationTick RequestedTick { get; }
+    public CategoryKind CategoryKind { get; }
+    public int CategoryIndex { get; }
+    public int TargetTier { get; }
+}
+
 public sealed class BuyTechCommand : ISimulationCommand
 {
     public BuyTechCommand(PlayerId playerId, SimulationTick requestedTick, ContentId techId)

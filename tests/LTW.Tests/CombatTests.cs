@@ -301,23 +301,23 @@ public sealed class CombatTests
     }
 
     private static CreepDefinition Runner() =>
-        new(RunnerCreepId, "Runner", new Gold(10), new Income(1), new Gold(1), new Gold(2), maxHealth: 10, speedPerSecond: 1);
+        new(RunnerCreepId, "Runner", new Gold(10), new Income(1), new Gold(1), new Gold(2), maxHealth: 10, speedPerSecond: 1, categoryIndex: 0);
 
     private static CreepDefinition Shade() =>
-        new(ShadeCreepId, "Shade", new Gold(24), new Income(3), new Gold(2), new Gold(4), maxHealth: 14, speedPerSecond: 1);
+        new(ShadeCreepId, "Shade", new Gold(24), new Income(3), new Gold(2), new Gold(4), maxHealth: 14, speedPerSecond: 1, categoryIndex: 0);
 
     private static CreepDefinition Siege() =>
-        new(SiegeCreepId, "Siege", new Gold(40), new Income(4), new Gold(4), new Gold(6), maxHealth: 48, speedPerSecond: 1);
+        new(SiegeCreepId, "Siege", new Gold(40), new Income(4), new Gold(4), new Gold(6), maxHealth: 48, speedPerSecond: 1, categoryIndex: 0);
 
     private static CreepDefinition Colossus() =>
-        new(ColossusCreepId, "Siege Colossus", new Gold(52), new Income(5), new Gold(5), new Gold(8), maxHealth: 90, speedPerSecond: 1);
+        new(ColossusCreepId, "Siege Colossus", new Gold(52), new Income(5), new Gold(5), new Gold(8), maxHealth: 90, speedPerSecond: 1, categoryIndex: 0);
 
     private static TowerDefinition ArrowTower() =>
-        new(ArrowTowerId, "Arrow Tower", new Gold(25), rangeCells: 2, damage: 5, attackCooldownTicks: 2);
+        new(ArrowTowerId, "Arrow Tower", new Gold(25), rangeCells: 2, damage: 5, attackCooldownTicks: 2, categoryIndex: 0);
 
     private static TowerDefinition PulseTower() =>
-        new(PulseTowerId, "Pulse Tower", new Gold(45), rangeCells: 2, damage: 8, attackCooldownTicks: 4);
+        new(PulseTowerId, "Pulse Tower", new Gold(45), rangeCells: 2, damage: 8, attackCooldownTicks: 4, categoryIndex: 0);
 
     private static TowerDefinition PrismTower() =>
-        new(PrismTowerId, "Prism Tower", new Gold(60), rangeCells: 4, damage: 12, attackCooldownTicks: 6);
+        new(PrismTowerId, "Prism Tower", new Gold(60), rangeCells: 4, damage: 12, attackCooldownTicks: 6, categoryIndex: 0);
 }
