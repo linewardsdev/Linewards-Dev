@@ -111,6 +111,16 @@ namespace LTW.UnityClient.Editor
                         ringMesh.SetParent(headPivot.transform, worldPositionStays: true);
                     }
                 }
+
+                // A barrel assembly is a THIRD independently-moving part: it rides under HeadPivot so
+                // it swings and recoils with the gun, and spins about its own long axis on top of
+                // that (UpdateTowerMotion). Nesting it here rather than leaving it a Body-level
+                // sibling is what makes the spin follow the aim instead of drifting off the muzzle.
+                var barrelMesh = FindDeepChild(generatedInstance.transform, "Barrel");
+                if (barrelMesh != null)
+                {
+                    barrelMesh.SetParent(headPivot.transform, worldPositionStays: true);
+                }
             }
 
             CreateEmptyChild(root, "BodyTintAnchor", Vector3.zero);

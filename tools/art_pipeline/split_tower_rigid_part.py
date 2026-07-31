@@ -34,7 +34,14 @@ argv = sys.argv[sys.argv.index("--")+1:]
 SRC = argv[0]
 OUT = argv[1]
 FEATURE_NAME = argv[2]
-MODE = argv[3]           # "z", "radius", or "annulus"
+MODE = argv[3]           # "x", "y", "z", "radius", or "annulus"
+
+# Optional, for splitting a model that has ALREADY been split once: --from names which existing
+# object to cut (default: the first mesh found), and --remainder names what the leftover is called
+# (default "Base"). Splitting the Gatling's Head into Head + Barrel needs both — without them the
+# script would grab the Base mesh and rename the leftover "Base", clobbering the earlier split.
+SOURCE_OBJECT = argv[argv.index("--from") + 1] if "--from" in argv else None
+REMAINDER_NAME = argv[argv.index("--remainder") + 1] if "--remainder" in argv else "Base"
 
 if MODE == "annulus":
     R_INNER = float(argv[4])
@@ -48,19 +55,27 @@ else:
 bpy.ops.object.select_all(action='SELECT'); bpy.ops.object.delete()
 bpy.ops.import_scene.fbx(filepath=SRC)
 
-mesh = [o for o in bpy.context.scene.objects if o.type == 'MESH'][0]
+meshes = [o for o in bpy.context.scene.objects if o.type == 'MESH']
+mesh = next((o for o in meshes if o.name == SOURCE_OBJECT), None) if SOURCE_OBJECT else meshes[0]
+if mesh is None:
+    print(f"SPLIT_FAILED: no mesh named {SOURCE_OBJECT}; have {[o.name for o in meshes]}")
+    sys.exit(1)
 print(f"SOURCE mesh={mesh.name} verts={len(mesh.data.vertices)}")
 
 base = mesh
-base.name = "Base"
+base.name = REMAINDER_NAME
 feature = base.copy()
 feature.data = base.data.copy()
 feature.name = FEATURE_NAME
 bpy.context.collection.objects.link(feature)
 
 def vert_is_feature(world_co):
-    if MODE == "z":
-        is_above = world_co.z >= THRESHOLD
+    # x/y/z are the same cut with a different axis. A barrel assembly runs horizontally off the
+    # front of a turret head, so it separates on x where no height or radius threshold can isolate
+    # it — a radius cut would take the ammo belt too, since the belt sits at a similar radius on
+    # the opposite side.
+    if MODE in ("x", "y", "z"):
+        is_above = getattr(world_co, MODE) >= THRESHOLD
         return is_above if ABOVE_IS_FEATURE else not is_above
     elif MODE == "radius":
         r = (world_co.x ** 2 + world_co.y ** 2) ** 0.5
@@ -81,7 +96,7 @@ def keep_only(obj, keep_predicate):
     bpy.ops.object.mode_set(mode='OBJECT')
 
 keep_only(base, lambda co: not vert_is_feature(co))
-print(f"BASE remaining verts={len(base.data.vertices)}")
+print(f"{REMAINDER_NAME.upper()} remaining verts={len(base.data.vertices)}")
 keep_only(feature, vert_is_feature)
 print(f"{FEATURE_NAME.upper()} remaining verts={len(feature.data.vertices)}")
 

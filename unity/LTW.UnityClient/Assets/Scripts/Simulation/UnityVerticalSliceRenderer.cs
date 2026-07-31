@@ -2100,6 +2100,8 @@ namespace LTW.UnityClient.Simulation
                 activeTowerPoolKeys.Remove(key);
                 towerLastFiredAt.Remove(key);
                 towerAimTarget.Remove(key);
+                towerBarrelAngle.Remove(key);
+                towerBarrelState.Remove(key);
                 towerAimYaw.Remove(key);
                 towerSpinPartState.Remove(key);
                 // Sold or destroyed towers must not leave their mechanic decal on the board.
@@ -2422,6 +2424,8 @@ namespace LTW.UnityClient.Simulation
             // hierarchy happens to nest it at (e.g. Body/Imported3DVisual/LTW_Unity_ExportRoot/Ring),
             // which is an import-pipeline detail this call site shouldn't need to know. Each tower
             // has at most one spin part today, so the first name found wins.
+            UpdateBarrelSpin(key, body);
+
             var spinPart = FindSpinPart(body);
             if (spinPart != null)
             {
@@ -2446,6 +2450,82 @@ namespace LTW.UnityClient.Simulation
         private const float TowerRingSpinDegreesPerSecond = 32f;
 
         private static readonly string[] TowerSpinPartNames = { "Ring", "Dish", "Spire" };
+
+        /// <summary>Barrel spin, in degrees/second, while the gun is actively firing.</summary>
+        private const float BarrelFiringSpinDegreesPerSecond = 900f;
+
+        /// <summary>Barrel spin while idle. Not zero — a gatling that stops dead reads as broken.</summary>
+        private const float BarrelIdleSpinDegreesPerSecond = 40f;
+
+        /// <summary>How long the barrel takes to coast down from firing speed to idle.</summary>
+        private const float BarrelSpindownSeconds = 0.9f;
+
+        private readonly Dictionary<string, float> towerBarrelAngle = new Dictionary<string, float>();
+        private readonly Dictionary<string, SpinPartState> towerBarrelState = new Dictionary<string, SpinPartState>();
+
+        /// <summary>
+        /// Spins a gatling-style barrel about its own long axis, faster while it is firing.
+        /// </summary>
+        /// <remarks>
+        /// Deliberately NOT folded into the Ring/Dish/Spire spin above, for two reasons. That spin is
+        /// about world UP, which is right for a horizontal ring and meaningless for a barrel; and it
+        /// is a constant rate, whereas the whole read of a gatling is that it winds up when it starts
+        /// working and coasts down when it stops.
+        ///
+        /// The axis is taken from the barrel's own mesh bounds — its longest extent IS the bore — and
+        /// cached in the barrel's LOCAL space. Local matters: the barrel hangs under HeadPivot, which
+        /// yaws to aim, so a world-space axis would only be correct at the rotation it happened to be
+        /// sampled at. Deriving it from geometry also means it cannot drift out of step with the
+        /// measured rest heading the way a second hand-entered constant would.
+        ///
+        /// The angle is ACCUMULATED rather than computed from Time.time * rate, so that changing the
+        /// rate speeds the barrel up instead of teleporting it to a new phase.
+        /// </remarks>
+        private void UpdateBarrelSpin(string key, Transform body)
+        {
+            var barrel = FindDeepChild(body, "Barrel");
+            if (barrel == null)
+            {
+                return;
+            }
+
+            if (!towerBarrelState.TryGetValue(key, out var state))
+            {
+                state = new SpinPartState(LongestLocalAxis(barrel), barrel.localRotation);
+                towerBarrelState[key] = state;
+            }
+
+            var sinceFired = towerLastFiredAt.TryGetValue(key, out var firedAt) ? Time.time - firedAt : float.MaxValue;
+            var firing = Mathf.Clamp01(1f - sinceFired / BarrelSpindownSeconds);
+            var rate = Mathf.Lerp(BarrelIdleSpinDegreesPerSecond, BarrelFiringSpinDegreesPerSecond, firing);
+
+            var angle = (towerBarrelAngle.TryGetValue(key, out var previous) ? previous : 0f) + rate * Time.deltaTime;
+            if (angle > 360f)
+            {
+                angle -= 360f;
+            }
+
+            towerBarrelAngle[key] = angle;
+            barrel.localRotation = Quaternion.AngleAxis(angle, state.LocalSpinAxis) * state.RestLocalRotation;
+        }
+
+        /// <summary>The part's longest mesh-bounds extent, as a direction in its own local space.</summary>
+        private static Vector3 LongestLocalAxis(Transform part)
+        {
+            var filter = part.GetComponentInChildren<MeshFilter>();
+            if (filter == null || filter.sharedMesh == null)
+            {
+                return Vector3.forward;
+            }
+
+            var extents = filter.sharedMesh.bounds.extents;
+            var meshAxis = extents.x >= extents.y && extents.x >= extents.z
+                ? Vector3.right
+                : extents.y >= extents.z ? Vector3.up : Vector3.forward;
+            var world = filter.transform.TransformDirection(meshAxis);
+            var local = part.InverseTransformDirection(world);
+            return local.sqrMagnitude < 1e-6f ? Vector3.forward : local.normalized;
+        }
 
         private static Transform FindSpinPart(Transform body)
         {
