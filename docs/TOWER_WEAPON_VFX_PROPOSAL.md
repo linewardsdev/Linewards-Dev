@@ -1,6 +1,6 @@
 # Tower Weapon Effects — Review And Proposal
 
-Status: **decided, in progress** (2026-07-31). Open questions answered by the owner; the answers are
+Status: **implemented** (2026-07-31). All three layers built; see the per-layer notes below. Open questions answered by the owner; the answers are
 recorded in "Decisions" below and the body has been updated to match. All three layers are approved.
 
 Prompted by a review note that the tower weapons "are basically cheap looking lasers and they do
@@ -137,6 +137,16 @@ The FOUNDRY row is the biggest single lever after Layer 1: five towers currently
 when their entire identity is industrial machinery. Gatling and Barricade in particular should be
 throwing physical rounds.
 
+**Built 2026-07-31.** `LineFor` reads the line from `TowerCatalog` rather than restating the
+grouping, so a tower moved between lines cannot fire one line's weapon from another line's card.
+`StyleFor` returns the width, intensity and duration; `LineShotColor` the colour. Two shape changes
+came with it: the pair of beams that crossed at the tower body were pinned to local axes and read as
+a static X unrelated to where the tower was aiming, replaced by a burst thrown along the firing
+direction; and GROVE impacts open a bloom instead of snapping a hard square around the target cell.
+
+Measured on seed 1 at a fixed tick rate, this **cut** peak presentation objects from 35,448 to
+29,060 — the crossing beams cost more than the grammar that replaced them.
+
 ### Layer 3 — Per-tower tells for the ten with none
 
 Ordered by how much the effect would make an otherwise invisible mechanic legible. **This table is
@@ -158,6 +168,31 @@ the part to mark up.**
 The five original towers keep their existing bespoke effects, which are already tuned; they inherit
 Layer 1's better primitive and Layer 2's line grammar without being rewritten.
 
+**Built 2026-07-31.** Nine branches, four new shape helpers (`SpawnForkedArc`, `SpawnTracerShot`,
+`SpawnSlugShot`, `SpawnVineLash`), and tier plumbed to the cue site through `towerTiersByCell`.
+
+The load-bearing idea is that **several of these mechanics express themselves as damage the
+simulation has already computed**, so the effect can read its own mechanic without the renderer
+knowing anything about it. Tesla's chain hops arrive as separate events carrying each hop's halved
+damage, so an arc sized by damage shows the chain decaying. Grovebond adds damage per bonded
+neighbour and Crowd Bloom per creep on the cell, so a shot that thickens with damage *is* the bond
+paying off.
+
+Three findings from capturing at the real camera:
+
+- **The vine lash was wrong on the first attempt.** Two straight segments meeting at a midpoint drew
+  a hard geometric diamond — less organic than the plain beam it replaced. It is now a quadratic
+  curve through an offset control point, sampled over five segments with slight jitter and tapering
+  toward the tip.
+- **`SpawnExpandingRing` draws a soft low-contrast glow, not a crisp ring.** That is legible for
+  Control, whose ring is a slow deliberate beat, but far too weak to carry Spore Cloud's and
+  Bloomheart's bloom, which is those two towers' entire tell. A particle burst leads there now, with
+  the ring only underneath it. Worth knowing before reaching for that primitive again.
+- **Gatling got cheaper, not dearer.** The concern was that the tower firing every tick was the most
+  likely thing here to cost real frame time. Its shared fallback spawned seven beams and a burst per
+  shot (three beams plus `SpawnCellFrameCue`'s four); the tracer spawns two beams and a burst. All
+  nine tells together still measure ~6% below the Layer 1 baseline: 33,156 against 35,448.
+
 ## Verification
 
 Effects that look right in isolation have twice this week turned out invisible in play, so:
@@ -167,6 +202,9 @@ Effects that look right in isolation have twice this week turned out invisible i
    tower-tier colour tell both proved hard to read against it.
 2. **Capture at `ReducedEffects` as well.** `SpawnBeam` and `SpawnEffect` early-out entirely under
    that setting, so a mechanic whose only tell is a beam becomes invisible on low-end devices.
+   **Checked 2026-07-31:** unchanged by this work, and no worse than before — `SpawnCellFrameCue`,
+   the one cue that looked like it might survive, is itself built out of `SpawnBeam`, so the entire
+   attack-cue path already vanished at that setting. The gap is real but pre-existing.
 3. **Check frame cost.** Gatling fires every tick; a tracer-and-casings effect on it is the most
    likely thing here to cost real performance on a phone.
 4. **Compare against the Foundry mortar**, which is the in-house benchmark for a weapon that reads

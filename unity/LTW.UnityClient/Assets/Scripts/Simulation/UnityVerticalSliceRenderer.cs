@@ -102,6 +102,13 @@ namespace LTW.UnityClient.Simulation
         private readonly Dictionary<string, Vector3> lastKnownPositions = new Dictionary<string, Vector3>();
         private readonly Dictionary<string, string> lastKnownCreepIds = new Dictionary<string, string>();
         private readonly Dictionary<string, string> towerRolesByCell = new Dictionary<string, string>();
+
+        /// <summary>
+        /// Per-cell tower tier, kept alongside <see cref="towerRolesByCell"/> and cleared with it.
+        /// A CreepDamagedEvent identifies its tower by grid cell, so this is how the weapon effects
+        /// find out how upgraded the tower that fired is.
+        /// </summary>
+        private readonly Dictionary<string, int> towerTiersByCell = new Dictionary<string, int>();
         private readonly Dictionary<string, int> lastCreepHealth = new Dictionary<string, int>();
         private readonly Dictionary<string, float> creepHitFlashUntil = new Dictionary<string, float>();
         private readonly Dictionary<string, Animator> creepAnimators = new Dictionary<string, Animator>();
@@ -615,6 +622,7 @@ namespace LTW.UnityClient.Simulation
             visibleKeys.Clear();
             visibleContactShadowKeys.Clear();
             towerRolesByCell.Clear();
+            towerTiersByCell.Clear();
 
             // A tower's vision (used purely for aim-tracking) is deliberately wider than its real
             // attack range (CombatService.GetTowerAimSnapshots) so the turret has time to turn
@@ -635,6 +643,7 @@ namespace LTW.UnityClient.Simulation
                 var key = tower.EntityId.Value.ToString();
                 visibleKeys.Add(key);
                 towerRolesByCell[TowerGridKey(tower.Position, tower.LaneId)] = tower.TowerId.Value;
+                towerTiersByCell[TowerGridKey(tower.Position, tower.LaneId)] = tower.Tier;
                 var visualProfile = towerVisualLibrary != null ? towerVisualLibrary.FindProfile(tower.TowerId.Value) : null;
                 var towerObject = GetOrCreateTower(key, visualProfile);
                 SetTowerTransform(towerObject, tower.Position, tower.LaneId, tower.TowerId.Value, visualProfile);
@@ -1101,8 +1110,9 @@ namespace LTW.UnityClient.Simulation
                         var damagedCreepId = CreepIdFor(damaged.CreepEntityId.Value.ToString());
                         var towerPosition = GridToWorld(damaged.TowerPosition, damaged.LaneId);
                         var towerRole = TowerRoleAt(damaged.TowerPosition, damaged.LaneId);
+                        var towerTier = TowerTierAt(damaged.TowerPosition, damaged.LaneId);
                         var attackBody = ResolveTowerBodyTransform(damaged.TowerEntityId.Value.ToString());
-                        SpawnTowerAttackCue(towerPosition, hitPosition, towerRole, damaged.DamageDealt, attackBody);
+                        SpawnTowerAttackCue(towerPosition, hitPosition, towerRole, damaged.DamageDealt, attackBody, towerTier);
                         SpawnCreepHitCue(hitPosition, new Color(1f, 0.88f, 0.44f), damaged.DamageDealt);
                         SpawnCreepRoleFeedbackCue(hitPosition, damagedCreepId, damaged.DamageDealt);
                         SpawnEffect(hitPosition, new Color(1f, 0.88f, 0.44f), 0.24f, 0.12f);
@@ -1944,7 +1954,7 @@ namespace LTW.UnityClient.Simulation
         /// still sits at its rest pose. Falls back to the old flat world-space offset if the tower
         /// GameObject could not be resolved (e.g. it was removed the same frame).
         /// </summary>
-        private void SpawnTowerAttackCue(Vector3 towerPosition, Vector3 hitPosition, string towerId, int damage, Transform bodyTransform)
+        private void SpawnTowerAttackCue(Vector3 towerPosition, Vector3 hitPosition, string towerId, int damage, Transform bodyTransform, int tier = 1)
         {
             Vector3 At(Vector3 localOffset) =>
                 bodyTransform != null ? bodyTransform.TransformPoint(localOffset) : towerPosition + localOffset;
@@ -1955,7 +1965,7 @@ namespace LTW.UnityClient.Simulation
             // grammar as every other Arcane tower — they keep their own choreography and colours,
             // which are already tuned, but no longer their own arbitrary beam widths.
             var line = LineFor(towerId);
-            var style = StyleFor(line, damage);
+            var style = StyleFor(line, damage, tier);
             if (IsArrowTower(towerId))
             {
                 SpawnBeam(At(new Vector3(-0.5f, 0.62f, -0.18f)), At(new Vector3(0.5f, 0.62f, -0.18f)), shotColor, 0.08f);
@@ -2021,10 +2031,92 @@ namespace LTW.UnityClient.Simulation
                 return;
             }
 
-            // The line grammar. Ten of the fifteen towers reach this tail, so until Layer 3 gives
-            // them individual tells, this is the whole of their weapon identity — and it is where a
-            // GROVE spore bloom and a FOUNDRY gatling used to fire the exact same blue box.
             var impact = hitPosition + Vector3.up * 0.12f;
+
+            // Per-tower tells. Each of these towers has a mechanic that was invisible while it drew
+            // the shared fallback below. Several read their own mechanic straight off `damage`,
+            // which is the honest source: Grovebond, Crowd Bloom and Tesla's halving chain all
+            // express themselves as damage the simulation already computed.
+            if (ContainsRole(towerId, "tesla"))
+            {
+                // Chain Arc hops backward down the queue, halving each time, and each hop arrives
+                // as its own event — so a thinner, dimmer arc for a weaker hop shows the decay.
+                var arcColor = Color.Lerp(new Color(0.55f, 0.76f, 1f), new Color(0.86f, 0.95f, 1f), Mathf.Clamp01(damage / 8f));
+                SpawnForkedArc(muzzle, impact, arcColor, style, 4);
+                SpawnEffect(impact, arcColor, damage >= 5 ? 0.34f : 0.24f, 0.1f);
+                return;
+            }
+
+            if (ContainsRole(towerId, "gatling"))
+            {
+                SpawnTracerShot(muzzle, impact, shotColor, style);
+                return;
+            }
+
+            if (ContainsRole(towerId, "barricade"))
+            {
+                SpawnSlugShot(muzzle, impact, shotColor, style);
+                return;
+            }
+
+            if (IsRepairDroneTower(towerId))
+            {
+                // A support tower, not a weapon: a maintenance pulse rather than a shot. The
+                // servicing tether to its neighbours is drawn continuously elsewhere.
+                SpawnExpandingRing(muzzle, shotColor, 0.3f, 0.95f, style.Duration * 1.6f);
+                SpawnExpandingRing(impact, shotColor, 0.2f, 0.6f, style.Duration);
+                SpawnEffect(impact, shotColor, 0.24f, 0.12f);
+                return;
+            }
+
+            if (ContainsRole(towerId, "thorn"))
+            {
+                // Bramble Hold halves speed in a zone. The vines snap taut and release quickly —
+                // the brake itself stays shown by the persistent bramble zone decal, so this does
+                // not need to hold for the whole duration of the slow.
+                SpawnVineLash(muzzle, impact, shotColor, style, 2, 0.34f);
+                SpawnEffect(impact, shotColor, damage >= 5 ? 0.34f : 0.26f, style.Duration * 0.5f);
+                return;
+            }
+
+            if (ContainsRole(towerId, "canopy"))
+            {
+                // Deep Roots uniquely targets the REARMOST creep, so this lash deliberately reads as
+                // heavy and long — it is reaching past nearer creeps to the back of the lane.
+                SpawnVineLash(muzzle, impact, shotColor, style.Scaled(1.35f, 1f), 3, 0.42f);
+                SpawnExpandingRing(impact, shotColor, 0.14f, 0.8f, style.Duration);
+                return;
+            }
+
+            if (ContainsRole(towerId, "spore") || ContainsRole(towerId, "bloomheart"))
+            {
+                // Rot scales off the target's max health and Crowd Bloom off how many creeps share
+                // the cell — both arrive as bigger damage, so a bloom sized by damage shows a fat
+                // target or a big stack being punished specifically.
+                var bloom = Mathf.Lerp(0.75f, 1.8f, Mathf.Clamp01(damage / 10f));
+                SpawnBeam(muzzle, impact, shotColor, style.Duration, style.Width, style.Intensity);
+                // A particle burst carries the bloom, with the ring only underneath it. Measured at
+                // the real camera, SpawnExpandingRing draws a soft low-contrast glow rather than a
+                // crisp ring — legible for Control, whose ring is a slow deliberate beat, but far
+                // too weak to be the whole tell for two towers whose entire mechanic is "this got
+                // bigger because the target was fat / the stack was deep".
+                SpawnEffect(hitPosition, shotColor, 0.34f * bloom, style.Duration * 0.7f, BurstShape.Impact);
+                SpawnExpandingRing(impact, shotColor, bloom * 0.34f, bloom, style.Duration);
+                return;
+            }
+
+            if (ContainsRole(towerId, "sapling"))
+            {
+                // Grovebond adds damage per bonded neighbour, so a shot that visibly thickens with
+                // damage is the bond paying off.
+                var bonded = style.Scaled(Mathf.Lerp(0.7f, 1.6f, Mathf.Clamp01(damage / 8f)), 1f);
+                SpawnBeam(muzzle, impact, shotColor, bonded.Duration, bonded.Width, bonded.Intensity);
+                SpawnEffect(impact, shotColor, damage >= 5 ? 0.32f : 0.22f, style.Duration * 0.5f);
+                return;
+            }
+
+            // The line grammar. Whatever is left reaches this tail — it is where a GROVE spore
+            // bloom and a FOUNDRY gatling used to fire the exact same blue box.
 
             // Replaces two beams that crossed at the tower body: they were fixed to local axes, so
             // they read as a static X unrelated to where the tower was shooting. A burst thrown
@@ -2126,6 +2218,110 @@ namespace LTW.UnityClient.Simulation
             SpawnBeam(position + new Vector3(-0.24f, 0.22f, -0.24f), position + new Vector3(0.24f, 0.22f, 0.24f), color, 0.14f);
         }
 
+        /// <summary>
+        /// A jagged, segmented arc between two points. Tesla's Chain Arc.
+        /// </summary>
+        /// <remarks>
+        /// Each hop of the chain arrives as its own CreepDamagedEvent carrying that hop's already
+        /// halved damage, so passing the caller's style through unchanged makes the chain's decay
+        /// visible without the renderer having to know anything about the chain at all.
+        /// </remarks>
+        private void SpawnForkedArc(Vector3 start, Vector3 end, Color color, WeaponStyle style, int segments)
+        {
+            var previous = start;
+            var span = end - start;
+            // Perpendicular on the ground plane: the kink has to be across the arc, not along it.
+            var lateral = Vector3.Cross(span.normalized, Vector3.up).normalized;
+            for (var index = 1; index <= segments; index++)
+            {
+                var t = (float)index / segments;
+                var point = start + span * t;
+                if (index < segments)
+                {
+                    // Zero at both ends so the arc still starts at the coil and lands on the target.
+                    var envelope = Mathf.Sin(t * Mathf.PI);
+                    point += lateral * (UnityEngine.Random.Range(-0.34f, 0.34f) * envelope);
+                    point += Vector3.up * (UnityEngine.Random.Range(-0.06f, 0.14f) * envelope);
+                }
+
+                SpawnBeam(previous, point, color, style.Duration, style.Width, style.Intensity);
+                previous = point;
+            }
+        }
+
+        /// <summary>
+        /// A short bright streak that does not span the whole distance, plus a casing thrown clear.
+        /// Gatling's tracer.
+        /// </summary>
+        /// <remarks>
+        /// Deliberately fewer objects than the generic tail it replaces (two beams, two bursts and a
+        /// cell frame). Gatling fires every tick, which makes it the one tower here where the effect
+        /// could plausibly cost real frame time on a phone.
+        /// </remarks>
+        private void SpawnTracerShot(Vector3 muzzle, Vector3 target, Color color, WeaponStyle style)
+        {
+            var direction = (target - muzzle).normalized;
+            var distance = Vector3.Distance(muzzle, target);
+            // A round in flight, not a rod connecting the barrel to the target: the tracer covers
+            // the middle of the gap and leaves both ends open.
+            var from = muzzle + direction * (distance * 0.28f);
+            var to = muzzle + direction * (distance * 0.78f);
+            SpawnBeam(from, to, color, style.Duration * 0.7f, style.Width * 0.8f, style.Intensity * 1.25f);
+            SpawnEffect(muzzle, color, 0.26f, 0.07f, BurstShape.Muzzle, direction);
+
+            // Ejected sideways and slightly up, brass rather than muzzle-coloured.
+            var eject = Vector3.Cross(direction, Vector3.up).normalized * 0.3f + Vector3.up * 0.12f;
+            SpawnBeam(muzzle, muzzle + eject, new Color(0.85f, 0.68f, 0.32f), style.Duration * 0.55f, 0.05f, 0.8f);
+        }
+
+        /// <summary>
+        /// One heavy short round with a hard muzzle flash behind it. Barricade's slug.
+        /// </summary>
+        private void SpawnSlugShot(Vector3 muzzle, Vector3 target, Color color, WeaponStyle style)
+        {
+            var direction = (target - muzzle).normalized;
+            SpawnBeam(muzzle, target, color, style.Duration, style.Width * 1.5f, style.Intensity);
+            // Recoil reads as a flash driven back past the barrel, opposite the shot.
+            SpawnEffect(muzzle - direction * 0.12f, color, 0.4f, 0.11f, BurstShape.Muzzle, -direction);
+            SpawnEffect(target, color, 0.36f, 0.12f);
+        }
+
+        /// <summary>
+        /// Several strands reaching from tower to target, bowed apart. Thorn Snare and Elder Canopy.
+        /// </summary>
+        private void SpawnVineLash(Vector3 start, Vector3 end, Color color, WeaponStyle style, int strands, float bow)
+        {
+            const int SegmentsPerStrand = 5;
+            var span = end - start;
+            var lateral = Vector3.Cross(span.normalized, Vector3.up).normalized;
+            for (var strand = 0; strand < strands; strand++)
+            {
+                // Each strand bows to its own side. Curved along a quadratic through an offset
+                // control point rather than bent at a single midpoint: two straight segments meeting
+                // at a sharp corner drew a hard geometric diamond, which read as anything but
+                // organic — worse than the plain beam it replaced.
+                var side = strands == 1 ? 0f : (strand / (float)(strands - 1) - 0.5f) * 2f;
+                var control = start + span * 0.5f + lateral * (side * bow) + Vector3.up * 0.1f;
+                var previous = start;
+                for (var segment = 1; segment <= SegmentsPerStrand; segment++)
+                {
+                    var t = (float)segment / SegmentsPerStrand;
+                    var inverse = 1f - t;
+                    var point = inverse * inverse * start + 2f * inverse * t * control + t * t * end;
+                    if (segment < SegmentsPerStrand)
+                    {
+                        // Small irregularity so the strands do not read as drafted curves.
+                        point += lateral * (UnityEngine.Random.Range(-0.05f, 0.05f));
+                    }
+
+                    // Tapers toward the tip: a tendril, not a cable.
+                    var taper = Mathf.Lerp(0.85f, 0.45f, t);
+                    SpawnBeam(previous, point, color, style.Duration, style.Width * taper, style.Intensity);
+                    previous = point;
+                }
+            }
+        }
+
         private void SpawnCellFrameCue(Vector3 center, Color color, float duration)
         {
             var northWest = center + new Vector3(-0.48f, 0.18f, 0.48f);
@@ -2194,6 +2390,10 @@ namespace LTW.UnityClient.Simulation
         {
             return towerRolesByCell.TryGetValue(TowerGridKey(position, laneId), out var towerId) ? towerId : string.Empty;
         }
+
+        /// <summary>Tier of the tower in a cell, defaulting to tier 1 for an unknown cell.</summary>
+        private int TowerTierAt(GridPosition position, LaneId laneId) =>
+            towerTiersByCell.TryGetValue(TowerGridKey(position, laneId), out var tier) ? tier : 1;
 
         private static string TowerGridKey(GridPosition position, LaneId laneId) => $"{laneId.Value}:{position.X}:{position.Y}";
 
@@ -5054,6 +5254,11 @@ namespace LTW.UnityClient.Simulation
             public float Intensity { get; }
 
             public float Duration { get; }
+
+            /// <summary>Same shot, drawn heavier. Duration deliberately does not scale — a shot
+            /// that lingers longer at higher tier would drift out of step with the fire rate.</summary>
+            public WeaponStyle Scaled(float width, float intensity) =>
+                new WeaponStyle(Width * width, Intensity * intensity, Duration);
         }
 
         private static bool IsControlTower(string towerId) => ContainsRole(towerId, "slow") || ContainsRole(towerId, "splash") || ContainsRole(towerId, "control") || ContainsRole(towerId, "area");
@@ -5503,14 +5708,42 @@ namespace LTW.UnityClient.Simulation
         /// board already carries range halos, role-marker labels and health bars, and effects that
         /// outstay that clutter have twice proved unreadable here.
         /// </remarks>
-        private static WeaponStyle StyleFor(TowerLine line, int damage) => line switch
+        private static WeaponStyle StyleFor(TowerLine line, int damage, int tier = 1)
         {
-            // Thin, cold and quick: precision energy.
-            TowerLine.Arcane => new WeaponStyle(0.11f, 1.75f, damage >= 5 ? 0.13f : 0.1f),
-            // Heavier and hotter, and it hangs a moment longer: machinery throwing ordnance.
-            TowerLine.Foundry => new WeaponStyle(0.17f, 1.35f, damage >= 5 ? 0.16f : 0.13f),
-            // Thick, soft and slow: something living reaching out.
-            _ => new WeaponStyle(0.26f, 1.0f, damage >= 5 ? 0.3f : 0.24f)
+            var baseStyle = line switch
+            {
+                // Thin, cold and quick: precision energy.
+                TowerLine.Arcane => new WeaponStyle(0.11f, 1.75f, damage >= 5 ? 0.13f : 0.1f),
+                // Heavier and hotter, and it hangs a moment longer: machinery throwing ordnance.
+                TowerLine.Foundry => new WeaponStyle(0.17f, 1.35f, damage >= 5 ? 0.16f : 0.13f),
+                // Thick, soft and slow: something living reaching out.
+                _ => new WeaponStyle(0.26f, 1.0f, damage >= 5 ? 0.3f : 0.24f)
+            };
+
+            return baseStyle.Scaled(TierWidthBoost(tier), TierIntensityBoost(tier));
+        }
+
+        /// <summary>
+        /// How much wider a shot draws at each tier.
+        /// </summary>
+        /// <remarks>
+        /// An upgrade should be something you can see happen, not something you read off a panel.
+        /// The tower's own marker colour was carrying that job badly — a measured RGB delta of only
+        /// 0.136 between tiers 2 and 3, against 0.392 from 1 to 2 — so the weapon carries it too.
+        /// Width is the stronger of the two cues here; intensity alone saturates and stops reading.
+        /// </remarks>
+        private static float TierWidthBoost(int tier) => tier switch
+        {
+            >= 3 => 1.5f,
+            2 => 1.22f,
+            _ => 1f
+        };
+
+        private static float TierIntensityBoost(int tier) => tier switch
+        {
+            >= 3 => 1.35f,
+            2 => 1.16f,
+            _ => 1f
         };
 
         private static Color LineShotColor(TowerLine line, int damage) => line switch
