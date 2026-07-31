@@ -98,6 +98,31 @@ of a small purpose-built shader for one effect.
 **This alone addresses most of "cheap looking lasers."** It is also the cheapest to try and the
 easiest to judge — if the primitive still looks poor, the rest is not worth starting.
 
+**Built 2026-07-31.** `LTWWeaponBeam.shader` plus a rewritten `SpawnBeam`, which gained `width` and
+`intensity` parameters for the per-line and per-tier work that follows. The mesh is still the cube —
+replacing it was unnecessary once the shading was right, and it avoids billboarding a quad toward an
+orthographic camera.
+
+Two things cost real time and are worth not rediscovering:
+
+- **A cube rasterizes only its surface.** The first version faded alpha on "distance from this
+  fragment to the cube's central axis", which on a side face is *always* exactly the maximum — so
+  every pixel of every beam shaded to alpha 0 and nothing drew at all, with no shader error and no
+  warning. The fix measures how close the **view ray** passes to the axis instead, which treats the
+  box as the solid tube it represents. Any future volumetric effect built on a primitive solid has
+  the same trap waiting.
+- **A soft edge needs somewhere to fade out to.** With the mesh exactly as wide as the beam, the
+  falloff had no room and the result was a smoother but still hard, uniform line. The mesh is now
+  built `BeamHaloWidthScale` (3x) wider than the shot, the shader keeps the requested width as its
+  bright core, and the halo spreads across the remainder.
+
+A third defect surfaced while verifying, pre-existing and unrelated to appearance: `SpawnBeam` and
+the Repair Drone's servicing tether share `beamPool`, and the tether only ever set `.color`. Once
+`SpawnBeam` began assigning its own material, a tether recycled from a released beam would keep the
+additive shader and draw as a glowing tube at random, depending on pool order — the same failure
+`GetPooled`'s own comment documents for meshes. The tether now asserts its material rather than
+tinting whatever it was handed.
+
 ### Layer 2 — Give each line a visual language
 
 Not a palette entry per line, a grammar:

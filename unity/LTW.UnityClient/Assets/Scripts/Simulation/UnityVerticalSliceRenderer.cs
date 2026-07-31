@@ -1245,7 +1245,48 @@ namespace LTW.UnityClient.Simulation
             }
         }
 
-        private void SpawnBeam(Vector3 start, Vector3 end, Color color, float duration)
+        /// <summary>Default beam thickness. Wider than the old 0.06 box, which was a wire.</summary>
+        private const float DefaultBeamWidth = 0.16f;
+
+        /// <summary>
+        /// How much wider the beam's mesh is than the beam it draws. The shader treats the inner
+        /// 1/<see cref="BeamHaloWidthScale"/> of the tube as the bright core and fades a halo across
+        /// the rest, so <c>width</c> stays the width of the visible shot at every call site.
+        /// </summary>
+        private const float BeamHaloWidthScale = 3f;
+
+        private Material weaponBeamMaterial;
+
+        private Material WeaponBeamMaterial()
+        {
+            if (weaponBeamMaterial == null)
+            {
+                weaponBeamMaterial = BoardRenderResources.CreateWeaponBeamMaterial("LTW Weapon Beam");
+            }
+
+            return weaponBeamMaterial;
+        }
+
+        private void SpawnBeam(Vector3 start, Vector3 end, Color color, float duration) =>
+            SpawnBeam(start, end, color, duration, DefaultBeamWidth, 1f);
+
+        /// <summary>
+        /// A tower's shot: a hot core in a soft glow, tapering toward the target.
+        /// </summary>
+        /// <remarks>
+        /// The mesh is still a cube, but it is no longer drawn as one. LTWWeaponBeam fades alpha
+        /// radially from the cube's axis, so the square cross-section never shows and the box reads
+        /// as a round tube — which is why this does not need to billboard a quad toward an
+        /// orthographic camera, the usual way beam rendering goes wrong.
+        ///
+        /// <paramref name="width"/> and <paramref name="intensity"/> exist for the per-line and
+        /// per-tier work: a GROVE vine is thicker and dimmer than an ARCANE lance, and a tier-3 shot
+        /// is heavier than a tier-1 one. Callers that do not care get the defaults.
+        ///
+        /// Still early-outs under ReducedEffects, so any mechanic whose ONLY tell is a beam is
+        /// invisible at that setting. That is a known gap, not a new one.
+        /// </remarks>
+        private void SpawnBeam(Vector3 start, Vector3 end, Color color, float duration, float width, float intensity)
         {
             if (PresentationPreferences.ReducedEffects)
             {
@@ -1257,8 +1298,35 @@ namespace LTW.UnityClient.Simulation
             var distance = Vector3.Distance(start, end);
             beam.transform.position = midpoint;
             beam.transform.LookAt(end);
-            beam.transform.localScale = new Vector3(0.06f, 0.06f, Mathf.Max(0.1f, distance));
-            SetColor(beam, color);
+            // Wider than the beam being drawn: LTWWeaponBeam fades a soft halo out across the mesh
+            // and keeps the requested width as its bright core, so the geometry has to extend past
+            // the visible shot or there is no room for the falloff.
+            var meshWidth = width * BeamHaloWidthScale;
+            beam.transform.localScale = new Vector3(meshWidth, meshWidth, Mathf.Max(0.1f, distance));
+
+            if (beam.TryGetComponent<Renderer>(out var renderer))
+            {
+                // sharedMaterial would recolour every live beam at once; each shot needs its own.
+                renderer.material = WeaponBeamMaterial();
+                var instance = renderer.material;
+                instance.color = color;
+                if (instance.HasProperty("_Color")) instance.SetColor("_Color", color);
+                if (instance.HasProperty("_CoreColor"))
+                {
+                    // The core is the shot's colour pushed toward white, so every beam has a hotter
+                    // inside than its edge without needing a second colour authored per caller.
+                    instance.SetColor("_CoreColor", Color.Lerp(color, Color.white, 0.72f));
+                }
+
+                if (instance.HasProperty("_Intensity")) instance.SetFloat("_Intensity", intensity);
+                // Driven from the same constant that widened the mesh, so the core stays exactly the
+                // requested width however BeamHaloWidthScale is retuned.
+                if (instance.HasProperty("_CoreRadius")) instance.SetFloat("_CoreRadius", 1f / BeamHaloWidthScale);
+                // Casting shadows from a glow is wrong and costs a pass per shot.
+                renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                renderer.receiveShadows = false;
+            }
+
             timedPresentations.Add(new TimedPresentation(beam, Time.time + duration, beamPool));
         }
 
@@ -1557,7 +1625,15 @@ namespace LTW.UnityClient.Simulation
             tether.transform.position = midpoint;
             tether.transform.LookAt(to);
             tether.transform.localScale = new Vector3(ServicingTetherThickness, ServicingTetherThickness, Mathf.Max(0.1f, distance));
-            SetColor(tether, ServicingTetherColor);
+            // Assert the material, don't just tint it. This shares beamPool with SpawnBeam, which
+            // assigns the additive LTWWeaponBeam material — and SetColor only writes .color, so a
+            // tether recycled from a released beam would keep that shader and draw as a glowing
+            // additive tube instead of a solid line, at random, depending on pool order. Exactly the
+            // failure GetPooled's own comment describes for meshes, one dimension over.
+            if (tether.TryGetComponent<Renderer>(out var tetherRenderer))
+            {
+                tetherRenderer.sharedMaterial = BoardRenderResources.SharedOpaque(ServicingTetherColor);
+            }
         }
 
         private static bool IsRepairDroneTower(string towerId) => towerId.IndexOf("repair_drone", StringComparison.OrdinalIgnoreCase) >= 0;

@@ -18,12 +18,14 @@ namespace LTW.UnityClient.Simulation
         private const string BoardVertexColorShaderResourcePath = "Shaders/LTWBoardVertexColor";
         private const string ContactShadowShaderResourcePath = "Shaders/LTWContactShadow";
         private const string FillBarShaderResourcePath = "Shaders/LTWFillBar";
+        private const string WeaponBeamShaderResourcePath = "Shaders/LTWWeaponBeam";
 
         private static readonly Dictionary<uint, Material> SharedOpaqueMaterials = new Dictionary<uint, Material>();
 
         private static Shader boardVertexColorShader;
         private static Shader contactShadowShader;
         private static Shader fillBarShader;
+        private static Shader weaponBeamShader;
         private static Material boardSurfaceMaterial;
         private static Material fillBarMaterial;
         private static Mesh contactShadowMesh;
@@ -55,6 +57,41 @@ namespace LTW.UnityClient.Simulation
 
                 return contactShadowShader;
             }
+        }
+
+        public static Shader WeaponBeamShader
+        {
+            get
+            {
+                if (weaponBeamShader == null)
+                {
+                    weaponBeamShader = Resources.Load<Shader>(WeaponBeamShaderResourcePath)
+                        ?? Shader.Find("LTW/Weapon Beam");
+                }
+
+                return weaponBeamShader;
+            }
+        }
+
+        /// <summary>
+        /// Material for a tower's weapon beam: hot core, soft radial falloff, tapered to the target.
+        /// </summary>
+        /// <remarks>
+        /// Falls back to an additive particle shader rather than an opaque one if the custom shader
+        /// is missing, so a beam degrades to a plain glowing box instead of an opaque black brick
+        /// across the lane.
+        /// </remarks>
+        public static Material CreateWeaponBeamMaterial(string name)
+        {
+            var shader = WeaponBeamShader
+                ?? Shader.Find("Particles/Standard Unlit")
+                ?? Shader.Find("Sprites/Default");
+
+            return new Material(shader)
+            {
+                name = name,
+                enableInstancing = true
+            };
         }
 
         public static Shader FillBarShader
