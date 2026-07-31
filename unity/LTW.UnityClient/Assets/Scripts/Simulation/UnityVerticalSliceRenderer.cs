@@ -4063,10 +4063,14 @@ namespace LTW.UnityClient.Simulation
                 case TowerVisualRole.Barricade:
                     return new TowerMotionProfile(0.7f, 0.006f, locksYaw: true, suppressRecoil: false, recoilScale: 1.5f);
 
-                // A thin spire with a drone. Light bob plus a wider drift than anything else,
-                // reading as something hovering rather than planted.
+                // A bolted-down spire, not an aircraft. It previously carried the widest drift in the
+                // roster (0.04) to read as "hovering rather than planted" — but the mesh is a pillar
+                // on a plinth with a dish on top, so drifting it sideways read as the whole structure
+                // sliding around inside its cell rather than as flight. Drift removed and the pulse
+                // cut to a faint idle, near Barricade's deliberately-inert level. The thing that
+                // should look airborne is the servicing tether it projects, not the building.
                 case TowerVisualRole.RepairDrone:
-                    return new TowerMotionProfile(1.5f, 0.018f, driftHz: 0.9f, driftAmp: 0.04f, recoilScale: 0.5f);
+                    return new TowerMotionProfile(1.2f, 0.008f, recoilScale: 0.5f);
 
                 // --- Grove line ---------------------------------------------------------------
                 // Living things: slower and larger than the machines, with real sway.

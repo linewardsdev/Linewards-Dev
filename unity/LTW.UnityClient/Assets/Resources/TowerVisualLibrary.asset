@@ -97,7 +97,7 @@ MonoBehaviour:
   - towerId: tower.repair_drone
     role: 9
     prefab: {fileID: 1740272045062943185, guid: 0c518c48a68ef4b34b27c76f24c5fa89, type: 3}
-    scale: {x: 0.9, y: 0.9, z: 0.9}
+    scale: {x: 1.05, y: 1.05, z: 1.05}
     lift: 0
     bodyRendererPath: BodyTintAnchor
     roleMarkerRendererPath: RoleMarker
