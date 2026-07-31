@@ -40,6 +40,13 @@ MODE = argv[3]           # "x", "y", "z", "radius", or "annulus"
 # object to cut (default: the first mesh found), and --remainder names what the leftover is called
 # (default "Base"). Splitting the Gatling's Head into Head + Barrel needs both — without them the
 # script would grab the Base mesh and rename the leftover "Base", clobbering the earlier split.
+# Move the feature's origin onto its own geometry centre. REQUIRED for anything that spins about
+# its own axis and does not already sit on the model's centre line. The origin of a split part stays
+# at the SOURCE model's origin, which for a ring or dish around the tower's vertical axis happens to
+# already be on the spin axis — so this never mattered before. A gatling barrel is offset along the
+# bore, so spinning it about its own long axis swept it around the tower in a wide ellipse instead of
+# turning in place.
+CENTER_ORIGIN = "--center-origin" in argv
 SOURCE_OBJECT = argv[argv.index("--from") + 1] if "--from" in argv else None
 REMAINDER_NAME = argv[argv.index("--remainder") + 1] if "--remainder" in argv else "Base"
 
@@ -108,7 +115,17 @@ import mathutils
 verts_world = [feature.matrix_world @ v.co for v in feature.data.vertices]
 cx = sum(v.x for v in verts_world) / len(verts_world)
 cy = sum(v.y for v in verts_world) / len(verts_world)
-print(f"{FEATURE_NAME.upper()} centroid xy=({cx:.4f}, {cy:.4f})")
+cz = sum(v.z for v in verts_world) / len(verts_world)
+print(f"{FEATURE_NAME.upper()} centroid xyz=({cx:.4f}, {cy:.4f}, {cz:.4f})")
+
+if CENTER_ORIGIN:
+    # ORIGIN_GEOMETRY keeps the mesh exactly where it is in world space and moves only the pivot,
+    # so the part still lines up with the rest of the model — it just now turns about itself.
+    bpy.ops.object.select_all(action='DESELECT')
+    feature.select_set(True)
+    bpy.context.view_layer.objects.active = feature
+    bpy.ops.object.origin_set(type='ORIGIN_GEOMETRY', center='BOUNDS')
+    print(f"{FEATURE_NAME.upper()} origin moved to {tuple(round(v, 4) for v in feature.location)}")
 
 bpy.ops.object.select_all(action='SELECT')
 bpy.ops.export_scene.fbx(
