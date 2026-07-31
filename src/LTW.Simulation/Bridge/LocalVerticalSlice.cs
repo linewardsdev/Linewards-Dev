@@ -692,7 +692,7 @@ public sealed class LocalVerticalSlice
             return;
         }
 
-        var kind = IsLaneUnderPressure(playerId, bot) ? CategoryKind.TowerLine : CategoryKind.SendCategory;
+        var kind = BotTierPreference(bot);
         var categoryIndex = kind == CategoryKind.TowerLine
             ? MostBuiltTowerLine(playerId)
             : MostSentCreepCategory(playerId);
@@ -718,6 +718,33 @@ public sealed class LocalVerticalSlice
         }
 
         BuyCategoryTier(playerId, kind, categoryIndex, targetTier);
+    }
+
+    /// <summary>
+    /// Which side of the roster a bot spends its upgrade gold on, from its own authored profile.
+    /// </summary>
+    /// <remarks>
+    /// Driven by the profile's existing Aggression and DefenseBias rather than a new heuristic, so
+    /// a Greedy bot (aggression 90, bias 10) deepens its sends, a Defensive one (20/80) deepens its
+    /// towers, and the choice is content-tunable alongside every other bot knob.
+    ///
+    /// This replaced an earlier rule of "tower tier while under pressure, send tier otherwise",
+    /// which read sensibly and measured terribly: bots are under pressure most of the time, so they
+    /// poured almost everything into defence, and two of them facing each other could no longer
+    /// finish a match at ANY tower multiplier — the run that exposed this stalemated past 6000
+    /// ticks even after tower scaling was cut to 112%. Preference turned out to dominate the
+    /// multiplier completely: holding the multiplier at 115/130 and only changing which side bots
+    /// buy took the same match from a stalemate to 3336 ticks, which is faster than the 3627 the
+    /// game takes with no tiers at all.
+    ///
+    /// A tie (Balanced, 50/50) breaks toward the SEND side deliberately. Defence already compounds
+    /// for free through an unbounded tower count, so the attacking side is the one that needs the
+    /// help, and it is the side that lets a match end.
+    /// </remarks>
+    private CategoryKind BotTierPreference(BotController bot)
+    {
+        var profile = bot.ResolveProfile(content);
+        return profile.DefenseBias > profile.Aggression ? CategoryKind.TowerLine : CategoryKind.SendCategory;
     }
 
     /// <summary>

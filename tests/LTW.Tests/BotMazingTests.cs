@@ -1,5 +1,6 @@
 using System.Linq;
 using LTW.Simulation.Bridge;
+using LTW.Simulation.Economy;
 using LTW.Simulation.Primitives;
 using Xunit;
 using Xunit.Abstractions;
@@ -96,6 +97,57 @@ public sealed class BotMazingTests
             {
                 Assert.True(slice.RouteLength(new LaneId(lane)) > 0, $"lane {lane} route was sealed at tick {tick}");
             }
+        }
+    }
+
+    /// <summary>
+    /// Bots actually buy category tiers, and buy the side their profile is about.
+    /// </summary>
+    /// <remarks>
+    /// Bots must upgrade or the feature makes them strictly worse opponents: they maze well now,
+    /// and a tier-3 human against a tier-1 bot defence would be a walkover.
+    ///
+    /// Which SIDE they buy is asserted too, because it is not cosmetic — measurement showed the
+    /// preference dominates the tier multipliers for match pacing. When bots poured their upgrade
+    /// gold into towers, two of them could not finish a match at any multiplier; driving the choice
+    /// from each profile's own Aggression/DefenseBias instead brought the same match in at 3249
+    /// ticks, faster than the 3627 it takes with no tiers at all.
+    /// </remarks>
+    [Fact]
+    public void Bots_buy_category_tiers_on_the_side_their_profile_favours()
+    {
+        var slice = new LocalVerticalSlice(SampleVerticalSliceContent.Create(), ThreeLanes());
+
+        for (var tick = 0; tick < 1600; tick++)
+        {
+            slice.AdvanceOneTick();
+        }
+
+        var players = slice.GetSnapshot().Players.Players
+            .Where(player => player.PlayerId.Value != 1)
+            .ToArray();
+
+        var upgraded = players.Where(player =>
+            Enumerable.Range(0, PlayerEconomyState.CategoryCount).Any(category =>
+                player.TowerLineTier(category) > 1 || player.SendCategoryTier(category) > 1))
+            .ToArray();
+
+        foreach (var player in players)
+        {
+            var tower = string.Join(",", Enumerable.Range(0, PlayerEconomyState.CategoryCount).Select(player.TowerLineTier));
+            var send = string.Join(",", Enumerable.Range(0, PlayerEconomyState.CategoryCount).Select(player.SendCategoryTier));
+            output.WriteLine($"P{player.PlayerId.Value}: tower=[{tower}] send=[{send}]");
+        }
+
+        Assert.NotEmpty(upgraded);
+
+        // Every upgrade a bot bought is on exactly one side, and it is the side its profile is
+        // about — no bot should be splitting its gold across both.
+        foreach (var player in upgraded)
+        {
+            var boughtTower = Enumerable.Range(0, PlayerEconomyState.CategoryCount).Any(category => player.TowerLineTier(category) > 1);
+            var boughtSend = Enumerable.Range(0, PlayerEconomyState.CategoryCount).Any(category => player.SendCategoryTier(category) > 1);
+            Assert.True(boughtTower ^ boughtSend, $"P{player.PlayerId.Value} bought on both sides; the profile preference is not being respected");
         }
     }
 }

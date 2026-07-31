@@ -58,14 +58,28 @@ public static class CategoryTierRules
     }
 
     /// <summary>
-    /// Scales an authored value by an integer percent, never below 1.
+    /// Scales an authored value by an integer percent, rounding to NEAREST, never below 1.
     /// </summary>
     /// <remarks>
-    /// The floor matters at the damage seam: a percent below 100 would otherwise be able to round
-    /// a 1-damage tower down to 0 and make it silently useless. No tier does that today, but the
-    /// floor means a future nerf tier cannot introduce it by accident.
+    /// The rounding rule is load-bearing here, not a detail, because damage is a small integer and
+    /// the multiplier is capped. All three candidates were measured across the 15-tower roster:
+    ///
+    ///   truncate — tier 2 improved 3 towers of 15, and tier 3 only 9. Five towers sit at 2 damage
+    ///              (Arrow, Control, Relay, Gatling, Sapling) and 2 * 130 / 100 truncates back to
+    ///              2, so a player could buy ARCANE to its top tier and see no change at all.
+    ///   ceiling  — improved all 15 at tier 2, but by giving every 2-damage tower a flat +50%
+    ///              regardless of the percent, which was enough to put two bot defences back into
+    ///              the stalemate this feature must not cause.
+    ///   nearest  — tier 2 improves 9 of 15, tier 3 improves 13 of those again, and every tower on
+    ///              the roster is better at tier 3 than at tier 1. Chosen.
+    ///
+    /// A 2-damage tower still gains nothing at tier 2 and +1 at tier 3. That is the floor of what
+    /// integers can express at this multiplier, and raising the multiplier is not available —
+    /// tower scaling above 130% is exactly what stops matches ending. See GD_TUNING_LOG.md.
+    ///
+    /// The floor of 1 additionally stops a future sub-100% tier rounding a 1-damage tower to zero.
     /// </remarks>
-    public static int Scale(int value, int percent) => Math.Max(1, value * percent / 100);
+    public static int Scale(int value, int percent) => Math.Max(1, (value * percent + 50) / 100);
 
     /// <summary>
     /// An unknown tier scales by 100% rather than throwing — the same reasoning as

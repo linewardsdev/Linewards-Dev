@@ -38,7 +38,8 @@ public sealed class CombatService
             CategoryTierRules.Scale(creep.MaxHealth, healthPercent),
             pathIndex: 0,
             movementProgress: 0,
-            hasLeaked: false);
+            hasLeaked: false,
+            maxHealth: CategoryTierRules.Scale(creep.MaxHealth, healthPercent));
     }
 
     /// <summary>
@@ -63,7 +64,8 @@ public sealed class CombatService
             creep.Health,
             pathIndex: 0,
             movementProgress: 0,
-            hasLeaked: false);
+            hasLeaked: false,
+            maxHealth: creep.MaxHealth);
     }
 
     public CombatTickResult Advance(
@@ -96,7 +98,7 @@ public sealed class CombatService
                 creep.LaneId,
                 ResolvePosition(creep, routes),
                 creep.Health,
-                content.GetCreep(creep.CreepId).MaxHealth,
+                creep.MaxHealth,
                 content.GetCreep(creep.CreepId).SpeedPerSecond,
                 ResolveNextPosition(creep, routes),
                 creep.MovementProgress,
