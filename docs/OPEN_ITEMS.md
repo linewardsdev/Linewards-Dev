@@ -14,7 +14,33 @@ roles, `BotPlacementCandidates` is deleted, and the bot pressure filter now excl
 new set of open items, and this is the project's tracker for those.
 
 Items 1–4 are carried forward from the retired version, updated against what was verified
-on 2026-07-31. Items 5–16 are new.
+on 2026-07-31. Items 5–16 were new that day; most are now resolved and deleted, see the
+ledger below. Items 18–20 were opened by the work that resolved them.
+
+**Re-verified 2026-07-31** against the working tree after `4bb48d2` (art-doc archive),
+`151df11` (this file committed) and `bff79e3` (code comments recited by name). Items 5–15
+and 17 all still hold as written. Item 16 was substantially resolved by the archive commit
+and has been rewritten to show what remains versus what closed. Item 3 gained a finding
+that settles decision 17.3. Nothing else changed.
+
+**Worked 2026-07-31 (later the same day).** Items 5, 6, 7, 8, 12, 13, 14 and 16 are
+resolved and deleted per this file's own rule. Item 15's two flag-level sub-items are
+resolved; its two initiative-sized ones remain. Numbers are NOT reused and the remaining
+items are NOT renumbered, because item numbers are cited from source comments — the
+ledger below keeps a deleted number resolvable for anyone following one of those.
+
+### Resolved 2026-07-31
+
+| Item | Commit | Outcome |
+| --- | --- | --- |
+| 5 | `24ff842` | Post-processing sub-assets persisted; contents checked at load and in CI. The profile had shipped with three null overrides since `746403b`, so the game rendered with no tonemapper and no bloom for the entire life of the URP migration. |
+| 6 | `277c02c` | Premise disproved by measurement. The ORM red channel is exactly 0.000 in every pixel of all 21 packed maps — there is no AO to recover, and binding it would have multiplied every model's ambient by zero. Extraction now runs when there IS occlusion, and reports when there is not. |
+| 7 | `19650e6` | 30 tower and creep bodies retuned to smoothness 0.45. Neither cluster's value was the target: 1.0 is wet plastic, 0.12 is dead matte. Ten towers given per-role emission above the bloom threshold; all fifteen creeps raised off a multiplier that made blooming arithmetically impossible. |
+| 8 | `b9392db` | Soft shadows, HDR grading, SMAA, and reflections matched to the scene's own ambient. Also deleted a second, hollow copy of the post-processing profile that nothing referenced. |
+| 12 | `a1e6386` | Silent-skip fixed, exit codes added, and `audit_intake_scores.py` reads the scorecards back. All 11 `pass` results in the repo turned out to have skipped the normal-map check entirely. |
+| 13 | `54de8f1` | Craft axis folded into the cycle doc **and** the report generator, so it appears in generated reports rather than needing to be remembered. |
+| 14 | `76deab8` | Coverage report regenerated from the visual libraries and validated by script; both capture states verified as already working. Wave 0.8 re-baseline captured. |
+| 16 | `892b64b` | Dangerous editor version struck from 3 runnable commands across 2 archived docs; roster claim and capture-state numbering corrected. |
 
 **The plan that sequences this work is [`GRAPHICS_AA_UPLIFT.md`](GRAPHICS_AA_UPLIFT.md).**
 That document holds the wave ordering, the raised quality target, the craft scorecard
@@ -76,6 +102,22 @@ block on it — see item 12. Two routes, still neither pursued:
   albedo-derived bake was previously considered and rejected as a silent visual tradeoff;
   if it is revisited, make that call deliberately and look at the result.
 
+**Finding that favours the first route (2026-07-31).** Exactly one normal map exists
+anywhere in the art tree:
+`Art/AIStaging/SourcePlates/ProductionCandidates/tower_arrow_3d_Assets/selected.fbm/NormalGL_*.png`.
+It sits in an FBX embedded-media cache — a `.fbm/` folder, which `.gitignore` excludes — so
+it is neither tracked nor bound to any material, and the "0 bound" figures above stand.
+
+Its significance is that **Meshy has already produced a usable normal map for one of our
+own assets.** The route was never blocked or unavailable; it simply was not asked for on
+subsequent generations, and the one that did arrive was dropped by an intake path that
+ignores `.fbm/` contents.
+
+Checked whether this is recoverable at scale: **it is not.** Of 11 `.fbm/` caches in the
+art tree, only the arrow tower's contains a normal map. So unlike the AO in item 6, there
+is no free win hiding here — but the regeneration route is now *proven* rather than
+assumed, which is what decision 17.3 was waiting on.
+
 See also item 6 — AO does not need generating at all, only un-discarding.
 
 ## 4. Leg rigs on shell-bodied creeps may be invisible from the game camera
@@ -102,99 +144,6 @@ occluded, in which case body/head motion is the only lever that will read.
 
 Findings from the holistic graphics review. Full context, sequencing and the raised
 quality target are in [`GRAPHICS_AA_UPLIFT.md`](GRAPHICS_AA_UPLIFT.md).
-
-## 5. URGENT — post-processing is not running in the committed build
-
-`Assets/Resources/LTW_PostProcessing.asset`, the profile loaded at runtime by
-`LocalVerticalSliceLauncher`, contains three **null** component references:
-
-```yaml
-m_Name: LTW_PostProcessing
-components:
-- {fileID: 0}
-- {fileID: 0}
-- {fileID: 0}
-```
-
-`Assets/DefaultVolumeProfile.asset`, the URP global default, is `components: []`.
-
-The tonemapper, bloom and colour-adjustment values exist only inside
-`Assets/Editor/UrpPostProcessingSetup.cs` as an editor menu item
-(`Line Wards/Migration/Create Post Processing Profile`). It was run once in someone's
-editor and the resulting sub-assets never landed on disk — the only commit that ever
-touched the profile is `746403b "Phase 3b: add tonemapping and bloom"`.
-
-**The game therefore renders with no tonemapper and no bloom.** Linear HDR values clip
-straight to sRGB; every emissive surface authored at 2.0 intensity clamps to flat white.
-The entire URP migration was undertaken to get bloom, and bloom has never run in a
-committed build. This is the single largest cause of the flat, unpolished look, and it is
-a bug rather than an art deficiency.
-
-Fixing it by re-running the menu item leaves it free to regress the same silent way.
-**Land the fix and a guard together**: a load-time assertion that the profile is non-null,
-has three components, and none are null — plus an editor test. Wave 0.1–0.2.
-
-## 6. AO is produced by the source assets and thrown away by our own script
-
-Meshy ships ORM-packed textures, where the **red channel is ambient occlusion**.
-`tools/art_pipeline/repack_metallic_smoothness.py` converts ORM into Unity's
-metallic/smoothness layout and discards R in the process.
-
-So AO exists on disk for 20 of 30 assets and is being deleted by a script we own. Writing
-it out as `Baked_Occlusion.png` and binding `_OcclusionMap` is roughly a 15-line change.
-**Highest payoff-per-effort item in the entire uplift** — no generation credits, no new
-authoring, data already present. Wave 1.1.
-
-## 7. Ten of fifteen tower bodies are dead matte, from a two-agent material split
-
-Verified 2026-07-31. Tower body materials fall into exactly two clusters with no
-intermediate values, and the split is precisely the original 5 towers versus the 10 added
-later:
-
-| Cluster | Towers | `_Smoothness` | `_EmissionColor` |
-| --- | --- | --- | --- |
-| A | arrow, control, prism, pulse, relay | **1.0** | per-role, peaks at **2.0** (arrow `0.604, 1.278, 2.0`) |
-| B | barricade, bloomheart, elder_canopy, foundry, gatling, repair_drone, sapling, spore_cloud, tesla, thorn_snare | **0.12** | identical `0.02, 0.035, 0.05` on all ten |
-
-Cluster B multiplies its metallic-gloss map by 0.12 — no specular response, no shine, on
-two thirds of the roster. Its emission sits far below the bloom threshold of 1.05, so
-those towers will not bloom even once item 5 is fixed. Cluster B is also exactly the 10
-towers that never received a `split_tower_rigid_part.py` pass.
-
-Creep bodies split three ways on the same pattern; burrower, colossus, stalker, warden and
-zephyr have **no emission map and black emission colour**.
-
-**Corrected 2026-07-31 after examining reference frames directly.** The original fix here
-said "bring Cluster B to Cluster A's values." That is wrong and would overshoot. The
-reference look has **no sharp specular highlights at all** — metal reads through a broad
-soft value gradient plus a rim, never a hotspot. `_Smoothness: 1.0` produces exactly the
-glossy hotspot the target avoids.
-
-Both clusters are off-target in opposite directions: 0.12 is dead matte, 1.0 is wet
-plastic. Start around **0.35–0.5** and tune by eye against a real capture — and note that
-in the reference the richness is carried by **AO and rim light, not by specular**, which
-makes item 6 the more important half of this fix. Give the five zero-emission creeps
-emission as well. Wave 0.6, and see `GRAPHICS_AA_UPLIFT.md` §4.1.
-
-## 8. Render-setup defects that cost nothing to fix
-
-Each verified 2026-07-31, each a flag or a line:
-
-- **Soft shadows are requested but disabled.** `LocalVerticalSliceLauncher` sets
-  `LightShadows.Soft`; the URP asset has `m_SoftShadowsSupported: 0`, so URP strips the
-  variant and the key light renders hard, aliased 1024-map shadows.
-- **No camera antialiasing.** `cameraData.antialiasing` is never set, so it defaults to
-  `None`. MSAA 2x alone leaves visible stair-stepping on crystal and spire silhouettes at
-  phone DPI.
-- **No reflection probe.** Every smooth surface reflects Unity's stock procedural
-  blue-grey sky while the camera clears to `(0.06, 0.08, 0.12)` navy. The reflections do
-  not match the scene — a classic prototype tell.
-- **Colour grading mode is LDR**, so HDR values cannot be graded even once grading exists.
-- **Depth texture and opaque texture are both off**, which blocks SSAO, soft particles and
-  any depth- or refraction-based effect.
-- **`m_RendererFeatures` is `[]`** — no SSAO, no decals, no custom passes.
-
-Wave 0.3–0.7, except SSAO which needs the depth texture first (Wave 1.3).
 
 ## 9. There is no VFX system at all
 
@@ -238,77 +187,32 @@ Decide the target technology before committing to any UI polish date. Wave 3.1�
 
 Wave 2.3–2.5.
 
-## 12. The intake gate does not gate
-
-`ai_asset_intake.py` produces a real scorecard, and nothing consumes it:
-
-- `has_normal_map` is **advisory** — a failure yields `status: needs_review`, never `fail`.
-  Only zero meshes or zero triangles produce a hard fail.
-- The check is **silently skipped** when the audit found no texture paths, so an asset
-  with no maps at all scores a clean pass.
-- **No CI job, editor gate or promotion script reads `score.json`.** 14 of 30 shipped
-  assets carry `status: needs_review`; all 30 are in production.
-
-Making status blocking is cheap. The reason it was not is that it would have blocked every
-asset in the game — which is the finding, not an objection. Sequence it after item 3 so
-the gate has something to pass. Wave 1.4.
-
-## 13. The promotion scorecard cannot detect the problem it needs to catch
-
-`MOBILE_ART_DIRECTION_IMPROVEMENT_CYCLE.md` §4 defines a good 0–3 scorecard across 15
-categories with blocking rules and a promotion gate. **Every one of the 15 is a
-readability criterion** — arena fit, lane readability, gate clarity, touch clearance,
-silhouette identity, grayscale separation, heavy-pressure readability, signal priority,
-motion clarity, palette cohesion, icon match, originality, fallback behaviour.
-
-None measures surface quality, material richness, effect quality, animation richness,
-lighting craft or UI craft. A build can score 3/3 on all fifteen and look exactly like the
-current one. A 12-category craft axis is drafted in `GRAPHICS_AA_UPLIFT.md` §5 and needs
-folding into the cycle doc.
-
-## 14. The promotion gate points at deleted assets, and two capture states are broken
-
-Both block the review process that every other item depends on:
-
-- **The target-reference gate cannot be satisfied.** The improvement cycle makes a
-  "target-reference match score" a promotion requirement, against the canonical targets in
-  `art-pipeline/v1-role-coverage-report.md` — which lists `Tower_*_AIPlate.prefab` and
-  `Sprites/*_trimmed.png`. Those were deleted on 2026-07-26. Fix before Wave 1.
-- **`runner-10-pressure` and `swarm-heavy-pressure` land nothing in the framed lane**
-  (also tracked in `GAMEPLAY_REVIEW_FINDINGS.md`). Heavy-pressure readability is a
-  *blocking* scorecard category, so it currently cannot be reviewed at all.
-
 ## 15. Performance debt that will land before ship
 
-Not urgent for look, but it will constrain what the uplift can afford:
+Not urgent for look, but it will constrain what the uplift can afford. **The two flag-level
+sub-items are resolved in `b22aefd`; the two below are what remain, and neither is a flag.**
 
-- **No LOD groups exist**, while `m_EnableLODCrossFade: 1` is set on the URP asset for LOD
-  groups that do not exist. Every unit is ~15,000 triangles at LOD0 forever; a 40-creep
-  swarm is ~600k triangles. There is no decimation stage anywhere in the Blender pipeline.
 - **Quality tiers are decorative.** All six have `customRenderPipeline: {fileID: 0}`, so
   every tier resolves to the same URP asset. There is effectively one quality level, and it
-  is identical on a flagship and a budget phone.
-- **`gpuSkinning: 0`** — the eight skinned creeps deform on CPU.
+  is identical on a flagship and a budget phone. Fixing this means authoring a URP asset per
+  tier and deciding what each tier gives up — a look decision, not a settings edit.
 - **Three of the four custom shaders use built-in-pipeline `UnityCG.cginc`** and are not
   SRP-Batcher compatible, so the 30 contact-shadow quads each break batching.
+  `LTWContactShadow`, `LTWSporeFog` and `LTWFillBar`; `LTWBoardVertexColor` is already
+  clean. Each is a rewrite to URP HLSL with a visual re-verification, since these three
+  shaders are exactly the ones with no texture to compare against — a regression in them
+  looks like a lighting change rather than a broken shader.
+- **Still no LOD groups and no decimation stage.** Every unit is ~15,000 triangles at LOD0
+  forever; a 40-creep swarm is ~600k triangles. `m_EnableLODCrossFade` has been turned off
+  to stop paying for a transition that cannot happen, and `RenderSetupValidation` now fails
+  if the flag and the project disagree in either direction — so adding LOD groups later will
+  be told to switch it back on rather than silently getting pops.
+
+Resolved in `b22aefd`: `m_EnableLODCrossFade` was on with zero LODGroup components in the
+project, compiling the `LOD_FADE_CROSSFADE` variant of every shader for nothing; and
+`gpuSkinning: 0` had the eight skinned creeps deforming on CPU on a mobile target.
 
 Wave 4.
-
-## 16. Art docs that are stale or actively dangerous
-
-- **`GRAPHICS_THEME_WORK_BREAKDOWN.md` gives a batchmode command using Unity
-  `6000.3.12f1`** — the version that silently downgrades `ProjectSettings.asset` from
-  serialized version 29 to 28. Running the documented command as written corrupts project
-  settings. Fix this one first; it is the only item here that can damage the repo.
-- **Three docs still describe a 5+5 roster as current** —
-  `ART_THEME_AND_ROLE_GUIDE.md` (the primary theme authority, so 10 towers and 10 creeps
-  have no silhouette spec, no "Avoid" list and no phone-size test),
-  `MOBILE_ART_DIRECTION_IMPROVEMENT_CYCLE.md`, and `VFX_AND_ANIMATION_TARGETS.md`.
-- **"Creeps stay smaller than towers" is stated as non-negotiable in three docs and is now
-  false by design.** The health-tracking scale rule puts Siege Colossus at 1.247 against
-  towers at ~0.74. The decision was sound; the docs were never updated to match.
-- **Two incompatible capture-state numbering schemes are in use.** Following
-  `VFX_AND_ANIMATION_TARGETS.md` literally now tests the wrong three frames.
 
 ## 17. Decisions the owner still needs to make
 
@@ -324,3 +228,59 @@ Listed here so they do not sit invisibly inside the plan doc:
    roughness is what produces the target look; Meshy's generated albedo is the opposite.
    This is the most expensive item implied by the plan and the one that most determines
    whether the result reads as on-reference or merely improved.
+## 18. Eleven committed metallic/smoothness maps cannot be regenerated from the repo
+
+Re-running `repack_metallic_smoothness.py` rewrites 11 of the 21 committed
+`Baked_MetallicSmoothness.png` files with up to 0.46 per-pixel difference in metallic and
+0.34 in smoothness. Not non-determinism — a repeat run is byte-identical.
+
+Cause: those 11 date from `07240c3`, when their source maps were 4096x4096 and were
+box-averaged down to 1024. `c18b3bc` later replaced the sources with 1024 versions. So the
+committed textures derive from data no longer in the repo, and the repo cannot regenerate
+its own artefacts.
+
+Which version is better is genuinely arguable — averaging 16 texels is not obviously worse
+than whatever resample produced the current 1024 source — so this is a decision, not a
+cleanup. What is not arguable is that re-running the pipeline silently changes 11 tracked
+art textures, which will keep surfacing as mystery churn in unrelated commits.
+
+Affects: brute, runner, shade, siege, swarm, arrow, control (x2), prism, pulse, relay.
+
+## 19. Eight of fifteen creeps have no usable emissive detail
+
+Sharper than the count in the old item 7, and measured from the maps rather than the
+materials:
+
+- **Five have no `Baked_Emit.png` at all**: burrower, colossus, stalker, warden, zephyr.
+- **Three have one that is functionally blank** — 0.00% of texture above quarter
+  brightness: obsidianbrute (peak 0.224), revenant (0.047), shade (0.259).
+
+The five without maps are left with black emission deliberately: emission with no map
+multiplies against 1 and would light the entire body uniformly, a lantern rather than a
+highlight. `CreepBodyMaterialTuning.ValidateTuning` reports them by name on every run.
+
+This is art generation, not a material fix — it needs emission maps authored or
+regenerated. Pairs with item 3, since both are "the generator was never asked for this map".
+
+## 20. The target-reference gate measures ten roles against a retired era, and twenty against nothing
+
+Split out of item 14, which is otherwise resolved, because this part is a decision rather
+than a repair.
+
+`MOBILE_ART_DIRECTION_IMPROVEMENT_CYCLE.md` scores a target-reference match against the
+production references in `art-pipeline/v1-role-coverage-report.md`. Those references are 2D
+painted plates from the paint-then-model era. Only the original five towers and five creeps
+ever had one; the twenty added later were generated directly as 3D.
+
+So the gate measures ten roles against artwork their own 3D models superseded, and cannot
+score the other twenty at all. `validate_role_coverage.py --strict` exits 2 and names them.
+
+Two ways out, and the coverage report deliberately does not pick one:
+
+- Retire the target-reference score for identity work and replace it with the craft axis,
+  which measures the built asset rather than its distance from a plate.
+- Promote a current capture per role as its own reference, re-baselined when the asset
+  changes, so the target reflects the 3D era.
+
+Sequence before Wave 1: the promotion gate is what every other art item is checked by.
+

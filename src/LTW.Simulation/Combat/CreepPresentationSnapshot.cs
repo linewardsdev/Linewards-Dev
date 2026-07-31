@@ -43,8 +43,8 @@ public sealed class CreepPresentationSnapshot
     /// This is the DEFINITION speed, not the effective one: Thorn Snare's Bramble Hold halves a
     /// creep's speed while it is inside the zone (CombatService.StepCreep), and that is not reflected
     /// here. Exposing the braked value would mean rebuilding bramble zones inside GetCreepSnapshots,
-    /// which runs once per rendered FRAME rather than once per tick — the same mistake OPEN_ITEMS.md
-    /// item 24 already records against LeadPathIndex. Doing it properly means carrying the braked flag
+    /// which runs once per rendered FRAME rather than once per tick — the same mistake OPEN_ITEMS.md's
+    /// retired 2026-07-29 review already records against LeadPathIndex. Doing it properly means carrying the braked flag
     /// on CreepCombatState, where MoveCreeps already computes it once per tick; tracked as its own
     /// checklist item rather than paid for at 60 Hz here.
     /// </remarks>
