@@ -75,7 +75,7 @@ public sealed class LocalThreePlayerMatchTests
         // Upper bound raised to 2000 for the mazing bots: they build real defences now, so matches run
         // longer than the 1,643 ticks this seed took against the old nine-tower scripts. It completes at
         // 926 with the HasLeaked pressure fix — before that fix it never completed at all.
-        // Raised again to 3500 after fixing Thorn Snare's bramble zone (OPEN_ITEMS.md item 20):
+        // Raised again to 3500 after fixing Thorn Snare's bramble zone (OPEN_ITEMS.md's retired 2026-07-29 review, "bramble zone is computed from one index"):
         // BrambleZoneFor used to collapse a tower's first-and-last covered route indices into one
         // contiguous span, over-braking every index in between even on a maze where the tower's real
         // coverage is two or more separate visits with an unreached stretch between them.

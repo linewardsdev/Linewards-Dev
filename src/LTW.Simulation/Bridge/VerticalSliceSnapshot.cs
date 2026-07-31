@@ -7,7 +7,7 @@ using LTW.Simulation.Primitives;
 namespace LTW.Simulation.Bridge;
 
 /// <remarks>
-/// Creeps/Towers/TowerAimTargets are copied at construction (OPEN_ITEMS.md item 24) so a caller
+/// Creeps/Towers/TowerAimTargets are copied at construction (OPEN_ITEMS.md's retired 2026-07-29 review, grouped smaller items) so a caller
 /// holding an old snapshot cannot observe values change out from under it — the same defensive-copy
 /// convention already used by State/Snapshots.cs and ReplayRecord.
 /// </remarks>

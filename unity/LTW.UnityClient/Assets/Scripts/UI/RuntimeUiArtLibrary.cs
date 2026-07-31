@@ -37,7 +37,7 @@ namespace LTW.UnityClient.UI
 #if UNITY_EDITOR
             texture ??= UnityEditor.AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Resources/" + resourcePath + ".png");
 #endif
-            // Cache a miss too, not only a hit (OPEN_ITEMS.md item 24) — RuntimeUiIconLibrary already
+            // Cache a miss too, not only a hit (OPEN_ITEMS.md's retired 2026-07-29 review, grouped smaller items) — RuntimeUiIconLibrary already
             // does this. Only caching hits meant a genuinely missing texture re-ran Resources.Load
             // (and, in-editor, an AssetDatabase lookup) on every OnGUI pass instead of once.
             TextureCache[resourceName] = texture;

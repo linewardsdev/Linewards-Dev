@@ -766,7 +766,7 @@ namespace LTW.UnityClient.UI
         /// is ever restored this converts whatever tick count comes back at
         /// UnitySimulationDriver.TicksPerSecond into seconds without needing a code change — the
         /// player has no reason to care about ticks either way. Reads TicksPerSecond from the driver
-        /// instance rather than a local duplicate constant (OPEN_ITEMS.md item 24) so a future change
+        /// instance rather than a local duplicate constant (OPEN_ITEMS.md's retired 2026-07-29 review, grouped smaller items) so a future change
         /// to the sim rate can't silently desync this conversion from the real one.
         /// </remarks>
         private float CurrentSendCooldownSeconds()

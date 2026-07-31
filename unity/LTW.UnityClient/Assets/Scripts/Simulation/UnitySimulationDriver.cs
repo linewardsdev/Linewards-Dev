@@ -88,7 +88,7 @@ namespace LTW.UnityClient.Simulation
 
         /// <summary>
         /// Ticks between income payouts, read from the sim rather than a client-side copy
-        /// (OPEN_ITEMS.md item 24 — HudView used to hardcode this separately). Falls back to the
+        /// (OPEN_ITEMS.md's retired 2026-07-29 review, grouped smaller items — HudView used to hardcode this separately). Falls back to the
         /// sim's current default only before <see cref="Initialize"/> has run.
         /// </summary>
         public int IncomeIntervalTicks => simulation is null ? 50 : simulation.IncomeIntervalTicks;

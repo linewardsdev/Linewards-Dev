@@ -1025,7 +1025,7 @@ public sealed class CombatService
     // name is "Siege Colossus" and, at 90 max health, it is the highest-health creep in the roster
     // (creep.siege itself is 48). Matching only the id meant the biggest, most expensive creep to
     // leak cost the same one life as the cheapest, while the smaller Siege cost two — the opposite
-    // of what a "siege" classification is for. See OPEN_ITEMS.md item 24; the broader question of
+    // of what a "siege" classification is for. See OPEN_ITEMS.md's retired 2026-07-29 review, grouped smaller items; the broader question of
     // whether this substring approach should become a real per-creep content field instead of a
     // name heuristic is a design decision left open, not resolved here.
     private static Lives LeakLifeLossFor(ContentId creepId) =>

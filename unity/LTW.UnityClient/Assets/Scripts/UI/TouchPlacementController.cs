@@ -225,7 +225,7 @@ namespace LTW.UnityClient.UI
 
             // No camera tagged MainCamera yet (e.g. a scene still loading) — skip this tap rather
             // than dereference null, matching how UnityVerticalSliceRenderer.ConfigureDefaultCamera
-            // handles the same case (OPEN_ITEMS.md item 24).
+            // handles the same case (OPEN_ITEMS.md's retired 2026-07-29 review, grouped smaller items).
             if (inputCamera == null)
             {
                 return;

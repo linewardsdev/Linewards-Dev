@@ -61,7 +61,7 @@ public sealed class CreepSpeedTests
     /// </summary>
     /// <remarks>
     /// This is the test that was missing when the client guessed both of these from the creep id
-    /// string (OPEN_ITEMS.md item 12). That guess was correct for the original five and wrong for
+    /// string (OPEN_ITEMS.md's retired 2026-07-29 review, "client invents creep max health"). That guess was correct for the original five and wrong for
     /// ten of the fifteen added since, and nothing failed, because no test ever compared the two
     /// sides across the whole roster. Both fields now come from the definition, so this asserts the
     /// property that makes guessing unnecessary rather than re-checking specific numbers that the

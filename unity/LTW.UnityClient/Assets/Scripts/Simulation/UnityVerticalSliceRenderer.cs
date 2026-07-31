@@ -2830,7 +2830,7 @@ namespace LTW.UnityClient.Simulation
             if (!creepAnimators.TryGetValue(key, out var animator) || animator == null)
             {
                 // Cached per active creep: GetComponentInChildren walks the hierarchy, which is far
-                // too expensive to repeat every frame per creep (OPEN_ITEMS.md item 24 already flags
+                // too expensive to repeat every frame per creep (OPEN_ITEMS.md's retired 2026-07-29 review, grouped smaller items already flags
                 // per-frame work in this Update path).
                 animator = instance.GetComponentInChildren<Animator>(true);
                 creepAnimators[key] = animator;

@@ -272,7 +272,7 @@ for fc in iter_fcurves(action):
 bpy.ops.object.mode_set(mode='OBJECT')
 
 # ---- Verification renders from the ACTUAL game camera ---------------------
-# docs/OPEN_ITEMS.md item 4: render-check from the real camera, not an eye-level artist
+# OPEN_ITEMS.md's retired 2026-07-29 review, "leg rigs on shell-bodied creeps": render-check from the real camera, not an eye-level artist
 # view, because that is where the Brute's legs turned out to be fully occluded.
 if RENDER_PREFIX:
     world = bpy.data.worlds.new("W")

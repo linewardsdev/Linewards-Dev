@@ -220,7 +220,7 @@ public sealed class CombatTests
     /// LeakLifeLossFor matches "siege" or "colossus" in the content id, not the creep's display
     /// name or its actual max health. creep.colossus is "Siege Colossus" and, at 90 max health, the
     /// highest-health creep in the roster (creep.siege is 48) — it must not fall through to the
-    /// same 1-life cost as the cheapest creep in the game (OPEN_ITEMS.md item 24).
+    /// same 1-life cost as the cheapest creep in the game (OPEN_ITEMS.md's retired 2026-07-29 review, grouped smaller items).
     /// </summary>
     [Fact]
     public void Colossus_creep_emits_extra_leak_loss()

@@ -23,7 +23,7 @@ namespace LTW.Simulation.Replay;
 ///
 /// This is deliberate scope, not an oversight: full match replay (recording every accepted
 /// command with enough detail to rebuild the match) would be a real feature, not a bug fix. Treat
-/// this type as send/economy telemetry for tuning and evidence, and see OPEN_ITEMS.md item 22 for
+/// this type as send/economy telemetry for tuning and evidence, and see OPEN_ITEMS.md's retired 2026-07-29 review, "replay records cannot reproduce a match" for
 /// the reasoning if that scope ever needs revisiting.
 /// </remarks>
 public sealed class ReplayRecord

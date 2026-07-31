@@ -324,7 +324,7 @@ public sealed class TowerMechanicTests
     /// A route can pass a single Thorn Snare twice — near it, away, then back — which is normal on a
     /// mazed lane. BrambleZonesFor must brake each visit as its own span rather than collapsing the
     /// first and last covered indices into one span that also brakes the stretch in between where
-    /// the tower cannot actually reach (OPEN_ITEMS.md item 20).
+    /// the tower cannot actually reach (OPEN_ITEMS.md's retired 2026-07-29 review, "bramble zone is computed from one index").
     /// </summary>
     [Fact]
     public void Bramble_does_not_brake_a_stretch_the_tower_cannot_reach_between_two_visits()

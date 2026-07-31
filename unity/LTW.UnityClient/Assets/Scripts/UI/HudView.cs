@@ -11,7 +11,7 @@ namespace LTW.UnityClient.UI
     public sealed class HudView : MonoBehaviour
     {
         // Startup default only, before a UnitySimulationDriver is attached — every runtime read
-        // goes through simulationDriver.IncomeIntervalTicks instead (OPEN_ITEMS.md item 24; this
+        // goes through simulationDriver.IncomeIntervalTicks instead (OPEN_ITEMS.md's retired 2026-07-29 review, grouped smaller items; this
         // used to be the only copy and could silently disagree with the sim's real value).
         private const long IncomeIntervalTicks = 50;
         private static readonly Color NightInk = new(0.063f, 0.094f, 0.184f, 0.9f);

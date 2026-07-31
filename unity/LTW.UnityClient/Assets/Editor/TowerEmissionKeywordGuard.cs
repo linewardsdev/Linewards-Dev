@@ -11,7 +11,7 @@ namespace LTW.UnityClient.Editor
     /// underlying flakiness stops being able to ship a non-emissive tower.
     /// </summary>
     /// <remarks>
-    /// Covers all 15 towers (updated 2026-07-30, OPEN_ITEMS.md item 24) — this list originally
+    /// Covers all 15 towers (updated 2026-07-30, OPEN_ITEMS.md's retired 2026-07-29 review, grouped smaller items) — this list originally
     /// covered only the 5 original arcane towers, so the 10 added since were exposed to the same
     /// stripping this guard exists to absorb.
     /// </remarks>

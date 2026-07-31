@@ -52,7 +52,7 @@ public sealed class LocalVerticalSlice
     /// Total creep entities held in combat state, unfiltered by HasLeaked. GetSnapshot's creep list goes
     /// through GetCreepSnapshots, which already excludes spent lane-transfer entities, so it cannot show
     /// whether one is still sitting in CombatState. Exists to verify the count stays bounded to live
-    /// creeps instead of accumulating a tombstone per lane hop — see OPEN_ITEMS.md item 11.
+    /// creeps instead of accumulating a tombstone per lane hop — see OPEN_ITEMS.md's retired 2026-07-29 review, "every lane hop leaves a permanent spent entity".
     /// </summary>
     public int DiagnosticCombatEntityCount() => combatState.Creeps.Count;
 
@@ -481,7 +481,7 @@ public sealed class LocalVerticalSlice
         // here, which is the final tie-breaker in SelectTarget, Pulse's splash Take(2) and ChainArc.
         // It happens to be insertion order today (no removals from this dictionary), but a sim that
         // records and replays should not rely on that — SeedExpandedLaneBotOpeners already sorts for
-        // the same reason (OPEN_ITEMS.md item 23).
+        // the same reason (OPEN_ITEMS.md's retired 2026-07-29 review, "determinism: one real hazard").
         foreach (var bot in bots.OrderBy(bot => bot.Key.Value))
         {
             if (HasMinimumDefenseCoverage(bot.Key, bot.Value) && !IsLaneUnderPressure(bot.Key, bot.Value))
@@ -547,7 +547,7 @@ public sealed class LocalVerticalSlice
                 }
 
                 // The spent entity is removed unconditionally, not just when it transfers. Reaching a lane
-                // end is not death (health carries forward per the design note in OPEN_ITEMS.md item 11),
+                // end is not death (health carries forward per the design note in OPEN_ITEMS.md's retired 2026-07-29 review, "every lane hop leaves a permanent spent entity"),
                 // but the entity that just left this lane is done regardless of whether a next lane exists
                 // for it: on transfer its successor is the new entity below, and if every other seat is
                 // already eliminated (nextLaneId is null) it simply has nowhere left to go. Leaving it in
@@ -1009,7 +1009,7 @@ public sealed class LocalVerticalSlice
     private const int MazeLengthWeight = 4;
 
     // Cycled by ownedTowerCount rather than switched on a few slots with a repeating tail arm, for two
-    // reasons (OPEN_ITEMS.md item 15): the old shape could only ever reach 5 of the 15 towers (Arrow,
+    // reasons (OPEN_ITEMS.md's retired 2026-07-29 review, "bots can only build 5 of the 15 towers"): the old shape could only ever reach 5 of the 15 towers (Arrow,
     // Control, Pulse, Prism plus whatever the tail arm was), so every mechanic added since the 15-tower
     // expansion was measured against a bot that never builds it; and its tail arm repeated a single
     // tower forever once reached (Defensive -> endless Prism, Greedy -> endless Arrow), which is why

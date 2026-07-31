@@ -16,7 +16,7 @@ public sealed class EconomyService
     }
 
     /// <summary>Exposed so presentation layers can derive an income countdown without duplicating
-    /// this number (OPEN_ITEMS.md item 24 — the Unity client had its own hardcoded copy).</summary>
+    /// this number (OPEN_ITEMS.md's retired 2026-07-29 review, grouped smaller items — the Unity client had its own hardcoded copy).</summary>
     public int IncomeIntervalTicks => rules.IncomeIntervalTicks;
 
     public bool IsIncomeTick(SimulationTick tick) =>
@@ -138,7 +138,7 @@ public sealed class EconomyService
         // of the match (queued before elimination), so the defender still takes the lives loss — but
         // ApplyKillBounty already refuses to pay out against an eliminated participant, and crediting
         // gold to a sender who is out of the game is the same kind of no-op payout, just on the other
-        // side of the transaction (OPEN_ITEMS.md item 24). LeakResult still reports the creep's
+        // side of the transaction (OPEN_ITEMS.md's retired 2026-07-29 review, grouped smaller items). LeakResult still reports the creep's
         // nominal LeakBounty either way, matching the LeakEvent CombatService already raised for this
         // same leak (computed independently, before elimination status is known here) — only the
         // actual gold credit is suppressed.
