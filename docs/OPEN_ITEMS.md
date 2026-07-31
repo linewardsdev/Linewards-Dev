@@ -23,11 +23,14 @@ and 17 all still hold as written. Item 16 was substantially resolved by the arch
 and has been rewritten to show what remains versus what closed. Item 3 gained a finding
 that settles decision 17.3. Nothing else changed.
 
-**Worked 2026-07-31 (later the same day).** Items 5, 6, 7, 8, 12, 13, 14 and 16 are
-resolved and deleted per this file's own rule. Item 15's two flag-level sub-items are
-resolved; its two initiative-sized ones remain. Numbers are NOT reused and the remaining
-items are NOT renumbered, because item numbers are cited from source comments — the
-ledger below keeps a deleted number resolvable for anyone following one of those.
+**Worked 2026-07-31 (later the same day).** Items 5, 6, 7, 8, 9, 12, 13, 14 and 16 are
+resolved and deleted per this file's own rule, and item 15 is fully resolved bar the two
+parts noted in it. Numbers are NOT reused and the remaining items are NOT renumbered,
+because item numbers are cited from source comments — the ledger below keeps a deleted
+number resolvable for anyone following one of those.
+
+Items 1, 4 and 11 are not resolved but are substantially narrowed by measurement rather
+than left as written; each carries its own dated finding.
 
 ### Resolved 2026-07-31
 
@@ -41,6 +44,8 @@ ledger below keeps a deleted number resolvable for anyone following one of those
 | 13 | `54de8f1` | Craft axis folded into the cycle doc **and** the report generator, so it appears in generated reports rather than needing to be remembered. |
 | 14 | `76deab8` | Coverage report regenerated from the visual libraries and validated by script; both capture states verified as already working. Wave 0.8 re-baseline captured. |
 | 16 | `892b64b` | Dangerous editor version struck from 3 runnable commands across 2 archived docs; roster claim and capture-state numbering corrected. |
+| 9 | `652249d` | VFX system built. Root cause was structural rather than neglect: `com.unity.modules.particlesystem` was not in the manifest, so `ParticleSystem` did not exist as a type — the fourteen named VFX prefabs were unbuildable, not unbuilt. One shared world-space emitter per shape rather than one pooled per burst, which measured 2,769 → 6,082 peak objects and was abandoned; the shipped design runs at 2,118, *below* the pre-VFX baseline. |
+| 15 (part) | `b22aefd`, `9c504f3`, `1551cd5` | LOD cross-fade and GPU skinning fixed and guarded; two shaders moved to URP HLSL for SRP batching (LTWFillBar deliberately left on the GPU-instancing path, against the item's wording); three per-tier URP assets authored and assigned across all six quality levels. |
 
 **The plan that sequences this work is [`GRAPHICS_AA_UPLIFT.md`](GRAPHICS_AA_UPLIFT.md).**
 That document holds the wave ordering, the raised quality target, the craft scorecard
@@ -65,10 +70,40 @@ material and confirming the guard corrected it in the same batchmode pass.
 (verified 2026-07-31). The original guard covered only the first 5, which left the 10
 newer towers exposed; that gap is closed.
 
-Still open: the actual trigger. If tower emission ever looks wrong despite the guard,
-check the Editor log for repeated `TowerEmissionKeywordGuard` corrections firing every
-session — that would mean something is fighting it faster than expected, and is the
-signal to root-cause this rather than lean on the guard indefinitely.
+**Trigger narrowed to one code path, 2026-07-31.** The signal this item said to watch for
+was checked across 73 Unity sessions in a single day, and it is firing — but not from where
+this item assumed.
+
+| Run type | Sessions | Corrected |
+| --- | ---: | --- |
+| Full capture set (`CaptureVisualReviewSet`) | 3 | **8 every time** |
+| Role lineup capture (`CaptureRoleLineupReviewSet`) | 1 | **15** |
+| Compile-only / validate-only, `-nographics` | 14 | 0 |
+| Batch playtest, `-nographics` | 6 | 0 |
+| Batch playtest, **with** graphics | 1 | 0 |
+
+Three things follow, and the third contradicts this item as written:
+
+- **The count is not arbitrary — it equals the number of tower prefabs the run
+  instantiates.** 8 is the review defence line; 15 is the whole roster in the lineup
+  capture. Whatever the mechanism, it is per-tower.
+- **It always fires at shutdown, never mid-run** — line 1511 of 1598, 1576 of 1663, 1586
+  of 1673, 983 of 1029. The guard is an asset post-processor, so it is catching damage the
+  run itself did, on the final import.
+- **It does NOT recur "from a plain compile-only Editor pass".** Zero corrections across
+  fourteen compile and validate runs. It is also not ordinary Play Mode: six batch
+  playtests corrected nothing, and neither did a playtest run WITH graphics, which rules
+  out the graphics device as the discriminator.
+
+So the trigger is specific to `VisualReviewCaptureRunner` and scales with tower count.
+Ruled out by inspection: the runner's only two `sharedMaterial` writes are on backdrop
+cubes it creates itself, not on tower materials.
+
+Not yet isolated to a line. The remaining suspects are the reflection-driven scenario
+setup (`SetPrivateField`/`SetPrivateBool`), `PrefabUtility.InstantiatePrefab` — which
+unlike `Object.Instantiate` leaves the instance connected to the asset — and the
+render-to-texture path. Whoever picks this up should start by running one capture with
+the defence-line placement disabled and checking whether the count drops to zero.
 
 ## 2. Bloom cost on a physical Android device is unmeasured
 
@@ -138,26 +173,25 @@ creep, render-check from the actual game camera angle *first*, before investing 
 articulation. For a low, wide, or heavily-armoured silhouette the legs may again be fully
 occluded, in which case body/head motion is the only lever that will read.
 
+**The rule now has a number, 2026-07-31.** Applied to the whole roster at once and measured
+rather than judged per creep — see
+[`screenshot-reviews/creep-leg-visibility/`](screenshot-reviews/creep-leg-visibility/).
+The camera is orthographic at size 15.5 over a 1920px capture, so it resolves 61.9 pixels
+per world unit, and every creep's on-screen height follows from its library scale.
+
+**Below roughly 35px on-screen height, leg articulation moves 2–4 pixels and is not the
+lever** — body, tilt and silhouette motion are, which is what `CreepMotionProfile` already
+provides for all fifteen.
+
+Occlusion still has to be checked per creep, exactly as above. Height caps how much a leg
+COULD read; an overhanging shell takes it to zero regardless.
+
 ---
 
 # Graphics uplift items (opened 2026-07-31)
 
 Findings from the holistic graphics review. Full context, sequencing and the raised
 quality target are in [`GRAPHICS_AA_UPLIFT.md`](GRAPHICS_AA_UPLIFT.md).
-
-## 9. There is no VFX system at all
-
-Zero `ParticleSystem` instances in any prefab, scene or script. Also zero `TrailRenderer`,
-zero `LineRenderer`, zero VFX Graph assets, zero decal projectors.
-
-Every effect in the game is a pooled Unity primitive with a flat colour: impacts are
-spheres, tower beams are stretched cubes, muzzle flash is two crossed cubes, the repair
-tether is another stretched cube. `VFX_AND_ANIMATION_TARGETS.md` names 14 VFX prefabs that
-should exist; **none of them do** — the design work is complete and the authoring has never
-started.
-
-Probably the largest single contributor to perceived production value after item 5.
-Wave 2.1–2.2.
 
 ## 10. No font asset, and the HUD structurally cannot be animated
 
@@ -177,42 +211,72 @@ Decide the target technology before committing to any UI polish date. Wave 3.1�
 
 ## 11. Seven creeps have no animation, and the eight that do have one clip
 
-- **No Animator at all:** revenant, runner, serpent, shade, siege, swarm, wisp. These are
-  rigid meshes sliding along the lane.
+- **No Animator at all:** revenant, runner, serpent, shade, siege, swarm, wisp. Verified
+  2026-07-31, the list is exactly right.
 - **The other eight have exactly one state, `Walk`.** No idle, attack, hit reaction, death
   or spawn anywhere in the roster.
 - Creep death is instantaneous — the unit pops out of existence.
 - Tower motion is entirely procedural and is genuinely well done; this item is not about
   towers.
 
+**Two corrections, 2026-07-31.**
+
+*"Rigid meshes sliding along the lane" is not accurate.* All fifteen creeps carry per-creep
+procedural motion through `CreepMotionProfile` — fifteen distinct rows of bob, sway, drift,
+spin and pulse. What the seven lack is skeletal deformation, not motion. That matters for
+sequencing, because the visible gap is smaller than the item implies.
+
+*The effort is inverted relative to on-screen size.* Measured at the shipped camera (see
+item 4 and [`screenshot-reviews/creep-leg-visibility/`](screenshot-reviews/creep-leg-visibility/)):
+creeps that HAVE an animator average 46px tall, creeps with none average 80px. The five
+smallest creeps in the game — stalker at 16px through warden at 33px — all have rigs, and a
+leg on them swings 2–4 pixels. Three of the five largest have none.
+
+Also note these seven are static Meshy exports with **no armature at all**, so each needs a
+rig built and skinned before a clip can exist. That is the real cost of this item, and it is
+per creep.
+
+Suggested order, by return per rig rather than by the list above: **siege, serpent, runner**
+first (105/95/84px, no animator); then revenant and shade; then swarm and wisp, which are
+small and abstract enough that body motion probably reads better than legs regardless.
+
 Wave 2.3–2.5.
 
 ## 15. Performance debt that will land before ship
 
-Not urgent for look, but it will constrain what the uplift can afford. **The two flag-level
-sub-items are resolved in `b22aefd`; the two below are what remain, and neither is a flag.**
+**Four of the five sub-items are resolved (`b22aefd`, `9c504f3`, `1551cd5`). One remains,
+and it is the expensive one.**
 
-- **Quality tiers are decorative.** All six have `customRenderPipeline: {fileID: 0}`, so
-  every tier resolves to the same URP asset. There is effectively one quality level, and it
-  is identical on a flagship and a budget phone. Fixing this means authoring a URP asset per
-  tier and deciding what each tier gives up — a look decision, not a settings edit.
-- **Three of the four custom shaders use built-in-pipeline `UnityCG.cginc`** and are not
-  SRP-Batcher compatible, so the 30 contact-shadow quads each break batching.
-  `LTWContactShadow`, `LTWSporeFog` and `LTWFillBar`; `LTWBoardVertexColor` is already
-  clean. Each is a rewrite to URP HLSL with a visual re-verification, since these three
-  shaders are exactly the ones with no texture to compare against — a regression in them
-  looks like a lighting change rather than a broken shader.
-- **Still no LOD groups and no decimation stage.** Every unit is ~15,000 triangles at LOD0
-  forever; a 40-creep swarm is ~600k triangles. `m_EnableLODCrossFade` has been turned off
-  to stop paying for a transition that cannot happen, and `RenderSetupValidation` now fails
-  if the flag and the project disagree in either direction — so adding LOD groups later will
-  be told to switch it back on rather than silently getting pops.
+- **Still open: no LOD groups and no decimation stage.** Every unit is ~15,000 triangles at
+  LOD0 forever; a 40-creep swarm is ~600k triangles, and the harness has measured frames
+  with 266 creeps on camera. There is no decimation step anywhere in the Blender pipeline,
+  so this needs one built before LOD groups can be authored — it is an art-pipeline
+  initiative, not a settings change. Wave 4.
 
-Resolved in `b22aefd`: `m_EnableLODCrossFade` was on with zero LODGroup components in the
-project, compiling the `LOD_FADE_CROSSFADE` variant of every shader for nothing; and
-`gpuSkinning: 0` had the eight skinned creeps deforming on CPU on a mobile target.
+  `m_EnableLODCrossFade` has been turned off in the meantime so nothing pays for a
+  transition that cannot happen, and `RenderSetupValidation` fails if the flag and the
+  project disagree in either direction — so whoever adds LOD groups later will be told to
+  switch it back on rather than silently getting pops.
 
-Wave 4.
+Resolved:
+
+- `m_EnableLODCrossFade` was on with zero LODGroup components in the project, compiling the
+  `LOD_FADE_CROSSFADE` variant of every shader for nothing.
+- `gpuSkinning: 0` had the eight skinned creeps deforming on CPU on a mobile target.
+- Quality tiers all resolved to one URP asset. Three per-tier assets now exist and are
+  assigned across all six levels, guarded by `QualityTierSetup.ValidateTierAssets`. Note the
+  tiers were worse than "decorative": their own shadow, AA and light-count fields were
+  carefully varied AND entirely dead, because URP ignores all of them.
+- `LTWContactShadow` and `LTWSporeFog` moved to URP HLSL with a `UnityPerMaterial` CBUFFER,
+  so the SRP Batcher can take them — contact shadows are the case that mattered, since there
+  is one under every unit and each is a separate cloned material.
+
+  **`LTWFillBar` was deliberately NOT converted, against this item's wording.** It is built
+  for GPU instancing and driven by a `MaterialPropertyBlock` across the eight lane pressure
+  meters, which share one material and differ only by fill — they instance into one draw
+  call. Converting it would lose the instancing and gain nothing, because
+  `MaterialPropertyBlock` disables SRP batching anyway. "Three of the four shaders" was
+  accurate as a count and wrong as a prescription.
 
 ## 17. Decisions the owner still needs to make
 
