@@ -31,10 +31,10 @@ Agents must review these sources before selecting work:
 | `skill/line-wards-ltw-graphics-art-direction.md` | LTW lineage, mobile lane composition, visual priorities, legal boundary |
 | `docs/ART_THEME_AND_ROLE_GUIDE.md` | Tower, creep, icon, accent, silhouette, and phone-size role language |
 | `docs/archive/2026-07-planning/GRAPHICS_2000_BASELINE_ROADMAP.md` | Archived graphics maturity stages and baseline definition of done |
-| `docs/GRAPHICS_THEME_WORK_BREAKDOWN.md` | Parallel work packages and package-level screenshot requirements |
-| `docs/AI_ART_PIPELINE.md` | Generated 2.5D source plates, proof assets, promotion rules, and provenance |
-| `docs/PROPER_ART_REPLACEMENT_PASS_CHECKLIST.md` | Production replacement, materials, icons, anchors, and final QA |
-| `docs/STYLIZED_WEAPON_KIT_INTEGRATION_CHECKLIST.md` | Third-party source isolation, wrappers, licensing, and kit-derived candidates |
+| `docs/archive/2026-07-art-pipeline/GRAPHICS_THEME_WORK_BREAKDOWN.md` | Parallel work packages and package-level screenshot requirements |
+| `docs/archive/2026-07-art-pipeline/AI_ART_PIPELINE.md` | Generated 2.5D source plates, proof assets, promotion rules, and provenance |
+| `docs/archive/2026-07-art-pipeline/PROPER_ART_REPLACEMENT_PASS_CHECKLIST.md` | Production replacement, materials, icons, anchors, and final QA |
+| `docs/archive/2026-07-art-pipeline/STYLIZED_WEAPON_KIT_INTEGRATION_CHECKLIST.md` | Third-party source isolation, wrappers, licensing, and kit-derived candidates |
 | `docs/art-pipeline/ui-board-art-pipeline.md` | UI chrome, command cards, board materials, gates, and integration stages |
 | `docs/art-pipeline/ui-board-contact-sheet-brief.md` | Approved contact-sheet construction and review requirements |
 | `docs/art-pipeline/ui-board-pipeline-checklist.md` | Current UI/board production and QA work |

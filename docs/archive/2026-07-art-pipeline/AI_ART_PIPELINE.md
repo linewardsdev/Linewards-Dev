@@ -18,8 +18,8 @@ Generated placeholders, source-kit wrappers, and proof prefabs remain fallback o
 The genuinely open production work is:
 
 - rebuild the final simplified tower and send icon family from the active AIPlate silhouettes;
-- complete the [Tower 3D cohesion pass](art-pipeline/tower-3d-cohesion-pass.md) so Arrow, Control, Relay, Pulse, and Prism share one 3D production path instead of a mixed 3D/sprite tower set;
-- use the [Arrow-derived 3D tower pipeline](art-pipeline/arrow-derived-3d-tower-pipeline.md) as a source-asset intake, cleanup, wrapper, animation, and promotion process, not as a Unity/procedural art generator;
+- complete the [Tower 3D cohesion pass](../../art-pipeline/tower-3d-cohesion-pass.md) so Arrow, Control, Relay, Pulse, and Prism share one 3D production path instead of a mixed 3D/sprite tower set;
+- use the [Arrow-derived 3D tower pipeline](../../art-pipeline/arrow-derived-3d-tower-pipeline.md) as a source-asset intake, cleanup, wrapper, animation, and promotion process, not as a Unity/procedural art generator;
 - add or align specialized VFX landmarks beyond the generic tower `Muzzle` and `Lens` objects;
 - normalize sprite palette, brightness, and grayscale value separation;
 - certify Runner overlap plus Runner x10, heavy Swarm, Siege leak, all-tower combat, and reduced-effects pressure states;
@@ -85,7 +85,7 @@ The Control v01-v39 scripted Blender loop exposed a second ceiling: Codex-author
 
 The active no-human-design path is now documented here:
 
-- [No-Human-Design AI 3D Asset Pipeline](art-pipeline/no-human-design-ai-3d-asset-pipeline.md)
+- [No-Human-Design AI 3D Asset Pipeline](../../art-pipeline/no-human-design-ai-3d-asset-pipeline.md)
 
 In this path, the AI 3D generator is the designer. Codex may prompt, batch ingest, audit, normalize, preview, score, reject, and promote. Codex should not hand-model corrective geometry into generated candidates. Failed art candidates are rejected and regenerated.
 
