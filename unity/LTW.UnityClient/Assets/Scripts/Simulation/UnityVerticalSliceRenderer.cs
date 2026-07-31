@@ -1951,11 +1951,16 @@ namespace LTW.UnityClient.Simulation
 
             var shotColor = TowerShotColor(towerId, damage);
             var muzzle = At(Vector3.up * 0.62f);
+            // The five bespoke branches below are all Arcane, and take the same thin, bright, quick
+            // grammar as every other Arcane tower — they keep their own choreography and colours,
+            // which are already tuned, but no longer their own arbitrary beam widths.
+            var line = LineFor(towerId);
+            var style = StyleFor(line, damage);
             if (IsArrowTower(towerId))
             {
                 SpawnBeam(At(new Vector3(-0.5f, 0.62f, -0.18f)), At(new Vector3(0.5f, 0.62f, -0.18f)), shotColor, 0.08f);
                 SpawnBeam(At(new Vector3(0f, 0.58f, -0.32f)), At(new Vector3(0f, 0.66f, 0.26f)), SignalGold, 0.08f);
-                SpawnBeam(At(new Vector3(0f, 0.62f, 0.08f)), hitPosition + Vector3.up * 0.12f, shotColor, damage >= 5 ? 0.16f : 0.12f);
+                SpawnBeam(At(new Vector3(0f, 0.62f, 0.08f)), hitPosition + Vector3.up * 0.12f, shotColor, style.Duration, style.Width, style.Intensity);
                 SpawnCellFrameCue(hitPosition, shotColor, damage >= 5 ? 0.15f : 0.1f);
                 SpawnEffect(At(new Vector3(0f, 0.62f, 0.12f)), shotColor, damage >= 5 ? 0.28f : 0.2f, 0.08f, BurstShape.Muzzle, hitPosition - At(new Vector3(0f, 0.62f, 0.12f)));
                 return;
@@ -1969,7 +1974,7 @@ namespace LTW.UnityClient.Simulation
                 // as an actual aimed shot rather than a fixed decorative gate. Expanding rings lean
                 // into Control's own ring/portal shape, replacing a static glow at the tower and
                 // the same blocky SpawnCellFrameCue square other towers' VFX had.
-                SpawnBeam(At(Vector3.up * 0.62f), hitPosition + Vector3.up * 0.12f, shotColor, 0.18f);
+                SpawnBeam(At(Vector3.up * 0.62f), hitPosition + Vector3.up * 0.12f, shotColor, style.Duration * 1.4f, style.Width, style.Intensity);
                 SpawnExpandingRing(At(Vector3.up * 0.28f), shotColor, 0.15f, 1.4f, 0.35f);
                 SpawnExpandingRing(hitPosition + Vector3.up * 0.18f, shotColor, 0.1f, 0.85f, 0.22f);
                 SpawnEffect(hitPosition, shotColor, damage >= 5 ? 0.42f : 0.32f, 0.16f);
@@ -1978,7 +1983,7 @@ namespace LTW.UnityClient.Simulation
 
             if (IsRelayTower(towerId))
             {
-                SpawnBeam(muzzle, hitPosition + Vector3.up * 0.2f, shotColor, 0.2f);
+                SpawnBeam(muzzle, hitPosition + Vector3.up * 0.2f, shotColor, style.Duration * 1.6f, style.Width, style.Intensity);
                 SpawnBeam(At(new Vector3(-0.34f, 0.34f, 0f)), At(new Vector3(0.34f, 0.34f, 0f)), shotColor, 0.14f);
                 SpawnBeam(At(new Vector3(0f, 0.58f, -0.34f)), At(new Vector3(0f, 0.58f, 0.34f)), shotColor, 0.14f);
                 SpawnCellFrameCue(towerPosition, shotColor, 0.16f);
@@ -2011,17 +2016,33 @@ namespace LTW.UnityClient.Simulation
                 SpawnBeam(At(new Vector3(-0.16f, 0.7f, 0f)), At(new Vector3(0.16f, 0.7f, 0f)), SignalGold, 0.12f);
                 SpawnBeam(At(new Vector3(0f, 0.7f, -0.16f)), At(new Vector3(0f, 0.7f, 0.16f)), SignalGold, 0.12f);
                 SpawnEffect(At(Vector3.up * 0.7f), SignalGold, 0.22f, 0.12f);
-                SpawnBeam(At(Vector3.up * 0.7f), hitPosition + Vector3.up * 0.16f, shotColor, damage >= 5 ? 0.22f : 0.18f);
+                SpawnBeam(At(Vector3.up * 0.7f), hitPosition + Vector3.up * 0.16f, shotColor, style.Duration * 1.6f, style.Width, style.Intensity);
                 SpawnEffect(hitPosition + Vector3.up * 0.08f, shotColor, damage >= 5 ? 0.46f : 0.32f, 0.18f);
                 return;
             }
 
-            var scale = damage >= 5 ? 0.48f : 0.34f;
-            SpawnBeam(At(new Vector3(-scale, 0.62f, 0f)), At(new Vector3(scale, 0.62f, 0f)), shotColor, 0.1f);
-            SpawnBeam(At(new Vector3(0f, 0.62f, -scale)), At(new Vector3(0f, 0.62f, scale)), shotColor, 0.1f);
-            SpawnBeam(muzzle, hitPosition + Vector3.up * 0.12f, shotColor, 0.14f);
+            // The line grammar. Ten of the fifteen towers reach this tail, so until Layer 3 gives
+            // them individual tells, this is the whole of their weapon identity — and it is where a
+            // GROVE spore bloom and a FOUNDRY gatling used to fire the exact same blue box.
+            var impact = hitPosition + Vector3.up * 0.12f;
+
+            // Replaces two beams that crossed at the tower body: they were fixed to local axes, so
+            // they read as a static X unrelated to where the tower was shooting. A burst thrown
+            // along the firing direction reads as the weapon actually discharging.
+            SpawnEffect(muzzle, shotColor, damage >= 5 ? 0.3f : 0.22f, 0.1f, BurstShape.Muzzle, impact - muzzle);
+            SpawnBeam(muzzle, impact, shotColor, style.Duration, style.Width, style.Intensity);
+
+            if (line == TowerLine.Grove)
+            {
+                // Soft and organic all the way through, including the impact: a bloom opening on
+                // the target instead of the hard square SpawnCellFrameCue snaps around its cell.
+                SpawnExpandingRing(impact, shotColor, 0.12f, damage >= 5 ? 0.92f : 0.7f, style.Duration);
+                SpawnEffect(hitPosition, shotColor, damage >= 5 ? 0.42f : 0.3f, style.Duration * 0.6f);
+                return;
+            }
+
             SpawnCellFrameCue(hitPosition, shotColor, damage >= 5 ? 0.16f : 0.12f);
-            SpawnEffect(muzzle, shotColor, damage >= 5 ? 0.3f : 0.22f, 0.1f);
+            SpawnEffect(hitPosition, shotColor, damage >= 5 ? 0.3f : 0.22f, 0.1f);
         }
 
         private void SpawnCreepHitCue(Vector3 position, Color color, int damage)
@@ -5010,6 +5031,31 @@ namespace LTW.UnityClient.Simulation
             ConfigureChild(prismRightFacet, isPrism, new Vector3(0.22f, 0.66f, 0f), new Vector3(0.08f, 0.82f, 0.12f), baseColor);
         }
 
+        /// <summary>The three buildable tower lines, as the weapon effects see them.</summary>
+        private enum TowerLine
+        {
+            Arcane,
+            Foundry,
+            Grove
+        }
+
+        /// <summary>How one line's shots are drawn. See <see cref="StyleFor"/>.</summary>
+        private readonly struct WeaponStyle
+        {
+            public WeaponStyle(float width, float intensity, float duration)
+            {
+                Width = width;
+                Intensity = intensity;
+                Duration = duration;
+            }
+
+            public float Width { get; }
+
+            public float Intensity { get; }
+
+            public float Duration { get; }
+        }
+
         private static bool IsControlTower(string towerId) => ContainsRole(towerId, "slow") || ContainsRole(towerId, "splash") || ContainsRole(towerId, "control") || ContainsRole(towerId, "area");
 
         private static bool IsArrowTower(string towerId) => ContainsRole(towerId, "arrow") || ContainsRole(towerId, "basic");
@@ -5428,6 +5474,52 @@ namespace LTW.UnityClient.Simulation
             return pressure >= 8 ? $"DANGER {pressure}" : $"PRESS {pressure}";
         }
 
+        /// <summary>
+        /// Which of the three tower lines a content id belongs to, for weapon styling.
+        /// </summary>
+        /// <remarks>
+        /// Reads <see cref="TowerCatalog"/> rather than restating the grouping, so a tower moved
+        /// between lines cannot end up firing one line's weapon from another line's card. Inherits
+        /// that catalog's Arrow fallback, which lands on Arcane — the same arm the shot styling used
+        /// to take for every unrecognised tower anyway.
+        /// </remarks>
+        private static TowerLine LineFor(string towerId) => TowerCatalog.ForContentId(towerId).Category switch
+        {
+            TowerCatalog.CategoryFoundry => TowerLine.Foundry,
+            TowerCatalog.CategoryGrove => TowerLine.Grove,
+            _ => TowerLine.Arcane
+        };
+
+        /// <summary>
+        /// The weapon grammar for a line: how wide, how bright and how long its shots draw.
+        /// </summary>
+        /// <remarks>
+        /// Before this, every tower outside the original five fired the same beam at the same width
+        /// for the same duration, in one of two colours picked purely by whether damage reached 5 —
+        /// so a GROVE spore bloom and a FOUNDRY gatling fired identical blue shots. The three lines
+        /// have distinct names, models and card accents, and the weapons ignored all of it.
+        ///
+        /// Durations stay at or under 0.3s. GROVE is the slow, lingering one by design, but the
+        /// board already carries range halos, role-marker labels and health bars, and effects that
+        /// outstay that clutter have twice proved unreadable here.
+        /// </remarks>
+        private static WeaponStyle StyleFor(TowerLine line, int damage) => line switch
+        {
+            // Thin, cold and quick: precision energy.
+            TowerLine.Arcane => new WeaponStyle(0.11f, 1.75f, damage >= 5 ? 0.13f : 0.1f),
+            // Heavier and hotter, and it hangs a moment longer: machinery throwing ordnance.
+            TowerLine.Foundry => new WeaponStyle(0.17f, 1.35f, damage >= 5 ? 0.16f : 0.13f),
+            // Thick, soft and slow: something living reaching out.
+            _ => new WeaponStyle(0.26f, 1.0f, damage >= 5 ? 0.3f : 0.24f)
+        };
+
+        private static Color LineShotColor(TowerLine line, int damage) => line switch
+        {
+            TowerLine.Foundry => damage >= 5 ? new Color(1f, 0.5f, 0.16f) : new Color(1f, 0.62f, 0.26f),
+            TowerLine.Grove => damage >= 5 ? new Color(0.44f, 0.9f, 0.34f) : new Color(0.58f, 0.88f, 0.46f),
+            _ => damage >= 5 ? SignalGold : ArcaneBlue
+        };
+
         private static Color TowerShotColor(string towerId, int damage)
         {
             if (IsControlTower(towerId) || IsPrismTower(towerId))
@@ -5445,7 +5537,9 @@ namespace LTW.UnityClient.Simulation
                 return damage >= 5 ? SignalGold : MintSignal;
             }
 
-            return damage >= 5 ? SignalGold : ArcaneBlue;
+            // Everything else is keyed to its line. The five above keep their own colours, which are
+            // already tuned and are all Arcane anyway.
+            return LineShotColor(LineFor(towerId), damage);
         }
 
         private static Color BuildZoneColor(Color tint, bool isPlayerLane)
