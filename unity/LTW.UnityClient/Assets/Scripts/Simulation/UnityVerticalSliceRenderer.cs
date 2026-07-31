@@ -175,6 +175,17 @@ namespace LTW.UnityClient.Simulation
         // shapes (a flat ring vs. a stretched cube) drawn from different pools; see GetPooled's own
         // comment on why ring and beam pools must not mix.
         private readonly Dictionary<string, GameObject> towerServicingTethers = new Dictionary<string, GameObject>();
+
+        /// <summary>One drifting fog disc per Spore Cloud Bloom, sized to that tower's attack range.</summary>
+        /// <remarks>
+        /// Its own dictionary and its own pool rather than sharing towerMechanicMarkers, for the same
+        /// reason the servicing tethers have theirs: a pooled object carries the material it was
+        /// built with, so mixing a fog quad into the shockwave-ring pool would hand a ring the fog
+        /// shader (or the reverse) the first time one was recycled.
+        /// </remarks>
+        private readonly Dictionary<string, GameObject> towerSporeFog = new Dictionary<string, GameObject>();
+        private readonly Queue<GameObject> sporeFogPool = new Queue<GameObject>();
+        private Material sporeFogMaterial;
         private bool laneCreated;
 
         public PresentationDetail Detail => presentationDetail;
@@ -631,6 +642,7 @@ namespace LTW.UnityClient.Simulation
 
                 UpdateTowerMechanicMarker(key, tower.TowerId.Value, tower.Position, tower.LaneId, snapshot);
                 UpdateTowerServicingTether(key, tower, snapshot);
+                UpdateSporeFog(key, tower.TowerId.Value, GridToWorld(tower.Position, tower.LaneId), TowerRangeCells(tower.TowerId.Value));
 
                 if (towerVisionTargetsScratch.TryGetValue(key, out var visionTargetPosition))
                 {
@@ -1556,6 +1568,140 @@ namespace LTW.UnityClient.Simulation
             return shockwaveRingMaterial;
         }
 
+        /// <summary>
+        /// Green spore fog spreading from a Spore Cloud Bloom out to the edge of its range.
+        /// </summary>
+        /// <remarks>
+        /// The fog IS the range indicator: it is densest over the tower and fades to nothing exactly
+        /// where the tower stops reaching, so a player can read how far it covers without a range
+        /// ring drawn on top.
+        ///
+        /// One honest imprecision. Range in the simulation is MANHATTAN — CombatService.IsInRange
+        /// sums |dx| + |dy| — so the true footprint is a diamond, while this is a circle. A circle
+        /// inscribed to touch the diamond's points therefore overstates the diagonals, and one
+        /// shrunk to fit understates the axes. It is drawn at the full range because fog with a
+        /// visible diamond edge would look authored rather than atmospheric, and because the whole
+        /// point of the gradient is that the boundary is not locatable anyway. If the fog is ever
+        /// promoted from atmosphere to a precise range READOUT, this has to become a diamond.
+        ///
+        /// Scale is diameter, hence 2x the range. Sat just above the spanning board decals so the
+        /// fog layers over the lane rather than fighting the bramble and bond rings for the same
+        /// millimetre.
+        /// </remarks>
+        private void UpdateSporeFog(string key, string towerId, Vector3 towerPosition, float rangeCells)
+        {
+            if (!ContainsRole(towerId, "spore") || PresentationPreferences.ReducedEffects)
+            {
+                ReleaseSporeFog(key);
+                return;
+            }
+
+            if (!towerSporeFog.TryGetValue(key, out var fog) || fog == null)
+            {
+                fog = GetPooledSporeFog();
+                fog.name = $"SporeFog_{key}";
+                towerSporeFog[key] = fog;
+            }
+
+            var diameter = Mathf.Max(1f, rangeCells * 2f);
+            fog.transform.position = new Vector3(towerPosition.x, BoardTopY + SporeFogLift, towerPosition.z);
+            fog.transform.localScale = new Vector3(diameter, 1f, diameter);
+        }
+
+        /// <summary>Just above SpanningDecalLift, so fog reads as sitting over the ground markings.</summary>
+        private const float SporeFogLift = 0.075f;
+
+        /// <summary>
+        /// A tower's attack range in cells, read from the simulation and cached per tower id.
+        /// </summary>
+        /// <remarks>
+        /// Read rather than copied: a client-side table of ranges is exactly the drift that put
+        /// three different Arrow costs in the codebase before UnityCommandAdapter started reading
+        /// cost from ContentCatalog. Cached because this runs per Spore Cloud per frame and the
+        /// lookup is a linear scan of the tower list.
+        ///
+        /// Falls back to 3 — Spore Cloud's authored range — only if the driver is not wired yet, so
+        /// a fog that appears before the simulation is up is the right size rather than a dot.
+        /// </remarks>
+        private readonly Dictionary<string, float> towerRangeCells = new Dictionary<string, float>();
+
+        private float TowerRangeCells(string towerId)
+        {
+            if (towerRangeCells.TryGetValue(towerId, out var cached))
+            {
+                return cached;
+            }
+
+            var range = 3f;
+            var catalog = simulationDriver != null ? simulationDriver.Content : null;
+            if (catalog != null)
+            {
+                foreach (var tower in catalog.Towers)
+                {
+                    if (tower.Id.Value == towerId)
+                    {
+                        range = tower.RangeCells;
+                        break;
+                    }
+                }
+
+                towerRangeCells[towerId] = range;
+            }
+
+            return range;
+        }
+
+        private Material SporeFogMaterial()
+        {
+            if (sporeFogMaterial == null)
+            {
+                sporeFogMaterial = BoardRenderResources.CreateSporeFogMaterial(
+                    "LTW Spore Fog",
+                    new Color(0.42f, 0.86f, 0.34f, 0.26f),
+                    softness: 0.95f,
+                    churn: 0.55f,
+                    speed: 0.45f);
+            }
+
+            return sporeFogMaterial;
+        }
+
+        private GameObject GetPooledSporeFog()
+        {
+            if (sporeFogPool.Count > 0)
+            {
+                var pooled = sporeFogPool.Dequeue();
+                pooled.SetActive(true);
+                return pooled;
+            }
+
+            var fog = new GameObject("SporeFog");
+            fog.AddComponent<MeshFilter>().sharedMesh = BoardRenderResources.ContactShadowMesh;
+            var renderer = fog.AddComponent<MeshRenderer>();
+            renderer.sharedMaterial = SporeFogMaterial();
+            renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            renderer.receiveShadows = false;
+            renderer.lightProbeUsage = UnityEngine.Rendering.LightProbeUsage.Off;
+            renderer.reflectionProbeUsage = UnityEngine.Rendering.ReflectionProbeUsage.Off;
+            return fog;
+        }
+
+        private void ReleaseSporeFog(string key)
+        {
+            if (!towerSporeFog.TryGetValue(key, out var fog))
+            {
+                return;
+            }
+
+            if (fog != null)
+            {
+                fog.SetActive(false);
+                sporeFogPool.Enqueue(fog);
+            }
+
+            towerSporeFog.Remove(key);
+        }
+
         private GameObject GetPooledShockwaveRing()
         {
             if (shockwaveRingPool.Count > 0)
@@ -2106,6 +2252,7 @@ namespace LTW.UnityClient.Simulation
                 towerSpinPartState.Remove(key);
                 // Sold or destroyed towers must not leave their mechanic decal on the board.
                 ReleaseTowerMechanicMarker(key);
+                ReleaseSporeFog(key);
                 // Covers a removed tower that was itself the serviced end of a tether. If it was
                 // instead the DRONE end, the tower on the other end self-heals on its own next
                 // UpdateTowerServicingTether call (it re-scans for an adjacent drone every frame,

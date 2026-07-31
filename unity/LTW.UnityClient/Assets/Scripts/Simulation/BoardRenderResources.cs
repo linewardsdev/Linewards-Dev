@@ -198,6 +198,34 @@ namespace LTW.UnityClient.Simulation
             }
         }
 
+        /// <summary>
+        /// Material for the Spore Cloud's drifting fog. Shares the contact-shadow quad and, like it,
+        /// needs no texture — the falloff and the churn are both computed in the fragment shader.
+        /// </summary>
+        /// <remarks>
+        /// Falls back the same way CreateContactShadowMaterial does: if the custom shader is missing
+        /// the fog degrades to a flat translucent square rather than vanishing, which is visible and
+        /// therefore reportable instead of failing silently.
+        /// </remarks>
+        public static Material CreateSporeFogMaterial(string name, Color color, float softness, float churn, float speed)
+        {
+            var shader = Shader.Find("LTW/Spore Fog")
+                ?? Shader.Find("Sprites/Default")
+                ?? Shader.Find("Unlit/Transparent");
+
+            var material = new Material(shader)
+            {
+                name = name,
+                enableInstancing = true,
+                color = color
+            };
+
+            if (material.HasProperty("_Softness")) material.SetFloat("_Softness", softness);
+            if (material.HasProperty("_Churn")) material.SetFloat("_Churn", churn);
+            if (material.HasProperty("_Speed")) material.SetFloat("_Speed", speed);
+            return material;
+        }
+
         public static Material CreateContactShadowMaterial(string name, Color color, float softness)
         {
             var shader = ContactShadowShader;

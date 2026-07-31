@@ -61,6 +61,13 @@ namespace LTW.UnityClient.Simulation
 
         public VerticalSliceSnapshot LatestSnapshot { get; private set; } = null!;
 
+        /// <summary>
+        /// The authored content catalog, so presentation can read a tower's real stats — range and
+        /// the like — instead of keeping a client-side copy that goes stale. Same reasoning as
+        /// UnityCommandAdapter reading cost from here rather than hardcoding it.
+        /// </summary>
+        public LTW.Simulation.Content.ContentCatalog? Content => simulation?.Content;
+
         public IReadOnlyList<ISimulationEvent> LatestEvents { get; private set; } = new List<ISimulationEvent>();
 
         public MatchSummary? LatestMatchSummary { get; private set; }
