@@ -300,16 +300,17 @@ namespace LTW.UnityClient.UI
         }
 
         /// <summary>
-        /// Preferred height for a category card that carries a tier row, so both pickers ask for
-        /// the same thing.
+        /// The aspect (width / height) the command card art is authored at.
         /// </summary>
         /// <remarks>
-        /// Passed as the preferred height to <see cref="CategoryCardHeight"/> rather than used
-        /// directly, exactly as that method's remarks require — it still clamps against the panel,
-        /// so a panel that has not been grown to match simply gets shorter cards instead of cards
-        /// hanging over the board.
+        /// ui_command_card_*_option_04 are 192x232 — noticeably TALLER than they are wide. The art
+        /// is drawn with ScaleMode.StretchToFill, so a card whose rect does not roughly match this
+        /// does not crop, it distorts: the frame's corner returns, its piston and its gold boss all
+        /// stretch with the rect. The category pickers used to lay three cards out as full-width
+        /// rows about 800x104, an aspect of 7.7 against the authored 0.83, and the art was visibly
+        /// smeared across every one of them.
         /// </remarks>
-        public const float CategoryCardWithTierHeight = 104f;
+        public const float CommandCardArtAspect = 192f / 232f;
 
         /// <summary>
         /// Draws the tier row on a category picker card: the tier it is at, and an upgrade button.
@@ -363,34 +364,55 @@ namespace LTW.UnityClient.UI
         }
 
         /// <summary>
-        /// Height for one card in a vertical category picker, derived from the panel it sits in.
+        /// Rect for one card in a category picker: a centred ROW of cards, each sized to
+        /// <see cref="CommandCardArtAspect"/>.
         /// </summary>
         /// <remarks>
-        /// Shared by the send dock and the build palette because this has now been got wrong twice, in
-        /// both of them, the same way: a FIXED card height. At two categories the cards fitted; a third
-        /// pushed the last one's bottom edge to 352 inside a 282-tall panel, so it hung outside the dock
-        /// and over the board with its lower half off-screen.
+        /// Shared by the send dock and the build palette because card geometry has now been got wrong
+        /// three times, in both of them, the same way. First a FIXED height: at two categories the
+        /// cards fitted, a third pushed the last one's bottom edge to 352 inside a 282-tall panel, so
+        /// it hung over the board with its lower half off-screen. Then a derived height, which fixed
+        /// the overflow but stacked three full-width rows — geometrically safe and visually wrong,
+        /// because it stretched portrait art across a 7.7 aspect.
         ///
-        /// Deriving the height means adding a category — or a fourth, or a tier row inside each card —
-        /// cannot bring that back. Anything that wants MORE space per card should raise
-        /// <paramref name="preferredHeight"/> and let this clamp it, never bypass it.
+        /// Both failures came from treating the card as a box to fill rather than as a frame with an
+        /// aspect of its own. Deriving BOTH dimensions from the art removes that whole class: adding a
+        /// category narrows the row, and a panel too short to hold it narrows the cards further, but
+        /// nothing here can produce a distorted card or one that escapes its panel.
         /// </remarks>
-        public static float CategoryCardHeight(
+        public static Rect CategoryCardRect(
             Rect panel,
             float contentTop,
             float gap,
+            int index,
             int cardCount,
-            float preferredHeight,
             float scale)
         {
             if (cardCount <= 0)
             {
-                return 0f;
+                return Rect.zero;
             }
 
-            var top = contentTop - panel.y;
-            var available = panel.height - top - 12f * scale - gap * (cardCount - 1);
-            return Mathf.Min(preferredHeight, Mathf.Max(1f, available / cardCount));
+            var sideMargin = 12f * scale;
+            var available = panel.width - sideMargin * 2f - gap * (cardCount - 1);
+            var width = Mathf.Max(1f, available / cardCount);
+            var height = width / CommandCardArtAspect;
+
+            // If the panel is too short for that, the card gives up WIDTH to keep its aspect rather
+            // than being squashed. A squashed card is the exact failure this exists to prevent, and
+            // silently flattening one to fit would reintroduce it by a different route.
+            var maxHeight = panel.yMax - 12f * scale - contentTop;
+            if (height > maxHeight)
+            {
+                height = Mathf.Max(1f, maxHeight);
+                width = height * CommandCardArtAspect;
+            }
+
+            // Centred as a row, so narrowing to preserve aspect stays symmetrical instead of
+            // leaving the cards hard against the panel's left edge.
+            var rowWidth = width * cardCount + gap * (cardCount - 1);
+            var x = panel.x + (panel.width - rowWidth) * 0.5f + index * (width + gap);
+            return new Rect(x, contentTop, width, height);
         }
 
         public static Rect CommandCardMetaRect(Rect rect, float scale)

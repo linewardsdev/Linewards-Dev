@@ -152,13 +152,11 @@ namespace LTW.UnityClient.UI
             }
 
             var width = Mathf.Min(frame.width - 16f * scale, 430f * scale);
-            // The picker needs a taller panel than the creep grids do, and only while it is up.
-            // Grids are two rows: 84 header + 84 + 8 + 84 = 260, inside 282. The picker is three
-            // full-width cards, and since each now carries a tier row they are 104 rather than 84:
-            // 84 header + 3*104 + 2*8 + 12 bottom margin = 424. Grown from 374 to match, because
-            // CategoryCardHeight clamps to whatever the panel has — leaving it at 374 would not
-            // have overflowed, it would have quietly squashed the tier row instead.
-            var height = (selectedCategory < 0 ? 424f : 282f) * scale;
+            // One height for both states. The picker used to need a taller panel because it stacked
+            // three full-width cards; laid out as a row sized to the card art's own aspect it fits
+            // inside the same 282 the creep grids use, so the dock no longer resizes under the
+            // player as they step between the picker and a category.
+            var height = 282f * scale;
             var launcherClearance = 136f * scale;
             var rect = new Rect(frame.xMax - width - 8f * scale, frame.yMax - height - MobileViewportLayout.BottomMargin(scale) - launcherClearance, width, height);
 
@@ -240,39 +238,25 @@ namespace LTW.UnityClient.UI
         }
 
         /// <summary>
-        /// Category chooser shown before any 5-creep grid. Full-width cards, since there's no
-        /// icon/cost to show yet — just a name and a "5 sends" hint.
+        /// Category chooser shown before any 5-creep grid: a row of cards carrying a name, a
+        /// "5 sends" hint and the category's tier.
         /// </summary>
         /// <remarks>
-        /// The card height has to divide the panel the same way the creep grids do. These were
-        /// once drawn at buttonHeight * 2 + gap each, which put the pair's bottom edge at
-        /// 84 + 176 + 8 + 176 = 444 inside a panel only 282 tall — so the second card hung
-        /// completely outside the dock, over the board, with its lower half off the bottom of the
-        /// screen. One buttonHeight each lands the three cards at 84 + 3*84 + 2*8 = 352, which is
-        /// why the panel grows to 374 while the picker is up (see the height calculation in
-        /// OnGUI); at the grid height of 282 the third card would have repeated that same bug.
+        /// Geometry comes from <see cref="RuntimeUiChrome.CategoryCardRect"/>, which sizes each card
+        /// to the card art's own aspect and centres the row. That is deliberate rather than
+        /// incidental: this picker has twice put a card outside the dock and over the board by
+        /// fixing a height, and then, once the height was derived, spent three full-width rows
+        /// stretching portrait art across them. The shared helper is the only place either can
+        /// happen now.
         /// </remarks>
         private void DrawCategoryPicker(Rect rect, float buttonY, float buttonHeight, float gap, float scale)
         {
-            // Card height is divided out of the space the panel actually has, not fixed. At a
-            // fixed buttonHeight the three cards ran to 84 + 3*(84+8) = 352 inside a 282-tall
-            // panel, so the last one hung outside the dock and over the board — the same defect a
-            // two-card version of this picker had, reintroduced when a third category landed.
-            // Deriving the height means adding a fourth category cannot bring it back.
-            // Asks for the taller card now that each one carries a tier row. CategoryCardHeight
-            // still clamps against the panel, so this cannot push a card off the bottom — the
-            // panel height in OnGUI grows to match.
-            var cardHeight = RuntimeUiChrome.CategoryCardHeight(
-                rect, buttonY, gap, CategoryLabels.Length, RuntimeUiChrome.CategoryCardWithTierHeight * scale, scale);
-            var cardWidth = rect.width - 24f * scale;
-            var x = rect.x + 12f * scale;
             var accents = new[] { ArcaneBlue, WardViolet, SignalGold };
             var gold = CurrentPlayerGold();
 
             for (var category = 0; category < CategoryLabels.Length; category++)
             {
-                var y = buttonY + category * (cardHeight + gap);
-                var cardRect = new Rect(x, y, cardWidth, cardHeight);
+                var cardRect = RuntimeUiChrome.CategoryCardRect(rect, buttonY, gap, category, CategoryLabels.Length, scale);
                 if (DrawCategoryCard(cardRect, CategoryLabels[category], accents[category], scale))
                 {
                     selectedCategory = category;

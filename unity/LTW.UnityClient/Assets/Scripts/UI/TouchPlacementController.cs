@@ -996,17 +996,12 @@ namespace LTW.UnityClient.UI
         private void DrawTowerCategoryPicker(Rect rect, float buttonY, float buttonHeight, float gap, float scale)
         {
             var labels = LTW.UnityClient.Simulation.TowerCatalog.CategoryLabels;
-            var cardHeight = RuntimeUiChrome.CategoryCardHeight(
-                rect, buttonY, gap, labels.Length, RuntimeUiChrome.CategoryCardWithTierHeight * scale, scale);
-            var cardWidth = rect.width - 24f * scale;
-            var x = rect.x + 12f * scale;
             var gold = CurrentPlayerGold();
 
             for (var category = 0; category < labels.Length; category++)
             {
-                var y = buttonY + category * (cardHeight + gap);
                 var accent = CategoryAccent(category);
-                var cardRect = new Rect(x, y, cardWidth, cardHeight);
+                var cardRect = RuntimeUiChrome.CategoryCardRect(rect, buttonY, gap, category, labels.Length, scale);
                 // Hit region excludes the tier row, or the card's own button eats the upgrade
                 // button's click before it is ever delivered.
                 var pressed = RuntimeUiChrome.DrawCommandCard(
@@ -1490,12 +1485,11 @@ namespace LTW.UnityClient.UI
         private Rect TowerPalettePanelRect(float scale, Rect frame)
         {
             var width = Mathf.Min(frame.width - 16f * scale, 430f * scale);
-            // Grows for the category picker, exactly as the send dock's panel does. This was fixed
-            // at 282 while its sibling grew to 374, so the build palette's three picker cards were
-            // silently being clamped shorter than the identical-looking send cards — a pre-existing
-            // mismatch that a tier row would have made obvious. Same arithmetic as the send dock:
-            // 84 header + 3*104 + 2*8 + 12 = 424.
-            var height = (selectedTowerCategory < 0 ? 424f : 282f) * scale;
+            // One height for both states. The picker used to need a taller panel because it stacked
+            // three full-width cards; laid out as a row sized to the card art's own aspect it fits
+            // inside the same 282 the tower grid uses, so the panel no longer grows and shrinks
+            // under the player as they step through it.
+            var height = 282f * scale;
             var launcherClearance = 136f * scale;
             return new Rect(frame.x + 8f * scale, frame.yMax - height - MobileViewportLayout.BottomMargin(scale) - launcherClearance, width, height);
         }
