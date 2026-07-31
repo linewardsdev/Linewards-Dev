@@ -11,6 +11,7 @@ from __future__ import annotations
 import argparse
 import json
 import subprocess
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -41,6 +42,12 @@ def parse_args() -> argparse.Namespace:
         "low-frequency data, so the generator's source resolution is rarely worth keeping.",
     )
     parser.add_argument("--skip-preview", action="store_true")
+    parser.add_argument(
+        "--strict",
+        action="store_true",
+        help="Exit non-zero on needs_review as well as fail, so intake can gate a build. Off by "
+        "default because 14 of the 30 shipped assets would not pass today; see exit_code_for.",
+    )
     return parser.parse_args()
 
 
@@ -98,15 +105,26 @@ def score_candidate(audit: dict[str, object], prep: dict[str, object] | None, ar
     def has_map(*needles: str) -> bool:
         return any(any(needle.lower() in name.lower() for needle in needles) for name in available)
 
+    # Deliberately NOT conditional on `available`. It used to be, and that inverted the check:
+    # an asset that shipped with no texture maps whatsoever skipped the normal-map check entirely
+    # and scored a clean pass, while one that shipped with maps but no normal map was marked
+    # needs_review. The worse asset scored better. Absence of every map is the strongest possible
+    # failure of "has a normal map", not an exemption from being asked.
     if available:
-        checks.append(
-            {
-                "id": "has_normal_map",
-                "pass": has_map("normal", "_nrm", "_n."),
-                "detail": "normal map present" if has_map("normal", "_nrm", "_n.")
-                else "no normal map: surface detail will read flat, re-export with one if the silhouette needs it",
-            }
+        normal_detail = (
+            "normal map present" if has_map("normal", "_nrm", "_n.")
+            else "no normal map: surface detail will read flat, re-export with one if the silhouette needs it"
         )
+    else:
+        normal_detail = "no texture maps of any kind were found for this candidate"
+
+    checks.append(
+        {
+            "id": "has_normal_map",
+            "pass": bool(available) and has_map("normal", "_nrm", "_n."),
+            "detail": normal_detail,
+        }
+    )
 
     if prep is not None:
         final_bounds = prep.get("normalization", {}).get("final_bounds", {}) if isinstance(prep.get("normalization"), dict) else {}
@@ -131,7 +149,35 @@ def score_candidate(audit: dict[str, object], prep: dict[str, object] | None, ar
         "passed_checks": passed,
         "total_checks": len(checks),
         "checks": checks,
+        "failed_checks": [check["id"] for check in checks if not check["pass"]],
     }
+
+
+# Exit codes, so a caller can gate on intake without parsing anything.
+EXIT_OK = 0
+EXIT_FAIL = 1
+EXIT_NEEDS_REVIEW = 2
+
+
+def exit_code_for(status: str, strict: bool) -> int:
+    """Map a scorecard status to a process exit code.
+
+    `needs_review` is only fatal under --strict, and that default is a deliberate,
+    temporary compromise rather than an oversight. Turning it on today would block
+    every asset in the game: 14 of the 30 shipped assets carry needs_review, and all 30
+    are in production. That is the finding, not an argument against gating — but a gate
+    that fails everything on the day it lands gets switched off within the hour.
+
+    So the mechanism ships now and the default flips once the assets can pass it. The
+    blocker is the normal-map decision (OPEN_ITEMS item 3): has_normal_map is the check
+    the shipped assets fail, and no asset can pass it until normal maps are either
+    generated or the check is retired as inapplicable.
+    """
+    if status == "fail":
+        return EXIT_FAIL
+    if status == "needs_review":
+        return EXIT_NEEDS_REVIEW if strict else EXIT_OK
+    return EXIT_OK
 
 
 def write_markdown_scorecard(path: Path, data: dict[str, object]) -> None:
@@ -184,7 +230,7 @@ def resolve_staging_dir(args: argparse.Namespace) -> Path:
     raise ValueError(f"Unsupported asset kind: {args.kind}")
 
 
-def main() -> None:
+def main() -> int:
     args = parse_args()
     blender = Path(args.blender)
     source = Path(args.input).resolve()
@@ -293,9 +339,12 @@ def main() -> None:
     (docs_dir / "score.json").write_text(json.dumps(data, indent=2), encoding="utf-8")
     write_markdown_scorecard(scorecard_md, data)
     print(f"AI asset intake complete: {score['status']}")
+    if score["failed_checks"]:
+        print(f"Failed checks: {', '.join(score['failed_checks'])}")
     print(f"Prepared FBX: {prepared}")
     print(f"Scorecard: {scorecard_md}")
+    return exit_code_for(str(score["status"]), args.strict)
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
