@@ -52,6 +52,25 @@ namespace LTW.UnityClient.Simulation
         private const float ContactShadowLift = 0.006f;
 
         /// <summary>
+        /// Height for board decals that span MORE than their own cell — currently Grovebond's bond
+        /// ring and Thorn Snare's bramble zone.
+        /// </summary>
+        /// <remarks>
+        /// Both were drawn at floor level (BoardTopY + ~0.012), which is correct for a decal that
+        /// stays inside one cell, and wrong for these two. Grovebond's ring is 1.25-1.9 cells across
+        /// so that it visibly reaches the neighbours it is bonded to, and Thorn's is sized to the
+        /// braked span. Reaching onto a neighbouring cell means reaching under that cell's raised
+        /// build plate, and the ring disappears beneath it — reported from play as "the sapling
+        /// underglow is below some of the game board".
+        ///
+        /// Anchored just under <see cref="TowerBaseClearance"/> rather than to a measured plate
+        /// height: towers stand ON the plates, so every plate is necessarily below the height a
+        /// tower's own base sits at, and staying below that keeps these decals reading as painted on
+        /// the board rather than floating across the towers they belong to.
+        /// </remarks>
+        private const float SpanningDecalLift = 0.07f;
+
+        /// <summary>
         /// Vertex shade applied to the bottom edge of every baked board box, blending back to the
         /// authored colour at the top. The primitive cubes used to gain their seam definition from
         /// self-shadowing across the 0.04 gap between tiles; baking the same falloff into the mesh
@@ -1322,7 +1341,7 @@ namespace LTW.UnityClient.Simulation
             {
                 // Sized to the braked span rather than to the tower: BrambleZoneCells in the
                 // simulation is 3, and the zone starts at the first route cell in range.
-                marker.transform.position = new Vector3(centre.x, BoardTopY + 0.015f, centre.z);
+                marker.transform.position = new Vector3(centre.x, BoardTopY + SpanningDecalLift, centre.z);
                 marker.transform.localScale = new Vector3(BrambleMarkerScale, 1f, BrambleMarkerScale);
                 SetColor(marker, BrambleMarkerColor);
                 return;
@@ -1338,7 +1357,7 @@ namespace LTW.UnityClient.Simulation
                 return;
             }
 
-            marker.transform.position = new Vector3(centre.x, BoardTopY + 0.012f, centre.z);
+            marker.transform.position = new Vector3(centre.x, BoardTopY + SpanningDecalLift, centre.z);
             // Floors were originally 0.55 scale / 0.16 alpha, which at the common bonus of 1 was
             // invisible under the tower mesh — verified in a capture. The ring now starts wide enough
             // to clear the silhouette and opaque enough to see, and still grows with the bonus.
