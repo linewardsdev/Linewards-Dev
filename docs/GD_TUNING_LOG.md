@@ -1490,3 +1490,49 @@ UP 8G on an Arrow Ward, 8 being 60% of its 14-gold build price.
 
 **Not verified:** whether upgrading an existing tower or building a new one is the more satisfying
 call at the controls. The costs make it close on paper, which is the intent, but only play answers it.
+
+## 2026-07-31: Elimination Clears A Lane, And Two Presentation Passes
+
+Three changes that were made but never written down here, recorded now so the balance record
+matches the build.
+
+**A defeated seat's lane is now wiped.** Elimination had only ever been an *economy* fact — no
+income, no sends, skipped when routing — and `CombatService` knew nothing about it, so a dead
+player's towers kept firing and creeps kept walking their lane, still leaking against somebody
+already on zero lives. On elimination the towers go, the creeps in that lane go, and the lane's
+grid and route are rebuilt empty. That third part is the one that matters and the easiest to
+miss: towers are what lengthen a route, so clearing them without rebuilding leaves the maze
+standing as an invisible wall.
+
+Measured on an 8-lane match: seven seats eliminated in turn, each leaving 0 towers, 0 creeps and
+a 16-cell (straight) route, with the match running on to a normal finish. Peak concurrent creeps
+fell from 316 to 195, because wiped lanes stop carrying any — a real per-tick cost reduction as a
+side effect, not a balance change that was aimed for.
+
+Creeps the eliminated player *sent* are deliberately left alone: they are in other people's lanes
+and were paid for. In-flight creeps in the wiped lane are removed rather than forwarded onward.
+Both readings are defensible — the carousel exists to move creeps between lanes — but forwarding
+would hand the attacker free continued pressure as a reward for the kill. Worth revisiting once
+it can be watched.
+
+**Seven towers stopped swivelling.** A tower yaws to face its target, and if its prefab has no
+`HeadPivot` the *whole body* rotates. `locksYaw` had only ever been set on the three towers whose
+mechanic made that obvious (Pulse fires everywhere, Foundry fires upward, Barricade fires one
+way), never on the grounds of what the object physically is — so a masonry pagoda, a pillar on a
+plinth, and every plant in the Grove line were rotating on their foundations to track creeps. All
+seven now lock yaw. Full per-tower reasoning in `TOWER_ANIMATION_ALIGNMENT.md`.
+
+This establishes a checkable invariant the roster did not previously obey: **a tower yaws if and
+only if its prefab has a `HeadPivot`.** A new tower without one must set `locksYaw` or it will
+swivel like these did.
+
+No balance effect — aim rotation has never influenced targeting, only how it looks.
+
+**Spore Cloud has fog.** A drifting green disc, densest over the tower and fading to nothing at
+the edge of its range, so it doubles as the range read. Range is taken from `ContentCatalog` (3
+cells, hence a 6-cell diameter) rather than copied client-side.
+
+One imprecision worth knowing before it is used as a range readout: simulation range is
+**Manhattan** (`IsInRange` sums `|dx| + |dy|`), so the true footprint is a diamond and the fog is
+a circle. It is drawn at full range because a visible diamond edge would look authored rather
+than atmospheric, and because the point of the gradient is that the boundary is not locatable.

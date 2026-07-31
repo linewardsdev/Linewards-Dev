@@ -17,6 +17,7 @@ This folder contains the durable project documentation for Line Wards, the mobil
 - [Gameplay review findings](GAMEPLAY_REVIEW_FINDINGS.md) — open defects found by capture review, with evidence
 - [GD tuning log](GD_TUNING_LOG.md) — the primary balance record: every measurement, fix and reversal, in order
 - [Tower and creep roster](TOWER_AND_CREEP_ROSTER.md)
+- [Tower animation alignment](TOWER_ANIMATION_ALIGNMENT.md) — every tower reviewed on Type / Style / Intent / Name / Perceived Animation, with the benchmark each verdict was taken from
 - [Category upgrade tiers plan](CATEGORY_UPGRADE_TIERS_PLAN.md)
 - [Game menu and runtime flow](GAME_MENU_AND_RUNTIME_FLOW.md)
 - [Content roster expansion plan](CONTENT_ROSTER_EXPANSION_PLAN.md)
