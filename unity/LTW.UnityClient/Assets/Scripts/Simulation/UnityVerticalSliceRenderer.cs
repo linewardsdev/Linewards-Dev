@@ -2366,7 +2366,8 @@ namespace LTW.UnityClient.Simulation
             }
 
             var timeSinceFired = towerLastFiredAt.TryGetValue(key, out var firedAt) ? Time.time - firedAt : float.MaxValue;
-            var recoil = timeSinceFired < TowerRecoilDuration ? 1f - timeSinceFired / TowerRecoilDuration : 0f;
+            var recoilDuration = Mathf.Max(0.01f, TowerMotionProfileFor(visualProfile.Role).RecoilDuration);
+            var recoil = timeSinceFired < recoilDuration ? 1f - timeSinceFired / recoilDuration : 0f;
 
             // Recoil is a rigid kick along the tower's current firing axis (position + a small
             // backward pitch), not a squash/stretch scale distortion — these towers are stone and
@@ -3840,8 +3841,10 @@ namespace LTW.UnityClient.Simulation
                 bool locksYaw = false,
                 float restHeadingDegrees = 0f,
                 bool? suppressRecoil = null,
-                float recoilScale = 1f)
+                float recoilScale = 1f,
+                float recoilDuration = TowerRecoilDuration)
             {
+                RecoilDuration = recoilDuration;
                 SuppressRecoil = suppressRecoil ?? locksYaw;
                 BreatheHz = breatheHz;
                 BreatheAmp = breatheAmp;
@@ -3888,6 +3891,19 @@ namespace LTW.UnityClient.Simulation
             public float RecoilScale { get; }
 
             /// <summary>
+            /// How long one kick takes to decay. MUST stay under the tower's own firing interval.
+            /// </summary>
+            /// <remarks>
+            /// The shared 0.35s default silently breaks for anything fast. The Gatling Turret's
+            /// cooldown is 1 tick — 0.25s at 4 ticks/second — so each kick was re-triggered before
+            /// the previous one had decayed, and the gun sat pinned near full recoil instead of
+            /// pulsing. That reads as a tower shaking itself apart rather than as rate of fire, and
+            /// reducing the MAGNITUDE cannot fix it: the problem is that the animation never
+            /// finishes. Fast guns need a short kick, not only a small one.
+            /// </remarks>
+            public float RecoilDuration { get; }
+
+            /// <summary>
             /// Heading the head's mesh already points at in its rest pose, subtracted from the aim
             /// heading. Must be MEASURED IN UNITY, not Blender: Blender's FBX export mirrors X
             /// during the right-handed to left-handed conversion, which silently flips the sign.
@@ -3930,8 +3946,18 @@ namespace LTW.UnityClient.Simulation
                 // Machines: tight, fast, mechanical. Small amplitudes, no lazy drift.
                 // Light recoil because it fires every other tick — a full-weight kick repeated that
                 // often stops reading as a reaction and turns into a permanent shake.
+                // The gun is now split from its pedestal (Head/Base, split_tower_rigid_part.py at
+                // z=0.556 where the barrel housing's radius jumps clear of the dome), so aim and
+                // recoil drive HeadPivot alone and the base stays planted — previously the whole
+                // tower swung and kicked as one piece.
+                //
+                // Rest heading measured IN UNITY off the generated prefab (98.7 degrees), never in
+                // Blender: the FBX export mirrors X, which flips the sign.
+                //
+                // The kick is small AND short. Short is the load-bearing half: this fires every
+                // 0.25s, so anything at the 0.35s default never returns to rest between shots.
                 case TowerVisualRole.Gatling:
-                    return new TowerMotionProfile(2.4f, 0.012f, recoilScale: 0.45f);
+                    return new TowerMotionProfile(2.4f, 0.012f, restHeadingDegrees: 98.7f, recoilScale: 0.3f, recoilDuration: 0.12f);
 
                 // A coil under load. Fast shallow pulse reads as electrical rather than breathing.
                 // The lightest kick of any tower that has one: an arc discharge has no projectile
