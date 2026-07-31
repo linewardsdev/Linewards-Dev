@@ -39,6 +39,16 @@ namespace LTW.UnityClient.Simulation
         }
 
         /// <summary>
+        /// Whether a session panel currently owns the display, readable outside this assembly.
+        /// </summary>
+        /// <remarks>
+        /// A passthrough rather than a second source of truth. `RuntimeUiChrome` is internal, so
+        /// editor-side checks cannot read it directly, and widening that type's visibility to suit a
+        /// test is the wrong trade — the concept belongs to this overlay, which is what sets it.
+        /// </remarks>
+        public static bool ModalScreenActive => RuntimeUiChrome.ModalScreenActive;
+
+        /// <summary>
         /// Publishes whether a session screen owns the display, before any OnGUI runs this frame.
         /// </summary>
         /// <remarks>
@@ -58,18 +68,38 @@ namespace LTW.UnityClient.Simulation
         }
 
         /// <summary>
-        /// Whether a full-screen session panel is up, as opposed to the live rail.
+        /// Whether a full-screen session panel is up, as opposed to a playable phase.
         /// </summary>
         /// <remarks>
-        /// Mirrors the branch order in <see cref="OnGUI"/>; the live rail is the only state that
-        /// coexists with the HUD.
+        /// The opening build countdown must short-circuit to false BEFORE the HasStarted and
+        /// IsPaused tests, not merely be absent from them. `BeginOpeningBuildCountdown` sets
+        /// `HasStarted = false` AND `IsPaused = true`, so a countdown is caught by both of those
+        /// conditions — dropping it from the list changed nothing, which is exactly what the second
+        /// bug report said: still no build or send button during the build phase.
+        ///
+        /// It is playable despite both flags. `UnityCommandAdapter.PlaceTower` gates on neither —
+        /// it goes straight to the simulation — so towers CAN be placed during the countdown, which
+        /// is what its panel means by "Place opening towers". Sends are a different matter and
+        /// correctly refuse, because `SendCreep` DOES check both, matching "Sends unlock when LIVE
+        /// begins".
         /// </remarks>
-        private bool OwnsDisplay =>
-            showSettings
-            || simulationDriver.IsOpeningBuildCountdown
-            || simulationDriver.LatestMatchSummary is not null
-            || !simulationDriver.HasStarted
-            || simulationDriver.IsPaused;
+        private bool OwnsDisplay
+        {
+            get
+            {
+                if (showSettings || simulationDriver.LatestMatchSummary is not null)
+                {
+                    return true;
+                }
+
+                if (simulationDriver.IsOpeningBuildCountdown)
+                {
+                    return false;
+                }
+
+                return !simulationDriver.HasStarted || simulationDriver.IsPaused;
+            }
+        }
 
         private void OnGUI()
         {
@@ -90,7 +120,8 @@ namespace LTW.UnityClient.Simulation
 
             if (simulationDriver.IsOpeningBuildCountdown)
             {
-                RuntimeUiChrome.DrawModalScrim();
+                // No scrim: the build phase is playable, so dimming the board would be dimming the
+                // thing the player is being asked to place towers on. See OwnsDisplay.
                 DrawBuildCountdownPanel(scale);
                 return;
             }

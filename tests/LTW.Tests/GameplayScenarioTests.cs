@@ -81,7 +81,15 @@ public sealed class GameplayScenarioTests
         Assert.True(evidence.AcceptedCommands >= 10);
         Assert.True(evidence.MultiQuantityCommands >= 1);
         Assert.True(evidence.LeakEvents >= 1);
-        Assert.True(evidence.TotalLives < 660);
+
+        // Lives are CONSERVED across a leak, not destroyed: a leak moves one from defender to
+        // sender. This used to assert the total had dropped below the 660 the three players start
+        // with, which encoded the older rule where a leak simply erased a life. Under stealing the
+        // total can only fall when a leak lands for an already-eliminated sender, who is credited
+        // nothing — so the bound is now one-sided, and the redistribution is what gets asserted.
+        Assert.True(evidence.TotalLives <= 660);
+        var lives = slice.GetSnapshot().Players.Players.Select(player => player.Lives.Amount).ToList();
+        Assert.True(lives.Max() > lives.Min(), $"leaks should have redistributed lives, but all players hold {lives.Max()}");
         Assert.All(slice.GetSnapshot().Players.Players, player =>
         {
             Assert.True(player.Gold.Amount >= 0);

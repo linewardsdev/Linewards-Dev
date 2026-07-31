@@ -166,6 +166,104 @@ public sealed class EconomyTests
         return new EconomyService(new EconomyRules(incomeIntervalTicks, sendCooldownTicks, sellRefundPercent, leakLifeLoss));
     }
 
+    /// <summary>
+    /// A leak moves a life from defender to sender; it does not merely destroy one.
+    /// </summary>
+    /// <remarks>
+    /// The total in play is asserted, not just the two balances, because conservation IS the
+    /// mechanic. A future change that credits the sender from nowhere, or deducts the defender
+    /// twice, would keep both individual numbers plausible and only show up in the sum.
+    /// </remarks>
+    [Fact]
+    public void Leak_steals_lives_from_the_defender_rather_than_destroying_them()
+    {
+        var service = CreateService(leakLifeLoss: 2);
+        var players = CreatePlayers();
+        var totalBefore = TotalLives(players);
+
+        var result = service.ApplyLeak(players, new PlayerId(1), new PlayerId(2), Runner());
+
+        Assert.Equal(2, result.LivesLost.Amount);
+        Assert.Equal(2, result.LivesStolen.Amount);
+        Assert.Equal(18, result.Players.Get(new PlayerId(2)).Lives.Amount);
+        Assert.Equal(22, result.Players.Get(new PlayerId(1)).Lives.Amount);
+        Assert.Equal(totalBefore, TotalLives(result.Players));
+    }
+
+    /// <summary>
+    /// A steal is capped by what the defender actually has left, not by what was requested.
+    /// </summary>
+    /// <remarks>
+    /// A 2-life creep hitting a defender on 1 life takes 1, not 2 — so the sender must gain 1.
+    /// Crediting the requested amount would mint a life out of nothing at exactly the moment a
+    /// player is eliminated, which is the most consequential moment to get wrong.
+    /// </remarks>
+    [Fact]
+    public void Leak_steals_only_what_the_defender_had_left()
+    {
+        var service = CreateService(leakLifeLoss: 2);
+        var players = CreatePlayers()
+            .Replace(new PlayerEconomyState(new PlayerId(2), new Gold(100), new Income(10), new Lives(1)));
+        var totalBefore = TotalLives(players);
+
+        var result = service.ApplyLeak(players, new PlayerId(1), new PlayerId(2), Runner());
+
+        Assert.Equal(1, result.LivesLost.Amount);
+        Assert.Equal(1, result.LivesStolen.Amount);
+        Assert.Equal(0, result.Players.Get(new PlayerId(2)).Lives.Amount);
+        Assert.Equal(21, result.Players.Get(new PlayerId(1)).Lives.Amount);
+        Assert.Equal(totalBefore, TotalLives(result.Players));
+    }
+
+    /// <summary>
+    /// An eliminated sender steals nothing, though the defender still loses the life.
+    /// </summary>
+    /// <remarks>
+    /// The only case where the total in play legitimately drops. Lives are the win condition, so a
+    /// player who is out must not accumulate them — depending on how elimination is re-evaluated,
+    /// that is a route to un-eliminating themselves.
+    /// </remarks>
+    [Fact]
+    public void Leak_does_not_steal_lives_for_an_already_eliminated_sender()
+    {
+        var service = CreateService(leakLifeLoss: 2);
+        var players = CreatePlayers();
+        players = players.Replace(players.Get(new PlayerId(1)).WithLives(new Lives(0)));
+
+        var result = service.ApplyLeak(players, new PlayerId(1), new PlayerId(2), Runner());
+
+        Assert.Equal(2, result.LivesLost.Amount);
+        Assert.Equal(0, result.LivesStolen.Amount);
+        Assert.Equal(18, result.Players.Get(new PlayerId(2)).Lives.Amount);
+        Assert.Equal(0, result.Players.Get(new PlayerId(1)).Lives.Amount);
+    }
+
+    /// <summary>
+    /// A leak into the sender's own lane costs them the life and steals nothing back.
+    /// </summary>
+    /// <remarks>
+    /// Guards a real hazard rather than a hypothetical one: sender and defender updates are applied
+    /// as two writes, and the sender's is built from the pre-leak snapshot, so treating this case
+    /// normally would write the life loss and then overwrite it — a leak that costs nothing.
+    /// </remarks>
+    [Fact]
+    public void Leak_into_the_senders_own_lane_still_costs_them_the_life()
+    {
+        var service = CreateService(leakLifeLoss: 2);
+        var players = CreatePlayers();
+
+        var result = service.ApplyLeak(players, new PlayerId(1), new PlayerId(1), Runner());
+
+        Assert.Equal(2, result.LivesLost.Amount);
+        Assert.Equal(0, result.LivesStolen.Amount);
+        Assert.Equal(18, result.Players.Get(new PlayerId(1)).Lives.Amount);
+    }
+
+    private static int TotalLives(EconomyPlayerSet players) =>
+        players.Get(new PlayerId(1)).Lives.Amount
+        + players.Get(new PlayerId(2)).Lives.Amount
+        + players.Get(new PlayerId(3)).Lives.Amount;
+
     private static EconomyPlayerSet CreatePlayers(int gold = 100)
     {
         return new EconomyPlayerSet(new[]

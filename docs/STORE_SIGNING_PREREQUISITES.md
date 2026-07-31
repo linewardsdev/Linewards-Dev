@@ -69,6 +69,55 @@ Checked what's actually installed on the current development Mac (2026-07-27):
 
 This means the MVP-10/MVP-11 device-validation acceptance checks (frame time, memory, touch latency, thermal, on real hardware) can start now with the placeholder identifier above, in parallel with the manual visual-readability playtest pass — none of it needs the account/naming decision below.
 
+### Verified end to end, 2026-07-31
+
+The above was theory until this date. It has now been exercised: **the Unity half works today
+with no changes.** An iOS export produced a valid Xcode project — 892 MB in ~140 s cold,
+~25 s warm — and `xcodebuild -list` reads it and reports all four targets and schemes.
+
+There was no build script at all, so every iOS build would have been someone clicking
+through Build Settings. There is one now:
+
+```bash
+/Applications/Unity/Hub/Editor/6000.5.3f1/Unity.app/Contents/MacOS/Unity   -batchmode -quit -nographics -projectPath unity/LTW.UnityClient   -executeMethod LTW.UnityClient.Editor.IosBuildRunner.Build   -ltwBuildPath build/ios   -ltwSdk device            # or: simulator
+  # optional, and only if you have them:
+  # -ltwBundleId com.yourname.linewards
+  # -ltwTeamId   ABCDE12345
+```
+
+Bundle id and team are never defaulted — pass them or the project keeps what it has, so
+running with no arguments changes no project setting. Supplying a team also switches
+automatic signing on, which is what makes a free personal Apple ID work without hand-managing
+certificates. `build/` is gitignored.
+
+**Two defects the first export exposed, both now fixed:**
+
+- **Orientation was unconstrained.** All four orientations were permitted while the game is
+  portrait — a tall 7x16 lane board under a portrait camera. Rotating the phone would have
+  produced the same broken landscape layout the UI captures show. Now portrait only.
+- **The home-screen name was `LTW.UnityClient`.** Now `Line Wards`.
+
+**Still placeholder, and deliberately not guessed at here:** the app icon is still Unity's
+default cube, `companyName` is still `LTWPlaceholder`, and the bundle identifier is still
+`com.ltwplaceholder.ltw`. The identifier is fine for personal-team device testing and must
+change before any store upload — it is an account-owner decision, see below.
+
+### The remaining steps are all yours, and there are four
+
+Nothing below can be done from this repo; all of it needs your Apple ID and your hands.
+
+1. Open `build/ios/Unity-iPhone.xcodeproj`.
+2. Select the `Unity-iPhone` target → Signing & Capabilities → tick **Automatically manage
+   signing**, and pick your Apple ID under Team (adding it via Xcode → Settings → Accounts if
+   it is not listed). A free Apple ID is enough; the paid Program is only for TestFlight.
+3. Plug in the phone, select it as the run destination, and press Run.
+4. First run only: the phone will refuse to launch an untrusted developer. On the device go to
+   Settings → General → VPN & Device Management → your Apple ID → Trust.
+
+Free-provisioning limits worth knowing before you rely on it: the build stops working after
+**7 days** and must be re-run from Xcode, and there is a cap on how many distinct app IDs one
+device can free-provision per rolling week.
+
 ## What's Genuinely Blocked On A Human Right Now
 
 Only the *store distribution* path needs an account holder to act: Apple Developer Program enrollment/payment, Google Play Console enrollment/payment, final identifier registration, and keystore custody (Play App Signing) are all account-owner actions that can't be done from here. Local sandbox device testing above is not blocked on any of that.

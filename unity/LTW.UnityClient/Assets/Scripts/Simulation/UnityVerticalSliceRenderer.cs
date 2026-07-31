@@ -1149,6 +1149,22 @@ namespace LTW.UnityClient.Simulation
                             SpawnFloatingText(position + Vector3.right * 0.55f, $"+{leak.BountyAwarded.Amount}", SignalGold, 0.52f);
                         }
 
+                        // The other half of the transaction, on the sender's own lane. A life is
+                        // stolen rather than destroyed, and without showing the gain the mechanic is
+                        // invisible to the player who earned it — they would see their own life
+                        // counter move with no cue explaining why.
+                        //
+                        // Shown at the sender's lane rather than at the leak, because the two events
+                        // happen in different places and the point is that a leak over there is a
+                        // gain over here.
+                        if (leak.SenderId.Value != leak.DefenderId.Value)
+                        {
+                            var stealPosition = IncomePosition(leak.SenderId.Value);
+                            SpawnEffect(stealPosition, MintSignal, 0.5f, 0.3f, BurstShape.Rise);
+                            SpawnFloatingText(stealPosition, $"+{leak.LivesLost.Amount} LIFE", MintSignal, 0.66f);
+                            SpawnReducedEffectCue(stealPosition, "STOLE", MintSignal);
+                        }
+
                         PlaySound(leakClip);
                         TriggerHapticFeedback();
                         break;

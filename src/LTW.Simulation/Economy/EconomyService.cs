@@ -134,6 +134,16 @@ public sealed class EconomyService
         var livesLost = Math.Min(defender.Lives.Amount, Math.Max(1, requestedLivesLost.Amount));
         var updatedDefender = defender.WithLives(new Lives(defender.Lives.Amount - livesLost));
 
+        // A leak into the sender's own lane credits nothing and must not touch the sender record at
+        // all. The two Replace calls below apply to the same player when the ids match, and the
+        // second one is built from the PRE-leak snapshot — so writing it would silently undo the
+        // life loss. The carousel is supposed to prevent a player's own creeps re-entering their
+        // lane, which is exactly why this is a cheap guard rather than a tested-for scenario.
+        if (senderId.Equals(defenderId))
+        {
+            return new LeakResult(players.Replace(updatedDefender), new Lives(livesLost), creep.LeakBounty, new Lives(0));
+        }
+
         // An eliminated sender's own creep can still be mid-lane and leak after they're already out
         // of the match (queued before elimination), so the defender still takes the lives loss — but
         // ApplyKillBounty already refuses to pay out against an eliminated participant, and crediting
@@ -143,10 +153,26 @@ public sealed class EconomyService
         // same leak (computed independently, before elimination status is known here) — only the
         // actual gold credit is suppressed.
         var goldCredited = sender.IsEliminated ? 0 : creep.LeakBounty.Amount;
-        var updatedSender = sender.WithGold(new Gold(sender.Gold.Amount + goldCredited));
+
+        // Lives are STOLEN, not destroyed: what the defender loses, the sender gains, so the total
+        // in play is conserved and a leak moves the win condition rather than only eroding it.
+        //
+        // Deliberately uncapped — a sender can exceed the starting count. Capping would break the
+        // conservation the mechanic is built on and would silently make late steals worthless,
+        // which is the opposite of the intent.
+        //
+        // Suppressed for an eliminated sender on the same reasoning as the gold above: crediting a
+        // player who is out of the match is a no-op payout, and here it would be worse than a no-op
+        // because lives are the win condition — a dead player accumulating them could un-eliminate
+        // themselves depending on how elimination is later re-evaluated.
+        var livesStolen = sender.IsEliminated ? 0 : livesLost;
+
+        var updatedSender = sender
+            .WithGold(new Gold(sender.Gold.Amount + goldCredited))
+            .WithLives(new Lives(sender.Lives.Amount + livesStolen));
 
         var next = players.Replace(updatedDefender).Replace(updatedSender);
-        return new LeakResult(next, new Lives(livesLost), creep.LeakBounty);
+        return new LeakResult(next, new Lives(livesLost), creep.LeakBounty, new Lives(livesStolen));
     }
 
     public Gold CalculateSellRefund(TowerDefinition tower) =>
