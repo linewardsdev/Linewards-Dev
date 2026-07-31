@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Collections.Generic;
 using System.Linq;
 using UnityEditor;
 using UnityEditor.Build;
@@ -98,7 +99,20 @@ namespace LTW.UnityClient.Editor
                 options = BuildOptions.None,
             };
 
-            var report = BuildPipeline.BuildPlayer(options);
+            // MSAA is disabled for the duration of a simulator build and restored afterwards, so
+            // the committed assets are never left modified. See SuppressMsaaForSimulator.
+            var restoreMsaa = SuppressMsaaForSimulator();
+
+            BuildReport report;
+            try
+            {
+                report = BuildPipeline.BuildPlayer(options);
+            }
+            finally
+            {
+                RestoreMsaa(restoreMsaa);
+            }
+
             var summary = report.summary;
 
             if (summary.result != BuildResult.Succeeded)
@@ -196,6 +210,94 @@ namespace LTW.UnityClient.Editor
 
         /// <summary>`iOSSimulatorArchitecture` enum value for arm64. 0 is x86_64.</summary>
         private const int SimulatorArm64 = 1;
+
+
+        /// <summary>
+        /// Turns MSAA off across every pipeline asset for a simulator build, returning what to undo.
+        /// </summary>
+        /// <remarks>
+        /// The iOS simulator's Metal implementation cannot do what the pipeline asks of it. With MSAA
+        /// on, every frame fails with "RenderPass: Attachment 0 was created with 4 samples but 2
+        /// samples were requested", followed by "EndRenderPass: Not inside a Renderpass" — measured at
+        /// 905 such errors in a 25-second run.
+        ///
+        /// The symptom is confusing, and cost an hour: the board renders as a black screen while the
+        /// HUD looks perfect. That is because IMGUI draws straight to the backbuffer and never enters
+        /// a URP render pass, so the UI survives the exact failure that erases the scene. It reads as
+        /// "the game did not load" when in fact only the scene half of the frame is missing.
+        ///
+        /// NOT a regression from the quality tiers, checked before assuming: the base pipeline asset
+        /// was already MSAA 2 before those existed. It had simply never been exercised, because
+        /// nobody had built this project for iOS.
+        ///
+        /// Suppressed only for the simulator, and restored in a finally, because MSAA is wanted on
+        /// real hardware — devices handle it fine and the crystal and spire silhouettes need it. A
+        /// simulator build is a preview, and a preview that renders nothing is worth less than one
+        /// without antialiasing.
+        /// </remarks>
+        private static List<(string Path, int Samples)> SuppressMsaaForSimulator()
+        {
+            var restore = new List<(string, int)>();
+            if (PlayerSettings.iOS.sdkVersion != iOSSdkVersion.SimulatorSDK)
+            {
+                return restore;
+            }
+
+            foreach (var guid in AssetDatabase.FindAssets("t:UniversalRenderPipelineAsset"))
+            {
+                var path = AssetDatabase.GUIDToAssetPath(guid);
+                var asset = AssetDatabase.LoadAssetAtPath<UnityEngine.Rendering.Universal.UniversalRenderPipelineAsset>(path);
+                if (asset == null)
+                {
+                    continue;
+                }
+
+                var serialized = new SerializedObject(asset);
+                var msaa = serialized.FindProperty("m_MSAA");
+                if (msaa == null || msaa.intValue <= 1)
+                {
+                    continue;
+                }
+
+                restore.Add((path, msaa.intValue));
+                msaa.intValue = 1;
+                serialized.ApplyModifiedPropertiesWithoutUndo();
+                EditorUtility.SetDirty(asset);
+            }
+
+            if (restore.Count > 0)
+            {
+                AssetDatabase.SaveAssets();
+                Debug.Log($"IOS BUILD: MSAA suppressed on {restore.Count} pipeline asset(s) for the simulator; the simulator GPU cannot satisfy the render pass and the scene renders black with it on.");
+            }
+
+            return restore;
+        }
+
+        private static void RestoreMsaa(List<(string Path, int Samples)> restore)
+        {
+            if (restore.Count == 0)
+            {
+                return;
+            }
+
+            foreach (var (path, samples) in restore)
+            {
+                var asset = AssetDatabase.LoadAssetAtPath<UnityEngine.Rendering.Universal.UniversalRenderPipelineAsset>(path);
+                if (asset == null)
+                {
+                    continue;
+                }
+
+                var serialized = new SerializedObject(asset);
+                serialized.FindProperty("m_MSAA").intValue = samples;
+                serialized.ApplyModifiedPropertiesWithoutUndo();
+                EditorUtility.SetDirty(asset);
+            }
+
+            AssetDatabase.SaveAssets();
+            Debug.Log($"IOS BUILD: MSAA restored on {restore.Count} pipeline asset(s).");
+        }
 
         private static string ReadArgument(string name)
         {
