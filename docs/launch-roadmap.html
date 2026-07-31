@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Line Wards — Launch Roadmap</title>
+<style>
+  :root{
+    --bg:#0d1117; --panel:#161b22; --panel2:#1c2230; --line:#2a3444;
+    --ink:#e6edf3; --dim:#8b98a9; --faint:#6b7787;
+    --w1:#4f9dff; --w2:#a97bff; --w3:#f0a63a; --w4:#3fcf8e;
+    --p0:#ff6b6b; --p1:#f0a63a; --ext:#5cc8ff;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font:15px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    padding:32px 20px 80px;
+  }
+  .wrap{max-width:1180px;margin:0 auto}
+  h1{font-size:30px;margin:0 0 4px;letter-spacing:-.02em}
+  .sub{color:var(--dim);margin:0 0 6px}
+  .stamp{color:var(--faint);font-size:13px;margin:0 0 28px}
+  h2{font-size:19px;margin:38px 0 14px;letter-spacing:-.01em;display:flex;align-items:center;gap:10px}
+  h2::before{content:"";width:3px;height:18px;background:var(--w1);border-radius:2px}
+
+  .alert{
+    background:linear-gradient(90deg,rgba(255,107,107,.13),rgba(255,107,107,.03));
+    border:1px solid rgba(255,107,107,.35); border-left:3px solid var(--p0);
+    border-radius:8px; padding:16px 18px; margin:0 0 26px;
+  }
+  .alert b{color:#ffb3b3}
+
+  /* ---------- tier cards ---------- */
+  .tiers{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px;margin-bottom:10px}
+  .tier{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+  .tier.on{border-color:var(--w4);background:linear-gradient(180deg,rgba(63,207,142,.10),transparent)}
+  .tier .t{font-size:12px;letter-spacing:.09em;text-transform:uppercase;color:var(--faint);margin-bottom:6px}
+  .tier .n{font-weight:650;margin-bottom:4px}
+  .tier .d{font-size:13px;color:var(--dim)}
+  .tier .when{margin-top:9px;font-size:13px;font-weight:650;color:var(--w4)}
+  .tier:not(.on) .when{color:var(--dim)}
+  .badge{display:inline-block;background:var(--w4);color:#04120b;font-size:10px;font-weight:750;
+    padding:2px 7px;border-radius:20px;letter-spacing:.05em;margin-left:6px;vertical-align:middle}
+
+  /* ---------- gantt ---------- */
+  .gantt{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px 18px 10px;overflow-x:auto}
+  .g-min{min-width:900px}
+  .g-head{display:grid;grid-template-columns:212px repeat(4,1fr);gap:0;margin-bottom:10px}
+  .g-head div{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--faint);
+    padding:0 0 8px 10px;border-left:1px solid var(--line)}
+  .g-head div:first-child{border-left:0;padding-left:0}
+  .g-head .wk{color:var(--ink);font-weight:650}
+  .g-head .wk span{display:block;color:var(--faint);font-weight:400;letter-spacing:0;text-transform:none;font-size:11px;margin-top:2px}
+
+  .row{display:grid;grid-template-columns:212px 1fr;align-items:center;gap:0;margin-bottom:7px}
+  .lbl{font-size:13.5px;padding-right:12px;color:var(--ink)}
+  .lbl small{display:block;color:var(--faint);font-size:11.5px}
+  .track{position:relative;height:30px;background:
+     linear-gradient(90deg,var(--line) 1px,transparent 1px) 0 0/25% 100%;
+     border-radius:6px}
+  .bar{position:absolute;top:4px;height:22px;border-radius:5px;display:flex;align-items:center;
+    padding:0 10px;font-size:12px;font-weight:600;color:#08111c;white-space:nowrap;overflow:hidden}
+  .b1{background:linear-gradient(90deg,var(--w1),#7bb8ff)}
+  .b2{background:linear-gradient(90deg,var(--w2),#c3a2ff)}
+  .b3{background:linear-gradient(90deg,var(--w3),#ffc978)}
+  .b4{background:linear-gradient(90deg,var(--w4),#79e5b6)}
+  .bext2{background:rgba(92,200,255,.10);border:1px dashed var(--ext);color:var(--ext)}
+
+  .phase-sep{grid-column:1/-1;height:1px;background:var(--line);margin:10px 0}
+  .grp{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);
+    margin:16px 0 8px;padding-left:2px}
+
+  .milestone{position:absolute;top:-2px;height:34px;width:2px;background:var(--p0);opacity:.75}
+  .mflag{position:absolute;top:-24px;transform:translateX(-50%);font-size:10.5px;color:var(--p0);
+    white-space:nowrap;font-weight:650}
+
+  /* ---------- legend ---------- */
+  .legend{display:flex;flex-wrap:wrap;gap:16px;margin:14px 0 0;font-size:12.5px;color:var(--dim)}
+  .legend i{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+
+  /* ---------- gap table ---------- */
+  table{width:100%;border-collapse:collapse;background:var(--panel);border:1px solid var(--line);
+    border-radius:10px;overflow:hidden;font-size:14px}
+  th{text-align:left;font-size:11.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--faint);
+    padding:11px 14px;border-bottom:1px solid var(--line);background:var(--panel2)}
+  td{padding:11px 14px;border-bottom:1px solid rgba(42,52,68,.6);vertical-align:top}
+  tr:last-child td{border-bottom:0}
+  td.n{color:var(--faint);width:34px}
+  td.e{color:var(--dim);font-size:13px}
+  td.est{white-space:nowrap;color:var(--dim);font-size:13px;text-align:right}
+  .tag{display:inline-block;font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;letter-spacing:.04em}
+  .tp0{background:rgba(255,107,107,.15);color:#ff8f8f;border:1px solid rgba(255,107,107,.3)}
+  .tp1{background:rgba(240,166,58,.14);color:#f5bd6b;border:1px solid rgba(240,166,58,.3)}
+
+  /* ---------- risks / done ---------- */
+  .cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px 18px}
+  .card h3{margin:0 0 10px;font-size:15px;display:flex;gap:8px;align-items:baseline}
+  .card h3 em{font-style:normal;color:var(--faint);font-size:12px;font-weight:400}
+  .card p{margin:0 0 10px;font-size:13.5px;color:var(--dim)}
+  .card p:last-child{margin-bottom:0}
+  ul.check{list-style:none;padding:0;margin:0}
+  ul.check li{padding:7px 0 7px 26px;position:relative;font-size:13.5px;border-bottom:1px solid rgba(42,52,68,.5)}
+  ul.check li:last-child{border-bottom:0}
+  ul.check li::before{content:"";position:absolute;left:2px;top:12px;width:13px;height:13px;
+    border:1.5px solid var(--w4);border-radius:3px}
+
+  .dep{display:flex;justify-content:space-between;gap:12px;padding:9px 0;
+    border-bottom:1px solid rgba(42,52,68,.5);font-size:13.5px}
+  .dep:last-child{border-bottom:0}
+  .dep b{color:var(--ext);font-weight:600;white-space:nowrap}
+
+  .foot{margin-top:34px;color:var(--faint);font-size:12.5px;border-top:1px solid var(--line);padding-top:16px}
+  @media print{body{background:#fff;color:#111}.gantt,table,.card,.tier{background:#fff}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>Line Wards — Launch Roadmap</h1>
+  <p class="sub">Four weeks to a soft launch · 1 – 31 August 2026</p>
+  <p class="stamp">Drafted 31 July 2026 · proposal for review, dates and scope not committed</p>
+
+  <div class="alert">
+    <b>Date check.</b> Today is Friday 31 July 2026, so “launch by end of July” is today.
+    This plan targets <b>31 August</b>. A July launch is not reachable: the game has never run on a
+    phone, has an empty bundle identifier, and neither store account is enrolled — Apple alone
+    carries a 24–48h approval lead.
+  </div>
+
+  <h2>What “launch” means</h2>
+  <div class="tiers">
+    <div class="tier">
+      <div class="t">Tier A</div>
+      <div class="n">Playable on your phone</div>
+      <div class="d">Sideloaded via free signing. No store involved.</div>
+      <div class="when">~1 week</div>
+    </div>
+    <div class="tier on">
+      <div class="t">Tier B <span class="badge">TARGET</span></div>
+      <div class="n">Soft launch</div>
+      <div class="d">TestFlight + Play internal track. Invited testers, no public listing.</div>
+      <div class="when">31 August</div>
+    </div>
+    <div class="tier">
+      <div class="t">Tier C</div>
+      <div class="n">Public store launch</div>
+      <div class="d">Live on App Store and Google Play. Needs review cycles and real-user fixes.</div>
+      <div class="when">Mid–late September</div>
+    </div>
+  </div>
+
+  <h2>Timeline</h2>
+  <div class="gantt">
+   <div class="g-min">
+    <div class="g-head">
+      <div>&nbsp;</div>
+      <div class="wk">Week 1 <span>Aug 1–7 · prove it’s a game</span></div>
+      <div class="wk">Week 2 <span>Aug 8–14 · look &amp; sound shipped</span></div>
+      <div class="wk">Week 3 <span>Aug 15–21 · make it survivable</span></div>
+      <div class="wk">Week 4 <span>Aug 22–31 · ship it</span></div>
+    </div>
+
+    <div class="grp">External — start day one</div>
+    <div class="row">
+      <div class="lbl">Apple Developer Program<small>$99/yr · 24–48h approval</small></div>
+      <div class="track"><div class="bar bext2" style="left:0.5%;width:14%">enrol → active</div></div>
+    </div>
+    <div class="row">
+      <div class="lbl">Google Play Console<small>$25 · identity verification</small></div>
+      <div class="track"><div class="bar bext2" style="left:0.5%;width:14%">enrol → active</div></div>
+    </div>
+
+    <div class="grp">Week 1 — prove it’s a game</div>
+    <div class="row">
+      <div class="lbl">Fix app identity<small>bundle id, name, company</small></div>
+      <div class="track"><div class="bar b1" style="left:0.5%;width:11%">1d</div></div>
+    </div>
+    <div class="row">
+      <div class="lbl">Build to physical device<small>iOS then Android</small></div>
+      <div class="track"><div class="bar b1" style="left:8%;width:14%">1–2d</div></div>
+    </div>
+    <div class="row">
+      <div class="lbl">Play it, with hands<small>unblocks ~20 acceptance boxes</small></div>
+      <div class="track"><div class="bar b1" style="left:18%;width:7%">★</div></div>
+    </div>
+    <div class="row">
+      <div class="lbl">Act on what play finds<small>hold this time loosely</small></div>
+      <div class="track"><div class="bar b1" style="left:22%;width:12%">2–3d</div></div>
+    </div>
+
+    <div class="grp">Week 2 — look &amp; sound shipped</div>
+    <div class="row">
+      <div class="lbl">Audio pass<small>music bed + 7 real SFX</small></div>
+      <div class="track"><div class="bar b2" style="left:25%;width:22%">4–6d · highest slip risk</div></div>
+    </div>
+    <div class="row">
+      <div class="lbl">Graphics Wave 1<small>AO un-discard, then normal maps</small></div>
+      <div class="track"><div class="bar b2" style="left:25%;width:19%">3–5d</div></div>
+    </div>
+    <div class="row">
+      <div class="lbl">Title / menu scene<small>a real scene, not an overlay</small></div>
+      <div class="track"><div class="bar b2" style="left:33%;width:14%">3–4d</div></div>
+    </div>
+    <div class="row">
+      <div class="lbl">App icon &amp; splash<small>from the branding guide</small></div>
+      <div class="track"><div class="bar b2" style="left:42%;width:8%">1d</div></div>
+    </div>
+
+    <div class="grp">Week 3 — make it survivable</div>
+    <div class="row">
+      <div class="lbl">Crash reporting + analytics<small>else feedback is anecdote</small></div>
+      <div class="track"><div class="bar b3" style="left:50%;width:9%">1d</div></div>
+    </div>
+    <div class="row">
+      <div class="lbl">Onboarding<small>teach mazing or players bounce</small></div>
+      <div class="track"><div class="bar b3" style="left:53%;width:14%">2–3d</div></div>
+    </div>
+    <div class="row">
+      <div class="lbl">Device performance pass<small>frame rate + thermals, heavy send</small></div>
+      <div class="track"><div class="bar b3" style="left:60%;width:11%">2d</div></div>
+    </div>
+    <div class="row">
+      <div class="lbl">Store listing assets<small>screenshots, rating, privacy URL</small></div>
+      <div class="track"><div class="bar b3" style="left:63%;width:12%">2–3d</div></div>
+    </div>
+
+    <div class="grp">Week 4 — ship it</div>
+    <div class="row">
+      <div class="lbl">TestFlight + Play internal<small>1–3d first review each</small></div>
+      <div class="track"><div class="bar bext2" style="left:75%;width:11%">submit → review</div></div>
+    </div>
+    <div class="row">
+      <div class="lbl">Recruit 10–20 testers<small>anyone who isn’t you</small></div>
+      <div class="track"><div class="bar b4" style="left:79%;width:10%">&nbsp;</div></div>
+    </div>
+    <div class="row">
+      <div class="lbl">Triage &amp; fix<small>no features scheduled here</small></div>
+      <div class="track"><div class="bar b4" style="left:86%;width:13.5%">reserved</div></div>
+    </div>
+
+    <div class="legend">
+      <span><i style="background:var(--w1)"></i>Week 1 · phone &amp; identity</span>
+      <span><i style="background:var(--w2)"></i>Week 2 · audio &amp; art</span>
+      <span><i style="background:var(--w3)"></i>Week 3 · survivability</span>
+      <span><i style="background:var(--w4)"></i>Week 4 · ship</span>
+      <span><i style="background:rgba(92,200,255,.15);border:1px dashed var(--ext)"></i>External / review — not compressible</span>
+      <span>★ highest-leverage single hour in the plan</span>
+    </div>
+   </div>
+  </div>
+
+  <h2>P0 — cannot soft-launch without these</h2>
+  <table>
+    <tr><th class="n">#</th><th>Gap</th><th>Evidence, verified 31 Jul</th><th style="text-align:right">Est.</th></tr>
+    <tr><td class="n">1</td><td><b>Never run on a phone</b></td><td class="e">Both device-validation docs are empty templates — zero runs</td><td class="est">1–2 d</td></tr>
+    <tr><td class="n">2</td><td><b>App identity all placeholder</b></td><td class="e"><code>applicationIdentifier</code> is <b>empty</b>; product <code>LTW.UnityClient</code>; company <code>LTWPlaceholder</code>; no icon. Brand is “Line Wards” and nothing uses it</td><td class="est">1 d</td></tr>
+    <tr><td class="n">3</td><td><b>Audio is 7 sine beeps</b></td><td class="e"><code>CreateTone()</code> generates 7 procedural tones. <b>Zero</b> audio asset files. No music, no real SFX. Appears in no checklist</td><td class="est">4–6 d</td></tr>
+    <tr><td class="n">4</td><td><b>No menu or title scene</b></td><td class="e"><code>Assets/Scenes/</code> holds only <code>LocalVerticalSlice.unity</code>; the shell is an in-match overlay</td><td class="est">3–4 d</td></tr>
+    <tr><td class="n">5</td><td><b>No crash reporting</b></td><td class="e">Zero references anywhere in the client</td><td class="est">1 d</td></tr>
+    <tr><td class="n">6</td><td><b>Store accounts not enrolled</b></td><td class="e">Apple $99/yr, Google $25 — external lead time</td><td class="est">external</td></tr>
+    <tr><td class="n">7</td><td><b>No store listing assets</b></td><td class="e">No icon, screenshots, description, age rating, or privacy-policy URL</td><td class="est">2–3 d</td></tr>
+    <tr><td class="n">8</td><td><b>~20 acceptance boxes need a human</b></td><td class="e">GD-01→10 unchecked; all balance is bot-vs-bot arithmetic</td><td class="est">2–3 d</td></tr>
+    <tr><td class="n">9</td><td><b>Graphics Wave 1 outstanding</b></td><td class="e">No normal maps and no bound AO on any of the 30 assets</td><td class="est">3–5 d</td></tr>
+    <tr><td class="n">10</td><td><b>Onboarding is partial</b></td><td class="e">Some flow in <code>LocalSessionFlowOverlay</code>; no first-run teaching</td><td class="est">2–3 d</td></tr>
+  </table>
+
+  <h2>Critical path — the uncompressible bits</h2>
+  <div class="card" style="margin-bottom:14px">
+    <div class="dep"><span>Apple Developer Program enrolment</span><b>start Aug 1 · 24–48h</b></div>
+    <div class="dep"><span>Google Play Console enrolment</span><b>start Aug 1 · hours–days</b></div>
+    <div class="dep"><span>TestFlight first build review</span><b>Aug 22 · 1–3 days</b></div>
+    <div class="dep"><span>Play internal track first review</span><b>Aug 22 · hours–days</b></div>
+    <div class="dep"><span>Privacy policy at a public URL</span><b>Week 3 · needs a domain</b></div>
+    <p style="margin-top:12px">Both enrolments on day one — <b>$124 total</b>, and nothing in weeks 3–4 can proceed without them.</p>
+  </div>
+
+  <h2>Risks worth naming</h2>
+  <div class="cols">
+    <div class="card">
+      <h3>1. Week 1 finds something structural <em>likely</em></h3>
+      <p>This is the <em>intended</em> outcome — far better in week 1 than week 4 — but it can eat days.</p>
+      <p><b>Mitigate by</b> holding week 2 loosely, not by skipping the play session to protect the schedule.</p>
+    </div>
+    <div class="card">
+      <h3>2. Audio is underestimated <em>most likely to slip the date</em></h3>
+      <p>Least-tracked P0 item, in no checklist, and the only one with no scaffolding beyond code hooks.</p>
+      <p><b>Mitigate by</b> using licensed library audio rather than commissioning original work.</p>
+    </div>
+    <div class="card">
+      <h3>3. First store submission is rejected <em>common</em></h3>
+      <p>Usual first-timer causes: missing privacy policy, incomplete age rating, placeholder metadata.</p>
+      <p><b>Mitigate by</b> completing store assets in week 3, not week 4.</p>
+    </div>
+  </div>
+
+  <h2>What “done” means on 31 August</h2>
+  <div class="card">
+    <ul class="check">
+      <li>Runs on iOS and Android phones, with a real name, icon and identity</li>
+      <li>Has music and sound effects</li>
+      <li>Has a title screen, teaches the player how to maze, and reports its own crashes</li>
+      <li>Assets carry normal maps and AO, rendering through the intended post-processing</li>
+      <li>Is on TestFlight and the Play internal track, with real testers giving feedback</li>
+      <li>Is free — no store screen, no payment code. Monetization follows separately</li>
+    </ul>
+  </div>
+
+  <p class="foot">
+    Out of scope: monetization (shipping free first), multiplayer, the match server, accounts and
+    entitlements, graphics Waves 2–3 beyond what Tier B needs.<br>
+    Source: <code>docs/LAUNCH_ROADMAP.md</code> · context in <code>docs/OPEN_ITEMS.md</code> and
+    <code>docs/GRAPHICS_AA_UPLIFT.md</code>
+  </p>
+
+</div>
+</body>
+</html>
