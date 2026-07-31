@@ -1,6 +1,7 @@
 # Tower Weapon Effects — Review And Proposal
 
-Status: **proposed, not implemented** (2026-07-31).
+Status: **decided, in progress** (2026-07-31). Open questions answered by the owner; the answers are
+recorded in "Decisions" below and the body has been updated to match. All three layers are approved.
 
 Prompted by a review note that the tower weapons "are basically cheap looking lasers and they do
 not align with the theme of the towers". Both halves of that are correct, and this document records
@@ -146,17 +147,37 @@ Effects that look right in isolation have twice this week turned out invisible i
 4. **Compare against the Foundry mortar**, which is the in-house benchmark for a weapon that reads
    as its theme.
 
-## Open questions for the owner
+## Decisions
 
-1. **Is FOUNDRY meant to fire physical projectiles?** This is the single biggest visual departure
-   proposed. It is also the most likely to be wrong if the intended fiction is that every tower is
-   an energy ward and the Foundry line is merely styled as industrial.
-2. **How far should GROVE effects linger?** Spores and vines that persist read as organic, but
-   persistent effects on a busy board are what made the earlier decal work hard to see. There is a
-   real tension between "organic" and "legible".
-3. **Does the tower's tier change its weapon effect?** Tiers currently change only a marker colour,
-   which is a weak tell (measured: RGB delta 0.392 from tier 1 to 2, 0.136 from 2 to 3). A visibly
-   heavier shot at tier 3 would carry that information far better than the marker does, and would
-   solve two problems at once.
-4. **Priority against everything else.** Layer 1 is a contained change to one method. Layer 3 is ten
-   separate effects and is the bulk of the work.
+Answered by the owner 2026-07-31.
+
+**1. FOUNDRY fires physical projectiles where it fits, not everywhere.** Gatling throws tracers with
+ejected casings, Barricade a heavy slug, Foundry Core keeps its mortar shell. **Tesla stays
+lightning** — a coil throwing solid rounds fights its own name and mechanic — and Repair Drone stays
+a support pulse rather than a weapon. The line reads industrial without forcing ordnance onto the two
+towers whose fiction is not ordnance.
+
+**2. GROVE effects linger briefly — under half a second.** Organic in shape and motion, gone quickly.
+Chosen against the more persistent options because the board already carries range halos,
+role-marker labels and health bars, and both the Repair Drone tether and the tower-tier colour tell
+proved hard to read against that clutter this week. Organic feel, no permanent noise.
+
+**3. Tier changes the weapon.** A higher-tier shot is visibly thicker, brighter and hits harder.
+This does double duty: the weapon carries tier information that the marker colour currently carries
+badly (measured RGB delta of only 0.136 between tiers 2 and 3, against 0.392 from 1 to 2), and an
+upgrade becomes something you can see rather than something you read off a panel.
+
+**4. All three layers are in scope.** Built in dependency order regardless — Layer 1 first, captured
+and judged before the per-tower work, since ten bespoke effects built on a bad primitive would be
+decoration.
+
+## Consequences for the plan above
+
+- The Layer 2 FOUNDRY row now reads "projectiles **for Gatling, Barricade and Foundry Core**;
+  Tesla keeps an electrical arc; Repair Drone keeps a support pulse".
+- The Layer 3 table's Tesla row is unchanged — forked lightning was already the proposal.
+- Every Layer 3 effect must additionally scale with tier, so the per-tower work carries a tier
+  dimension that was not in the original estimate.
+- GROVE durations are capped at ~0.5s, which constrains the Thorn Snare "tension held while braked"
+  idea: the vine snaps and releases quickly rather than staying taut for the whole brake. The brake
+  itself remains shown by the existing bramble zone decal.
