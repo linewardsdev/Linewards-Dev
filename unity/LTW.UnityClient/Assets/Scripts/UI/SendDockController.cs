@@ -80,35 +80,35 @@ namespace LTW.UnityClient.UI
             feedbackView = feedback;
         }
 
-        public void SendRunner() => Send(commandAdapter.SendSampleCreep(), "Runner sent", commandAdapter.CreepCost(SampleVerticalSliceContent.CreepId), 0);
+        public void SendRunner() => Send(commandAdapter.SendSampleCreep(), "Runner sent", commandAdapter.SendCost(SampleVerticalSliceContent.CreepId), 0);
 
-        public void SendBrute() => Send(commandAdapter.SendBruteCreep(), "Brute sent", commandAdapter.CreepCost(SampleVerticalSliceContent.BruteCreepId), 1);
+        public void SendBrute() => Send(commandAdapter.SendBruteCreep(), "Brute sent", commandAdapter.SendCost(SampleVerticalSliceContent.BruteCreepId), 1);
 
-        public void SendSwarm() => Send(commandAdapter.SendSwarmCreep(), "Swarm sent", commandAdapter.CreepCost(SampleVerticalSliceContent.SwarmCreepId), 2);
+        public void SendSwarm() => Send(commandAdapter.SendSwarmCreep(), "Swarm sent", commandAdapter.SendCost(SampleVerticalSliceContent.SwarmCreepId), 2);
 
-        public void SendShade() => Send(commandAdapter.SendShadeCreep(), "Shade sent", commandAdapter.CreepCost(SampleVerticalSliceContent.ShadeCreepId), 3);
+        public void SendShade() => Send(commandAdapter.SendShadeCreep(), "Shade sent", commandAdapter.SendCost(SampleVerticalSliceContent.ShadeCreepId), 3);
 
-        public void SendSiege() => Send(commandAdapter.SendSiegeCreep(), "Siege sent", commandAdapter.CreepCost(SampleVerticalSliceContent.SiegeCreepId), 4);
+        public void SendSiege() => Send(commandAdapter.SendSiegeCreep(), "Siege sent", commandAdapter.SendCost(SampleVerticalSliceContent.SiegeCreepId), 4);
 
-        public void SendWisp() => Send(commandAdapter.SendWispCreep(), "Wisp sent", commandAdapter.CreepCost(SampleVerticalSliceContent.WispCreepId), 5);
+        public void SendWisp() => Send(commandAdapter.SendWispCreep(), "Wisp sent", commandAdapter.SendCost(SampleVerticalSliceContent.WispCreepId), 5);
 
-        public void SendRevenant() => Send(commandAdapter.SendRevenantCreep(), "Revenant sent", commandAdapter.CreepCost(SampleVerticalSliceContent.RevenantCreepId), 6);
+        public void SendRevenant() => Send(commandAdapter.SendRevenantCreep(), "Revenant sent", commandAdapter.SendCost(SampleVerticalSliceContent.RevenantCreepId), 6);
 
-        public void SendObsidianBrute() => Send(commandAdapter.SendObsidianBruteCreep(), "Obsidian Brute sent", commandAdapter.CreepCost(SampleVerticalSliceContent.ObsidianBruteCreepId), 7);
+        public void SendObsidianBrute() => Send(commandAdapter.SendObsidianBruteCreep(), "Obsidian Brute sent", commandAdapter.SendCost(SampleVerticalSliceContent.ObsidianBruteCreepId), 7);
 
-        public void SendSerpent() => Send(commandAdapter.SendSerpentCreep(), "Serpent sent", commandAdapter.CreepCost(SampleVerticalSliceContent.SerpentCreepId), 8);
+        public void SendSerpent() => Send(commandAdapter.SendSerpentCreep(), "Serpent sent", commandAdapter.SendCost(SampleVerticalSliceContent.SerpentCreepId), 8);
 
-        public void SendTurretWalker() => Send(commandAdapter.SendTurretWalkerCreep(), "Turret Walker sent", commandAdapter.CreepCost(SampleVerticalSliceContent.TurretWalkerCreepId), 9);
+        public void SendTurretWalker() => Send(commandAdapter.SendTurretWalkerCreep(), "Turret Walker sent", commandAdapter.SendCost(SampleVerticalSliceContent.TurretWalkerCreepId), 9);
 
-        public void SendZephyr() => Send(commandAdapter.SendZephyrCreep(), "Zephyr Wraith sent", commandAdapter.CreepCost(SampleVerticalSliceContent.ZephyrCreepId), 10);
+        public void SendZephyr() => Send(commandAdapter.SendZephyrCreep(), "Zephyr Wraith sent", commandAdapter.SendCost(SampleVerticalSliceContent.ZephyrCreepId), 10);
 
-        public void SendBurrower() => Send(commandAdapter.SendBurrowerCreep(), "Fracture Burrower sent", commandAdapter.CreepCost(SampleVerticalSliceContent.BurrowerCreepId), 11);
+        public void SendBurrower() => Send(commandAdapter.SendBurrowerCreep(), "Fracture Burrower sent", commandAdapter.SendCost(SampleVerticalSliceContent.BurrowerCreepId), 11);
 
-        public void SendStalker() => Send(commandAdapter.SendStalkerCreep(), "Umbral Stalker sent", commandAdapter.CreepCost(SampleVerticalSliceContent.StalkerCreepId), 12);
+        public void SendStalker() => Send(commandAdapter.SendStalkerCreep(), "Umbral Stalker sent", commandAdapter.SendCost(SampleVerticalSliceContent.StalkerCreepId), 12);
 
-        public void SendWarden() => Send(commandAdapter.SendWardenCreep(), "Aegis Warden sent", commandAdapter.CreepCost(SampleVerticalSliceContent.WardenCreepId), 13);
+        public void SendWarden() => Send(commandAdapter.SendWardenCreep(), "Aegis Warden sent", commandAdapter.SendCost(SampleVerticalSliceContent.WardenCreepId), 13);
 
-        public void SendColossus() => Send(commandAdapter.SendColossusCreep(), "Siege Colossus sent", commandAdapter.CreepCost(SampleVerticalSliceContent.ColossusCreepId), 14);
+        public void SendColossus() => Send(commandAdapter.SendColossusCreep(), "Siege Colossus sent", commandAdapter.SendCost(SampleVerticalSliceContent.ColossusCreepId), 14);
 
         private void OnGUI()
         {
@@ -425,7 +425,10 @@ namespace LTW.UnityClient.UI
             var costs = new int[cards.Length];
             for (var index = 0; index < cards.Length; index++)
             {
-                costs[index] = commandAdapter != null ? commandAdapter.CreepCost(cards[index].CreepId) : 0;
+                // SendCost, not CreepCost: a press queues SendQuantity creeps and EconomyService
+                // charges for all of them. Pricing the card at the unit cost is what let Swarm
+                // display "6G", enable at 6 gold, and then be rejected for needing 18.
+                costs[index] = commandAdapter != null ? commandAdapter.SendCost(cards[index].CreepId) : 0;
             }
 
             var order = new int[cards.Length];
