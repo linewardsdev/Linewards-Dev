@@ -56,6 +56,35 @@ namespace LTW.UnityClient.Editor
         private static LocalMatchOptions matchOptions = LocalMatchOptions.Default;
         private static string evidenceLabel = "default";
 
+        /// <summary>Simulation ticks per second of scaled time. Overridden with -ltwTickRate.</summary>
+        /// <remarks>
+        /// The default of 1200 is 300x the shipped 4, which is what makes a batch run finish in
+        /// seconds — but it makes the presentation-object counts in the evidence report MEANINGLESS,
+        /// and they were reported as if they were not.
+        ///
+        /// Transient effects (beams, flashes, floating text) are spawned per simulation TICK and
+        /// expire on Time.time. Running 300x the ticks per unit of time therefore banks 300x the
+        /// effects against an unchanged expiry rate, and they pile up. Measured on the same seed and
+        /// the same completed tick: peak active presentation objects reads 41,911 at 1200 ticks/s
+        /// and 1,721 at the shipped 4 — a 24x difference in a number that was being read as a
+        /// mobile budget, with identical creep and tower peaks in both runs.
+        ///
+        /// So: leave the default for a fast pass/fail run, and pass -ltwTickRate 4 whenever the
+        /// pooling numbers are the point. This is the "normal-speed stress capture" MVP_STATUS.md
+        /// asks for; it costs about 45s instead of 12s.
+        /// </remarks>
+        private static float tickRate = 1200f;
+
+        /// <summary>
+        /// Unity time scale. Overridden with -ltwTimeScale.
+        /// </summary>
+        /// <remarks>
+        /// Scales Time.time and Time.deltaTime TOGETHER, so unlike tickRate it does not distort the
+        /// effects-per-tick ratio — it just makes the wall clock shorter. That is why a realistic
+        /// capture lowers tickRate and leaves this alone.
+        /// </remarks>
+        private static float timeScale = 20f;
+
         public static void Run()
         {
             SessionState.SetBool(SessionKeyActive, true);
@@ -77,6 +106,8 @@ namespace LTW.UnityClient.Editor
             finalPlayerLines = Array.Empty<string>();
             matchOptions = ReadOptionsFromCommandLine();
             evidenceLabel = ReadStringArgument("-ltwEvidenceLabel") ?? $"seed-{matchOptions.Seed}";
+            tickRate = Mathf.Max(1f, ReadFloatArgument("-ltwTickRate") ?? 1200f);
+            timeScale = Mathf.Clamp(ReadFloatArgument("-ltwTimeScale") ?? 20f, 0.1f, 100f);
             LocalMatchRuntimeOptions.PendingOptions = matchOptions;
 
             EditorSceneManager.OpenScene(ScenePath);
@@ -120,6 +151,8 @@ namespace LTW.UnityClient.Editor
             {
                 matchOptions = ReadOptionsFromCommandLine();
                 evidenceLabel = ReadStringArgument("-ltwEvidenceLabel") ?? $"seed-{matchOptions.Seed}";
+                tickRate = Mathf.Max(1f, ReadFloatArgument("-ltwTickRate") ?? 1200f);
+                timeScale = Mathf.Clamp(ReadFloatArgument("-ltwTimeScale") ?? 20f, 0.1f, 100f);
                 state = BatchState.WaitingForPlayMode;
                 startedAt = EditorApplication.timeSinceStartup;
             }
@@ -175,8 +208,8 @@ namespace LTW.UnityClient.Editor
             switch (state)
             {
                 case BatchState.WaitingForPlayMode:
-                    TicksPerSecondField?.SetValue(driver, 1200f);
-                    Time.timeScale = 20f;
+                    TicksPerSecondField?.SetValue(driver, tickRate);
+                    Time.timeScale = timeScale;
                     driver.StartMatch();
                     state = BatchState.RunningMatch;
                     break;
@@ -282,8 +315,15 @@ namespace LTW.UnityClient.Editor
             writer.WriteLine($"- Playtest Report: `{exportedPlaytestReport ?? "not exported"}`");
             writer.WriteLine($"- Peak Creeps: {peakCreeps}");
             writer.WriteLine($"- Peak Towers: {peakTowers}");
+            writer.WriteLine($"- Simulation Tick Rate: {tickRate:F0}/s (shipped is 4/s){(tickRate > 4f ? " — ACCELERATED, see note below" : "")}");
+            writer.WriteLine($"- Unity Time Scale: {timeScale:F1}x");
             writer.WriteLine($"- Peak Active Presentation Objects: {peakActivePresentationObjects}");
             writer.WriteLine($"- Peak Pooled Presentation Objects: {peakPooledPresentationObjects}");
+            if (tickRate > 4f)
+            {
+                writer.WriteLine();
+                writer.WriteLine($"> **The presentation-object peaks above are inflated by the {tickRate / 4f:F0}x tick rate and are NOT a mobile budget.** Transient effects are spawned per simulation tick and expire on `Time.time`, so running more ticks per unit of time banks proportionally more of them against an unchanged expiry rate. Measured on seed 1: 41,911 peak active at 1200/s versus 1,721 at the shipped 4/s, with identical creep and tower peaks. Re-run with `-ltwTickRate 4` when the pooling numbers are the point.");
+            }
             writer.WriteLine($"- Reset Clean: {resetClean}");
             writer.WriteLine($"- Active Presentation Objects After Reset: {renderer.ActivePresentationObjectCount}");
             writer.WriteLine($"- Pooled Presentation Objects After Reset: {renderer.PooledPresentationObjectCount}");
@@ -344,6 +384,11 @@ namespace LTW.UnityClient.Editor
 
             return null;
         }
+
+        private static float? ReadFloatArgument(string name) =>
+            float.TryParse(ReadStringArgument(name), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var value)
+                ? value
+                : null;
 
         private static int? ReadIntArgument(string name) =>
             int.TryParse(ReadStringArgument(name), out var value) ? value : null;
