@@ -3,11 +3,12 @@ using LTW.Simulation.Primitives;
 namespace LTW.Simulation.Bridge;
 
 /// <summary>
-/// One tower that could be raised as part of a whole-line upgrade.
+/// One tower that could be raised as part of a batch, whether that batch is a whole line
+/// or a hand-picked selection.
 /// </summary>
-internal readonly struct LineUpgradeCandidate
+internal readonly struct BatchUpgradeCandidate
 {
-    public LineUpgradeCandidate(GridPosition position, int tier, int lineIndex, int cost)
+    public BatchUpgradeCandidate(GridPosition position, int tier, int lineIndex, int cost)
     {
         Position = position;
         Tier = tier;
@@ -33,9 +34,9 @@ internal readonly struct LineUpgradeCandidate
 /// button offering "UPGRADE 5" that silently raises 3 is the kind of partial result that reads as a
 /// bug rather than as a budget.
 /// </remarks>
-public readonly struct LineUpgradeQuote
+public readonly struct BatchUpgradeQuote
 {
-    public LineUpgradeQuote(int eligible, int totalCost, int affordable, int affordableCost)
+    public BatchUpgradeQuote(int eligible, int totalCost, int affordable, int affordableCost)
     {
         Eligible = eligible;
         TotalCost = totalCost;
@@ -64,9 +65,9 @@ public readonly struct LineUpgradeQuote
 /// <summary>
 /// What a whole-line upgrade actually did.
 /// </summary>
-public readonly struct LineUpgradeOutcome
+public readonly struct BatchUpgradeOutcome
 {
-    public LineUpgradeOutcome(int upgraded, int eligible, int goldSpent)
+    public BatchUpgradeOutcome(int upgraded, int eligible, int goldSpent)
     {
         Upgraded = upgraded;
         Eligible = eligible;
@@ -80,4 +81,42 @@ public readonly struct LineUpgradeOutcome
     public int GoldSpent { get; }
 
     public bool IsPartial => Upgraded > 0 && Upgraded < Eligible;
+}
+
+/// <summary>
+/// What selling a set of towers would return, asked before anything is removed.
+/// </summary>
+/// <remarks>
+/// Selling has no affordability limit — everything you own in the selection goes — so unlike
+/// <see cref="BatchUpgradeQuote"/> there is no affordable slice to distinguish. What it does need
+/// is to be shown BEFORE the tap: a batch sell is irreversible and destroys the maze the player
+/// spent the match building.
+/// </remarks>
+public readonly struct BatchSellQuote
+{
+    public BatchSellQuote(int towers, int refund)
+    {
+        Towers = towers;
+        Refund = refund;
+    }
+
+    public int Towers { get; }
+
+    public int Refund { get; }
+
+    public bool HasWork => Towers > 0;
+}
+
+/// <summary>What a batch sell actually did.</summary>
+public readonly struct BatchSellOutcome
+{
+    public BatchSellOutcome(int sold, int refund)
+    {
+        Sold = sold;
+        Refund = refund;
+    }
+
+    public int Sold { get; }
+
+    public int Refund { get; }
 }

@@ -360,7 +360,7 @@ namespace LTW.UnityClient.UI
         /// </remarks>
         public static bool DrawCategoryBatchRow(
             Rect card,
-            LineUpgradeQuote quote,
+            BatchUpgradeQuote quote,
             Color accent,
             float scale,
             GUIStyle labelStyle,

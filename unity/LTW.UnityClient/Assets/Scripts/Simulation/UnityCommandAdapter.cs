@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Linq;
 using LTW.Simulation.Bridge;
 using LTW.Simulation.Commands;
@@ -227,7 +228,7 @@ namespace LTW.UnityClient.Simulation
         /// What raising every tower in one line would cost, and how much of that the player can
         /// currently afford. Asked every frame the card is on screen, so it must not spend anything.
         /// </summary>
-        public LineUpgradeQuote QuoteLineUpgrade(int lineIndex) =>
+        public BatchUpgradeQuote QuoteLineUpgrade(int lineIndex) =>
             simulation is null
                 ? default
                 : simulation.QuoteTowerLineUpgrade(simulation.LocalPlayerId, simulation.LocalPlayerLaneId, lineIndex);
@@ -240,7 +241,7 @@ namespace LTW.UnityClient.Simulation
         /// single accepted/rejected answer: raising three of five towers is neither. The caller has
         /// to say what actually happened, so it is given the numbers to say it with.
         /// </remarks>
-        public LineUpgradeOutcome UpgradeLine(int lineIndex)
+        public BatchUpgradeOutcome UpgradeLine(int lineIndex)
         {
             if (simulationDriver == null || !simulationDriver.HasStarted || simulationDriver.IsPaused || simulation is null)
             {
@@ -249,6 +250,52 @@ namespace LTW.UnityClient.Simulation
 
             var outcome = simulation.UpgradeTowerLine(simulation.LocalPlayerId, simulation.LocalPlayerLaneId, lineIndex);
             if (outcome.Upgraded > 0)
+            {
+                simulationDriver.RefreshSnapshot();
+            }
+
+            return outcome;
+        }
+
+        /// <summary>What raising a hand-picked selection would cost, and how much of it is affordable.</summary>
+        public BatchUpgradeQuote QuoteSelectionUpgrade(IReadOnlyCollection<GridPosition> positions) =>
+            simulation is null
+                ? default
+                : simulation.QuoteTowerUpgrades(simulation.LocalPlayerId, simulation.LocalPlayerLaneId, positions);
+
+        /// <summary>What selling a hand-picked selection would return.</summary>
+        public BatchSellQuote QuoteSelectionSale(IReadOnlyCollection<GridPosition> positions) =>
+            simulation is null
+                ? default
+                : simulation.QuoteTowerSales(simulation.LocalPlayerId, simulation.LocalPlayerLaneId, positions);
+
+        /// <summary>Raises a hand-picked selection, spending as far as the player's gold reaches.</summary>
+        public BatchUpgradeOutcome UpgradeSelection(IReadOnlyCollection<GridPosition> positions)
+        {
+            if (simulationDriver == null || !simulationDriver.HasStarted || simulationDriver.IsPaused || simulation is null)
+            {
+                return default;
+            }
+
+            var outcome = simulation.UpgradeTowers(simulation.LocalPlayerId, simulation.LocalPlayerLaneId, positions);
+            if (outcome.Upgraded > 0)
+            {
+                simulationDriver.RefreshSnapshot();
+            }
+
+            return outcome;
+        }
+
+        /// <summary>Sells a hand-picked selection.</summary>
+        public BatchSellOutcome SellSelection(IReadOnlyCollection<GridPosition> positions)
+        {
+            if (simulationDriver == null || !simulationDriver.HasStarted || simulationDriver.IsPaused || simulation is null)
+            {
+                return default;
+            }
+
+            var outcome = simulation.SellTowers(simulation.LocalPlayerId, simulation.LocalPlayerLaneId, positions);
+            if (outcome.Sold > 0)
             {
                 simulationDriver.RefreshSnapshot();
             }

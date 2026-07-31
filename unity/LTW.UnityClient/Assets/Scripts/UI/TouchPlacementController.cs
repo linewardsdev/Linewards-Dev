@@ -1,9 +1,11 @@
 #nullable enable
 
+using System.Collections.Generic;
 using System.Linq;
 using LTW.Simulation.Bridge;
 using LTW.Simulation.Commands;
 using LTW.Simulation.Combat;
+using LTW.Simulation.Primitives;
 using LTW.UnityClient.Simulation;
 using UnityEngine;
 
@@ -65,7 +67,7 @@ namespace LTW.UnityClient.UI
         [SerializeField]
         private bool showPlacementReadout = true;
 
-        private GameObject selectionRing = null!;
+        private readonly List<GameObject> selectionRings = new();
 
         private bool isPlacing;
         private bool isPaletteExpanded;
@@ -75,6 +77,22 @@ namespace LTW.UnityClient.UI
         private int selectedTowerCategory = -1;
         private Vector2Int selectedCell;
         private TowerCombatState? selectedTower;
+
+        /// <summary>
+        /// Towers picked while MULTI is on, in tap order.
+        /// </summary>
+        /// <remarks>
+        /// Held separately from <see cref="selectedTower"/> rather than replacing it. Single select
+        /// carries a tower's whole identity — name, purpose, cell, tier — and a batch panel cannot
+        /// show any of that meaningfully for five towers at once, so the two panels stay distinct
+        /// and so does the state behind them.
+        /// </remarks>
+        private readonly List<TowerCombatState> multiSelection = new();
+
+        private bool isMultiSelectMode;
+
+        /// <summary>Set by the first SELL tap, cleared by anything else. See DrawMultiSelectPanel.</summary>
+        private bool sellArmed;
         private VerticalSliceCommandResult placementPreview = VerticalSliceCommandResult.Reject(CommandRejectionReason.InvalidLane);
 
         public bool IsPlacing => isPlacing;
@@ -253,7 +271,11 @@ namespace LTW.UnityClient.UI
             }
 
             selectedTower = null;
-            HideSelectionRing();
+            if (!isMultiSelectMode)
+            {
+                HideSelectionRing();
+            }
+
             selectedCell = hitCell;
             UpdateBuilderAvatar();
         }
@@ -283,6 +305,8 @@ namespace LTW.UnityClient.UI
                 return;
             }
 
+            PruneMultiSelection();
+            DrawMultiSelectPanel(scale);
             DrawSelectedTowerPanel(scale);
 
             if (!isPlacing)
@@ -380,7 +404,11 @@ namespace LTW.UnityClient.UI
             }
 
             selectedTower = null;
-            HideSelectionRing();
+            if (!isMultiSelectMode)
+            {
+                HideSelectionRing();
+            }
+
             var snapshot = simulationDriver?.LatestSnapshot;
             if (snapshot is null)
             {
@@ -391,6 +419,11 @@ namespace LTW.UnityClient.UI
             {
                 if (tower.OwnerId.Equals(simulationDriver.LocalPlayerId) && tower.LaneId.Equals(simulationDriver.LocalPlayerLaneId) && tower.Position.X == cell.x && tower.Position.Y == cell.y)
                 {
+                    if (isMultiSelectMode)
+                    {
+                        return ToggleInMultiSelection(tower);
+                    }
+
                     selectedTower = tower;
                     UpdateSelectionRing(tower);
                     HideBuilderAvatar();
@@ -401,6 +434,239 @@ namespace LTW.UnityClient.UI
             }
 
             return false;
+        }
+
+        /// <summary>
+        /// The batch panel: what is selected, what raising it costs, what selling it returns.
+        /// </summary>
+        /// <remarks>
+        /// A separate panel from the single-tower one because almost nothing that panel shows —
+        /// name, purpose, cell, tier — means anything for five towers at once. This one shows only
+        /// what is true of a set: how many, and what each action would do to it.
+        ///
+        /// SELL is deliberately two taps. The upgrade is a spend the player can earn back, but a
+        /// batch sell destroys the maze they have spent the match building and there is no undo.
+        /// The first tap arms it and the label states the consequence; anything else disarms it.
+        /// </remarks>
+        private void DrawMultiSelectPanel(float scale)
+        {
+            if (!isMultiSelectMode || isPlacing || commandAdapter == null)
+            {
+                return;
+            }
+
+            var frame = MobileViewportLayout.ScreenRect();
+            var rect = MultiSelectPanelRect(scale, frame);
+            DrawPanel(rect, PanelInk);
+            DrawAccent(new Rect(rect.x, rect.yMax - 4f * scale, rect.width, 4f * scale), SignalGold);
+
+            titleStyle!.fontSize = Mathf.RoundToInt(14f * scale);
+            titleStyle.normal.textColor = Cloud;
+            GUI.Label(new Rect(rect.x + 12f * scale, rect.y + 8f * scale, rect.width - 24f * scale, 22f * scale),
+                multiSelection.Count == 0 ? "MULTI SELECT" : $"{multiSelection.Count} TOWERS SELECTED", titleStyle);
+
+            bodyStyle!.fontSize = Mathf.RoundToInt(10f * scale);
+            bodyStyle.normal.textColor = Cloud;
+
+            if (multiSelection.Count == 0)
+            {
+                GUI.Label(new Rect(rect.x + 12f * scale, rect.y + 34f * scale, rect.width - 24f * scale, 18f * scale),
+                    "Tap your towers to add them. DONE to exit.", bodyStyle);
+                return;
+            }
+
+            var positions = SelectedPositions();
+            var upgrade = commandAdapter.QuoteSelectionUpgrade(positions);
+            var sale = commandAdapter.QuoteSelectionSale(positions);
+
+            GUI.Label(new Rect(rect.x + 12f * scale, rect.y + 34f * scale, rect.width - 24f * scale, 18f * scale),
+                upgrade.HasWork ? $"{upgrade.Eligible} can be raised" : "None can be raised yet", bodyStyle);
+
+            var buttonWidth = 96f * scale;
+            var buttonY = rect.y + 58f * scale;
+
+            var raiseLabel = !upgrade.HasWork
+                ? "RAISE"
+                : upgrade.IsGoldLimited
+                    ? $"RAISE {upgrade.Affordable}/{upgrade.Eligible}"
+                    : $"RAISE {upgrade.Eligible}";
+            if (RuntimeUiChrome.DrawPanelButton(new Rect(rect.x + 12f * scale, buttonY, buttonWidth, 38f * scale), raiseLabel, MintSignal, scale, buttonStyle!))
+            {
+                RaiseSelection(upgrade);
+            }
+
+            if (upgrade.HasWork)
+            {
+                metaStyle!.fontSize = Mathf.RoundToInt(9f * scale);
+                metaStyle.normal.textColor = MintSignal;
+                metaStyle.alignment = TextAnchor.MiddleLeft;
+                GUI.Label(new Rect(rect.x + 12f * scale + buttonWidth + 6f * scale, buttonY + 10f * scale, 70f * scale, 18f * scale),
+                    $"{(upgrade.IsGoldLimited ? upgrade.AffordableCost : upgrade.TotalCost)}G", metaStyle);
+            }
+
+            var sellLabel = sellArmed ? $"SELL {sale.Towers}?" : "SELL";
+            if (RuntimeUiChrome.DrawPanelButton(new Rect(rect.xMax - buttonWidth - 12f * scale, buttonY, buttonWidth, 38f * scale), sellLabel, Danger, scale, buttonStyle!))
+            {
+                SellSelection(sale);
+            }
+
+            metaStyle!.fontSize = Mathf.RoundToInt(9f * scale);
+            metaStyle.normal.textColor = Danger;
+            metaStyle.alignment = TextAnchor.MiddleRight;
+            GUI.Label(new Rect(rect.xMax - buttonWidth - 86f * scale, buttonY + 10f * scale, 70f * scale, 18f * scale), $"+{sale.Refund}G", metaStyle);
+            metaStyle.alignment = TextAnchor.MiddleLeft;
+        }
+
+        private List<GridPosition> SelectedPositions()
+        {
+            var positions = new List<GridPosition>(multiSelection.Count);
+            foreach (var tower in multiSelection)
+            {
+                positions.Add(tower.Position);
+            }
+
+            return positions;
+        }
+
+        private void RaiseSelection(BatchUpgradeQuote quote)
+        {
+            sellArmed = false;
+            if (quote.Affordable <= 0)
+            {
+                feedbackView.ShowRejected(
+                    quote.HasWork ? CommandRejectionReason.InsufficientGold : CommandRejectionReason.InvalidTier,
+                    quote.TotalCost,
+                    CurrentPlayerGold());
+                return;
+            }
+
+            var outcome = commandAdapter!.UpgradeSelection(SelectedPositions());
+            feedbackView.ShowAccepted(outcome.IsPartial
+                ? $"Raised {outcome.Upgraded} of {outcome.Eligible} for {outcome.GoldSpent}G — out of gold"
+                : $"Raised {outcome.Upgraded} for {outcome.GoldSpent}G");
+            RefreshSelectionFromSnapshot();
+        }
+
+        private void SellSelection(BatchSellQuote quote)
+        {
+            if (!quote.HasWork)
+            {
+                return;
+            }
+
+            if (!sellArmed)
+            {
+                sellArmed = true;
+                // Amber, not red: this is a confirmation prompt, not a refusal, and it has to state
+                // the consequence rather than just asking "are you sure".
+                feedbackView.ShowEconomy($"Tap SELL again to sell {quote.Towers} for {quote.Refund}G");
+                return;
+            }
+
+            sellArmed = false;
+            var outcome = commandAdapter!.SellSelection(SelectedPositions());
+            feedbackView.ShowAccepted($"Sold {outcome.Sold} for {outcome.Refund}G");
+            multiSelection.Clear();
+            HideSelectionRing();
+        }
+
+        /// <summary>
+        /// Re-reads the selected towers from the snapshot after a batch changed them.
+        /// </summary>
+        /// <remarks>
+        /// The list holds snapshot values, so towers that were just raised still carry their old
+        /// tier. Without this the panel would keep offering to raise towers it had already raised.
+        /// </remarks>
+        private void RefreshSelectionFromSnapshot()
+        {
+            if (simulationDriver?.LatestSnapshot is not { } snapshot)
+            {
+                return;
+            }
+
+            for (var index = 0; index < multiSelection.Count; index++)
+            {
+                var position = multiSelection[index].Position;
+                foreach (var tower in snapshot.Towers)
+                {
+                    if (tower.OwnerId.Equals(simulationDriver.LocalPlayerId)
+                        && tower.LaneId.Equals(simulationDriver.LocalPlayerLaneId)
+                        && tower.Position.Equals(position))
+                    {
+                        multiSelection[index] = tower;
+                        break;
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Adds a tower to the multi-selection, or takes it out if it is already in.
+        /// </summary>
+        /// <remarks>
+        /// Always returns true, including when it REMOVES one. The caller treats false as "no tower
+        /// here, treat it as a tap on empty board" and would clear the whole selection — so
+        /// deselecting one tower would wipe the other four.
+        /// </remarks>
+        private bool ToggleInMultiSelection(TowerCombatState tower)
+        {
+            sellArmed = false;
+            var existing = multiSelection.FindIndex(candidate => candidate.Position.Equals(tower.Position));
+            if (existing >= 0)
+            {
+                multiSelection.RemoveAt(existing);
+            }
+            else
+            {
+                multiSelection.Add(tower);
+            }
+
+            ShowSelectionRings(multiSelection);
+            ghost.SetActive(false);
+            HideBuilderAvatar();
+            feedbackView.ShowAccepted(multiSelection.Count == 0 ? "Selection cleared" : $"{multiSelection.Count} selected");
+            return true;
+        }
+
+        private void SetMultiSelectMode(bool enabled)
+        {
+            isMultiSelectMode = enabled;
+            multiSelection.Clear();
+            sellArmed = false;
+            selectedTower = null;
+            HideSelectionRing();
+            if (enabled)
+            {
+                // A placement in flight would fight the same taps.
+                isPlacing = false;
+                ghost.SetActive(false);
+                HideBuilderAvatar();
+            }
+        }
+
+        /// <summary>
+        /// Drops towers that no longer exist from the selection.
+        /// </summary>
+        /// <remarks>
+        /// A selected tower can leave the board without the player touching it — sold from the
+        /// batch itself, or destroyed. The held TowerCombatState is a snapshot value, so a stale
+        /// entry would keep drawing a ring over an empty cell and keep being counted in the totals.
+        /// </remarks>
+        private void PruneMultiSelection()
+        {
+            if (multiSelection.Count == 0 || simulationDriver?.LatestSnapshot is not { } snapshot)
+            {
+                return;
+            }
+
+            var removed = multiSelection.RemoveAll(selected => !snapshot.Towers.Any(tower =>
+                tower.OwnerId.Equals(simulationDriver.LocalPlayerId)
+                && tower.LaneId.Equals(simulationDriver.LocalPlayerLaneId)
+                && tower.Position.Equals(selected.Position)));
+            if (removed > 0)
+            {
+                ShowSelectionRings(multiSelection);
+            }
         }
 
         private void DrawSelectedTowerPanel(float scale)
@@ -862,25 +1128,49 @@ namespace LTW.UnityClient.UI
             }
         }
 
-        private void UpdateSelectionRing(TowerCombatState tower)
+        private void UpdateSelectionRing(TowerCombatState tower) => ShowSelectionRings(new[] { tower });
+
+        /// <summary>
+        /// Puts a range ring under every selected tower, growing the pool as the selection does.
+        /// </summary>
+        /// <remarks>
+        /// Was a single GameObject, which was right while exactly one tower could be selected. With
+        /// a multi-selection the ring has to be per tower or the board shows one highlighted tower
+        /// out of five and the player has no way to see what a batch is about to act on.
+        /// </remarks>
+        private void ShowSelectionRings(IReadOnlyList<TowerCombatState> towers)
         {
-            if (selectionRing == null)
+            for (var index = 0; index < towers.Count; index++)
             {
-                selectionRing = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-                selectionRing.name = "SelectedTowerRangeRing";
+                if (index >= selectionRings.Count)
+                {
+                    var created = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+                    created.name = "SelectedTowerRangeRing";
+                    selectionRings.Add(created);
+                }
+
+                var ring = selectionRings[index];
+                var tower = towers[index];
+                ring.SetActive(true);
+                ring.transform.position = GridToWorld(new Vector2Int(tower.Position.X, tower.Position.Y), 0.06f);
+                ring.transform.localScale = TowerSelectionRingScale(tower.TowerId.Value);
+                ring.GetComponent<Renderer>().material.color = TowerAccent(tower.TowerId.Value);
             }
 
-            selectionRing.SetActive(true);
-            selectionRing.transform.position = GridToWorld(new Vector2Int(tower.Position.X, tower.Position.Y), 0.06f);
-            selectionRing.transform.localScale = TowerSelectionRingScale(tower.TowerId.Value);
-            selectionRing.GetComponent<Renderer>().material.color = TowerAccent(tower.TowerId.Value);
+            for (var index = towers.Count; index < selectionRings.Count; index++)
+            {
+                selectionRings[index].SetActive(false);
+            }
         }
 
         private void HideSelectionRing()
         {
-            if (selectionRing != null)
+            for (var index = 0; index < selectionRings.Count; index++)
             {
-                selectionRing.SetActive(false);
+                if (selectionRings[index] != null)
+                {
+                    selectionRings[index].SetActive(false);
+                }
             }
         }
 
@@ -947,7 +1237,15 @@ namespace LTW.UnityClient.UI
             {
                 if (DrawLauncherButton(launcherRect, "BUILD", MintSignal, scale))
                 {
+                    SetMultiSelectMode(false);
                     OpenTowerPalette();
+                }
+
+                // Only offered with the palette closed: with it open the palette covers the board
+                // the taps would have to land on.
+                if (DrawLauncherButton(MultiSelectLauncherRect(scale, frame), isMultiSelectMode ? "DONE" : "MULTI", isMultiSelectMode ? SignalGold : MintSignal, scale))
+                {
+                    SetMultiSelectMode(!isMultiSelectMode);
                 }
 
                 return;
@@ -1484,6 +1782,16 @@ namespace LTW.UnityClient.UI
             var frame = MobileViewportLayout.ScreenRect();
             var guiPoint = new Vector2(screenPosition.x, Screen.height - screenPosition.y);
 
+            if (isMultiSelectMode && MultiSelectPanelRect(scale, frame).Contains(guiPoint))
+            {
+                return true;
+            }
+
+            if (!isPaletteExpanded && MultiSelectLauncherRect(scale, frame).Contains(guiPoint))
+            {
+                return true;
+            }
+
             if (TowerPaletteLauncherRect(scale, frame).Contains(guiPoint))
             {
                 return true;
@@ -1533,6 +1841,21 @@ namespace LTW.UnityClient.UI
             return new Rect(frame.x + 12f * scale, frame.yMax - launcherHeight - MobileViewportLayout.BottomMargin(scale), launcherWidth, launcherHeight);
         }
 
+        /// <summary>
+        /// The MULTI toggle, stacked directly above the BUILD launcher.
+        /// </summary>
+        /// <remarks>
+        /// An explicit mode button rather than a long-press or a drag box. Both of those overload a
+        /// gesture the board already uses — long-press competes with nothing today but is invisible
+        /// until discovered, and a drag would fight board panning. A button costs permanent HUD
+        /// space and buys an unambiguous mode the player can see the state of.
+        /// </remarks>
+        private static Rect MultiSelectLauncherRect(float scale, Rect frame)
+        {
+            var launcher = TowerPaletteLauncherRect(scale, frame);
+            return new Rect(launcher.x, launcher.y - launcher.height - 8f * scale, launcher.width, launcher.height);
+        }
+
         private Rect TowerPalettePanelRect(float scale, Rect frame)
         {
             var width = Mathf.Min(frame.width - 16f * scale, 430f * scale);
@@ -1550,6 +1873,26 @@ namespace LTW.UnityClient.UI
             var width = Mathf.Min(frame.width - 16f * scale, 360f * scale);
             var height = 160f * scale;
             return new Rect(frame.x + 8f * scale, frame.yMax - height - MobileViewportLayout.BottomMargin(scale), width, height);
+        }
+
+        /// <summary>
+        /// Where the batch panel sits: clear of the feedback toast AND of the DONE button.
+        /// </summary>
+        /// <remarks>
+        /// It cannot share SelectedTowerPanelRect. That rect spans yMax-224 to yMax-112, which
+        /// overlaps the toast at yMax-254..yMax-206 and sits under the DONE button stacked above
+        /// BUILD. The single-tower panel gets away with the toast overlap because selecting one
+        /// tower posts one message and then stops; multi-select posts a new count on every tap, so
+        /// the toast is almost always up and would sit permanently across this panel's title.
+        ///
+        /// 262 clears the toast's top edge by 8. The overlap on the single-tower panel is real and
+        /// pre-existing, and is left alone here rather than fixed as a side effect of this feature.
+        /// </remarks>
+        private static Rect MultiSelectPanelRect(float scale, Rect frame)
+        {
+            var width = Mathf.Min(frame.width - 16f * scale, 360f * scale);
+            var height = 112f * scale;
+            return new Rect(frame.x + 8f * scale, frame.yMax - height - 262f * scale, width, height);
         }
 
         private static Rect SelectedTowerPanelRect(float scale, Rect frame)

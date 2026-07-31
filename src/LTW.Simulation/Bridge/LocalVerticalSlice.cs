@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using LTW.Simulation.Bots;
@@ -418,15 +419,27 @@ public sealed class LocalVerticalSlice
     /// which towers qualify, in what order, and how far the gold goes — and the client has no test
     /// framework, so logic placed there cannot be regression-tested at all.
     /// </remarks>
-    public LineUpgradeOutcome UpgradeTowerLine(PlayerId playerId, LaneId laneId, int lineIndex)
+    public BatchUpgradeOutcome UpgradeTowerLine(PlayerId playerId, LaneId laneId, int lineIndex) =>
+        RunUpgrades(playerId, laneId, candidate => candidate.LineIndex == lineIndex);
+
+    /// <summary>
+    /// Raises a hand-picked set of towers, spending as far as the player's gold reaches.
+    /// </summary>
+    /// <remarks>
+    /// Shares everything with the whole-line version except which towers it considers, so a
+    /// selection spanning two lines obeys each line's own tier ceiling without special-casing.
+    /// </remarks>
+    public BatchUpgradeOutcome UpgradeTowers(PlayerId playerId, LaneId laneId, IReadOnlyCollection<GridPosition> positions) =>
+        RunUpgrades(playerId, laneId, candidate => positions.Contains(candidate.Position));
+
+    private BatchUpgradeOutcome RunUpgrades(PlayerId playerId, LaneId laneId, Func<BatchUpgradeCandidate, bool> include)
     {
-        var player = players.Get(playerId);
-        if (player.IsEliminated)
+        if (players.Get(playerId).IsEliminated)
         {
-            return new LineUpgradeOutcome(0, 0, 0);
+            return new BatchUpgradeOutcome(0, 0, 0);
         }
 
-        var eligible = EligibleLineUpgrades(playerId, laneId, lineIndex);
+        var eligible = EligibleUpgrades(playerId, laneId, include);
 
         var upgraded = 0;
         var spent = 0;
@@ -447,7 +460,7 @@ public sealed class LocalVerticalSlice
             }
         }
 
-        return new LineUpgradeOutcome(upgraded, eligible.Count, spent);
+        return new BatchUpgradeOutcome(upgraded, eligible.Count, spent);
     }
 
     /// <summary>
@@ -459,9 +472,16 @@ public sealed class LocalVerticalSlice
     /// charges cannot disagree — the exact drift that had Arrow priced at three different numbers
     /// across the palette, the panel and the simulation.
     /// </remarks>
-    public LineUpgradeQuote QuoteTowerLineUpgrade(PlayerId playerId, LaneId laneId, int lineIndex)
+    public BatchUpgradeQuote QuoteTowerLineUpgrade(PlayerId playerId, LaneId laneId, int lineIndex) =>
+        QuoteUpgrades(playerId, laneId, candidate => candidate.LineIndex == lineIndex);
+
+    /// <summary>What raising a hand-picked set of towers would cost right now.</summary>
+    public BatchUpgradeQuote QuoteTowerUpgrades(PlayerId playerId, LaneId laneId, IReadOnlyCollection<GridPosition> positions) =>
+        QuoteUpgrades(playerId, laneId, candidate => positions.Contains(candidate.Position));
+
+    private BatchUpgradeQuote QuoteUpgrades(PlayerId playerId, LaneId laneId, Func<BatchUpgradeCandidate, bool> include)
     {
-        var eligible = EligibleLineUpgrades(playerId, laneId, lineIndex);
+        var eligible = EligibleUpgrades(playerId, laneId, include);
         var gold = players.Get(playerId).Gold.Amount;
 
         var affordable = 0;
@@ -478,21 +498,80 @@ public sealed class LocalVerticalSlice
             affordable++;
         }
 
-        return new LineUpgradeQuote(eligible.Count, eligible.Sum(candidate => candidate.Cost), affordable, running);
+        return new BatchUpgradeQuote(eligible.Count, eligible.Sum(candidate => candidate.Cost), affordable, running);
     }
+
+    /// <summary>
+    /// What selling a hand-picked set of towers would return, without removing anything.
+    /// </summary>
+    public BatchSellQuote QuoteTowerSales(PlayerId playerId, LaneId laneId, IReadOnlyCollection<GridPosition> positions)
+    {
+        var owned = OwnedTowersAt(playerId, laneId, positions);
+        return new BatchSellQuote(
+            owned.Count,
+            owned.Sum(tower => economy.CalculateSellRefund(
+                content.Towers.First(definition => definition.Id.Equals(tower.TowerId))).Amount));
+    }
+
+    /// <summary>
+    /// Sells a hand-picked set of towers.
+    /// </summary>
+    /// <remarks>
+    /// Every sale goes through <see cref="SellTower"/>, which is what keeps the lane's route in
+    /// step: removing a tower reopens its cell and the route is recomputed from the grid. Batching
+    /// the removals and repathing once at the end would be faster and wrong — creeps would be
+    /// walking a route computed against a maze that no longer exists for the duration.
+    ///
+    /// Unlike the upgrade batch there is nothing to run out of, so this always completes.
+    /// </remarks>
+    public BatchSellOutcome SellTowers(PlayerId playerId, LaneId laneId, IReadOnlyCollection<GridPosition> positions)
+    {
+        if (players.Get(playerId).IsEliminated)
+        {
+            return new BatchSellOutcome(0, 0);
+        }
+
+        var goldBefore = players.Get(playerId).Gold.Amount;
+        var sold = 0;
+        foreach (var tower in OwnedTowersAt(playerId, laneId, positions))
+        {
+            if (SellTower(playerId, tower).Accepted)
+            {
+                sold++;
+            }
+        }
+
+        return new BatchSellOutcome(sold, players.Get(playerId).Gold.Amount - goldBefore);
+    }
+
+    /// <summary>
+    /// The towers this player actually owns at those cells, newest first per cell.
+    /// </summary>
+    /// <remarks>
+    /// Resolved to a list before anything acts on it, because selling mutates combatState as it
+    /// goes. Ordering matches <see cref="SellTowerAt"/>'s so a batch of one sells the same tower a
+    /// single tap would.
+    /// </remarks>
+    private List<TowerCombatState> OwnedTowersAt(PlayerId playerId, LaneId laneId, IReadOnlyCollection<GridPosition> positions) =>
+        combatState.Towers
+            .Where(candidate => candidate.OwnerId.Equals(playerId)
+                && candidate.LaneId.Equals(laneId)
+                && positions.Contains(candidate.Position))
+            .OrderByDescending(candidate => candidate.EntityId.Value)
+            .ToList();
 
     /// <summary>
     /// The towers in one line this player could raise right now, cheapest first.
     /// </summary>
     /// <remarks>
-    /// The single definition of "eligible" for both the quote and the spend. Splitting them was the
+    /// The single definition of "eligible" for every quote and every spend, whether the batch came
+    /// from a whole line or from a hand-picked selection. Splitting them was the
     /// obvious shape and the wrong one: a card that prices a batch by one rule and a batch that
     /// charges by another is precisely how Arrow ended up costing 20, 25 and 14 gold in three
     /// different places in this client.
     /// </remarks>
-    private List<LineUpgradeCandidate> EligibleLineUpgrades(PlayerId playerId, LaneId laneId, int lineIndex)
+    private List<BatchUpgradeCandidate> EligibleUpgrades(PlayerId playerId, LaneId laneId, Func<BatchUpgradeCandidate, bool> include)
     {
-        var ceiling = players.Get(playerId).TowerLineTier(lineIndex);
 
         // Resolved to a list up front. UpgradeTower replaces towers in combatState as it goes, so
         // enumerating this lazily while spending would walk entries whose tier has already moved.
@@ -501,15 +580,18 @@ public sealed class LocalVerticalSlice
             .Select(candidate =>
             {
                 var definition = content.Towers.First(entry => entry.Id.Equals(candidate.TowerId));
-                return new LineUpgradeCandidate(
+                return new BatchUpgradeCandidate(
                     candidate.Position,
                     candidate.Tier,
                     definition.CategoryIndex,
                     CategoryTierRules.TowerUpgradeCost(definition.Cost.Amount));
             })
-            .Where(candidate => candidate.LineIndex == lineIndex
-                && candidate.Tier < ceiling
-                && candidate.Tier < CategoryTierRules.MaxTier)
+            // The ceiling is read per candidate because a selection can span lines, and each line
+            // has its own tier. Reading one ceiling up front only worked while every candidate was
+            // guaranteed to share a line.
+            .Where(candidate => candidate.Tier < players.Get(playerId).TowerLineTier(candidate.LineIndex)
+                && candidate.Tier < CategoryTierRules.MaxTier
+                && include(candidate))
             // Cheapest first, so "as many as you can afford" actually maximises how many go up.
             // Position breaks ties, so the order is stable rather than dependent on tower iteration.
             .OrderBy(candidate => candidate.Cost)

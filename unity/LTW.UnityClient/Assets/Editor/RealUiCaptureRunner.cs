@@ -67,6 +67,9 @@ namespace LTW.UnityClient.Editor
             // The category picker with a line that actually has work to do, so the whole-line
             // upgrade button is shown carrying a real count and price rather than its empty state.
             ("real-08-line-batch-ready", ShowLineBatchReady),
+            // Multi-select with a real selection, so the batch panel is shown carrying counts and
+            // both action prices rather than its empty prompt.
+            ("real-09-multi-select", ShowMultiSelection),
         };
 
         /// <summary>The portrait surface the HUD is authored against, matching MotionCaptureRunner.</summary>
@@ -363,6 +366,49 @@ namespace LTW.UnityClient.Editor
 
             sim.BuyCategoryTier(sim.LocalPlayerId, LTW.Simulation.Commands.CategoryKind.TowerLine, 0, 2);
             OpenBuildPalette();
+        }
+
+        /// <summary>Multi-select mode on, with three of the player's towers picked.</summary>
+        private static void ShowMultiSelection()
+        {
+            var touch = Object.FindAnyObjectByType<TouchPlacementController>();
+            var commands = Object.FindAnyObjectByType<UnityCommandAdapter>();
+            if (touch == null || commands == null)
+            {
+                return;
+            }
+
+            var dock = Dock();
+            if (dock != null)
+            {
+                SetPrivate(dock, "isExpanded", false);
+            }
+
+            SetPrivate(touch, "isPaletteExpanded", false);
+
+            var field = typeof(UnityCommandAdapter).GetField("simulation", BindingFlags.Instance | BindingFlags.NonPublic);
+            if (field?.GetValue(commands) is not LocalVerticalSlice sim)
+            {
+                return;
+            }
+
+            var toggle = typeof(TouchPlacementController).GetMethod("ToggleInMultiSelection", BindingFlags.Instance | BindingFlags.NonPublic);
+            var setMode = typeof(TouchPlacementController).GetMethod("SetMultiSelectMode", BindingFlags.Instance | BindingFlags.NonPublic);
+            if (toggle == null || setMode == null)
+            {
+                Debug.LogWarning("REALUI could not reflect the multi-select entry points");
+                return;
+            }
+
+            setMode.Invoke(touch, new object[] { true });
+            var owned = sim.GetSnapshot().Towers
+                .Where(tower => tower.OwnerId.Equals(sim.LocalPlayerId) && tower.LaneId.Equals(sim.LocalPlayerLaneId))
+                .Take(3)
+                .ToList();
+            foreach (var tower in owned)
+            {
+                toggle.Invoke(touch, new object[] { tower });
+            }
         }
 
         private static void OpenBuildPalette()
