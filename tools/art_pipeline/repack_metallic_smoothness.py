@@ -1,11 +1,21 @@
 #!/usr/bin/env python3
 """Repack glTF metallic-roughness maps into Unity Standard metallic-smoothness maps.
 
-AI 3D generators export the glTF convention, where one texture packs occlusion in R,
-roughness in G and metallic in B. Unity's Standard shader reads a different layout from
-_MetallicGlossMap: metallic in R and smoothness in A, where smoothness is the inverse of
-roughness. Binding the source map directly therefore samples the wrong channels and
-produces wrong metal and gloss response.
+AI 3D generators export the glTF convention, where one texture reserves R for occlusion,
+and packs roughness in G and metallic in B. Unity's Standard shader reads a different
+layout from _MetallicGlossMap: metallic in R and smoothness in A, where smoothness is the
+inverse of roughness. Binding the source map directly therefore samples the wrong channels
+and produces wrong metal and gloss response.
+
+R is only RESERVED for occlusion by that convention, not necessarily populated. Measured
+across all 21 maps in this repo, R is exactly 0.000 in every pixel of every file while G
+and B both carry real signal — Meshy allocates the channel and bakes nothing into it. So
+there is currently no AO to recover here, and recovering it anyway would be actively
+destructive: 0 means fully occluded, so binding that channel as _OcclusionMap would
+multiply every model's ambient contribution by zero.
+
+This script therefore extracts occlusion only when the channel actually contains
+occlusion, and reports when it does not. See extract_occlusion below.
 
 This script rewrites each Baked_MetallicRoughness.png as a sibling
 Baked_MetallicSmoothness.png in Unity's layout:
@@ -41,8 +51,21 @@ import numpy as np
 
 SOURCE_NAME = "Baked_MetallicRoughness.png"
 OUTPUT_NAME = "Baked_MetallicSmoothness.png"
+OCCLUSION_NAME = "Baked_Occlusion.png"
 SEPARATE_METALLIC_NAME = "texture_0_metallic_png.png"
 SEPARATE_ROUGHNESS_NAME = "texture_0_roughness_png.png"
+
+# Minimum standard deviation for the R channel to be treated as occlusion data.
+#
+# The test is variation, not brightness, because occlusion IS variation — a constant channel
+# describes no cavity anywhere no matter what its value is. This also distinguishes the two
+# ways the channel can be empty, which a brightness test conflates: constant 1.0 is a
+# legitimately unoccluded bake, constant 0.0 is an unwritten channel, and both are useless
+# as an _OcclusionMap while only one of them is harmless if bound.
+#
+# 0.01 is well below any real bake (a plain sphere lands near 0.05) and well above PNG
+# quantisation noise on a flat channel.
+OCCLUSION_MIN_STD = 0.01
 
 
 def parse_args() -> argparse.Namespace:
@@ -74,32 +97,69 @@ def box_downsample(pixels: np.ndarray, width: int, height: int, max_size: int) -
     return blocks.mean(axis=(1, 3)).reshape(-1, 4), target_width, target_height
 
 
-def repack(source_path: Path, max_size: int) -> tuple[int, int]:
+def _write_linear(pixels: np.ndarray, width: int, height: int, path: Path, name: str) -> None:
+    """Save an RGBA buffer as a non-colour PNG."""
+    output = bpy.data.images.new(name, width=width, height=height, alpha=True)
+    try:
+        # The source maps are linear data, so keep them out of the sRGB transfer path.
+        output.colorspace_settings.name = "Non-Color"
+        output.alpha_mode = "CHANNEL_PACKED"
+        output.pixels = pixels.reshape(-1).tolist()
+        output.filepath_raw = str(path)
+        output.file_format = "PNG"
+        output.save()
+    finally:
+        bpy.data.images.remove(output)
+
+
+def extract_occlusion(
+    occlusion: np.ndarray, source_path: Path, width: int, height: int, max_size: int
+) -> str:
+    """Write Baked_Occlusion.png if R holds occlusion, and describe what was decided.
+
+    Returns a human-readable verdict either way, because "no AO was written" is a result
+    worth printing rather than a silence. This item was raised on the assumption that AO
+    was present and being discarded; it is the absence that is the finding, and a run that
+    printed nothing would leave the next reader to make the same assumption again.
+    """
+    std = float(occlusion.std())
+    if std < OCCLUSION_MIN_STD:
+        constant = float(occlusion.mean())
+        reason = "unwritten channel" if constant < 0.5 else "fully unoccluded bake"
+        return f"no occlusion (R is constant {constant:.3f}, {reason}; std {std:.4f})"
+
+    # Unity's _OcclusionMap samples green, so occlusion is replicated across RGB rather than
+    # left in R alone. That costs nothing at this size and makes the file readable as a
+    # greyscale image in any viewer, which matters for a map nobody can sanity-check by eye
+    # once it is packed into a single channel.
+    packed = np.zeros((height, width, 4), dtype=np.float32)
+    packed[:, :, 0] = occlusion
+    packed[:, :, 1] = occlusion
+    packed[:, :, 2] = occlusion
+    packed[:, :, 3] = 1.0
+
+    packed, out_width, out_height = box_downsample(packed.reshape(-1, 4), width, height, max_size)
+    _write_linear(packed, out_width, out_height, source_path.with_name(OCCLUSION_NAME), OCCLUSION_NAME)
+    return f"occlusion ({out_width}x{out_height}, std {std:.3f}) -> {OCCLUSION_NAME}"
+
+
+def repack(source_path: Path, max_size: int) -> tuple[int, int, str]:
     """Write the Unity-layout sibling for one source map and return its dimensions."""
     image = bpy.data.images.load(str(source_path))
     try:
         width, height = image.size
         pixels = np.array(image.pixels[:], dtype=np.float32).reshape(height, width, 4)
 
+        occlusion_note = extract_occlusion(pixels[:, :, 0], source_path, width, height, max_size)
+
         packed = np.zeros_like(pixels)
         packed[:, :, 0] = pixels[:, :, 2]          # metallic   <- source blue
         packed[:, :, 3] = 1.0 - pixels[:, :, 1]    # smoothness <- inverse of source green
 
         packed, width, height = box_downsample(packed.reshape(-1, 4), width, height, max_size)
+        _write_linear(packed, width, height, source_path.with_name(OUTPUT_NAME), OUTPUT_NAME)
 
-        output = bpy.data.images.new(OUTPUT_NAME, width=width, height=height, alpha=True)
-        try:
-            # The source maps are linear data, so keep them out of the sRGB transfer path.
-            output.colorspace_settings.name = "Non-Color"
-            output.alpha_mode = "CHANNEL_PACKED"
-            output.pixels = packed.reshape(-1).tolist()
-            output.filepath_raw = str(source_path.with_name(OUTPUT_NAME))
-            output.file_format = "PNG"
-            output.save()
-        finally:
-            bpy.data.images.remove(output)
-
-        return width, height
+        return width, height, occlusion_note
     finally:
         bpy.data.images.remove(image)
 
@@ -131,17 +191,7 @@ def repack_separate(metallic_path: Path, roughness_path: Path, max_size: int) ->
     packed[:, :, 3] = 1.0 - roughness[:, :, 0]    # smoothness <- inverse roughness red
 
     packed, width, height = box_downsample(packed.reshape(-1, 4), width, height, max_size)
-
-    output = bpy.data.images.new(OUTPUT_NAME, width=width, height=height, alpha=True)
-    try:
-        output.colorspace_settings.name = "Non-Color"
-        output.alpha_mode = "CHANNEL_PACKED"
-        output.pixels = packed.reshape(-1).tolist()
-        output.filepath_raw = str(metallic_path.with_name(OUTPUT_NAME))
-        output.file_format = "PNG"
-        output.save()
-    finally:
-        bpy.data.images.remove(output)
+    _write_linear(packed, width, height, metallic_path.with_name(OUTPUT_NAME), OUTPUT_NAME)
 
     return width, height
 
@@ -171,13 +221,16 @@ def main() -> int:
         )
         return 1
 
+    occlusion_written = 0
     for source in sources:
         relative = source.relative_to(root)
         if args.dry_run:
             print(f"would repack {relative}")
             continue
-        width, height = repack(source, args.max_size)
-        print(f"repacked {relative} ({width}x{height}) -> {OUTPUT_NAME}")
+        width, height, occlusion_note = repack(source, args.max_size)
+        if OCCLUSION_NAME in occlusion_note:
+            occlusion_written += 1
+        print(f"repacked {relative} ({width}x{height}) -> {OUTPUT_NAME}; {occlusion_note}")
 
     for metallic in separate:
         relative = metallic.relative_to(root)
@@ -189,7 +242,17 @@ def main() -> int:
         )
         print(f"combined {relative} + {SEPARATE_ROUGHNESS_NAME} ({width}x{height}) -> {OUTPUT_NAME}")
 
-    print(f"done: {len(sources)} packed map(s), {len(separate)} separate pair(s)")
+    if not args.dry_run:
+        # The unpacked shape has no occlusion source at all — Meshy emits metallic and
+        # roughness as separate files and simply does not emit an occlusion one.
+        print(
+            f"done: {len(sources)} packed map(s), {len(separate)} separate pair(s), "
+            f"{occlusion_written} occlusion map(s) written "
+            f"({len(sources) - occlusion_written} packed source(s) carried no occlusion, "
+            f"{len(separate)} separate pair(s) have no occlusion source)"
+        )
+    else:
+        print(f"done: {len(sources)} packed map(s), {len(separate)} separate pair(s)")
     return 0
 
 
