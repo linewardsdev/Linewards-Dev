@@ -66,6 +66,10 @@ namespace LTW.UnityClient.Editor
             ("real-07-tier-comparison", ShowTierComparison),
         };
 
+        /// <summary>The portrait surface the HUD is authored against, matching MotionCaptureRunner.</summary>
+        private const int CaptureWidth = 1080;
+        private const int CaptureHeight = 1920;
+
         public static void Run()
         {
             outputDirectory = ReadArg("-ltwCaptureOutputDir") ?? Path.Combine(Path.GetTempPath(), "ltw-real-ui");
@@ -73,6 +77,17 @@ namespace LTW.UnityClient.Editor
             shot = 0;
             seeded = false;
             running = true;
+
+            // Declare the portrait surface the UI is designed for, exactly as MotionCaptureRunner
+            // and VisualReviewCaptureRunner already do. Without it the HUD lays out against the raw
+            // editor Game view — 3840x2160 landscape when the window is maximised — while the board
+            // camera letterboxes itself to a portrait strip through MobileViewportLayout.CameraRect.
+            // The two then disagree, and the resulting capture shows panels sprawling past the board
+            // and card art diverging from its own content. That is an artefact of this runner, not a
+            // layout bug, and it made the ONLY tool in the repo that can see IMGUI untrustworthy for
+            // judging the thing it exists to judge.
+            MobileViewportLayout.SetCaptureViewportOverride(
+                CaptureWidth, CaptureHeight, new Rect(0f, 0f, CaptureWidth, CaptureHeight));
 
             // Saved and restored in Finish. These are persisted project settings, not per-run
             // state: leaving DisableDomainReload on changed how play mode behaves for everyone —
@@ -340,6 +355,8 @@ namespace LTW.UnityClient.Editor
             {
                 Debug.LogError($"REALUI {error}");
             }
+
+            MobileViewportLayout.ClearCaptureViewportOverride();
 
             EditorSettings.enterPlayModeOptionsEnabled = previousPlayModeOptionsEnabled;
             EditorSettings.enterPlayModeOptions = previousPlayModeOptions;
