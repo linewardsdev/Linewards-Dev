@@ -5417,8 +5417,24 @@ namespace LTW.UnityClient.Simulation
             public Queue<GameObject> Pool { get; }
         }
 
+        /// <summary>
+        /// Bramble zone footprint, in cells. Deliberately NOT tuned for looks.
+        /// </summary>
+        /// <remarks>
+        /// CombatService.BrambleZoneCells is 3, and the zone starts at the first route cell in range,
+        /// so this shows the braked span rather than the tower. Shrinking it to calm the visual down
+        /// would make it lie about how much lane the brake actually covers — opacity is the knob for
+        /// that, not size.
+        /// </remarks>
         private const float BrambleMarkerScale = 2.6f;
-        private static readonly Color BrambleMarkerColor = new Color(0.42f, 0.24f, 0.58f, 0.34f);
+
+        /// <summary>
+        /// Alpha dropped from 0.34. The marker is 2.6 cells across, and until the decal was lifted
+        /// clear of the raised build plates most of that area was hidden under them — so 0.34 was
+        /// tuned against a fraction of the footprint that actually shows now. At full visibility the
+        /// same value read as a purple slab over the lane ("thorn ground bloom is too much").
+        /// </remarks>
+        private static readonly Color BrambleMarkerColor = new Color(0.42f, 0.24f, 0.58f, 0.15f);
         private static readonly Color GrovebondMarkerColor = new Color(0.55f, 0.95f, 0.38f, 0.7f);
 
         // Repair Drone Spire's own catalog accent (TowerCatalog.cs, id 9, label "DRONE"), reused here
