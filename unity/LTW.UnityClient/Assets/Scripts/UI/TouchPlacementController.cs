@@ -995,6 +995,18 @@ namespace LTW.UnityClient.UI
                 return;
             }
 
+            // Cheapest first, left to right. Sorted at draw time against the SIMULATION's cost rather
+            // than by reordering TowerCatalog.Entries, for two reasons: the catalog deliberately holds
+            // no cost (it is read from ContentCatalog at display time, because a copy in the client is
+            // exactly what went stale before), and Entry.Role is the palette's identity — reordering
+            // the array would renumber roles that saved captures and review tooling refer to.
+            // Sorting here means a cost rebalance reorders the palette on its own.
+            entries.Sort((left, right) =>
+            {
+                var byCost = TowerCostFor(left).CompareTo(TowerCostFor(right));
+                return byCost != 0 ? byCost : left.Role.CompareTo(right.Role);
+            });
+
             var firstRow = Mathf.Min(3, entries.Count);
             var firstRowWidth = (rect.width - 24f * scale - gap * (firstRow - 1)) / firstRow;
             var x = rect.x + 12f * scale;
@@ -1020,6 +1032,10 @@ namespace LTW.UnityClient.UI
                 x += secondRowWidth + gap;
             }
         }
+
+        /// <summary>Tower cost from the simulation, or 0 before the adapter is wired.</summary>
+        private int TowerCostFor(LTW.UnityClient.Simulation.TowerCatalog.Entry entry) =>
+            commandAdapter != null ? commandAdapter.TowerCost(entry.Role) : 0;
 
         private void DrawCatalogPaletteButton(Rect buttonRect, LTW.UnityClient.Simulation.TowerCatalog.Entry entry, int gold, float scale)
         {

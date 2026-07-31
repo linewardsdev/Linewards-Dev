@@ -1,6 +1,7 @@
 #nullable enable
 
 using LTW.Simulation.Bridge;
+using LTW.Simulation.Content;
 using LTW.Simulation.Primitives;
 using LTW.UnityClient.Simulation;
 using UnityEngine;
@@ -281,134 +282,132 @@ namespace LTW.UnityClient.UI
             return pressed;
         }
 
-        private void DrawCategoryOneCreeps(Rect rect, float buttonY, float buttonHeight, float gap, int gold, float scale)
+        /// <summary>One send card: everything the dock needs to draw it and act on it.</summary>
+        /// <remarks>
+        /// The three category grids used to be three near-identical blocks of hardcoded
+        /// DrawSendButton calls, with the display order fixed by the order they happened to be
+        /// written in. Ordering the cards by price meant editing three blocks by hand and redoing it
+        /// after every rebalance. Describing a card as data instead lets one draw routine sort them,
+        /// and the sort reads cost from the SIMULATION, so a price change reorders the dock on its
+        /// own rather than silently leaving it wrong.
+        /// </remarks>
+        private readonly struct SendCard
         {
-            var buttonWidth = (rect.width - 24f * scale - gap * 2f) / 3f;
-            var x = rect.x + 12f * scale;
-
-            var runnerCost = commandAdapter.CreepCost(SampleVerticalSliceContent.CreepId);
-            if (DrawSendButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "RUNNER", $"{runnerCost}G  +1", CreepIconKind.Runner, ArcaneBlue, gold >= runnerCost, highlightedCreepRole == 0, scale))
+            public SendCard(string label, string income, CreepIconKind icon, Color accent, ContentId creepId, int role, System.Action send, bool ignoresCooldown = false)
             {
-                SendRunner();
+                Label = label;
+                Income = income;
+                Icon = icon;
+                Accent = accent;
+                CreepId = creepId;
+                Role = role;
+                Send = send;
+                IgnoresCooldown = ignoresCooldown;
             }
 
-            x += buttonWidth + gap;
-            var bruteCost = commandAdapter.CreepCost(SampleVerticalSliceContent.BruteCreepId);
-            if (DrawSendButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "BRUTE", $"{bruteCost}G  +2", CreepIconKind.Brute, WardViolet, gold >= bruteCost, highlightedCreepRole == 1, scale))
-            {
-                SendBrute();
-            }
+            public string Label { get; }
+            public string Income { get; }
+            public CreepIconKind Icon { get; }
+            public Color Accent { get; }
+            public ContentId CreepId { get; }
 
-            x += buttonWidth + gap;
-            var swarmCost = commandAdapter.CreepCost(SampleVerticalSliceContent.SwarmCreepId);
-            if (DrawSendButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "SWARM", $"{swarmCost}G  +3", CreepIconKind.Swarm, SignalGold, gold >= swarmCost, highlightedCreepRole == 2, scale))
-            {
-                SendSwarm();
-            }
+            /// <summary>Selection identity, and what highlightedCreepRole is compared against. Travels with the card so sorting cannot renumber it.</summary>
+            public int Role { get; }
 
-            var secondRowY = buttonY + buttonHeight + gap;
-            var secondRowWidth = (rect.width - 24f * scale - gap) / 2f;
-            x = rect.x + 12f * scale;
-            var shadeCost = commandAdapter.CreepCost(SampleVerticalSliceContent.ShadeCreepId);
-            if (DrawSendButton(new Rect(x, secondRowY, secondRowWidth, buttonHeight), "SHADE", $"{shadeCost}G  +3", CreepIconKind.Shade, MintSignal, gold >= shadeCost, highlightedCreepRole == 3, scale))
-            {
-                SendShade();
-            }
-
-            x += secondRowWidth + gap;
-            var siegeCost = commandAdapter.CreepCost(SampleVerticalSliceContent.SiegeCreepId);
-            if (DrawSendButton(new Rect(x, secondRowY, secondRowWidth, buttonHeight), "SIEGE", $"{siegeCost}G  +4", CreepIconKind.Siege, new Color(1f, 0.62f, 0.26f), gold >= siegeCost, highlightedCreepRole == 4, scale))
-            {
-                SendSiege();
-            }
+            public System.Action Send { get; }
+            public bool IgnoresCooldown { get; }
         }
 
-        private void DrawCategoryTwoCreeps(Rect rect, float buttonY, float buttonHeight, float gap, int gold, float scale)
+        private SendCard[] CategoryOneCards() => new[]
         {
-            var buttonWidth = (rect.width - 24f * scale - gap * 2f) / 3f;
-            var x = rect.x + 12f * scale;
+            new SendCard("RUNNER", "+1", CreepIconKind.Runner, ArcaneBlue, SampleVerticalSliceContent.CreepId, 0, SendRunner),
+            new SendCard("BRUTE", "+2", CreepIconKind.Brute, WardViolet, SampleVerticalSliceContent.BruteCreepId, 1, SendBrute),
+            new SendCard("SWARM", "+3", CreepIconKind.Swarm, SignalGold, SampleVerticalSliceContent.SwarmCreepId, 2, SendSwarm),
+            new SendCard("SHADE", "+3", CreepIconKind.Shade, MintSignal, SampleVerticalSliceContent.ShadeCreepId, 3, SendShade),
+            new SendCard("SIEGE", "+4", CreepIconKind.Siege, new Color(1f, 0.62f, 0.26f), SampleVerticalSliceContent.SiegeCreepId, 4, SendSiege)
+        };
 
-            var wispCost = commandAdapter.CreepCost(SampleVerticalSliceContent.WispCreepId);
-            if (DrawSendButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "WISP", $"{wispCost}G  +1", CreepIconKind.Wisp, ArcaneBlue, gold >= wispCost, highlightedCreepRole == 5, scale, ignoresCooldown: true))
-            {
-                SendWisp();
-            }
+        // Every Category 2 card sets ignoresCooldown — that exemption is what the RAPID name refers to.
+        private SendCard[] CategoryTwoCards() => new[]
+        {
+            new SendCard("WISP", "+1", CreepIconKind.Wisp, ArcaneBlue, SampleVerticalSliceContent.WispCreepId, 5, SendWisp, ignoresCooldown: true),
+            new SendCard("REVENANT", "+4", CreepIconKind.Revenant, WardViolet, SampleVerticalSliceContent.RevenantCreepId, 6, SendRevenant, ignoresCooldown: true),
+            new SendCard("OBSIDIAN", "+3", CreepIconKind.ObsidianBrute, new Color(0.92f, 0.32f, 0.28f), SampleVerticalSliceContent.ObsidianBruteCreepId, 7, SendObsidianBrute, ignoresCooldown: true),
+            new SendCard("SERPENT", "+2", CreepIconKind.Serpent, MintSignal, SampleVerticalSliceContent.SerpentCreepId, 8, SendSerpent, ignoresCooldown: true),
+            new SendCard("WALKER", "+4", CreepIconKind.TurretWalker, new Color(0.42f, 0.82f, 0.86f), SampleVerticalSliceContent.TurretWalkerCreepId, 9, SendTurretWalker, ignoresCooldown: true)
+        };
 
-            x += buttonWidth + gap;
-            var revenantCost = commandAdapter.CreepCost(SampleVerticalSliceContent.RevenantCreepId);
-            if (DrawSendButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "REVENANT", $"{revenantCost}G  +4", CreepIconKind.Revenant, WardViolet, gold >= revenantCost, highlightedCreepRole == 6, scale, ignoresCooldown: true))
-            {
-                SendRevenant();
-            }
+        private SendCard[] CategoryThreeCards() => new[]
+        {
+            new SendCard("WRAITH", "+2", CreepIconKind.Zephyr, ArcaneBlue, SampleVerticalSliceContent.ZephyrCreepId, 10, SendZephyr),
+            new SendCard("BURROW", "+2", CreepIconKind.Burrower, new Color(0.85f, 0.55f, 0.25f), SampleVerticalSliceContent.BurrowerCreepId, 11, SendBurrower),
+            new SendCard("STALKER", "+3", CreepIconKind.Stalker, WardViolet, SampleVerticalSliceContent.StalkerCreepId, 12, SendStalker),
+            new SendCard("WARDEN", "+3", CreepIconKind.Warden, MintSignal, SampleVerticalSliceContent.WardenCreepId, 13, SendWarden),
+            new SendCard("COLOSSUS", "+5", CreepIconKind.Colossus, new Color(1f, 0.45f, 0.30f), SampleVerticalSliceContent.ColossusCreepId, 14, SendColossus)
+        };
 
-            x += buttonWidth + gap;
-            var obsidianCost = commandAdapter.CreepCost(SampleVerticalSliceContent.ObsidianBruteCreepId);
-            if (DrawSendButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "OBSIDIAN", $"{obsidianCost}G  +3", CreepIconKind.ObsidianBrute, new Color(0.92f, 0.32f, 0.28f), gold >= obsidianCost, highlightedCreepRole == 7, scale, ignoresCooldown: true))
-            {
-                SendObsidianBrute();
-            }
+        private void DrawCategoryOneCreeps(Rect rect, float buttonY, float buttonHeight, float gap, int gold, float scale) =>
+            DrawSendCards(CategoryOneCards(), rect, buttonY, buttonHeight, gap, gold, scale);
 
-            var secondRowY = buttonY + buttonHeight + gap;
-            var secondRowWidth = (rect.width - 24f * scale - gap) / 2f;
-            x = rect.x + 12f * scale;
-            var serpentCost = commandAdapter.CreepCost(SampleVerticalSliceContent.SerpentCreepId);
-            if (DrawSendButton(new Rect(x, secondRowY, secondRowWidth, buttonHeight), "SERPENT", $"{serpentCost}G  +2", CreepIconKind.Serpent, MintSignal, gold >= serpentCost, highlightedCreepRole == 8, scale, ignoresCooldown: true))
-            {
-                SendSerpent();
-            }
+        private void DrawCategoryTwoCreeps(Rect rect, float buttonY, float buttonHeight, float gap, int gold, float scale) =>
+            DrawSendCards(CategoryTwoCards(), rect, buttonY, buttonHeight, gap, gold, scale);
 
-            x += secondRowWidth + gap;
-            var walkerCost = commandAdapter.CreepCost(SampleVerticalSliceContent.TurretWalkerCreepId);
-            if (DrawSendButton(new Rect(x, secondRowY, secondRowWidth, buttonHeight), "WALKER", $"{walkerCost}G  +4", CreepIconKind.TurretWalker, new Color(0.42f, 0.82f, 0.86f), gold >= walkerCost, highlightedCreepRole == 9, scale, ignoresCooldown: true))
-            {
-                SendTurretWalker();
-            }
-        }
+        private void DrawCategoryThreeCreeps(Rect rect, float buttonY, float buttonHeight, float gap, int gold, float scale) =>
+            DrawSendCards(CategoryThreeCards(), rect, buttonY, buttonHeight, gap, gold, scale);
 
         /// <summary>
-        /// Category 3 (ELITE). Same 3-up/2-up geometry as the other two grids, ordered by cost.
-        /// No <c>ignoresCooldown</c> anywhere here — unlike Category 2 these are gated normally,
-        /// which is why the countdown above is asked as a question rather than hidden by index.
+        /// Draws one category's cards cheapest first, left to right, three across then two.
         /// </summary>
-        private void DrawCategoryThreeCreeps(Rect rect, float buttonY, float buttonHeight, float gap, int gold, float scale)
+        /// <remarks>
+        /// Ties are broken by role so the order is stable rather than dependent on sort internals —
+        /// Thorn Snare and Spore Cloud are both 34 gold on the tower side, and the creep roster can
+        /// tie the same way after a rebalance.
+        /// </remarks>
+        private void DrawSendCards(SendCard[] cards, Rect rect, float buttonY, float buttonHeight, float gap, int gold, float scale)
         {
-            var buttonWidth = (rect.width - 24f * scale - gap * 2f) / 3f;
-            var x = rect.x + 12f * scale;
-
-            var zephyrCost = commandAdapter.CreepCost(SampleVerticalSliceContent.ZephyrCreepId);
-            if (DrawSendButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "WRAITH", $"{zephyrCost}G  +2", CreepIconKind.Zephyr, ArcaneBlue, gold >= zephyrCost, highlightedCreepRole == 10, scale))
+            var costs = new int[cards.Length];
+            for (var index = 0; index < cards.Length; index++)
             {
-                SendZephyr();
+                costs[index] = commandAdapter != null ? commandAdapter.CreepCost(cards[index].CreepId) : 0;
             }
 
-            x += buttonWidth + gap;
-            var burrowerCost = commandAdapter.CreepCost(SampleVerticalSliceContent.BurrowerCreepId);
-            if (DrawSendButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "BURROW", $"{burrowerCost}G  +2", CreepIconKind.Burrower, new Color(0.85f, 0.55f, 0.25f), gold >= burrowerCost, highlightedCreepRole == 11, scale))
+            var order = new int[cards.Length];
+            for (var index = 0; index < order.Length; index++)
             {
-                SendBurrower();
+                order[index] = index;
             }
 
-            x += buttonWidth + gap;
-            var stalkerCost = commandAdapter.CreepCost(SampleVerticalSliceContent.StalkerCreepId);
-            if (DrawSendButton(new Rect(x, buttonY, buttonWidth, buttonHeight), "STALKER", $"{stalkerCost}G  +3", CreepIconKind.Stalker, WardViolet, gold >= stalkerCost, highlightedCreepRole == 12, scale))
+            System.Array.Sort(order, (left, right) =>
             {
-                SendStalker();
-            }
+                var byCost = costs[left].CompareTo(costs[right]);
+                return byCost != 0 ? byCost : cards[left].Role.CompareTo(cards[right].Role);
+            });
 
+            const int firstRowCount = 3;
+            var firstRowWidth = (rect.width - 24f * scale - gap * (firstRowCount - 1)) / firstRowCount;
+            var secondRowCount = Mathf.Max(1, cards.Length - firstRowCount);
+            var secondRowWidth = (rect.width - 24f * scale - gap * (secondRowCount - 1)) / secondRowCount;
             var secondRowY = buttonY + buttonHeight + gap;
-            var secondRowWidth = (rect.width - 24f * scale - gap) / 2f;
-            x = rect.x + 12f * scale;
-            var wardenCost = commandAdapter.CreepCost(SampleVerticalSliceContent.WardenCreepId);
-            if (DrawSendButton(new Rect(x, secondRowY, secondRowWidth, buttonHeight), "WARDEN", $"{wardenCost}G  +3", CreepIconKind.Warden, MintSignal, gold >= wardenCost, highlightedCreepRole == 13, scale))
-            {
-                SendWarden();
-            }
 
-            x += secondRowWidth + gap;
-            var colossusCost = commandAdapter.CreepCost(SampleVerticalSliceContent.ColossusCreepId);
-            if (DrawSendButton(new Rect(x, secondRowY, secondRowWidth, buttonHeight), "COLOSSUS", $"{colossusCost}G  +5", CreepIconKind.Colossus, new Color(1f, 0.45f, 0.30f), gold >= colossusCost, highlightedCreepRole == 14, scale))
+            var x = rect.x + 12f * scale;
+            for (var slot = 0; slot < cards.Length; slot++)
             {
-                SendColossus();
+                var card = cards[order[slot]];
+                var cost = costs[order[slot]];
+                var inFirstRow = slot < firstRowCount;
+                if (slot == firstRowCount)
+                {
+                    x = rect.x + 12f * scale;
+                }
+
+                var width = inFirstRow ? firstRowWidth : secondRowWidth;
+                var y = inFirstRow ? buttonY : secondRowY;
+                if (DrawSendButton(new Rect(x, y, width, buttonHeight), card.Label, $"{cost}G  {card.Income}", card.Icon, card.Accent, gold >= cost, highlightedCreepRole == card.Role, scale, card.IgnoresCooldown))
+                {
+                    card.Send();
+                }
+
+                x += width + gap;
             }
         }
 
