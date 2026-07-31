@@ -75,6 +75,8 @@ namespace LTW.UnityClient.Editor
                 ? iOSSdkVersion.SimulatorSDK
                 : iOSSdkVersion.DeviceSDK;
 
+            ApplySimulatorArchitecture();
+
             var buildPath = ReadArgument("-ltwBuildPath") ?? DefaultBuildPath;
             var fullPath = Path.IsPathRooted(buildPath)
                 ? buildPath
@@ -146,6 +148,54 @@ namespace LTW.UnityClient.Editor
                 PlayerSettings.iOS.appleEnableAutomaticSigning = true;
             }
         }
+
+        /// <summary>
+        /// Forces the simulator SDK to build for the architecture the host's simulators run.
+        /// </summary>
+        /// <remarks>
+        /// Unity defaults `iOSSimulatorArchitecture` to x86_64, which is an Intel-Mac-era choice.
+        /// Every simulator on an Apple Silicon Mac is arm64, so an x86_64 build has no valid
+        /// destination — Xcode's dropdown comes up empty and Run reports "A build only device
+        /// cannot be used to run this target", which points at the device and sends you looking in
+        /// entirely the wrong place.
+        ///
+        /// Set here rather than left to the project asset so a simulator export is correct whoever
+        /// runs it, and so the device path is untouched.
+        ///
+        /// The wrong fix, tried first and recorded so nobody repeats it: overriding Xcode's `ARCHS`
+        /// to `$(ARCHS_STANDARD)` in a post-process. That makes the destination list populate, which
+        /// looks like success, and then fails at link with "symbol(s) not found for architecture
+        /// x86_64" — because it asks Xcode to build a slice Unity never produced libraries for.
+        /// The architecture has to be chosen before Unity builds, not patched into the project after.
+        /// </remarks>
+        private static void ApplySimulatorArchitecture()
+        {
+            if (PlayerSettings.iOS.sdkVersion != iOSSdkVersion.SimulatorSDK)
+            {
+                return;
+            }
+
+            // Through SerializedObject because Unity exposes no scripting API for this — it is
+            // settable in the Player Settings inspector and nowhere else. 0 is x86_64, 1 is arm64.
+            var settings = new SerializedObject(Unsupported.GetSerializedAssetInterfaceSingleton("PlayerSettings"));
+            var architecture = settings.FindProperty("iOSSimulatorArchitecture");
+            if (architecture == null)
+            {
+                Debug.LogWarning("IOS BUILD: no iOSSimulatorArchitecture field; leaving the simulator architecture as configured.");
+                return;
+            }
+
+            if (architecture.intValue != SimulatorArm64)
+            {
+                architecture.intValue = SimulatorArm64;
+                settings.ApplyModifiedProperties();
+                AssetDatabase.SaveAssets();
+                Debug.Log("IOS BUILD: simulator architecture switched from x86_64 to arm64.");
+            }
+        }
+
+        /// <summary>`iOSSimulatorArchitecture` enum value for arm64. 0 is x86_64.</summary>
+        private const int SimulatorArm64 = 1;
 
         private static string ReadArgument(string name)
         {
