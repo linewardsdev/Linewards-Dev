@@ -136,26 +136,106 @@ namespace LTW.UnityClient.Simulation
         /// Replaces the flat ambient colour with a sky/equator/ground gradient. It approximates
         /// bounce grounding at no runtime cost and keeps undersides from going fully dead.
         /// </summary>
+        private static readonly Color AmbientSky = new Color(0.322f, 0.361f, 0.451f);
+        private static readonly Color AmbientEquator = new Color(0.212f, 0.227f, 0.259f);
+        private static readonly Color AmbientGround = new Color(0.114f, 0.125f, 0.157f);
+
         private static void ApplyGradientAmbient()
         {
             RenderSettings.ambientMode = AmbientMode.Trilight;
-            RenderSettings.ambientSkyColor = new Color(0.322f, 0.361f, 0.451f);
-            RenderSettings.ambientEquatorColor = new Color(0.212f, 0.227f, 0.259f);
-            RenderSettings.ambientGroundColor = new Color(0.114f, 0.125f, 0.157f);
+            RenderSettings.ambientSkyColor = AmbientSky;
+            RenderSettings.ambientEquatorColor = AmbientEquator;
+            RenderSettings.ambientGroundColor = AmbientGround;
             RenderSettings.ambientIntensity = 1f;
+
+            ApplyMatchingReflections();
+        }
+
+        /// <summary>Face size of the generated reflection cubemap.</summary>
+        /// <remarks>
+        /// 32 is chosen for the mip chain, not the detail. The source is a vertical gradient with no
+        /// features, so face resolution buys nothing; but reflection roughness samples down the mip
+        /// chain, and 32 gives six levels to fall through. At 4 or 8 the roughest materials land on a
+        /// near-1x1 mip and every smooth surface collapses to the same flat tone.
+        /// </remarks>
+        private const int ReflectionCubemapSize = 32;
+
+        /// <summary>
+        /// Points environment reflections at the scene's own ambient gradient.
+        /// </summary>
+        /// <remarks>
+        /// Ambient was already authored as a trilight gradient, but reflections are a separate
+        /// channel: they kept defaulting to <see cref="DefaultReflectionMode.Skybox"/>, and with no
+        /// skybox assigned that means Unity's stock procedural sky. So every smooth surface on the
+        /// board mirrored a daylit blue-grey sky while the camera cleared to near-black navy and the
+        /// ambient said dim slate. Nothing in the scene was ever that bright or that blue — it is the
+        /// specific mismatch that reads as "prototype" no matter how good the models are.
+        ///
+        /// Generated rather than authored as an asset: it is exactly the three colours above, so a
+        /// committed cubemap would be a second copy of them that could drift out of sync with the
+        /// ambient it is supposed to match. Deriving it here makes that impossible by construction.
+        ///
+        /// A ReflectionProbe was the other option and is rejected on timing: probes capture the scene
+        /// as it stands, and this runs at launch when the board is empty, so it would bake an empty
+        /// board and then be wrong for the entire match unless refreshed — paying a six-face render
+        /// to arrive at a worse version of a gradient we can compute.
+        /// </remarks>
+        private static void ApplyMatchingReflections()
+        {
+            var cubemap = new Cubemap(ReflectionCubemapSize, TextureFormat.RGBAHalf, true)
+            {
+                name = "LTW Ambient Reflection",
+                hideFlags = HideFlags.HideAndDontSave,
+                filterMode = FilterMode.Bilinear,
+                wrapMode = TextureWrapMode.Clamp,
+            };
+
+            var pixels = new Color[ReflectionCubemapSize * ReflectionCubemapSize];
+            for (var face = 0; face < 6; face++)
+            {
+                for (var y = 0; y < ReflectionCubemapSize; y++)
+                {
+                    for (var x = 0; x < ReflectionCubemapSize; x++)
+                    {
+                        // Texel centres, mapped to the [-1, 1] face plane.
+                        var u = ((x + 0.5f) / ReflectionCubemapSize) * 2f - 1f;
+                        var v = ((y + 0.5f) / ReflectionCubemapSize) * 2f - 1f;
+                        var direction = FaceDirection((CubemapFace)face, u, v).normalized;
+                        pixels[(y * ReflectionCubemapSize) + x] = GradientColor(direction.y);
+                    }
+                }
+
+                cubemap.SetPixels(pixels, (CubemapFace)face);
+            }
+
+            cubemap.Apply(true);
+
+            RenderSettings.defaultReflectionMode = DefaultReflectionMode.Custom;
+            RenderSettings.customReflectionTexture = cubemap;
+            RenderSettings.reflectionIntensity = 1f;
         }
 
         /// <summary>
-        /// Attaches the global post-processing volume and enables it on the presentation camera.
+        /// The direction a texel on a cubemap face points, in Unity's left-handed cube convention.
         /// </summary>
-        /// <remarks>
-        /// Bloom is the capability the URP migration exists to obtain. Tower emission maps cover
-        /// only a small fraction of each texture, so the per-role emission colours read as barely
-        /// tinted highlights without it.
-        ///
-        /// This is a no-op under the Built-in pipeline, which has no volume system, so the launcher
-        /// stays valid on both while the migration is in flight.
-        /// </remarks>
+        private static Vector3 FaceDirection(CubemapFace face, float u, float v) => face switch
+        {
+            CubemapFace.PositiveX => new Vector3(1f, -v, -u),
+            CubemapFace.NegativeX => new Vector3(-1f, -v, u),
+            CubemapFace.PositiveY => new Vector3(u, 1f, v),
+            CubemapFace.NegativeY => new Vector3(u, -1f, -v),
+            CubemapFace.PositiveZ => new Vector3(u, -v, 1f),
+            _ => new Vector3(-u, -v, -1f),
+        };
+
+        /// <summary>
+        /// The same sky/equator/ground blend Unity applies for trilight ambient, so a mirror surface
+        /// reflects the light it is already being lit by.
+        /// </summary>
+        private static Color GradientColor(float upness) => upness >= 0f
+            ? Color.Lerp(AmbientEquator, AmbientSky, upness)
+            : Color.Lerp(AmbientEquator, AmbientGround, -upness);
+
         /// <summary>Overrides the profile must carry: tonemapping, bloom, colour adjustments.</summary>
         internal const int ExpectedPostProcessingOverrides = 3;
 
@@ -207,6 +287,17 @@ namespace LTW.UnityClient.Simulation
             return true;
         }
 
+        /// <summary>
+        /// Attaches the global post-processing volume and enables it on the presentation camera.
+        /// </summary>
+        /// <remarks>
+        /// Bloom is the capability the URP migration exists to obtain. Tower emission maps cover
+        /// only a small fraction of each texture, so the per-role emission colours read as barely
+        /// tinted highlights without it.
+        ///
+        /// This is a no-op under the Built-in pipeline, which has no volume system, so the launcher
+        /// stays valid on both while the migration is in flight.
+        /// </remarks>
         private static void CreatePostProcessing(GameObject matchObject, Camera camera)
         {
             if (GraphicsSettings.currentRenderPipeline == null)
@@ -231,6 +322,16 @@ namespace LTW.UnityClient.Simulation
             if (cameraData != null)
             {
                 cameraData.renderPostProcessing = true;
+
+                // SMAA on top of the pipeline's MSAA 2x. MSAA alone only antialiases geometric
+                // edges the rasteriser knows about, which leaves the crystal and spire
+                // silhouettes stair-stepped at phone DPI; SMAA is a post pass and catches those
+                // plus the shader-authored edges (contact shadows, spore fog rims) that MSAA
+                // cannot see at all. Low quality deliberately: this is a fixed orthographic
+                // camera with no fast motion, where the higher presets buy detail nobody can
+                // resolve at the cost of a heavier full-screen pass on a mobile GPU.
+                cameraData.antialiasing = AntialiasingMode.SubpixelMorphologicalAntiAliasing;
+                cameraData.antialiasingQuality = AntialiasingQuality.Low;
             }
         }
 
