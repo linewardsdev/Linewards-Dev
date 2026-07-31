@@ -620,9 +620,13 @@ namespace LTW.UnityClient.UI
                 instance.name = "Model";
                 instance.transform.localPosition = Vector3.zero;
                 instance.transform.localRotation = Quaternion.identity;
-                // Raw mesh stands ~2.2 units tall; scaled down to sit roughly level with the other
-                // 3D units on the board (see measure_builder_bounds notes in the pipeline).
-                instance.transform.localScale = new Vector3(0.4f, 0.4f, 0.4f);
+                // Raw mesh stands ~2.2 units tall. 0.4 put it at ~0.88 world units — under a single
+                // board cell, which read as a dropped prop rather than as the unit doing the work,
+                // especially next to towers that occupy most of their own cell. 0.6 puts it at
+                // ~1.32, so it clears a cell and is legible at the tilted match camera's angle
+                // without overtopping the towers it builds. One number to dial if it wants to be
+                // larger still.
+                instance.transform.localScale = new Vector3(0.6f, 0.6f, 0.6f);
                 builderAvatarAnimator = instance.GetComponentInChildren<Animator>(true);
                 return;
             }
