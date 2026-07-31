@@ -66,6 +66,14 @@ namespace LTW.UnityClient.UI
                 return;
             }
 
+            // A session-flow screen owns the display. Standing down is what makes it modal: a
+            // scrim can dim this component but cannot stop it taking the click, because IMGUI
+            // dispatches events in draw order and the HUD draws first.
+            if (RuntimeUiChrome.ModalScreenActive)
+            {
+                return;
+            }
+
             if (simulationDriver?.LatestMatchSummary is not null)
             {
                 selectorExpanded = false;

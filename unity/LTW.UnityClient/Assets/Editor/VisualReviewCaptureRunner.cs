@@ -287,6 +287,17 @@ namespace LTW.UnityClient.Editor
             switch (state)
             {
                 case CaptureState.WaitForPlayMode:
+                    // Start the match before any HUD state. Without this the pre-match title screen
+                    // owns the display for the first six captures, and every one of them is named
+                    // for a HUD element: default-hud, build-menu-open, build-card-selected,
+                    // send-menu-open, send-card-disabled, lane-selector-open.
+                    //
+                    // This was always wrong and used to be invisible, because the HUD drew
+                    // underneath the title panel and the two overlapped — so the captures LOOKED
+                    // populated while showing two screens at once. Once the HUD correctly stands
+                    // down under a modal screen, the same states go empty, which is the honest
+                    // rendering of a scenario that never set itself up.
+                    driver.StartMatch();
                     QueueCapture("default-hud");
                     break;
 

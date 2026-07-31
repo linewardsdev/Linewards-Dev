@@ -131,6 +131,30 @@ The mechanism ships now; the default flips when the assets can meet it.
 
 ## Capture conventions
 
+### Batch-mode captures contain no UI
+
+`VisualReviewCaptureRunner.QueueCapture` branches on `InternalEditorUtility.inBatchMode`:
+
+- **Batch mode** issues a URP `SingleCameraRequest` and reads the RenderTexture. That renders
+  the *scene*. IMGUI is drawn to the backbuffer during Repaint and is not part of a camera
+  render, so it cannot appear.
+- **Non-batch** uses `ScreenCapture.CaptureScreenshot`, which grabs the composited backbuffer
+  and **does** include IMGUI.
+
+Every capture set in this repo was taken in batch mode, so every one shows the board and
+none shows the HUD. The improvement cycle scores "UI edge discipline and touch clearance" as
+a **blocking** category and "C11 UI craft" on the craft axis; both have been scored against
+evidence that structurally cannot contain the thing being scored.
+
+Workaround, used for `screenshot-reviews/ui-fit-and-finish/`: run the capture **without**
+`-batchmode`. It works, but the editor window is landscape 3840x2160 while the game is
+portrait phone, so layout in those frames is not the shipped layout. Good evidence about
+chrome, state and modality; useless for spacing and placement.
+
+A real fix means drawing IMGUI into the capture RenderTexture, since batch mode's own screen
+is a small landscape surface and cannot simply be grabbed at 1080x1920.
+
+
 - Cite a capture by its **state name**, never its number. States get inserted and the
   numbers shift: `VFX_AND_ANIMATION_TARGETS.md` once told readers to judge effects in
   `05-active-combat`, which by then opened `05-send-card-disabled` — a static UI frame with

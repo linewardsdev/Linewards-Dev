@@ -22,6 +22,227 @@ namespace LTW.UnityClient.UI
         private static readonly Color ErrorRed = new(0.94f, 0.24f, 0.18f, 1f);
         private static Texture2D? generatedPanelButton;
         private static Texture2D? generatedRoundButton;
+        private static Texture2D? generatedPanel;
+        private static Texture2D? generatedPanelShadow;
+        private static GUIStyle? panelStyle;
+        private static GUIStyle? panelShadowStyle;
+
+        /// <summary>Corner chamfer of the shared panel, in texture pixels.</summary>
+        /// <remarks>
+        /// Larger than the buttons' 12 because a panel is bigger and the cut has to stay readable
+        /// at the same physical size. The 9-slice border below must exceed it or the corner gets
+        /// stretched and the chamfer turns into a curve at one end and a point at the other.
+        /// </remarks>
+        private const int PanelChamfer = 16;
+
+        /// <summary>9-slice border for the panel texture. Must exceed <see cref="PanelChamfer"/>.</summary>
+        private const int PanelBorder = 20;
+
+        private const int PanelTile = 64;
+
+        /// <summary>
+        /// Draws the shared panel background: chamfered, bevelled, with a soft drop shadow.
+        /// </summary>
+        /// <remarks>
+        /// Every panel in the HUD used to draw its own background, and they had drifted into two
+        /// different looks, neither of which was ours:
+        ///
+        /// - Three of them (`SendDockController`, `TouchPlacementController`,
+        ///   `PlacementFeedbackView`) built a `GUIStyle` from `GUI.skin.box` and only overrode
+        ///   border and padding, so the actual background was **Unity's built-in editor-skin box**,
+        ///   tinted navy. Tinting the engine default does not stop it looking like the engine
+        ///   default; it is one of the fastest "unfinished" reads in a game.
+        /// - The fourth (`LocalSessionFlowOverlay`) drew a flat rect plus four 1px hairline edges.
+        ///   Hard corners, no bevel, no depth.
+        ///
+        /// So panels disagreed with each other AND with the buttons, which have had a chamfered
+        /// bevel this whole time. This unifies them on the buttons' language, which is the one that
+        /// was already deliberate.
+        ///
+        /// The drop shadow matters more than the chamfer. These panels sit over a dark board, and
+        /// with no shadow a dark panel on a dark board has nothing separating them except a hairline
+        /// — the panel reads as a hole rather than as something on top.
+        /// </remarks>
+        public static void DrawPanel(Rect rect, Color tint, float scale)
+        {
+            EnsurePanelStyles();
+
+            var priorColor = GUI.color;
+
+            // Offset down and out, so the shadow reads as cast rather than as a second border.
+            var spread = Mathf.Max(2f, 5f * scale);
+            var shadowRect = new Rect(rect.x - spread, rect.y - spread * 0.5f, rect.width + spread * 2f, rect.height + spread * 2f);
+            GUI.color = new Color(0f, 0f, 0f, 0.42f);
+            GUI.Box(shadowRect, GUIContent.none, panelShadowStyle);
+
+            GUI.color = tint;
+            GUI.Box(rect, GUIContent.none, panelStyle);
+
+            GUI.color = priorColor;
+        }
+
+        /// <summary>
+        /// Whether a session-flow screen currently owns the display, so the HUD must stand down.
+        /// </summary>
+        /// <remarks>
+        /// Set once per frame from <c>LocalSessionFlowOverlay.Update</c> and read by every HUD
+        /// component's <c>OnGUI</c>. Unity runs all Update calls before any OnGUI, so this is
+        /// stable for the whole GUI pass regardless of component order.
+        ///
+        /// It is a state flag rather than a drawn scrim because a scrim CANNOT block input here.
+        /// IMGUI dispatches an event to components in draw order, and the first control under the
+        /// cursor consumes it — so a full-screen button drawn last blocks only what is drawn after
+        /// it, which is nothing. The overlay draws last, which is right for painting over the HUD
+        /// and exactly wrong for intercepting its clicks. Asking each component not to draw is the
+        /// only ordering-independent answer.
+        /// </remarks>
+        public static bool ModalScreenActive { get; set; }
+
+        /// <summary>
+        /// Dims everything behind a modal panel.
+        /// </summary>
+        /// <remarks>
+        /// Call immediately BEFORE drawing a panel that owns the screen. This is the visual half of
+        /// modality; <see cref="ModalScreenActive"/> is the input half, and both are needed.
+        ///
+        /// Captured on 2026-07-31: the pre-match title panel rendered over a fully drawn, fully
+        /// interactive build palette — two panels overlapping, neither dimmed, and the one
+        /// underneath still taking input. A modal that was modal in neither sense.
+        /// </remarks>
+        public static void DrawModalScrim()
+        {
+            var priorColor = GUI.color;
+            GUI.color = new Color(0.004f, 0.008f, 0.016f, 0.72f);
+            GUI.DrawTexture(new Rect(0f, 0f, Screen.width, Screen.height), Texture2D.whiteTexture);
+            GUI.color = priorColor;
+        }
+
+        private static void EnsurePanelStyles()
+        {
+            if (panelStyle != null && panelShadowStyle != null && generatedPanel != null && generatedPanelShadow != null)
+            {
+                return;
+            }
+
+            panelStyle = new GUIStyle
+            {
+                normal = { background = GeneratedPanel() },
+                border = new RectOffset(PanelBorder, PanelBorder, PanelBorder, PanelBorder),
+                margin = ZeroOffset(),
+                padding = ZeroOffset(),
+            };
+
+            panelShadowStyle = new GUIStyle
+            {
+                normal = { background = GeneratedPanelShadow() },
+                border = new RectOffset(PanelBorder, PanelBorder, PanelBorder, PanelBorder),
+                margin = ZeroOffset(),
+                padding = ZeroOffset(),
+            };
+        }
+
+        /// <summary>Chamfered panel fill with a bevelled rim, generated rather than authored.</summary>
+        /// <remarks>
+        /// Generated for the same reason the button textures are: it is two colours and a corner
+        /// rule, and an imported PNG would be a binary asset that no diff can review and that has
+        /// to be kept in sync with the colours above by hand.
+        /// </remarks>
+        private static Texture2D GeneratedPanel()
+        {
+            if (generatedPanel != null)
+            {
+                return generatedPanel;
+            }
+
+            var texture = NewChromeTexture("LTW Panel");
+            var inner = new Color(0.026f, 0.036f, 0.055f, 0.97f);
+            // Deliberately dimmer than the buttons' bevel. A panel is a surface, not an affordance;
+            // matching the button rim exactly made every panel read as a giant button.
+            var bevel = new Color(0.20f, 0.23f, 0.27f, 0.90f);
+            var inset = new Color(0.055f, 0.070f, 0.095f, 0.95f);
+
+            for (var y = 0; y < PanelTile; y++)
+            {
+                for (var x = 0; x < PanelTile; x++)
+                {
+                    if (OutsideChamfer(x, y, PanelChamfer))
+                    {
+                        texture.SetPixel(x, y, Color.clear);
+                        continue;
+                    }
+
+                    var depth = EdgeDepth(x, y, PanelChamfer);
+                    var color = depth switch
+                    {
+                        <= 1 => bevel,
+                        <= 3 => inset,
+                        _ => inner,
+                    };
+
+                    texture.SetPixel(x, y, color);
+                }
+            }
+
+            texture.Apply(false, true);
+            generatedPanel = texture;
+            return generatedPanel;
+        }
+
+        /// <summary>Soft chamfered blob used as the panel's cast shadow.</summary>
+        private static Texture2D GeneratedPanelShadow()
+        {
+            if (generatedPanelShadow != null)
+            {
+                return generatedPanelShadow;
+            }
+
+            var texture = NewChromeTexture("LTW Panel Shadow");
+            const int falloff = 10;
+
+            for (var y = 0; y < PanelTile; y++)
+            {
+                for (var x = 0; x < PanelTile; x++)
+                {
+                    if (OutsideChamfer(x, y, PanelChamfer))
+                    {
+                        texture.SetPixel(x, y, Color.clear);
+                        continue;
+                    }
+
+                    // Ramp in over `falloff` pixels so the shadow has no visible edge of its own.
+                    var depth = EdgeDepth(x, y, PanelChamfer);
+                    var alpha = Mathf.Clamp01(depth / (float)falloff);
+                    texture.SetPixel(x, y, new Color(0f, 0f, 0f, alpha));
+                }
+            }
+
+            texture.Apply(false, true);
+            generatedPanelShadow = texture;
+            return generatedPanelShadow;
+        }
+
+        private static Texture2D NewChromeTexture(string name) => new(PanelTile, PanelTile, TextureFormat.RGBA32, false)
+        {
+            name = name,
+            filterMode = FilterMode.Bilinear,
+            wrapMode = TextureWrapMode.Clamp,
+        };
+
+        /// <summary>Whether a texel falls outside the chamfered corner, matching the button rule.</summary>
+        private static bool OutsideChamfer(int x, int y, int cut) =>
+            x + y < cut ||
+            PanelTile - 1 - x + y < cut ||
+            x + PanelTile - 1 - y < cut ||
+            PanelTile - 1 - x + PanelTile - 1 - y < cut;
+
+        /// <summary>How many texels a point sits inside the chamfered outline.</summary>
+        private static int EdgeDepth(int x, int y, int cut) => Mathf.Min(
+            Mathf.Min(x, PanelTile - 1 - x),
+            Mathf.Min(
+                Mathf.Min(y, PanelTile - 1 - y),
+                Mathf.Min(
+                    Mathf.Min(x + y - cut, PanelTile - 1 - x + y - cut),
+                    Mathf.Min(x + PanelTile - 1 - y - cut, PanelTile - 1 - x + PanelTile - 1 - y - cut))));
 
         /// <summary>
         /// Draws a command card and returns whether it was pressed.

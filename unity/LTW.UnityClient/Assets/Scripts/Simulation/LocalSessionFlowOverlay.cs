@@ -10,7 +10,6 @@ namespace LTW.UnityClient.Simulation
         private static readonly Color Cloud = new Color(0.957f, 0.969f, 1f, 1f);
         private static readonly Color MutedCloud = new Color(0.62f, 0.72f, 0.88f, 1f);
         private static readonly Color PanelInk = new Color(0.027f, 0.047f, 0.082f, 0.94f);
-        private static readonly Color PanelTrim = new Color(0.176f, 0.376f, 0.612f, 0.88f);
         private static readonly Color MintSignal = new Color(0.349f, 0.882f, 0.714f, 1f);
         private static readonly Color SignalGold = new Color(1f, 0.784f, 0.29f, 1f);
         private static readonly Color ArcaneBlue = new Color(0.247f, 0.557f, 0.957f, 1f);
@@ -23,7 +22,6 @@ namespace LTW.UnityClient.Simulation
         private GUIStyle? subtitleStyle;
         private GUIStyle? bodyStyle;
         private GUIStyle? smallStyle;
-        private Texture2D? whiteTexture;
         private bool showSettings;
         private PreMatchScreen preMatchScreen = PreMatchScreen.Title;
 
@@ -40,6 +38,39 @@ namespace LTW.UnityClient.Simulation
             playtestRecorder = recorder;
         }
 
+        /// <summary>
+        /// Publishes whether a session screen owns the display, before any OnGUI runs this frame.
+        /// </summary>
+        /// <remarks>
+        /// In Update rather than OnGUI on purpose. Unity runs every Update before any OnGUI, so the
+        /// HUD components read a value that is already settled for the frame; setting it during the
+        /// overlay's own OnGUI would be too late, because the overlay draws last.
+        /// </remarks>
+        private void Update()
+        {
+            RuntimeUiChrome.ModalScreenActive = simulationDriver is not null && OwnsDisplay;
+        }
+
+        private void OnDisable()
+        {
+            // Otherwise a disabled overlay leaves the HUD permanently suppressed.
+            RuntimeUiChrome.ModalScreenActive = false;
+        }
+
+        /// <summary>
+        /// Whether a full-screen session panel is up, as opposed to the live rail.
+        /// </summary>
+        /// <remarks>
+        /// Mirrors the branch order in <see cref="OnGUI"/>; the live rail is the only state that
+        /// coexists with the HUD.
+        /// </remarks>
+        private bool OwnsDisplay =>
+            showSettings
+            || simulationDriver.IsOpeningBuildCountdown
+            || simulationDriver.LatestMatchSummary is not null
+            || !simulationDriver.HasStarted
+            || simulationDriver.IsPaused;
+
         private void OnGUI()
         {
             if (simulationDriver is null)
@@ -52,24 +83,29 @@ namespace LTW.UnityClient.Simulation
             var scale = MobileViewportLayout.UiScale();
             if (showSettings)
             {
+                RuntimeUiChrome.DrawModalScrim();
                 DrawSettingsPanel(scale);
                 return;
             }
 
             if (simulationDriver.IsOpeningBuildCountdown)
             {
+                RuntimeUiChrome.DrawModalScrim();
                 DrawBuildCountdownPanel(scale);
                 return;
             }
 
             if (simulationDriver.LatestMatchSummary is not null)
             {
+                RuntimeUiChrome.DrawModalScrim();
                 DrawResultsPanel(scale);
                 return;
             }
 
             if (!simulationDriver.HasStarted)
             {
+                RuntimeUiChrome.DrawModalScrim();
+
                 if (preMatchScreen == PreMatchScreen.Title)
                 {
                     DrawTitlePanel(scale);
@@ -88,10 +124,13 @@ namespace LTW.UnityClient.Simulation
 
             if (simulationDriver.IsPaused)
             {
+                RuntimeUiChrome.DrawModalScrim();
                 DrawPausePanel(scale);
                 return;
             }
 
+            // The live rail is the one state that is NOT modal — it sits alongside the HUD during
+            // play rather than taking the screen, so it gets no scrim and blocks nothing.
             DrawLiveRail(scale);
         }
 
@@ -386,8 +425,6 @@ namespace LTW.UnityClient.Simulation
             var frame = MobileViewportLayout.ScreenRect();
             var buttonWidth = 62f * scale;
             var buttonHeight = 26f * scale;
-            var resetWidth = 34f * scale;
-            var resetHeight = 24f * scale;
             var gap = 4f * scale;
             var y = frame.y + 58f * scale;
             var x = frame.xMax - buttonWidth - MobileViewportLayout.EdgeMargin(scale);
@@ -397,7 +434,14 @@ namespace LTW.UnityClient.Simulation
                 simulationDriver.TogglePause();
             }
 
-            if (DrawButton(new Rect(x + buttonWidth - resetWidth, y + buttonHeight + gap, resetWidth, resetHeight), "R", Cloud, scale, 10f))
+            // Labelled RESET rather than "R", and the same width as PAUSE.
+            //
+            // It abandons the match in progress. A one-letter label on a destructive control, sat
+            // directly under the pause button and 34px wide against PAUSE's 62, is a misclick away
+            // from throwing away a game — and nothing about "R" tells you that before you press it.
+            // Matching the width also squares the two into a column instead of leaving the smaller
+            // one right-aligned against the larger.
+            if (DrawButton(new Rect(x, y + buttonHeight + gap, buttonWidth, buttonHeight), "RESET", WarningRose, scale, 10f))
             {
                 ResetToReady();
             }
@@ -412,22 +456,17 @@ namespace LTW.UnityClient.Simulation
             return new Rect(frame.center.x - width * 0.5f, frame.center.y - height * 0.5f, width, height);
         }
 
-        private void DrawPanel(Rect rect, float scale)
-        {
-            var priorColor = GUI.color;
-
-            GUI.color = PanelInk;
-            GUI.DrawTexture(rect, WhiteTexture);
-
-            var trim = Mathf.Max(1f, 2f * scale);
-            GUI.color = PanelTrim;
-            GUI.DrawTexture(new Rect(rect.x, rect.y, rect.width, trim), WhiteTexture);
-            GUI.DrawTexture(new Rect(rect.x, rect.yMax - trim, rect.width, trim), WhiteTexture);
-            GUI.DrawTexture(new Rect(rect.x, rect.y, trim, rect.height), WhiteTexture);
-            GUI.DrawTexture(new Rect(rect.xMax - trim, rect.y, trim, rect.height), WhiteTexture);
-
-            GUI.color = priorColor;
-        }
+        /// <summary>
+        /// Session-flow panel background, delegated to the shared chrome.
+        /// </summary>
+        /// <remarks>
+        /// This drew a flat rect plus four 1px hairline edges — hard corners, no bevel, no depth —
+        /// while the rest of the HUD drew Unity's stock skin box and the buttons drew a chamfered
+        /// bevel. Three looks, none of them shared. All four now use
+        /// <see cref="RuntimeUiChrome.DrawPanel"/>.
+        /// </remarks>
+        private void DrawPanel(Rect rect, float scale) =>
+            RuntimeUiChrome.DrawPanel(rect, PanelInk, scale);
 
         private void DrawLabel(float x, float y, float width, float height, string text, GUIStyle style, TextAnchor alignment)
         {
@@ -466,25 +505,6 @@ namespace LTW.UnityClient.Simulation
 #else
             Application.Quit();
 #endif
-        }
-
-        private Texture2D WhiteTexture
-        {
-            get
-            {
-                if (whiteTexture is not null)
-                {
-                    return whiteTexture;
-                }
-
-                whiteTexture = new Texture2D(1, 1, TextureFormat.RGBA32, false)
-                {
-                    hideFlags = HideFlags.HideAndDontSave
-                };
-                whiteTexture.SetPixel(0, 0, Color.white);
-                whiteTexture.Apply();
-                return whiteTexture;
-            }
         }
 
         private void EnsureStyle()

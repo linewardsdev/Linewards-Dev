@@ -87,6 +87,14 @@ namespace LTW.UnityClient.UI
                 return;
             }
 
+            // A session-flow screen owns the display. Standing down is what makes it modal: a
+            // scrim can dim this component but cannot stop it taking the click, because IMGUI
+            // dispatches events in draw order and the HUD draws first.
+            if (RuntimeUiChrome.ModalScreenActive)
+            {
+                return;
+            }
+
             if (hideAtSeconds > 0f && Time.unscaledTime > hideAtSeconds)
             {
                 Clear();
@@ -131,13 +139,17 @@ namespace LTW.UnityClient.UI
             };
         }
 
-        private static void DrawPanel(Rect rect, Color color)
-        {
-            var previousColor = GUI.color;
-            GUI.color = color;
-            GUI.Box(rect, GUIContent.none, panelStyle ?? GUI.skin.box);
-            GUI.color = previousColor;
-        }
+        /// <summary>
+        /// Panel background, delegated to the shared chrome.
+        /// </summary>
+        /// <remarks>
+        /// This used to build its own style from `GUI.skin.box`, which meant the background was
+        /// Unity's built-in editor-skin box with a navy tint over it. Three files had an identical
+        /// copy of that, and a fourth drew a flat rect with hairline edges instead — so the HUD's
+        /// panels disagreed with each other and none of them matched the chamfered buttons.
+        /// </remarks>
+        private static void DrawPanel(Rect rect, Color color) =>
+            RuntimeUiChrome.DrawPanel(rect, color, MobileViewportLayout.UiScale());
 
         private static void DrawAccent(Rect rect, Color color)
         {
