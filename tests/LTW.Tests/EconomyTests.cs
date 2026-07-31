@@ -246,8 +246,42 @@ public sealed class EconomyTests
         Assert.Equal(CommandRejectionReason.InsufficientGold, result.RejectionReason);
     }
 
+    /// <summary>
+    /// A batched send costs unit price times quantity, and is rejected on the total.
+    /// </summary>
+    /// <remarks>
+    /// Pins the rule the send dock got wrong. Swarm is sent three at a time and costs 6 gold each,
+    /// so a press costs 18. The HUD priced the card at the unit cost, enabled it whenever the
+    /// player could afford one, and then reported the unit cost back in the rejection — producing
+    /// "Need 6G (have 15G)", which is self-contradictory on its face because the two numbers came
+    /// from different calculations.
+    ///
+    /// Gold here is 15 deliberately: enough for two of the three, so a check against the unit cost
+    /// passes and a check against the total fails. A test at 5 gold would pass either way and would
+    /// not have caught this.
+    /// </remarks>
+    [Fact]
+    public void Batched_send_is_priced_and_rejected_on_the_total_not_the_unit_cost()
+    {
+        var service = CreateService();
+        var swarm = Swarm();
+
+        var affordable = service.QueueSend(CreatePlayers(gold: 18), new PlayerId(1), swarm, quantity: 3, new SimulationTick(10));
+        Assert.True(affordable.Accepted);
+        Assert.Equal(0, affordable.Players.Get(new PlayerId(1)).Gold.Amount);
+
+        var shortOfTheTotal = service.QueueSend(CreatePlayers(gold: 15), new PlayerId(1), swarm, quantity: 3, new SimulationTick(10));
+        Assert.False(shortOfTheTotal.Accepted);
+        Assert.Equal(CommandRejectionReason.InsufficientGold, shortOfTheTotal.RejectionReason);
+        Assert.Equal(15, shortOfTheTotal.Players.Get(new PlayerId(1)).Gold.Amount);
+    }
+
     private static CreepDefinition Runner() =>
         new(new ContentId("creep.runner"), "Runner", new Gold(10), new Income(1), new Gold(1), new Gold(2), maxHealth: 15, speedPerSecond: 2, categoryIndex: 0);
+
+    /// <summary>Matches the shipped Swarm: the only creep sent in a batch.</summary>
+    private static CreepDefinition Swarm() =>
+        new(new ContentId("creep.swarm"), "Swarm", new Gold(6), new Income(1), new Gold(1), new Gold(1), maxHealth: 5, speedPerSecond: 2, categoryIndex: 0);
 
     private static CreepDefinition ExemptCreep() =>
         new(new ContentId("creep.wisp"), "Crystal Wisp", new Gold(5), new Income(1), new Gold(1), new Gold(1), maxHealth: 4, speedPerSecond: 3, categoryIndex: 0, ignoresSendCooldown: true);
