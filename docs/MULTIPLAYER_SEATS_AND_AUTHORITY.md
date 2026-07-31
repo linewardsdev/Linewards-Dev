@@ -75,6 +75,13 @@ rejection.
 
 ### 4. The send cooldown is actually enforced
 
+> **Superseded.** This section records enabling the cooldown, and it did happen — but the cooldown was
+> later removed outright (`74b8519`), and `LocalVerticalSlice` now constructs with
+> `sendCooldownTicks: 0`, so gold is the only thing gating a send. The enforcement code and its tests
+> are intact and the rule can be switched back on by changing that one number; what follows describes
+> why it was built, not how the game currently behaves. The 900-1,800 tick target quoted below has
+> also since moved twice — see `MVP_STATUS.md`.
+
 `EconomyRules.SendCooldownTicks` (30), `PlayerEconomyState.NextSendAvailableTick`,
 `WithNextSendAvailableTick`, and `CommandRejectionReason.CooldownActive` all already
 existed — and **nothing read or set any of them**. The "global 30-tick send cooldown"

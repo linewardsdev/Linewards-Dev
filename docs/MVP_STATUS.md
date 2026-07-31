@@ -55,7 +55,12 @@ Current code evidence:
 - `LocalVerticalSlice` runs a three-player carousel with Player 1 as the human lane and two bot players.
 - The local sample map uses three 7x16 lanes.
 - The bridge supports placement, sends, selling, reset, match summary, and replay records.
-- `LocalThreePlayerMatchTests` verifies a deterministic local bot match completes in the current 150-2000 tick pacing target window (widened from an earlier 900-1800 after fixing a bot-pressure bug that stopped bots from ever sending again — see `docs/GD_TUNING_LOG.md`, "The Stalemate Was A Bug, Not Balance" — the same seed now completes at tick 926 instead of never completing).
+- `LocalThreePlayerMatchTests` verifies a deterministic local bot match completes inside a 150-5,000 tick
+  window. That window has been widened twice and for unrelated reasons: first from 900-1,800 after a
+  bot-pressure bug that stopped bots ever sending again (`docs/GD_TUNING_LOG.md`, "The Stalemate Was A
+  Bug, Not Balance"), then again once creeps were slowed to a third of their old pace, which lengthens
+  every match. No exact completion tick is quoted here on purpose — it moves with balance work, and the
+  last two numbers written into this file were both stale within a day.
 - Creeps that leak through a lane now continue through active non-sender lanes, preserving carousel pressure while preventing a sender's own creeps from entering their lane.
 - Bot opponents now build opening defensive packages before send pressure: Balanced builds two early towers, Defensive builds three and keeps a higher opening gold reserve.
 - `LocalReplayExporter` writes diagnostic replay JSON.

@@ -16,7 +16,10 @@ Source of truth:
 - Tower shots per second: `4 / AttackCooldownTicks`.
 - Listed tower DPS is single-target baseline DPS before special target rules.
 - Tower range uses Manhattan grid distance.
-- Creep `SpeedPerSecond` is currently applied once per simulation tick, so current local-client cells/sec is `SpeedPerSecond * 4`.
+- Creep `SpeedPerSecond` is divided by `CombatService.BaseMovementCost` (3), so real ground speed is
+  `SpeedPerSecond * 4 / 3` cells per second at the 4 Hz tick rate — 1.33 for a speed-1 creep, 4.0 for a
+  speed-3 one. It was `SpeedPerSecond * 4` until creeps were slowed to a third of their original pace;
+  the authored numbers below did not change, the cost of a cell did.
 - Swarm is sent as a bundle of `3` units from the current Unity send drawer.
 
 ## Tower Roster
