@@ -214,9 +214,24 @@ namespace LTW.UnityClient.Editor
             builder.AppendLine();
             builder.AppendLine("Score each category from 0 (broken or absent) to 3 (cohesive and ready to lock).");
             builder.AppendLine();
+            builder.AppendLine("### Axis A — Readability (blocking)");
+            builder.AppendLine();
             builder.AppendLine("| Category | Score | Notes |");
             builder.AppendLine("| --- | ---: | --- |");
-            foreach (var category in ScoreCategories)
+            foreach (var category in ReadabilityCategories)
+            {
+                builder.AppendLine($"| {category} | /3 | |");
+            }
+
+            builder.AppendLine();
+            builder.AppendLine("### Axis B — Craft (advisory until Wave 3)");
+            builder.AppendLine();
+            builder.AppendLine("Leaving these blank is not the same as passing them. Fifteen readability");
+            builder.AppendLine("categories were mistaken for a complete picture once already.");
+            builder.AppendLine();
+            builder.AppendLine("| Category | Score | Notes |");
+            builder.AppendLine("| --- | ---: | --- |");
+            foreach (var category in CraftCategories)
             {
                 builder.AppendLine($"| {category} | /3 | |");
             }
@@ -249,7 +264,8 @@ namespace LTW.UnityClient.Editor
             return builder.ToString();
         }
 
-        private static readonly string[] ScoreCategories =
+        /// <summary>Axis A: can the player tell what a thing is. Blocking today.</summary>
+        private static readonly string[] ReadabilityCategories =
         {
             "Mobile arena fit",
             "Long north-south lane readability",
@@ -268,6 +284,39 @@ namespace LTW.UnityClient.Editor
             "Fallback and missing-asset behavior"
         };
 
-        public static IReadOnlyList<string> ArtDirectionScoreCategories => ScoreCategories;
+        /// <summary>Axis B: does it look like a finished game. Advisory until Wave 3.</summary>
+        /// <remarks>
+        /// Every category above is a readability criterion, which means a build could score 3 on
+        /// all fifteen and look exactly like the current one — the scorecard could not detect the
+        /// problem it was being used to find. These twelve are the craft axis from
+        /// GRAPHICS_AA_UPLIFT.md, folded in so generated reports carry both rather than leaving the
+        /// second to be remembered by hand. See MOBILE_ART_DIRECTION_IMPROVEMENT_CYCLE.md section 4.
+        /// </remarks>
+        private static readonly string[] CraftCategories =
+        {
+            "C1 Surface detail",
+            "C2 Material differentiation",
+            "C3 Specular and highlight behaviour",
+            "C4 Grounding",
+            "C5 Lighting craft",
+            "C6 Tone and grade",
+            "C7 Impact feedback",
+            "C8 Death and spawn",
+            "C9 Projectile craft",
+            "C10 Typography",
+            "C11 UI craft",
+            "C12 Motion richness"
+        };
+
+        public static IReadOnlyList<string> ReadabilityScoreCategories => ReadabilityCategories;
+
+        public static IReadOnlyList<string> CraftScoreCategories => CraftCategories;
+
+        /// <summary>Both axes, readability first, as the report scorecard lists them.</summary>
+        public static IReadOnlyList<string> ArtDirectionScoreCategories { get; } =
+            new List<string>(ReadabilityCategories.Length + CraftCategories.Length)
+                .Concat(ReadabilityCategories)
+                .Concat(CraftCategories)
+                .ToList();
     }
 }

@@ -220,7 +220,7 @@ Score each category from 0 to 3:
 | 2 | Readable with low- or medium-severity polish issues |
 | 3 | Cohesive, mobile-readable, and ready to lock as baseline |
 
-Categories:
+#### Axis A — Readability (blocking)
 
 - Mobile arena fit.
 - Long north-south lane readability.
@@ -239,6 +239,52 @@ Categories:
 - Fallback and missing-asset behavior.
 
 A score of 0 in arena fit, lane readability, touch clearance, heavy pressure, reduced effects, or originality blocks promotion.
+
+#### Axis B — Craft (advisory until Wave 3, then blocking)
+
+Every one of the fifteen categories above is a readability criterion. That is a real gap
+rather than a stylistic quibble: **a build can score 3 on all fifteen and look exactly like
+the current one.** Readability asks whether the player can tell what a thing is; nothing
+above asks whether it looks like a finished game. These twelve ask the second question.
+
+Same 0–3 scale and the same verdict vocabulary as Axis A.
+
+| # | Category | 0 | 3 |
+| --- | --- | --- | --- |
+| C1 | Surface detail | Flat, untextured normals; detail reads only as albedo noise | Normal + AO present and legible at phone size; forms read as sculpted |
+| C2 | Material differentiation | All units share one apparent material | Metal, crystal, bark, stone are distinguishable at a glance without colour |
+| C3 | Specular and highlight behaviour | No highlight, or blown to white | Highlights travel across forms as they rotate; gradients read as intended |
+| C4 | Grounding | Units float; no contact cue | Contact shadow plus AO reads the unit as standing on the board |
+| C5 | Lighting craft | Flat, ambient-only read | Key/fill/rim separate the unit from the board; reflections match the scene |
+| C6 | Tone and grade | Untonemapped clipping, or a muddy grade | Highlights roll off; the palette survives the grade; blacks are not crushed |
+| C7 | Impact feedback | Flat primitive cue | Hit reads as an event — particle, flash, and a response on the target |
+| C8 | Death and spawn | Instant pop | Deaths and arrivals have a beat the eye can follow |
+| C9 | Projectile craft | Untextured stretched primitive | Trail, muzzle and impact read as one coherent effect |
+| C10 | Typography | Default engine font | An authored typeface, consistently applied, legible at phone size |
+| C11 | UI craft | Flat rects, hard edges, no state motion | Framed, layered, with tweened state changes and readable hierarchy |
+| C12 | Motion richness | One clip, or none | Idle, move, hit and death read distinctly per unit |
+
+Craft categories are **scored from the first uplift pass and advisory until Wave 3**, then
+blocking. They are not blocking on arrival for the same reason the intake gate is not yet
+strict: several of them score 0 across the whole roster today, and a gate that fails
+everything on the day it lands gets switched off within the hour. Scoring them from the
+start is what makes the trend visible; blocking on them is what makes it stick.
+
+Two of them cannot reach 3 by any amount of tuning and are limited by missing source data
+rather than by settings, which is worth knowing before a pass is scored against them:
+
+- **C1** needs normal and AO maps. Neither exists: the ORM red channel is measurably empty
+  across all 21 packed maps, and exactly one normal map exists anywhere in the tree, in an
+  untracked FBX media cache. Blocked on OPEN_ITEMS item 3.
+- **C12** needs more than one clip per unit.
+
+#### Method rule for both axes
+
+Score against a real match capture rendered with the game's own lighting and
+post-processing. Never against a contact sheet, never with `-nographics`, never against a
+painted mock. A contact sheet has no board, no light rig and no post stack, so it cannot
+show grounding, lighting craft or tone — and a capture taken with `-nographics` silently
+answers a different question than the one being asked.
 
 ### 5. Implement The Focused Pass
 
@@ -351,6 +397,11 @@ Create or review `docs/screenshot-reviews/<branch-name>/<run-id>/improvement-cyc
 - Seeds/presentation modes:
 
 ## Scorecard
+### Axis A — Readability
+| Category | Before | After | Evidence |
+| --- | ---: | ---: | --- |
+
+### Axis B — Craft
 | Category | Before | After | Evidence |
 | --- | ---: | ---: | --- |
 
@@ -375,8 +426,11 @@ Create or review `docs/screenshot-reviews/<branch-name>/<run-id>/improvement-cyc
 
 A visual asset or UI treatment may become the locked runtime baseline only when:
 
-- It improves or preserves the relevant score categories.
-- No blocking category scores 0.
+- It improves or preserves the relevant score categories on **both** axes.
+- No blocking category scores 0. Axis A is blocking now; Axis B becomes blocking at Wave 3.
+- Both axes are scored, even while Axis B is advisory. An unscored craft category is not the
+  same as a passing one, and leaving it blank is how the fifteen readability categories came
+  to be mistaken for a complete picture.
 - It reads at normal phone scale without zooming.
 - It passes grayscale review.
 - It remains readable during heavy pressure.

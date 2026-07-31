@@ -258,6 +258,17 @@ namespace LTW.UnityClient.Editor
                     notes = "Canonical evidence exists, but this category requires one or more focused captures before lock.";
                 }
 
+                // The machine score says only that evidence exists, never that the category is
+                // good. That reading is riskier on the craft axis, where several categories are
+                // known to be at 0 across the whole roster, so it is labelled rather than left to
+                // be inferred from a 2.
+                if (VisualCaptureManifest.CraftScoreCategories.Contains(category))
+                {
+                    notes = allCapturesComplete
+                        ? "Craft axis, advisory until Wave 3. Evidence exists; a human must assign this score — the machine value reflects coverage only."
+                        : "Craft axis, advisory until Wave 3. Coverage incomplete.";
+                }
+
                 document.scorecard.Add(new VisualImprovementCycleScorecardItem
                 {
                     category = category,
@@ -426,6 +437,16 @@ namespace LTW.UnityClient.Editor
 
         private static string EvidenceForCategory(VisualCaptureManifest manifest, string category)
         {
+            // Craft categories are matched FIRST and by their Cn prefix, which is unambiguous.
+            // Left to the substring rules below they collide by accident: "C8 Death and spawn"
+            // contains "spawn" and would be handed the spawn-gate captures, which say nothing
+            // about whether a death has a beat the eye can follow.
+            var craft = CraftEvidenceFor(manifest, category);
+            if (craft != null)
+            {
+                return craft;
+            }
+
             if (category.IndexOf("UI", StringComparison.OrdinalIgnoreCase) >= 0)
             {
                 return EvidenceLinks(manifest, "default-hud", "build-menu-open", "send-menu-open", "lane-selector-open");
@@ -462,6 +483,47 @@ namespace LTW.UnityClient.Editor
             }
 
             return EvidenceLinks(manifest, "default-hud", "active-combat");
+        }
+
+        /// <summary>
+        /// Evidence for a craft-axis category, or null when the category is not one.
+        /// </summary>
+        /// <remarks>
+        /// Surface, specular and grounding want the closest, least busy frames — a state packed
+        /// with 200 creeps cannot show whether one of them reads as sculpted. Impact, death and
+        /// projectile want the opposite, since those only occur while something is being shot.
+        /// </remarks>
+        private static string? CraftEvidenceFor(VisualCaptureManifest manifest, string category)
+        {
+            if (!category.StartsWith("C", StringComparison.Ordinal) || category.Length < 2 || !char.IsDigit(category[1]))
+            {
+                return null;
+            }
+
+            var number = category.Split(' ')[0];
+            switch (number)
+            {
+                case "C1":
+                case "C2":
+                case "C3":
+                case "C4":
+                    return EvidenceLinks(manifest, "spawn-gate-focus", "leak-gate-focus", "active-combat");
+                case "C5":
+                case "C6":
+                    return EvidenceLinks(manifest, "board-overview", "active-combat", "default-hud");
+                case "C7":
+                case "C9":
+                    return EvidenceLinks(manifest, "active-combat", "heavy-pressure");
+                case "C8":
+                    return EvidenceLinks(manifest, "active-combat", "runner-10-pressure", "results-or-late-match");
+                case "C10":
+                case "C11":
+                    return EvidenceLinks(manifest, "default-hud", "build-menu-open", "send-menu-open", "lane-selector-open");
+                case "C12":
+                    return EvidenceLinks(manifest, "runner-10-pressure", "swarm-heavy-pressure", "active-combat");
+                default:
+                    return EvidenceLinks(manifest, "default-hud", "active-combat");
+            }
         }
 
         private static string EvidenceLinks(VisualCaptureManifest manifest, params string[] states)
