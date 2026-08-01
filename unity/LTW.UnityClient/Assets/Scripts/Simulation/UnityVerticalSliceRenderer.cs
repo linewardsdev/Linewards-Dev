@@ -101,6 +101,19 @@ namespace LTW.UnityClient.Simulation
 
         public int ActivePresentationObjectCount => activeTowers.Count + activeCreeps.Count + timedPresentations.Count;
 
+        /// <summary>
+        /// Towers currently drawn, on its own rather than folded into the aggregate above.
+        /// </summary>
+        /// <remarks>
+        /// Split out for <see cref="Editor.OpeningCountdownFreshnessCheck"/>, which asks whether a
+        /// tower built during the opening countdown reached the board. The aggregate cannot answer
+        /// that: a timed presentation appearing in the same frame moves it by the same amount a tower
+        /// would, so a check written against it passes whether or not the tower was drawn — measured,
+        /// when that check was first run against a deliberately broken change signal and only its
+        /// snapshot assertion fired.
+        /// </remarks>
+        public int ActiveTowerPresentationCount => activeTowers.Count;
+
         public int PooledPresentationObjectCount => towerPool.Count + PooledTowerPrefabCount() + creepPool.Count + PooledCreepPrefabCount() + effectPool.Count + beamPool.Count + textPool.Count;
 
         public void Initialize(UnitySimulationDriver driver)

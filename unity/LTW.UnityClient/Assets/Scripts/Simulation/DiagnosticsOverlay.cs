@@ -20,7 +20,12 @@ namespace LTW.UnityClient.Simulation
         /// per-player state, lane flow and bot sends over the top-left of the board — useful while
         /// developing, but it is not something a player should see, and nothing gated it. Opt in
         /// with -ltwDiagnostics, matching the existing -ltwBoardDetail / -ltwCameraTilt switches.
-        /// LatestText is still produced either way, since the playtest recorder consumes it.
+        /// LatestText is still produced either way — the claim here used to be that the playtest
+        /// recorder consumes it, and it does not: nothing outside this class reads LatestText.
+        /// Corrected rather than deleted because it is the reason Update runs while the panel is
+        /// hidden, and that reason is now "so a diagnostics run does not have to be restarted",
+        /// which is a much weaker one than a consumer. It costs a rebuild per snapshot since
+        /// OPEN_ITEMS item 36; it cost one per frame before.
         /// </remarks>
         [SerializeField]
         private bool showRuntimeOverlay;
@@ -48,6 +53,12 @@ namespace LTW.UnityClient.Simulation
 
         private GUIStyle? overlayStyle;
 
+        /// <summary>
+        /// The driver revision <see cref="LatestText"/> was built from. <see cref="long.MinValue"/>
+        /// means nothing has been built yet, which no real revision is.
+        /// </summary>
+        private long renderedSnapshotRevision = long.MinValue;
+
         public string LatestText { get; private set; } = string.Empty;
 
         public void Initialize(UnitySimulationDriver driver)
@@ -55,6 +66,22 @@ namespace LTW.UnityClient.Simulation
             simulationDriver = driver;
         }
 
+        /// <summary>
+        /// Rebuilds the overlay text, once per snapshot rather than once per frame.
+        /// </summary>
+        /// <remarks>
+        /// Everything below is a pure function of the snapshot, the bot diagnostics and the match
+        /// summary, all of which move together with the driver's revision, so running it at ~60 fps
+        /// against a 4 Hz simulation produced fifteen identical strings per input change — a
+        /// StringBuilder, eight LINQ counts per seat, a filtered creep array per lane and a
+        /// string.Join, every frame, for a panel that is off unless -ltwDiagnostics was passed.
+        ///
+        /// It is gated here rather than left to the driver because
+        /// <c>UnitySimulationDriver.LatestBotDiagnostics</c> is now built on demand (OPEN_ITEMS item
+        /// 36): reading it every frame would have moved that allocation from the driver into here
+        /// rather than removing it. Same gate the driver uses and the same one the renderer's hash
+        /// answers, so the three cannot disagree about what is new.
+        /// </remarks>
         private void Update()
         {
             if (simulationDriver == null)
@@ -71,6 +98,13 @@ namespace LTW.UnityClient.Simulation
             {
                 return;
             }
+
+            if (simulationDriver.SnapshotRevision == renderedSnapshotRevision)
+            {
+                return;
+            }
+
+            renderedSnapshotRevision = simulationDriver.SnapshotRevision;
 
             var builder = new StringBuilder();
             builder.Append("Tick: ").Append(snapshot.Tick.Value);
