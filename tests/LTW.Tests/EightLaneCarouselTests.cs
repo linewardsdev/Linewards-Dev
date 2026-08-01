@@ -169,7 +169,14 @@ public sealed class EightLaneCarouselTests
         var defenders = new HashSet<int>();
         var pairs = new HashSet<(int From, int To)>();
 
-        for (var tick = 0; tick < 900 && slice.MatchSummary is null; tick++)
+        // 1200, not 900. P2 is reachable ONLY once P1 is out: the carousel is N -> N+1, so P2's
+        // only attacker is the local player, who never acts headlessly, and P8's sends skip onto it
+        // the moment P1 is eliminated. That makes this budget a bet on when an undefended seat dies,
+        // and teaching the bots to escort their walls (BotController.EscortFollowWindowTicks) pushed
+        // it out: measured on this seed, P1 is eliminated at tick 932 and P2 takes its first send at
+        // 950, both just past the old 900. Bots now spend some sends on escorts, which are cheap and
+        // weak, so the undefended seat bleeds a little slower.
+        for (var tick = 0; tick < 1200 && slice.MatchSummary is null; tick++)
         {
             slice.AdvanceOneTick();
             foreach (var queued in slice.DrainEvents().OfType<CreepQueuedEvent>())

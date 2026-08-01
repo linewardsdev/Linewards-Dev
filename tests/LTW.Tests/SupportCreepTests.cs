@@ -1,8 +1,11 @@
 using System.Collections.Generic;
 using System.Linq;
+using LTW.Simulation.Bots;
 using LTW.Simulation.Bridge;
 using LTW.Simulation.Combat;
+using LTW.Simulation.Commands;
 using LTW.Simulation.Content;
+using LTW.Simulation.Economy;
 using LTW.Simulation.Events;
 using LTW.Simulation.Primitives;
 using Xunit;
@@ -354,5 +357,107 @@ public sealed class SupportCreepTests
         Assert.True(mazed > straight, $"the bots did not maze ({straight} -> {mazed}), so this proves nothing");
         Assert.Equal(straight, slice.DirectRouteLength(lane));
         Assert.Equal(directBefore, slice.DirectRouteLength(lane));
+    }
+
+    // ---- Bots understand composition -----------------------------------------------------------
+
+    /// <summary>
+    /// A bot never opens with an escort — the first thing it sends is always a wall.
+    /// </summary>
+    /// <remarks>
+    /// The bot cannot see the lane, so "is there a wall in front of this support" is answered from
+    /// what it just bought. This is the assertion that the gate is actually shut at the start.
+    ///
+    /// It is also the regression guard for a bug that made the whole rule inert. The gate was first
+    /// written against a <c>long.MinValue</c> sentinel, and <c>tick.Value - long.MinValue</c>
+    /// OVERFLOWS: at tick 300 it evaluates to -9223372036854775508, which is less than the nine-tick
+    /// window, so escorts were permitted on the very first decision of the match. Every test in the
+    /// suite passed with the rule doing nothing.
+    /// </remarks>
+    [Fact]
+    public void A_bot_opens_with_a_wall_never_with_an_escort()
+    {
+        var content = SampleVerticalSliceContent.Create();
+
+        foreach (var profile in new[] { BotDecisionProfile.Greedy, BotDecisionProfile.Balanced, BotDecisionProfile.Defensive })
+        {
+            for (var gold = 0; gold <= 600; gold += 7)
+            {
+                var bot = new BotController(profile, SampleVerticalSliceContent.CreepId);
+                var state = new PlayerEconomyState(new PlayerId(2), new Gold(gold), new Income(60), new Lives(220));
+                if (bot.Decide(state, content, new SimulationTick(300)).Command is not QueueSendCommand send)
+                {
+                    continue;
+                }
+
+                var creep = content.Creeps.First(c => c.Id.Equals(send.CreepId));
+                Assert.True(creep.Support == CreepSupportRole.None && !creep.IgnoresMaze,
+                    $"{profile} opened with {creep.Name} at {gold} gold, which needs a wall in front of it");
+            }
+        }
+    }
+
+    /// <summary>
+    /// Having sent a wall, a bot will follow it with an escort — and only inside the window.
+    /// </summary>
+    /// <remarks>
+    /// The other half. A gate that never opens would pass the test above while quietly removing
+    /// five creeps from the game, which is worse than the behaviour it replaced.
+    /// </remarks>
+    [Fact]
+    public void A_bot_follows_a_wall_with_an_escort_and_stops_once_the_window_closes()
+    {
+        var content = SampleVerticalSliceContent.Create();
+        var inWindow = FollowUp(content, BotController.EscortFollowWindowTicks);
+        var pastWindow = FollowUp(content, BotController.EscortFollowWindowTicks + 1);
+
+        output.WriteLine($"follow-up inside the window: {inWindow}; past it: {pastWindow}");
+
+        Assert.False(inWindow is null, "a bot that just sent a wall never followed it with anything");
+        Assert.True(inWindow!.Support != CreepSupportRole.None || inWindow.IgnoresMaze,
+            $"the follow-up was {inWindow.Name}, a wall — the escort was never reachable");
+        Assert.True(pastWindow is null || pastWindow.Support == CreepSupportRole.None,
+            $"{pastWindow?.Name} was sent {BotController.EscortFollowWindowTicks + 1} ticks after the wall, outside its own aura reach");
+    }
+
+    /// <summary>What a Greedy bot sends `delay` ticks after its first send, at ample gold.</summary>
+    private static CreepDefinition? FollowUp(ContentCatalog content, int delay)
+    {
+        var bot = new BotController(BotDecisionProfile.Greedy, SampleVerticalSliceContent.CreepId);
+        var state = new PlayerEconomyState(new PlayerId(2), new Gold(600), new Income(60), new Lives(220));
+
+        bot.Decide(state, content, new SimulationTick(300));
+        return bot.Decide(state, content, new SimulationTick(300 + delay)).Command is QueueSendCommand send
+            ? content.Creeps.First(creep => creep.Id.Equals(send.CreepId))
+            : null;
+    }
+
+    /// <summary>
+    /// A bot never buys more than one of an aura creep at a time.
+    /// </summary>
+    /// <remarks>
+    /// Auras do not stack, so a second Mender in the same send is the same effect at twice the
+    /// price. The profiles otherwise batch up to three.
+    /// </remarks>
+    [Fact]
+    public void A_bot_sends_aura_creeps_one_at_a_time()
+    {
+        var content = SampleVerticalSliceContent.Create();
+        var bot = new BotController(BotDecisionProfile.Greedy, SampleVerticalSliceContent.CreepId);
+        var state = new PlayerEconomyState(new PlayerId(2), new Gold(600), new Income(60), new Lives(220));
+
+        for (var tick = 300; tick < 340; tick++)
+        {
+            if (bot.Decide(state, content, new SimulationTick(tick)).Command is not QueueSendCommand send)
+            {
+                continue;
+            }
+
+            var creep = content.Creeps.First(c => c.Id.Equals(send.CreepId));
+            if (creep.Support != CreepSupportRole.None)
+            {
+                Assert.Equal(1, send.Quantity);
+            }
+        }
     }
 }

@@ -22,14 +22,78 @@ public sealed class BotController
 
     public ContentId PrimaryCreepId => creepId;
 
+    /// <summary>
+    /// How long after sending a wall this bot will send something that needs one in front of it.
+    /// </summary>
+    /// <remarks>
+    /// Nine ticks, and the number comes from the geometry rather than from feel. Every creep spawns
+    /// at path index 0, a wall covers a cell every three ticks (speed 1 against
+    /// <c>BaseMovementCost</c> 3), and a support's aura reaches
+    /// <c>SupportAuraField.PathRadius</c> = 3 cells. So a support sent nine ticks after its wall
+    /// spawns exactly at the edge of its own aura, and anything later spawns outside it — paying
+    /// for an escort that can never catch what it was bought to help.
+    ///
+    /// The window is generous in one direction only: sending the escort SOONER is always better,
+    /// because the support is slower than the wall and the gap only widens from there.
+    /// </remarks>
+    public const int EscortFollowWindowTicks = 9;
+
+    /// <summary>Tick this bot last sent a wall, or null if it never has or has spent it.</summary>
+    /// <remarks>
+    /// The bot's whole notion of composition. It cannot see the lane — <see cref="Decide"/> receives
+    /// an economy record and nothing else — so "is there a wall in front of this support" has to be
+    /// answered from what it just bought rather than from what is on the board. That is a weaker
+    /// signal than looking, but it is the right one here: a creep sent nine ticks ago IS still near
+    /// the mouth of the lane, and no lane state can be consulted without widening the bot's
+    /// interface to the whole simulation.
+    ///
+    /// Mutable per-bot state, which the replay determinism rules make worth stating: bots are
+    /// rebuilt per match and decide in player-id order every tick, so the sequence of writes here is
+    /// a pure function of the tick sequence.
+    ///
+    /// Nullable rather than a long.MinValue sentinel, and that is a bug fix rather than a style
+    /// choice. With the sentinel, `tick.Value - lastWallSendTick` OVERFLOWS — at tick 300 it
+    /// evaluates to -9223372036854775508, which is comfortably less than the nine-tick window, so
+    /// the gate read as open at every tick a bot had never sent a wall. It silently did nothing,
+    /// and the whole test suite passed with it in place.
+    /// </remarks>
+    private long? lastWallSendTick;
+
     public BotDecision Decide(PlayerEconomyState player, ContentCatalog content, SimulationTick tick)
     {
-        var creep = SelectCreep(player, content);
+        var creep = SelectCreep(player, content, tick);
         var sendQuantity = GetSendQuantity(player, content, creep);
-        return sendQuantity > 0
-            ? new BotDecision(new QueueSendCommand(player.PlayerId, tick, creep.Id, sendQuantity))
-            : BotDecision.None;
+        if (sendQuantity <= 0)
+        {
+            return BotDecision.None;
+        }
+
+        if (IsWall(creep))
+        {
+            lastWallSendTick = tick.Value;
+        }
+        else
+        {
+            // Spent. One escort per wall, so a bot cannot answer a single wall with a stream of
+            // supports — which would be the same mistake as sending them alone, just slower.
+            lastWallSendTick = null;
+        }
+
+        return new BotDecision(new QueueSendCommand(player.PlayerId, tick, creep.Id, sendQuantity));
     }
+
+    /// <summary>
+    /// A creep that can carry a wave on its own: it walks the maze and buffs nobody.
+    /// </summary>
+    /// <remarks>
+    /// The inverse — an "escort" — is anything whose value depends on other creeps being there.
+    /// That is the four aura supports, whose buffs land on nothing when they travel alone, and
+    /// Spire Turret Walker, which has 10 health and survives only while the towers are busy with
+    /// somebody else. Both are wasted gold as an opening move, which is exactly what the bots did
+    /// with them before this: they select by cost, and cost says nothing about needing company.
+    /// </remarks>
+    private static bool IsWall(CreepDefinition creep) =>
+        creep.Support == CreepSupportRole.None && !creep.IgnoresMaze;
 
     /// <summary>
     /// Reads this profile's tuning data from content instead of a hardcoded constant, so balance
@@ -69,15 +133,16 @@ public sealed class BotController
         return baseThreshold + ownedTowerCount * 15;
     }
 
-    private CreepDefinition SelectCreep(PlayerEconomyState player, ContentCatalog content)
+    private CreepDefinition SelectCreep(PlayerEconomyState player, ContentCatalog content, SimulationTick tick)
     {
         var available = player.Gold.Amount - GoldReserveFloor(content);
         var income = player.Income.Amount;
-        // Category 2 (creep.wisp/.revenant/.obsidian_brute/.serpent/.turret_walker, added
-        // 2026-07-28) slotted in by matching each profile's existing character rather than just
-        // appended: Greedy leans on Turret Walker/Revenant for their income efficiency and Wisp
-        // as a cheap opener; Balanced and Defensive lean on Obsidian Brute/Serpent for their
-        // health-per-gold as tankier alternatives to Brute.
+        // Category 1 (creep.wisp/.revenant/.obsidian_brute/.serpent/.turret_walker) was slotted in
+        // when it was still a stat tier — Greedy leaned on Turret Walker and Revenant for income
+        // efficiency and Wisp as a cheap opener, Balanced and Defensive on Obsidian Brute and
+        // Serpent as tankier alternatives to Brute. None of those reasons survive the SUPPORT
+        // rework: those five are escorts now, and their membership here is what makes them
+        // available AFTER a wall rather than instead of one.
         //
         // These lists express *membership* — which creeps a profile is willing to send in a given
         // income tier. Ordering is not a preference and is no longer authored by hand: the list is
@@ -94,11 +159,16 @@ public sealed class BotController
         // Siege as its primary could never actually send it from a tier whose other entries were
         // cheaper. Sorting makes the invariant structural instead of a comment to be honoured.
         // Category 3 ("ELITE", added 2026-07-28) slotted in at cost-sorted positions, same as
-        // Category 2 before it. Costs for reference: colossus 52, walker 38, warden 34, siege 40,
-        // obsidian_brute 30, stalker 28, burrower 26, shade 24, zephyr 22, serpent 20, brute 18,
-        // revenant 16, runner 10, swarm 6, wisp 5. Greedy takes the expensive top end where its
-        // income allows; Balanced and Defensive gain the two mid-tier tanks (warden, burrower)
-        // that suit their health-per-gold bias.
+        // Category 2 before it. Costs as of the SUPPORT rework: colossus 52, siege 40, warden 34,
+        // obsidian_brute 30, stalker 28, serpent 27, burrower 26, shade 24, turret_walker 23,
+        // zephyr 22, revenant 19, brute 18, wisp 12, runner 10, swarm 6. Greedy takes the expensive
+        // top end where its income allows; Balanced and Defensive gain the two mid-tier tanks
+        // (warden, burrower) that suit their health-per-gold bias.
+        //
+        // Membership still says nothing about composition, which is what the escort window above
+        // adds. Five of the ids these lists name — wisp, revenant, obsidian_brute, serpent and
+        // turret_walker — stopped being bodies when category 1 became SUPPORT, and until the window
+        // existed the bots kept buying them as though they still were.
         var preferredIds = profile switch
         {
             BotDecisionProfile.Greedy => income >= 45
@@ -115,18 +185,38 @@ public sealed class BotController
             _ => new[] { creepId.Value }
         };
 
-        var candidates = preferredIds
+        var affordable = preferredIds
             .Distinct()
             .Select(id => content.Creeps.FirstOrDefault(creep => creep.Id.Value == id))
-            .Where(creep => creep != null)
+            .Where(creep => creep != null && available >= creep.Cost.Amount)
             .OrderByDescending(creep => creep!.Cost.Amount)
-            .ThenBy(creep => creep!.Id.Value, System.StringComparer.Ordinal);
+            .ThenBy(creep => creep!.Id.Value, System.StringComparer.Ordinal)
+            .ToArray();
 
-        foreach (var candidate in candidates)
+        // Having just sent a wall, ESCORT it. Gating escorts was necessary and turned out not to be
+        // sufficient: the sort above takes the dearest creep a bot can afford, and walls are the
+        // dear ones, so a rich bot opened the escort window and then spent it on another Colossus
+        // every time. Escorts were only ever reached when the bot was too poor for a wall, which is
+        // the exact opposite of when they are worth sending. Preferring them inside the window is
+        // what actually produces wall-then-escort rather than merely permitting it.
+        var escortsAllowed = lastWallSendTick is { } sentAt && tick.Value - sentAt <= EscortFollowWindowTicks;
+        if (escortsAllowed)
         {
-            if (available >= candidate!.Cost.Amount)
+            var escort = affordable.FirstOrDefault(creep => !IsWall(creep!));
+            if (escort is not null)
             {
-                return candidate;
+                return escort;
+            }
+        }
+
+        // Otherwise a wall — and specifically a wall, not just "the next thing down the list".
+        // Falling back to any affordable creep here would let an unescorted support through on the
+        // ticks a bot cannot afford a body, which is the behaviour the window exists to stop.
+        foreach (var candidate in affordable)
+        {
+            if (IsWall(candidate!))
+            {
+                return candidate!;
             }
         }
 
@@ -151,6 +241,16 @@ public sealed class BotController
         if (available < creep.Cost.Amount)
         {
             return 0;
+        }
+
+        // An aura is on or off, so a second copy of one buys nothing — two Menders heal a creep
+        // once. Sending the profile's usual batch of three would be three times the price for the
+        // same effect, which is the sort of waste that makes a category look weak when it is really
+        // just being bought wrong. Spire Turret Walker is deliberately NOT included: it carries no
+        // aura, so more of them really is more pressure.
+        if (creep.Support != CreepSupportRole.None)
+        {
+            return 1;
         }
 
         var max = available / creep.Cost.Amount;

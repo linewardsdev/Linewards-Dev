@@ -37,7 +37,16 @@ public sealed class BotMazingTests
         // roster, so the same lane took until tick ~1400 to clear this bar instead of well before
         // 1200 — it still reaches 30 cells (1.875x) by tick 1600 and holds there, so this is a timing
         // shift, not a mazing regression.
-        for (var tick = 0; tick < 1600; tick++)
+        //
+        // 2000, not 1600, once bots learned to send an escort only behind a wall
+        // (BotController.EscortFollowWindowTicks). That moved early gold off the cheapest escorts
+        // and onto walls, which cost more, so the crossing point drifted a little later — and 1600
+        // turned out to be sitting exactly ON it: measured, lane 2 is at 20 cells after 1600
+        // advances and 22 after 1601. The bar was NOT lowered to accommodate that, because the
+        // capability plainly has not dropped: tower count over the same window went 52 -> 53, and
+        // the same lane reaches 42 cells (2.6x) by tick 2000. Sampling off the knife edge measures
+        // mazing; sampling on it measures which side of a single placement the clock stopped.
+        for (var tick = 0; tick < 2000; tick++)
         {
             slice.AdvanceOneTick();
         }

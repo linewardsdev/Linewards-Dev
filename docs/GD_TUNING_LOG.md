@@ -1767,3 +1767,80 @@ bots do not yet understand that a support creep is only worth sending alongside 
 select by cost, not by composition — so **these numbers are close to a floor for the category
 rather than a fair reading of it.** A player who sends a wall and then a Mender behind it is doing
 something no bot in this run did once.
+
+## 2026-08-01: The Bots Learned That A Support Creep Needs A Wall
+
+The SUPPORT category landed with a caveat attached to every number measured against it: the bots
+selected creeps by cost and knew nothing about composition, so not one of them ever sent a wall and
+then a Mender behind it. They bought the new creeps as though they were still bodies, which is the
+one way to make the category look worthless.
+
+`Decide` receives a `PlayerEconomyState` and nothing else — the bot cannot see the lane at all — so
+"is there a wall in front of this support" is answered from what it just bought rather than from
+what is on the board. A bot records the tick it last sent a **wall** (a creep that walks the maze
+and buffs nobody) and may only send an **escort** (the four auras, plus Spire Turret Walker) within
+`EscortFollowWindowTicks` of it.
+
+Nine ticks, from the geometry rather than from feel: creeps spawn at path index 0, a wall covers a
+cell every three ticks, and an aura reaches 3 cells — so an escort sent nine ticks later spawns
+exactly at the edge of its own aura, and anything later spawns outside it.
+
+### Gating escorts was necessary and not sufficient
+
+The first version only *permitted* escorts inside the window, and it did almost nothing. The
+preference list is sorted by descending cost and the bot takes the dearest creep it can afford —
+and walls are the dear ones. A rich bot opened the escort window and then spent it on another
+Colossus every single time; escorts were reached only when the bot was too poor for a wall, which
+is precisely when they are least worth sending. Inside the window the bot now **prefers** an
+escort. That is what produces wall-then-escort instead of merely allowing it.
+
+Aura creeps are also capped at one per send, against the profiles' usual batch of three. Auras do
+not stack, so a second Mender in the same send is the same effect at triple the price. Spire Turret
+Walker is deliberately exempt — it carries no aura, so more of them really is more pressure.
+
+### A sentinel that made the whole rule inert
+
+The window was first written against a `long.MinValue` sentinel. `tick.Value - long.MinValue`
+**overflows**: at tick 300 it evaluates to −9,223,372,036,854,775,508, which is comfortably less
+than nine, so the gate read as open at every tick a bot had never sent a wall. The rule did nothing
+at all and **the entire suite passed with it in place** — including the test that sweeps every
+profile for creep reachability. Now a nullable, with a test that asserts a bot's opening send is
+always a wall.
+
+### Two tests moved, and neither bar was lowered
+
+Both were sampling a moment, and the moment moved.
+
+`BotMazingTests` measures lane 2 at a fixed tick. Escorts are cheap and walls are not, so shifting
+early gold onto walls pushed the crossing point later — and tick 1600 turned out to be sitting
+exactly on it: **20 cells after 1600 advances, 22 after 1601.** The bar stayed at 1.35x and the
+window moved to 2000, because the capability plainly had not dropped: tower count over the same
+window went 52 to 53, and the same lane reaches **42 cells (2.6x) by tick 2000**.
+
+`EightLaneCarouselTests` asserts all eight seats get pressured. P2's only attacker is P1, the local
+player, who never acts headlessly — so P2 is reachable only once P1 is eliminated and P8's sends
+skip onto it. That makes the budget a bet on when an undefended seat dies, and bots spending some
+sends on cheap escorts made it bleed slower: **P1 is eliminated at tick 932 and P2 takes its first
+send at 950**, both just past the old 900-tick budget. Raised to 1200.
+
+### What it did
+
+Unity batch playtest, seed 1, eight lanes, `-ltwTickRate 4`:
+
+| | bots ignore composition | bots escort their walls |
+| --- | ---: | ---: |
+| Completed tick | 3,815 | 4,471 |
+| Accepted commands | 2,947 | 5,754 |
+| Peak creeps | 385 | 665 |
+| Peak towers | 312 | 432 |
+| Peak active presentation objects | 10,654 | 26,071 |
+
+The bots are simply playing much more: nearly double the commands and 120 more towers. That is the
+measurement the SUPPORT category never had, and it is the one to compare future balance work
+against.
+
+**Two things to watch.** Peak presentation objects at 26,071 is higher than the 19,868 that
+motivated the income ceiling in the first place — and it is not creeps driving it this time, since
+665 is a sixth of the old 4,111. It is towers and their effects. Separately, the batch run now
+takes 145s against the runner's 180s timeout, and one run did time out before a clean re-run
+passed; that margin wants widening before it starts producing flaky evidence.
