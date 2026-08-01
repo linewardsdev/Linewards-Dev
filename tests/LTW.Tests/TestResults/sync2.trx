@@ -1,0 +1,67 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TestRun id="35b6317a-5f4d-448a-9fc1-ea34ce453eac" name="@admins-MacBook-Air 2026-08-01 12:04:31" xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010">
+  <Times creation="2026-08-01T12:04:31.7606450-06:00" queuing="2026-08-01T12:04:31.7606450-06:00" start="2026-08-01T12:04:31.3466800-06:00" finish="2026-08-01T12:04:31.7629970-06:00" />
+  <TestSettings name="default" id="4757a8b8-dd30-4c94-8e6f-2b25f37fe0f5">
+    <Deployment runDeploymentRoot="_admins-MacBook-Air_2026-08-01_12_04_31" />
+  </TestSettings>
+  <Results>
+    <UnitTestResult executionId="85214b3c-0293-439f-b482-5c1dfea5147b" testId="aadf0331-8de2-e34b-3254-347d6a26e11a" testName="LTW.Tests.SimulationPluginSyncTests.CommittedUnityPluginHasTheSameCompiledBehaviourAsTheSource" computerName="admins-MacBook-Air" duration="00:00:00.0005435" startTime="2026-08-01T12:04:31.7142530-06:00" endTime="2026-08-01T12:04:31.7143890-06:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="85214b3c-0293-439f-b482-5c1dfea5147b" />
+    <UnitTestResult executionId="22c495a7-406d-443c-a126-05cb3bfc6c78" testId="a7111350-ec49-bf02-bf58-ebdbb5eacff8" testName="LTW.Tests.SimulationPluginSyncTests.CommittedUnityPluginDeclaresTheSameMembersAsTheSource" computerName="admins-MacBook-Air" duration="00:00:00.0085016" startTime="2026-08-01T12:04:31.6926050-06:00" endTime="2026-08-01T12:04:31.7078170-06:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Failed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="22c495a7-406d-443c-a126-05cb3bfc6c78">
+      <Output>
+        <ErrorInfo>
+          <Message>Assert.Equal() Failure: Strings differ
+           ↓ (pos 0)
+Expected: "69DEB40C4327D56E81A95CB9E7EED80698D224CCE"···
+Actual:   "35FE098224A2E35DB934CD8756123A60E4E50C88D"···
+           ↑ (pos 0)</Message>
+          <StackTrace>   at LTW.Tests.SimulationPluginSyncTests.CommittedUnityPluginDeclaresTheSameMembersAsTheSource() in /Users/admin/LTW/tests/LTW.Tests/SimulationPluginSyncTests.cs:line 43
+   at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)
+   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)</StackTrace>
+        </ErrorInfo>
+      </Output>
+    </UnitTestResult>
+  </Results>
+  <TestDefinitions>
+    <UnitTest name="LTW.Tests.SimulationPluginSyncTests.CommittedUnityPluginHasTheSameCompiledBehaviourAsTheSource" storage="/users/admin/ltw/tests/ltw.tests/bin/debug/net10.0/ltw.tests.dll" id="aadf0331-8de2-e34b-3254-347d6a26e11a">
+      <Execution id="85214b3c-0293-439f-b482-5c1dfea5147b" />
+      <TestMethod codeBase="/Users/admin/LTW/tests/LTW.Tests/bin/Debug/net10.0/LTW.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="LTW.Tests.SimulationPluginSyncTests" name="CommittedUnityPluginHasTheSameCompiledBehaviourAsTheSource" />
+    </UnitTest>
+    <UnitTest name="LTW.Tests.SimulationPluginSyncTests.CommittedUnityPluginDeclaresTheSameMembersAsTheSource" storage="/users/admin/ltw/tests/ltw.tests/bin/debug/net10.0/ltw.tests.dll" id="a7111350-ec49-bf02-bf58-ebdbb5eacff8">
+      <Execution id="22c495a7-406d-443c-a126-05cb3bfc6c78" />
+      <TestMethod codeBase="/Users/admin/LTW/tests/LTW.Tests/bin/Debug/net10.0/LTW.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="LTW.Tests.SimulationPluginSyncTests" name="CommittedUnityPluginDeclaresTheSameMembersAsTheSource" />
+    </UnitTest>
+  </TestDefinitions>
+  <TestEntries>
+    <TestEntry testId="aadf0331-8de2-e34b-3254-347d6a26e11a" executionId="85214b3c-0293-439f-b482-5c1dfea5147b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="a7111350-ec49-bf02-bf58-ebdbb5eacff8" executionId="22c495a7-406d-443c-a126-05cb3bfc6c78" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+  </TestEntries>
+  <TestLists>
+    <TestList name="Results Not in a List" id="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestList name="All Loaded Results" id="19431567-8539-422a-85d7-44ee4e166bda" />
+  </TestLists>
+  <ResultSummary outcome="Failed">
+    <Counters total="2" executed="2" passed="1" failed="1" error="0" timeout="0" aborted="0" inconclusive="0" passedButRunAborted="0" notRunnable="0" notExecuted="0" disconnected="0" warning="0" completed="0" inProgress="0" pending="0" />
+    <Output>
+      <StdOut>[xUnit.net 00:00:00.00] xUnit.net VSTest Adapter v3.1.4+50e68bbb8b (64-bit .NET 10.0.9)
+[xUnit.net 00:00:00.04]   Discovering: LTW.Tests
+[xUnit.net 00:00:00.07]   Discovered:  LTW.Tests
+[xUnit.net 00:00:00.08]   Starting:    LTW.Tests
+[xUnit.net 00:00:00.11]       Assert.Equal() Failure: Strings differ
+[xUnit.net 00:00:00.11]                  ↓ (pos 0)
+[xUnit.net 00:00:00.11]       Expected: "69DEB40C4327D56E81A95CB9E7EED80698D224CCE"···
+[xUnit.net 00:00:00.11]       Actual:   "35FE098224A2E35DB934CD8756123A60E4E50C88D"···
+[xUnit.net 00:00:00.11]                  ↑ (pos 0)
+[xUnit.net 00:00:00.11]       Stack Trace:
+[xUnit.net 00:00:00.11]         /Users/admin/LTW/tests/LTW.Tests/SimulationPluginSyncTests.cs(43,0): at LTW.Tests.SimulationPluginSyncTests.CommittedUnityPluginDeclaresTheSameMembersAsTheSource()
+[xUnit.net 00:00:00.11]            at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)
+[xUnit.net 00:00:00.11]            at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)
+[xUnit.net 00:00:00.11]   Finished:    LTW.Tests
+</StdOut>
+    </Output>
+    <RunInfos>
+      <RunInfo computerName="admins-MacBook-Air" outcome="Error" timestamp="2026-08-01T12:04:31.7091520-06:00">
+        <Text>[xUnit.net 00:00:00.11]     LTW.Tests.SimulationPluginSyncTests.CommittedUnityPluginDeclaresTheSameMembersAsTheSource [FAIL]</Text>
+      </RunInfo>
+    </RunInfos>
+  </ResultSummary>
+</TestRun>

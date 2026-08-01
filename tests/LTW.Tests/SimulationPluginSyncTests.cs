@@ -26,10 +26,34 @@ public sealed class SimulationPluginSyncTests
     private const string PluginRelativePath = "unity/LTW.UnityClient/Assets/Plugins/LTW.Simulation.dll";
 
     /// <summary>
-    /// The declared types and members must match in every configuration.
+    /// The declared types and members must match — checked, like the IL half, only when the suite
+    /// is built in the configuration the committed plugin is.
     /// </summary>
     /// <remarks>
-    /// Signatures are independent of Debug/Release, so this half of the check is meaningful no
+    /// This originally ran in every configuration, on the stated grounds that signatures are
+    /// independent of Debug/Release. **They are not, and the committed plugin is a Release build.**
+    /// Two things move with configuration and both feed this digest:
+    ///
+    /// - Compiler-generated types — closure classes, lambda caches, iterator state machines — are
+    ///   emitted differently, so walking every TypeDefinition sees a different set.
+    /// - Signature blobs encode types as metadata TOKENS, and token values are indices into tables
+    ///   whose size depends on how many of those generated types exist. Measured on this assembly:
+    ///   1,045 authored members on both sides, names and attributes identical, yet 146 signature
+    ///   blobs differing by one or two bytes — `06151259 01 1230` against `06151251 01 1230` — which
+    ///   is the same field with the same type at a different token.
+    ///
+    /// So this check was red in one configuration or the other whatever was committed: a Debug
+    /// plugin failed CI, which builds Release, and a Release plugin failed every local run. CI was
+    /// in fact red on main from the moment this test landed.
+    ///
+    /// Filtering the generated members was tried and rejected: it fixes the type-set half but not
+    /// the token half, and applying it to the IL digest would stop that digest seeing changes inside
+    /// lambda bodies, which carry real logic. Gating on configuration keeps both digests complete.
+    ///
+    /// The cost is that a local Debug run checks nothing, exactly as the IL half already behaved.
+    /// The stronger fix, if local feedback is wanted, is to decode signatures into type NAMES rather
+    /// than hashing raw token bytes — genuinely configuration-independent, and a signature decoder
+    /// is the price. Signatures are independent of Debug/Release, so this half of the check is meaningful no
     /// matter how the suite was built. It catches a renamed method, a changed parameter list, or a
     /// new command that never reached the client.
     ///
@@ -40,6 +64,11 @@ public sealed class SimulationPluginSyncTests
     [Fact]
     public void CommittedUnityPluginDeclaresTheSameMembersAsTheSource()
     {
+        if (!IsOptimizedBuild(typeof(AssemblyMarker).Assembly))
+        {
+            return;
+        }
+
         Assert.Equal(
             Digest(SourceAssemblyPath(), includeMethodBodies: false),
             Digest(CommittedPluginPath(), includeMethodBodies: false));
