@@ -26,7 +26,22 @@ namespace LTW.UnityClient.Editor
         /// route cell instead of one, so the same seed runs ~3,500 ticks rather than ~900, and the
         /// old budget left very little headroom on a cold Library.
         /// </remarks>
-        private const double TimeoutSeconds = 180d;
+        /// <summary>
+        /// Wall-clock budget for one batch playtest.
+        /// </summary>
+        /// <remarks>
+        /// Raised from 180s, which had quietly become too small rather than generous. Matches now
+        /// run to ~4,471 ticks because MatchEscalationRules deliberately makes them close that way,
+        /// and that file's own sweep table records "8-lane close 4472" for the start tick it picked
+        /// — so the length is the designed outcome, not a regression to chase. Measured directly:
+        /// all-bot matches are deterministic, and seeds 1-5 every one ended at exactly tick 4471.
+        ///
+        /// Against that, the last three passing runs took 99s, 62s and 145s, leaving 35s of headroom
+        /// on a budget that has to absorb machine load and a concurrent editor. It began failing
+        /// intermittently, and on a clean tree, which cost an hour of bisecting changes that were
+        /// not the cause. 420 restores roughly 3x headroom over the slowest observed run.
+        /// </remarks>
+        private const double TimeoutSeconds = 420d;
 
         /// <summary>
         /// Marks a batch run as in-flight, in storage that outlives a domain reload.
