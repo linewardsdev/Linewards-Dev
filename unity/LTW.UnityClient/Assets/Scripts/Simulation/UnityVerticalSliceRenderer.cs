@@ -25,6 +25,26 @@ namespace LTW.UnityClient.Simulation
 
         /// <summary>World units a board label rises over its life.</summary>
         private const float FloatingTextRise = 0.5f;
+
+        /// <summary>
+        /// Most board labels alive at once. Beyond this, new ones are dropped.
+        /// </summary>
+        /// <remarks>
+        /// TextMeshPro regenerates a mesh every time a label's text is assigned, which is far more
+        /// expensive than the legacy TextMesh this replaced — measured on the batch playtest, which
+        /// runs the simulation at roughly 300x: 183s with board text off against a >420s timeout with
+        /// it on, so the labels alone cost more than the entire rest of the match.
+        ///
+        /// That ratio is an artefact of the harness rather than of play — at the shipped 4 ticks a
+        /// second the same match produces labels at 1/300th the rate — but "only slow in the
+        /// harness" is not a property worth relying on, because it is also what a real device sees
+        /// under heavy pressure with eight lanes leaking at once.
+        ///
+        /// A cap rather than a cheaper label: 24 is far above anything a player can read in the
+        /// half-second a label lives, so in normal play nothing is ever dropped, while the worst
+        /// case stays bounded instead of scaling with how much is happening off screen.
+        /// </remarks>
+        private const int MaxLiveFloatingLabels = 24;
         private const int LaneLength = 16;
         private const int LaneCount = 8;
         private const int LaneSpacing = 9;
@@ -1944,6 +1964,13 @@ namespace LTW.UnityClient.Simulation
         private void SpawnFloatingText(Vector3 position, string text, Color color, float duration)
         {
             if (!IsOnActiveLane(position))
+            {
+                return;
+            }
+
+            // Dropped rather than queued: a label that cannot be shown now is worthless a second
+            // later, and queueing would keep the cost while losing the timing.
+            if (floatingLabels.Count >= MaxLiveFloatingLabels)
             {
                 return;
             }
