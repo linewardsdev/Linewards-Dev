@@ -17,15 +17,19 @@ Items 1–4 are carried forward from the retired version, updated against what w
 on 2026-07-31. Items 5–16 were new that day; most are now resolved and deleted, see the
 ledger below. Items 18–20 were opened by the work that resolved them. Items 21–28 are
 from the 2026-08-01 code review (simulation, Unity client, CI, and repository mechanics);
-items 29–31 are from the same day's live iOS-simulator playtest of the device build
+items 29–32 are from the same day's live iOS-simulator playtest of the device build
 (item 29 was withdrawn the same day as a reviewer misread — it is kept, marked, so the
-claim is not chased).
+claim is not chased; item 32 was split out of item 30 when that item was resolved).
 
-**Worked 2026-08-01.** Items 22 and 27 are resolved and deleted per this file's own rule,
+**Worked 2026-08-01.** Items 22, 27 and 30 are resolved and deleted per this file's own rule,
 and item 23 is rewritten to show what closed versus what remains. Numbers are still not
 reused. Items 24 and 25 touch `UnityVerticalSliceRenderer`, which was being actively
 edited in the shared working tree that day — whoever picks them up should check for
 in-flight client work first.
+
+Item 30's resolution disproved its own root cause, so item 15's resolution note is corrected
+in place rather than left contradicting the ledger, and item 32 carries out the MSAA finding
+that item 30 had parked at the end of itself.
 
 **Re-verified 2026-07-31** against the working tree after `4bb48d2` (art-doc archive),
 `151df11` (this file committed) and `bff79e3` (code comments recited by name). Items 5–15
@@ -55,7 +59,7 @@ than left as written; each carries its own dated finding.
 | 14 | `76deab8` | Coverage report regenerated from the visual libraries and validated by script; both capture states verified as already working. Wave 0.8 re-baseline captured. |
 | 16 | `892b64b` | Dangerous editor version struck from 3 runnable commands across 2 archived docs; roster claim and capture-state numbering corrected. |
 | 9 | `652249d` | VFX system built. Root cause was structural rather than neglect: `com.unity.modules.particlesystem` was not in the manifest, so `ParticleSystem` did not exist as a type — the fourteen named VFX prefabs were unbuildable, not unbuilt. One shared world-space emitter per shape rather than one pooled per burst, which measured 2,769 → 6,082 peak objects and was abandoned; the shipped design runs at 2,118, *below* the pre-VFX baseline. |
-| 15 (part) | `b22aefd`, `9c504f3`, `1551cd5` | LOD cross-fade and GPU skinning fixed and guarded; two shaders moved to URP HLSL for SRP batching (LTWFillBar deliberately left on the GPU-instancing path, against the item's wording); three per-tier URP assets authored and assigned across all six quality levels. |
+| 15 (part) | `b22aefd`, `9c504f3`, `1551cd5` | LOD cross-fade and GPU skinning fixed and guarded; two shaders moved to URP HLSL for SRP batching (LTWFillBar deliberately left on the GPU-instancing path, against the item's wording — see the 2026-08-01 row for item 30, which kept that batching decision and fixed the pipeline the pass was written for); three per-tier URP assets authored and assigned across all six quality levels. |
 
 ### Resolved 2026-08-01
 
@@ -64,6 +68,7 @@ than left as written; each carries its own dated finding.
 | 22 | `264991c` | `SimulationPluginSyncTests` compares the committed Unity plugin against the source build — declared members always, IL when built Release, which is what CI does. Deliberately not a byte comparison: MVID, PE stamp and PDB id are build identity and differ between machines on an in-sync plugin (measured: 148 differing bytes in an otherwise identical 135,680). Verified by flipping one constant and watching the IL half fail while the member half correctly stayed green. Caught its own first real drift twice during the session that wrote it. |
 | 27 | `264991c` | Eighteen `First`/`FirstOrDefault` catalog scans in per-tick bot and upgrade paths replaced with an id index, matching what `CombatContent` already did. |
 | 23 (part) | `264991c` | Movement and healing no longer rebuild the creep array per creep, and `CombatState` no longer copies twice per mutation or copies the collection that did not change. The attack phase is still quadratic — see the rewritten item. |
+| 30 | `11524ec` | **The magenta was not the shader.** LTWFillBar really was a built-in-pipeline pass under a `UniversalPipeline` tag and is now URP HLSL, but it was not what shipped magenta: compiled explicitly for Metal/iOS, the *old* CGPROGRAM pass succeeds on all four variants it has (vertex and fragment × `INSTANCING_ON` on and off, 2080/2933/1512/2132 bytes of bytecode), so there was never a missing variant to fall back from. The real cause is that `UniversalRenderPipelineAsset.defaultMaterial` is wrapped in `#if UNITY_EDITOR` with a bare `return null` for players, so every `GameObject.CreatePrimitive` object in a build arrives with a working mesh, a working renderer and **no material** — and the creep health bars are exactly that, two `PrimitiveType.Cube` children from `EnsureChild`. That is why it looked correct in the Editor for the whole life of the URP migration. Measured on the device shots themselves: all magenta sits in the 38–60% x band where the creeps walk, in bars of exactly the two-piece back+fill silhouette `ConfigureCreepHealthBar` builds; the lane pressure meters live in the lane gutters and are not magenta in any of the four captures — they are not even in frame, so "and all eight pressure meters" was inference, not observation. `RenderCompat.CreatePrimitive` now backfills a material only when one is missing, so the Editor path is byte-for-byte unchanged and only the player is repaired; the five runtime primitive sites moved onto it (health bars and every pooled board primitive, the builder avatar, the tower selection rings, and the placement ghost — `BoardMeshBuilder.PrimitiveMesh` is left alone, since it destroys its probe before anything renders). Verified by play-mode capture at 1080x1920 with graphics enabled: 0 magenta pixels of 2,073,600 in both framings, health bars drawing gold-on-dark, and all eight gauges drawing per-lane red/amber fills off one shared material — which is also the proof the `MaterialPropertyBlock` instancing path survived the HLSL conversion. An isolated render through the converted shader returns exactly the property-block values (1,0,0) and (0,0,1) either side of the fill threshold. **Not verified on device:** neither half of this can reproduce in the Editor by construction, so the fix is argued from URP's own source and the shipped pixels, and wants a device re-test to close. |
 
 **The plan that sequences this work is [`GRAPHICS_AA_UPLIFT.md`](GRAPHICS_AA_UPLIFT.md).**
 That document holds the wave ordering, the raised quality target, the craft scorecard
@@ -289,12 +294,19 @@ Resolved:
   so the SRP Batcher can take them — contact shadows are the case that mattered, since there
   is one under every unit and each is a separate cloned material.
 
-  **`LTWFillBar` was deliberately NOT converted, against this item's wording.** It is built
-  for GPU instancing and driven by a `MaterialPropertyBlock` across the eight lane pressure
-  meters, which share one material and differ only by fill — they instance into one draw
-  call. Converting it would lose the instancing and gain nothing, because
-  `MaterialPropertyBlock` disables SRP batching anyway. "Three of the four shaders" was
-  accurate as a count and wrong as a prescription.
+  **`LTWFillBar` was left on the GPU-instancing path, against this item's wording, and it
+  still is.** It is driven by a `MaterialPropertyBlock` across the eight lane pressure meters,
+  which share one material and differ only by fill; the SRP Batcher skips any renderer carrying
+  a property block, and claims the draw from GPU instancing whenever it *can* take a shader, so
+  the two paths are exclusive and instancing is the one that pays here. "Three of the four
+  shaders" was accurate as a count and wrong as a prescription.
+
+  **Corrected 2026-08-01 (`11524ec`).** What that note got wrong was not the batching choice but
+  the assumption that batching was the only axis. The pass was still built-in-pipeline
+  (`CGPROGRAM`, `UnityCG.cginc`, `fixed4`) under a `"RenderPipeline" = "UniversalPipeline"` tag,
+  which is a defect independent of how it batches. It is now URP HLSL **with** the instancing
+  buffer kept, so this sub-item is closed on both axes rather than traded off. See the
+  2026-08-01 ledger row for item 30.
 
 ## 17. Decisions the owner still needs to make
 
@@ -494,34 +506,6 @@ than the code was the defect: a dark creep on a dark board next to a bright mage
 health bar reads as "artifact, no unit" at a glance. Pause the match and inspect at
 native resolution before calling something invisible.
 
-## 30. LTWFillBar is a built-in-pipeline shader tagged for URP — every health bar and pressure meter renders magenta on device
-
-Confirmed and root-caused in the same session
-(`04-paused-creeps-render-correctly.png` shows it clearly: a solid magenta bar above
-each creep). This is the finding item 29 was obscuring, and it is the most visible
-graphics defect in the shipped build — it is on *every creep on screen*, plus the eight
-lane pressure meters.
-
-`Assets/Resources/Shaders/LTWFillBar.shader` declares
-`"RenderPipeline" = "UniversalPipeline"` but its pass is a **built-in-pipeline shader**:
-`CGPROGRAM`, `#include "UnityCG.cginc"`, `fixed4`, `UnityObjectToClipPos`. With
-`FallBack Off` there is nothing to degrade to, so in the URP Metal player it fails to
-produce a usable variant and draws with the error material.
-
-**This directly revises item 15's resolution note**, which recorded LTWFillBar as
-deliberately *not* converted to URP HLSL because it is built for GPU instancing via
-`MaterialPropertyBlock`. That reasoning was sound about batching and wrong about
-correctness: the choice was between two SRP-batcher outcomes, but the shader also has to
-*compile for the pipeline it is tagged for*. It needs the URP HLSL conversion
-(`HLSLPROGRAM`, `Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl`),
-and the instancing path can be preserved through it.
-
-Separately, and probably unrelated, the log repeats
-`RenderPass: Attachment 0 was created with 4 samples but 1 samples were requested`,
-`EndRenderPass: Not inside a Renderpass` and `NextSubPass: Not inside a Renderpass` — an
-MSAA sample-count mismatch between the URP asset and the render pass on Metal. Neither
-this nor the magenta reproduces in the Editor, which is why both survived to a build.
-
 ## 31. Elimination has no UI state: the dock stays open, BUILD/SEND stay live, and the HUD shows income a dead seat does not earn
 
 Same session, directly observed. After `PLAYER 1 OUT`, the send dock remained open and browsable over the
@@ -532,6 +516,29 @@ display reads the authored value). The lane wipe itself behaved exactly as
 and a spectator state for the rest of the match. Note the simulation's own
 `MatchSummary`/`MatchEndedEvent` only fire when the whole match resolves, so the
 mid-match eliminated-seat experience needs its own design decision.
+
+## 32. MSAA sample-count mismatch on Metal: attachments created with 4 samples, render passes asking for 1
+
+Carried out of item 30, which noted it as "separately, and probably unrelated" — it is
+separate, so it is kept rather than folded into that item's resolution. The device log
+repeats three messages together:
+
+```
+RenderPass: Attachment 0 was created with 4 samples but 1 samples were requested
+EndRenderPass: Not inside a Renderpass
+NextSubPass: Not inside a Renderpass
+```
+
+The 4 is not arbitrary: `Assets/Settings/LTW_URP_High.asset` carries `m_MSAA: 4`, and it is
+the only asset in the project that does (Medium and the base asset are 2, Low is 1). So the
+first message is an attachment allocated at the High tier's sample count meeting a pass that
+asked for one sample, and the two "not inside a Renderpass" lines are the native render-pass
+sequence coming apart afterwards rather than three independent faults.
+
+Not investigated beyond that, and **not** reproduced — like the item-30 defects it needs a
+Metal player, not the Editor. Worth pairing with a device re-test rather than chased from
+here. Note that `QualitySettings.asset`'s own `antiAliasing` fields are dead under URP
+(item 15), so the sample count in play is always the URP asset's, whichever tier is active.
 
 ---
 
