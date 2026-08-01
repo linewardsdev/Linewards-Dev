@@ -43,7 +43,7 @@ public sealed class ContentCatalog
 
 public sealed class TowerDefinition
 {
-    public TowerDefinition(ContentId id, string name, Gold cost, int rangeCells, int damage, int attackCooldownTicks, int categoryIndex)
+    public TowerDefinition(ContentId id, string name, Gold cost, int rangeCells, int damage, int attackCooldownTicks, int categoryIndex, int signalGoldPerHit = 0)
     {
         Id = id;
         Name = RequiredName(name, nameof(name));
@@ -52,6 +52,7 @@ public sealed class TowerDefinition
         Damage = damage;
         AttackCooldownTicks = attackCooldownTicks;
         CategoryIndex = categoryIndex;
+        SignalGoldPerHit = signalGoldPerHit;
     }
 
     public ContentId Id { get; }
@@ -65,6 +66,22 @@ public sealed class TowerDefinition
     public int Damage { get; }
 
     public int AttackCooldownTicks { get; }
+
+    /// <summary>
+    /// Gold paid to this tower's owner every time it damages a creep. 0 for all but the Relay Ward.
+    /// </summary>
+    /// <remarks>
+    /// Optional with a default of 0, unlike <see cref="CategoryIndex"/> which is deliberately
+    /// required. The difference is that "no line" is not a meaningful answer for a tower while "no
+    /// income" plainly is, so a default here cannot hide a mistake the way a defaulted line could.
+    ///
+    /// It is content rather than code because it used to be code: the bridge decided which tower
+    /// earned by testing whether its content id CONTAINED "relay", "utility" or "economy" — three
+    /// substrings for one tower. Nothing was wrong with the behaviour, but any future
+    /// tower.economy_hub, or anything with "utility" in its name, would have started minting gold on
+    /// every hit without a line of code being written. Authoring the number removes the guess.
+    /// </remarks>
+    public int SignalGoldPerHit { get; }
 
     /// <summary>
     /// Which tower LINE this belongs to: 0 ARCANE, 1 FOUNDRY, 2 GROVE. Selects the upgrade tier

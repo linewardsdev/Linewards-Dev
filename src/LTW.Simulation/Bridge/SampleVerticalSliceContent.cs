@@ -89,7 +89,7 @@ public static class SampleVerticalSliceContent
                 // shrine that projects influence should be selling, and it is the only tower under
                 // 30 gold that has it.
                 new TowerDefinition(ControlTowerId, "Control Ward", new Gold(24), rangeCells: 3, damage: 2, attackCooldownTicks: 3, categoryIndex: 0),
-                new TowerDefinition(UtilityTowerId, "Relay Ward", new Gold(28), rangeCells: 2, damage: 2, attackCooldownTicks: 4, categoryIndex: 0),
+                new TowerDefinition(UtilityTowerId, "Relay Ward", new Gold(28), rangeCells: 2, damage: 2, attackCooldownTicks: 4, categoryIndex: 0, signalGoldPerHit: 1),
                 new TowerDefinition(PulseTowerId, "Pulse Ward", new Gold(32), rangeCells: 1, damage: 6, attackCooldownTicks: 4, categoryIndex: 0),
                 new TowerDefinition(PrismTowerId, "Prism Ward", new Gold(42), rangeCells: 4, damage: 9, attackCooldownTicks: 6, categoryIndex: 0),
 
