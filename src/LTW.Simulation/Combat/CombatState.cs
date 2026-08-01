@@ -26,14 +26,30 @@ public sealed class CombatState
     /// time and copied the collection that had not changed at all. At the 266 creeps this game has
     /// been measured carrying, that second pair of copies was most of the cost of a tick.
     ///
-    /// Private, and only ever handed arrays constructed here, so the immutability the public API
-    /// promises is unchanged.
+    /// Private, and only ever handed arrays constructed here or by <see cref="Adopt"/>, so the
+    /// immutability the public API promises is unchanged.
     /// </remarks>
     private CombatState(CreepCombatState[] creeps, TowerCombatState[] towers)
     {
         this.creeps = creeps;
         this.towers = towers;
     }
+
+    /// <summary>
+    /// Builds a state from arrays the caller has just constructed and will not touch again.
+    /// </summary>
+    /// <remarks>
+    /// The one door onto the adopting constructor above, opened for <see cref="CombatDamageBuffer"/>
+    /// — which spends a whole combat phase editing its own arrays in place and then has to hand them
+    /// over exactly once. Routing that through the public constructor would copy both arrays a second
+    /// time for no reason, which is the cost this whole seam exists to avoid.
+    ///
+    /// Internal, and the caller must own the arrays outright: whatever is passed here becomes this
+    /// state's backing store, so a caller that keeps writing to it would be mutating a value the rest
+    /// of the simulation treats as frozen.
+    /// </remarks>
+    internal static CombatState Adopt(CreepCombatState[] creeps, TowerCombatState[] towers) =>
+        new CombatState(creeps, towers);
 
     public IReadOnlyList<CreepCombatState> Creeps => creeps;
 

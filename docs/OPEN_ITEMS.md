@@ -21,11 +21,14 @@ items 29–32 are from the same day's live iOS-simulator playtest of the device 
 (item 29 was withdrawn the same day as a reviewer misread — it is kept, marked, so the
 claim is not chased; item 33 was split out of item 30 when that item was resolved).
 
-**Worked 2026-08-01.** Items 22, 27 and 30 are resolved and deleted per this file's own rule,
-and item 23 is rewritten to show what closed versus what remains. Numbers are still not
-reused. Items 24 and 25 touch `UnityVerticalSliceRenderer`, which was being actively
-edited in the shared working tree that day — whoever picks them up should check for
-in-flight client work first.
+**Worked 2026-08-01.** Items 22, 27 and 30 are resolved and deleted per this file's own rule.
+Numbers are still not reused. Items 24 and 25 touch `UnityVerticalSliceRenderer`, which was
+being actively edited in the shared working tree that day — whoever picks them up should
+check for in-flight client work first.
+
+**Worked 2026-08-01 (later the same day).** Item 23's remaining half — the attack phase — is
+resolved, so that item is now fully closed and deleted; both its rows are in the ledger
+below.
 
 Item 30's resolution disproved its own root cause, so item 15's resolution note is corrected
 in place rather than left contradicting the ledger, and item 33 carries out the MSAA finding
@@ -69,8 +72,9 @@ than left as written; each carries its own dated finding.
 | 27 | `264991c` | Eighteen `First`/`FirstOrDefault` catalog scans in per-tick bot and upgrade paths replaced with an id index, matching what `CombatContent` already did. |
 | 34 (new) | (this commit) | **CI was red on `main`.** `SimulationPluginSyncTests` ran its member half in every configuration on the stated grounds that signatures are configuration-independent. They are not, and the committed plugin is a Release build, so the guard failed in one configuration or the other whatever was committed — a Debug plugin failed CI's `--configuration Release`, a Release plugin failed every local run. Measured: 1,045 authored members on both sides with names and attributes identical, yet 146 signature blobs differing by one or two bytes, because signature blobs encode types as metadata TOKENS and token values are indices into tables whose size depends on how many compiler-generated types exist. Filtering the generated members was tried and rejected — it fixes the type-set half but not the token half, and applying it to the IL digest would blind that digest to changes inside lambda bodies. Both halves are now gated on the suite being built in the configuration the plugin is, and the committed plugin is a Release build. The cost is that a local Debug run checks nothing, exactly as the IL half already behaved; the stronger fix, if local feedback is wanted, is to decode signatures into type names rather than hashing raw token bytes. |
 | 32 (new) | `bd384c7` | The batch playtest's 180s wall-clock budget had quietly become too small rather than generous, so it failed intermittently — including on a clean tree, which cost an hour of bisecting changes that were not the cause. Not a regression: `MatchEscalationRules` deliberately closes matches by escalating sent-creep health, and its own sweep table records "8-lane close 4472" for the start tick it picked. Measured directly — all-bot matches are deterministic and seeds 1-5 each ended at exactly tick 4471. Budget raised to 420s, roughly 3x the slowest observed run. `Finish` also now LOGS its failure reason: it had recorded it only into the report written on success, so a timeout exited 1 with an empty log. |
-| 23 (part) | `264991c` | Movement and healing no longer rebuild the creep array per creep, and `CombatState` no longer copies twice per mutation or copies the collection that did not change. The attack phase is still quadratic — see the rewritten item. |
 | 30 | `11524ec` | **The magenta was not the shader.** LTWFillBar really was a built-in-pipeline pass under a `UniversalPipeline` tag and is now URP HLSL, but it was not what shipped magenta: compiled explicitly for Metal/iOS, the *old* CGPROGRAM pass succeeds on all four variants it has (vertex and fragment × `INSTANCING_ON` on and off, 2080/2933/1512/2132 bytes of bytecode), so there was never a missing variant to fall back from. The real cause is that `UniversalRenderPipelineAsset.defaultMaterial` is wrapped in `#if UNITY_EDITOR` with a bare `return null` for players, so every `GameObject.CreatePrimitive` object in a build arrives with a working mesh, a working renderer and **no material** — and the creep health bars are exactly that, two `PrimitiveType.Cube` children from `EnsureChild`. That is why it looked correct in the Editor for the whole life of the URP migration. Measured on the device shots themselves: all magenta sits in the 38–60% x band where the creeps walk, in bars of exactly the two-piece back+fill silhouette `ConfigureCreepHealthBar` builds; the lane pressure meters live in the lane gutters and are not magenta in any of the four captures — they are not even in frame, so "and all eight pressure meters" was inference, not observation. `RenderCompat.CreatePrimitive` now backfills a material only when one is missing, so the Editor path is byte-for-byte unchanged and only the player is repaired; the five runtime primitive sites moved onto it (health bars and every pooled board primitive, the builder avatar, the tower selection rings, and the placement ghost — `BoardMeshBuilder.PrimitiveMesh` is left alone, since it destroys its probe before anything renders). Verified by play-mode capture at 1080x1920 with graphics enabled: 0 magenta pixels of 2,073,600 in both framings, health bars drawing gold-on-dark, and all eight gauges drawing per-lane red/amber fills off one shared material — which is also the proof the `MaterialPropertyBlock` instancing path survived the HLSL conversion. An isolated render through the converted shader returns exactly the property-block values (1,0,0) and (0,0,1) either side of the fill threshold. **Not verified on device:** neither half of this can reproduce in the Editor by construction, so the fix is argued from URP's own source and the shipped pixels, and wants a device re-test to close. |
+| 23 (rest) | `0b19a2d` | The attack phase now shares one mutable `CombatDamageBuffer` across both damage phases and all four damage paths, so a hit is a slot write rather than an array rebuild and the state is rebuilt once per tick. Measured on a saturated 266-creep, 120-tower board: 1,279.9 → 860.8 KB allocated per tick (−33%), and 54,992 → 386 element copies per tick, a factor of 142. Swept against creep count with towers held fixed, the marginal cost of one more creep fell from 2.06 to 0.38 KB/tick — 5.5x flatter, 82% of the N-dependent growth gone — which is the quadratic term itself rather than a constant. A real bot match barely moves (634.9 → 631.4 MB over 1,500 ticks) because it peaks at 101 creeps and is dominated by bot decisions, so this buys headroom rather than today's frame time. Determinism proven by hashing the complete event stream: eight digests across five board sizes, two kill-heavy boards and a full seed-1 bot match (26,526 events, 1,025 commands) are all byte-identical before and after. The first attempt exposed the creeps as a hole-skipping iterator and measured 25% SLOWER despite allocating 2.5x less, because LINQ lost its fast path — recorded in the class, since it is not visible by reading. Closes every part this item named; one instance of the same pattern survives outside its scope, in `LocalVerticalSlice.AdvanceOneTick`, where each leak does a `RemoveCreep` and a `Creeps.Concat` rebuild per transferred creep. That is bounded by leaks per tick rather than by hits per tick, so it is a much smaller case, but a mass leak still pays it — unmeasured, and left for whoever finds it worth a number. |
+| 23 (part) | `264991c` | Movement and healing no longer rebuild the creep array per creep, and `CombatState` no longer copies twice per mutation or copies the collection that did not change. The attack phase was left quadratic and closed separately, in the row below. |
 
 **The plan that sequences this work is [`GRAPHICS_AA_UPLIFT.md`](GRAPHICS_AA_UPLIFT.md).**
 That document holds the wave ordering, the raised quality target, the craft scorecard
@@ -425,29 +429,6 @@ Two decisions, then one mechanical task:
   from here forward).
 - Decide whether AI staging intermediates (raw AIDrop contents, as opposed to selected
   production assets) belong in the repo at all.
-
-## 23. O(N²) state copying in the combat tick — movement and healing fixed, the attack phase is not
-
-**Substantially resolved in `264991c`; one phase remains.**
-
-Resolved: movement rebuilt the whole creep array once per creep, so the phase every creep
-passes through every tick cost N array rebuilds — roughly 70,000 element copies at the 266
-creeps the capture harness has measured. It now builds one list and adopts it. Healing did
-the same plus a linear scan per healed creep, and now indexes by entity id. `CombatState`
-no longer copies twice per mutation (`Replace` copied, then the constructor copied again),
-and no longer copies the collection that did not change — `RemoveCreep` was rebuilding the
-tower array too.
-
-**Still open: the attack phase.** `ApplyDamage` still calls `ReplaceCreep`, and
-`RemoveCreep` again on a kill, once per damaging hit — so a board where every tower hits
-every tick is still quadratic. Fixing it needs a mutable buffer threaded through all four
-damage paths (direct fire, splash, chain, artillery), which is why it was left out of the
-first pass rather than folded in: that change cannot be reviewed by inspection the way the
-movement one can.
-
-Note for whoever takes it: entity order and event order are load-bearing. `SelectTarget`,
-Pulse's splash `Take(2)` and `ChainArc` all tie-break on entity id, and several tests
-assert on event ordering.
 
 ## 24. The renderer re-does per-snapshot work at per-frame rate, with string keys
 
