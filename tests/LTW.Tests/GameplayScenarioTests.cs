@@ -64,6 +64,53 @@ public sealed class GameplayScenarioTests
         Assert.Null(slice.MatchSummary);
     }
 
+    /// <summary>
+    /// One creep can leak many times, and every leak is a separate steal.
+    /// </summary>
+    /// <remarks>
+    /// This is the interaction that makes the life-steal mechanic feel wrong in play, and it is
+    /// worth pinning because neither half is obviously at fault on its own.
+    ///
+    /// A creep that reaches a lane end does NOT die. It costs the defender a life and then transfers
+    /// to the next active opponent's lane carrying its health, by design — that is what makes this a
+    /// rotating lane war. Stealing then applies per leak, so a single creep that survives its way
+    /// around the carousel moves one life to the sender on every hop.
+    ///
+    /// Measured here with no towers on the board, so nothing kills the creep: one 18-gold Brute
+    /// produces 13 leaks and moves 13 lives to the sender. That number is a worst case rather than a
+    /// typical one — real lanes have towers — but the mechanism is what matters, and the same
+    /// compounding is visible in batch playtests, where the winner finishes holding 1,606 of the
+    /// 1,760 lives in play.
+    ///
+    /// The multiplier itself is NOT new and is not caused by stealing: the same creep took the same
+    /// 13 lives before, it simply destroyed them instead of transferring them. Stealing made a
+    /// pre-existing property of the carousel visible by concentrating its output in one player.
+    /// </remarks>
+    [Fact]
+    public void One_surviving_creep_leaks_repeatedly_and_steals_on_every_hop()
+    {
+        var slice = new LocalVerticalSlice(SampleVerticalSliceContent.Create(), ThreeLaneOptions(), enableBots: false);
+        var before = slice.GetSnapshot().Players.Players.ToDictionary(player => player.PlayerId.Value, player => player.Lives.Amount);
+        Assert.True(slice.QueueSend(new PlayerId(3), SampleVerticalSliceContent.BruteCreepId).Accepted);
+
+        var leaks = 0;
+        for (var tick = 0; tick < 600 && slice.MatchSummary is null; tick++)
+        {
+            slice.AdvanceOneTick();
+            leaks += slice.DrainEvents().OfType<LeakEvent>().Count();
+        }
+
+        var after = slice.GetSnapshot().Players.Players.ToDictionary(player => player.PlayerId.Value, player => player.Lives.Amount);
+        output.WriteLine($"one brute, no towers -> {leaks} leaks; " + string.Join(", ", after.OrderBy(entry => entry.Key).Select(entry => $"P{entry.Key} {before[entry.Key]}->{entry.Value}")));
+
+        // Undefended, one creep leaks many times rather than once.
+        Assert.True(leaks > 1, $"expected a surviving creep to leak repeatedly, got {leaks}");
+
+        // Every one of those leaks moved a life to the sender, and none was created or destroyed.
+        Assert.Equal(before[3] + leaks, after[3]);
+        Assert.Equal(before.Values.Sum(), after.Values.Sum());
+    }
+
     [Fact]
     public void Heavy_pressure_scenario_records_escalation_without_hidden_bot_advantages()
     {
