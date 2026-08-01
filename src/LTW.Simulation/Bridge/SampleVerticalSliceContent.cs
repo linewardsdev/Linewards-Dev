@@ -76,6 +76,69 @@ public static class SampleVerticalSliceContent
 
     public static readonly ContentId ColossusCreepId = new("creep.colossus");
 
+    // Bot build orders. These are content, and they used to be code: three private ContentId[]
+    // arrays inside LocalVerticalSlice naming the constants above (OPEN_ITEMS.md item 26), which
+    // made the bots' build-out a property of the simulation assembly rather than of the catalog.
+    // They now travel on BotProfileDefinition.BuildOrder, so a different roster ships different bot
+    // openings without a code change — and the ids are declared a few lines up, in the same file
+    // that authors the towers they name, rather than reached into from another namespace.
+    //
+    // Cycled by ownedTowerCount rather than switched on a few slots with a repeating tail arm, for
+    // two reasons (OPEN_ITEMS.md's retired 2026-07-29 review, "bots can only build 5 of the 15
+    // towers"): the old shape could only ever reach 5 of the 15 towers (Arrow, Control, Pulse, Prism
+    // plus whatever the tail arm was), so every mechanic added since the 15-tower expansion was
+    // measured against a bot that never builds it; and its tail arm repeated a single tower forever
+    // once reached (Defensive -> endless Prism, Greedy -> endless Arrow), which is why BotMazingTests'
+    // "keeps building past nine towers" assertion passed on a bot spamming one tower. Each profile's
+    // list is a flavour (Defensive leans control/area/support, Greedy leans cheap, both fully
+    // reachable but not the only towers that profile builds), and the three lists' union covers all
+    // 15 towers, not just each profile's own list.
+    //
+    // Each list's first few entries deliberately match the old hardcoded switch's early slots exactly
+    // (same tower, same cost, same order) rather than reshuffling from slot 0. Income only ticks every
+    // 50 simulation ticks (IncomeIntervalTicks), so gold is flat between jumps and a bot's opening
+    // tower-count gate (BotProfileDefinition.MinimumTowerCoverage) clears on whichever jump first
+    // covers the cumulative cost — even a few gold of difference in an early slot can push that past a
+    // 50-tick boundary and shift the observable timing by up to a full income cycle.
+    private static readonly ContentId[] DefensiveBuildOrder =
+    {
+        ControlTowerId,
+        TowerId,
+        TowerId,
+        PulseTowerId,
+        PrismTowerId,
+        RepairDroneTowerId,
+        ElderCanopyTowerId,
+        ThornSnareTowerId,
+        BarricadeTowerId
+    };
+
+    private static readonly ContentId[] BalancedBuildOrder =
+    {
+        TowerId,
+        ControlTowerId,
+        PulseTowerId,
+        PulseTowerId,
+        GatlingTowerId,
+        SaplingTowerId,
+        TeslaTowerId,
+        BloomheartTowerId,
+        PrismTowerId,
+        FoundryTowerId,
+        SporeCloudTowerId
+    };
+
+    private static readonly ContentId[] GreedyBuildOrder =
+    {
+        TowerId,
+        PrismTowerId,
+        TowerId,
+        SaplingTowerId,
+        GatlingTowerId,
+        UtilityTowerId,
+        SporeCloudTowerId
+    };
+
     public static ContentCatalog Create()
     {
         return new ContentCatalog(
@@ -212,14 +275,20 @@ public static class SampleVerticalSliceContent
                 // Aggression/defenseBias/minimumGoldReserve drive BotController's reactive spending
                 // (gold-reserve floor, minimum tower coverage before sending, lane-pressure
                 // tolerance) instead of the tick-scheduled constants they replace.
-                // Reserve values stay modest: sending is already gated by MinimumTowerCoverage
-                // in LocalVerticalSlice until a profile's opening package is built, so the reserve
-                // here only needs to stop a bot spending down to zero gold, not also cover the
-                // whole build-out phase (a high reserve just stalls building against the new
-                // cheaper tower costs).
-                new BotProfileDefinition(BotProfileIds.Greedy, "Greedy", aggression: 90, defenseBias: 10, minimumGoldReserve: 0),
-                new BotProfileDefinition(BotProfileIds.Balanced, "Balanced", aggression: 50, defenseBias: 50, minimumGoldReserve: 20),
-                new BotProfileDefinition(BotProfileIds.Defensive, "Defensive", aggression: 20, defenseBias: 80, minimumGoldReserve: 20)
+                // Reserve values stay modest: sending is already gated by minimumTowerCoverage
+                // until a profile's opening package is built, so the reserve here only needs to stop
+                // a bot spending down to zero gold, not also cover the whole build-out phase (a high
+                // reserve just stalls building against the new cheaper tower costs).
+                //
+                // minimumTowerCoverage: Greedy is designed to send from the first tick (it prioritises
+                // income, not a defensive package); Balanced and Defensive finish an opening package
+                // first. That intent used to be enforced indirectly, through gold-reserve thresholds
+                // tuned against specific tower costs, so cheap enough towers left just enough spare
+                // gold to opportunistically afford a creep mid-build-out. Stating the tower count
+                // directly means it holds regardless of the current cost balance.
+                new BotProfileDefinition(BotProfileIds.Greedy, "Greedy", aggression: 90, defenseBias: 10, minimumGoldReserve: 0, buildOrder: GreedyBuildOrder, minimumTowerCoverage: 0),
+                new BotProfileDefinition(BotProfileIds.Balanced, "Balanced", aggression: 50, defenseBias: 50, minimumGoldReserve: 20, buildOrder: BalancedBuildOrder, minimumTowerCoverage: 3),
+                new BotProfileDefinition(BotProfileIds.Defensive, "Defensive", aggression: 20, defenseBias: 80, minimumGoldReserve: 20, buildOrder: DefensiveBuildOrder, minimumTowerCoverage: 4)
             });
     }
 }

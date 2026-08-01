@@ -30,6 +30,14 @@ check for in-flight client work first.
 resolved, so that item is now fully closed and deleted; both its rows are in the ledger
 below.
 
+Item 26 is resolved and deleted, and its row is in that ledger too. R3 is corrected in
+place rather than left carrying a claim the code stopped matching: the "5 of 15 towers"
+gap it names was closed by item 15, and item 26 has now moved the rest of the bot AI out
+of the match bridge and its build orders into content. The same stale claim is still in
+`LAUNCH_ROADMAP.md`'s P1 list, citing a symbol that no longer exists — left for whoever
+next revises that document, since correcting a roadmap's priorities is not a side effect
+of a refactor.
+
 Item 30's resolution disproved its own root cause, so item 15's resolution note is corrected
 in place rather than left contradicting the ledger, and item 33 carries out the MSAA finding
 that item 30 had parked at the end of itself. Item 31 asked for two things and got one, so
@@ -69,6 +77,7 @@ than left as written; each carries its own dated finding.
 
 | Item | Commit | Outcome |
 | --- | --- | --- |
+| 26 | `fcccb98` | The decision logic is in `Bots/` and the build orders are content. `BotController.TakeTurn` is a bot's whole tick now — send, build, buy a category tier, raise a tower, in that order — and it sees the match only through `IBotMatchContext`: player state, owned towers, live creep health in a lane, the current route, a tower lookup, a send history, and a placement probe that answers what a build *would* do without doing it. The mazing search and the build-order slot moved to a stateless `BotBuildPlanner`; `LocalVerticalSlice` went 1,585 → 1,272 lines and keeps exactly one bot concern, the one that is genuinely the bridge's — the order seats decide in. Build orders travel on `BotProfileDefinition.BuildOrder` beside the aggression / defense-bias / gold-reserve tuning that class already carried, authored in `SampleVerticalSliceContent` next to the towers they name, so nothing under `Bots/` references sample content at all; `MinimumTowerCoverage` came with them as the last per-profile number still expressed as a switch on the profile enum, and `ContentValidator` now rejects a build order naming a tower the catalog does not have, so a typo is a content error before play rather than a throw from mid-tick. **Behaviour is proved unchanged by measurement rather than asserted**, because on a move like this a rebalance and a bug are indistinguishable: a harness hashed three streams — the complete ordered event stream, a per-tick digest of every seat's gold, income, lives, elimination, send cooldown and six category tiers, and a per-tick digest of all lane route lengths plus every tower's id, owner, cell and tier — across nine configurations, seeds 1–5 at eight lanes and seed 1 at two, three, four and six. All nine are byte-identical before and after, digests and final state alike; seed 1 at eight lanes is winner P4 at tick 4471 with 369,181 events, 5,754 accepted commands and event digest `12a48345…e5c00046` on both sides, and the Unity batch playtest agrees independently at 237s with the same winner, tick, command count and final gold for all eight seats. 274 tests pass in Release with none modified. **Deliberately not moved into data:** the lane-pressure heuristic's Greedy exemption is still a check on the profile enum, because "exempt at any threshold" is not expressible as a high threshold and a content flag existing for one profile would read worse than the check does. |
 | 22 | `264991c` | `SimulationPluginSyncTests` compares the committed Unity plugin against the source build — declared members always, IL when built Release, which is what CI does. Deliberately not a byte comparison: MVID, PE stamp and PDB id are build identity and differ between machines on an in-sync plugin (measured: 148 differing bytes in an otherwise identical 135,680). Verified by flipping one constant and watching the IL half fail while the member half correctly stayed green. Caught its own first real drift twice during the session that wrote it. |
 | 27 | `264991c` | Eighteen `First`/`FirstOrDefault` catalog scans in per-tick bot and upgrade paths replaced with an id index, matching what `CombatContent` already did. |
 | 34 (new) | (this commit) | **CI was red on `main`.** `SimulationPluginSyncTests` ran its member half in every configuration on the stated grounds that signatures are configuration-independent. They are not, and the committed plugin is a Release build, so the guard failed in one configuration or the other whatever was committed — a Debug plugin failed CI's `--configuration Release`, a Release plugin failed every local run. Measured: 1,045 authored members on both sides with names and attributes identical, yet 146 signature blobs differing by one or two bytes, because signature blobs encode types as metadata TOKENS and token values are indices into tables whose size depends on how many compiler-generated types exist. Filtering the generated members was tried and rejected — it fixes the type-set half but not the token half, and applying it to the IL digest would blind that digest to changes inside lambda bodies. Both halves are now gated on the suite being built in the configuration the plugin is, and the committed plugin is a Release build. The cost is that a local Debug run checks nothing, exactly as the IL half already behaved; the stronger fix, if local feedback is wanted, is to decode signatures into type names rather than hashing raw token bytes. |
@@ -492,19 +501,6 @@ pooling code is self-contained, and creep vs tower presentation barely interact.
 
 Sequence this *before* the item-10 HUD migration, which will churn these same files.
 
-## 26. Bot AI is embedded in the match bridge and hardcoded against sample content
-
-About a third of `LocalVerticalSlice` is bot decision logic — `TryPlaceBotTower`,
-`BestMazingPlacement`, `TryBuyBotTier`, `TryUpgradeBotTower`, pressure heuristics, and
-three build-order arrays — despite `Bots/` and `BotController` existing for exactly this.
-Worse, the build orders reference `SampleVerticalSliceContent.*TowerId` constants
-directly, so bot behaviour is compiled against sample content inside the simulation
-assembly — against the project's own "data drives balance" principle, and in tension with
-`BotProfileDefinition` already living in content.
-
-Move the decision logic into `Bots/` and express build orders as content data. This
-serves R3 directly.
-
 ## 28. CI never compiles the Unity client — gate written, blocked on a licence secret
 
 **Partly resolved 2026-08-01. The remaining half needs an owner action, not engineering.**
@@ -670,12 +666,36 @@ becomes measurable the same day.
 ## R3. Treat bot quality as a product feature, not a test harness
 
 Bots are simultaneously the measurement instrument for every balance number and the
-shipped opponent of the offline MVP — bot quality *is* product quality here. Mazing and
-the pressure bug are fixed; the remaining gap is that `BotTowerForSlot` reaches only 5 of
-15 towers, and two profiles degenerate into repeating one tower forever. Until closed,
-every mechanic-contribution measurement is measuring towers the opponent never builds,
-and every human playtest (R1) is against an opponent doing a fraction of what the game
-can do.
+shipped opponent of the offline MVP — bot quality *is* product quality here.
+
+**The specific gap this recommendation named is closed, and saying so matters because the
+claim is quoted elsewhere as a live one.** Mazing and the pressure bug were already fixed
+when it was written; "`BotTowerForSlot` reaches only 5 of 15 towers, and two profiles
+degenerate into repeating one tower forever" described a shape item 15 had replaced with
+cycling build orders. Measured on the current build rather than argued: a seed-1
+eight-lane match builds **all 15 towers**, from 120 Arrow Towers down to 6 Barricade
+Bastions, with none at zero. So mechanic-contribution measurements are no longer being
+taken against towers the opponent never builds.
+
+**Item 26 makes the rest of this materially cheaper, which is the reason it was worth
+doing as engineering rather than as tidying.** Bot behaviour is no longer spread through
+the match bridge: `BotController.TakeTurn` is a bot's whole tick and it reaches the board
+only through `IBotMatchContext`, so a new heuristic is a change to one class of a few
+hundred lines rather than to the class that also owns pathing, economy hooks, combat
+wiring and every command the client submits — and it can be driven against a fake context
+instead of a whole match. Build orders, minimum tower coverage, gold reserve, aggression
+and defense bias are all authored on `BotProfileDefinition` now, so a fourth profile, or a
+different opening for an existing one, is a content edit: no code change, no rebuilt
+plugin, no re-baselined test.
+
+**What is left is opponent behaviour rather than plumbing**, and it is worth naming so it
+is chosen rather than defaulted into. Bots never sell, so a maze is only ever added to;
+`Decide` receives an economy record and nothing else, so a bot's notion of what is in the
+lane it is attacking is inferred entirely from what it just bought; and there is no
+randomness anywhere in them, so every match opens identically. That last property is
+load-bearing in both directions — it is what let item 26 compare nine match configurations
+byte-for-byte — and it is also why a human playtester (R1) meets the same opponent every
+single time. Which of those two is worth more is a real decision, not an oversight.
 
 ## R4. Build the command queue at a tick boundary next, structurally
 

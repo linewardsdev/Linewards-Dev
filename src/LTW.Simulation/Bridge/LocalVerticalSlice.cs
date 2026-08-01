@@ -59,6 +59,14 @@ public sealed class LocalVerticalSlice
     private readonly LocalMatchTopology topology;
     private readonly List<ISimulationEvent> pendingEvents = new();
     private readonly Dictionary<PlayerId, BotController> bots;
+
+    /// <summary>What the bots are allowed to see of this match, and how they act on it.</summary>
+    /// <remarks>
+    /// One instance for the whole match rather than one per bot per tick: it holds nothing but a
+    /// reference back to this slice, and every method takes the player it is asking about.
+    /// </remarks>
+    private readonly IBotMatchContext botMatch;
+
     private readonly List<AcceptedCommandRecord> acceptedCommands = new();
     private readonly List<BotDecisionRecord> botDecisionRecords = new();
 
@@ -148,6 +156,7 @@ public sealed class LocalVerticalSlice
         players = CreateStartingPlayers(topology.Players);
         combatState = new CombatState(Enumerable.Empty<CreepCombatState>(), Enumerable.Empty<TowerCombatState>());
         bots = enableBots ? CreateBots(topology.Players) : new Dictionary<PlayerId, BotController>();
+        botMatch = new BotMatchContext(this);
         tick = new SimulationTick(0);
     }
 
@@ -760,14 +769,9 @@ public sealed class LocalVerticalSlice
 
         StartMatch();
 
-        // Send decision runs before tower building (reordered 2026-07-28 — see
-        // GD_TUNING_LOG.md). TryPlaceBotTower has no cap and previously ran first, so it
-        // would absorb a bot's surplus gold into "one more tower" before a pricier preferred
-        // creep (e.g. creep.serpent at 20g, creep.obsidian_brute at 30g) ever had a chance to
-        // become affordable — confirmed via replay analysis showing those creeps at 0 uses
-        // even though they were reachable on paper. Giving the send its claim on gold first,
-        // with towers only spending what's left, fixes the starvation without adding a new
-        // tunable cap.
+        // What each bot does with its turn, and in what order, is BotController.TakeTurn's business
+        // (OPEN_ITEMS.md item 26 — that used to be about 350 lines of this class). What stays here is
+        // the one part that is genuinely the bridge's: the order the seats decide in.
         //
         // OrderBy(bot.Key.Value): Dictionary<PlayerId, BotController> enumeration order is
         // documented-unspecified, and it feeds NextEntityId() assignment (via QueueSend/PlaceTower)
@@ -777,22 +781,7 @@ public sealed class LocalVerticalSlice
         // the same reason (OPEN_ITEMS.md's retired 2026-07-29 review, "determinism: one real hazard").
         foreach (var bot in bots.OrderBy(bot => bot.Key.Value))
         {
-            if (HasMinimumDefenseCoverage(bot.Key, bot.Value) && !IsLaneUnderPressure(bot.Key, bot.Value))
-            {
-                var decision = bot.Value.Decide(players.Get(bot.Key), content, tick);
-                if (decision.Command is QueueSendCommand send)
-                {
-                    var sendResult = QueueSend(send.PlayerId, send.CreepId, send.Quantity);
-                    if (sendResult.Accepted)
-                    {
-                        botDecisionRecords.Add(new BotDecisionRecord(tick, send.PlayerId, bot.Value.Profile, send.CreepId, send.Quantity));
-                    }
-                }
-            }
-
-            TryPlaceBotTower(bot.Key, bot.Value);
-            TryBuyBotTier(bot.Key, bot.Value);
-            TryUpgradeBotTower(bot.Key, bot.Value);
+            bot.Value.TakeTurn(bot.Key, botMatch);
         }
 
         tick = new SimulationTick(tick.Value + 1);
@@ -942,433 +931,9 @@ public sealed class LocalVerticalSlice
 
         foreach (var bot in bots.OrderBy(bot => bot.Key.Value))
         {
-            TryPlaceBotTower(bot.Key, bot.Value);
-            var sendResult = QueueSend(bot.Key, bot.Value.PrimaryCreepId, quantity: 1);
-            if (sendResult.Accepted)
-            {
-                botDecisionRecords.Add(new BotDecisionRecord(tick, bot.Key, bot.Value.Profile, bot.Value.PrimaryCreepId, quantity: 1));
-            }
+            bot.Value.TakeOpeningTurn(bot.Key, botMatch);
         }
     }
-
-    /// <summary>
-    /// Minimum tower count before a non-Greedy bot is allowed to send at all — a floor gate
-    /// checked by <see cref="HasMinimumDefenseCoverage"/>, never a ceiling on how much a bot can
-    /// build (see <see cref="TryPlaceBotTower"/>, which keeps building past this number as long as
-    /// gold and candidate positions allow).
-    /// </summary>
-    private static int MinimumTowerCoverage(BotDecisionProfile profile) => profile switch
-    {
-        BotDecisionProfile.Balanced => 3,
-        BotDecisionProfile.Defensive => 4,
-        _ => 0
-    };
-
-    /// <summary>
-    /// Greedy bots are designed to send from the start (they prioritize income, not a defensive
-    /// package); Balanced and Defensive are designed to finish their opening tower package before
-    /// creating any send pressure. That intent was previously enforced only indirectly, through
-    /// gold-reserve thresholds tuned against specific tower costs — cheap enough towers could
-    /// leave just enough spare gold to opportunistically afford a cheap creep mid-build-out. This
-    /// checks the actual intent directly instead, so it holds regardless of the current cost
-    /// balance.
-    /// </summary>
-    private bool HasMinimumDefenseCoverage(PlayerId playerId, BotController bot)
-    {
-        if (bot.Profile == BotDecisionProfile.Greedy)
-        {
-            return true;
-        }
-
-        var ownedTowerCount = combatState.Towers.Count(tower => tower.OwnerId.Equals(playerId));
-        return ownedTowerCount >= MinimumTowerCoverage(bot.Profile);
-    }
-
-    /// <summary>
-    /// True once a non-Greedy bot's own lane is carrying enough incoming creep health that it
-    /// should hold/build instead of spending gold on sends — the reactive replacement for the old
-    /// fixed opening-tower-count gate, driven by actual lane threat rather than a tick schedule.
-    /// Greedy is exempt: sending is its primary lever (see docs/ARCHITECTURE.md's Bot Controller
-    /// section), not something pressure should suppress.
-    /// </summary>
-    private bool IsLaneUnderPressure(PlayerId playerId, BotController bot)
-    {
-        if (bot.Profile == BotDecisionProfile.Greedy)
-        {
-            return false;
-        }
-
-        var myLane = topology.HomeLaneFor(playerId);
-
-        // !HasLeaked is load-bearing, not defensive tidiness. A creep that finishes a lane is not
-        // despawned — it transfers to the next opponent's lane as a NEW entity, and the spent entity stays
-        // in CombatState tagged with the lane it exited, still holding the health it left with. So without
-        // this filter, incomingHealth counts every creep that has ever finished walking this lane and grows
-        // monotonically for the whole match. Once it crosses PressureThreshold the bot stops sending and
-        // never sends again.
-        //
-        // Every other creep filter in the codebase already excludes HasLeaked (eight sites in
-        // CombatService, plus GetCreepSnapshots), which is why nothing looked wrong on screen — this was
-        // the only consumer that saw the spent entities.
-        //
-        // Measured consequence of the fix, and it corrects an earlier diagnosis of mine: the "two mazing
-        // bots stalemate forever" finding was attributed to defence out-scaling attack. It was not. With
-        // this filter the same seed completes at tick 926 instead of running past 80,000. It is also the
-        // real cause of the bot that sat on 3,700 gold with a frozen tower count, which I previously
-        // blamed on the placement ceiling alone.
-        var incomingHealth = combatState.Creeps
-            .Where(creep => creep.LaneId.Equals(myLane) && !creep.IsDead && !creep.HasLeaked)
-            .Sum(creep => creep.Health);
-        var ownedTowerCount = combatState.Towers.Count(tower => tower.OwnerId.Equals(playerId));
-        return incomingHealth >= bot.PressureThreshold(content, ownedTowerCount);
-    }
-
-    /// <summary>
-    /// Buys a bot the next tier it can afford, in whichever category it has already committed to.
-    /// </summary>
-    /// <remarks>
-    /// Bots must buy tiers or the feature makes them strictly worse opponents: they maze well
-    /// enough now that a tier-3 human against a tier-1 bot defence would be a walkover.
-    ///
-    /// Which category: whichever the bot has ALREADY invested in — the line it has built the most
-    /// towers in, or the category it has sent the most creeps from. That mirrors what the tiers do
-    /// (deepen a commitment rather than broaden one) and needs no new tuning knob. Ties go to the
-    /// lowest index, so the choice stays deterministic for replays.
-    ///
-    /// Which side: a tower tier while its own lane is under pressure, a send tier otherwise. The
-    /// pressure signal is the same one the send gate above uses.
-    ///
-    /// Spending is gated on the profile's gold reserve floor exactly as TryPlaceBotTower is, so a
-    /// bot cannot upgrade itself out of being able to defend. Because this runs after
-    /// TryPlaceBotTower, towers and sends both get first claim on gold and tiers are bought from
-    /// what is genuinely surplus — a bot that is still building never stalls to save for a tier.
-    /// </remarks>
-    private void TryBuyBotTier(PlayerId playerId, BotController bot)
-    {
-        var player = players.Get(playerId);
-        if (player.IsEliminated)
-        {
-            return;
-        }
-
-        var kind = BotTierPreference(bot);
-        var categoryIndex = kind == CategoryKind.TowerLine
-            ? MostBuiltTowerLine(playerId)
-            : MostSentCreepCategory(playerId);
-
-        var targetTier = (kind == CategoryKind.TowerLine
-            ? player.TowerLineTier(categoryIndex)
-            : player.SendCategoryTier(categoryIndex)) + 1;
-        if (targetTier > CategoryTierRules.MaxTier)
-        {
-            return;
-        }
-
-        // Gated on the reserve floor only, exactly like TryPlaceBotTower. An additional "must still
-        // afford the next tower afterwards" term was tried and measured worse on both counts it was
-        // meant to help: it did not recover the mazing it was added for (lane 2 stayed at 22 cells)
-        // and it pushed match completion from 3422 ticks to 5078 by starving the creep tiers that
-        // let an attack close a game out. Running after TryPlaceBotTower already gives towers first
-        // claim on the tick's gold, which turns out to be the whole of the protection worth having.
-        var cost = CategoryTierRules.CostFor(kind, targetTier);
-        if (player.Gold.Amount - bot.GoldReserveFloor(content) < cost)
-        {
-            return;
-        }
-
-        BuyCategoryTier(playerId, kind, categoryIndex, targetTier);
-    }
-
-    /// <summary>
-    /// Brings one of a bot's placed towers up to the line tier it has already bought.
-    /// </summary>
-    /// <remarks>
-    /// Without this a bot buys a line tier and never realises it: the tier only reaches towers
-    /// built afterwards, so a bot that has finished building would carry a tier it paid for and
-    /// gets nothing from. That would make the tier a pure waste of its gold and the bot a weaker
-    /// opponent than before the feature existed.
-    ///
-    /// Upgrades the LOWEST-tier tower first, so a bot levels its whole line evenly rather than
-    /// pouring everything into one tower — and ties break on entity id so the choice stays
-    /// deterministic for replays. Gated on the profile's gold reserve floor exactly as building
-    /// and tier-buying are, and runs after both, so upgrades come from what is genuinely spare.
-    /// </remarks>
-    private void TryUpgradeBotTower(PlayerId playerId, BotController bot)
-    {
-        var player = players.Get(playerId);
-        if (player.IsEliminated)
-        {
-            return;
-        }
-
-        var laneId = topology.HomeLaneFor(playerId);
-        var candidate = combatState.Towers
-            .Where(tower => tower.OwnerId.Equals(playerId) && tower.LaneId.Equals(laneId))
-            .Where(tower => tower.Tier < CategoryTierRules.MaxTier)
-            .Where(tower => tower.Tier < player.TowerLineTier(
-                TowerFor(tower.TowerId).CategoryIndex))
-            .OrderBy(tower => tower.Tier)
-            .ThenBy(tower => tower.EntityId.Value)
-            .FirstOrDefault();
-        if (candidate is null)
-        {
-            return;
-        }
-
-        var cost = CategoryTierRules.TowerUpgradeCost(
-            TowerFor(candidate.TowerId).Cost.Amount);
-        if (player.Gold.Amount - bot.GoldReserveFloor(content) < cost)
-        {
-            return;
-        }
-
-        UpgradeTower(playerId, laneId, candidate.Position);
-    }
-
-    /// <summary>
-    /// Which side of the roster a bot spends its upgrade gold on, from its own authored profile.
-    /// </summary>
-    /// <remarks>
-    /// Driven by the profile's existing Aggression and DefenseBias rather than a new heuristic, so
-    /// a Greedy bot (aggression 90, bias 10) deepens its sends, a Defensive one (20/80) deepens its
-    /// towers, and the choice is content-tunable alongside every other bot knob.
-    ///
-    /// This replaced an earlier rule of "tower tier while under pressure, send tier otherwise",
-    /// which read sensibly and measured terribly: bots are under pressure most of the time, so they
-    /// poured almost everything into defence, and two of them facing each other could no longer
-    /// finish a match at ANY tower multiplier — the run that exposed this stalemated past 6000
-    /// ticks even after tower scaling was cut to 112%. Preference turned out to dominate the
-    /// multiplier completely: holding the multiplier at 115/130 and only changing which side bots
-    /// buy took the same match from a stalemate to 3336 ticks, which is faster than the 3627 the
-    /// game takes with no tiers at all.
-    ///
-    /// A tie (Balanced, 50/50) breaks toward the SEND side deliberately. Defence already compounds
-    /// for free through an unbounded tower count, so the attacking side is the one that needs the
-    /// help, and it is the side that lets a match end.
-    /// </remarks>
-    private CategoryKind BotTierPreference(BotController bot)
-    {
-        var profile = bot.ResolveProfile(content);
-        return profile.DefenseBias > profile.Aggression ? CategoryKind.TowerLine : CategoryKind.SendCategory;
-    }
-
-    /// <summary>
-    /// The tower line this player has the most towers standing in, lowest index on a tie.
-    /// </summary>
-    private int MostBuiltTowerLine(PlayerId playerId)
-    {
-        var counts = new int[PlayerEconomyState.CategoryCount];
-        foreach (var tower in combatState.Towers.Where(tower => tower.OwnerId.Equals(playerId)))
-        {
-            var line = TowerFor(tower.TowerId).CategoryIndex;
-            if (line >= 0 && line < counts.Length)
-            {
-                counts[line]++;
-            }
-        }
-
-        return IndexOfMax(counts);
-    }
-
-    /// <summary>
-    /// The send category this player has sent the most creeps from, lowest index on a tie.
-    /// </summary>
-    private int MostSentCreepCategory(PlayerId playerId)
-    {
-        var counts = new int[PlayerEconomyState.CategoryCount];
-        foreach (var record in botDecisionRecords.Where(record => record.PlayerId.Equals(playerId)))
-        {
-            var creep = FindCreep(record.ContentId);
-            if (creep is not null && creep.CategoryIndex >= 0 && creep.CategoryIndex < counts.Length)
-            {
-                counts[creep.CategoryIndex] += record.Quantity;
-            }
-        }
-
-        return IndexOfMax(counts);
-    }
-
-    private static int IndexOfMax(int[] counts)
-    {
-        var best = 0;
-        for (var index = 1; index < counts.Length; index++)
-        {
-            if (counts[index] > counts[best])
-            {
-                best = index;
-            }
-        }
-
-        return best;
-    }
-
-    private void TryPlaceBotTower(PlayerId playerId, BotController bot)
-    {
-        var ownedTowerCount = combatState.Towers.Count(tower => tower.OwnerId.Equals(playerId));
-        var towerId = BotTowerForSlot(bot.Profile, ownedTowerCount);
-        var towerCost = TowerFor(towerId).Cost.Amount;
-        var player = players.Get(playerId);
-        if (player.Gold.Amount - bot.GoldReserveFloor(content) < towerCost)
-        {
-            return;
-        }
-
-        var laneId = topology.HomeLaneFor(playerId);
-        var position = BestMazingPlacement(playerId, laneId, towerId, TowerFor(towerId).RangeCells);
-        if (position is not null)
-        {
-            PlaceTower(playerId, laneId, towerId, position.Value);
-        }
-    }
-
-    /// <summary>
-    /// Picks the cell that best lengthens the creep route while still covering it — mazing.
-    /// </summary>
-    /// <remarks>
-    /// This replaced a hardcoded list of nine positions in columns 1 and 5, chosen with no reference to
-    /// the route at all. That arrangement had two consequences worth stating, because both distorted
-    /// every balance measurement taken against these bots. It never mazed, so bots defended a straight
-    /// lane no human would leave straight; and once those nine cells were occupied the bot could never
-    /// build again, which is why a bot in an earlier probe sat on 3,700 gold with its tower count frozen
-    /// at nine.
-    ///
-    /// Scoring is deliberately simple and explainable rather than clever:
-    ///   route length gained x MazeLengthWeight   — how much longer the creeps' walk becomes
-    ///   + route cells this tower covers          — how much of that walk it can actually shoot
-    /// Length dominates, because a cell that adds ten steps of walking helps every tower already built,
-    /// while coverage only helps this one. Cells that would block the route entirely are rejected by
-    /// GridPathService before they are ever scored.
-    ///
-    /// Cost: one BFS per candidate cell per placement. The grid is 7x16 and a bot places a tower at most
-    /// once per tick, so this is bounded and small, but it is the reason the search is a single pass over
-    /// empty cells rather than a lookahead.
-    /// </remarks>
-    private GridPosition? BestMazingPlacement(PlayerId playerId, LaneId laneId, ContentId towerId, int rangeCells)
-    {
-        if (!grids.TryGetValue(laneId, out var grid) || !routes.TryGetValue(laneId, out var currentRoute))
-        {
-            return null;
-        }
-
-        var map = content.Maps[0];
-        GridPosition? best = null;
-        var bestScore = int.MinValue;
-
-        for (var y = 0; y < map.Height; y++)
-        {
-            for (var x = 0; x < map.Width; x++)
-            {
-                var candidate = new GridPosition(x, y);
-                var validation = ValidateTowerPlacement(playerId, laneId, towerId, candidate);
-                if (!validation.Result.Accepted)
-                {
-                    continue;
-                }
-
-                var route = validation.Placement!.Route;
-                var lengthGain = route.Count - currentRoute.Count;
-                var covered = 0;
-                for (var index = 0; index < route.Count; index++)
-                {
-                    var cell = route[index];
-                    if (System.Math.Abs(cell.X - candidate.X) + System.Math.Abs(cell.Y - candidate.Y) <= rangeCells)
-                    {
-                        covered++;
-                    }
-                }
-
-                var score = lengthGain * MazeLengthWeight + covered;
-                if (score <= bestScore)
-                {
-                    continue;
-                }
-
-                bestScore = score;
-                best = candidate;
-            }
-        }
-
-        return best;
-    }
-
-    /// <summary>
-    /// How many route cells of coverage one extra step of creep walking is worth.
-    /// </summary>
-    /// <remarks>
-    /// Above 1 so lengthening wins ties against merely covering more. Extra route length multiplies
-    /// across every tower the bot owns and every one it will build later, whereas coverage from a single
-    /// placement only ever helps that placement.
-    /// </remarks>
-    private const int MazeLengthWeight = 4;
-
-    // Cycled by ownedTowerCount rather than switched on a few slots with a repeating tail arm, for two
-    // reasons (OPEN_ITEMS.md's retired 2026-07-29 review, "bots can only build 5 of the 15 towers"): the old shape could only ever reach 5 of the 15 towers (Arrow,
-    // Control, Pulse, Prism plus whatever the tail arm was), so every mechanic added since the 15-tower
-    // expansion was measured against a bot that never builds it; and its tail arm repeated a single
-    // tower forever once reached (Defensive -> endless Prism, Greedy -> endless Arrow), which is why
-    // BotMazingTests' "keeps building past nine towers" assertion passed on a bot spamming one tower.
-    // Each profile's array is a flavour (Defensive leans control/area/support, Greedy leans cheap, both
-    // fully reachable but not the only towers that profile builds), and the three arrays' union covers
-    // all 15 towers, not just each profile's own list.
-    // Each array's first few entries deliberately match the old hardcoded switch's early slots
-    // exactly (same tower, same cost, same order) rather than reshuffling from slot 0. Income only
-    // ticks every 50 simulation ticks (IncomeIntervalTicks), so gold is flat between jumps and a
-    // bot's opening tower-count gate (HasMinimumDefenseCoverage) clears on whichever jump first
-    // covers the cumulative cost — even a few gold of difference in an early slot can push that
-    // past a 50-tick boundary and shift the observable timing by up to a full income cycle. Keeping
-    // the opening identical avoids re-tuning every test that depends on early bot timing; the fix
-    // for item 15 only needs the array to stop repeating forever once it reaches its old tail.
-    private static readonly ContentId[] DefensiveBuildOrder =
-    {
-        SampleVerticalSliceContent.ControlTowerId,
-        SampleVerticalSliceContent.TowerId,
-        SampleVerticalSliceContent.TowerId,
-        SampleVerticalSliceContent.PulseTowerId,
-        SampleVerticalSliceContent.PrismTowerId,
-        SampleVerticalSliceContent.RepairDroneTowerId,
-        SampleVerticalSliceContent.ElderCanopyTowerId,
-        SampleVerticalSliceContent.ThornSnareTowerId,
-        SampleVerticalSliceContent.BarricadeTowerId
-    };
-
-    private static readonly ContentId[] BalancedBuildOrder =
-    {
-        SampleVerticalSliceContent.TowerId,
-        SampleVerticalSliceContent.ControlTowerId,
-        SampleVerticalSliceContent.PulseTowerId,
-        SampleVerticalSliceContent.PulseTowerId,
-        SampleVerticalSliceContent.GatlingTowerId,
-        SampleVerticalSliceContent.SaplingTowerId,
-        SampleVerticalSliceContent.TeslaTowerId,
-        SampleVerticalSliceContent.BloomheartTowerId,
-        SampleVerticalSliceContent.PrismTowerId,
-        SampleVerticalSliceContent.FoundryTowerId,
-        SampleVerticalSliceContent.SporeCloudTowerId
-    };
-
-    private static readonly ContentId[] GreedyBuildOrder =
-    {
-        SampleVerticalSliceContent.TowerId,
-        SampleVerticalSliceContent.PrismTowerId,
-        SampleVerticalSliceContent.TowerId,
-        SampleVerticalSliceContent.SaplingTowerId,
-        SampleVerticalSliceContent.GatlingTowerId,
-        SampleVerticalSliceContent.UtilityTowerId,
-        SampleVerticalSliceContent.SporeCloudTowerId
-    };
-
-    private static ContentId BotTowerForSlot(BotDecisionProfile profile, int ownedTowerCount)
-    {
-        var buildOrder = profile switch
-        {
-            BotDecisionProfile.Defensive => DefensiveBuildOrder,
-            BotDecisionProfile.Balanced => BalancedBuildOrder,
-            _ => GreedyBuildOrder
-        };
-
-        return buildOrder[ownedTowerCount % buildOrder.Length];
-    }
-
 
     private TowerPlacementValidation ValidateTowerPlacement(PlayerId playerId, LaneId laneId, ContentId towerId, GridPosition position)
     {
@@ -1581,5 +1146,127 @@ public sealed class LocalVerticalSlice
 
         public static TowerPlacementValidation Reject(CommandRejectionReason reason) =>
             new TowerPlacementValidation(VerticalSliceCommandResult.Reject(reason), null, null, null, null);
+    }
+
+    /// <summary>
+    /// Presents this match to the bots as <see cref="IBotMatchContext"/>, and nothing more.
+    /// </summary>
+    /// <remarks>
+    /// Nested and private so the bots' view of a match is exactly this list of questions and
+    /// commands, rather than the whole bridge — which is what it was before OPEN_ITEMS.md item 26,
+    /// when the decisions themselves lived in this class and could reach any field they liked.
+    ///
+    /// Every method here forwards to the same code a human's tap goes through. That is the point:
+    /// a bot cannot place a tower in someone else's lane, spend gold it does not have, or upgrade
+    /// past a line's tier ceiling, because it is not a special case anywhere — it submits the same
+    /// commands and is refused by the same rules.
+    /// </remarks>
+    private sealed class BotMatchContext : IBotMatchContext
+    {
+        private readonly LocalVerticalSlice slice;
+
+        public BotMatchContext(LocalVerticalSlice slice) => this.slice = slice;
+
+        public ContentCatalog Content => slice.content;
+
+        public SimulationTick Tick => slice.tick;
+
+        public PlayerEconomyState PlayerState(PlayerId playerId) => slice.players.Get(playerId);
+
+        public LaneId HomeLaneFor(PlayerId playerId) => slice.topology.HomeLaneFor(playerId);
+
+        public IReadOnlyList<TowerCombatState> TowersOwnedBy(PlayerId playerId) =>
+            slice.combatState.Towers.Where(tower => tower.OwnerId.Equals(playerId)).ToArray();
+
+        /// <inheritdoc />
+        /// <remarks>
+        /// !HasLeaked is load-bearing, not defensive tidiness. A creep that finishes a lane is not
+        /// despawned — it transfers to the next opponent's lane as a NEW entity, and the spent entity
+        /// stays in CombatState tagged with the lane it exited, still holding the health it left with.
+        /// So without this filter, the total counts every creep that has ever finished walking this
+        /// lane and grows monotonically for the whole match. Once it crossed the bot's pressure
+        /// threshold the bot stopped sending and never sent again.
+        ///
+        /// Every other creep filter in the codebase already excludes HasLeaked (eight sites in
+        /// CombatService, plus GetCreepSnapshots), which is why nothing looked wrong on screen — bot
+        /// pressure was the only consumer that saw the spent entities.
+        ///
+        /// Measured consequence of the fix, and it corrects an earlier diagnosis: the "two mazing bots
+        /// stalemate forever" finding was attributed to defence out-scaling attack. It was not. With
+        /// this filter the same seed completes at tick 926 instead of running past 80,000. It is also
+        /// the real cause of the bot that sat on 3,700 gold with a frozen tower count, previously
+        /// blamed on the placement ceiling alone.
+        /// </remarks>
+        public int LiveCreepHealthIn(LaneId laneId) =>
+            slice.combatState.Creeps
+                .Where(creep => creep.LaneId.Equals(laneId) && !creep.IsDead && !creep.HasLeaked)
+                .Sum(creep => creep.Health);
+
+        public IReadOnlyList<GridPosition> RouteFor(LaneId laneId) =>
+            slice.routes.TryGetValue(laneId, out var route) ? route : System.Array.Empty<GridPosition>();
+
+        public TowerDefinition? FindTower(ContentId towerId) => slice.FindTower(towerId);
+
+        public BotPlacementProbe ProbePlacement(PlayerId playerId, LaneId laneId, ContentId towerId, GridPosition position)
+        {
+            var validation = slice.ValidateTowerPlacement(playerId, laneId, towerId, position);
+            return validation.Result.Accepted
+                ? BotPlacementProbe.Allowed(validation.Placement!.Route)
+                : BotPlacementProbe.Rejected;
+        }
+
+        /// <inheritdoc />
+        /// <remarks>
+        /// Read off the same decision log <see cref="GetBotDiagnostics"/> reports, so what a bot
+        /// believes it has sent and what the diagnostics overlay shows it sent cannot disagree — and
+        /// so <see cref="Reset"/> clears both by clearing one.
+        /// </remarks>
+        public IReadOnlyList<int> SendsByCategory(PlayerId playerId)
+        {
+            var counts = new int[PlayerEconomyState.CategoryCount];
+            foreach (var record in slice.botDecisionRecords)
+            {
+                if (!record.PlayerId.Equals(playerId))
+                {
+                    continue;
+                }
+
+                var creep = slice.FindCreep(record.ContentId);
+                if (creep is not null && creep.CategoryIndex >= 0 && creep.CategoryIndex < counts.Length)
+                {
+                    counts[creep.CategoryIndex] += record.Quantity;
+                }
+            }
+
+            return counts;
+        }
+
+        public bool TrySend(PlayerId playerId, ContentId creepId, int quantity)
+        {
+            if (!slice.QueueSend(playerId, creepId, quantity).Accepted)
+            {
+                return false;
+            }
+
+            // Recorded here rather than by the bot, because it is diagnostics rather than a decision:
+            // the profile on the record is what the overlay labels the row with, and the bridge is
+            // what knows which controller this seat is driven by.
+            slice.botDecisionRecords.Add(new BotDecisionRecord(
+                slice.tick,
+                playerId,
+                slice.bots.TryGetValue(playerId, out var bot) ? bot.Profile : BotDecisionProfile.Balanced,
+                creepId,
+                quantity));
+            return true;
+        }
+
+        public bool TryPlaceTower(PlayerId playerId, LaneId laneId, ContentId towerId, GridPosition position) =>
+            slice.PlaceTower(playerId, laneId, towerId, position).Accepted;
+
+        public bool TryBuyCategoryTier(PlayerId playerId, CategoryKind categoryKind, int categoryIndex, int targetTier) =>
+            slice.BuyCategoryTier(playerId, categoryKind, categoryIndex, targetTier).Accepted;
+
+        public bool TryUpgradeTower(PlayerId playerId, LaneId laneId, GridPosition position) =>
+            slice.UpgradeTower(playerId, laneId, position).Accepted;
     }
 }

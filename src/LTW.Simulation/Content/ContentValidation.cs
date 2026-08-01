@@ -109,9 +109,21 @@ public sealed class ContentValidator
 
         foreach (var profile in catalog.BotProfiles)
         {
-            if (profile.Aggression < 0 || profile.DefenseBias < 0 || profile.MinimumGoldReserve < 0)
+            if (profile.Aggression < 0 || profile.DefenseBias < 0 || profile.MinimumGoldReserve < 0 || profile.MinimumTowerCoverage < 0)
             {
                 errors.Add($"Bot profile '{profile.Id}' cannot contain negative tuning values.");
+            }
+
+            // Checked here for the same reason a tech's unlocks are: a build order is a list of
+            // references into this catalog, and the bot resolves them at match speed. A typo would
+            // otherwise surface as a throw from the middle of a tick rather than as a content error
+            // before play — see docs/ARCHITECTURE.md's Content And Persistence section.
+            foreach (var towerId in profile.BuildOrder)
+            {
+                if (!towerIds.Contains(towerId))
+                {
+                    errors.Add($"Bot profile '{profile.Id}' build order references missing tower '{towerId}'.");
+                }
             }
         }
 
