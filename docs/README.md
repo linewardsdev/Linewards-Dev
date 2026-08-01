@@ -52,6 +52,7 @@ This folder contains the durable project documentation for Line Wards, the mobil
 - [Playtest evidence](playtest-evidence/)
 - [Screenshot reviews](screenshot-reviews/)
 - [Archived planning docs](archive/)
+- [Retired branch index](archive/RETIRED_BRANCH_INDEX.md) — the 47 merged branches deleted on 2026-07-31, with the commit each pointed at
 
 ## Retired Documents
 
