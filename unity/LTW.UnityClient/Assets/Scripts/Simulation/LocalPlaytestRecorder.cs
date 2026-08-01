@@ -50,8 +50,18 @@ namespace LTW.UnityClient.Simulation
                 }
             }
 
+            // The summary is tested FIRST, and the order is load-bearing rather than stylistic:
+            // LatestReplay builds a replay record on every read, copying the match's whole accepted-
+            // command list (5,754 of them by the end of a seed-1 match), and this runs every frame.
+            // Asking the cheap question first means the expensive one is asked once, on the frame the
+            // match ends. See UnitySimulationDriver.LatestReplay and OPEN_ITEMS item 36.
+            if (hasAutoExported || simulationDriver.LatestMatchSummary is null)
+            {
+                return;
+            }
+
             var replay = simulationDriver.LatestReplay;
-            if (!hasAutoExported && replay is not null && simulationDriver.LatestMatchSummary is not null)
+            if (replay is not null)
             {
                 ExportNow();
                 hasAutoExported = true;

@@ -70,12 +70,108 @@ public sealed class LocalVerticalSlice
     private readonly List<AcceptedCommandRecord> acceptedCommands = new();
     private readonly List<BotDecisionRecord> botDecisionRecords = new();
 
-    private EconomyPlayerSet players;
-    private CombatState combatState;
-    private SimulationTick tick;
+    private EconomyPlayerSet playersState = null!;
+    private CombatState combatStateValue = null!;
+    private SimulationTick tickValue;
+    private long stateRevision;
     private long nextEntityId = 1;
     private bool matchStarted;
     private bool matchEnded;
+
+    /// <summary>
+    /// Changes exactly when something <see cref="GetSnapshot"/> would report differently.
+    /// </summary>
+    /// <remarks>
+    /// Exists so a caller can ask "is there a new snapshot?" without paying for one. That question
+    /// has no cheap answer from outside: <see cref="GetSnapshot"/> copies the creep, tower and
+    /// aim-target lists on purpose, so that a caller holding an old snapshot cannot watch it change
+    /// underneath, and building one only to discover it is identical is exactly the cost this
+    /// avoids. <c>UnitySimulationDriver</c> was doing that on every frame at ~60 fps against a
+    /// simulation ticking at 4 Hz (OPEN_ITEMS item 36).
+    ///
+    /// <b>The tick number is NOT a substitute, and that is the whole reason this exists.</b>
+    /// Commands apply the moment they are accepted rather than on the next tick — <see
+    /// cref="PlaceTower"/>, <see cref="UpgradeTower"/>, <see cref="SellTowerAt"/> and <see
+    /// cref="BuyCategoryTier"/> all mutate synchronously — and the client's opening build countdown
+    /// is thirty seconds in which the tick does not advance at all while the player builds. Gated on
+    /// the tick, a tower built during the countdown stays invisible until the match starts — measured,
+    /// not argued: the client's <c>OpeningCountdownFreshnessCheck</c> fails on exactly that with the
+    /// non-tick half of this counter removed.
+    /// <c>UnityVerticalSliceRenderer</c> found the same thing one layer up and gates on a
+    /// hash of the snapshot for the same reason; this is that idea moved upstream of the allocation,
+    /// where a hash cannot go because hashing requires the snapshot.
+    ///
+    /// <b>Comprehensive by construction rather than by discipline.</b> It is not incremented at
+    /// call sites — it is incremented by the setters of the only four pieces of mutable state <see
+    /// cref="GetSnapshot"/> reads (<see cref="players"/>, <see cref="combatState"/>, <see
+    /// cref="tick"/>, and lane routes through <see cref="SetRoute"/>), so a mutator added later
+    /// cannot forget it without also failing to change anything. The two remaining pieces of mutable
+    /// state are deliberately uncounted, because neither can move on its own: <c>combatContent</c> is
+    /// reassigned only in <see cref="AdvanceOneTick"/>, three lines after the tick it rides along
+    /// with, and <c>grids</c> is read by pathing rather than by the snapshot and only ever changes in
+    /// the same breath as a tower and a route.
+    ///
+    /// Monotonic and never reset, including across <see cref="Reset"/> — a match reset is a change
+    /// like any other, and a counter that went backwards there would let a caller mistake the new
+    /// match's opening board for the old match's last one.
+    /// </remarks>
+    public long StateRevision => stateRevision;
+
+    /// <summary>
+    /// The seats, and the one write path that records that they moved.
+    /// </summary>
+    /// <remarks>
+    /// A property over a field purely so the revision cannot be bypassed. Every existing
+    /// <c>players = ...</c> assignment keeps working unchanged and now counts itself.
+    /// </remarks>
+    private EconomyPlayerSet players
+    {
+        get => playersState;
+        set
+        {
+            playersState = value;
+            stateRevision++;
+        }
+    }
+
+    /// <summary>Creeps and towers. See <see cref="players"/> for why this is a property.</summary>
+    private CombatState combatState
+    {
+        get => combatStateValue;
+        set
+        {
+            combatStateValue = value;
+            stateRevision++;
+        }
+    }
+
+    /// <summary>The current tick. See <see cref="players"/> for why this is a property.</summary>
+    private SimulationTick tick
+    {
+        get => tickValue;
+        set
+        {
+            tickValue = value;
+            stateRevision++;
+        }
+    }
+
+    /// <summary>
+    /// Rebuilds one lane's route, counting it as a state change.
+    /// </summary>
+    /// <remarks>
+    /// The routes dictionary is the fourth thing the snapshot depends on — creep positions are
+    /// interpolated along it — and a dictionary indexer write cannot be intercepted the way the
+    /// three fields above can, so it gets a named door instead. Every existing site outside the
+    /// constructor happens to sit beside a tower or seat change that would have counted anyway;
+    /// routing them all through here means that stays true by construction rather than by
+    /// coincidence.
+    /// </remarks>
+    private void SetRoute(LaneId laneId, IReadOnlyList<GridPosition> route)
+    {
+        routes[laneId] = route;
+        stateRevision++;
+    }
 
     public MatchSummary? MatchSummary { get; private set; }
 
@@ -139,7 +235,7 @@ public sealed class LocalVerticalSlice
         foreach (var laneId in topology.Lanes)
         {
             grids[laneId] = new LaneGrid(map);
-            routes[laneId] = pathService.FindRoute(grids[laneId]).Route;
+            SetRoute(laneId, pathService.FindRoute(grids[laneId]).Route);
 
             // The fly-over route, captured for free: no tower has been placed yet, so the route just
             // computed IS the unmazed one. It is never recomputed — lane geometry is fixed for the
@@ -215,7 +311,7 @@ public sealed class LocalVerticalSlice
 
         var towerEntityId = NextEntityId();
         grids[laneId] = grid.WithOccupied(position);
-        routes[laneId] = placement.Route;
+        SetRoute(laneId, placement.Route);
         players = players.Replace(player.WithGold(new Gold(player.Gold.Amount - tower.Cost.Amount)));
         // The owner's line tier is baked in HERE, at build time. A tier bought later raises what
         // new towers are built at and leaves this one where it is until it is paid for
@@ -755,7 +851,7 @@ public sealed class LocalVerticalSlice
         players = players.Replace(player.WithGold(new Gold(player.Gold.Amount + refund.Amount)));
         combatState = combatState.RemoveTower(tower.EntityId);
         grids[tower.LaneId] = grids[tower.LaneId].WithoutOccupied(tower.Position);
-        routes[tower.LaneId] = pathService.FindRoute(grids[tower.LaneId]).Route;
+        SetRoute(tower.LaneId, pathService.FindRoute(grids[tower.LaneId]).Route);
         pendingEvents.Add(new TowerSoldEvent(tick, playerId, tower.LaneId, tower.EntityId, refund));
         return VerticalSliceCommandResult.Accept();
     }
@@ -879,7 +975,7 @@ public sealed class LocalVerticalSlice
         foreach (var laneId in grids.Keys.ToArray())
         {
             grids[laneId] = new LaneGrid(map);
-            routes[laneId] = pathService.FindRoute(grids[laneId]).Route;
+            SetRoute(laneId, pathService.FindRoute(grids[laneId]).Route);
         }
         pendingEvents.Clear();
         tick = new SimulationTick(0);
@@ -1092,7 +1188,7 @@ public sealed class LocalVerticalSlice
 
         var map = content.Maps[0];
         grids[laneId] = new LaneGrid(map);
-        routes[laneId] = pathService.FindRoute(grids[laneId]).Route;
+        SetRoute(laneId, pathService.FindRoute(grids[laneId]).Route);
     }
 
     private LaneId? NextActiveOpponentLaneId(LaneId currentLaneId, PlayerId senderId)
