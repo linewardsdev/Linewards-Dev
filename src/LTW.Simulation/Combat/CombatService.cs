@@ -193,11 +193,24 @@ public sealed class CombatService
         List<ISimulationEvent> events,
         SupportAuraField auras)
     {
-        var next = state;
         var brambleZones = BuildBrambleZones(state, content, routes);
 
-        foreach (var creep in state.Creeps.Where(creep => !creep.IsDead && !creep.HasLeaked).ToArray())
+        // Built once and adopted whole, rather than calling ReplaceCreep per creep. Every creep
+        // moves every tick, and each ReplaceCreep rebuilt the entire creep array — so movement
+        // alone cost N array rebuilds per tick, which at the 266 creeps the capture harness has
+        // measured is roughly 70,000 element copies for a phase that changes each creep exactly
+        // once. Creeps are appended in their existing order and untouched ones are carried across
+        // unchanged, so the resulting order is identical to what per-creep replacement produced.
+        var moved = new List<CreepCombatState>(state.Creeps.Count);
+
+        foreach (var creep in state.Creeps)
         {
+            if (creep.IsDead || creep.HasLeaked)
+            {
+                moved.Add(creep);
+                continue;
+            }
+
             var definition = content.GetCreep(creep.CreepId);
             var route = routes.For(creep.LaneId, definition.IgnoresMaze);
             // A flyer is above the brambles, and the zone indices are measured against the mazed
@@ -208,17 +221,17 @@ public sealed class CombatService
             var cost = Math.Max(1, definition.MovementCost - (auras.IsPaced(creep.EntityId) ? SupportAuraField.PacesetterMovementBonus : 0));
             var (pathIndex, movement) = StepCreep(creep.PathIndex, creep.MovementProgress, definition.SpeedPerSecond, route.Count, braked, cost);
 
-            var moved = creep.WithMovement(pathIndex, movement);
-            if (pathIndex >= route.Count - 1 && !moved.HasLeaked)
+            var stepped = creep.WithMovement(pathIndex, movement);
+            if (pathIndex >= route.Count - 1 && !stepped.HasLeaked)
             {
-                moved = moved.MarkLeaked();
-                events.Add(new LeakEvent(tick, moved.SenderId, content.GetLaneOwner(moved.LaneId), moved.EntityId, LeakLifeLossFor(moved.CreepId), content.GetCreep(moved.CreepId).LeakBounty));
+                stepped = stepped.MarkLeaked();
+                events.Add(new LeakEvent(tick, stepped.SenderId, content.GetLaneOwner(stepped.LaneId), stepped.EntityId, LeakLifeLossFor(stepped.CreepId), content.GetCreep(stepped.CreepId).LeakBounty));
             }
 
-            next = next.ReplaceCreep(moved);
+            moved.Add(stepped);
         }
 
-        return next;
+        return new CombatState(moved, state.Towers);
     }
 
     /// <summary>
@@ -240,21 +253,38 @@ public sealed class CombatService
             return state;
         }
 
-        var next = state;
+        // One working copy and an id index, rather than a FirstOrDefault scan plus a full array
+        // rebuild per mended creep. Healing is still applied in auras.Mended order and reads each
+        // creep's already-updated state, so a creep listed twice heals twice exactly as before —
+        // and the events come out in the same order, which several tests assert on.
+        var healedCreeps = state.Creeps.ToArray();
+        var indexByEntityId = new Dictionary<EntityId, int>(healedCreeps.Length);
+        for (var index = 0; index < healedCreeps.Length; index++)
+        {
+            indexByEntityId[healedCreeps[index].EntityId] = index;
+        }
+
+        var changed = false;
         foreach (var entityId in auras.Mended)
         {
-            var creep = next.Creeps.FirstOrDefault(candidate => candidate.EntityId.Equals(entityId));
-            if (creep is null || creep.IsDead || creep.HasLeaked || creep.Health >= creep.MaxHealth)
+            if (!indexByEntityId.TryGetValue(entityId, out var creepIndex))
+            {
+                continue;
+            }
+
+            var creep = healedCreeps[creepIndex];
+            if (creep.IsDead || creep.HasLeaked || creep.Health >= creep.MaxHealth)
             {
                 continue;
             }
 
             var healed = Math.Min(creep.MaxHealth, creep.Health + SupportAuraField.MenderHealAmount);
-            next = next.ReplaceCreep(creep.WithHealth(healed));
+            healedCreeps[creepIndex] = creep.WithHealth(healed);
             events.Add(new CreepHealedEvent(tick, creep.EntityId, healed - creep.Health, healed));
+            changed = true;
         }
 
-        return next;
+        return changed ? new CombatState(healedCreeps, state.Towers) : state;
     }
 
     private const int BrambleZoneCells = 3;
