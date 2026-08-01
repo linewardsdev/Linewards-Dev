@@ -21,9 +21,9 @@ items 29–32 are from the same day's live iOS-simulator playtest of the device 
 (item 29 was withdrawn the same day as a reviewer misread — it is kept, marked, so the
 claim is not chased; item 33 was split out of item 30 when that item was resolved).
 
-**Worked 2026-08-01.** Items 22, 27, 30 and 31 are resolved and deleted per this file's own
-rule. Numbers are still not reused. Items 24 and 25 touch `UnityVerticalSliceRenderer`, which
-was being actively edited in the shared working tree that day — whoever picks them up should
+**Worked 2026-08-01.** Items 22, 24, 27, 30 and 31 are resolved and deleted per this file's
+own rule. Numbers are still not reused. Item 25 touches `UnityVerticalSliceRenderer`, which
+was being actively edited in the shared working tree that day — whoever picks it up should
 check for in-flight client work first.
 
 **Worked 2026-08-01 (later the same day).** Item 23's remaining half — the attack phase — is
@@ -37,6 +37,11 @@ of the match bridge and its build orders into content. The same stale claim is s
 `LAUNCH_ROADMAP.md`'s P1 list, citing a symbol that no longer exists — left for whoever
 next revises that document, since correcting a roadmap's priorities is not a side effect
 of a refactor.
+
+Item 24 is resolved and deleted, and its row is in that ledger. Its measurement found that
+the renderer is no longer the client's largest per-frame allocation and names what is, so
+item 36 carries that finding out rather than leaving it inside a closed item where nobody
+would look for it.
 
 Item 30's resolution disproved its own root cause, so item 15's resolution note is corrected
 in place rather than left contradicting the ledger, and item 33 carries out the MSAA finding
@@ -77,6 +82,7 @@ than left as written; each carries its own dated finding.
 
 | Item | Commit | Outcome |
 | --- | --- | --- |
+| 24 | `3b51614` | **Both halves landed, and the item's ordering of them was wrong.** The presentation dictionaries are keyed by `EntityId.Value` as a `long`, the `"t"`/`"c"` shadow prefixes are one packed long and the `"{lane}:{x}:{y}"` cell keys one packed int, the per-frame `new int[LaneCount + 1]` and the three `List<string>` release sweeps reuse one buffer each, and `RenderSnapshot` is split into per-FRAME and per-SNAPSHOT halves. Measured on a deterministic seed-1 board at tick 3160 (576 creeps, 432 towers) with the match paused **and the driver frozen**, so every frame sees the identical snapshot object — the item's premise stated as a measurement rather than argued: the renderer allocated **1,953.2 KB/frame** before and now reads **4.0 KB/frame BELOW** the same session's renderer-disabled baseline, i.e. under the measurement's own ~20 KB/frame noise floor. Free-running at the shipped 4 ticks/s, the same forty ticks of gameplay drew 158 frames before and 429 after. But the item names the string keys as removing "most of the per-frame garbage" and they are the smallest part of it: keys and the split together reached 1,138.8 KB/frame (−42%), of which the keys alone measure 92.2 KB/frame. The other 1,138.8 KB was `UpdateTowerMotion` searching for Body, HeadPivot, Barrel and the Ring/Dish/Spire spin part on every tower on every frame — five recursive walks whose answer cannot change for the life of a pooled instance, each allocating one enumerator per node visited because `Transform`'s enumerator is a class. Those are cached per instance now. **The gate is a hash of the snapshot, not its tick, and that is not a stylistic choice**: commands apply synchronously and the opening build countdown is thirty seconds in which the tick does not advance while the player builds, so a tick gate would leave a tower upgraded during it wearing its old tier colour until the match started. **Motion proved, not assumed.** `MotionCaptureRunner` gained interval and resolution overrides first, because at its default 0.45s every consecutive pair of frames straddles a tick boundary — the sequence cannot see a 4 Hz stutter at all, which is the only failure this change can cause. At five frames per tick the before/after delta profiles agree on every statistic: mean absolute delta 0.2428 against 0.2422, 0.939% against 0.954% of pixels changed, no still frame on either side; at the default sampling they agree to three decimal places. Creep motion phases are bit-identical by construction — `CreepMotionPhase` still hashes the key's decimal DIGITS rather than the number, checked equal for every id from 1 to 200,000, because hashing the long would have re-scattered every creep on the board as a side effect of a dictionary key change. Batch playtest passes both sides, same winner and tick 4471, 218.47s → 206.44s, peak presentation objects unchanged (pooling is untouched). **What it did not buy:** total allocation per second of play is roughly unchanged, because the freed headroom goes straight into more frames and each frame still pays ~800 KB to `UnitySimulationDriver.RefreshSnapshot`. That is now the dominant source and is opened as item 36. `RendererAllocationProbe` is kept rather than deleted so these numbers can be re-run. |
 | 26 | `fcccb98` | The decision logic is in `Bots/` and the build orders are content. `BotController.TakeTurn` is a bot's whole tick now — send, build, buy a category tier, raise a tower, in that order — and it sees the match only through `IBotMatchContext`: player state, owned towers, live creep health in a lane, the current route, a tower lookup, a send history, and a placement probe that answers what a build *would* do without doing it. The mazing search and the build-order slot moved to a stateless `BotBuildPlanner`; `LocalVerticalSlice` went 1,585 → 1,272 lines and keeps exactly one bot concern, the one that is genuinely the bridge's — the order seats decide in. Build orders travel on `BotProfileDefinition.BuildOrder` beside the aggression / defense-bias / gold-reserve tuning that class already carried, authored in `SampleVerticalSliceContent` next to the towers they name, so nothing under `Bots/` references sample content at all; `MinimumTowerCoverage` came with them as the last per-profile number still expressed as a switch on the profile enum, and `ContentValidator` now rejects a build order naming a tower the catalog does not have, so a typo is a content error before play rather than a throw from mid-tick. **Behaviour is proved unchanged by measurement rather than asserted**, because on a move like this a rebalance and a bug are indistinguishable: a harness hashed three streams — the complete ordered event stream, a per-tick digest of every seat's gold, income, lives, elimination, send cooldown and six category tiers, and a per-tick digest of all lane route lengths plus every tower's id, owner, cell and tier — across nine configurations, seeds 1–5 at eight lanes and seed 1 at two, three, four and six. All nine are byte-identical before and after, digests and final state alike; seed 1 at eight lanes is winner P4 at tick 4471 with 369,181 events, 5,754 accepted commands and event digest `12a48345…e5c00046` on both sides, and the Unity batch playtest agrees independently at 237s with the same winner, tick, command count and final gold for all eight seats. 274 tests pass in Release with none modified. **Deliberately not moved into data:** the lane-pressure heuristic's Greedy exemption is still a check on the profile enum, because "exempt at any threshold" is not expressible as a high threshold and a content flag existing for one profile would read worse than the check does. |
 | 22 | `264991c` | `SimulationPluginSyncTests` compares the committed Unity plugin against the source build — declared members always, IL when built Release, which is what CI does. Deliberately not a byte comparison: MVID, PE stamp and PDB id are build identity and differ between machines on an in-sync plugin (measured: 148 differing bytes in an otherwise identical 135,680). Verified by flipping one constant and watching the IL half fail while the member half correctly stayed green. Caught its own first real drift twice during the session that wrote it. |
 | 27 | `264991c` | Eighteen `First`/`FirstOrDefault` catalog scans in per-tick bot and upgrade paths replaced with an id index, matching what `CombatContent` already did. |
@@ -506,27 +512,19 @@ Two decisions, then one mechanical task:
 - Decide whether AI staging intermediates (raw AIDrop contents, as opposed to selected
   production assets) belong in the repo at all.
 
-## 24. The renderer re-does per-snapshot work at per-frame rate, with string keys
-
-`UnityVerticalSliceRenderer.RenderSnapshot` runs every frame (~60 fps) against a snapshot
-that changes at ~4 Hz. Per entity per frame it allocates `EntityId.Value.ToString()`,
-concatenates `"t" + key` / `"c" + key` shadow keys, and re-applies colors, health bars
-and overlays whose inputs only change on a new tick; `new int[LaneCount + 1]` is also
-allocated each frame.
-
-Two parts: key the entity dictionaries by `long` instead of `string` (removes most of the
-per-frame garbage), and split the loop into per-frame work (transform interpolation,
-hit-flash) versus per-snapshot work (everything else), gated on a snapshot tick number.
-
 ## 25. The two biggest client classes need splitting before the HUD migration lands
 
-`UnityVerticalSliceRenderer` is 6,370 lines and owns board mesh baking, object pooling,
+`UnityVerticalSliceRenderer` is 6,826 lines and owns board mesh baking, object pooling,
 VFX, contact shadows, tower and creep motion, pressure meters, and camera configuration;
-`TouchPlacementController` is 2,007. The client has no test framework, so these files are
+`TouchPlacementController` is 2,059. The client has no test framework, so these files are
 where regressions hide. The seams are already visible: `BoardMeshBuilder` exists, the
 pooling code is self-contained, and creep vs tower presentation barely interact.
 
 Sequence this *before* the item-10 HUD migration, which will churn these same files.
+
+Line counts refreshed after item 24 (`3b51614`), which added 279 net to the renderer — the
+per-frame/per-snapshot split it made is another seam worth keeping when this is carved up,
+since the two halves of `RenderSnapshot` now have visibly different reasons to run.
 
 ## 28. CI never compiles the Unity client — gate written, blocked on a licence secret
 
@@ -652,6 +650,39 @@ simulation currently has an opinion on:
 Worth pairing with R1 (play the game with human hands) rather than designed from here: how
 long a defeated player actually wants to keep watching is the input this needs, and nobody
 has watched yet.
+
+## 36. The simulation driver rebuilds the whole snapshot, replay and bot diagnostics every frame
+
+Opened by item 24's measurement, which is the only reason it is stated with a number.
+
+`UnitySimulationDriver.Update` ends in an unconditional `RefreshSnapshot(drainEvents: true)`,
+and that calls `GetSnapshot()`, `GetReplayRecord()` **and** `GetBotDiagnostics()` — every
+frame, at ~60 fps, against a simulation that ticks at 4 Hz. None of the three is cheap:
+`VerticalSliceSnapshot`'s constructor copies the creep, tower and aim-target lists
+(deliberately, so a caller holding an old snapshot cannot watch it change underneath —
+that part is load-bearing and should stay), `GetCreepSnapshots` builds one presentation
+object per live creep, and `ReplayRecord`'s constructor does
+`AcceptedCommands = acceptedCommands.ToArray()`, which copies the entire accepted-command
+list of the match so far. Seed 1 finishes with 5,754 of them.
+
+Measured with `RendererAllocationProbe` on a seed-1 board at tick 3160 (576 creeps, 432
+towers), with the renderer component disabled and the match paused so nothing else is
+running: **~800 KB per frame**, against under 20 KB/frame for the renderer itself after item
+24. At 60 fps that is roughly 48 MB/s of managed garbage from a driver that has nothing new
+to publish on fourteen frames out of every fifteen. It is why item 24 removed essentially
+all of the renderer's per-frame allocation and left total allocation per second of play
+about where it was: the headroom went into drawing more frames, and every one of those
+frames pays this.
+
+The fix is the shape item 24 already used: a snapshot is only new when the tick advanced or
+a command was accepted, so it does not need rebuilding on a frame where neither happened.
+`GetReplayRecord` and `GetBotDiagnostics` are the easier half and the worse offenders in
+principle — nothing on the frame path reads either one until the match ends or the
+diagnostics overlay is open, so both should be pulled on demand rather than published
+speculatively.
+
+Not split per call. The ~800 KB is the three of them together, and which one dominates is
+worth a minute of measurement before the work rather than a guess.
 
 ---
 
