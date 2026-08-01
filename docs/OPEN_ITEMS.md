@@ -139,11 +139,38 @@ So the trigger is specific to `VisualReviewCaptureRunner` and scales with tower 
 Ruled out by inspection: the runner's only two `sharedMaterial` writes are on backdrop
 cubes it creates itself, not on tower materials.
 
-Not yet isolated to a line. The remaining suspects are the reflection-driven scenario
-setup (`SetPrivateField`/`SetPrivateBool`), `PrefabUtility.InstantiatePrefab` — which
-unlike `Object.Instantiate` leaves the instance connected to the asset — and the
-render-to-texture path. Whoever picks this up should start by running one capture with
-the defence-line placement disabled and checking whether the count drops to zero.
+Not yet isolated to a line.
+
+**Narrowed further by inspection, 2026-08-01 — and one conclusion above needs qualifying.**
+
+Established without running anything:
+
+- **`PrefabUtility.InstantiatePrefab` is a weak suspect, not a strong one.** It is used only
+  by the contact-sheet path, and that array holds **five** tower prefabs — the original
+  five. It therefore cannot account for the run that corrected **fifteen**.
+- **The count tracks towers placed through the SIMULATION, not prefabs the runner
+  instantiates.** `PrepareRoleLineup` places exactly 15 towers via `commands.Place*`;
+  `PlaceReviewDefenceLine` places 9. That matches the 15 and 8 observed far better than
+  anything the runner instantiates directly.
+- **Edit-mode material writes are ruled out.** Both runners enter play mode, so the classic
+  "`renderer.material` outside play mode edits the asset" trap does not apply. The write
+  path is `SetColorInChildren`, which sets `renderer.material.color` — the main colour, not
+  emission — so nothing writes `_EmissionColor` or touches the keyword directly. Whatever
+  strips it does so indirectly.
+
+**The qualification, and it matters more than the rest.** `TowerEmissionKeywordGuard` is an
+`AssetPostprocessor`: it can only observe during an asset import pass. The capture runners
+and the playtest runner do not leave the importer the same work — the playtest writes no
+assets and never calls `AssetDatabase.Refresh` at all. So the table's "0 corrected" rows for
+playtests are evidence that **the guard did not run**, which is not the same as evidence that
+**no damage occurred**. The row "batch playtest, with graphics: 0" was read above as ruling
+out the graphics device; on this reading it rules out nothing.
+
+**Revised next step.** Before disabling the defence line, make the guard observable where it
+currently is not: run a batch playtest, then force an import pass (or read the fifteen body
+materials directly) and see whether `_EMISSION` is missing. If it is, the trigger is not
+capture-specific at all and the whole table needs re-reading. That is a cheaper experiment
+than the one previously suggested and it tests the assumption everything else rests on.
 
 ## 2. Bloom cost on a physical Android device is unmeasured
 
