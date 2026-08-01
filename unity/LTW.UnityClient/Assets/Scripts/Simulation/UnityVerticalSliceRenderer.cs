@@ -22,6 +22,9 @@ namespace LTW.UnityClient.Simulation
         /// SpriteRenderer so send banners and damage numbers are never covered by board furniture.
         /// </summary>
         private const int FloatingTextSortingOrder = 100;
+
+        /// <summary>World units a board label rises over its life.</summary>
+        private const float FloatingTextRise = 0.5f;
         private const int LaneLength = 16;
         private const int LaneCount = 8;
         private const int LaneSpacing = 9;
@@ -94,6 +97,9 @@ namespace LTW.UnityClient.Simulation
         private AudioClip incomeClip = null!;
         private AudioClip leakClip = null!;
         private AudioClip eliminationClip = null!;
+
+        /// <summary>Board labels currently animating. See SpawnFloatingText and UpdateFloatingLabels.</summary>
+        private readonly List<FloatingLabel> floatingLabels = new List<FloatingLabel>();
 
         private readonly Dictionary<string, GameObject> activeTowers = new Dictionary<string, GameObject>();
         private readonly Dictionary<string, GameObject> activeCreeps = new Dictionary<string, GameObject>();
@@ -401,6 +407,7 @@ namespace LTW.UnityClient.Simulation
         private void Update()
         {
             ReleaseExpiredPresentations();
+            UpdateFloatingLabels();
             UpdateExpandingRings();
             UpdateMortarShells();
             if (presentationDetail == PresentationDetail.Disabled || simulationDriver == null)
@@ -1055,7 +1062,8 @@ namespace LTW.UnityClient.Simulation
                         var buildPosition = GridToWorld(towerPlaced.Position, towerPlaced.LaneId);
                         SpawnCellFrameCue(buildPosition, MintSignal, 0.28f);
                         SpawnEffect(buildPosition, MintSignal, 0.68f, 0.34f, BurstShape.Rise);
-                        SpawnFloatingText(buildPosition, "WARD", MintSignal, 0.62f);
+                        // No "WARD" label: it confirmed an action the player had just taken, at the
+                        // cell they had just tapped, where the tower is now visibly standing.
                         SpawnReducedEffectCue(buildPosition, "BUILD", MintSignal);
                         PlaySound(towerBuiltClip);
                         break;
@@ -1096,7 +1104,9 @@ namespace LTW.UnityClient.Simulation
                         else
                         {
                             SpawnCreepArrivalCue(spawned.DefenderId.Value, spawnColor);
-                            SpawnFloatingText(spawnPosition, SpawnLabel(spawned.CreepId.Value), spawnColor, 0.48f);
+                            // No name label. 20.6% of board text spent naming a model whose entire
+                            // silhouette pass exists to make it identifiable without one — and if it
+                            // is not identifiable, the label hides that rather than fixing it.
                             SpawnReducedEffectCue(spawnPosition, "SPAWN", spawnColor);
                         }
 
@@ -1130,7 +1140,10 @@ namespace LTW.UnityClient.Simulation
                         SpawnEffect(hitPosition, new Color(1f, 0.88f, 0.44f), 0.24f, 0.12f);
                         if (damaged.DamageDealt >= 5)
                         {
-                            SpawnFloatingText(hitPosition + Vector3.left * 0.32f, damaged.DamageDealt.ToString(), new Color(1f, 0.88f, 0.44f), 0.32f);
+                            // No damage number. It was 34.7% of all board text, and it floated over a
+                            // creep that already carries a health bar saying the same thing
+                            // continuously and exactly. The reduced-effects cue stays: at that
+                            // setting the bar is the ONLY remaining tell, so this is the fallback.
                             SpawnReducedEffectCue(hitPosition, "HIT", new Color(1f, 0.88f, 0.44f));
                         }
 
@@ -1903,8 +1916,28 @@ namespace LTW.UnityClient.Simulation
             return camera != null ? camera.transform.rotation : Quaternion.Euler(90f, 0f, 0f);
         }
 
+        /// <summary>
+        /// A board label: SDF text with an outline, rising and fading over its life.
+        /// </summary>
+        /// <remarks>
+        /// Was a legacy TextMesh that never assigned a font, so every label on the board rendered in
+        /// Unity's built-in Arial — unlit, flat, no outline, over a busy board. That is the "blocky
+        /// and plain" read, and the improvement cycle scores it as C10 Typography: "default engine
+        /// font". TextMeshPro is used for the SDF rendering rather than for the typeface: it stays
+        /// crisp at any distance and gives a real outline, which is what makes small text legible
+        /// against the board instead of dissolving into it.
+        ///
+        /// Motion carries the rest. Text used to appear, hold and vanish, which reads as a label
+        /// switching on. It now rises, fades out, and punches up in scale over its first frames, so
+        /// it reads as an event that happened.
+        /// </remarks>
         private void SpawnFloatingText(Vector3 position, string text, Color color, float duration)
         {
+            if (!IsOnActiveLane(position))
+            {
+                return;
+            }
+
             var textObject = GetTextObject();
             textObject.transform.position = position + Vector3.up * 0.55f;
             // Face the camera rather than lying flat on the board. The old fixed Euler(90,0,0) was
@@ -1912,30 +1945,117 @@ namespace LTW.UnityClient.Simulation
             // slants away and loses readability. Billboarding keeps it face-on at any camera angle.
             textObject.transform.rotation = FloatingTextRotation();
             textObject.transform.localScale = Vector3.one;
-            var mesh = textObject.GetComponent<TextMesh>();
-            if (mesh == null)
+
+            var label = textObject.GetComponent<TMPro.TextMeshPro>();
+            if (label == null)
             {
-                mesh = textObject.AddComponent<TextMesh>();
-                mesh.anchor = TextAnchor.MiddleCenter;
-                mesh.alignment = TextAlignment.Center;
-                mesh.characterSize = 0.16f;
-                mesh.fontSize = 42;
+                label = textObject.AddComponent<TMPro.TextMeshPro>();
+                label.alignment = TMPro.TextAlignmentOptions.Center;
+                label.enableWordWrapping = false;
+                label.fontSize = 3.4f;
+                label.raycastTarget = false;
+                // The outline is the whole point of moving to SDF: board text sits over lane
+                // plating, range halos and creep bodies, and an unoutlined glyph at this size loses
+                // its edges against all three.
+                //
+                // ONE shared outlined material for every label, built once (BoardTextMaterial).
+                // Two other routes were tried and neither produced an outline: setting _OutlineWidth
+                // and the OUTLINE_ON keyword on fontMaterial, and TMP's per-component outlineWidth
+                // and outlineColor. Both compiled, ran, and rendered flat glyphs. Enabling the
+                // keyword on a real material and handing it to the component is what TMP actually
+                // honours, and it batches rather than instancing a material per label.
+                label.fontSharedMaterial = BoardTextMaterial(label.font);
             }
 
-            mesh.text = text;
-            mesh.color = color;
-            mesh.characterSize = 0.16f * PresentationPreferences.TextScale;
+            label.text = text;
+            label.color = color;
+            label.fontSize = 3.4f * PresentationPreferences.TextScale;
 
             // Board furniture such as the endpoint gate plates draws through SpriteRenderers with
-            // sorting orders up to 3. A TextMesh renderer defaults to 0, so send banners spawning
-            // over a gate were being covered by it. Sort floating text above all board decoration.
+            // sorting orders up to 3, so board text sorts above all board decoration.
             var textRenderer = textObject.GetComponent<MeshRenderer>();
             if (textRenderer != null)
             {
                 textRenderer.sortingOrder = FloatingTextSortingOrder;
             }
 
+            floatingLabels.Add(new FloatingLabel(textObject, label, Time.time, duration));
             timedPresentations.Add(new TimedPresentation(textObject, Time.time + duration, textPool));
+        }
+
+        /// <summary>
+        /// Whether a world position is in the lane the camera is actually framing.
+        /// </summary>
+        /// <remarks>
+        /// Board text was drawn for all eight lanes while the camera frames one, so roughly seven
+        /// eighths of every label spawned was instantiated, positioned, billboarded, sorted and
+        /// pooled for a lane nobody could see. Measured at 36 text objects a second across a match.
+        /// Costs nothing in design to skip: the player is looking at their own lane.
+        /// </remarks>
+        private bool IsOnActiveLane(Vector3 position)
+        {
+            if (cameraFraming != LaneCameraFraming.ActiveLane)
+            {
+                return true;
+            }
+
+            var laneCentreX = LaneOffset(ActiveLaneCameraId) + BoardCenterX;
+            return Mathf.Abs(position.x - laneCentreX) <= LaneSpacing * 0.5f;
+        }
+
+        private Material boardTextMaterial;
+
+        /// <summary>
+        /// The shared outlined material every board label draws with.
+        /// </summary>
+        /// <remarks>
+        /// A dark outline is what keeps small text legible over lane plating, range halos and creep
+        /// bodies. It is a material variant rather than a per-label property because that is the
+        /// form TMP honours, and because one shared material lets all board text batch.
+        /// </remarks>
+        private Material BoardTextMaterial(TMPro.TMP_FontAsset font)
+        {
+            if (boardTextMaterial != null)
+            {
+                return boardTextMaterial;
+            }
+
+            boardTextMaterial = new Material(font.material) { name = "LTW Board Text" };
+            boardTextMaterial.EnableKeyword("OUTLINE_ON");
+            boardTextMaterial.SetFloat("_OutlineWidth", 0.25f);
+            boardTextMaterial.SetColor("_OutlineColor", new Color(0.02f, 0.03f, 0.05f, 1f));
+            return boardTextMaterial;
+        }
+
+        /// <summary>Rises, fades and punches in scale over its life. See SpawnFloatingText.</summary>
+        private void UpdateFloatingLabels()
+        {
+            for (var index = floatingLabels.Count - 1; index >= 0; index--)
+            {
+                var entry = floatingLabels[index];
+                if (entry.Object == null || entry.Label == null)
+                {
+                    floatingLabels.RemoveAt(index);
+                    continue;
+                }
+
+                var age = (Time.time - entry.SpawnedAt) / Mathf.Max(0.01f, entry.Duration);
+                if (age >= 1f)
+                {
+                    floatingLabels.RemoveAt(index);
+                    continue;
+                }
+
+                entry.Object.transform.position = entry.Origin + Vector3.up * (age * FloatingTextRise);
+                // Held solid for the first half, then faded, so a short label is legible for most of
+                // its life instead of being half-transparent the whole way.
+                var alpha = age < 0.5f ? 1f : 1f - (age - 0.5f) * 2f;
+                var colour = entry.Label.color;
+                entry.Label.color = new Color(colour.r, colour.g, colour.b, alpha);
+                // A quick overshoot on arrival, settling to 1.
+                var punch = age < 0.18f ? Mathf.Lerp(0.72f, 1.06f, age / 0.18f) : Mathf.Lerp(1.06f, 1f, Mathf.InverseLerp(0.18f, 0.34f, age));
+                entry.Object.transform.localScale = Vector3.one * Mathf.Min(punch, 1.06f);
+            }
         }
 
         private static void TriggerHapticFeedback()
@@ -2199,7 +2319,7 @@ namespace LTW.UnityClient.Simulation
                 SpawnBeam(position + new Vector3(-0.28f, 0.2f, 0.34f), position + new Vector3(0.28f, 0.2f, -0.34f), new Color(0.36f, 0.5f, 0.58f), 0.18f);
                 if (damage >= 5)
                 {
-                    SpawnFloatingText(position + Vector3.right * 0.34f, "REVEAL", color, 0.38f);
+                    // No "REVEAL" word; the reveal VFX on the creep is the tell.
                     SpawnReducedEffectCue(position + Vector3.right * 0.2f, "REVEAL", color);
                 }
 
@@ -2424,7 +2544,12 @@ namespace LTW.UnityClient.Simulation
             SpawnEffect(senderPosition, color, 0.44f, 0.24f);
             SpawnBeam(senderPosition + Vector3.up * 0.18f, defenderPosition + Vector3.up * 0.18f, color, 0.22f);
             SpawnEffect(defenderPosition, color, 0.54f, 0.3f);
-            SpawnFloatingText(senderPosition + Vector3.left * 0.42f, "SEND", color, 0.42f);
+            // Only the local player's own sends. A banner for an opponent sending into someone
+            // else's lane is 12% of all board text and nothing the player can act on.
+            if (simulationDriver != null && queued.SenderId.Equals(simulationDriver.LocalPlayerId))
+            {
+                SpawnFloatingText(senderPosition + Vector3.left * 0.42f, "SEND", color, 0.42f);
+            }
             // The large "{qty}x {NAME}" spawn banner over the defender's gate was removed: it
             // dominated the top of the board and duplicated information the send dock already
             // shows. The sender-side SEND cue and the gate effect still mark the event.
@@ -6233,6 +6358,25 @@ namespace LTW.UnityClient.Simulation
             public GameObject Object { get; }
             public PrimitiveType PrimitiveType { get; }
             public Color Color { get; }
+        }
+
+        /// <summary>One animating board label: where it started, when, and for how long.</summary>
+        private readonly struct FloatingLabel
+        {
+            public FloatingLabel(GameObject @object, TMPro.TextMeshPro label, float spawnedAt, float duration)
+            {
+                Object = @object;
+                Label = label;
+                Origin = @object.transform.position;
+                SpawnedAt = spawnedAt;
+                Duration = duration;
+            }
+
+            public GameObject Object { get; }
+            public TMPro.TextMeshPro Label { get; }
+            public Vector3 Origin { get; }
+            public float SpawnedAt { get; }
+            public float Duration { get; }
         }
 
         private readonly struct TimedPresentation

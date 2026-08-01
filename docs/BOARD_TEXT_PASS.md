@@ -1,6 +1,6 @@
 # Board Text — Review And Proposal
 
-Status: **proposed, not built** (2026-08-01). Prompted by a review note that the board text is
+Status: **built** (2026-08-01), except the aggregation item — see "What shipped" at the end. Prompted by a review note that the board text is
 "very blocky and plain and there is far too much of it popping up". Both halves measure out.
 
 ## Everything that puts text on the board
@@ -113,3 +113,45 @@ switching on.
 ## What is not in scope
 
 Balance, and the HUD stats bar. This is only about text drawn into the world on the board.
+
+## What shipped
+
+Route A, as recommended.
+
+- **TextMeshPro added** (`com.unity.ugui@2.5.0`) and its essential resources imported, which is what
+  creates a usable font asset. `TmpEssentialsImporter` does that import in batch, because the normal
+  path is a modal editor prompt a batch run never sees — and until the import happens
+  `TMP_Settings.defaultFontAsset` is null and every TMP component renders **nothing, silently**.
+- **Board labels are now SDF text with a dark outline**, on one shared material so they batch.
+- **Motion**: labels rise, hold solid for the first half of their life, then fade, with a short scale
+  overshoot on arrival. They used to appear, hold and vanish.
+- **Lane filter**: labels are skipped entirely for lanes the camera is not framing.
+- **Cuts**: damage numbers, creep spawn names, `WARD` on build, and `REVEAL` are gone, and the `SEND`
+  banner is now only drawn for the local player's own sends.
+
+### Getting the outline to render took three attempts
+
+Recorded because the first two look correct and produce flat glyphs with no error:
+
+1. `fontMaterial.EnableKeyword("OUTLINE_ON")` plus `SetFloat("_OutlineWidth", ...)` — no outline.
+2. TMP's per-component `outlineWidth` / `outlineColor` — no outline.
+3. A shared `Material` built from the font's own material with the keyword enabled, assigned through
+   `fontSharedMaterial` — works, and batches.
+
+### Not done
+
+**Aggregation.** The proposal called for accumulating the fast labels — Relay `+1` and kill bounty —
+into one `+7` per tower per second rather than seven `+1`s. That is still outstanding, and it is the
+remaining volume item now that the cuts have landed.
+
+### The batch playtest is timing out, and it is not this work
+
+Worth flagging separately. `LocalPlaytestBatchRunner` has a 180s timeout, and the last three passing
+runs took 99s, 62s and **145s** with match length climbing (4069, 3815, 4471 ticks). It now fails
+intermittently, and it failed on a **clean tree with every change here stashed**, so it is not caused
+by this pass.
+
+It also failed *silently*: `Finish` recorded the reason only into the report it writes on success, so
+a timeout exited 1 with an empty log. An hour went into bisecting changes that were not the cause.
+`Finish` now logs the reason. The timeout itself, and whatever is making matches longer, is left for
+whoever owns the economy work.

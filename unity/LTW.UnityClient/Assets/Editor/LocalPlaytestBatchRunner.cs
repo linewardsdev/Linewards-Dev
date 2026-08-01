@@ -341,6 +341,15 @@ namespace LTW.UnityClient.Editor
 
         private static void Finish(string? error)
         {
+            // Say why. This exited 1 with the reason recorded ONLY into the report file it writes on
+            // success -- so a timeout, which never reaches that write, produced a silent non-zero
+            // exit and an empty log. Diagnosing one cost an hour of bisecting changes that were not
+            // the cause.
+            if (error != null)
+            {
+                Debug.LogError($"PLAYTEST FAILED: {error}");
+            }
+
             failure = error;
             SessionState.SetBool(SessionKeyActive, false);
             EditorApplication.update -= Update;
