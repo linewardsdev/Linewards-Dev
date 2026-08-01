@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
+using LTW.Simulation.Combat;
 using LTW.Simulation.Commands;
 using LTW.Simulation.Content;
 using LTW.Simulation.Economy;
@@ -7,6 +9,22 @@ using LTW.Simulation.Primitives;
 
 namespace LTW.Simulation.Bots;
 
+/// <summary>
+/// One seat's whole opponent AI: what it sends, what it builds, and what it upgrades.
+/// </summary>
+/// <remarks>
+/// All four of those used to be split. The send decision lived here; where to build, what to build,
+/// which tier to buy and which tower to raise lived in <c>LocalVerticalSlice</c>, which is the match
+/// bridge — about a third of that class was bot logic, and its build orders named
+/// <c>SampleVerticalSliceContent</c> constants directly, so bot behaviour was compiled against
+/// sample content inside the simulation assembly (OPEN_ITEMS.md item 26). The decisions are all here
+/// now, reaching the board through <see cref="IBotMatchContext"/>, and the build orders are authored
+/// on <see cref="BotProfileDefinition"/> like every other piece of bot tuning already was.
+///
+/// Nothing about the decisions themselves changed in that move, and that is a property worth
+/// keeping: all-bot matches in this project are fully deterministic — there is no RNG anywhere in
+/// here — so a single changed decision moves match outcomes, and several tests pin exact ones.
+/// </remarks>
 public sealed class BotController
 {
     private readonly BotDecisionProfile profile;
@@ -58,6 +76,47 @@ public sealed class BotController
     /// and the whole test suite passed with it in place.
     /// </remarks>
     private long? lastWallSendTick;
+
+    /// <summary>
+    /// Everything this bot does in one tick, in the order it does it.
+    /// </summary>
+    /// <remarks>
+    /// The order is not arbitrary and is the one thing here that should not be rearranged casually.
+    ///
+    /// Sending runs FIRST (reordered 2026-07-28 — see GD_TUNING_LOG.md). Building has no cap and
+    /// used to run first, so it absorbed a bot's surplus gold into "one more tower" before a pricier
+    /// preferred creep (creep.serpent at 27g, creep.obsidian_brute at 30g) ever became affordable —
+    /// confirmed by replay analysis showing those creeps at 0 uses across whole playtests even
+    /// though they were reachable on paper. Giving the send its claim on gold first, with towers
+    /// spending only what is left, fixed the starvation without adding a new tunable cap.
+    ///
+    /// Tiers and tower upgrades run last for the same reason in reverse: they are bought from what
+    /// is genuinely surplus, so a bot that is still building never stalls to save for one.
+    /// </remarks>
+    public void TakeTurn(PlayerId playerId, IBotMatchContext match)
+    {
+        TrySend(playerId, match);
+        TryBuild(playerId, match);
+        TryBuyCategoryTier(playerId, match);
+        TryUpgradeTower(playerId, match);
+    }
+
+    /// <summary>
+    /// The one-off opening a bot plays before the first tick of an expanded-lane match.
+    /// </summary>
+    /// <remarks>
+    /// A tower and a single creep, so a large board is not eight seats staring at each other while
+    /// the first income tick arrives.
+    ///
+    /// The send deliberately does NOT go through <see cref="Decide"/>: it is the configured primary
+    /// creep at quantity 1, not a choice, and routing it through the decision would open the escort
+    /// window (<see cref="EscortFollowWindowTicks"/>) before the bot has sent anything to escort.
+    /// </remarks>
+    public void TakeOpeningTurn(PlayerId playerId, IBotMatchContext match)
+    {
+        TryBuild(playerId, match);
+        match.TrySend(playerId, creepId, quantity: 1);
+    }
 
     public BotDecision Decide(PlayerEconomyState player, ContentCatalog content, SimulationTick tick)
     {
@@ -131,6 +190,262 @@ public sealed class BotController
         var defenseBias = ResolveProfile(content).DefenseBias;
         var baseThreshold = System.Math.Max(10, 120 - defenseBias);
         return baseThreshold + ownedTowerCount * 15;
+    }
+
+    /// <summary>Sends, if this bot's own lane can currently spare the gold and the attention.</summary>
+    private void TrySend(PlayerId playerId, IBotMatchContext match)
+    {
+        if (!HasMinimumDefenseCoverage(playerId, match) || IsLaneUnderPressure(playerId, match))
+        {
+            return;
+        }
+
+        if (Decide(match.PlayerState(playerId), match.Content, match.Tick).Command is QueueSendCommand send)
+        {
+            match.TrySend(send.PlayerId, send.CreepId, send.Quantity);
+        }
+    }
+
+    /// <summary>
+    /// Whether this bot has finished the opening tower package its profile asks for.
+    /// </summary>
+    /// <remarks>
+    /// A floor gate, never a ceiling on how much a bot can build — <see cref="TryBuild"/> keeps
+    /// building past this number for as long as gold and legal cells allow. The number is authored
+    /// per profile (<see cref="BotProfileDefinition.MinimumTowerCoverage"/>); 0 means "send from the
+    /// first tick", which is how the aggressive-economy profile opens.
+    /// </remarks>
+    private bool HasMinimumDefenseCoverage(PlayerId playerId, IBotMatchContext match)
+    {
+        var coverage = ResolveProfile(match.Content).MinimumTowerCoverage;
+        return coverage <= 0 || match.TowersOwnedBy(playerId).Count >= coverage;
+    }
+
+    /// <summary>
+    /// True once this bot's own lane is carrying enough incoming creep health that it should hold
+    /// and build instead of spending gold on sends — the reactive replacement for the old fixed
+    /// opening-tower-count gate, driven by actual lane threat rather than a tick schedule.
+    /// </summary>
+    /// <remarks>
+    /// Greedy is exempt, and deliberately not by way of a very high threshold: sending is its
+    /// primary lever (see docs/ARCHITECTURE.md's Bot Controller section), not something pressure
+    /// should suppress at any level.
+    /// </remarks>
+    private bool IsLaneUnderPressure(PlayerId playerId, IBotMatchContext match)
+    {
+        if (profile == BotDecisionProfile.Greedy)
+        {
+            return false;
+        }
+
+        var incomingHealth = match.LiveCreepHealthIn(match.HomeLaneFor(playerId));
+        return incomingHealth >= PressureThreshold(match.Content, match.TowersOwnedBy(playerId).Count);
+    }
+
+    /// <summary>
+    /// Builds the next tower in this profile's authored build order, in the best mazing cell for it.
+    /// </summary>
+    /// <remarks>
+    /// Deliberately has no elimination check. A defeated seat's lane is wiped, towers and all, and a
+    /// bot that keeps rebuilding into it costs nothing and changes nothing — but adding the check
+    /// would change what every seat after it in the tick can afford, because entity ids and gold are
+    /// shared state. This is a move, not a tidy-up.
+    ///
+    /// Spending is gated on the profile's gold reserve floor, so a bot cannot build itself down to
+    /// nothing and then be unable to answer a wave.
+    /// </remarks>
+    private void TryBuild(PlayerId playerId, IBotMatchContext match)
+    {
+        var profileDefinition = ResolveProfile(match.Content);
+        var towerId = BotBuildPlanner.NextTower(profileDefinition, match.TowersOwnedBy(playerId).Count);
+        if (towerId is null)
+        {
+            return;
+        }
+
+        // Throws with a clear message rather than a bare key-not-found from the middle of a tick,
+        // matching ResolveProfile above. ContentValidator already rejects a build order naming a
+        // tower the catalog does not have, so reaching this means validation was skipped.
+        var tower = match.FindTower(towerId.Value)
+            ?? throw new InvalidOperationException($"Bot profile '{profileDefinition.Id.Value}' build order names tower '{towerId.Value}', which is not in this catalog.");
+
+        var player = match.PlayerState(playerId);
+        if (player.Gold.Amount - profileDefinition.MinimumGoldReserve < tower.Cost.Amount)
+        {
+            return;
+        }
+
+        var laneId = match.HomeLaneFor(playerId);
+        var position = BotBuildPlanner.BestMazingPlacement(match, playerId, laneId, towerId.Value, tower.RangeCells);
+        if (position is not null)
+        {
+            match.TryPlaceTower(playerId, laneId, towerId.Value, position.Value);
+        }
+    }
+
+    /// <summary>
+    /// Buys the next tier this bot can afford, in whichever category it has already committed to.
+    /// </summary>
+    /// <remarks>
+    /// Bots must buy tiers or the feature makes them strictly worse opponents: they maze well enough
+    /// now that a tier-3 human against a tier-1 bot defence would be a walkover.
+    ///
+    /// Which category: whichever this bot has ALREADY invested in — the line it has built the most
+    /// towers in, or the category it has sent the most creeps from. That mirrors what the tiers do
+    /// (deepen a commitment rather than broaden one) and needs no new tuning knob.
+    ///
+    /// Which side: from the profile's own Aggression and DefenseBias rather than a separate
+    /// heuristic, so a Greedy bot (90/10) deepens its sends, a Defensive one (20/80) deepens its
+    /// towers, and the choice is content-tunable alongside every other bot knob. This replaced an
+    /// earlier rule of "tower tier while under pressure, send tier otherwise", which read sensibly
+    /// and measured terribly: bots are under pressure most of the time, so they poured almost
+    /// everything into defence, and two of them facing each other could no longer finish a match at
+    /// ANY tower multiplier. Preference dominated the multiplier completely — holding the multiplier
+    /// and only changing which side bots buy took the same match from a stalemate past 6000 ticks to
+    /// 3336, faster than the 3627 the game takes with no tiers at all.
+    ///
+    /// A tie (Balanced, 50/50) breaks toward the SEND side deliberately. Defence already compounds
+    /// for free through an unbounded tower count, so the attacking side is the one that needs the
+    /// help, and it is the side that lets a match end.
+    ///
+    /// Gated on the reserve floor only. An additional "must still afford the next tower afterwards"
+    /// term was tried and measured worse on both counts it was meant to help: it did not recover the
+    /// mazing it was added for (lane 2 stayed at 22 cells) and it pushed match completion from 3422
+    /// ticks to 5078 by starving the creep tiers that let an attack close a game out. Running after
+    /// <see cref="TryBuild"/> already gives towers first claim on the tick's gold, which turns out to
+    /// be the whole of the protection worth having.
+    /// </remarks>
+    private void TryBuyCategoryTier(PlayerId playerId, IBotMatchContext match)
+    {
+        var player = match.PlayerState(playerId);
+        if (player.IsEliminated)
+        {
+            return;
+        }
+
+        var profileDefinition = ResolveProfile(match.Content);
+        var kind = profileDefinition.DefenseBias > profileDefinition.Aggression
+            ? CategoryKind.TowerLine
+            : CategoryKind.SendCategory;
+        var categoryIndex = kind == CategoryKind.TowerLine
+            ? MostBuiltTowerLine(playerId, match)
+            : IndexOfMax(match.SendsByCategory(playerId));
+
+        var targetTier = (kind == CategoryKind.TowerLine
+            ? player.TowerLineTier(categoryIndex)
+            : player.SendCategoryTier(categoryIndex)) + 1;
+        if (targetTier > CategoryTierRules.MaxTier)
+        {
+            return;
+        }
+
+        var cost = CategoryTierRules.CostFor(kind, targetTier);
+        if (player.Gold.Amount - profileDefinition.MinimumGoldReserve < cost)
+        {
+            return;
+        }
+
+        match.TryBuyCategoryTier(playerId, kind, categoryIndex, targetTier);
+    }
+
+    /// <summary>
+    /// Brings one of this bot's placed towers up to the line tier it has already bought.
+    /// </summary>
+    /// <remarks>
+    /// Without this a bot buys a line tier and never realises it: the tier only reaches towers built
+    /// afterwards, so a bot that has finished building would carry a tier it paid for and gets
+    /// nothing from. That would make the tier a pure waste of its gold and the bot a weaker opponent
+    /// than before the feature existed.
+    ///
+    /// Upgrades the LOWEST-tier tower first, so a bot levels its whole line evenly rather than
+    /// pouring everything into one tower — and ties break on entity id so the choice stays
+    /// deterministic for replays. Written as a single min pass rather than an
+    /// <c>OrderBy().ThenBy().First()</c>: (tier, entity id) is a total order over towers, so the two
+    /// agree by construction, and this runs once per bot per tick against every tower it owns.
+    /// </remarks>
+    private void TryUpgradeTower(PlayerId playerId, IBotMatchContext match)
+    {
+        var player = match.PlayerState(playerId);
+        if (player.IsEliminated)
+        {
+            return;
+        }
+
+        var laneId = match.HomeLaneFor(playerId);
+        TowerCombatState? candidate = null;
+        TowerDefinition? candidateDefinition = null;
+        foreach (var tower in match.TowersOwnedBy(playerId))
+        {
+            if (!tower.LaneId.Equals(laneId) || tower.Tier >= CategoryTierRules.MaxTier)
+            {
+                continue;
+            }
+
+            var definition = match.FindTower(tower.TowerId);
+            if (definition is null || tower.Tier >= player.TowerLineTier(definition.CategoryIndex))
+            {
+                continue;
+            }
+
+            if (candidate is null
+                || tower.Tier < candidate.Tier
+                || (tower.Tier == candidate.Tier && tower.EntityId.Value < candidate.EntityId.Value))
+            {
+                candidate = tower;
+                candidateDefinition = definition;
+            }
+        }
+
+        if (candidate is null)
+        {
+            return;
+        }
+
+        var cost = CategoryTierRules.TowerUpgradeCost(candidateDefinition!.Cost.Amount);
+        if (player.Gold.Amount - ResolveProfile(match.Content).MinimumGoldReserve < cost)
+        {
+            return;
+        }
+
+        match.TryUpgradeTower(playerId, laneId, candidate.Position);
+    }
+
+    /// <summary>The tower line this bot has the most towers standing in, lowest index on a tie.</summary>
+    private static int MostBuiltTowerLine(PlayerId playerId, IBotMatchContext match)
+    {
+        var counts = new int[PlayerEconomyState.CategoryCount];
+        foreach (var tower in match.TowersOwnedBy(playerId))
+        {
+            var line = match.FindTower(tower.TowerId)?.CategoryIndex ?? -1;
+            if (line >= 0 && line < counts.Length)
+            {
+                counts[line]++;
+            }
+        }
+
+        return IndexOfMax(counts);
+    }
+
+    /// <summary>
+    /// The busiest category, lowest index on a tie.
+    /// </summary>
+    /// <remarks>
+    /// The tie rule is the reason this is written out rather than being a <c>MaxBy</c>: a bot that
+    /// has committed to nothing yet must pick the same category every time, or two otherwise
+    /// identical matches diverge on their first tier purchase.
+    /// </remarks>
+    private static int IndexOfMax(IReadOnlyList<int> counts)
+    {
+        var best = 0;
+        for (var index = 1; index < counts.Count; index++)
+        {
+            if (counts[index] > counts[best])
+            {
+                best = index;
+            }
+        }
+
+        return best;
     }
 
     private CreepDefinition SelectCreep(PlayerEconomyState player, ContentCatalog content, SimulationTick tick)

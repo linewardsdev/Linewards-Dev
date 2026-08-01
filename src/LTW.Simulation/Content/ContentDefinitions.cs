@@ -278,13 +278,22 @@ public sealed class MapDefinition
 
 public sealed class BotProfileDefinition
 {
-    public BotProfileDefinition(ContentId id, string name, int aggression, int defenseBias, int minimumGoldReserve)
+    public BotProfileDefinition(
+        ContentId id,
+        string name,
+        int aggression,
+        int defenseBias,
+        int minimumGoldReserve,
+        IReadOnlyList<ContentId>? buildOrder = null,
+        int minimumTowerCoverage = 0)
     {
         Id = id;
         Name = string.IsNullOrWhiteSpace(name) ? throw new ArgumentException("Name is required.", nameof(name)) : name;
         Aggression = aggression;
         DefenseBias = defenseBias;
         MinimumGoldReserve = minimumGoldReserve;
+        BuildOrder = buildOrder?.ToArray() ?? Array.Empty<ContentId>();
+        MinimumTowerCoverage = minimumTowerCoverage;
     }
 
     public ContentId Id { get; }
@@ -296,6 +305,42 @@ public sealed class BotProfileDefinition
     public int DefenseBias { get; }
 
     public int MinimumGoldReserve { get; }
+
+    /// <summary>
+    /// The towers this profile builds, cycled by how many it already owns.
+    /// </summary>
+    /// <remarks>
+    /// Authored here rather than compiled into the bot, which is what this used to be: three
+    /// <c>ContentId[]</c> arrays inside <c>LocalVerticalSlice</c> naming
+    /// <c>SampleVerticalSliceContent</c> constants directly, so the bot's build-out was a property
+    /// of the simulation assembly rather than of the catalog it was playing with (OPEN_ITEMS.md
+    /// item 26). A catalog with a different roster could not give its bots a build order without a
+    /// code change, which is the same objection <see cref="TowerDefinition.SignalGoldPerHit"/>
+    /// records for its own number.
+    ///
+    /// It is a cycle, not a plan: <c>BuildOrder[ownedTowerCount % BuildOrder.Count]</c>. An earlier
+    /// shape switched on the first few slots and then repeated one tower forever, which meant two
+    /// of the three profiles could only ever reach 5 of the 15 towers. Every entry is therefore
+    /// reachable, and a profile's list is a flavour rather than an exhaustive roster.
+    ///
+    /// Optional, and empty means "this profile does not build" rather than a fallback roster. A bot
+    /// with no authored build order is a content decision that should be visible, not one the
+    /// simulation quietly invents a tower list for; <see cref="ContentValidator"/> checks every id
+    /// named here exists in the same catalog's towers.
+    /// </remarks>
+    public IReadOnlyList<ContentId> BuildOrder { get; }
+
+    /// <summary>
+    /// Towers this profile finishes before it is allowed to send at all. A floor, never a ceiling.
+    /// </summary>
+    /// <remarks>
+    /// Sits beside <see cref="MinimumGoldReserve"/> because it is the same kind of number — a
+    /// per-profile spending discipline — and it was the last one still expressed as a switch on the
+    /// profile enum. 0 means "send from the first tick", which is the aggressive-economy opening;
+    /// the bot keeps building well past this number as long as gold above its reserve floor and a
+    /// legal placement remain.
+    /// </remarks>
+    public int MinimumTowerCoverage { get; }
 }
 
 /// <summary>
