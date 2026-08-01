@@ -91,6 +91,30 @@ namespace LTW.UnityClient.UI
 
         private bool isMultiSelectMode;
 
+        /// <summary>How long after a tap on a tower a second tap on the SAME tower counts as a double.</summary>
+        /// <remarks>
+        /// 0.35s is the usual mobile double-tap window — long enough not to punish a deliberate,
+        /// unhurried second tap, short enough that two separate decisions a third of a second apart
+        /// are not silently merged into one.
+        /// </remarks>
+        private const float DoubleTapSeconds = 0.35f;
+
+        private Vector2Int lastTowerTapCell;
+
+        /// <summary>
+        /// When the last tower tap landed, on the UNSCALED clock.
+        /// </summary>
+        /// <remarks>
+        /// Unscaled deliberately. A double tap is a fact about the player's thumb, not about game
+        /// time, and <c>Time.time</c> is not a safe proxy here — LocalPlaytestBatchRunner drives the
+        /// editor at <c>timeScale</c> 20, which would shrink a 0.35s window to 17ms of real time and
+        /// make the gesture impossible to perform.
+        ///
+        /// Starts at negative infinity so the very first tap of a session cannot pair with the zero
+        /// value a plain float would have started at.
+        /// </remarks>
+        private float lastTowerTapAt = float.NegativeInfinity;
+
         /// <summary>Set by the first SELL tap, cleared by anything else. See DrawMultiSelectActions.</summary>
         private bool sellArmed;
         private VerticalSliceCommandResult placementPreview = VerticalSliceCommandResult.Reject(CommandRejectionReason.InvalidLane);
@@ -418,6 +442,13 @@ namespace LTW.UnityClient.UI
             {
                 if (tower.OwnerId.Equals(simulationDriver.LocalPlayerId) && tower.LaneId.Equals(simulationDriver.LocalPlayerLaneId) && tower.Position.X == cell.x && tower.Position.Y == cell.y)
                 {
+                    // Checked before the multi-select branch below, or the second tap of the gesture
+                    // would be eaten by ToggleInMultiSelection and read as "deselect this one".
+                    if (ConsumeDoubleTap(cell))
+                    {
+                        return SelectEveryTowerOfType(tower);
+                    }
+
                     if (isMultiSelectMode)
                     {
                         return ToggleInMultiSelection(tower);
@@ -562,6 +593,93 @@ namespace LTW.UnityClient.UI
         }
 
         /// <summary>
+        /// Whether this tap is the second of a double tap on the same cell, consuming it either way.
+        /// </summary>
+        /// <remarks>
+        /// The cell has to match, not just the timing. Two quick taps on two DIFFERENT towers are two
+        /// deliberate single selections, and treating them as a double would replace the player's
+        /// second choice with every tower sharing its type.
+        ///
+        /// On a hit the timestamp is reset rather than rolled forward, so three fast taps are one
+        /// double followed by a fresh single. Rolling it forward would make taps 2-and-3 fire the
+        /// gesture a second time, and on an already-complete selection that reads as a dead tap.
+        /// </remarks>
+        private bool ConsumeDoubleTap(Vector2Int cell)
+        {
+            var now = Time.unscaledTime;
+            var isDouble = cell == lastTowerTapCell && now - lastTowerTapAt <= DoubleTapSeconds;
+            lastTowerTapAt = isDouble ? float.NegativeInfinity : now;
+            lastTowerTapCell = cell;
+            return isDouble;
+        }
+
+        /// <summary>
+        /// Double tap: select every tower of the tapped tower's type, and turn MULTI on to act on them.
+        /// </summary>
+        /// <remarks>
+        /// The point is bulk upgrades. Raising eight Arrow Wards one at a time means eight taps to
+        /// select and eight panels to confirm; this makes it one gesture and one RAISE, which the
+        /// batch quote already prices and gold-limits.
+        ///
+        /// Additive rather than replacing, and that is the one real design choice here. A player who
+        /// has already picked towers by hand and then double taps has ASKED for more, not for their
+        /// work to be discarded — and because it unions, double tapping two types in turn builds a
+        /// mixed selection, which is the natural way to raise a whole defence. It also makes the
+        /// gesture idempotent: the first tap of the pair may have toggled this tower out of the
+        /// selection, and the union puts it back, so the result does not depend on whether the tower
+        /// happened to be selected beforehand.
+        ///
+        /// Scoped to the local player's own lane, matching <see cref="SelectTowerAt"/> — the batch
+        /// commands can only act on towers the player owns, so selecting anything else would build a
+        /// selection the RAISE button then silently ignored.
+        /// </remarks>
+        private bool SelectEveryTowerOfType(TowerCombatState tower)
+        {
+            if (simulationDriver?.LatestSnapshot is not { } snapshot)
+            {
+                return false;
+            }
+
+            if (!isMultiSelectMode)
+            {
+                // Clears any single selection and stands down placement, so the two modes never both
+                // think they own the next tap.
+                SetMultiSelectMode(true);
+            }
+
+            sellArmed = false;
+            var ofType = 0;
+            foreach (var candidate in snapshot.Towers)
+            {
+                if (!candidate.OwnerId.Equals(simulationDriver.LocalPlayerId)
+                    || !candidate.LaneId.Equals(simulationDriver.LocalPlayerLaneId)
+                    || !candidate.TowerId.Equals(tower.TowerId))
+                {
+                    continue;
+                }
+
+                ofType++;
+                if (!multiSelection.Any(selected => selected.Position.Equals(candidate.Position)))
+                {
+                    multiSelection.Add(candidate);
+                }
+            }
+
+            ShowSelectionRings(multiSelection);
+            ghost.SetActive(false);
+            HideBuilderAvatar();
+
+            // Reports the type count AND the total, because after a second double tap on another type
+            // those differ, and a bare "8 selected" would leave the player unsure whether the first
+            // batch survived.
+            var name = TowerRoleName(tower.TowerId.Value).ToUpperInvariant();
+            feedbackView.ShowAccepted(multiSelection.Count == ofType
+                ? $"All {ofType} {name} selected"
+                : $"All {ofType} {name} — {multiSelection.Count} selected");
+            return true;
+        }
+
+        /// <summary>
         /// Adds a tower to the multi-selection, or takes it out if it is already in.
         /// </summary>
         /// <remarks>
@@ -632,7 +750,13 @@ namespace LTW.UnityClient.UI
 
         private void DrawSelectedTowerPanel(float scale)
         {
-            if (isPlacing || selectedTower is null)
+            // commandAdapter is checked here rather than only at the two `!= null` sites further down.
+            // Below those, the panel dereferences it with `!` for MaxCategoryTier and TowerLineIndexAt,
+            // so a null adapter with a live selection threw a NullReferenceException out of OnGUI every
+            // frame the panel was up — observed in the editor log at TouchPlacementController.cs:688.
+            // Guarding at the top is the honest fix: none of this panel can be drawn without an
+            // adapter, so it should not start.
+            if (isPlacing || selectedTower is null || commandAdapter == null)
             {
                 return;
             }

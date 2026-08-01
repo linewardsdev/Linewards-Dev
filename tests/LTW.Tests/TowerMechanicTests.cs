@@ -132,11 +132,11 @@ public sealed class TowerMechanicTests
             new[] { CreepAt(service, 1, "creep.brute", pathIndex: 8) },
             new[] { Tower("tower.sapling", 10, x: 2, y: 8) });
 
-        Assert.Equal(2, DamageFrom(service, state));
+        Assert.Equal(3, DamageFrom(service, state));
     }
 
     [Fact]
-    public void Sapling_gains_one_damage_per_orthogonally_adjacent_grove_tower()
+    public void Sapling_gains_half_its_base_damage_per_orthogonally_adjacent_grove_tower()
     {
         var service = new CombatService();
         var state = new CombatState(
@@ -148,14 +148,17 @@ public sealed class TowerMechanicTests
                 Tower("tower.thorn_snare", 12, x: 2, y: 7)
             });
 
-        // 2 authored + 2 adjacent Grove towers. Only the sapling's own shot is counted; the other
-        // two are placed where they cannot also reach the creep.
+        // Grovebond is PROPORTIONAL, not a flat +1: base damage plus 50% of base per bonded
+        // neighbour. 3 authored + 2 neighbours = 3 + 3 = 6. The two were indistinguishable while
+        // Sapling's base damage was 2 (2 + 2 = 4), which is why the old name said "one damage" —
+        // raising base to 3 separated them. Only the sapling's own shot is counted; the other two
+        // towers are placed where they cannot reach the creep.
         var result = service.Advance(state, Content(), Routes(), new SimulationTick(0));
         var saplingDamage = result.Events.OfType<CreepDamagedEvent>()
             .Where(damaged => damaged.TowerEntityId.Equals(new EntityId(10)))
             .Sum(damaged => damaged.DamageDealt);
 
-        Assert.Equal(4, saplingDamage);
+        Assert.Equal(6, saplingDamage);
     }
 
     [Fact]
@@ -176,15 +179,15 @@ public sealed class TowerMechanicTests
             .Where(damaged => damaged.TowerEntityId.Equals(new EntityId(10)))
             .Sum(damaged => damaged.DamageDealt);
 
-        Assert.Equal(2, saplingDamage);
+        Assert.Equal(3, saplingDamage);
     }
 
     // ---- Spore Cloud: Rot --------------------------------------------------------------------
 
     [Theory]
-    [InlineData("creep.runner", 4)]        // 10 max health, below the step: floors at authored 4
+    [InlineData("creep.runner", 4)]        // 13 max health, below the step: floors at authored 4
     [InlineData("creep.serpent", 5)]       // 32 / 6 = 5
-    [InlineData("creep.obsidian_brute", 10)] // 60 / 6 = 10
+    [InlineData("creep.obsidian_brute", 8)] // 48 max health / 24 per step = 200% of base 4
     public void Rot_scales_with_the_targets_authored_max_health(string creepId, int expected)
     {
         var service = new CombatService();
@@ -207,7 +210,7 @@ public sealed class TowerMechanicTests
 
         var result = service.Advance(state, Content(), Routes(), new SimulationTick(0));
 
-        Assert.Equal(10, result.Events.OfType<CreepDamagedEvent>().Single().DamageDealt);
+        Assert.Equal(8, result.Events.OfType<CreepDamagedEvent>().Single().DamageDealt);
     }
 
     // ---- Bloomheart: Crowd Bloom --------------------------------------------------------------
@@ -683,8 +686,8 @@ public sealed class TowerMechanicTests
     [Theory]
     [InlineData("creep.brute", 100)]          // 24 max health: exactly one multiple, so base
     [InlineData("creep.siege", 200)]          // 48 max health: two multiples
-    [InlineData("creep.obsidian_brute", 250)] // 60 max health
-    [InlineData("creep.colossus", 375)]       // 90 max health
+    [InlineData("creep.obsidian_brute", 200)] // 48 max health
+    [InlineData("creep.colossus", 325)]       // 78 max health
     public void Rot_is_a_fixed_multiple_of_base_damage_per_target(string creepId, int expectedPercentOfBase)
     {
         var service = new CombatService();

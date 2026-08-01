@@ -95,9 +95,10 @@ public sealed class EconomyService
             return SendResult.Reject(players, CommandRejectionReason.InsufficientGold);
         }
 
+        var incomeGained = IncomeGainFor(sender.Income, creep, quantity);
         var updatedSender = sender
             .WithGold(new Gold(sender.Gold.Amount - cost))
-            .WithIncome(new Income(sender.Income.Amount + creep.IncomeGain.Amount * quantity));
+            .WithIncome(new Income(Math.Min(rules.IncomeCeiling, sender.Income.Amount + incomeGained)));
 
         // An exempt send does not arm the cooldown either. Arming it would let a Category 2 send
         // gate the next Category 1 send, which is not what "send at any time" means, and would
@@ -109,6 +110,50 @@ public sealed class EconomyService
         }
 
         return SendResult.Accept(players.Replace(updatedSender), targetId);
+    }
+
+    /// <summary>
+    /// The income a send actually grants, tapered toward zero as income approaches the ceiling.
+    /// </summary>
+    /// <remarks>
+    /// Exposed so presentation can show the player what a send is really worth right now. The nominal
+    /// <see cref="CreepDefinition.IncomeGain"/> stops being the true number once a player is climbing
+    /// the taper, and a send button advertising +5 while granting +2 is worse than no number at all.
+    ///
+    /// Below <see cref="EconomyRules.IncomeTaperStart"/> this returns the nominal gain unchanged, so
+    /// the opening and midgame are exactly as they were. Across the band above it the taper scales
+    /// linearly with remaining headroom, which keeps it proportional rather than a per-creep rule: a
+    /// creep worth five times another is still worth five times as much at every income level.
+    ///
+    /// Rounding is deliberately UP, so the cheapest gain-1 creeps keep granting their full 1 across
+    /// the whole band instead of silently becoming worthless at the first reduction — rounding down
+    /// would zero them out halfway up and quietly delete the low end of the roster, which is the same
+    /// failure the stat rebalance was fixing.
+    /// </remarks>
+    public int IncomeGainFor(Income currentIncome, CreepDefinition creep, int quantity)
+    {
+        var nominal = creep.IncomeGain.Amount * quantity;
+        if (nominal <= 0)
+        {
+            return 0;
+        }
+
+        var headroom = rules.IncomeCeiling - currentIncome.Amount;
+        if (headroom <= 0)
+        {
+            return 0;
+        }
+
+        if (currentIncome.Amount <= rules.IncomeTaperStart)
+        {
+            return Math.Min(nominal, headroom);
+        }
+
+        // Integer ceiling division of (nominal * headroom) / band. At the knee headroom equals the
+        // band width, so this returns the nominal gain and the curve joins continuously.
+        var band = rules.IncomeCeiling - rules.IncomeTaperStart;
+        var tapered = (nominal * headroom + band - 1) / band;
+        return Math.Min(Math.Max(1, tapered), headroom);
     }
 
     public EconomyResult ApplyKillBounty(EconomyPlayerSet players, PlayerId defenderId, CreepDefinition creep)

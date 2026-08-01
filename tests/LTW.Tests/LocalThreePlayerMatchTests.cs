@@ -57,6 +57,14 @@ public sealed class LocalThreePlayerMatchTests
     /// stalemate. The game needs a closing mechanism against competent defence — escalating creep strength
     /// over time, an income cap, or a sudden-death phase. Raised as P1 in
     /// docs/GAMEPLAY_REVIEW_FINDINGS.md.
+    ///
+    /// UN-SKIPPED 2026-07-30: that stalemate turned out to be a bot-pressure bug (a filter missing
+    /// !HasLeaked), not a balance property. Both notes above are kept because the SECOND half of the
+    /// prescription came true anyway. Capping the runaway income loop in 2026-08-01 reproduced a
+    /// genuine non-terminating match — this seed ran past 6,000 ticks with the cap and no other
+    /// change — which is what the "income cap" option costs if taken alone. Unbounded income had
+    /// been the de-facto closing mechanism, so MatchEscalationRules (the "escalating creep strength"
+    /// option) had to land with it. The two are only correct together.
     /// </remarks>
     [Fact]
     public void Two_bots_complete_a_local_carousel_match()
@@ -86,6 +94,11 @@ public sealed class LocalThreePlayerMatchTests
         // Upper bound raised to 5000 alongside CombatService.BaseMovementCost. Creeps cover a third
         // of the ground per tick, so a match that used to finish at 2,911 ticks now takes 3,527 —
         // in wall-clock terms 12.1 minutes became 14.7, since the tick rate itself did not change.
+        // Bound held at 5000 through the income ceiling: this seed moves to 4,179, well inside it.
+        // Worth knowing that the two new constants were tuned AGAINST this bound rather than merely
+        // checked against it — MatchEscalationRules.PercentPerInterval 12 lands at 5,229 and misses,
+        // which is why the shipped value is 20. Loosening this bound instead of raising the slope
+        // would have been the wrong move: the number here is a pacing target, not a safety net.
         Assert.InRange(slice.MatchSummary!.CompletedAtTick.Value, 150, 5_000);
         Assert.NotEmpty(slice.GetReplayRecord().AcceptedCommands);
     }
