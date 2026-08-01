@@ -59,3 +59,7 @@ Desktop.ini
 
 # Unity mono crash dumps, written into the project root on unclean editor exit
 mono_crash.mem.*.blob
+
+# Agent worktrees and session scratch. These are nested git repos; committing them
+# stages embedded repositories that a clone cannot resolve.
+.claude/
