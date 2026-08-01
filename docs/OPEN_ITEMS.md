@@ -492,15 +492,22 @@ The item's "at minimum" clause turned out to be **already satisfied**: item 22's
 configuration where its IL comparison is meaningful, so plugin drift is already caught on
 every push.
 
-The compile itself is now written: `.github/workflows/unity-compile.yml` builds the client
+The compile itself is now written: `docs/ci/unity-compile.yml` builds the client
 with `game-ci/unity-builder`. A build rather than an `-executeMethod` that returns, because
 editor scripts compile during import and runtime scripts during the build, so only a build
 covers both halves — and the editor tooling is the half that keeps breaking.
 
-**Blocked on:** a Unity licence is an account credential and cannot live in the repo. The
-job is gated on the secret existing, so with none configured it reports "not configured",
-skips, and cannot break the existing pipeline. Adding `UNITY_LICENSE`, `UNITY_EMAIL` and
-`UNITY_PASSWORD` to the repository secrets turns it on with no further edit.
+**Blocked on two owner actions, neither of them engineering.**
+
+1. **A push credential with GitHub's `workflow` scope.** The token this repo is pushed with
+   does not have it, so any commit touching `.github/workflows/` is rejected outright — and
+   that rejects the whole push, including unrelated work in the same ref. The workflow is
+   therefore staged at [`ci/unity-compile.yml`](ci/unity-compile.yml) with the one-line
+   `git mv` to activate it in [`ci/README.md`](ci/README.md).
+2. **A Unity licence in the repository secrets.** It is an account credential and cannot live
+   in the repo. The job is gated on `UNITY_LICENSE` existing, so with none configured it
+   reports "not configured", skips, and cannot break the existing pipeline. Adding
+   `UNITY_LICENSE`, `UNITY_EMAIL` and `UNITY_PASSWORD` turns it on with no further edit.
 
 **Unverified, and unverifiable until then.** Without a licence the workflow cannot be run
 even once, so the first licensed run is the real test of that file rather than a formality.
