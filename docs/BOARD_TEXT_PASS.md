@@ -1,0 +1,115 @@
+# Board Text — Review And Proposal
+
+Status: **proposed, not built** (2026-08-01). Prompted by a review note that the board text is
+"very blocky and plain and there is far too much of it popping up". Both halves measure out.
+
+## Everything that puts text on the board
+
+Sixteen call sites, all through `UnityVerticalSliceRenderer.SpawnFloatingText`. Counts are from one
+full 8-lane bot match, seed 1, 2400 ticks (~600s of play), counted off the simulation events that
+drive them.
+
+| Text | Trigger | Count | Share |
+| --- | --- | --- | --- |
+| Damage number | `CreepDamagedEvent`, only when damage >= 5 | 7,501 | 34.7% |
+| Creep name on spawn | `CreepSpawnedEvent` | 4,470 | 20.6% |
+| `+N` kill bounty | `CreepKilledEvent` | 3,674 | 17.0% |
+| `SEND` banner | `CreepQueuedEvent` | 2,623 | 12.1% |
+| Relay `+1` | `TowerEarnedGoldEvent` | 1,900 | 8.8% |
+| `-N LIFE`, `+N` bounty, `+N LIFE` steal | `LeakEvent`, up to 3 texts per leak | 692 | 3.2% |
+| `WARD` | `TowerPlacedEvent` | 432 | 2.0% |
+| `+N income` | `IncomeTickEvent` | 354 | 1.6% |
+| `TRANSFER` | creep crossing to the next lane | (in spawn count) | — |
+| `PLAYER n OUT` / `PLAYER n WINS` | elimination, match end | 1 | ~0% |
+| `REVEAL` | Shade creep revealed | rare | — |
+| `+N` sell refund | `TowerSoldEvent` | rare | — |
+
+**21,647 popups in 600 seconds — 36 per second.**
+
+## Why there is too much of it
+
+Three separate causes, and only one of them is about volume per se.
+
+### 1. None of it is filtered to the lane you are watching
+
+The event loop draws text for all eight lanes. The camera frames one. So roughly **seven eighths of
+every text object spawned is for a lane nobody can see** — it is instantiated, positioned,
+billboarded, sorted and pooled, then expires off-camera.
+
+This is the single cheapest fix in this document and it costs nothing in design: the text that
+matters to the player is not affected at all, because the player is looking at their own lane.
+
+### 2. The high-frequency items duplicate information already on screen
+
+- **Damage numbers (34.7%)** sit on top of a creep that already has a health bar. The bar shows the
+  same fact continuously and more precisely than a number that appears for 0.32s.
+- **Creep names on spawn (20.6%)** label a model whose entire silhouette pass exists to make it
+  identifiable without a label. `TOWER_ANIMATION_ALIGNMENT.md` and the creep silhouette work both
+  argue the shape should carry the identity; the label says it does not.
+- **`WARD` on build (2%)** announces an action the player just took, at the cell they just tapped.
+
+### 3. It is Unity's default font, unstyled
+
+`SpawnFloatingText` uses the legacy `TextMesh` component and never assigns `font`, so every label on
+the board is **Unity's built-in Arial**, unlit, flat-coloured, with no outline and no shadow, over a
+busy board. That is the "blocky and plain" read, and it is also exactly what the improvement cycle
+scores as **C10 Typography: "Default engine font"** against a target of "an authored typeface,
+consistently applied, legible at phone size".
+
+There is a `sortingOrder` override on the renderer to keep it above board decoration, which works,
+but it is the only styling the text has.
+
+## Proposal
+
+### Cut
+
+| Text | Why |
+| --- | --- |
+| Damage number | The health bar already says it, continuously and exactly |
+| Creep name on spawn | The silhouette is supposed to carry this; if it does not, fix the model |
+| `WARD` on build | Confirms an action the player just performed at a cell they just tapped |
+| `REVEAL` | The Shade's own reveal VFX is the tell; the word is redundant |
+
+That removes **57% of all board text** and no information the player did not already have.
+
+### Keep, because each is a resource change the player cannot otherwise see
+
+`+N` kill bounty, `+N income`, `-N LIFE` / `+N LIFE` steal, Relay `+1`, `PLAYER n OUT` / `WINS`.
+
+Two adjustments to what remains:
+
+- **Aggregate the fast ones.** Relay `+1` fires on every hit and kill bounty on every kill; both
+  read as spam at rate. Accumulate per tower per second and emit one `+7` rather than seven `+1`s.
+- **Restrict `SEND` to the local player's own sends.** It is 12% of all text, and a banner for an
+  opponent's send into someone else's lane is not actionable.
+
+### Make what is left look better
+
+The constraint worth deciding first: **TextMeshPro is not in the package manifest and there are no
+font assets in the project at all.** The manifest is deliberately slim, so this is a dependency
+decision rather than a styling one — the same shape as the particle module in
+`TOWER_WEAPON_VFX_PROPOSAL.md`, which turned out to be the reason fourteen VFX prefabs had never
+been authorable.
+
+Two routes:
+
+**A. Add TextMeshPro and an authored font.** Crisp at any scale, real outline and gradient, proper
+kerning. Costs a package dependency and a font asset with a license to record in the art pipeline's
+provenance log. This is what C10 actually asks for.
+
+**B. Style the legacy TextMesh.** No new dependency. An outline can be faked by drawing the label
+four times offset by a pixel behind the main draw, plus a drop shadow and a rise-and-fade with a
+small scale punch on spawn. Cheaper to do, visibly better than today, and still Arial underneath —
+it would not clear C10.
+
+**Recommendation: A.** Board text is the last place in this game still shipping engine defaults, the
+improvement cycle scores it as a blocking category from Wave 3, and route B leaves the underlying
+typeface unchanged while spending most of the same effort.
+
+Either way the motion should change with it: text currently appears, holds and vanishes. A short
+rise with a fade-out and a scale punch on the first frames reads as an event rather than as a label
+switching on.
+
+## What is not in scope
+
+Balance, and the HUD stats bar. This is only about text drawn into the world on the board.
