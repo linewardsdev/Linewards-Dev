@@ -63,6 +63,7 @@ than left as written; each carries its own dated finding.
 | --- | --- | --- |
 | 22 | `264991c` | `SimulationPluginSyncTests` compares the committed Unity plugin against the source build — declared members always, IL when built Release, which is what CI does. Deliberately not a byte comparison: MVID, PE stamp and PDB id are build identity and differ between machines on an in-sync plugin (measured: 148 differing bytes in an otherwise identical 135,680). Verified by flipping one constant and watching the IL half fail while the member half correctly stayed green. Caught its own first real drift twice during the session that wrote it. |
 | 27 | `264991c` | Eighteen `First`/`FirstOrDefault` catalog scans in per-tick bot and upgrade paths replaced with an id index, matching what `CombatContent` already did. |
+| 32 (new) | `bd384c7` | The batch playtest's 180s wall-clock budget had quietly become too small rather than generous, so it failed intermittently — including on a clean tree, which cost an hour of bisecting changes that were not the cause. Not a regression: `MatchEscalationRules` deliberately closes matches by escalating sent-creep health, and its own sweep table records "8-lane close 4472" for the start tick it picked. Measured directly — all-bot matches are deterministic and seeds 1-5 each ended at exactly tick 4471. Budget raised to 420s, roughly 3x the slowest observed run. `Finish` also now LOGS its failure reason: it had recorded it only into the report written on success, so a timeout exited 1 with an empty log. |
 | 23 (part) | `264991c` | Movement and healing no longer rebuild the creep array per creep, and `CombatState` no longer copies twice per mutation or copies the collection that did not change. The attack phase is still quadratic — see the rewritten item. |
 
 **The plan that sequences this work is [`GRAPHICS_AA_UPLIFT.md`](GRAPHICS_AA_UPLIFT.md).**
@@ -211,21 +212,38 @@ COULD read; an overhanging shell takes it to zero regardless.
 Findings from the holistic graphics review. Full context, sequencing and the raised
 quality target are in [`GRAPHICS_AA_UPLIFT.md`](GRAPHICS_AA_UPLIFT.md).
 
-## 10. No font asset, and the HUD structurally cannot be animated
+## 10. The HUD structurally cannot be animated — the font half is now resolved
 
-Two separate problems that have to be solved together.
+Was two problems. One is fixed; the other is untouched and is the expensive one.
 
-- **There is not a single `.ttf`, `.otf` or SDF asset in the project.** The game renders
-  in Unity's default IMGUI skin font, on 100% of frames. `BRANDING_GUIDE.md` describes
-  typography in prose but names no typeface. This is one of the fastest "unfinished" tells
-  in a mobile game.
-- **The entire HUD is IMGUI** — `OnGUI` across 9 files, `GUI.skin`-derived styles, with no
-  uGUI, no UI Toolkit, no TextMeshPro and no tween library. IMGUI is immediate-mode: there
-  is no retained object to animate, so *every* UI motion item — scale pops, easing,
-  transitions, state tweens — is blocked until the HUD is migrated.
+**Resolved 2026-08-01 — the project now has a font asset and an SDF text stack.** The
+board-text pass added `com.unity.ugui` (which is how TextMeshPro ships in Unity 6) and
+imported TMP's essential resources, so LiberationSans SDF is a real asset in the project.
+Board labels were rebuilt on it: SDF glyphs with a dark outline on one shared material,
+rising and fading with a scale punch. The original wording — "not a single `.ttf`, `.otf`
+or SDF asset in the project", "no TextMeshPro" — is no longer true.
 
-**This is the largest hidden cost in the uplift and no existing doc acknowledges it.**
-Decide the target technology before committing to any UI polish date. Wave 3.1–3.2.
+Two things learned there that the HUD migration will hit as well, recorded so it does not
+cost the same time twice:
+
+- TMP renders **nothing at all, silently**, until its essential resources are imported.
+  That import is normally a modal editor prompt, which a batch run never sees.
+  `Assets/Editor/TmpEssentialsImporter.cs` does it non-interactively and is idempotent.
+- An outline does not apply through `fontMaterial` keyword pokes, nor through TMP's
+  per-component `outlineWidth`. Both compile, run, and produce flat glyphs with no error.
+  Only a shared `Material` with `OUTLINE_ON` enabled, assigned via `fontSharedMaterial`,
+  is honoured — and it batches, which the per-label routes do not.
+
+**Still open: the entire HUD is IMGUI** — `OnGUI` across 9 files, `GUI.skin`-derived
+styles. IMGUI is immediate-mode: there is no retained object to animate, so every UI motion
+item — scale pops, easing, transitions, state tweens — remains blocked until the HUD is
+migrated. The HUD also still draws in Unity's default IMGUI skin font, because that is a
+property of IMGUI rather than of the missing asset; having the asset does not change it.
+
+What has changed is the risk profile. The dependency decision is made, the package is in,
+and the text stack is proven in-tree on real content, so the migration no longer has to
+carry that question. **Decide the target technology (uGUI vs UI Toolkit) before committing
+to any UI polish date.** Wave 3.1-3.2.
 
 ## 11. Seven creeps have no animation, and the eight that do have one clip
 
@@ -447,13 +465,27 @@ assembly — against the project's own "data drives balance" principle, and in t
 Move the decision logic into `Bots/` and express build orders as content data. This
 serves R3 directly.
 
-## 28. CI never compiles the Unity client
+## 28. CI never compiles the Unity client — gate written, blocked on a licence secret
 
-Only the .NET solution is checked. The ~10k lines of Editor tooling and the client
-scripts compile only when someone opens Unity locally, so a broken editor script surfaces
-days later as a mystery in the other agent's session. Add a batch-mode compile check
-(license permitting) — or at minimum item 22's DLL-drift check, which catches the most
-dangerous subset.
+**Partly resolved 2026-08-01. The remaining half needs an owner action, not engineering.**
+
+The item's "at minimum" clause turned out to be **already satisfied**: item 22's
+`SimulationPluginSyncTests` runs under CI's `--configuration Release`, which is exactly the
+configuration where its IL comparison is meaningful, so plugin drift is already caught on
+every push.
+
+The compile itself is now written: `.github/workflows/unity-compile.yml` builds the client
+with `game-ci/unity-builder`. A build rather than an `-executeMethod` that returns, because
+editor scripts compile during import and runtime scripts during the build, so only a build
+covers both halves — and the editor tooling is the half that keeps breaking.
+
+**Blocked on:** a Unity licence is an account credential and cannot live in the repo. The
+job is gated on the secret existing, so with none configured it reports "not configured",
+skips, and cannot break the existing pipeline. Adding `UNITY_LICENSE`, `UNITY_EMAIL` and
+`UNITY_PASSWORD` to the repository secrets turns it on with no further edit.
+
+**Unverified, and unverifiable until then.** Without a licence the workflow cannot be run
+even once, so the first licensed run is the real test of that file rather than a formality.
 
 ---
 
