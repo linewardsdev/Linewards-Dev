@@ -371,6 +371,20 @@ art textures, which will keep surfacing as mystery churn in unrelated commits.
 
 Affects: brute, runner, shade, siege, swarm, arrow, control (x2), prism, pulse, relay.
 
+**The silent half is fixed (2026-08-01); the decision is not.** `repack_metallic_smoothness.py`
+now compares what it is about to write against what is committed and, when they differ,
+leaves the file alone, names it, and exits 2. `--force` writes anyway, for whoever adopts a
+run's output as the new committed art. Comparison is on decoded pixels rather than file
+bytes, since PNG encoders may differ in filtering and chunk layout for an identical image.
+
+Verified by running it under Blender 5.2 against real committed art: the Swarm map — one of
+the eleven — was refused with `git status` clean afterwards, and the same run under `--force`
+wrote normally to a scratch copy.
+
+**Still a decision, and still yours:** whether the committed 4096-derived maps or the
+regenerable 1024-derived ones are the art this game ships. Nothing here answers that; it only
+means a stray re-run can no longer answer it by accident.
+
 ## 19. Eight of fifteen creeps have no usable emissive detail
 
 Sharper than the count in the old item 7, and measured from the maps rather than the

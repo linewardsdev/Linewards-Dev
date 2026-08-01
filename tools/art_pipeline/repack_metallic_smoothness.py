@@ -80,6 +80,14 @@ def parse_args() -> argparse.Namespace:
         "are low-frequency data, so the source resolution is rarely worth keeping.",
     )
     parser.add_argument("--dry-run", action="store_true", help="Report what would be written and exit.")
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help=(
+            "Overwrite outputs whose committed pixels differ from what this run produces. "
+            "Without it those files are left alone and the run exits 2. See open item 18."
+        ),
+    )
     return parser.parse_args(argv)
 
 
@@ -97,8 +105,51 @@ def box_downsample(pixels: np.ndarray, width: int, height: int, max_size: int) -
     return blocks.mean(axis=(1, 3)).reshape(-1, 4), target_width, target_height
 
 
+# Set from --force in main(). Module level because _write_linear is reached down several call
+# paths that would otherwise each have to thread the flag through untouched.
+ALLOW_OVERWRITE_DIVERGENT = False
+
+# Outputs this run declined to overwrite, reported together at the end.
+DIVERGENT: list[Path] = []
+
+
 def _write_linear(pixels: np.ndarray, width: int, height: int, path: Path, name: str) -> None:
-    """Save an RGBA buffer as a non-colour PNG."""
+    """Save an RGBA buffer as a non-colour PNG, refusing to silently rewrite tracked art.
+
+    Open item 18: eleven of the twenty-one committed maps were baked from 4096x4096 sources
+    that a later commit replaced with 1024 versions, so a plain re-run rewrites them with up
+    to 0.46 per-pixel difference in metallic. Which version is better is a genuine decision
+    and this does not make it — it only stops the rewrite happening SILENTLY, which is what
+    turned it into mystery churn in unrelated commits.
+
+    Compares decoded pixels rather than file bytes: PNG encoders are free to differ in
+    filtering and chunk layout for identical images, so a byte comparison would report drift
+    that is not there.
+    """
+    if path.exists() and not ALLOW_OVERWRITE_DIVERGENT and _differs_on_disk(pixels, width, height, path):
+        DIVERGENT.append(path)
+        return
+
+    _save_linear(pixels, width, height, path, name)
+
+
+def _differs_on_disk(pixels: np.ndarray, width: int, height: int, path: Path) -> bool:
+    """Whether the committed image at path decodes to something other than these pixels."""
+    try:
+        existing, existing_width, existing_height = _load_rgba(path)
+    except Exception:
+        # Unreadable or unexpected: treat as different so the caller reports rather than
+        # overwrites. Being wrong in this direction costs a message; the other costs the art.
+        return True
+
+    if (existing_width, existing_height) != (width, height):
+        return True
+
+    return not np.array_equal(existing, pixels.reshape(existing.shape))
+
+
+def _save_linear(pixels: np.ndarray, width: int, height: int, path: Path, name: str) -> None:
+    """Unconditional save. See _write_linear for the guard in front of it."""
     output = bpy.data.images.new(name, width=width, height=height, alpha=True)
     try:
         # The source maps are linear data, so keep them out of the sRGB transfer path.
@@ -198,6 +249,9 @@ def repack_separate(metallic_path: Path, roughness_path: Path, max_size: int) ->
 
 def main() -> int:
     args = parse_args()
+    global ALLOW_OVERWRITE_DIVERGENT
+    ALLOW_OVERWRITE_DIVERGENT = args.force
+    DIVERGENT.clear()
     root = Path(args.root).resolve()
     if not root.is_dir():
         print(f"error: {root} is not a directory", file=sys.stderr)
@@ -230,7 +284,9 @@ def main() -> int:
         width, height, occlusion_note = repack(source, args.max_size)
         if OCCLUSION_NAME in occlusion_note:
             occlusion_written += 1
-        print(f"repacked {relative} ({width}x{height}) -> {OUTPUT_NAME}; {occlusion_note}")
+        written = source.with_name(OUTPUT_NAME) not in DIVERGENT
+        verb = "repacked" if written else "SKIPPED (differs from committed)"
+        print(f"{verb} {relative} ({width}x{height}) -> {OUTPUT_NAME}; {occlusion_note}")
 
     for metallic in separate:
         relative = metallic.relative_to(root)
@@ -253,6 +309,24 @@ def main() -> int:
         )
     else:
         print(f"done: {len(sources)} packed map(s), {len(separate)} separate pair(s)")
+
+    if DIVERGENT:
+        print(
+            f"\nrefused to overwrite {len(DIVERGENT)} committed map(s) that differ from what "
+            f"this run produces:",
+            file=sys.stderr,
+        )
+        for path in DIVERGENT:
+            print(f"  {path}", file=sys.stderr)
+        print(
+            "\nThis is open item 18. Those maps were baked from 4096x4096 sources that a later "
+            "commit replaced with 1024 versions, so the repo can no longer regenerate its own "
+            "artefacts. Which version is better is a decision nobody has made — re-run with "
+            "--force ONLY if you intend to adopt this run's output as the new committed art.",
+            file=sys.stderr,
+        )
+        return 2
+
     return 0
 
 
