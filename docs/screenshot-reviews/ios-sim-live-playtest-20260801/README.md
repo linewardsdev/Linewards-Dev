@@ -44,6 +44,16 @@ inspect at native resolution before calling anything invisible.**
    Related, likely separate: URP logs
    `RenderPass: Attachment 0 was created with 4 samples but 1 samples were requested`.
 
+   **Correction, 2026-08-01 (`11524ec`): the shader was not the cause.** Compiled
+   explicitly for Metal/iOS, the built-in-pipeline pass succeeds on every variant it has,
+   so nothing fell back to an error material. The magenta is `GameObject.CreatePrimitive`:
+   URP's `defaultMaterial` returns null in a player, so the two cube children that make up
+   each creep health bar arrive with no material at all. Only the health bars are magenta
+   in these four captures — the pressure meters sit in the lane gutters and are not in
+   frame in any of them, so "and pressure meter" above was inference. Both the shader and
+   the primitive material are fixed; see OPEN_ITEMS item 30's ledger row. The MSAA line is
+   real and separate, and is now OPEN_ITEMS item 32.
+
 2. **No eliminated/defeat state in the UI** (item 31). After PLAYER 1 OUT the send dock
    stayed open and browsable, BUILD/SEND remained active, and the HUD still showed `+10`
    income for a seat that earns nothing. No results/defeat flow appeared.
