@@ -52,6 +52,15 @@ public sealed class GameplayScenarioTests
         RunTicks(slice, 30);
         Assert.True(slice.QueueSend(new PlayerId(3), SampleVerticalSliceContent.BruteCreepId).Accepted);
 
+        // Pressure raised from a single Brute to a Brute plus a Siege after the 2026-07-31 stat
+        // pass. Two towers used to be unable to stop one Runner and one Brute, and the leak this
+        // scenario asserts came for free; now that a cheap tower can actually threaten a mid-weight
+        // creep, the same pressure is simply held. Adding a heavy keeps the scenario about a defence
+        // that is overwhelmed rather than about towers that could not fight — which is the thing the
+        // leak assertion below is here to evidence.
+        RunTicks(slice, 30);
+        Assert.True(slice.QueueSend(new PlayerId(3), SampleVerticalSliceContent.SiegeCreepId).Accepted);
+
         RunTicks(slice, 120);
 
         var evidence = CaptureEvidence(slice);

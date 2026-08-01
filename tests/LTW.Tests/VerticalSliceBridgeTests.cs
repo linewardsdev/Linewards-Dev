@@ -472,7 +472,7 @@ public sealed class VerticalSliceBridgeTests
         var shade = content.Creeps.Single(creep => creep.Id.Equals(SampleVerticalSliceContent.ShadeCreepId));
         var siege = content.Creeps.Single(creep => creep.Id.Equals(SampleVerticalSliceContent.SiegeCreepId));
 
-        Assert.Equal(2, arrow.Damage);
+        Assert.Equal(3, arrow.Damage);
         Assert.Equal(2, arrow.AttackCooldownTicks);
         Assert.Equal(2, relay.Damage);
         Assert.Equal(2, relay.RangeCells);
