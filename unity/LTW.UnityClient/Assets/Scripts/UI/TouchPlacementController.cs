@@ -163,6 +163,11 @@ namespace LTW.UnityClient.UI
         {
             isPaletteExpanded = false;
             selectedTower = null;
+
+            // Multi-select ends here too. Its RAISE and SELL buttons live in the launcher strip the
+            // dock covers, so leaving the mode on while sending left it active but unreachable —
+            // board taps kept toggling towers into a batch the player could not see or act on.
+            SetMultiSelectMode(false);
             HideSelectionRing();
 
             if (isPlacing)
@@ -1660,6 +1665,11 @@ namespace LTW.UnityClient.UI
         private void OpenTowerPalette()
         {
             CloseSendDock();
+            // Symmetric with CloseBottomPanelsForSend. Today the BUILD button is not even drawn
+            // while multi-select is on — RAISE occupies its slot — so this cannot currently be
+            // reached in that state. It is here so that stops being load-bearing: any future route
+            // into the palette ends the mode rather than leaving it live under a panel.
+            SetMultiSelectMode(false);
             isPaletteExpanded = true;
             selectedTowerCategory = -1;
         }
@@ -1871,6 +1881,13 @@ namespace LTW.UnityClient.UI
             var scale = MobileViewportLayout.UiScale();
             var frame = MobileViewportLayout.ScreenRect();
             var guiPoint = new Vector2(screenPosition.x, Screen.height - screenPosition.y);
+
+            // The send dock is drawn by another component, so this gate has to ask it rather than
+            // assume. Without this, every tap on an open dock also landed on the board.
+            if (SendDock?.ContainsPoint(guiPoint) == true)
+            {
+                return true;
+            }
 
             if (isMultiSelectMode && multiSelection.Count > 0
                 && (MultiSelectRaiseRect(scale, frame).Contains(guiPoint) || MultiSelectSellRect(scale, frame).Contains(guiPoint)))
