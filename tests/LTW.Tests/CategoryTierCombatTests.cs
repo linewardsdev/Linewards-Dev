@@ -116,6 +116,7 @@ public sealed class CategoryTierCombatTests
     {
         var slice = new LocalVerticalSlice(SampleVerticalSliceContent.Create(), new LocalMatchOptions(seed: 1, laneCount: 3), enableBots: false);
         slice.GrantLocalPlaytestGold(new PlayerId(1), new Gold(5000));
+        slice.GrantLocalPlaytestIncome(new PlayerId(1), new Income(1000));
 
         // Build FIRST, buy the line tier after.
         Assert.True(slice.PlaceTower(new PlayerId(1), new LaneId(1), SampleVerticalSliceContent.TowerId, new GridPosition(2, 4)).Accepted);
@@ -138,6 +139,7 @@ public sealed class CategoryTierCombatTests
     {
         var slice = new LocalVerticalSlice(SampleVerticalSliceContent.Create(), new LocalMatchOptions(seed: 1, laneCount: 3), enableBots: false);
         slice.GrantLocalPlaytestGold(new PlayerId(1), new Gold(5000));
+        slice.GrantLocalPlaytestIncome(new PlayerId(1), new Income(1000));
 
         Assert.True(slice.BuyCategoryTier(new PlayerId(1), CategoryKind.TowerLine, Arcane, 2).Accepted);
         Assert.True(slice.PlaceTower(new PlayerId(1), new LaneId(1), SampleVerticalSliceContent.TowerId, new GridPosition(2, 4)).Accepted);

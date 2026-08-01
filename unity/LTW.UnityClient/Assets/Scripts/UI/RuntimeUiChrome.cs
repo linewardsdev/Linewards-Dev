@@ -410,7 +410,9 @@ namespace LTW.UnityClient.UI
             Color accent,
             float scale,
             GUIStyle tierStyle,
-            GUIStyle buttonStyle)
+            GUIStyle buttonStyle,
+            int requiredIncome = 0,
+            int currentIncome = 0)
         {
             var row = CategoryTierRowRect(card, scale);
 
@@ -429,11 +431,20 @@ namespace LTW.UnityClient.UI
                 return false;
             }
 
+            // Income is named BEFORE gold, because the two are fixed by opposite actions and only
+            // one of them is fixed by waiting. "UP 140G" on a card that will be refused for income
+            // tells a player to keep banking, which is the one thing that cannot help — income only
+            // rises by sending, and sending spends the gold they were told to save.
+            var incomeShort = currentIncome < requiredIncome;
+            var label = incomeShort ? $"NEED +{requiredIncome}" : $"UP {upgradeCost}G";
+            var enabled = canAfford && !incomeShort;
+
             var previousEnabled = GUI.enabled;
-            GUI.enabled = canAfford;
-            buttonStyle.fontSize = Mathf.RoundToInt(9f * scale);
-            var pressed = DrawPanelButton(buttonRect, $"UP {upgradeCost}G", canAfford ? accent : DisabledEdge, scale, buttonStyle);
+            GUI.enabled = enabled;
+            buttonStyle.fontSize = Mathf.RoundToInt((incomeShort ? 8f : 9f) * scale);
+            var pressed = DrawPanelButton(buttonRect, label, enabled ? accent : DisabledEdge, scale, buttonStyle);
             GUI.enabled = previousEnabled;
+            buttonStyle.fontSize = Mathf.RoundToInt(9f * scale);
             return pressed;
         }
 

@@ -59,6 +59,39 @@ public static class CategoryTierRules
     }
 
     /// <summary>
+    /// Income a player must already be earning before a tier can be bought, as a share of its price.
+    /// </summary>
+    /// <remarks>
+    /// Half, so a tier has to pay for itself in about two income ticks before you are allowed to buy
+    /// it. Expressed as a share rather than a second hand-authored table for the same reason
+    /// <see cref="TowerUpgradePercentOfCost"/> is: the requirement then tracks the price
+    /// automatically, and a future retune of TowerLineCost or SendCategoryCost cannot leave a
+    /// threshold behind pointing at a number that no longer exists.
+    /// </remarks>
+    private const int MinimumIncomePercentOfCost = 50;
+
+    /// <summary>
+    /// Income required before <paramref name="targetTier"/> may be bought for this category.
+    /// </summary>
+    /// <remarks>
+    /// Upgrades were gated on gold alone, and gold and income are not the same claim. Gold arrives
+    /// from kills, leaks and the opening bank, so a player who never sends can sit on a lane, bank
+    /// bounties and buy a tier at the starting income of 10 — buying power without ever building
+    /// the economy that is supposed to pay for it. Income can only be raised by sending, so gating
+    /// on it makes a tier something earned by playing the game's own economic loop.
+    ///
+    /// Deliberately BELOW where bots already sit, so this changes what a human can rush and nothing
+    /// about the balance already measured. Sampled across a three- and an eight-lane match, bots buy
+    /// tier 2 at income 198-321 and tier 3 at 407-600, against requirements of 60-70 and 150-180.
+    /// Not one bot purchase in either match would have been refused.
+    ///
+    /// Returns 0 for tier 1 and for anything past the top, matching <see cref="CostFor"/> — a tier
+    /// nobody can buy needs no threshold.
+    /// </remarks>
+    public static int MinimumIncomeFor(CategoryKind kind, int targetTier) =>
+        CostFor(kind, targetTier) * MinimumIncomePercentOfCost / 100;
+
+    /// <summary>
     /// Share of a tower's build cost charged to raise that one tower by a tier.
     /// </summary>
     /// <remarks>

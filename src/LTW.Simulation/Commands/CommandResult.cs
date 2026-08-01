@@ -27,7 +27,21 @@ public enum CommandRejectionReason
     /// Appended rather than inserted. Accepted commands are recorded and replayed from a seed, so
     /// renumbering an existing member would change the meaning of an already-recorded replay.
     /// </remarks>
-    InvalidTier
+    InvalidTier,
+
+    /// <summary>
+    /// A category tier purchase refused because the player's INCOME is below the threshold for
+    /// that tier, regardless of how much gold they are holding.
+    /// </summary>
+    /// <remarks>
+    /// Distinct from <see cref="InsufficientGold"/> on purpose: the two are fixed by opposite
+    /// actions. Insufficient gold means wait and bank; insufficient income means send creeps,
+    /// which costs the gold you were banking. Collapsing them into one reason would tell a player
+    /// to do the very thing that cannot help.
+    ///
+    /// Appended rather than inserted, for the reason given on InvalidTier above.
+    /// </remarks>
+    InsufficientIncome
 }
 
 public sealed class CommandResult

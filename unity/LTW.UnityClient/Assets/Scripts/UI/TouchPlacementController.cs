@@ -1516,8 +1516,10 @@ namespace LTW.UnityClient.UI
 
             var tier = commandAdapter.TowerLineTier(category);
             var cost = commandAdapter.NextTierCost(LTW.Simulation.Commands.CategoryKind.TowerLine, category);
+            var requiredIncome = commandAdapter.NextTierMinimumIncome(LTW.Simulation.Commands.CategoryKind.TowerLine, category);
             var pressed = RuntimeUiChrome.DrawCategoryTierRow(
-                cardRect, tier, commandAdapter.MaxCategoryTier, cost, gold >= cost, accent, scale, metaStyle!, buttonStyle!);
+                cardRect, tier, commandAdapter.MaxCategoryTier, cost, gold >= cost, accent, scale, metaStyle!, buttonStyle!,
+                requiredIncome, commandAdapter.CurrentPlayerIncome());
 
             if (pressed)
             {

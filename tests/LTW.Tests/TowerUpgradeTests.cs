@@ -22,6 +22,7 @@ public sealed class TowerUpgradeTests
     {
         var slice = new LocalVerticalSlice(SampleVerticalSliceContent.Create(), new LocalMatchOptions(seed: 1, laneCount: 3), enableBots: false);
         slice.GrantLocalPlaytestGold(Player, new Gold(5000));
+        slice.GrantLocalPlaytestIncome(Player, new Income(1000));
         return slice;
     }
 
@@ -109,6 +110,7 @@ public sealed class TowerUpgradeTests
         var slice = new LocalVerticalSlice(SampleVerticalSliceContent.Create(), new LocalMatchOptions(seed: 1, laneCount: 3), enableBots: false);
         var startingGold = slice.GetSnapshot().Players.Get(Player).Gold.Amount;
         slice.GrantLocalPlaytestGold(Player, new Gold(foundry.Cost.Amount + tierCost + upgradeCost - 1 - startingGold));
+        slice.GrantLocalPlaytestIncome(Player, new Income(1000));
 
         Assert.True(slice.PlaceTower(Player, Lane, foundry.Id, Cell).Accepted);
         Assert.True(slice.BuyCategoryTier(Player, CategoryKind.TowerLine, Foundry, 2).Accepted);

@@ -24,6 +24,7 @@ public sealed class TowerSelectionBatchTests
     {
         var slice = new LocalVerticalSlice(SampleVerticalSliceContent.Create(), new LocalMatchOptions(seed: 1, laneCount: 3), enableBots: false);
         slice.GrantLocalPlaytestGold(Player, new Gold(5000));
+        slice.GrantLocalPlaytestIncome(Player, new Income(1000));
         Assert.True(slice.PlaceTower(Player, Lane, SampleVerticalSliceContent.TowerId, ArrowCell).Accepted);
         Assert.True(slice.PlaceTower(Player, Lane, SampleVerticalSliceContent.PrismTowerId, PrismCell).Accepted);
         Assert.True(slice.PlaceTower(Player, Lane, SampleVerticalSliceContent.GatlingTowerId, GatlingCell).Accepted);
