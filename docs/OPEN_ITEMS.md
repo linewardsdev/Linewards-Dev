@@ -22,9 +22,9 @@ items 29–32 are from the same day's live iOS-simulator playtest of the device 
 claim is not chased; item 33 was split out of item 30 when that item was resolved).
 
 **Worked 2026-08-01.** Items 22, 24, 27, 30 and 31 are resolved and deleted per this file's
-own rule. Numbers are still not reused. Item 25 touches `UnityVerticalSliceRenderer`, which
-was being actively edited in the shared working tree that day — whoever picks it up should
-check for in-flight client work first.
+own rule. Numbers are still not reused. Item 25 carried a warning here that
+`UnityVerticalSliceRenderer` was being actively edited in the shared working tree that day;
+it is resolved now, so the warning is struck rather than left standing over a closed item.
 
 **Worked 2026-08-01 (later the same day).** Item 23's remaining half — the attack phase — is
 resolved, so that item is now fully closed and deleted; both its rows are in the ledger
@@ -47,6 +47,10 @@ Item 30's resolution disproved its own root cause, so item 15's resolution note 
 in place rather than left contradicting the ledger, and item 33 carries out the MSAA finding
 that item 30 had parked at the end of itself. Item 31 asked for two things and got one, so
 item 35 carries out the defeat moment rather than letting the ledger imply it shipped.
+
+Item 25 is resolved and deleted, and its row is in that ledger. It found two dead private
+members while moving them, and left both — deleting code is a behaviour question and that
+item was not allowed to answer one — so item 37 carries them out.
 
 **Re-verified 2026-07-31** against the working tree after `4bb48d2` (art-doc archive),
 `151df11` (this file committed) and `bff79e3` (code comments recited by name). Items 5–15
@@ -83,6 +87,7 @@ than left as written; each carries its own dated finding.
 | Item | Commit | Outcome |
 | --- | --- | --- |
 | 24 | `3b51614` | **Both halves landed, and the item's ordering of them was wrong.** The presentation dictionaries are keyed by `EntityId.Value` as a `long`, the `"t"`/`"c"` shadow prefixes are one packed long and the `"{lane}:{x}:{y}"` cell keys one packed int, the per-frame `new int[LaneCount + 1]` and the three `List<string>` release sweeps reuse one buffer each, and `RenderSnapshot` is split into per-FRAME and per-SNAPSHOT halves. Measured on a deterministic seed-1 board at tick 3160 (576 creeps, 432 towers) with the match paused **and the driver frozen**, so every frame sees the identical snapshot object — the item's premise stated as a measurement rather than argued: the renderer allocated **1,953.2 KB/frame** before and now reads **4.0 KB/frame BELOW** the same session's renderer-disabled baseline, i.e. under the measurement's own ~20 KB/frame noise floor. Free-running at the shipped 4 ticks/s, the same forty ticks of gameplay drew 158 frames before and 429 after. But the item names the string keys as removing "most of the per-frame garbage" and they are the smallest part of it: keys and the split together reached 1,138.8 KB/frame (−42%), of which the keys alone measure 92.2 KB/frame. The other 1,138.8 KB was `UpdateTowerMotion` searching for Body, HeadPivot, Barrel and the Ring/Dish/Spire spin part on every tower on every frame — five recursive walks whose answer cannot change for the life of a pooled instance, each allocating one enumerator per node visited because `Transform`'s enumerator is a class. Those are cached per instance now. **The gate is a hash of the snapshot, not its tick, and that is not a stylistic choice**: commands apply synchronously and the opening build countdown is thirty seconds in which the tick does not advance while the player builds, so a tick gate would leave a tower upgraded during it wearing its old tier colour until the match started. **Motion proved, not assumed.** `MotionCaptureRunner` gained interval and resolution overrides first, because at its default 0.45s every consecutive pair of frames straddles a tick boundary — the sequence cannot see a 4 Hz stutter at all, which is the only failure this change can cause. At five frames per tick the before/after delta profiles agree on every statistic: mean absolute delta 0.2428 against 0.2422, 0.939% against 0.954% of pixels changed, no still frame on either side; at the default sampling they agree to three decimal places. Creep motion phases are bit-identical by construction — `CreepMotionPhase` still hashes the key's decimal DIGITS rather than the number, checked equal for every id from 1 to 200,000, because hashing the long would have re-scattered every creep on the board as a side effect of a dictionary key change. Batch playtest passes both sides, same winner and tick 4471, 218.47s → 206.44s, peak presentation objects unchanged (pooling is untouched). **What it did not buy:** total allocation per second of play is roughly unchanged, because the freed headroom goes straight into more frames and each frame still pays ~800 KB to `UnitySimulationDriver.RefreshSnapshot`. That is now the dominant source and is opened as item 36. `RendererAllocationProbe` is kept rather than deleted so these numbers can be re-run. |
+| 25 | `f6187bd` | **Both classes split, as partial classes, and nothing else changed.** `UnityVerticalSliceRenderer` goes 6,826 → 950 lines across eleven files and `TouchPlacementController` 2,059 → 369 across five. Partial rather than inheritance or extracted helpers, because a MonoBehaviour's serialised surface belongs to the type: a partial class provably cannot change it, and every `[SerializeField]` field is kept declared in the file that keeps the class declaration so that surface is still readable in one place. The scene asset turned out not to be the hazard the item feared — `LocalVerticalSlice.unity` has **no GameObjects at all** and both components are added at runtime by `LocalVerticalSliceLauncher`, so there was no authored value to lose — but the captures below were taken anyway, because that is a fact about today's scene rather than a property of the change. **Cut along the seams the item named**, all of which turned out to be real: board furniture and the `BoardMeshBuilder` bake (957) with its authored palette split off again (232), pooling (298), contact shadows (223), lane pressure gauges (158), camera framing (159), world VFX (829) separated from the per-event feedback cues (751), and tower (1,120) against creep (1,341) presentation. That last claim was checked rather than believed: a cross-reference pass over the finished split found exactly one call between them, `ApplyTowerColor` reaching for `AccentPoolColor` — a generic accent-alpha helper that is not creep code at all. It moved to the core file, and the two presentation parts now reference each other zero times in either direction. On the controller the cut that matters is `Gui.cs` (940), every IMGUI panel in one file so the item-10 HUD migration can lift it whole, with selection (372), the builder avatar (239) and the placement ghost (226) beside it. **Deliberately not moved:** `Update`, `RenderSnapshot`, `SnapshotPresentationRevision` and `RenderEvents` stay together in the renderer's core file, because item 24's per-frame/per-snapshot split lives across exactly those four and separating the gate from what it gates would have hidden it; the grid maths, the shared colour and child helpers, the release scratch buffers and the audio clips stay in core because more than one seam uses them and picking an owner would have been a design decision rather than a move. **The move is proved, not asserted** — no member body, signature, attribute or doc comment was touched, and a checker parsed the original and every new part and compared the multisets of member text: 473 of 473 renderer members and 153 of 153 controller members are byte-identical and appear exactly once. Static field initialisers were checked for cross-dependency before being moved apart, since their order across partial files is unspecified; the only two that call anything read `Environment.GetCommandLineArgs` and nothing else, so none can observe another. 274 tests pass in Release with none modified, Unity compiles with 0 `error CS`, and the batch playtest lands on tick 4471 with winner P4, 5,754 commands, identical creep and tower peaks and a clean reset — twice, either side of the `AccentPoolColor` correction. Wall time reads 286s against the ~210s on record, and 333s on the run that shared the machine with another Unity batch; the tick and the winner are the determinism signal and both are identical. **The scene binding was the real risk and it was tested for directly**, because a lost reference fails no compile and no headless run: `RealUiCaptureRunner` was run with graphics before and after, the frame-matched shot differs by a mean of 0.15/255 with 0.59% of pixels moving more than 8 (live animation between two unsynchronised captures), and 0 of 8,294,400 pixels are magenta in any of the 24 frames — towers and creeps draw their authored meshes, materials and contact shadows and every HUD panel draws. The captures are not committed: at ~1 MB each they would add 24 MB to the repository item 21 is open about. **Found and left:** `SpawnLabel` and `SetTransform` are private, 44 lines between them, and have no callers — carried out as item 37 rather than deleted here. |
 | 26 | `fcccb98` | The decision logic is in `Bots/` and the build orders are content. `BotController.TakeTurn` is a bot's whole tick now — send, build, buy a category tier, raise a tower, in that order — and it sees the match only through `IBotMatchContext`: player state, owned towers, live creep health in a lane, the current route, a tower lookup, a send history, and a placement probe that answers what a build *would* do without doing it. The mazing search and the build-order slot moved to a stateless `BotBuildPlanner`; `LocalVerticalSlice` went 1,585 → 1,272 lines and keeps exactly one bot concern, the one that is genuinely the bridge's — the order seats decide in. Build orders travel on `BotProfileDefinition.BuildOrder` beside the aggression / defense-bias / gold-reserve tuning that class already carried, authored in `SampleVerticalSliceContent` next to the towers they name, so nothing under `Bots/` references sample content at all; `MinimumTowerCoverage` came with them as the last per-profile number still expressed as a switch on the profile enum, and `ContentValidator` now rejects a build order naming a tower the catalog does not have, so a typo is a content error before play rather than a throw from mid-tick. **Behaviour is proved unchanged by measurement rather than asserted**, because on a move like this a rebalance and a bug are indistinguishable: a harness hashed three streams — the complete ordered event stream, a per-tick digest of every seat's gold, income, lives, elimination, send cooldown and six category tiers, and a per-tick digest of all lane route lengths plus every tower's id, owner, cell and tier — across nine configurations, seeds 1–5 at eight lanes and seed 1 at two, three, four and six. All nine are byte-identical before and after, digests and final state alike; seed 1 at eight lanes is winner P4 at tick 4471 with 369,181 events, 5,754 accepted commands and event digest `12a48345…e5c00046` on both sides, and the Unity batch playtest agrees independently at 237s with the same winner, tick, command count and final gold for all eight seats. 274 tests pass in Release with none modified. **Deliberately not moved into data:** the lane-pressure heuristic's Greedy exemption is still a check on the profile enum, because "exempt at any threshold" is not expressible as a high threshold and a content flag existing for one profile would read worse than the check does. |
 | 22 | `264991c` | `SimulationPluginSyncTests` compares the committed Unity plugin against the source build — declared members always, IL when built Release, which is what CI does. Deliberately not a byte comparison: MVID, PE stamp and PDB id are build identity and differ between machines on an in-sync plugin (measured: 148 differing bytes in an otherwise identical 135,680). Verified by flipping one constant and watching the IL half fail while the member half correctly stayed green. Caught its own first real drift twice during the session that wrote it. |
 | 27 | `264991c` | Eighteen `First`/`FirstOrDefault` catalog scans in per-tick bot and upgrade paths replaced with an id index, matching what `CombatContent` already did. |
@@ -512,20 +517,6 @@ Two decisions, then one mechanical task:
 - Decide whether AI staging intermediates (raw AIDrop contents, as opposed to selected
   production assets) belong in the repo at all.
 
-## 25. The two biggest client classes need splitting before the HUD migration lands
-
-`UnityVerticalSliceRenderer` is 6,826 lines and owns board mesh baking, object pooling,
-VFX, contact shadows, tower and creep motion, pressure meters, and camera configuration;
-`TouchPlacementController` is 2,059. The client has no test framework, so these files are
-where regressions hide. The seams are already visible: `BoardMeshBuilder` exists, the
-pooling code is self-contained, and creep vs tower presentation barely interact.
-
-Sequence this *before* the item-10 HUD migration, which will churn these same files.
-
-Line counts refreshed after item 24 (`3b51614`), which added 279 net to the renderer — the
-per-frame/per-snapshot split it made is another seam worth keeping when this is carved up,
-since the two halves of `RenderSnapshot` now have visibly different reasons to run.
-
 ## 28. CI never compiles the Unity client — gate written, blocked on a licence secret
 
 **Partly resolved 2026-08-01. The remaining half needs an owner action, not engineering.**
@@ -683,6 +674,30 @@ speculatively.
 
 Not split per call. The ~800 KB is the three of them together, and which one dominates is
 worth a minute of measurement before the work rather than a guess.
+
+## 37. Two dead private methods in the renderer, found by item 25 and left there
+
+Opened by item 25 (`f6187bd`), which had to move both and could not delete either: that
+item's whole claim is that it changed nothing, and a deletion is a behaviour change however
+obviously safe it looks.
+
+Both are `private` on `UnityVerticalSliceRenderer`, so the compiler has already proved the
+call set is empty within the type and a repo-wide grep finds nothing outside it:
+
+- `SpawnLabel(string creepId)` — 39 lines, in `UnityVerticalSliceRenderer.Cues.cs`. Maps a
+  creep content id to a short display label. Orphaned by a decision recorded in
+  `SpawnSendCue` immediately above it: the `"{qty}x {NAME}"` spawn banner over the
+  defender's gate was removed for dominating the top of the board, and this was the only
+  thing that named the creep in it. So the deletion is not a cleanup of something never
+  used — it is the last piece of a feature that was removed on purpose, and the comment
+  explaining why should not go with it.
+- `SetTransform(GameObject, GridPosition, LaneId, float)` — 5 lines, in
+  `UnityVerticalSliceRenderer.cs`. Position plus a uniform scale. Superseded by
+  `SetTowerTransform` and `SetCreepTransform`, which both resolve lift and per-role or
+  per-profile scale that this one has no parameter for.
+
+Small, and worth doing only inside a change that is already allowed to alter code rather
+than as its own commit.
 
 ---
 
