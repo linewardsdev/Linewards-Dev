@@ -1646,3 +1646,124 @@ now reads `UnityCommandAdapter.SendIncomeGain`, which asks `EconomyService.Incom
 player's current income — the same reasoning that already made it read cost from the simulation.
 
 255 tests passing, zero skipped.
+
+## 2026-08-01: Category 1 Became SUPPORT, And Creeps Got Their First Behaviour
+
+The three send categories were separated by nothing a player could observe. Measured across the
+roster before this change:
+
+```
+  hp/gold 0.7, speed 2:  AshRevenant(cat1),  UmbralStalker(cat2)
+  hp/gold 0.8, speed 2:  Swarm(cat0),        TurretWalker(cat1)
+  hp/gold 1.6, speed 1:  ObsidianBrute(cat1), SerpentCoil(cat1), AegisWarden(cat2)
+
+  cat 0: cost  6-40   hp  5-48   speed 1-2
+  cat 1: cost  5-38   hp  4-48   speed 1-3    <- the same box as cat 0
+  cat 2: cost 22-52   hp 12-78   speed 1-3
+```
+
+Three pairs shared both a health-per-gold ratio and a speed, so a player choosing between them was
+choosing between reskins. Worse, **category 1's one mechanical trait was dead code**: its defining
+property is `ignoresSendCooldown`, and `sendCooldownTicks` has been 0 for a long time, so the
+exemption exempted it from nothing. Categories 1 and 2 were mechanically identical.
+
+A creep was six numbers and that inert flag. There was no behaviour hook of any kind.
+
+### What the category is now
+
+CORE is bodies, SUPPORT is force multipliers, ELITE is big threats.
+
+| creep | role | effect |
+| --- | --- | --- |
+| Crystal Wisp 12g | Pacesetter | nearby friendly creeps move faster |
+| Ash Revenant 19g | Mender | heals nearby friendly creeps |
+| Serpent Coil 27g | Binder | **nearby enemy towers fire slower** |
+| Obsidian Brute 30g | Bulwark | nearby friendly creeps take 25% less damage |
+| Spire Turret Walker 23g | — | **walks the direct route, straight over the maze** |
+
+Every mechanic mirrors something the tower side already shipped: Bramble for the pace changes,
+Grovebond for the neighbour scan, Repair Drone for a unit whose job is helping other units. The
+Binder's brake lands in `EffectiveCooldown`, the one place a tower's rate of fire is decided —
+which is also where Repair Drone already *shortens* it, so a serviced tower inside a Binder's reach
+simply returns to its authored rate.
+
+### The trailing rule, and the field it needed
+
+Four of the five are **slower than the pack** (`movementCost` 4 against the default 3), so they
+drift behind the wall where leader-first targeting cannot reach them, and their aura expires
+naturally as the pack pulls away. Measured: after 48 ticks a Brute is at cell 16 and an Obsidian
+Brute sent with it is at 12.
+
+This needed a new field, and the reason is worth recording. `SpeedPerSecond` is a whole number
+whose floor is 1, and Brute and Siege — the heavies a support follows — are **already at 1**. There
+is no value below them. Movement is `SpeedPerSecond / MovementCost` cells per tick, so the cost is
+the only half of that fraction with room left in it.
+
+Their counter is composition rather than better sniping: **Elder Canopy targets the creep furthest
+BACK**, so a wave that is all support and no wall feeds it.
+
+### Flying, and the targeting bug it exposed
+
+Spire Turret Walker walks the route the lane had before a single tower existed — captured at match
+start for free, since that route IS the unmazed one, and never recomputed. Verified: with bots
+mazing lane 2 from 16 to 18 cells, the direct route stayed at 16.
+
+It has 10 health and dies to almost anything. What keeps it alive is that **a tower fires at one
+target per tick and then sits on cooldown**, so a defence busy with the wave cannot spare a shot.
+It is the only unit whose value is entirely a function of what else was sent with it.
+
+Two routes broke an assumption nothing had ever tested. `SelectTarget` ordered by raw `PathIndex`,
+which means "closest to leaking" only while every creep shares one route — a flyer at index 15 of a
+16-cell direct route is one step from leaking, while a walker at index 20 of a 34-cell maze is not
+yet halfway, and the raw comparison ranked the walker first and let the leak through. Targeting now
+orders by progress scaled to 1,000, in integers so no float reaches a targeting decision. **It is a
+no-op for any match without a flyer**, which is why all 255 existing tests passed unchanged across
+the change.
+
+### Three things the tests caught that review did not
+
+**Equal costs silently delete creeps from the bots' repertoire.** `BotController` sorts its
+preference list by descending cost and sends the first id it can afford, so two creeps at one price
+make the dearer one mathematically unreachable. The first pass at these numbers tied Walker with
+Shade at 24, Revenant with Brute at 18, and Serpent with Burrower at 26. All fifteen costs are now
+distinct and `SupportCreepTests` asserts it.
+
+**The Foundry whiff test was measuring one speed.** It sampled runner/swarm/wisp to span the speed
+range, and Wisp — the speed-3 sample — became the slowest creep on the roster. Swapped to
+`creep.zephyr` to preserve the sample the test was designed around. That surfaced something
+unrelated worth its own look: **a Foundry placed at 0.7 or 0.9 down the lane fires zero shells at a
+speed-1 creep.** `creep.runner` is untouched by this work and behaves the same way, so the lead
+filter silences late-placed mortars against slow targets entirely.
+
+**Counting shots measured the range window, not the brake.** The Binder test first counted shots
+over 24 ticks and reported 4 against 4 — an Arrow's range of 2 lets a creep through in about nine
+ticks either way, so the window closed before the slower cadence cost it a shot. Rewritten to
+assert the armed cooldown directly.
+
+Auras deliberately **do not stack**: two Menders heal a creep once, not twice. Grovebond caps its
+equivalent at three neighbours and is still the fiddliest number on the tower roster; flat on/off
+is bounded by construction and explicable in a sentence. Whether stacking is worth the risk is a
+question for after this has been played.
+
+267 tests passing, zero skipped.
+
+### What it did to a match
+
+Unity batch playtest, seed 1, eight lanes, `-ltwTickRate 4`, against the run from the income
+ceiling landed earlier the same day:
+
+| | income ceiling | + SUPPORT category |
+| --- | ---: | ---: |
+| Completed tick | 4,069 | 3,815 |
+| Accepted commands | 3,597 | 2,947 |
+| Peak creeps | 749 | 385 |
+| Peak active presentation objects | 12,795 | 10,654 |
+| Peak towers | 312 | 312 |
+
+Zero exceptions, clean reset. Peak creeps halved and matches came in ~250 ticks shorter, which is
+the expected shape rather than a surprise: four of the five creeps in the category now cost more
+and carry far less health than the bodies they replaced, so the same gold buys fewer of them. The
+bots do not yet understand that a support creep is only worth sending alongside a wall — they
+select by cost, not by composition — so **these numbers are close to a floor for the category
+rather than a fair reading of it.** A player who sends a wall and then a Mender behind it is doing
+something no bot in this run did once.

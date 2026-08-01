@@ -42,17 +42,19 @@ namespace LTW.UnityClient.UI
         // Names each category by what it actually does, replacing the "CATEGORY 1/2" placeholders
         // that were waiting on this content:
         //   CORE  — the founding five, all send-cooldown gated.
-        //   RAPID — every Category 2 creep sets ignoresSendCooldown, and that exemption is their
-        //           defining trait, so the name says so.
+        //   SUPPORT — force multipliers rather than bodies. Four buff the creeps around them or
+        //           slow the towers shooting at them; the fifth walks over the maze entirely. The
+        //           category was called RAPID for an exemption from a send cooldown that has been
+        //           set to 0 for a long time, so the name described nothing a player could observe.
         //   ELITE — the Meshy-rigged bipeds: costlier, heavier, and back on the normal cooldown,
         //           because price is what paces them.
-        private static readonly string[] CategoryLabels = { "CORE", "RAPID", "ELITE" };
+        private static readonly string[] CategoryLabels = { "CORE", "SUPPORT", "ELITE" };
 
         /// <summary>
         /// Whether a category's grid contains any card the send cooldown actually gates.
         /// </summary>
         /// <remarks>
-        /// Replaces a hardcoded <c>selectedCategory != 1</c> test. Category 2 (RAPID) is entirely
+        /// Replaces a hardcoded <c>selectedCategory != 1</c> test. Category 2 (SUPPORT) is entirely
         /// cooldown-exempt, so showing a "READY IN x.xs" countdown over that grid was misleading
         /// and it was suppressed by index. Category 3 is gated again, so an index comparison would
         /// have silently hidden a countdown that does apply. Keyed off the same fact the cards
@@ -200,7 +202,7 @@ namespace LTW.UnityClient.UI
             // again the moment a cooldown returns, the same reasoning as CurrentSendCooldownSeconds
             // above. When a cooldown is active, without a countdown the dock just looks broken while
             // it runs.
-            // Hidden on a grid whose every card is cooldown-exempt (Category 2 / RAPID), where a
+            // Hidden on a grid whose every card is cooldown-exempt (Category 2 / SUPPORT), where a
             // countdown would read as a restriction that is not applying. Asked as a question
             // about the category rather than compared against an index, so Category 3 — which is
             // gated again — correctly keeps its countdown.
@@ -366,7 +368,9 @@ namespace LTW.UnityClient.UI
             new SendCard("SIEGE", CreepIconKind.Siege, new Color(1f, 0.62f, 0.26f), SampleVerticalSliceContent.SiegeCreepId, 4, SendSiege)
         };
 
-        // Every Category 2 card sets ignoresCooldown — that exemption is what the RAPID name refers to.
+        // Every Category 2 card still sets ignoresCooldown. It is inert while the send cooldown is 0
+        // and is no longer what names the category, but it is kept so the exemption is already right
+        // if a cooldown ever returns.
         private SendCard[] CategoryTwoCards() => new[]
         {
             new SendCard("WISP", CreepIconKind.Wisp, ArcaneBlue, SampleVerticalSliceContent.WispCreepId, 5, SendWisp, ignoresCooldown: true),

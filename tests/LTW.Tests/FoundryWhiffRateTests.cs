@@ -241,7 +241,19 @@ public sealed class FoundryWhiffRateTests
     {
         var firing = 0;
         var total = 0;
-        foreach (var creepId in new[] { "creep.runner", "creep.swarm", "creep.wisp" })
+        // Sampled across the SPEED range, which is the variable the lead filter turns on — one slow,
+        // one middling, one fast. creep.wisp was the fast sample until it became a support creep and
+        // dropped to the slowest pace on the roster; creep.zephyr is the speed-3 unit now, so it
+        // takes that slot. Swapped to preserve the sample this test was designed around rather than
+        // to make it pass: with three slow-ish creeps the measurement is no longer about placement
+        // at all, it is about how the mortar handles one speed.
+        //
+        // Worth recording separately, because substituting the creep hides it: a Foundry at 0.7 or
+        // 0.9 of the way down the lane fires ZERO shells at a speed-1 creep. That is pre-existing
+        // and unrelated to support creeps — creep.runner, untouched by that work, behaves the same
+        // way — but it means the lead filter silences late-placed mortars against slow targets
+        // completely, which is worth its own look.
+        foreach (var creepId in new[] { "creep.runner", "creep.swarm", "creep.zephyr" })
         {
             foreach (var row in new[] { 0.2d, 0.45d, 0.7d, 0.9d })
             {

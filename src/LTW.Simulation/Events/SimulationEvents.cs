@@ -366,3 +366,34 @@ public sealed class MatchEndedEvent : ISimulationEvent
 
     public PlayerId WinnerId { get; }
 }
+
+/// <summary>
+/// A Mender restored health to a friendly creep.
+/// </summary>
+/// <remarks>
+/// Raised so presentation can show healing at all. Without it a Mender is invisible: the creep's
+/// health bar creeps back up with nothing on screen explaining why, which reads as a bug rather
+/// than as a unit doing its job. Mirrors <see cref="CreepDamagedEvent"/> so the renderer can treat
+/// the two as one family — a number floating off a creep, differing only in sign and colour.
+///
+/// Carries the resulting health as well as the amount, because the amount alone cannot be turned
+/// into a bar: clamping at MaxHealth means a heal of 1 sometimes restores less than 1.
+/// </remarks>
+public sealed class CreepHealedEvent : ISimulationEvent
+{
+    public CreepHealedEvent(SimulationTick tick, EntityId creepEntityId, int healed, int health)
+    {
+        Tick = tick;
+        CreepEntityId = creepEntityId;
+        Healed = healed;
+        Health = health;
+    }
+
+    public SimulationTick Tick { get; }
+
+    public EntityId CreepEntityId { get; }
+
+    public int Healed { get; }
+
+    public int Health { get; }
+}

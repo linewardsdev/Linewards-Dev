@@ -4379,6 +4379,16 @@ namespace LTW.UnityClient.Simulation
 
         private static Vector3 CreepRoleOffset(string creepId)
         {
+            // Spire Turret Walker walks the direct route, which runs straight through cells that
+            // towers are standing on — so without real clearance it renders INSIDE them. 0.72 is
+            // chosen against tower height rather than as a bigger version of the 0.32 used for
+            // flying creeps: at 0.32 it still clipped the taller towers, which reads as a bug
+            // rather than as the one unit that goes over the maze.
+            if (ContainsRole(creepId, "turret_walker"))
+            {
+                return Vector3.up * 0.72f;
+            }
+
             if (ContainsRole(creepId, "flying") || ContainsRole(creepId, "air"))
             {
                 return Vector3.up * 0.32f;

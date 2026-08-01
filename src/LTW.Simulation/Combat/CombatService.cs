@@ -39,7 +39,8 @@ public sealed class CombatService
             pathIndex: 0,
             movementProgress: 0,
             hasLeaked: false,
-            maxHealth: CategoryTierRules.Scale(creep.MaxHealth, healthPercent));
+            maxHealth: CategoryTierRules.Scale(creep.MaxHealth, healthPercent),
+            ignoresMaze: creep.IgnoresMaze);
     }
 
     /// <summary>
@@ -65,29 +66,63 @@ public sealed class CombatService
             pathIndex: 0,
             movementProgress: 0,
             hasLeaked: false,
-            maxHealth: creep.MaxHealth);
+            maxHealth: creep.MaxHealth,
+            // A flyer that leaks keeps flying. Its nature travels with it exactly as its health
+            // does, so it gets a fresh direct route through the next lane rather than silently
+            // becoming a walker on arrival.
+            ignoresMaze: creep.IgnoresMaze);
     }
 
+    /// <summary>
+    /// Advances a tick where every creep walks the same route.
+    /// </summary>
+    /// <remarks>
+    /// Kept so the tests and scenario harnesses that predate flying creeps read unchanged. None of
+    /// them contain a creep that ignores the maze, so collapsing both routes into one is exactly
+    /// what they already assumed — stated here once instead of edited into fifty call sites.
+    /// </remarks>
     public CombatTickResult Advance(
         CombatState state,
         CombatContent content,
         IReadOnlyDictionary<LaneId, IReadOnlyList<GridPosition>> routes,
+        SimulationTick tick) =>
+        Advance(state, content, LaneRouteSet.Single(routes), tick);
+
+    public CombatTickResult Advance(
+        CombatState state,
+        CombatContent content,
+        LaneRouteSet routes,
         SimulationTick tick)
     {
         var events = new List<ISimulationEvent>();
-        var next = MoveCreeps(state, content, routes, tick, events);
+
+        // Resolved from the PRE-movement state, so every creep in a wave sees the same aura for the
+        // whole tick. Resolving after movement would make the buff depend on creep iteration order,
+        // which is exactly the class of bug BuildBrambleZones was extracted to avoid.
+        var auras = SupportAuraField.Resolve(state, content, tick);
+        auras.BindTowersInRange(state, content, creep => ResolvePosition(creep, routes));
+
+        var next = MoveCreeps(state, content, routes, tick, events, auras);
+        next = ApplyMenderHealing(next, auras, tick, events);
         // Shells resolve AFTER movement, so a barrage hits whoever walked into the cell this tick
         // (which also makes the lead exactly speed x flightTicks), and BEFORE attacks, so a creep
         // the shell kills is already gone and no other tower wastes its shot on a corpse.
-        next = ResolveLandedShells(next, content, routes, tick, events);
-        next = AttackWithTowers(next, content, routes, tick, events);
+        next = ResolveLandedShells(next, content, routes, tick, events, auras);
+        next = AttackWithTowers(next, content, routes, tick, events, auras);
         return new CombatTickResult(next, events.ToArray());
     }
+
+    /// <summary>Snapshots where every creep walks the same route. See the Advance overload above.</summary>
+    public IReadOnlyList<CreepPresentationSnapshot> GetCreepSnapshots(
+        CombatState state,
+        CombatContent content,
+        IReadOnlyDictionary<LaneId, IReadOnlyList<GridPosition>> routes) =>
+        GetCreepSnapshots(state, content, LaneRouteSet.Single(routes));
 
     public IReadOnlyList<CreepPresentationSnapshot> GetCreepSnapshots(
         CombatState state,
         CombatContent content,
-        IReadOnlyDictionary<LaneId, IReadOnlyList<GridPosition>> routes)
+        LaneRouteSet routes)
     {
         return state.Creeps
             .Where(creep => !creep.IsDead && !creep.HasLeaked)
@@ -102,7 +137,10 @@ public sealed class CombatService
                 content.GetCreep(creep.CreepId).SpeedPerSecond,
                 ResolveNextPosition(creep, routes),
                 creep.MovementProgress,
-                BaseMovementCost))
+                // The creep's own cost, not the global one. A support creep banks movement against
+                // 4 rather than 3, and a renderer told otherwise interpolates it at the wrong pace
+                // and visibly stutters between cells.
+                content.GetCreep(creep.CreepId).MovementCost))
             .ToArray();
     }
 
@@ -116,10 +154,17 @@ public sealed class CombatService
     /// </summary>
     private const int VisionBufferCells = 3;
 
+    /// <summary>Aim snapshots where every creep walks the same route. See the Advance overload above.</summary>
     public IReadOnlyList<TowerAimSnapshot> GetTowerAimSnapshots(
         CombatState state,
         CombatContent content,
-        IReadOnlyDictionary<LaneId, IReadOnlyList<GridPosition>> routes)
+        IReadOnlyDictionary<LaneId, IReadOnlyList<GridPosition>> routes) =>
+        GetTowerAimSnapshots(state, content, LaneRouteSet.Single(routes));
+
+    public IReadOnlyList<TowerAimSnapshot> GetTowerAimSnapshots(
+        CombatState state,
+        CombatContent content,
+        LaneRouteSet routes)
     {
         var results = new List<TowerAimSnapshot>();
         foreach (var tower in state.Towers)
@@ -130,7 +175,7 @@ public sealed class CombatService
                 .Where(creep => !creep.IsDead && !creep.HasLeaked && creep.LaneId.Equals(tower.LaneId))
                 .Where(creep => CanEngage(tower, ResolvePosition(creep, routes), visionRangeCells))
                 .ToArray();
-            var target = SelectTarget(tower, towerDefinition, visibleTargets);
+            var target = SelectTarget(tower, towerDefinition, visibleTargets, routes);
             if (target is not null)
             {
                 results.Add(new TowerAimSnapshot(tower.EntityId, ResolvePosition(target, routes)));
@@ -143,9 +188,10 @@ public sealed class CombatService
     private static CombatState MoveCreeps(
         CombatState state,
         CombatContent content,
-        IReadOnlyDictionary<LaneId, IReadOnlyList<GridPosition>> routes,
+        LaneRouteSet routes,
         SimulationTick tick,
-        List<ISimulationEvent> events)
+        List<ISimulationEvent> events,
+        SupportAuraField auras)
     {
         var next = state;
         var brambleZones = BuildBrambleZones(state, content, routes);
@@ -153,9 +199,14 @@ public sealed class CombatService
         foreach (var creep in state.Creeps.Where(creep => !creep.IsDead && !creep.HasLeaked).ToArray())
         {
             var definition = content.GetCreep(creep.CreepId);
-            var route = routes[creep.LaneId];
-            var braked = IsUnderBramble(brambleZones, creep.LaneId, creep.PathIndex);
-            var (pathIndex, movement) = StepCreep(creep.PathIndex, creep.MovementProgress, definition.SpeedPerSecond, route.Count, braked);
+            var route = routes.For(creep.LaneId, definition.IgnoresMaze);
+            // A flyer is above the brambles, and the zone indices are measured against the mazed
+            // route anyway, so they do not even address the cells it is walking.
+            var braked = !definition.IgnoresMaze && IsUnderBramble(brambleZones, creep.LaneId, creep.PathIndex);
+            // Floored at 1: a Pacesetter must never drive the cost to zero, which would advance a
+            // creep through the whole route inside StepCreep's loop in a single tick.
+            var cost = Math.Max(1, definition.MovementCost - (auras.IsPaced(creep.EntityId) ? SupportAuraField.PacesetterMovementBonus : 0));
+            var (pathIndex, movement) = StepCreep(creep.PathIndex, creep.MovementProgress, definition.SpeedPerSecond, route.Count, braked, cost);
 
             var moved = creep.WithMovement(pathIndex, movement);
             if (pathIndex >= route.Count - 1 && !moved.HasLeaked)
@@ -165,6 +216,42 @@ public sealed class CombatService
             }
 
             next = next.ReplaceCreep(moved);
+        }
+
+        return next;
+    }
+
+    /// <summary>
+    /// Restores health to every creep a Mender reached this tick.
+    /// </summary>
+    /// <remarks>
+    /// Runs after movement and BEFORE shells and towers, so a creep healed this tick gets the
+    /// benefit of it against this tick's fire rather than the next one's. Clamped to MaxHealth, so
+    /// a Mender can undo damage but never bank health a creep never had.
+    /// </remarks>
+    private static CombatState ApplyMenderHealing(
+        CombatState state,
+        SupportAuraField auras,
+        SimulationTick tick,
+        List<ISimulationEvent> events)
+    {
+        if (auras.Mended.Count == 0)
+        {
+            return state;
+        }
+
+        var next = state;
+        foreach (var entityId in auras.Mended)
+        {
+            var creep = next.Creeps.FirstOrDefault(candidate => candidate.EntityId.Equals(entityId));
+            if (creep is null || creep.IsDead || creep.HasLeaked || creep.Health >= creep.MaxHealth)
+            {
+                continue;
+            }
+
+            var healed = Math.Min(creep.MaxHealth, creep.Health + SupportAuraField.MenderHealAmount);
+            next = next.ReplaceCreep(creep.WithHealth(healed));
+            events.Add(new CreepHealedEvent(tick, creep.EntityId, healed - creep.Health, healed));
         }
 
         return next;
@@ -225,9 +312,13 @@ public sealed class CombatService
         int movementProgress,
         int speedPerSecond,
         int routeCount,
-        bool braked)
+        bool braked,
+        int movementCost = BaseMovementCost)
     {
-        var step = braked ? BrambleMovementCost : BaseMovementCost;
+        // Bramble adds the SAME absolute brake to every creep rather than doubling whatever the
+        // creep's own cost happens to be. Doubling would make Thorn Snare worth more against the
+        // slow support creeps than against the heavies it exists to stop, which is backwards.
+        var step = braked ? movementCost + (BrambleMovementCost - BaseMovementCost) : movementCost;
         var movement = movementProgress + speedPerSecond;
         while (movement >= step && pathIndex < routeCount - 1)
         {
@@ -245,12 +336,16 @@ public sealed class CombatService
     private static Dictionary<LaneId, List<(int Start, int End)>> BuildBrambleZones(
         CombatState state,
         CombatContent content,
-        IReadOnlyDictionary<LaneId, IReadOnlyList<GridPosition>> routes)
+        LaneRouteSet routes)
     {
         var zones = new Dictionary<LaneId, List<(int Start, int End)>>();
         foreach (var tower in state.Towers)
         {
-            if (!IsThornTower(tower.TowerId) || !routes.TryGetValue(tower.LaneId, out var route))
+            // Mazed, deliberately. A bramble zone is a span of route INDICES, and Thorn Snare brakes
+            // the cells creeps are funnelled through — which is the mazed route by definition. A
+            // flyer is not on this route at all, which is why MoveCreeps skips the check for it
+            // rather than trying to translate these spans onto the direct one.
+            if (!IsThornTower(tower.TowerId) || !routes.Mazed.TryGetValue(tower.LaneId, out var route))
             {
                 continue;
             }
@@ -361,9 +456,10 @@ public sealed class CombatService
     private static CombatState AttackWithTowers(
         CombatState state,
         CombatContent content,
-        IReadOnlyDictionary<LaneId, IReadOnlyList<GridPosition>> routes,
+        LaneRouteSet routes,
         SimulationTick tick,
-        List<ISimulationEvent> events)
+        List<ISimulationEvent> events,
+        SupportAuraField auras)
     {
         var next = state;
         foreach (var tower in state.Towers.OrderBy(tower => tower.EntityId.Value).ToArray())
@@ -391,7 +487,7 @@ public sealed class CombatService
                     .ToArray();
             }
 
-            var target = SelectTarget(tower, towerDefinition, availableTargets);
+            var target = SelectTarget(tower, towerDefinition, availableTargets, routes);
 
             if (target is null)
             {
@@ -404,13 +500,14 @@ public sealed class CombatService
             {
                 // Indirect fire: no damage now. The target was already filtered to one this tower can
                 // lead, so LeadPathIndex cannot be null here.
-                var impactCell = routes[tower.LaneId][LeadPathIndex(next, content, routes, tower, target)!.Value];
+                var targetRoute = routes.For(tower.LaneId, target.IgnoresMaze);
+                var impactCell = targetRoute[LeadPathIndex(next, content, routes, tower, target)!.Value];
                 var impactTick = new SimulationTick(tick.Value + FoundryShellFlightTicks);
 
                 events.Add(new TowerFiredEvent(tick, tower.LaneId, tower.EntityId, tower.Position, target.EntityId, targetCell, impactTick, impactCell));
                 next = next.ReplaceTower(tower
                     .WithShellInFlight(impactTick, impactCell)
-                    .WithNextAttackTick(new SimulationTick(tick.Value + EffectiveCooldown(next, tower, towerDefinition.AttackCooldownTicks))));
+                    .WithNextAttackTick(new SimulationTick(tick.Value + EffectiveCooldown(next, tower, towerDefinition.AttackCooldownTicks, auras))));
                 continue;
             }
 
@@ -444,11 +541,11 @@ public sealed class CombatService
                 shotDamage += CrowdBloomBonus(next, routes, tower, target, baseDamage);
             }
 
-            next = DamageCreep(next, content, tower, target, shotDamage, tick, events);
+            next = DamageCreep(next, content, tower, target, shotDamage, tick, events, auras);
 
             if (IsTeslaTower(tower.TowerId))
             {
-                next = ChainArc(next, content, routes, tower, target, baseDamage, tick, events);
+                next = ChainArc(next, content, routes, tower, target, baseDamage, auras, tick, events);
             }
 
             if (IsPulseTower(tower.TowerId))
@@ -466,12 +563,12 @@ public sealed class CombatService
 
                 foreach (var splashTarget in splashTargets)
                 {
-                    next = DamageCreep(next, content, tower, splashTarget, splashDamage, tick, events);
+                    next = DamageCreep(next, content, tower, splashTarget, splashDamage, tick, events, auras);
                 }
             }
 
             next = next.ReplaceTower(tower.WithNextAttackTick(
-                new SimulationTick(tick.Value + EffectiveCooldown(next, tower, towerDefinition.AttackCooldownTicks))));
+                new SimulationTick(tick.Value + EffectiveCooldown(next, tower, towerDefinition.AttackCooldownTicks, auras))));
         }
 
         return next;
@@ -534,8 +631,17 @@ public sealed class CombatService
     /// Cooldown is the binding constraint, so that is what the drone now relieves. Bonuses do not stack:
     /// two drones beside one tower still give one tick, or a drone sandwich would trivialise cadence.
     /// </remarks>
-    private static int EffectiveCooldown(CombatState state, TowerCombatState tower, int authoredCooldown) =>
-        IsServicedByDrone(state, tower) ? Math.Max(1, authoredCooldown - 1) : authoredCooldown;
+    /// <remarks>
+    /// The one place a tower's rate of fire is decided, which is why the Binder's brake belongs here
+    /// rather than at the two call sites that arm the cooldown. Repair Drone already shortens the
+    /// same number, so a serviced tower inside a Binder's reach simply comes back to its authored
+    /// rate — the two cancel, which is the reading a player would expect without being told.
+    /// </remarks>
+    private static int EffectiveCooldown(CombatState state, TowerCombatState tower, int authoredCooldown, SupportAuraField auras)
+    {
+        var cooldown = IsServicedByDrone(state, tower) ? Math.Max(1, authoredCooldown - 1) : authoredCooldown;
+        return auras.IsBound(tower.EntityId) ? cooldown + SupportAuraField.BinderCooldownExtraTicks : cooldown;
+    }
 
     /// <summary>
     /// Where a creep will stand once a Foundry shell has finished its flight.
@@ -549,12 +655,12 @@ public sealed class CombatService
     private static int? LeadPathIndex(
         CombatState state,
         CombatContent content,
-        IReadOnlyDictionary<LaneId, IReadOnlyList<GridPosition>> routes,
+        LaneRouteSet routes,
         TowerCombatState tower,
         CreepCombatState target)
     {
-        var route = routes[tower.LaneId];
         var creepDefinition = content.GetCreep(target.CreepId);
+        var route = routes.For(tower.LaneId, creepDefinition.IgnoresMaze);
         var brambleZones = BuildBrambleZones(state, content, routes);
         var index = target.PathIndex;
         var movement = target.MovementProgress;
@@ -562,7 +668,7 @@ public sealed class CombatService
         for (var step = 0; step < FoundryShellFlightTicks; step++)
         {
             var braked = IsUnderBramble(brambleZones, target.LaneId, index);
-            (index, movement) = StepCreep(index, movement, creepDefinition.SpeedPerSecond, route.Count, braked);
+            (index, movement) = StepCreep(index, movement, creepDefinition.SpeedPerSecond, route.Count, braked, creepDefinition.MovementCost);
         }
 
         // route.Count - 1 is the leak index: a creep arriving there is marked leaked and filtered out
@@ -573,7 +679,7 @@ public sealed class CombatService
     private static bool CanLeadTarget(
         CombatState state,
         CombatContent content,
-        IReadOnlyDictionary<LaneId, IReadOnlyList<GridPosition>> routes,
+        LaneRouteSet routes,
         TowerCombatState tower,
         CreepCombatState target) =>
         LeadPathIndex(state, content, routes, tower, target) is not null;
@@ -629,10 +735,11 @@ public sealed class CombatService
     private static CombatState ChainArc(
         CombatState state,
         CombatContent content,
-        IReadOnlyDictionary<LaneId, IReadOnlyList<GridPosition>> routes,
+        LaneRouteSet routes,
         TowerCombatState tower,
         CreepCombatState primary,
         int baseDamage,
+        SupportAuraField auras,
         SimulationTick tick,
         List<ISimulationEvent> events)
     {
@@ -644,7 +751,8 @@ public sealed class CombatService
         for (var hop = 0; hop < ChainArcMaxHops; hop++)
         {
             damage = Math.Max(1, damage / 2);
-            var fromPosition = routes[tower.LaneId][Math.Min(fromIndex, routes[tower.LaneId].Count - 1)];
+            var arcRoute = routes.For(tower.LaneId, primary.IgnoresMaze);
+            var fromPosition = arcRoute[Math.Min(fromIndex, arcRoute.Count - 1)];
 
             var link = next.Creeps
                 .Where(creep => !creep.IsDead && !creep.HasLeaked && creep.LaneId.Equals(tower.LaneId))
@@ -662,7 +770,7 @@ public sealed class CombatService
 
             struck.Add(link.EntityId.Value);
             fromIndex = link.PathIndex;
-            next = DamageCreep(next, content, tower, link, damage, tick, events);
+            next = DamageCreep(next, content, tower, link, damage, tick, events, auras);
         }
 
         return next;
@@ -671,9 +779,10 @@ public sealed class CombatService
     private static CombatState ResolveLandedShells(
         CombatState state,
         CombatContent content,
-        IReadOnlyDictionary<LaneId, IReadOnlyList<GridPosition>> routes,
+        LaneRouteSet routes,
         SimulationTick tick,
-        List<ISimulationEvent> events)
+        List<ISimulationEvent> events,
+        SupportAuraField auras)
     {
         var next = state;
         foreach (var tower in state.Towers.OrderBy(tower => tower.EntityId.Value).ToArray())
@@ -699,17 +808,40 @@ public sealed class CombatService
                 // reaches artillery too. This was the third site reading the authored damage directly,
                 // after Pulse's splash and Chain Arc, and the easiest to miss because it resolves in a
                 // different phase where baseDamage is not in scope.
-                next = DamageCreep(next, content, tower, creep, BaseDamageFor(tower, towerDefinition), tick, events);
+                next = DamageCreep(next, content, tower, creep, BaseDamageFor(tower, towerDefinition), tick, events, auras);
             }
         }
 
         return next;
     }
 
+    /// <summary>
+    /// How far along its OWN route a creep is, scaled so two different routes can be compared.
+    /// </summary>
+    /// <remarks>
+    /// Targeting has always meant "whoever is closest to leaking", and while every creep in a lane
+    /// walked the same route, the raw path index said exactly that. It stops saying it the moment a
+    /// second route exists: a flyer at index 15 of a 16-cell direct route is one step from leaking,
+    /// and a walker at index 20 of a 34-cell maze is not yet halfway — but the raw comparison ranks
+    /// the walker first and lets the leak through.
+    ///
+    /// Scaled by 1,000 and kept in integers, because the simulation is deterministic and no float
+    /// may reach a targeting decision. Ties fall through to entity id as they always did, which is
+    /// what makes send ORDER the tie-break within a wave: the pack is bought first and takes the
+    /// lower ids, so towers shoot it before the support sent behind it.
+    ///
+    /// This is a no-op for every match that contains no flyer, since one route means one scale.
+    /// </remarks>
+    private const int ProgressScale = 1_000;
+
+    private static int RouteProgress(CreepCombatState creep, IReadOnlyList<GridPosition> route) =>
+        route.Count <= 1 ? ProgressScale : creep.PathIndex * ProgressScale / (route.Count - 1);
+
     private static CreepCombatState? SelectTarget(
         TowerCombatState tower,
         TowerDefinition towerDefinition,
-        IReadOnlyList<CreepCombatState> targets)
+        IReadOnlyList<CreepCombatState> targets,
+        LaneRouteSet routes)
     {
         if (IsElderCanopyTower(tower.TowerId))
         {
@@ -719,7 +851,7 @@ public sealed class CombatService
             // else on the roster targets back-most, so the tell is that it visibly shoots the far
             // creep while its neighbours all shoot the near one.
             return targets
-                .OrderBy(creep => creep.PathIndex)
+                .OrderBy(creep => RouteProgress(creep, routes.For(creep.LaneId, creep.IgnoresMaze)))
                 .ThenBy(creep => creep.EntityId.Value)
                 .FirstOrDefault();
         }
@@ -729,13 +861,13 @@ public sealed class CombatService
             return targets
                 .OrderByDescending(creep => IsShadeCreep(creep.CreepId))
                 .ThenByDescending(creep => creep.Health)
-                .ThenByDescending(creep => creep.PathIndex)
+                .ThenByDescending(creep => RouteProgress(creep, routes.For(creep.LaneId, creep.IgnoresMaze)))
                 .ThenBy(creep => creep.EntityId.Value)
                 .FirstOrDefault();
         }
 
         return targets
-            .OrderByDescending(creep => creep.PathIndex)
+            .OrderByDescending(creep => RouteProgress(creep, routes.For(creep.LaneId, creep.IgnoresMaze)))
             .ThenBy(creep => creep.EntityId.Value)
             .FirstOrDefault();
     }
@@ -747,9 +879,19 @@ public sealed class CombatService
         CreepCombatState target,
         int baseDamage,
         SimulationTick tick,
-        List<ISimulationEvent> events)
+        List<ISimulationEvent> events,
+        SupportAuraField auras)
     {
         var damage = AdjustDamageForRoles(tower.TowerId, target.CreepId, baseDamage);
+
+        // Every path that hurts a creep — direct fire, splash, chain, artillery — arrives here, so
+        // the shield is applied once rather than at four call sites that could drift apart.
+        // Floored at 1: a shielded creep still takes something from every hit, or a low-damage tower
+        // would round to zero and be unable to kill it at all.
+        if (auras.IsShielded(target.EntityId))
+        {
+            damage = Math.Max(1, damage - (damage * SupportAuraField.BulwarkDamageReductionPercent / 100));
+        }
         var damaged = target.WithHealth(Math.Max(0, target.Health - damage));
         var next = state.ReplaceCreep(damaged);
         events.Add(new CreepDamagedEvent(tick, tower.OwnerId, tower.LaneId, tower.EntityId, tower.Position, damaged.EntityId, damage));
@@ -775,18 +917,18 @@ public sealed class CombatService
 
     private static GridPosition ResolvePosition(
         CreepCombatState creep,
-        IReadOnlyDictionary<LaneId, IReadOnlyList<GridPosition>> routes)
+        LaneRouteSet routes)
     {
-        var route = routes[creep.LaneId];
+        var route = routes.For(creep.LaneId, creep.IgnoresMaze);
         return route[Math.Min(creep.PathIndex, route.Count - 1)];
     }
 
     /// <summary>The cell a creep is walking toward, clamped to the route end.</summary>
     private static GridPosition ResolveNextPosition(
         CreepCombatState creep,
-        IReadOnlyDictionary<LaneId, IReadOnlyList<GridPosition>> routes)
+        LaneRouteSet routes)
     {
-        var route = routes[creep.LaneId];
+        var route = routes.For(creep.LaneId, creep.IgnoresMaze);
         return route[Math.Min(creep.PathIndex + 1, route.Count - 1)];
     }
 
@@ -921,7 +1063,7 @@ public sealed class CombatService
     /// </remarks>
     private static int CrowdBloomBonus(
         CombatState state,
-        IReadOnlyDictionary<LaneId, IReadOnlyList<GridPosition>> routes,
+        LaneRouteSet routes,
         TowerCombatState tower,
         CreepCombatState target,
         int baseDamage)

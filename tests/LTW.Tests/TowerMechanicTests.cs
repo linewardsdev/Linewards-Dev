@@ -186,8 +186,8 @@ public sealed class TowerMechanicTests
 
     [Theory]
     [InlineData("creep.runner", 4)]        // 13 max health, below the step: floors at authored 4
-    [InlineData("creep.serpent", 5)]       // 32 / 6 = 5
-    [InlineData("creep.obsidian_brute", 8)] // 48 max health / 24 per step = 200% of base 4
+    [InlineData("creep.serpent", 4)]       // 26 max health / 24 per step = 108% of base 4
+    [InlineData("creep.obsidian_brute", 6)] // 40 max health / 24 per step = 166% of base 4
     public void Rot_scales_with_the_targets_authored_max_health(string creepId, int expected)
     {
         var service = new CombatService();
@@ -210,7 +210,7 @@ public sealed class TowerMechanicTests
 
         var result = service.Advance(state, Content(), Routes(), new SimulationTick(0));
 
-        Assert.Equal(8, result.Events.OfType<CreepDamagedEvent>().Single().DamageDealt);
+        Assert.Equal(6, result.Events.OfType<CreepDamagedEvent>().Single().DamageDealt);
     }
 
     // ---- Bloomheart: Crowd Bloom --------------------------------------------------------------
@@ -686,7 +686,7 @@ public sealed class TowerMechanicTests
     [Theory]
     [InlineData("creep.brute", 100)]          // 24 max health: exactly one multiple, so base
     [InlineData("creep.siege", 200)]          // 48 max health: two multiples
-    [InlineData("creep.obsidian_brute", 200)] // 48 max health
+    [InlineData("creep.obsidian_brute", 166)] // 40 max health, cut from 48 when it became the Bulwark
     [InlineData("creep.colossus", 325)]       // 78 max health
     public void Rot_is_a_fixed_multiple_of_base_damage_per_target(string creepId, int expectedPercentOfBase)
     {

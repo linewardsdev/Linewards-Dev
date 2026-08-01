@@ -143,17 +143,51 @@ public static class SampleVerticalSliceContent
                 new CreepDefinition(ShadeCreepId, "Shade", new Gold(24), new Income(3), new Gold(2), new Gold(4), maxHealth: 14, speedPerSecond: 2, categoryIndex: 0),
                 new CreepDefinition(SiegeCreepId, "Siege", new Gold(40), new Income(4), new Gold(4), new Gold(6), maxHealth: 48, speedPerSecond: 1, categoryIndex: 0),
 
-                // Category 2 — first pass, stats chosen to each ask a different defensive
-                // question from the existing 5 (and from each other). See docs/GD_TUNING_LOG.md
-                // for the full rationale; treat these as tunable starting points, not final.
-                new CreepDefinition(WispCreepId, "Crystal Wisp", new Gold(5), new Income(1), new Gold(1), new Gold(1), maxHealth: 4, speedPerSecond: 3, categoryIndex: 1, ignoresSendCooldown: true),
-                new CreepDefinition(RevenantCreepId, "Ash Revenant", new Gold(16), new Income(4), new Gold(1), new Gold(2), maxHealth: 11, speedPerSecond: 2, categoryIndex: 1, ignoresSendCooldown: true),
-                new CreepDefinition(ObsidianBruteCreepId, "Obsidian Brute", new Gold(30), new Income(3), new Gold(3), new Gold(4), maxHealth: 48, speedPerSecond: 1, categoryIndex: 1, ignoresSendCooldown: true),
-                // Cost cut 22->20 (2026-07-28 rebalance): at 22 this was strictly dominated by
-                // Obsidian Brute (1.45 HP/gold and 0.091 income/gold vs Obsidian Brute's 2.00 and
-                // 0.100 for only 8 more gold) — see docs/GD_TUNING_LOG.md for the full comparison.
-                new CreepDefinition(SerpentCreepId, "Serpent Coil", new Gold(20), new Income(2), new Gold(2), new Gold(3), maxHealth: 32, speedPerSecond: 1, categoryIndex: 1, ignoresSendCooldown: true),
-                new CreepDefinition(TurretWalkerCreepId, "Spire Turret Walker", new Gold(38), new Income(4), new Gold(4), new Gold(5), maxHealth: 32, speedPerSecond: 2, categoryIndex: 1, ignoresSendCooldown: true),
+                // Category 1, "SUPPORT". These five stopped being a stat tier and became a role.
+                //
+                // Every cost here is DISTINCT from every other creep's, and that is a constraint
+                // rather than a preference. BotController sorts its preference list by descending
+                // cost and sends the first id it can afford, so two creeps at the same price make
+                // the later one mathematically unreachable — affording it always means affording
+                // the other. A first pass at these numbers tied walker with shade at 24, revenant
+                // with brute at 18 and serpent with burrower at 26, which silently removed three
+                // creeps from the bots' repertoire. VerticalSliceBridgeTests catches this.
+                //
+                // The category needed an identity rather than a rebalance. Its one mechanical trait,
+                // ignoresSendCooldown, had been inert since the send cooldown was set to 0, so it was
+                // separated from CORE by nothing but numbers — and the numbers overlapped almost
+                // exactly (CORE cost 6-40 / health 5-48, these cost 5-38 / health 4-48). Three pairs
+                // across the roster shared a hp-per-gold ratio AND a speed, so a player picking
+                // between them was picking between reskins. Now: CORE is bodies, SUPPORT is force
+                // multipliers, ELITE is big threats.
+                //
+                // Four of the five are SLOWER than the pack (movementCost 4 against the default 3).
+                // That is the whole reason MovementCost exists — speed is a whole number whose floor
+                // is 1, and the heavies these follow are already at 1, so nothing below them could be
+                // expressed. Drifting back about a cell every twelve ticks does two things at once:
+                // it keeps them behind the wall, where leader-first targeting cannot reach them, and
+                // it gives every aura a natural expiry as the pack pulls away.
+                //
+                // Their counter is composition, not better sniping. Elder Canopy targets the creep
+                // FURTHEST BACK, so a wave that is all support and no wall feeds it. Stats are
+                // deliberately poor: none of these five is worth sending alone, and the roster
+                // domination check exempts them for the same reason it exempts Relay Ward — their
+                // value is not in their stat line.
+                new CreepDefinition(WispCreepId, "Crystal Wisp", new Gold(12), new Income(1), new Gold(1), new Gold(1), maxHealth: 6, speedPerSecond: 1, categoryIndex: 1, ignoresSendCooldown: true, movementCost: 4, support: CreepSupportRole.Pacesetter),
+                new CreepDefinition(RevenantCreepId, "Ash Revenant", new Gold(19), new Income(2), new Gold(1), new Gold(2), maxHealth: 14, speedPerSecond: 1, categoryIndex: 1, ignoresSendCooldown: true, movementCost: 4, support: CreepSupportRole.Mender),
+                new CreepDefinition(ObsidianBruteCreepId, "Obsidian Brute", new Gold(30), new Income(3), new Gold(3), new Gold(4), maxHealth: 40, speedPerSecond: 1, categoryIndex: 1, ignoresSendCooldown: true, movementCost: 4, support: CreepSupportRole.Bulwark),
+                new CreepDefinition(SerpentCreepId, "Serpent Coil", new Gold(27), new Income(2), new Gold(2), new Gold(3), maxHealth: 26, speedPerSecond: 1, categoryIndex: 1, ignoresSendCooldown: true, movementCost: 4, support: CreepSupportRole.Binder),
+
+                // The exception, and the category's payoff. It walks the direct route straight over
+                // the maze — the most disruptive thing a creep can do, which is why it is costed to
+                // die to almost anything. It is not slowed and carries no aura: it is not travelling
+                // with the pack at all, it is racing a shorter route on its own.
+                //
+                // What keeps it alive is that a tower fires at ONE target per tick and then sits on
+                // cooldown, so a defence busy with the wave cannot spare a shot for it. Sent alone it
+                // simply dies. It is the only unit on the roster whose value is entirely a function
+                // of what else was sent with it.
+                new CreepDefinition(TurretWalkerCreepId, "Spire Turret Walker", new Gold(23), new Income(2), new Gold(4), new Gold(5), maxHealth: 10, speedPerSecond: 2, categoryIndex: 1, ignoresSendCooldown: true, ignoresMaze: true),
 
                 // Category 3 ("ELITE") — first pass, tunable. A deliberately later tier: costs
                 // and health run past the first ten, which is self-limiting because cost is the

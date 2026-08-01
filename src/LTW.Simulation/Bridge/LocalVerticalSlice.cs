@@ -25,6 +25,20 @@ public sealed class LocalVerticalSlice
     private readonly CommandContentValidator commandValidator;
     private readonly Dictionary<LaneId, LaneGrid> grids;
     private readonly Dictionary<LaneId, IReadOnlyList<GridPosition>> routes;
+
+    /// <summary>The unmazed route per lane, for creeps that ignore the maze.</summary>
+    /// <remarks>
+    /// Holds the route each lane had before a single tower existed. <see cref="routes"/> is
+    /// reassigned on every placement, sell and elimination; this is written once and never again,
+    /// which is the property that makes flying cheap rather than a second pathfind per build.
+    /// </remarks>
+    private readonly Dictionary<LaneId, IReadOnlyList<GridPosition>> directRoutes;
+
+    /// <summary>
+    /// Both routes, as combat wants them. Holds the live dictionaries rather than copies, so the
+    /// mazed side keeps reflecting rebuilds without this needing to be rebuilt with it.
+    /// </summary>
+    private readonly LaneRouteSet routeSet;
     // Not readonly: creeps, towers and lane ownership are fixed for a match but category tiers are
     // not, and combat reads them through this. Refreshed once per tick in AdvanceOneTick.
     private CombatContent combatContent;
@@ -98,11 +112,20 @@ public sealed class LocalVerticalSlice
         var map = content.Maps[0];
         grids = new Dictionary<LaneId, LaneGrid>();
         routes = new Dictionary<LaneId, IReadOnlyList<GridPosition>>();
+        directRoutes = new Dictionary<LaneId, IReadOnlyList<GridPosition>>();
         foreach (var laneId in topology.Lanes)
         {
             grids[laneId] = new LaneGrid(map);
             routes[laneId] = pathService.FindRoute(grids[laneId]).Route;
+
+            // The fly-over route, captured for free: no tower has been placed yet, so the route just
+            // computed IS the unmazed one. It is never recomputed — lane geometry is fixed for the
+            // match, and the whole point of it is that towers do not shape it. Terrain still does,
+            // which is correct: Spire Turret Walker steps over TOWERS, not over the map.
+            directRoutes[laneId] = routes[laneId];
         }
+
+        routeSet = new LaneRouteSet(routes, directRoutes);
         combatContent = new CombatContent(
             content.Creeps,
             content.Towers,
@@ -127,6 +150,14 @@ public sealed class LocalVerticalSlice
     /// assert on from outside — so nothing noticed that the bots never did it.
     /// </remarks>
     public int RouteLength(LaneId laneId) => routes.TryGetValue(laneId, out var route) ? route.Count : 0;
+
+    /// <summary>Length of the unmazed route — what a creep that ignores the maze actually walks.</summary>
+    /// <remarks>
+    /// Exposed so the difference between the two routes is measurable. It is the whole value of the
+    /// mechanic: a maze exists to make the walk long, and this is the number that does not grow when
+    /// one is built.
+    /// </remarks>
+    public int DirectRouteLength(LaneId laneId) => directRoutes.TryGetValue(laneId, out var route) ? route.Count : 0;
 
     /// <summary>
     /// The seat the local client drives. Presentation and input code should ask for this rather
@@ -743,7 +774,7 @@ public sealed class LocalVerticalSlice
         // tower and lane dictionaries are carried across by reference, so this is one small
         // allocation, not a re-index of the catalog.
         combatContent = combatContent.WithPlayerTiers(CurrentPlayerTiers());
-        var result = combat.Advance(combatState, combatContent, routes, tick);
+        var result = combat.Advance(combatState, combatContent, routeSet, tick);
         combatState = result.State;
         foreach (var simulationEvent in result.Events)
         {
@@ -797,9 +828,9 @@ public sealed class LocalVerticalSlice
         new VerticalSliceSnapshot(
             tick,
             players,
-            combat.GetCreepSnapshots(combatState, combatContent, routes),
+            combat.GetCreepSnapshots(combatState, combatContent, routeSet),
             combatState.Towers,
-            combat.GetTowerAimSnapshots(combatState, combatContent, routes));
+            combat.GetTowerAimSnapshots(combatState, combatContent, routeSet));
 
     public IReadOnlyList<ISimulationEvent> DrainEvents()
     {
