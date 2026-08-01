@@ -121,27 +121,50 @@ namespace LTW.UnityClient.Simulation
         /// <summary>Board labels currently animating. See SpawnFloatingText and UpdateFloatingLabels.</summary>
         private readonly List<FloatingLabel> floatingLabels = new List<FloatingLabel>();
 
-        private readonly Dictionary<string, GameObject> activeTowers = new Dictionary<string, GameObject>();
-        private readonly Dictionary<string, GameObject> activeCreeps = new Dictionary<string, GameObject>();
-        private readonly Dictionary<string, string> activeTowerPoolKeys = new Dictionary<string, string>();
-        private readonly Dictionary<string, string> activeCreepPoolKeys = new Dictionary<string, string>();
-        private readonly Dictionary<string, Vector3> lastKnownPositions = new Dictionary<string, Vector3>();
-        private readonly Dictionary<string, string> lastKnownCreepIds = new Dictionary<string, string>();
-        private readonly Dictionary<string, string> towerRolesByCell = new Dictionary<string, string>();
+        /// <summary>
+        /// Per-entity presentation state, keyed by <see cref="EntityId.Value"/> itself.
+        /// </summary>
+        /// <remarks>
+        /// A long rather than its decimal string. These are indexed once per entity per FRAME, and a
+        /// string key means an <c>EntityId.Value.ToString()</c> allocation on every one of those
+        /// lookups plus a character-by-character hash and comparison to resolve it; a long key hashes
+        /// to itself and compares in one instruction. Nothing here ever wanted text — the string was
+        /// only ever a dictionary key, never displayed.
+        /// </remarks>
+        private readonly Dictionary<long, GameObject> activeTowers = new Dictionary<long, GameObject>();
+        private readonly Dictionary<long, GameObject> activeCreeps = new Dictionary<long, GameObject>();
+        private readonly Dictionary<long, string> activeTowerPoolKeys = new Dictionary<long, string>();
+        private readonly Dictionary<long, string> activeCreepPoolKeys = new Dictionary<long, string>();
+        private readonly Dictionary<long, Vector3> lastKnownPositions = new Dictionary<long, Vector3>();
+        private readonly Dictionary<long, string> lastKnownCreepIds = new Dictionary<long, string>();
+        private readonly Dictionary<int, string> towerRolesByCell = new Dictionary<int, string>();
 
         /// <summary>
         /// Per-cell tower tier, kept alongside <see cref="towerRolesByCell"/> and cleared with it.
         /// A CreepDamagedEvent identifies its tower by grid cell, so this is how the weapon effects
         /// find out how upgraded the tower that fired is.
         /// </summary>
-        private readonly Dictionary<string, int> towerTiersByCell = new Dictionary<string, int>();
-        private readonly Dictionary<string, int> lastCreepHealth = new Dictionary<string, int>();
-        private readonly Dictionary<string, float> creepHitFlashUntil = new Dictionary<string, float>();
-        private readonly Dictionary<string, Animator> creepAnimators = new Dictionary<string, Animator>();
-        private readonly Dictionary<string, float> towerLastFiredAt = new Dictionary<string, float>();
-        private readonly Dictionary<string, Vector3> towerAimTarget = new Dictionary<string, Vector3>();
-        private readonly Dictionary<string, float> towerAimYaw = new Dictionary<string, float>();
-        private readonly Dictionary<string, SpinPartState> towerSpinPartState = new Dictionary<string, SpinPartState>();
+        private readonly Dictionary<int, int> towerTiersByCell = new Dictionary<int, int>();
+        private readonly Dictionary<long, int> lastCreepHealth = new Dictionary<long, int>();
+        private readonly Dictionary<long, float> creepHitFlashUntil = new Dictionary<long, float>();
+
+        /// <summary>
+        /// The hit-flash state each creep's colours were last written for.
+        /// </summary>
+        /// <remarks>
+        /// Colour is per-SNAPSHOT work with one per-frame input: the flash decays on
+        /// <see cref="Time.time"/> and expires mid-tick, so a colour pass gated purely on the
+        /// snapshot would leave a struck creep pale until the next tick — up to 0.25s of the wrong
+        /// colour against a 0.16s flash. Tracking what was last applied re-runs the colour pass on
+        /// the frame the flash turns on and the frame it turns off, and on no other frame, which is
+        /// two applications per hit rather than sixty per second per creep.
+        /// </remarks>
+        private readonly Dictionary<long, bool> creepHitFlashApplied = new Dictionary<long, bool>();
+        private readonly Dictionary<long, Animator> creepAnimators = new Dictionary<long, Animator>();
+        private readonly Dictionary<long, float> towerLastFiredAt = new Dictionary<long, float>();
+        private readonly Dictionary<long, Vector3> towerAimTarget = new Dictionary<long, Vector3>();
+        private readonly Dictionary<long, float> towerAimYaw = new Dictionary<long, float>();
+        private readonly Dictionary<long, SpinPartState> towerSpinPartState = new Dictionary<long, SpinPartState>();
         private readonly Dictionary<int, GameObject> lanePressureMeters = new Dictionary<int, GameObject>();
         private readonly Dictionary<int, GameObject> lanePressureCaps = new Dictionary<int, GameObject>();
         private readonly Dictionary<int, TextMesh> lanePressureLabels = new Dictionary<int, TextMesh>();
@@ -157,7 +180,7 @@ namespace LTW.UnityClient.Simulation
         private int bakedBoardPieceCount;
         private readonly BoardMeshBuilder boardMeshBuilder = new BoardMeshBuilder();
         private readonly Dictionary<string, Material> referencePlateMaterials = new Dictionary<string, Material>();
-        private readonly Dictionary<string, GameObject> activeContactShadows = new Dictionary<string, GameObject>();
+        private readonly Dictionary<long, GameObject> activeContactShadows = new Dictionary<long, GameObject>();
         private readonly Dictionary<string, Vector2> unitFootprints = new Dictionary<string, Vector2>();
         private readonly Queue<GameObject> contactShadowPool = new Queue<GameObject>();
 
@@ -166,8 +189,11 @@ namespace LTW.UnityClient.Simulation
 
         /// <summary>Local-space gap between a creep's body top and its health bar.</summary>
         private const float HealthBarGap = 0.12f;
-        private readonly HashSet<string> visibleContactShadowKeys = new HashSet<string>();
-        private readonly HashSet<string> visibleKeys = new HashSet<string>();
+        private readonly HashSet<long> visibleContactShadowKeys = new HashSet<long>();
+        private readonly HashSet<long> visibleKeys = new HashSet<long>();
+
+        /// <summary>Scratch list for the release sweeps, reused so they stop allocating per frame.</summary>
+        private readonly List<long> keysToReleaseScratch = new List<long>();
         private readonly Queue<GameObject> towerPool = new Queue<GameObject>();
         private readonly Queue<GameObject> creepPool = new Queue<GameObject>();
         private readonly Dictionary<string, Queue<GameObject>> towerPrefabPools = new Dictionary<string, Queue<GameObject>>();
@@ -200,14 +226,14 @@ namespace LTW.UnityClient.Simulation
         private readonly Queue<GameObject> shockwaveRingPool = new Queue<GameObject>();
         private readonly List<ExpandingRingEffect> activeShockwaveRings = new List<ExpandingRingEffect>();
         private readonly List<MortarShellEffect> activeMortarShells = new List<MortarShellEffect>();
-        private readonly Dictionary<string, GameObject> towerMechanicMarkers = new Dictionary<string, GameObject>();
+        private readonly Dictionary<long, GameObject> towerMechanicMarkers = new Dictionary<long, GameObject>();
         // Keyed by the SERVICED tower's id, not the drone's — a tower can have at most one tether
         // regardless of how many drones are adjacent to it (see UpdateTowerServicingTether), so this
         // stays a strict one-per-tower dictionary just like towerMechanicMarkers above. Kept separate
         // from that dictionary rather than merged into it because the two hold different pooled
         // shapes (a flat ring vs. a stretched cube) drawn from different pools; see GetPooled's own
         // comment on why ring and beam pools must not mix.
-        private readonly Dictionary<string, GameObject> towerServicingTethers = new Dictionary<string, GameObject>();
+        private readonly Dictionary<long, GameObject> towerServicingTethers = new Dictionary<long, GameObject>();
 
         /// <summary>One drifting fog disc per Spore Cloud Bloom, sized to that tower's attack range.</summary>
         /// <remarks>
@@ -216,7 +242,7 @@ namespace LTW.UnityClient.Simulation
         /// built with, so mixing a fog quad into the shockwave-ring pool would hand a ring the fog
         /// shader (or the reverse) the first time one was recycled.
         /// </remarks>
-        private readonly Dictionary<string, GameObject> towerSporeFog = new Dictionary<string, GameObject>();
+        private readonly Dictionary<long, GameObject> towerSporeFog = new Dictionary<long, GameObject>();
         private readonly Queue<GameObject> sporeFogPool = new Queue<GameObject>();
         private Material sporeFogMaterial;
         private bool laneCreated;
@@ -641,130 +667,296 @@ namespace LTW.UnityClient.Simulation
                 $"{bakedBoardPieceCount} pieces baked (each was previously its own renderer and material instance)");
         }
 
-        private readonly Dictionary<string, LTW.Simulation.Primitives.GridPosition> towerVisionTargetsScratch =
-            new Dictionary<string, LTW.Simulation.Primitives.GridPosition>();
+        private readonly Dictionary<long, LTW.Simulation.Primitives.GridPosition> towerVisionTargetsScratch =
+            new Dictionary<long, LTW.Simulation.Primitives.GridPosition>();
 
+        /// <summary>Creeps per lane, reused rather than reallocated on every pass.</summary>
+        private readonly int[] pressureByLane = new int[LaneCount + 1];
+
+        /// <summary>
+        /// The presentation revision the per-snapshot half of <see cref="RenderSnapshot"/> last ran
+        /// for. <see cref="long.MinValue"/> means "nothing applied yet", which no real revision is.
+        /// </summary>
+        private long lastAppliedSnapshotRevision = long.MinValue;
+
+        /// <summary>
+        /// A value that changes exactly when the per-snapshot half of the render has something new
+        /// to do.
+        /// </summary>
+        /// <remarks>
+        /// The tick number alone is not it, and this is the whole reason the gate is a hash rather
+        /// than a comparison against <c>snapshot.Tick</c>. Commands apply the moment they are
+        /// accepted, not on the next tick — <c>LocalVerticalSlice.PlaceTower</c>/<c>UpgradeTower</c>/
+        /// <c>SellTowerAt</c> all mutate state synchronously — and the opening build countdown is a
+        /// thirty-second window in which the tick does not advance at all while the player builds and
+        /// upgrades. Gated on the tick, a tower upgraded during the countdown would keep its old tier
+        /// colour and tier marker until the match started.
+        ///
+        /// So this folds in everything the per-snapshot half reads: the tick (which is what refreshes
+        /// aim targets), and per tower its identity, owner, cell and tier. Creeps are folded in too
+        /// even though they only ever change on a tick, because it costs a few integer operations per
+        /// creep and removes the need to be right about that.
+        ///
+        /// Deliberately a hash rather than per-entity dirty flags: it is allocation-free, it is one
+        /// comparison at the call site, and a 64-bit collision would have to be engineered. Its
+        /// failure mode is also the mild one — a stale frame, not a wrong one.
+        /// </remarks>
+        private static long SnapshotPresentationRevision(LTW.Simulation.Bridge.VerticalSliceSnapshot snapshot)
+        {
+            unchecked
+            {
+                // FNV-1a over the fields, 64-bit.
+                var hash = 14695981039346656037UL;
+                hash = Mix(hash, (ulong)snapshot.Tick.Value);
+                hash = Mix(hash, (ulong)snapshot.Towers.Count);
+                for (var index = 0; index < snapshot.Towers.Count; index++)
+                {
+                    var tower = snapshot.Towers[index];
+                    hash = Mix(hash, (ulong)tower.EntityId.Value);
+                    hash = Mix(hash, (ulong)((tower.LaneId.Value << 24) ^ (tower.Position.X << 16) ^ (tower.Position.Y << 8) ^ tower.Tier));
+                    hash = Mix(hash, (ulong)tower.OwnerId.Value);
+                }
+
+                hash = Mix(hash, (ulong)snapshot.Creeps.Count);
+                for (var index = 0; index < snapshot.Creeps.Count; index++)
+                {
+                    var creep = snapshot.Creeps[index];
+                    hash = Mix(hash, (ulong)creep.EntityId.Value);
+                    hash = Mix(hash, (ulong)creep.Health);
+                }
+
+                return (long)hash;
+            }
+        }
+
+        private static ulong Mix(ulong hash, ulong value)
+        {
+            unchecked
+            {
+                return (hash ^ value) * 1099511628211UL;
+            }
+        }
+
+        /// <summary>
+        /// Projects one snapshot into the pooled objects, splitting per-FRAME work from per-SNAPSHOT
+        /// work.
+        /// </summary>
+        /// <remarks>
+        /// This runs every frame, at around 60 fps, against a snapshot that changes at 4 Hz. Almost
+        /// everything it used to do was therefore repeated fifteen times per input change: colours
+        /// recomputed and written through <c>Renderer.material</c>, health bars rebuilt, range halos
+        /// and role overlays reconfigured, the servicing-tether and Grovebond adjacency scans re-run
+        /// (both of which are O(towers) per tower), and eight pressure gauges re-tinted and their
+        /// TextMesh labels re-assigned, which regenerates a mesh each time.
+        ///
+        /// What stays per frame is everything that has to move smoothly BETWEEN ticks, and the test
+        /// for that is mechanical rather than a judgement call: anything reading <see cref="Time"/>.
+        /// Tower idle breathe/drift, aim turn, recoil, ring and barrel spin (<c>UpdateTowerMotion</c>,
+        /// which reads both <c>Time.time</c> and <c>Time.deltaTime</c>); creep travel interpolation
+        /// and the per-creep bob/sway/flinch (<c>SetCreepTransform</c> and <c>CreepRoleMotion</c>);
+        /// the swarm cluster's per-shard wobble; the primitive-fallback role overlays, whose jitter
+        /// and shimmer are also on <c>Time.time</c>; and the creep contact shadow, which follows a
+        /// unit that is moving. A tower's contact shadow is NOT in that set — idle motion moves the
+        /// Body child, never the root the decal is pinned to, so the decal is genuinely static.
+        ///
+        /// The hit flash is the one input that is neither: it is triggered by a snapshot (health
+        /// went down) and expires on the clock (0.16s later, mid-tick). Colour therefore re-applies
+        /// on a snapshot change OR when the flash state flips, tracked in
+        /// <see cref="creepHitFlashApplied"/>.
+        /// </remarks>
         private void RenderSnapshot(LTW.Simulation.Bridge.VerticalSliceSnapshot snapshot)
         {
-            visibleKeys.Clear();
-            visibleContactShadowKeys.Clear();
-            towerRolesByCell.Clear();
-            towerTiersByCell.Clear();
+            var revision = SnapshotPresentationRevision(snapshot);
+            var snapshotChanged = revision != lastAppliedSnapshotRevision;
 
-            // A tower's vision (used purely for aim-tracking) is deliberately wider than its real
-            // attack range (CombatService.GetTowerAimSnapshots) so the turret has time to turn
-            // toward a target BEFORE it's actually close enough to fire — without this, the first
-            // shot always fires from whatever the head's previous/idle heading was, since
-            // towerAimTarget used to only ever get set at the moment of firing (TowerFiredEvent),
-            // leaving zero time to visibly turn beforehand. Refreshed every snapshot, not gated by
-            // firing or cooldown.
-            towerVisionTargetsScratch.Clear();
-            for (var index = 0; index < snapshot.TowerAimTargets.Count; index++)
+            if (snapshotChanged)
             {
-                var visionTarget = snapshot.TowerAimTargets[index];
-                towerVisionTargetsScratch[visionTarget.TowerEntityId.Value.ToString()] = visionTarget.TargetPosition;
+                visibleKeys.Clear();
+                visibleContactShadowKeys.Clear();
+                towerRolesByCell.Clear();
+                towerTiersByCell.Clear();
+
+                // A tower's vision (used purely for aim-tracking) is deliberately wider than its real
+                // attack range (CombatService.GetTowerAimSnapshots) so the turret has time to turn
+                // toward a target BEFORE it's actually close enough to fire — without this, the first
+                // shot always fires from whatever the head's previous/idle heading was, since
+                // towerAimTarget used to only ever get set at the moment of firing (TowerFiredEvent),
+                // leaving zero time to visibly turn beforehand. Refreshed every snapshot, not gated by
+                // firing or cooldown. The TARGET is per-snapshot; the turn toward it is per-frame, in
+                // UpdateTowerMotion.
+                towerVisionTargetsScratch.Clear();
+                for (var index = 0; index < snapshot.TowerAimTargets.Count; index++)
+                {
+                    var visionTarget = snapshot.TowerAimTargets[index];
+                    towerVisionTargetsScratch[visionTarget.TowerEntityId.Value] = visionTarget.TargetPosition;
+                }
             }
 
             foreach (var tower in snapshot.Towers)
             {
-                var key = tower.EntityId.Value.ToString();
-                visibleKeys.Add(key);
-                towerRolesByCell[TowerGridKey(tower.Position, tower.LaneId)] = tower.TowerId.Value;
-                towerTiersByCell[TowerGridKey(tower.Position, tower.LaneId)] = tower.Tier;
+                var key = tower.EntityId.Value;
                 var visualProfile = towerVisualLibrary != null ? towerVisualLibrary.FindProfile(tower.TowerId.Value) : null;
-                var towerObject = GetOrCreateTower(key, visualProfile);
-                SetTowerTransform(towerObject, tower.Position, tower.LaneId, tower.TowerId.Value, visualProfile);
-                ApplyTowerColor(towerObject, tower.TowerId.Value, tower.OwnerId.Value, visualProfile, tower.Tier);
+                var hasPrefab = visualProfile != null && visualProfile.Prefab != null;
+                GameObject towerObject;
 
-                UpdateTowerMechanicMarker(key, tower.TowerId.Value, tower.Position, tower.LaneId, snapshot);
-                UpdateTowerServicingTether(key, tower, snapshot);
-                UpdateSporeFog(key, tower.TowerId.Value, GridToWorld(tower.Position, tower.LaneId), TowerRangeCells(tower.TowerId.Value));
-
-                if (towerVisionTargetsScratch.TryGetValue(key, out var visionTargetPosition))
+                if (snapshotChanged)
                 {
-                    towerAimTarget[key] = GridToWorld(visionTargetPosition, tower.LaneId);
+                    visibleKeys.Add(key);
+                    var cellKey = TowerGridKey(tower.Position, tower.LaneId);
+                    towerRolesByCell[cellKey] = tower.TowerId.Value;
+                    towerTiersByCell[cellKey] = tower.Tier;
+                    towerObject = GetOrCreateTower(key, visualProfile);
+                    SetTowerTransform(towerObject, tower.Position, tower.LaneId, tower.TowerId.Value, visualProfile);
+                    ApplyTowerColor(towerObject, tower.TowerId.Value, tower.OwnerId.Value, visualProfile, tower.Tier);
+
+                    UpdateTowerMechanicMarker(key, tower.TowerId.Value, tower.Position, tower.LaneId, snapshot);
+                    UpdateTowerServicingTether(key, tower, snapshot);
+                    UpdateSporeFog(key, tower.TowerId.Value, GridToWorld(tower.Position, tower.LaneId), TowerRangeCells(tower.TowerId.Value));
+
+                    if (towerVisionTargetsScratch.TryGetValue(key, out var visionTargetPosition))
+                    {
+                        towerAimTarget[key] = GridToWorld(visionTargetPosition, tower.LaneId);
+                    }
+
+                    if (!hasPrefab)
+                    {
+                        ConfigureTowerRoleMarker(towerObject, tower.TowerId.Value, tower.OwnerId.Value);
+                    }
+
+                    UpdateContactShadow(ContactShadowKey(key, isTower: true), towerObject, TowerPoolKey(visualProfile), TowerContactShadowMaterial(), 0.94f);
+                    lastKnownPositions[key] = towerObject.transform.position;
+                }
+                else if (!activeTowers.TryGetValue(key, out towerObject) || towerObject == null)
+                {
+                    // Unreachable while the revision is doing its job: a tower present in the
+                    // snapshot but absent from the pool means the tower set changed, which changes
+                    // the revision. Kept as a guard rather than an assumption, since the alternative
+                    // is a null dereference in the motion call below.
+                    continue;
                 }
 
-                if (visualProfile == null || visualProfile.Prefab == null)
-                {
-                    ConfigureTowerRoleMarker(towerObject, tower.TowerId.Value, tower.OwnerId.Value);
-                }
-                else
+                if (hasPrefab)
                 {
                     UpdateTowerMotion(towerObject, key, towerObject.transform.position, visualProfile);
                 }
-
-                // Towers and creeps are keyed from separate id spaces, so the decal key is prefixed
-                // to stop a tower and a creep that happen to share an entity id fighting over one.
-                UpdateContactShadow("t" + key, towerObject, TowerPoolKey(visualProfile), TowerContactShadowMaterial(), 0.94f);
-                lastKnownPositions[key] = towerObject.transform.position;
             }
 
-            ReleaseMissingTowers();
-            visibleKeys.Clear();
-            var pressureByLane = new int[LaneCount + 1];
+            if (snapshotChanged)
+            {
+                ReleaseMissingTowers();
+                visibleKeys.Clear();
+                Array.Clear(pressureByLane, 0, pressureByLane.Length);
+            }
+
             foreach (var creep in snapshot.Creeps)
             {
-                var key = creep.EntityId.Value.ToString();
-                visibleKeys.Add(key);
+                var key = creep.EntityId.Value;
                 var visualProfile = creepVisualLibrary != null ? creepVisualLibrary.FindProfile(creep.CreepId.Value) : null;
-                var isNewCreep = !activeCreeps.ContainsKey(key);
-                var creepObject = GetOrCreateCreep(key, visualProfile);
-                if (!isNewCreep && lastCreepHealth.TryGetValue(key, out var previousHealth) && creep.Health < previousHealth)
+                var hasPrefab = visualProfile != null && visualProfile.Prefab != null;
+                GameObject creepObject;
+                var isNewCreep = false;
+
+                if (snapshotChanged)
                 {
-                    creepHitFlashUntil[key] = Time.time + 0.16f;
+                    visibleKeys.Add(key);
+                    isNewCreep = !activeCreeps.ContainsKey(key);
+                    creepObject = GetOrCreateCreep(key, visualProfile);
+                    if (!isNewCreep && lastCreepHealth.TryGetValue(key, out var previousHealth) && creep.Health < previousHealth)
+                    {
+                        creepHitFlashUntil[key] = Time.time + CreepHitFlashDuration;
+                    }
+                }
+                else if (!activeCreeps.TryGetValue(key, out creepObject) || creepObject == null)
+                {
+                    // See the tower guard above: unreachable, kept so it cannot become a crash.
+                    continue;
                 }
 
-                var hitFlashUntil = creepHitFlashUntil.TryGetValue(key, out var flashUntilValue) ? flashUntilValue : 0f;
-                SetCreepTransform(creepObject, CreepTravelPosition(creep), creep.LaneId, creep.CreepId.Value, visualProfile, isNewCreep, hitFlashUntil, key);
-                UpdateCreepAnimationSpeed(key, creepObject, creep.CreepId.Value, creep.SpeedPerSecond);
                 var healthFraction = CreepHealthFraction(creep.Health, creep.MaxHealth);
-                var isHitFlashing = creepHitFlashUntil.TryGetValue(key, out var flashUntil) && Time.time < flashUntil;
-                ApplyCreepColor(creepObject, creep.CreepId.Value, creep.SenderId.Value, visualProfile, healthFraction, isHitFlashing);
-                if (UsesMeshVisual(creepObject) && ContainsRole(creep.CreepId.Value, "swarm"))
+                var hitFlashUntil = creepHitFlashUntil.TryGetValue(key, out var flashUntilValue) ? flashUntilValue : 0f;
+                var isHitFlashing = Time.time < hitFlashUntil;
+
+                // Per frame: where the creep is, and the bob/sway/flinch it carries. Both interpolate
+                // continuously, so both would visibly stutter at the snapshot rate.
+                SetCreepTransform(creepObject, CreepTravelPosition(creep), creep.LaneId, creep.CreepId.Value, visualProfile, isNewCreep, hitFlashUntil, key);
+
+                var flashChanged = !creepHitFlashApplied.TryGetValue(key, out var appliedFlash) || appliedFlash != isHitFlashing;
+                if (snapshotChanged || flashChanged)
+                {
+                    ApplyCreepColor(creepObject, creep.CreepId.Value, creep.SenderId.Value, visualProfile, healthFraction, isHitFlashing);
+                    creepHitFlashApplied[key] = isHitFlashing;
+                }
+
+                // Hoisted: each of these is a transform path search, and the pair was being run up to
+                // three times per creep per frame to answer the same question three times.
+                var usesMeshVisual = UsesMeshVisual(creepObject);
+                var usesPlateVisual = UsesAiPlateVisual(creepObject);
+
+                if (usesMeshVisual && ContainsRole(creep.CreepId.Value, "swarm"))
                 {
                     // Replaces the single mesh-backed body with a small cluster, not an overlay on
                     // top of it, so this runs unconditionally rather than being gated behind
                     // suppressCreepGameplayOverlays — skipping it would leave the creep showing
-                    // nothing, since ConfigureSwarmCluster is what hides the original body.
+                    // nothing, since ConfigureSwarmCluster is what hides the original body. Per
+                    // frame, not per snapshot: each shard wanders around its slot on Time.time, and
+                    // that wander IS the swarm read.
                     ConfigureSwarmCluster(creepObject, creep.CreepId.Value, creep.SenderId.Value, healthFraction, isHitFlashing);
                 }
 
-                if (suppressCreepGameplayOverlays)
+                if (!suppressCreepGameplayOverlays)
                 {
-                    DeactivateCreepGameplayOverlays(creepObject);
-                }
-                else
-                {
-                    ConfigureCreepHealthBar(creepObject, creep.CreepId.Value, healthFraction);
-                    if (UsesAiPlateVisual(creepObject) || UsesMeshVisual(creepObject))
-                    {
-                        DeactivateRoleReadabilityOverlay(creepObject);
-                    }
-                    else
+                    // Both of these stay per frame: their jitter, shimmer and windup all run off
+                    // Time.time, so they animate. Nothing ships on this path — every creep in the
+                    // roster has a mesh prefab — but that makes it cheap to leave alone rather than
+                    // a reason to risk freezing it.
+                    if (!usesPlateVisual && !usesMeshVisual)
                     {
                         ConfigureCreepReadabilityOverlay(creepObject, creep.CreepId.Value, creep.SenderId.Value, healthFraction, isHitFlashing);
                     }
 
-                    if (visualProfile == null || visualProfile.Prefab == null)
+                    if (!hasPrefab)
                     {
                         ConfigureCreepRoleMarker(creepObject, creep.CreepId.Value, creep.SenderId.Value, healthFraction, isHitFlashing);
                     }
                 }
 
-                UpdateContactShadow("c" + key, creepObject, CreepPoolKey(visualProfile), CreepContactShadowMaterial(), 0.86f);
-                lastKnownPositions[key] = creepObject.transform.position;
-                lastKnownCreepIds[key] = creep.CreepId.Value;
-                lastCreepHealth[key] = creep.Health;
-                if (creep.LaneId.Value >= 1 && creep.LaneId.Value < pressureByLane.Length)
+                if (snapshotChanged)
                 {
-                    pressureByLane[creep.LaneId.Value]++;
+                    UpdateCreepAnimationSpeed(key, creepObject, creep.CreepId.Value, creep.SpeedPerSecond);
+                    if (suppressCreepGameplayOverlays)
+                    {
+                        DeactivateCreepGameplayOverlays(creepObject);
+                    }
+                    else
+                    {
+                        ConfigureCreepHealthBar(creepObject, creep.CreepId.Value, healthFraction);
+                        if (usesPlateVisual || usesMeshVisual)
+                        {
+                            DeactivateRoleReadabilityOverlay(creepObject);
+                        }
+                    }
+
+                    lastKnownCreepIds[key] = creep.CreepId.Value;
+                    lastCreepHealth[key] = creep.Health;
+                    if (creep.LaneId.Value >= 1 && creep.LaneId.Value < pressureByLane.Length)
+                    {
+                        pressureByLane[creep.LaneId.Value]++;
+                    }
                 }
+
+                // Per frame, unlike the tower decal above: a creep's root transform is what walks
+                // down the lane, so its blob has to walk with it.
+                UpdateContactShadow(ContactShadowKey(key, isTower: false), creepObject, CreepPoolKey(visualProfile), CreepContactShadowMaterial(), 0.86f);
+                lastKnownPositions[key] = creepObject.transform.position;
             }
 
-            ReleaseMissingCreeps();
-            ReleaseMissingContactShadows();
-            UpdateLanePressureIndicators(pressureByLane);
+            if (snapshotChanged)
+            {
+                ReleaseMissingCreeps();
+                ReleaseMissingContactShadows();
+                UpdateLanePressureIndicators(pressureByLane);
+                lastAppliedSnapshotRevision = revision;
+            }
         }
 
         /// <summary>
@@ -780,7 +972,7 @@ namespace LTW.UnityClient.Simulation
         /// the existing pooling exactly - reused instances get repositioned, and anything that
         /// leaves the snapshot returns its blob on the same frame the unit is released.
         /// </remarks>
-        private void UpdateContactShadow(string key, GameObject unit, string poolKey, Material material, float footprintScale)
+        private void UpdateContactShadow(long key, GameObject unit, string poolKey, Material material, float footprintScale)
         {
             if (material == null || unit == null)
             {
@@ -833,22 +1025,22 @@ namespace LTW.UnityClient.Simulation
                 return;
             }
 
-            var keysToRelease = new List<string>();
+            keysToReleaseScratch.Clear();
             foreach (var pair in activeContactShadows)
             {
                 if (!visibleContactShadowKeys.Contains(pair.Key))
                 {
-                    keysToRelease.Add(pair.Key);
+                    keysToReleaseScratch.Add(pair.Key);
                 }
             }
 
-            for (var index = 0; index < keysToRelease.Count; index++)
+            for (var index = 0; index < keysToReleaseScratch.Count; index++)
             {
-                ReleaseContactShadow(keysToRelease[index]);
+                ReleaseContactShadow(keysToReleaseScratch[index]);
             }
         }
 
-        private void ReleaseContactShadow(string key)
+        private void ReleaseContactShadow(long key)
         {
             if (activeContactShadows.TryGetValue(key, out var decal) && decal != null)
             {
@@ -1088,7 +1280,7 @@ namespace LTW.UnityClient.Simulation
                         PlaySound(towerBuiltClip);
                         break;
                     case TowerSoldEvent towerSold:
-                        var sellPosition = PositionFor(towerSold.TowerEntityId.Value.ToString());
+                        var sellPosition = PositionFor(towerSold.TowerEntityId.Value);
                         SpawnCellFrameCue(sellPosition, SignalGold, 0.24f);
                         SpawnEffect(sellPosition, SignalGold, 0.42f, 0.24f);
                         SpawnFloatingText(sellPosition, $"+{towerSold.Refund.Amount}", SignalGold, 0.58f);
@@ -1143,7 +1335,7 @@ namespace LTW.UnityClient.Simulation
 
                         break;
                     case TowerFiredEvent fired:
-                        var firedTowerKey = fired.TowerEntityId.Value.ToString();
+                        var firedTowerKey = fired.TowerEntityId.Value;
                         towerLastFiredAt[firedTowerKey] = Time.time;
                         towerAimTarget[firedTowerKey] = GridToWorld(fired.TargetPosition, fired.LaneId);
                         // An impact tick in the future means indirect fire. Direct-fire towers report
@@ -1158,12 +1350,12 @@ namespace LTW.UnityClient.Simulation
 
                         break;
                     case CreepDamagedEvent damaged:
-                        var hitPosition = PositionFor(damaged.CreepEntityId.Value.ToString());
-                        var damagedCreepId = CreepIdFor(damaged.CreepEntityId.Value.ToString());
+                        var hitPosition = PositionFor(damaged.CreepEntityId.Value);
+                        var damagedCreepId = CreepIdFor(damaged.CreepEntityId.Value);
                         var towerPosition = GridToWorld(damaged.TowerPosition, damaged.LaneId);
                         var towerRole = TowerRoleAt(damaged.TowerPosition, damaged.LaneId);
                         var towerTier = TowerTierAt(damaged.TowerPosition, damaged.LaneId);
-                        var attackBody = ResolveTowerBodyTransform(damaged.TowerEntityId.Value.ToString());
+                        var attackBody = ResolveTowerBodyTransform(damaged.TowerEntityId.Value);
                         SpawnTowerAttackCue(towerPosition, hitPosition, towerRole, damaged.DamageDealt, attackBody, towerTier);
                         SpawnCreepHitCue(hitPosition, new Color(1f, 0.88f, 0.44f), damaged.DamageDealt);
                         SpawnCreepRoleFeedbackCue(hitPosition, damagedCreepId, damaged.DamageDealt);
@@ -1180,7 +1372,7 @@ namespace LTW.UnityClient.Simulation
                         PlaySound(towerHitClip);
                         break;
                     case CreepKilledEvent creepKilled:
-                        var killedCreepKey = creepKilled.CreepEntityId.Value.ToString();
+                        var killedCreepKey = creepKilled.CreepEntityId.Value;
                         var killPosition = PositionFor(killedCreepKey);
                         var killedCreepId = CreepIdFor(killedCreepKey);
                         var deathProfile = creepVisualLibrary != null ? creepVisualLibrary.FindProfile(killedCreepId) : null;
@@ -1191,7 +1383,7 @@ namespace LTW.UnityClient.Simulation
                         PlaySound(creepKilledClip);
                         break;
                     case LeakEvent leak:
-                        var leakCreepKey = leak.CreepEntityId.Value.ToString();
+                        var leakCreepKey = leak.CreepEntityId.Value;
                         var position = PositionFor(leakCreepKey);
                         var leakingCreepId = CreepIdFor(leakCreepKey);
                         SpawnLeakGateCue(leak.DefenderId.Value);
@@ -1531,7 +1723,7 @@ namespace LTW.UnityClient.Simulation
         /// One pooled quad per tower, updated in place, released with the tower.
         /// </remarks>
         private void UpdateTowerMechanicMarker(
-            string key,
+            long key,
             string towerId,
             GridPosition position,
             LaneId laneId,
@@ -1646,7 +1838,7 @@ namespace LTW.UnityClient.Simulation
         /// adjacent drones is picked so the choice is stable and independent of snapshot ordering,
         /// not because the specific choice of drone matters.
         /// </remarks>
-        private void UpdateTowerServicingTether(string key, LTW.Simulation.Combat.TowerCombatState tower, LTW.Simulation.Bridge.VerticalSliceSnapshot snapshot)
+        private void UpdateTowerServicingTether(long key, LTW.Simulation.Combat.TowerCombatState tower, LTW.Simulation.Bridge.VerticalSliceSnapshot snapshot)
         {
             if (PresentationPreferences.ReducedEffects || IsRepairDroneTower(tower.TowerId.Value))
             {
@@ -1719,7 +1911,7 @@ namespace LTW.UnityClient.Simulation
 
         private static bool IsRepairDroneTower(string towerId) => towerId.IndexOf("repair_drone", StringComparison.OrdinalIgnoreCase) >= 0;
 
-        private void ReleaseTowerServicingTether(string key)
+        private void ReleaseTowerServicingTether(long key)
         {
             if (!towerServicingTethers.TryGetValue(key, out var tether))
             {
@@ -1734,7 +1926,7 @@ namespace LTW.UnityClient.Simulation
             towerServicingTethers.Remove(key);
         }
 
-        private void ReleaseTowerMechanicMarker(string key)
+        private void ReleaseTowerMechanicMarker(long key)
         {
             if (!towerMechanicMarkers.TryGetValue(key, out var marker))
             {
@@ -1800,7 +1992,7 @@ namespace LTW.UnityClient.Simulation
         /// fog layers over the lane rather than fighting the bramble and bond rings for the same
         /// millimetre.
         /// </remarks>
-        private void UpdateSporeFog(string key, string towerId, Vector3 towerPosition, float rangeCells)
+        private void UpdateSporeFog(long key, string towerId, Vector3 towerPosition, float rangeCells)
         {
             if (!ContainsRole(towerId, "spore") || PresentationPreferences.ReducedEffects)
             {
@@ -1898,7 +2090,7 @@ namespace LTW.UnityClient.Simulation
             return fog;
         }
 
-        private void ReleaseSporeFog(string key)
+        private void ReleaseSporeFog(long key)
         {
             if (!towerSporeFog.TryGetValue(key, out var fog))
             {
@@ -2594,7 +2786,25 @@ namespace LTW.UnityClient.Simulation
         private int TowerTierAt(GridPosition position, LaneId laneId) =>
             towerTiersByCell.TryGetValue(TowerGridKey(position, laneId), out var tier) ? tier : 1;
 
-        private static string TowerGridKey(GridPosition position, LaneId laneId) => $"{laneId.Value}:{position.X}:{position.Y}";
+        /// <summary>
+        /// Packs a lane cell into one int, so the per-cell maps are not keyed by a formatted string.
+        /// </summary>
+        /// <remarks>
+        /// Both maps are rebuilt for every tower on the board on every snapshot and read once per
+        /// damage event, and the string form cost two allocations per tower per rebuild for a value
+        /// nothing ever reads as text. A lane is 1-8, X is 0-6 and Y is 0-15, so a byte each is an
+        /// order of magnitude more room than the board has and the packing cannot collide.
+        /// </remarks>
+        private static int TowerGridKey(GridPosition position, LaneId laneId) =>
+            (laneId.Value << 16) | ((position.X & 0xFF) << 8) | (position.Y & 0xFF);
+
+        /// <summary>
+        /// Packs a unit's contact-shadow decal key. Towers and creeps are keyed from separate id
+        /// spaces, so the low bit distinguishes them and stops a tower and a creep that happen to
+        /// share an entity id fighting over one decal — the same job the old "t"/"c" string prefix
+        /// did, without the concatenation it cost per unit per frame.
+        /// </summary>
+        private static long ContactShadowKey(long entityId, bool isTower) => (entityId << 1) | (isTower ? 0L : 1L);
 
         private static string TransferCandidateKey(SimulationTick tick, PlayerId senderId) => $"{tick.Value}:{senderId.Value}";
 
@@ -2676,28 +2886,13 @@ namespace LTW.UnityClient.Simulation
             }
         }
 
-        private void ReleaseMissing(Dictionary<string, GameObject> activeObjects, Queue<GameObject> pool)
-        {
-            var keysToRelease = new List<string>();
-            foreach (var pair in activeObjects)
-            {
-                if (!visibleKeys.Contains(pair.Key))
-                {
-                    keysToRelease.Add(pair.Key);
-                }
-            }
-
-            foreach (var key in keysToRelease)
-            {
-                ReleaseToPool(activeObjects[key], pool);
-                activeObjects.Remove(key);
-                lastCreepHealth.Remove(key);
-                creepHitFlashUntil.Remove(key);
-            }
-        }
-
         private void ReleaseAllActiveObjects()
         {
+            // Everything the per-snapshot half applied is about to be handed back to the pools, so
+            // the revision it was applied for no longer describes anything. Without this, presentation
+            // being switched off and on again inside one unchanged snapshot would leave an empty board.
+            lastAppliedSnapshotRevision = long.MinValue;
+            towerMotionParts.Clear();
             foreach (var pair in activeTowers) ReleaseTowerToPool(pair.Key, pair.Value);
             foreach (var pair in activeCreeps) ReleaseCreepToPool(pair.Key, pair.Value);
             ReleaseAllContactShadows();
@@ -2708,6 +2903,7 @@ namespace LTW.UnityClient.Simulation
             lastKnownCreepIds.Clear();
             lastCreepHealth.Clear();
             creepHitFlashUntil.Clear();
+            creepHitFlashApplied.Clear();
             foreach (var presentation in timedPresentations) ReleaseToPool(presentation.Object, presentation.Pool);
             timedPresentations.Clear();
             foreach (var ring in activeShockwaveRings) ReleaseToPool(ring.Object, shockwaveRingPool);
@@ -2719,15 +2915,7 @@ namespace LTW.UnityClient.Simulation
             ClearBurstEmitters();
         }
 
-        private GameObject GetOrCreate(Dictionary<string, GameObject> activeObjects, Queue<GameObject> pool, string key, string name, PrimitiveType primitiveType)
-        {
-            if (activeObjects.TryGetValue(key, out var instance)) return instance;
-            instance = GetPooled(pool, name, primitiveType);
-            activeObjects[key] = instance;
-            return instance;
-        }
-
-        private GameObject GetOrCreateTower(string key, TowerVisualProfile visualProfile)
+        private GameObject GetOrCreateTower(long key, TowerVisualProfile visualProfile)
         {
             var poolKey = TowerPoolKey(visualProfile);
             if (activeTowers.TryGetValue(key, out var instance))
@@ -2786,16 +2974,16 @@ namespace LTW.UnityClient.Simulation
 
         private void ReleaseMissingTowers()
         {
-            var keysToRelease = new List<string>();
+            keysToReleaseScratch.Clear();
             foreach (var pair in activeTowers)
             {
                 if (!visibleKeys.Contains(pair.Key))
                 {
-                    keysToRelease.Add(pair.Key);
+                    keysToReleaseScratch.Add(pair.Key);
                 }
             }
 
-            foreach (var key in keysToRelease)
+            foreach (var key in keysToReleaseScratch)
             {
                 ReleaseTowerToPool(key, activeTowers[key]);
                 activeTowers.Remove(key);
@@ -2806,6 +2994,7 @@ namespace LTW.UnityClient.Simulation
                 towerBarrelState.Remove(key);
                 towerAimYaw.Remove(key);
                 towerSpinPartState.Remove(key);
+                towerMotionParts.Remove(key);
                 // Sold or destroyed towers must not leave their mechanic decal on the board.
                 ReleaseTowerMechanicMarker(key);
                 ReleaseSporeFog(key);
@@ -2818,7 +3007,7 @@ namespace LTW.UnityClient.Simulation
             }
         }
 
-        private void ReleaseTowerToPool(string key, GameObject instance)
+        private void ReleaseTowerToPool(long key, GameObject instance)
         {
             if (activeTowerPoolKeys.TryGetValue(key, out var poolKey) && poolKey != PrimitiveTowerPoolKey)
             {
@@ -2841,7 +3030,7 @@ namespace LTW.UnityClient.Simulation
                 : visualProfile.TowerId;
         }
 
-        private GameObject GetOrCreateCreep(string key, CreepVisualProfile visualProfile)
+        private GameObject GetOrCreateCreep(long key, CreepVisualProfile visualProfile)
         {
             var poolKey = CreepPoolKey(visualProfile);
             if (activeCreeps.TryGetValue(key, out var instance))
@@ -2900,27 +3089,28 @@ namespace LTW.UnityClient.Simulation
 
         private void ReleaseMissingCreeps()
         {
-            var keysToRelease = new List<string>();
+            keysToReleaseScratch.Clear();
             foreach (var pair in activeCreeps)
             {
                 if (!visibleKeys.Contains(pair.Key))
                 {
-                    keysToRelease.Add(pair.Key);
+                    keysToReleaseScratch.Add(pair.Key);
                 }
             }
 
-            foreach (var key in keysToRelease)
+            foreach (var key in keysToReleaseScratch)
             {
                 ReleaseCreepToPool(key, activeCreeps[key]);
                 activeCreeps.Remove(key);
                 activeCreepPoolKeys.Remove(key);
                 lastCreepHealth.Remove(key);
                 creepHitFlashUntil.Remove(key);
+                creepHitFlashApplied.Remove(key);
                 creepAnimators.Remove(key);
             }
         }
 
-        private void ReleaseCreepToPool(string key, GameObject instance)
+        private void ReleaseCreepToPool(long key, GameObject instance)
         {
             if (activeCreepPoolKeys.TryGetValue(key, out var poolKey) && poolKey != PrimitiveCreepPoolKey)
             {
@@ -3034,9 +3224,10 @@ namespace LTW.UnityClient.Simulation
         /// Tower3DImportPipeline.GenerateWrapperIfRawExists) and are rotationally symmetric shapes
         /// that should never visibly kick or spin with an attack reaction.
         /// </summary>
-        private void UpdateTowerMotion(GameObject towerObject, string key, Vector3 towerPosition, TowerVisualProfile visualProfile)
+        private void UpdateTowerMotion(GameObject towerObject, long key, Vector3 towerPosition, TowerVisualProfile visualProfile)
         {
-            var body = ResolveTowerMotionTarget(towerObject, visualProfile);
+            var parts = ResolveTowerMotionParts(key, towerObject);
+            var body = parts.Body;
             var idle = TowerRoleMotion(visualProfile.Role);
 
             // Pulse has no clean seam anywhere on its mesh (its 4 spikes run the tower's full
@@ -3098,7 +3289,7 @@ namespace LTW.UnityClient.Simulation
             // Tower3DImportPipeline — the actual Head mesh is reparented under it), exactly like
             // Body, so it's just as safe to overwrite outright. Towers without one (everything
             // else so far) fall back to turning the whole Body, exactly as before.
-            var headPivot = FindDeepChild(body, "HeadPivot");
+            var headPivot = parts.HeadPivot;
             if (headPivot != null)
             {
                 body.localPosition = idle.PositionOffset;
@@ -3129,9 +3320,9 @@ namespace LTW.UnityClient.Simulation
             // hierarchy happens to nest it at (e.g. Body/Imported3DVisual/LTW_Unity_ExportRoot/Ring),
             // which is an import-pipeline detail this call site shouldn't need to know. Each tower
             // has at most one spin part today, so the first name found wins.
-            UpdateBarrelSpin(key, body);
+            UpdateBarrelSpin(key, parts.Barrel);
 
-            var spinPart = FindSpinPart(body);
+            var spinPart = parts.SpinPart;
             if (spinPart != null)
             {
                 // A plain Quaternion.Euler(0, angle, 0) assumes the part's own local Y axis IS
@@ -3156,6 +3347,65 @@ namespace LTW.UnityClient.Simulation
 
         private static readonly string[] TowerSpinPartNames = { "Ring", "Dish", "Spire" };
 
+        /// <summary>
+        /// The four transforms <see cref="UpdateTowerMotion"/> drives, found once per pooled tower
+        /// instance instead of once per tower per frame.
+        /// </summary>
+        /// <remarks>
+        /// This is the same defect the rest of this file's frame/snapshot split addresses, in its
+        /// most expensive form: finding these is not per-snapshot work but per-INSTANCE work — a
+        /// tower's Body, HeadPivot, Barrel and spin part cannot move within its hierarchy — and it
+        /// was being redone sixty times a second for every tower on the board. It also allocates,
+        /// which the rest of the search-by-name code in this file does not: <see cref="FindDeepChild"/>
+        /// walks with <c>foreach (Transform child in parent)</c>, and Transform's enumerator is a
+        /// class, so one object is allocated for every node visited on every walk. With five walks
+        /// per tower per frame (HeadPivot, Barrel, then Ring/Dish/Spire until one hits) over a full
+        /// eight-lane board, that was measured as the single largest source of per-frame garbage in
+        /// the renderer, larger than the string keys and the per-snapshot re-application combined.
+        ///
+        /// Keyed by entity id but validated against the INSTANCE, because pooling can hand the same
+        /// entity id a different GameObject (see GetOrCreateTower, which swaps pools when a tower's
+        /// visual profile changes) — an entry that did not check would then drive the wrong object's
+        /// transforms.
+        /// </remarks>
+        private readonly struct TowerMotionParts
+        {
+            public TowerMotionParts(GameObject instance, Transform body, Transform headPivot, Transform barrel, Transform spinPart)
+            {
+                Instance = instance;
+                Body = body;
+                HeadPivot = headPivot;
+                Barrel = barrel;
+                SpinPart = spinPart;
+            }
+
+            public GameObject Instance { get; }
+            public Transform Body { get; }
+            public Transform HeadPivot { get; }
+            public Transform Barrel { get; }
+            public Transform SpinPart { get; }
+        }
+
+        private readonly Dictionary<long, TowerMotionParts> towerMotionParts = new Dictionary<long, TowerMotionParts>();
+
+        private TowerMotionParts ResolveTowerMotionParts(long key, GameObject towerObject)
+        {
+            if (towerMotionParts.TryGetValue(key, out var cached) && cached.Instance == towerObject && cached.Body != null)
+            {
+                return cached;
+            }
+
+            var body = ResolveTowerMotionTarget(towerObject);
+            var parts = new TowerMotionParts(
+                towerObject,
+                body,
+                FindDeepChild(body, "HeadPivot"),
+                FindDeepChild(body, "Barrel"),
+                FindSpinPart(body));
+            towerMotionParts[key] = parts;
+            return parts;
+        }
+
         /// <summary>Barrel spin, in degrees/second, while the gun is actively firing.</summary>
         private const float BarrelFiringSpinDegreesPerSecond = 900f;
 
@@ -3165,8 +3415,8 @@ namespace LTW.UnityClient.Simulation
         /// <summary>How long the barrel takes to coast down from firing speed to idle.</summary>
         private const float BarrelSpindownSeconds = 0.9f;
 
-        private readonly Dictionary<string, float> towerBarrelAngle = new Dictionary<string, float>();
-        private readonly Dictionary<string, SpinPartState> towerBarrelState = new Dictionary<string, SpinPartState>();
+        private readonly Dictionary<long, float> towerBarrelAngle = new Dictionary<long, float>();
+        private readonly Dictionary<long, SpinPartState> towerBarrelState = new Dictionary<long, SpinPartState>();
 
         /// <summary>
         /// Spins a gatling-style barrel about its own long axis, faster while it is firing.
@@ -3186,9 +3436,8 @@ namespace LTW.UnityClient.Simulation
         /// The angle is ACCUMULATED rather than computed from Time.time * rate, so that changing the
         /// rate speeds the barrel up instead of teleporting it to a new phase.
         /// </remarks>
-        private void UpdateBarrelSpin(string key, Transform body)
+        private void UpdateBarrelSpin(long key, Transform barrel)
         {
-            var barrel = FindDeepChild(body, "Barrel");
             if (barrel == null)
             {
                 return;
@@ -3287,7 +3536,7 @@ namespace LTW.UnityClient.Simulation
         /// renderer anywhere under it — this was the actual reason tower idle/aim/recoil motion
         /// (and now ring-spin) never appeared on screen.
         /// </summary>
-        private static Transform ResolveTowerMotionTarget(GameObject towerObject, TowerVisualProfile visualProfile)
+        private static Transform ResolveTowerMotionTarget(GameObject towerObject)
         {
             return towerObject.transform.Find("Body") ?? towerObject.transform;
         }
@@ -3299,25 +3548,19 @@ namespace LTW.UnityClient.Simulation
         /// position — a tower that has turned to face its target was firing its beam from where it
         /// used to point, not where it currently does, before this was threaded through.
         /// </summary>
-        private Transform ResolveTowerBodyTransform(string towerKey)
+        private Transform ResolveTowerBodyTransform(long towerKey)
         {
             if (!activeTowers.TryGetValue(towerKey, out var towerObject) || towerObject == null)
             {
                 return null;
             }
 
-            var body = towerObject.transform.Find("Body");
-            if (body == null)
-            {
-                return towerObject.transform;
-            }
-
             // Turret-style towers carry aim/recoil on a HeadPivot instead of Body (see
             // UpdateTowerMotion) — attack VFX must follow whichever transform actually turns, or a
             // muzzle flash fires from where the cannon used to point before it swiveled. Towers
             // without one keep using Body, unchanged.
-            var headPivot = FindDeepChild(body, "HeadPivot");
-            return headPivot != null ? headPivot : body;
+            var parts = ResolveTowerMotionParts(towerKey, towerObject);
+            return parts.HeadPivot != null ? parts.HeadPivot : parts.Body;
         }
 
         /// <summary>
@@ -3378,7 +3621,7 @@ namespace LTW.UnityClient.Simulation
         /// Speed comes from the presentation snapshot rather than a client-side table keyed on the
         /// creep id — the same correction item 12 made for max health, and for the same reason.
         /// </remarks>
-        private void UpdateCreepAnimationSpeed(string key, GameObject instance, string creepId, int speedPerSecond)
+        private void UpdateCreepAnimationSpeed(long key, GameObject instance, string creepId, int speedPerSecond)
         {
             if (!IsRiggedCreep(instance, creepId))
             {
@@ -3471,7 +3714,7 @@ namespace LTW.UnityClient.Simulation
             return Vector3.Lerp(from, GridToWorld(creep.NextPosition, creep.LaneId), fraction);
         }
 
-        private static void SetCreepTransform(GameObject instance, Vector3 lanePosition, LaneId laneId, string creepId, CreepVisualProfile visualProfile, bool snapToTarget, float hitFlashUntil, string key)
+        private static void SetCreepTransform(GameObject instance, Vector3 lanePosition, LaneId laneId, string creepId, CreepVisualProfile visualProfile, bool snapToTarget, float hitFlashUntil, long key)
         {
             var roleMotion = CreepRoleMotion(creepId, visualProfile, hitFlashUntil, IsRiggedCreep(instance, creepId), key);
             var targetPosition = lanePosition + CreepRoleOffset(creepId) + roleMotion.PositionOffset;
@@ -3758,9 +4001,9 @@ namespace LTW.UnityClient.Simulation
 
         private static Vector3 LaneCenter(int laneId) => new Vector3(LaneOffset(laneId) + BoardCenterX, 0.35f, BoardCenterZ);
 
-        private Vector3 PositionFor(string entityId) => lastKnownPositions.TryGetValue(entityId, out var position) ? position : GridToWorld(new GridPosition(CenterColumn, LaneLength - 1), new LaneId(1));
+        private Vector3 PositionFor(long entityId) => lastKnownPositions.TryGetValue(entityId, out var position) ? position : GridToWorld(new GridPosition(CenterColumn, LaneLength - 1), new LaneId(1));
 
-        private string CreepIdFor(string entityId) => lastKnownCreepIds.TryGetValue(entityId, out var creepId) ? creepId : string.Empty;
+        private string CreepIdFor(long entityId) => lastKnownCreepIds.TryGetValue(entityId, out var creepId) ? creepId : string.Empty;
 
         private void CreateLaneFrame(int laneId)
         {
@@ -5124,27 +5367,50 @@ namespace LTW.UnityClient.Simulation
         /// and they jittered as one rigid body; the effect got worse the more of something you sent,
         /// which is exactly backwards. Offsetting by a hash of the entity key makes a group read as
         /// individuals, and is stable for the life of the entity so nothing jumps between frames.
+        ///
+        /// The key became a long when the presentation dictionaries stopped being keyed by strings,
+        /// and this deliberately still hashes its DECIMAL DIGITS rather than the number, so every
+        /// creep keeps the exact phase it had before. Hashing the long directly would have been
+        /// shorter and would have re-scattered every creep on the board — a change to how the game
+        /// looks, smuggled in by a change to a dictionary key type.
         /// </remarks>
-        private static float CreepMotionPhase(string key)
+        private static float CreepMotionPhase(long key)
         {
-            if (string.IsNullOrEmpty(key))
+            if (key == 0L)
             {
                 return 0f;
             }
 
             unchecked
             {
-                var hash = 17;
-                for (var index = 0; index < key.Length; index++)
+                // Digits, most significant first, without materialising the string that used to
+                // carry them. Only the low 16 bits of the hash survive below, so a negative key's
+                // '-' sign is the one character this cannot reproduce; entity ids are never
+                // negative, and 0 keeps the old empty-key answer above.
+                var digits = 1;
+                for (var scale = key; scale >= 10L; scale /= 10L)
                 {
-                    hash = hash * 31 + key[index];
+                    digits++;
+                }
+
+                var divisor = 1L;
+                for (var index = 1; index < digits; index++)
+                {
+                    divisor *= 10L;
+                }
+
+                var hash = 17;
+                while (divisor > 0L)
+                {
+                    hash = hash * 31 + (char)('0' + (int)(key / divisor % 10L));
+                    divisor /= 10L;
                 }
 
                 return (hash & 0xFFFF) / 65535f * (Mathf.PI * 2f);
             }
         }
 
-        private static CreepMotion CreepRoleMotion(string creepId, CreepVisualProfile visualProfile, float hitFlashUntil, bool isRigged = false, string key = null)
+        private static CreepMotion CreepRoleMotion(string creepId, CreepVisualProfile visualProfile, float hitFlashUntil, bool isRigged = false, long key = 0L)
         {
             var profile = CreepMotionProfileFor(creepId, visualProfile, isRigged);
             var time = Time.time + CreepMotionPhase(key);
@@ -5723,6 +5989,16 @@ namespace LTW.UnityClient.Simulation
             new Vector3(0.12f, 0f, -0.22f),
         };
 
+        /// <summary>Child names for the slots above, one per slot and in the same order.</summary>
+        private static readonly string[] SwarmShardNames =
+        {
+            "SwarmShard0",
+            "SwarmShard1",
+            "SwarmShard2",
+            "SwarmShard3",
+            "SwarmShard4",
+        };
+
         private const float SwarmShardScale = 0.5f;
 
         /// <summary>
@@ -5785,7 +6061,10 @@ namespace LTW.UnityClient.Simulation
 
             for (var index = 0; index < SwarmClusterSlots.Length; index++)
             {
-                var shard = EnsureMeshChild(creepObject, $"SwarmShard{index}", mesh, material);
+                // Named from a table rather than interpolated: this runs per shard per swarm creep
+                // per FRAME (the wobble below is what makes it per-frame), so the interpolation was
+                // seven string allocations per creep per frame for seven names that never change.
+                var shard = EnsureMeshChild(creepObject, SwarmShardNames[index], mesh, material);
                 var active = index < livingCount;
                 shard.SetActive(active);
                 if (!active)

@@ -35,9 +35,33 @@ namespace LTW.UnityClient.Editor
     public static class MotionCaptureRunner
     {
         private const int FrameCount = 16;
-        private const double IntervalSeconds = 0.45d;
-        private const int Width = 1080;
-        private const int Height = 1920;
+        private const double DefaultIntervalSeconds = 0.45d;
+        private const int DefaultWidth = 1080;
+        private const int DefaultHeight = 1920;
+
+        /// <summary>
+        /// Seconds between captured frames, overridable with <c>-ltwCaptureIntervalSeconds</c>.
+        /// </summary>
+        /// <remarks>
+        /// The default of 0.45s is longer than one simulation tick (0.25s at the shipped 4/s), so
+        /// every consecutive pair of frames necessarily straddles a tick boundary. That answers "is
+        /// anything moving at all" and cannot answer "does it move BETWEEN ticks", which is the
+        /// question any change that reorganises per-frame versus per-snapshot work has to survive:
+        /// work moved to the snapshot rate stutters at 4 Hz, and a sequence sampled slower than 4 Hz
+        /// cannot see the difference. Sampling well inside one tick makes the stutter visible as
+        /// consecutive frames that do not change.
+        ///
+        /// A short interval is only honoured if a frame can be WRITTEN faster than it: at the default
+        /// 1080x1920 one capture costs about 170 ms (measured — asking for 0.05s intervals produced
+        /// 0.17s ones and dragged the game itself down to 6 fps), so sub-tick sampling wants
+        /// <c>-ltwCaptureWidth</c>/<c>-ltwCaptureHeight</c> lowered alongside it. 270x480 costs about
+        /// a sixteenth of that and leaves a creep around ten pixels across, which is ample for
+        /// frame-to-frame deltas even though it is far too coarse to review as artwork.
+        /// </remarks>
+        private static double intervalSeconds = DefaultIntervalSeconds;
+
+        private static int width = DefaultWidth;
+        private static int height = DefaultHeight;
 
         private static string outputDirectory;
         private static int captured;
@@ -60,6 +84,16 @@ namespace LTW.UnityClient.Editor
                               ?? Path.Combine(Path.GetTempPath(), "ltw-motion");
             Directory.CreateDirectory(outputDirectory);
 
+            intervalSeconds = double.TryParse(
+                ReadArgumentValue("-ltwCaptureIntervalSeconds"),
+                NumberStyles.Float,
+                CultureInfo.InvariantCulture,
+                out var parsedInterval) && parsedInterval > 0d
+                ? parsedInterval
+                : DefaultIntervalSeconds;
+            width = ReadIntArgument("-ltwCaptureWidth") ?? DefaultWidth;
+            height = ReadIntArgument("-ltwCaptureHeight") ?? DefaultHeight;
+
             captured = 0;
             minDelta = float.MaxValue;
             maxDelta = 0f;
@@ -68,7 +102,7 @@ namespace LTW.UnityClient.Editor
             running = true;
             matchSeeded = false;
 
-            MobileViewportLayout.SetCaptureViewportOverride(Width, Height, new Rect(0f, 0f, Width, Height));
+            MobileViewportLayout.SetCaptureViewportOverride(width, height, new Rect(0f, 0f, width, height));
 
             previousPlayModeOptionsEnabled = EditorSettings.enterPlayModeOptionsEnabled;
             previousPlayModeOptions = EditorSettings.enterPlayModeOptions;
@@ -179,7 +213,7 @@ namespace LTW.UnityClient.Editor
                 return;
             }
 
-            nextCaptureAt = EditorApplication.timeSinceStartup + IntervalSeconds;
+            nextCaptureAt = EditorApplication.timeSinceStartup + intervalSeconds;
             var path = Path.Combine(outputDirectory, $"motion-{captured:D2}.png");
             WriteFrame(path);
             captured++;
@@ -192,8 +226,8 @@ namespace LTW.UnityClient.Editor
 
         private static void WriteFrame(string path)
         {
-            var renderTexture = new RenderTexture(Width, Height, 24, RenderTextureFormat.ARGB32);
-            var texture = new Texture2D(Width, Height, TextureFormat.RGBA32, false);
+            var renderTexture = new RenderTexture(width, height, 24, RenderTextureFormat.ARGB32);
+            var texture = new Texture2D(width, height, TextureFormat.RGBA32, false);
             var previousActive = RenderTexture.active;
 
             try
@@ -227,7 +261,7 @@ namespace LTW.UnityClient.Editor
                 }
 
                 RenderTexture.active = renderTexture;
-                texture.ReadPixels(new Rect(0, 0, Width, Height), 0, 0);
+                texture.ReadPixels(new Rect(0, 0, width, height), 0, 0);
                 texture.Apply();
                 File.WriteAllBytes(path, ImageConversion.EncodeToPNG(texture));
             }
@@ -259,9 +293,9 @@ namespace LTW.UnityClient.Editor
 
             Debug.Log(string.Format(
                 CultureInfo.InvariantCulture,
-                "MOTION captured {0} frame(s) to {1} | frame time avg {2:F2} ms, worst {3:F2} ms | " +
+                "MOTION captured {0} frame(s) at {7:F3}s intervals, {8}x{9}, to {1} | frame time avg {2:F2} ms, worst {3:F2} ms | " +
                 "avg {4:F1} fps, worst {5:F1} fps | samples {6}",
-                captured, outputDirectory, averageDelta * 1000d, maxDelta * 1000f, averageFps, worstFps, deltaSamples));
+                captured, outputDirectory, averageDelta * 1000d, maxDelta * 1000f, averageFps, worstFps, deltaSamples, intervalSeconds, width, height));
 
             EditorApplication.isPlaying = false;
 
@@ -270,6 +304,11 @@ namespace LTW.UnityClient.Editor
                 EditorApplication.Exit(exitCode);
             }
         }
+
+        private static int? ReadIntArgument(string name) =>
+            int.TryParse(ReadArgumentValue(name), NumberStyles.Integer, CultureInfo.InvariantCulture, out var value) && value > 0
+                ? value
+                : (int?)null;
 
         private static string ReadArgumentValue(string name)
         {
