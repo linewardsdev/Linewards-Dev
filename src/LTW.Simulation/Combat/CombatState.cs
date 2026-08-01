@@ -7,27 +7,49 @@ namespace LTW.Simulation.Combat;
 
 public sealed class CombatState
 {
+    private readonly CreepCombatState[] creeps;
+    private readonly TowerCombatState[] towers;
+
     public CombatState(IEnumerable<CreepCombatState> creeps, IEnumerable<TowerCombatState> towers)
     {
-        Creeps = (creeps ?? throw new ArgumentNullException(nameof(creeps))).ToArray();
-        Towers = (towers ?? throw new ArgumentNullException(nameof(towers))).ToArray();
+        this.creeps = (creeps ?? throw new ArgumentNullException(nameof(creeps))).ToArray();
+        this.towers = (towers ?? throw new ArgumentNullException(nameof(towers))).ToArray();
     }
 
-    public IReadOnlyList<CreepCombatState> Creeps { get; }
+    /// <summary>
+    /// Adopts arrays this class already owns, rather than copying them again.
+    /// </summary>
+    /// <remarks>
+    /// Every mutation below produces exactly one fresh array and passes the other side straight
+    /// through untouched. The public constructor cannot do that — it takes IEnumerable and has to
+    /// copy defensively — so routing internal mutations through it copied the new array a SECOND
+    /// time and copied the collection that had not changed at all. At the 266 creeps this game has
+    /// been measured carrying, that second pair of copies was most of the cost of a tick.
+    ///
+    /// Private, and only ever handed arrays constructed here, so the immutability the public API
+    /// promises is unchanged.
+    /// </remarks>
+    private CombatState(CreepCombatState[] creeps, TowerCombatState[] towers)
+    {
+        this.creeps = creeps;
+        this.towers = towers;
+    }
 
-    public IReadOnlyList<TowerCombatState> Towers { get; }
+    public IReadOnlyList<CreepCombatState> Creeps => creeps;
+
+    public IReadOnlyList<TowerCombatState> Towers => towers;
 
     public CombatState ReplaceCreep(CreepCombatState creep) =>
-        new CombatState(Replace(Creeps, creep, existing => existing.EntityId.Equals(creep.EntityId)), Towers);
+        new CombatState(Replace(creeps, creep, existing => existing.EntityId.Equals(creep.EntityId)), towers);
 
     public CombatState ReplaceTower(TowerCombatState tower) =>
-        new CombatState(Creeps, Replace(Towers, tower, existing => existing.EntityId.Equals(tower.EntityId)));
+        new CombatState(creeps, Replace(towers, tower, existing => existing.EntityId.Equals(tower.EntityId)));
 
     public CombatState RemoveCreep(EntityId creepEntityId) =>
-        new CombatState(Creeps.Where(creep => !creep.EntityId.Equals(creepEntityId)), Towers);
+        new CombatState(creeps.Where(creep => !creep.EntityId.Equals(creepEntityId)).ToArray(), towers);
 
     public CombatState RemoveTower(EntityId towerEntityId) =>
-        new CombatState(Creeps, Towers.Where(tower => !tower.EntityId.Equals(towerEntityId)));
+        new CombatState(creeps, towers.Where(tower => !tower.EntityId.Equals(towerEntityId)).ToArray());
 
     /// <summary>
     /// Clears an eliminated seat's lane: every tower it built, and every creep still walking it.
@@ -41,10 +63,13 @@ public sealed class CombatState
     /// </remarks>
     public CombatState WipeLane(LaneId laneId, PlayerId ownerId) =>
         new CombatState(
-            Creeps.Where(creep => !creep.LaneId.Equals(laneId)),
-            Towers.Where(tower => !tower.OwnerId.Equals(ownerId)));
+            creeps.Where(creep => !creep.LaneId.Equals(laneId)).ToArray(),
+            towers.Where(tower => !tower.OwnerId.Equals(ownerId)).ToArray());
 
-    private static IReadOnlyList<T> Replace<T>(IReadOnlyList<T> values, T replacement, Func<T, bool> predicate)
+    /// <summary>
+    /// A copy of <paramref name="values"/> with one entry swapped, ready to be adopted as-is.
+    /// </summary>
+    private static T[] Replace<T>(T[] values, T replacement, Func<T, bool> predicate)
     {
         var next = values.ToArray();
         for (var index = 0; index < next.Length; index++)

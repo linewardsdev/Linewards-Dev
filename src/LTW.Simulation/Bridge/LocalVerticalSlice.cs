@@ -25,6 +25,20 @@ public sealed class LocalVerticalSlice
     private readonly Dictionary<LaneId, LaneGrid> grids;
     private readonly Dictionary<LaneId, IReadOnlyList<GridPosition>> routes;
 
+    /// <summary>
+    /// The content catalog, indexed by id.
+    /// </summary>
+    /// <remarks>
+    /// The catalog is a flat list, and resolving a definition out of it with First/FirstOrDefault
+    /// is a scan. That is invisible at a 15-tower roster, but these sit in per-tick paths — the bot
+    /// build, tier and upgrade passes each resolve definitions for every tower a bot owns, every
+    /// tick, and the upgrade-eligibility scan resolves one per candidate. CombatContent already
+    /// indexes the same catalog for exactly this reason; this is the bridge doing the same rather
+    /// than keeping a scan per lookup.
+    /// </remarks>
+    private readonly Dictionary<ContentId, TowerDefinition> towersById;
+    private readonly Dictionary<ContentId, CreepDefinition> creepsById;
+
     /// <summary>The unmazed route per lane, for creeps that ignore the maze.</summary>
     /// <remarks>
     /// Holds the route each lane had before a single tower existed. <see cref="routes"/> is
@@ -91,6 +105,8 @@ public sealed class LocalVerticalSlice
     {
         this.content = content;
         this.options = options;
+        towersById = content.Towers.ToDictionary(tower => tower.Id);
+        creepsById = content.Creeps.ToDictionary(creep => creep.Id);
         topology = new LocalMatchTopology(options.LaneCount);
         // sendCooldownTicks: 0 — gold is the only thing that gates a send.
         //
@@ -276,7 +292,7 @@ public sealed class LocalVerticalSlice
     /// </summary>
     public VerticalSliceCommandResult CreateLocalPlaytestDamagedTransferCreep(ContentId creepId, int health)
     {
-        var creep = content.Creeps.FirstOrDefault(definition => definition.Id.Equals(creepId));
+        var creep = FindCreep(creepId);
         if (creep is null)
         {
             return VerticalSliceCommandResult.Reject(CommandRejectionReason.InvalidContentId);
@@ -307,7 +323,7 @@ public sealed class LocalVerticalSlice
             return VerticalSliceCommandResult.Reject(contentResult.RejectionReason);
         }
 
-        var creep = content.Creeps.First(definition => definition.Id.Equals(creepId));
+        var creep = CreepFor(creepId);
         var targetPlayerId = topology.NextActiveOpponent(playerId, candidate => !players.Get(candidate).IsEliminated);
         if (targetPlayerId is null)
         {
@@ -417,7 +433,7 @@ public sealed class LocalVerticalSlice
             return VerticalSliceCommandResult.Reject(CommandRejectionReason.PlayerEliminated);
         }
 
-        var definition = content.Towers.First(candidate => candidate.Id.Equals(tower.TowerId));
+        var definition = TowerFor(tower.TowerId);
         var ceiling = player.TowerLineTier(definition.CategoryIndex);
         if (tower.Tier >= ceiling || tower.Tier >= CategoryTierRules.MaxTier)
         {
@@ -545,7 +561,7 @@ public sealed class LocalVerticalSlice
         return new BatchSellQuote(
             owned.Count,
             owned.Sum(tower => economy.CalculateSellRefund(
-                content.Towers.First(definition => definition.Id.Equals(tower.TowerId))).Amount));
+                TowerFor(tower.TowerId)).Amount));
     }
 
     /// <summary>
@@ -614,7 +630,7 @@ public sealed class LocalVerticalSlice
             .Where(candidate => candidate.OwnerId.Equals(playerId) && candidate.LaneId.Equals(laneId))
             .Select(candidate =>
             {
-                var definition = content.Towers.First(entry => entry.Id.Equals(candidate.TowerId));
+                var definition = TowerFor(candidate.TowerId);
                 return new BatchUpgradeCandidate(
                     candidate.Position,
                     candidate.Tier,
@@ -646,7 +662,7 @@ public sealed class LocalVerticalSlice
     /// </remarks>
     public int IncomeGainForSend(PlayerId playerId, ContentId creepId, int quantity)
     {
-        var creep = content.Creeps.FirstOrDefault(definition => definition.Id.Equals(creepId));
+        var creep = FindCreep(creepId);
         return creep is null ? 0 : economy.IncomeGainFor(players.Get(playerId).Income, creep, quantity);
     }
 
@@ -659,7 +675,7 @@ public sealed class LocalVerticalSlice
             candidate.OwnerId.Equals(playerId) && candidate.LaneId.Equals(laneId) && candidate.Position.Equals(position));
         return tower is null
             ? 0
-            : CategoryTierRules.TowerUpgradeCost(content.Towers.First(candidate => candidate.Id.Equals(tower.TowerId)).Cost.Amount);
+            : CategoryTierRules.TowerUpgradeCost(TowerFor(tower.TowerId).Cost.Amount);
     }
 
     /// <summary>
@@ -696,7 +712,7 @@ public sealed class LocalVerticalSlice
 
     private VerticalSliceCommandResult SellTower(PlayerId playerId, TowerCombatState tower)
     {
-        var towerDefinition = content.Towers.First(definition => definition.Id.Equals(tower.TowerId));
+        var towerDefinition = TowerFor(tower.TowerId);
         var refund = economy.CalculateSellRefund(towerDefinition);
         var player = players.Get(playerId);
         players = players.Replace(player.WithGold(new Gold(player.Gold.Amount + refund.Amount)));
@@ -783,10 +799,10 @@ public sealed class LocalVerticalSlice
             }
 
             if (simulationEvent is CreepKilledEvent killed && creepsBeforeCombat.TryGetValue(killed.CreepEntityId, out var killedCreep))
-                players = economy.ApplyKillBounty(players, killed.DefenderId, content.Creeps.First(creep => creep.Id.Equals(killedCreep.CreepId))).Players;
+                players = economy.ApplyKillBounty(players, killed.DefenderId, CreepFor(killedCreep.CreepId)).Players;
             if (simulationEvent is LeakEvent leak && creepsBeforeCombat.TryGetValue(leak.CreepEntityId, out var leakedCreep))
             {
-                var creep = content.Creeps.First(definition => definition.Id.Equals(leakedCreep.CreepId));
+                var creep = CreepFor(leakedCreep.CreepId);
                 var defenderLivesBefore = players.Get(leak.DefenderId).Lives.Amount;
                 players = economy.ApplyLeak(players, leak.SenderId, leak.DefenderId, creep, leak.LivesLost).Players;
                 if (defenderLivesBefore > 0 && players.Get(leak.DefenderId).Lives.Amount == 0)
@@ -1062,7 +1078,7 @@ public sealed class LocalVerticalSlice
             .Where(tower => tower.OwnerId.Equals(playerId) && tower.LaneId.Equals(laneId))
             .Where(tower => tower.Tier < CategoryTierRules.MaxTier)
             .Where(tower => tower.Tier < player.TowerLineTier(
-                content.Towers.First(definition => definition.Id.Equals(tower.TowerId)).CategoryIndex))
+                TowerFor(tower.TowerId).CategoryIndex))
             .OrderBy(tower => tower.Tier)
             .ThenBy(tower => tower.EntityId.Value)
             .FirstOrDefault();
@@ -1072,7 +1088,7 @@ public sealed class LocalVerticalSlice
         }
 
         var cost = CategoryTierRules.TowerUpgradeCost(
-            content.Towers.First(definition => definition.Id.Equals(candidate.TowerId)).Cost.Amount);
+            TowerFor(candidate.TowerId).Cost.Amount);
         if (player.Gold.Amount - bot.GoldReserveFloor(content) < cost)
         {
             return;
@@ -1116,7 +1132,7 @@ public sealed class LocalVerticalSlice
         var counts = new int[PlayerEconomyState.CategoryCount];
         foreach (var tower in combatState.Towers.Where(tower => tower.OwnerId.Equals(playerId)))
         {
-            var line = content.Towers.First(definition => definition.Id.Equals(tower.TowerId)).CategoryIndex;
+            var line = TowerFor(tower.TowerId).CategoryIndex;
             if (line >= 0 && line < counts.Length)
             {
                 counts[line]++;
@@ -1134,7 +1150,7 @@ public sealed class LocalVerticalSlice
         var counts = new int[PlayerEconomyState.CategoryCount];
         foreach (var record in botDecisionRecords.Where(record => record.PlayerId.Equals(playerId)))
         {
-            var creep = content.Creeps.FirstOrDefault(definition => definition.Id.Equals(record.ContentId));
+            var creep = FindCreep(record.ContentId);
             if (creep is not null && creep.CategoryIndex >= 0 && creep.CategoryIndex < counts.Length)
             {
                 counts[creep.CategoryIndex] += record.Quantity;
@@ -1162,7 +1178,7 @@ public sealed class LocalVerticalSlice
     {
         var ownedTowerCount = combatState.Towers.Count(tower => tower.OwnerId.Equals(playerId));
         var towerId = BotTowerForSlot(bot.Profile, ownedTowerCount);
-        var towerCost = content.Towers.First(tower => tower.Id.Equals(towerId)).Cost.Amount;
+        var towerCost = TowerFor(towerId).Cost.Amount;
         var player = players.Get(playerId);
         if (player.Gold.Amount - bot.GoldReserveFloor(content) < towerCost)
         {
@@ -1170,7 +1186,7 @@ public sealed class LocalVerticalSlice
         }
 
         var laneId = topology.HomeLaneFor(playerId);
-        var position = BestMazingPlacement(playerId, laneId, towerId, content.Towers.First(t => t.Id.Equals(towerId)).RangeCells);
+        var position = BestMazingPlacement(playerId, laneId, towerId, TowerFor(towerId).RangeCells);
         if (position is not null)
         {
             PlaceTower(playerId, laneId, towerId, position.Value);
@@ -1366,7 +1382,7 @@ public sealed class LocalVerticalSlice
             return TowerPlacementValidation.Reject(ToCommandRejection(placement.RejectionReason));
         }
 
-        var tower = content.Towers.First(definition => definition.Id.Equals(towerId));
+        var tower = TowerFor(towerId);
         var player = players.Get(playerId);
         if (player.Gold.Amount < tower.Cost.Amount)
         {
@@ -1377,6 +1393,26 @@ public sealed class LocalVerticalSlice
     }
 
     private EntityId NextEntityId() => new EntityId(nextEntityId++);
+
+    /// <summary>
+    /// The definition for an id the caller already knows is in the catalog.
+    /// </summary>
+    /// <remarks>
+    /// Throws on an unknown id, exactly as the <c>First(...)</c> scans these replaced did. Every
+    /// caller either comes through <see cref="CommandContentValidator"/> or reads the id back off
+    /// an entity the simulation itself created, so a miss here is a program error rather than a
+    /// bad command — the <c>Find</c> pair below is for the callers that genuinely can be handed an
+    /// id that does not exist.
+    /// </remarks>
+    private TowerDefinition TowerFor(ContentId towerId) => towersById[towerId];
+
+    private CreepDefinition CreepFor(ContentId creepId) => creepsById[creepId];
+
+    private TowerDefinition? FindTower(ContentId towerId) =>
+        towersById.TryGetValue(towerId, out var tower) ? tower : null;
+
+    private CreepDefinition? FindCreep(ContentId creepId) =>
+        creepsById.TryGetValue(creepId, out var creep) ? creep : null;
 
     /// <summary>
     /// Pays a tower's owner for landing a hit, where the tower's content says it earns.
@@ -1398,7 +1434,7 @@ public sealed class LocalVerticalSlice
             return;
         }
 
-        var definition = content.Towers.FirstOrDefault(candidate => candidate.Id.Equals(tower.TowerId));
+        var definition = FindTower(tower.TowerId);
         if (definition is null || definition.SignalGoldPerHit <= 0)
         {
             return;
