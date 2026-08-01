@@ -334,10 +334,9 @@ namespace LTW.UnityClient.UI
         /// </remarks>
         private readonly struct SendCard
         {
-            public SendCard(string label, string income, CreepIconKind icon, Color accent, ContentId creepId, int role, System.Action send, bool ignoresCooldown = false)
+            public SendCard(string label, CreepIconKind icon, Color accent, ContentId creepId, int role, System.Action send, bool ignoresCooldown = false)
             {
                 Label = label;
-                Income = income;
                 Icon = icon;
                 Accent = accent;
                 CreepId = creepId;
@@ -347,7 +346,6 @@ namespace LTW.UnityClient.UI
             }
 
             public string Label { get; }
-            public string Income { get; }
             public CreepIconKind Icon { get; }
             public Color Accent { get; }
             public ContentId CreepId { get; }
@@ -361,30 +359,30 @@ namespace LTW.UnityClient.UI
 
         private SendCard[] CategoryOneCards() => new[]
         {
-            new SendCard("RUNNER", "+1", CreepIconKind.Runner, ArcaneBlue, SampleVerticalSliceContent.CreepId, 0, SendRunner),
-            new SendCard("BRUTE", "+2", CreepIconKind.Brute, WardViolet, SampleVerticalSliceContent.BruteCreepId, 1, SendBrute),
-            new SendCard("SWARM", "+3", CreepIconKind.Swarm, SignalGold, SampleVerticalSliceContent.SwarmCreepId, 2, SendSwarm),
-            new SendCard("SHADE", "+3", CreepIconKind.Shade, MintSignal, SampleVerticalSliceContent.ShadeCreepId, 3, SendShade),
-            new SendCard("SIEGE", "+4", CreepIconKind.Siege, new Color(1f, 0.62f, 0.26f), SampleVerticalSliceContent.SiegeCreepId, 4, SendSiege)
+            new SendCard("RUNNER", CreepIconKind.Runner, ArcaneBlue, SampleVerticalSliceContent.CreepId, 0, SendRunner),
+            new SendCard("BRUTE", CreepIconKind.Brute, WardViolet, SampleVerticalSliceContent.BruteCreepId, 1, SendBrute),
+            new SendCard("SWARM", CreepIconKind.Swarm, SignalGold, SampleVerticalSliceContent.SwarmCreepId, 2, SendSwarm),
+            new SendCard("SHADE", CreepIconKind.Shade, MintSignal, SampleVerticalSliceContent.ShadeCreepId, 3, SendShade),
+            new SendCard("SIEGE", CreepIconKind.Siege, new Color(1f, 0.62f, 0.26f), SampleVerticalSliceContent.SiegeCreepId, 4, SendSiege)
         };
 
         // Every Category 2 card sets ignoresCooldown — that exemption is what the RAPID name refers to.
         private SendCard[] CategoryTwoCards() => new[]
         {
-            new SendCard("WISP", "+1", CreepIconKind.Wisp, ArcaneBlue, SampleVerticalSliceContent.WispCreepId, 5, SendWisp, ignoresCooldown: true),
-            new SendCard("REVENANT", "+4", CreepIconKind.Revenant, WardViolet, SampleVerticalSliceContent.RevenantCreepId, 6, SendRevenant, ignoresCooldown: true),
-            new SendCard("OBSIDIAN", "+3", CreepIconKind.ObsidianBrute, new Color(0.92f, 0.32f, 0.28f), SampleVerticalSliceContent.ObsidianBruteCreepId, 7, SendObsidianBrute, ignoresCooldown: true),
-            new SendCard("SERPENT", "+2", CreepIconKind.Serpent, MintSignal, SampleVerticalSliceContent.SerpentCreepId, 8, SendSerpent, ignoresCooldown: true),
-            new SendCard("WALKER", "+4", CreepIconKind.TurretWalker, new Color(0.42f, 0.82f, 0.86f), SampleVerticalSliceContent.TurretWalkerCreepId, 9, SendTurretWalker, ignoresCooldown: true)
+            new SendCard("WISP", CreepIconKind.Wisp, ArcaneBlue, SampleVerticalSliceContent.WispCreepId, 5, SendWisp, ignoresCooldown: true),
+            new SendCard("REVENANT", CreepIconKind.Revenant, WardViolet, SampleVerticalSliceContent.RevenantCreepId, 6, SendRevenant, ignoresCooldown: true),
+            new SendCard("OBSIDIAN", CreepIconKind.ObsidianBrute, new Color(0.92f, 0.32f, 0.28f), SampleVerticalSliceContent.ObsidianBruteCreepId, 7, SendObsidianBrute, ignoresCooldown: true),
+            new SendCard("SERPENT", CreepIconKind.Serpent, MintSignal, SampleVerticalSliceContent.SerpentCreepId, 8, SendSerpent, ignoresCooldown: true),
+            new SendCard("WALKER", CreepIconKind.TurretWalker, new Color(0.42f, 0.82f, 0.86f), SampleVerticalSliceContent.TurretWalkerCreepId, 9, SendTurretWalker, ignoresCooldown: true)
         };
 
         private SendCard[] CategoryThreeCards() => new[]
         {
-            new SendCard("WRAITH", "+2", CreepIconKind.Zephyr, ArcaneBlue, SampleVerticalSliceContent.ZephyrCreepId, 10, SendZephyr),
-            new SendCard("BURROW", "+2", CreepIconKind.Burrower, new Color(0.85f, 0.55f, 0.25f), SampleVerticalSliceContent.BurrowerCreepId, 11, SendBurrower),
-            new SendCard("STALKER", "+3", CreepIconKind.Stalker, WardViolet, SampleVerticalSliceContent.StalkerCreepId, 12, SendStalker),
-            new SendCard("WARDEN", "+3", CreepIconKind.Warden, MintSignal, SampleVerticalSliceContent.WardenCreepId, 13, SendWarden),
-            new SendCard("COLOSSUS", "+5", CreepIconKind.Colossus, new Color(1f, 0.45f, 0.30f), SampleVerticalSliceContent.ColossusCreepId, 14, SendColossus)
+            new SendCard("WRAITH", CreepIconKind.Zephyr, ArcaneBlue, SampleVerticalSliceContent.ZephyrCreepId, 10, SendZephyr),
+            new SendCard("BURROW", CreepIconKind.Burrower, new Color(0.85f, 0.55f, 0.25f), SampleVerticalSliceContent.BurrowerCreepId, 11, SendBurrower),
+            new SendCard("STALKER", CreepIconKind.Stalker, WardViolet, SampleVerticalSliceContent.StalkerCreepId, 12, SendStalker),
+            new SendCard("WARDEN", CreepIconKind.Warden, MintSignal, SampleVerticalSliceContent.WardenCreepId, 13, SendWarden),
+            new SendCard("COLOSSUS", CreepIconKind.Colossus, new Color(1f, 0.45f, 0.30f), SampleVerticalSliceContent.ColossusCreepId, 14, SendColossus)
         };
 
         private void DrawCategoryOneCreeps(Rect rect, float buttonY, float buttonHeight, float gap, int gold, float scale) =>
@@ -407,12 +405,19 @@ namespace LTW.UnityClient.UI
         private void DrawSendCards(SendCard[] cards, Rect rect, float buttonY, float buttonHeight, float gap, int gold, float scale)
         {
             var costs = new int[cards.Length];
+            var incomes = new int[cards.Length];
             for (var index = 0; index < cards.Length; index++)
             {
                 // SendCost, not CreepCost: a press queues SendQuantity creeps and EconomyService
                 // charges for all of them. Pricing the card at the unit cost is what let Swarm
                 // display "6G", enable at 6 gold, and then be rejected for needing 18.
                 costs[index] = commandAdapter != null ? commandAdapter.SendCost(cards[index].CreepId) : 0;
+
+                // Read every frame rather than baked into the card, because it is not a constant:
+                // past the income taper's knee the same button grants steadily less, down to zero at
+                // the ceiling. The old hardcoded "+1"/"+2" strings would have gone quietly wrong
+                // exactly when the player most needs to know what a send is still worth.
+                incomes[index] = commandAdapter != null ? commandAdapter.SendIncomeGain(cards[index].CreepId) : 0;
             }
 
             var order = new int[cards.Length];
@@ -438,6 +443,7 @@ namespace LTW.UnityClient.UI
             {
                 var card = cards[order[slot]];
                 var cost = costs[order[slot]];
+                var income = incomes[order[slot]];
                 var inFirstRow = slot < firstRowCount;
                 if (slot == firstRowCount)
                 {
@@ -446,7 +452,7 @@ namespace LTW.UnityClient.UI
 
                 var width = inFirstRow ? firstRowWidth : secondRowWidth;
                 var y = inFirstRow ? buttonY : secondRowY;
-                if (DrawSendButton(new Rect(x, y, width, buttonHeight), card.Label, $"{cost}G  {card.Income}", card.Icon, card.Accent, gold >= cost, highlightedCreepRole == card.Role, scale, card.IgnoresCooldown))
+                if (DrawSendButton(new Rect(x, y, width, buttonHeight), card.Label, $"{cost}G  +{income}", card.Icon, card.Accent, gold >= cost, highlightedCreepRole == card.Role, scale, card.IgnoresCooldown))
                 {
                     card.Send();
                 }

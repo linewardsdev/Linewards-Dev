@@ -90,7 +90,7 @@ public sealed class LocalVerticalSlice
         // The enforcement in EconomyService is left intact and still tested with explicit values, so
         // the rule can be turned back on by changing this one number. CreepDefinition.IgnoresSendCooldown
         // also stays: it is inert at 0, but if a cooldown ever returns, Category 2 remains exempt.
-        economy = new EconomyService(new EconomyRules(incomeIntervalTicks: 50, sendCooldownTicks: 0, sellRefundPercent: 50, leakLifeLoss: 1));
+        economy = new EconomyService(new EconomyRules(incomeIntervalTicks: 50, sendCooldownTicks: 0, sellRefundPercent: 50, leakLifeLoss: 1, incomeCeiling: 600, incomeTaperStart: 300));
         pathService = new GridPathService();
         combat = new CombatService();
         commandValidator = new CommandContentValidator();
@@ -294,7 +294,12 @@ public sealed class LocalVerticalSlice
         var laneId = topology.HomeLaneFor(send.TargetPlayerId!.Value);
         // The sender's send-category tier is baked into health here, at purchase time. A tier
         // bought later does not reach these creeps.
-        var healthPercent = CategoryTierRules.CreepHealthPercentFor(players.Get(playerId).SendCategoryTier(creep.CategoryIndex));
+        //
+        // Match escalation is folded in the same way and for the same reason. The two are combined
+        // multiplicatively rather than added, so a tier-3 send keeps being worth 225% of whatever
+        // the escalated baseline is instead of the two bonuses diluting each other late in a match.
+        var healthPercent = CategoryTierRules.CreepHealthPercentFor(players.Get(playerId).SendCategoryTier(creep.CategoryIndex))
+            * MatchEscalationRules.CreepHealthPercentFor(tick.Value) / 100;
         var spawned = Enumerable.Range(0, quantity).Select(_ => combat.SpawnCreep(NextEntityId(), creep, playerId, laneId, healthPercent)).ToArray();
         combatState = new CombatState(combatState.Creeps.Concat(spawned), combatState.Towers);
         acceptedCommands.Add(new AcceptedCommandRecord(tick, playerId, creepId, quantity));
@@ -598,6 +603,21 @@ public sealed class LocalVerticalSlice
             .ThenBy(candidate => candidate.Position.Y)
             .ThenBy(candidate => candidate.Position.X)
             .ToList();
+    }
+
+    /// <summary>
+    /// Income this player would actually gain by sending now, taper included.
+    /// </summary>
+    /// <remarks>
+    /// A creep's authored <c>IncomeGain</c> stops being the true number once a player crosses
+    /// <see cref="EconomyRules.IncomeTaperStart"/>, so the send dock has to ask rather than print the
+    /// authored value. The dock already reads COST from here for the same reason — a hardcoded 6G on
+    /// the Swarm card is what let it enable at 6 gold and then be rejected for needing 18.
+    /// </remarks>
+    public int IncomeGainForSend(PlayerId playerId, ContentId creepId, int quantity)
+    {
+        var creep = content.Creeps.FirstOrDefault(definition => definition.Id.Equals(creepId));
+        return creep is null ? 0 : economy.IncomeGainFor(players.Get(playerId).Income, creep, quantity);
     }
 
     /// <summary>

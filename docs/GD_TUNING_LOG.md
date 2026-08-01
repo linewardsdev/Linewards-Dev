@@ -1536,3 +1536,113 @@ One imprecision worth knowing before it is used as a range readout: simulation r
 **Manhattan** (`IsInRange` sums `|dx| + |dy|`), so the true footprint is a diamond and the fog is
 a circle. It is drawn at full range because a visible diamond edge would look authored rather
 than atmospheric, and because the point of the gradient is that the boundary is not locatable.
+
+## 2026-08-01: The Income Loop Had No Ceiling, And That Was Holding The Game Together
+
+The stat rebalance immediately before this made defence competitive again. Longer matches then
+exposed something the short ones had hidden: **income and gold are a closed positive feedback
+loop with no brake.** A send permanently raises income (`EconomyService.QueueSend`), income pays
+gold every 50 ticks (`ApplyIncomeTick`), gold buys more sends. Nothing anywhere bounded it.
+
+Measured on the shipped eight-lane config, seed 1, before any fix:
+
+```
+  tick   200   400   600   800  1000  1200  1600  2000  2400  3000
+income    35    66   126   230   385   552  1099  2471  5443 14083
+```
+
+The winning bot finished on **income 16,048 with 81,112 gold banked**, and the match peaked at
+**4,111 creeps alive at once**. That last number is a mobile performance problem before it is a
+balance one — and it means every balance measurement taken in this period was taken inside a
+runaway.
+
+### The fix has two halves, and one without the other is worse than neither
+
+**A ceiling with a knee** (`EconomyRules.IncomeTaperStart` 300, `IncomeCeiling` 600). Below the
+knee a send grants exactly its authored income; across the band above it the gain tapers linearly
+with remaining headroom and reaches zero at the ceiling.
+
+Two shapes were tried and rejected first, both for measured reasons:
+
+- **Flooring the per-send gain at 1** does not work at all. Any strictly positive gain keeps the
+  loop compounding, because the number of sends per interval grows with gold. Modelled, it only
+  moves the runaway later: income 423 at tick 3,200 but 2,374 by 4,800.
+- **Tapering proportionally from zero income** — no knee — is a permanent tax rather than a
+  late-game brake. It halves a gain-2 creep at income 100, which is inside the opening, and it
+  measurably weakened the bots: their maze in `BotMazingTests` fell from 22 cells to 20 purely
+  because they had less gold to build with. The knee exists because of that failure.
+
+Rounding in the taper is deliberately UP, so gain-1 creeps keep granting their full 1 across the
+whole band. Rounding down zeroes them at half the band and quietly deletes the low end of the
+roster — precisely the failure the rebalance before this was fixing.
+
+**An escalation** (`MatchEscalationRules`: from tick 2,000, +20% authored creep health per 100
+ticks, applied at purchase time only). This is not a separate improvement that happened to land
+together. **Unbounded income was the game's de-facto closing mechanism.** Capping it and changing
+nothing else reproduced a genuinely non-terminating match — the three-lane seed ran past 6,000
+ticks — which is exactly what `LocalThreePlayerMatchTests`' own note had predicted an income cap
+would cost if taken alone. Escalation was chosen over sudden death because it is symmetric: both
+sides get tankier creeps at the same rate, so it raises pressure until the better defence wins
+rather than handing the result to whoever leads when a timer expires.
+
+Both constants were swept rather than picked. Holding the slope at 20:
+
+```
+  start   8-lane close / peak creeps   3-lane close / peak creeps
+   2400        4472 / 804                   4561 / 303
+   2000        4069 / 797                   4179 / 306
+   1600        3873 / 1017                  3814 / 312
+   1200        3676 / 1307                  3727 /  78
+```
+
+and holding the start at 2,400:
+
+```
+  slope   8-lane close / peak creeps   3-lane close / peak creeps
+     12        4665 / 556                   5229 / 265   (misses the 5,000 bound)
+     16        4568 / 687                   4829 / 287
+     20        4472 / 804                   4561 / 303
+     25        4626 / 1242                  4341 / 308
+```
+
+Slope 20 is the floor of that curve, not a midpoint: at 25 the eight-lane match closes **later**
+with half again as many creeps, because health that makes a creep harder to kill also makes it
+live longer and pile up. Start 2,000 is where peak creeps bottom out while still taking ~400
+ticks off the match. Starting earlier keeps shortening matches, but pays for it in concurrent
+creeps — the wrong currency, since that is the problem this change exists to fix.
+
+### What it did
+
+Unity batch playtest, seed 1, eight lanes, both runs at the shipped `-ltwTickRate 4`:
+
+| | before | after |
+| --- | ---: | ---: |
+| Completed tick | 3,131 | 4,069 |
+| Accepted commands | 3,491 | 3,597 |
+| **Peak creeps** | **4,111** | **749** |
+| Peak towers | 312 | 312 |
+| Peak active presentation objects | 19,868 | 12,795 |
+| Peak pooled presentation objects | 6,806 | 5,613 |
+| Highest final income | 16,048 | 600 |
+| Highest final gold | 81,112 | 5,966 |
+
+Peak creeps fall 5.5x and income 27x, with tower count identical. Matches run ~30% longer
+(3,131 to 4,069 ticks, about 13 to 17 minutes at 4 ticks/s) — the cost of removing a closing
+mechanism that worked by brute force and replacing it with one that is actually designed.
+
+Both runs must be at the same tick rate for the presentation rows to mean anything, and the first
+attempt at this comparison was not: the runner defaults to `-ltwTickRate 1200`, which banks
+transient effects against an unchanged `Time.time` expiry and reported 82,398 peak active objects
+for the same match that shows 12,795 at 4/s. Creep and tower peaks are unaffected by the rate
+(749 vs 700, and 312 towers in both), which is why those were safe to read from either run.
+
+### The send dock now asks the simulation what a send is worth
+
+The dock's income labels were hardcoded strings (`"+1"`, `"+2"`, …). All fifteen were *correct*
+against the content — including Swarm's `+3`, which is gain 1 times its send quantity of 3 — so
+this fixes no existing bug. It prevents a new one: past the knee those numbers stop being true,
+and a card advertising `+5` while granting `+2` is worse than showing nothing. `SendDockController`
+now reads `UnityCommandAdapter.SendIncomeGain`, which asks `EconomyService.IncomeGainFor` with the
+player's current income — the same reasoning that already made it read cost from the simulation.
+
+255 tests passing, zero skipped.

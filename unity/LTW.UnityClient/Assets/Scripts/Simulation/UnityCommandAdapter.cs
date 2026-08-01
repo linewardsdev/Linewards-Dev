@@ -391,6 +391,18 @@ namespace LTW.UnityClient.Simulation
         public int SendCost(LTW.Simulation.Content.ContentId creepId) =>
             CreepCost(creepId) * SendQuantity(creepId);
 
+        /// <summary>Income one press of this send button actually grants right now.</summary>
+        /// <remarks>
+        /// Asks the simulation rather than printing the creep's authored IncomeGain, because the two
+        /// stop agreeing once the player passes the income taper's knee — at that point a card
+        /// advertising "+5" while granting +2 is worse than showing no number at all. Same reasoning
+        /// as <see cref="SendCost"/>, and it includes the send quantity for the same reason.
+        /// </remarks>
+        public int SendIncomeGain(LTW.Simulation.Content.ContentId creepId) =>
+            simulation is null
+                ? 0
+                : simulation.IncomeGainForSend(simulation.LocalPlayerId, creepId, SendQuantity(creepId));
+
         private const int SwarmSendQuantity = 3;
 
         public VerticalSliceCommandResult PlaceSampleTower(int x, int y) => PlaceTower(SampleVerticalSliceContent.TowerId, x, y);
