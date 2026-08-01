@@ -91,7 +91,7 @@ namespace LTW.UnityClient.UI
 
         private bool isMultiSelectMode;
 
-        /// <summary>Set by the first SELL tap, cleared by anything else. See DrawMultiSelectPanel.</summary>
+        /// <summary>Set by the first SELL tap, cleared by anything else. See DrawMultiSelectActions.</summary>
         private bool sellArmed;
         private VerticalSliceCommandResult placementPreview = VerticalSliceCommandResult.Reject(CommandRejectionReason.InvalidLane);
 
@@ -306,7 +306,6 @@ namespace LTW.UnityClient.UI
             }
 
             PruneMultiSelection();
-            DrawMultiSelectPanel(scale);
             DrawSelectedTowerPanel(scale);
 
             if (!isPlacing)
@@ -437,41 +436,24 @@ namespace LTW.UnityClient.UI
         }
 
         /// <summary>
-        /// The batch panel: what is selected, what raising it costs, what selling it returns.
+        /// The batch actions, drawn into the launcher strip rather than into a panel.
         /// </summary>
         /// <remarks>
-        /// A separate panel from the single-tower one because almost nothing that panel shows —
-        /// name, purpose, cell, tier — means anything for five towers at once. This one shows only
-        /// what is true of a set: how many, and what each action would do to it.
+        /// This WAS a card, and the card was the wrong shape for the job. Multi-select exists to tap
+        /// towers on the board, and the card sat over the board taking those taps — the one mode
+        /// where an overlay costs the most is the one mode that had one. It was redundant as well as
+        /// harmful: the rings already show which towers are selected and the toast already reports
+        /// the count, so the card was re-stating both while covering the thing they described.
         ///
-        /// SELL is deliberately two taps. The upgrade is a spend the player can earn back, but a
-        /// batch sell destroys the maze they have spent the match building and there is no undo.
-        /// The first tap arms it and the label states the consequence; anything else disarms it.
+        /// The actions now live in the launcher strip, which is HUD space already spent. RAISE takes
+        /// the BUILD slot, since BUILD would only exit this mode anyway, and the counts and prices
+        /// ride on the buttons themselves. Nothing is drawn over the board that was not drawn over it
+        /// before turning MULTI on.
         /// </remarks>
-        private void DrawMultiSelectPanel(float scale)
+        private void DrawMultiSelectActions(float scale, Rect frame)
         {
-            if (!isMultiSelectMode || isPlacing || commandAdapter == null)
+            if (multiSelection.Count == 0 || commandAdapter == null)
             {
-                return;
-            }
-
-            var frame = MobileViewportLayout.ScreenRect();
-            var rect = MultiSelectPanelRect(scale, frame);
-            DrawPanel(rect, PanelInk);
-            DrawAccent(new Rect(rect.x, rect.yMax - 4f * scale, rect.width, 4f * scale), SignalGold);
-
-            titleStyle!.fontSize = Mathf.RoundToInt(14f * scale);
-            titleStyle.normal.textColor = Cloud;
-            GUI.Label(new Rect(rect.x + 12f * scale, rect.y + 8f * scale, rect.width - 24f * scale, 22f * scale),
-                multiSelection.Count == 0 ? "MULTI SELECT" : $"{multiSelection.Count} TOWERS SELECTED", titleStyle);
-
-            bodyStyle!.fontSize = Mathf.RoundToInt(10f * scale);
-            bodyStyle.normal.textColor = Cloud;
-
-            if (multiSelection.Count == 0)
-            {
-                GUI.Label(new Rect(rect.x + 12f * scale, rect.y + 34f * scale, rect.width - 24f * scale, 18f * scale),
-                    "Tap your towers to add them. DONE to exit.", bodyStyle);
                 return;
             }
 
@@ -479,42 +461,21 @@ namespace LTW.UnityClient.UI
             var upgrade = commandAdapter.QuoteSelectionUpgrade(positions);
             var sale = commandAdapter.QuoteSelectionSale(positions);
 
-            GUI.Label(new Rect(rect.x + 12f * scale, rect.y + 34f * scale, rect.width - 24f * scale, 18f * scale),
-                upgrade.HasWork ? $"{upgrade.Eligible} can be raised" : "None can be raised yet", bodyStyle);
-
-            var buttonWidth = 96f * scale;
-            var buttonY = rect.y + 58f * scale;
-
             var raiseLabel = !upgrade.HasWork
-                ? "RAISE"
+                ? "RAISE 0"
                 : upgrade.IsGoldLimited
-                    ? $"RAISE {upgrade.Affordable}/{upgrade.Eligible}"
-                    : $"RAISE {upgrade.Eligible}";
-            if (RuntimeUiChrome.DrawPanelButton(new Rect(rect.x + 12f * scale, buttonY, buttonWidth, 38f * scale), raiseLabel, MintSignal, scale, buttonStyle!))
+                    ? $"RAISE {upgrade.Affordable}/{upgrade.Eligible}  {upgrade.AffordableCost}G"
+                    : $"RAISE {upgrade.Eligible}  {upgrade.TotalCost}G";
+            if (DrawLauncherButton(MultiSelectRaiseRect(scale, frame), raiseLabel, upgrade.HasWork ? MintSignal : DisabledInk, scale))
             {
                 RaiseSelection(upgrade);
             }
 
-            if (upgrade.HasWork)
-            {
-                metaStyle!.fontSize = Mathf.RoundToInt(9f * scale);
-                metaStyle.normal.textColor = MintSignal;
-                metaStyle.alignment = TextAnchor.MiddleLeft;
-                GUI.Label(new Rect(rect.x + 12f * scale + buttonWidth + 6f * scale, buttonY + 10f * scale, 70f * scale, 18f * scale),
-                    $"{(upgrade.IsGoldLimited ? upgrade.AffordableCost : upgrade.TotalCost)}G", metaStyle);
-            }
-
-            var sellLabel = sellArmed ? $"SELL {sale.Towers}?" : "SELL";
-            if (RuntimeUiChrome.DrawPanelButton(new Rect(rect.xMax - buttonWidth - 12f * scale, buttonY, buttonWidth, 38f * scale), sellLabel, Danger, scale, buttonStyle!))
+            var sellLabel = sellArmed ? $"CONFIRM {sale.Towers}" : $"SELL {sale.Towers}  +{sale.Refund}G";
+            if (DrawLauncherButton(MultiSelectSellRect(scale, frame), sellLabel, Danger, scale))
             {
                 SellSelection(sale);
             }
-
-            metaStyle!.fontSize = Mathf.RoundToInt(9f * scale);
-            metaStyle.normal.textColor = Danger;
-            metaStyle.alignment = TextAnchor.MiddleRight;
-            GUI.Label(new Rect(rect.xMax - buttonWidth - 86f * scale, buttonY + 10f * scale, 70f * scale, 18f * scale), $"+{sale.Refund}G", metaStyle);
-            metaStyle.alignment = TextAnchor.MiddleLeft;
         }
 
         private List<GridPosition> SelectedPositions()
@@ -1235,9 +1196,14 @@ namespace LTW.UnityClient.UI
             var launcherRect = TowerPaletteLauncherRect(scale, frame);
             if (!isPaletteExpanded)
             {
-                if (DrawLauncherButton(launcherRect, "BUILD", MintSignal, scale))
+                // BUILD yields its slot to RAISE while multi-select is on. It is not lost: BUILD
+                // would only have exited the mode, which is what DONE directly above it does.
+                if (isMultiSelectMode)
                 {
-                    SetMultiSelectMode(false);
+                    DrawMultiSelectActions(scale, frame);
+                }
+                else if (DrawLauncherButton(launcherRect, "BUILD", MintSignal, scale))
+                {
                     OpenTowerPalette();
                 }
 
@@ -1782,7 +1748,8 @@ namespace LTW.UnityClient.UI
             var frame = MobileViewportLayout.ScreenRect();
             var guiPoint = new Vector2(screenPosition.x, Screen.height - screenPosition.y);
 
-            if (isMultiSelectMode && MultiSelectPanelRect(scale, frame).Contains(guiPoint))
+            if (isMultiSelectMode && multiSelection.Count > 0
+                && (MultiSelectRaiseRect(scale, frame).Contains(guiPoint) || MultiSelectSellRect(scale, frame).Contains(guiPoint)))
             {
                 return true;
             }
@@ -1792,7 +1759,7 @@ namespace LTW.UnityClient.UI
                 return true;
             }
 
-            if (TowerPaletteLauncherRect(scale, frame).Contains(guiPoint))
+            if (!isMultiSelectMode && TowerPaletteLauncherRect(scale, frame).Contains(guiPoint))
             {
                 return true;
             }
@@ -1875,24 +1842,18 @@ namespace LTW.UnityClient.UI
             return new Rect(frame.x + 8f * scale, frame.yMax - height - MobileViewportLayout.BottomMargin(scale), width, height);
         }
 
-        /// <summary>
-        /// Where the batch panel sits: clear of the feedback toast AND of the DONE button.
-        /// </summary>
-        /// <remarks>
-        /// It cannot share SelectedTowerPanelRect. That rect spans yMax-224 to yMax-112, which
-        /// overlaps the toast at yMax-254..yMax-206 and sits under the DONE button stacked above
-        /// BUILD. The single-tower panel gets away with the toast overlap because selecting one
-        /// tower posts one message and then stops; multi-select posts a new count on every tap, so
-        /// the toast is almost always up and would sit permanently across this panel's title.
-        ///
-        /// 262 clears the toast's top edge by 8. The overlap on the single-tower panel is real and
-        /// pre-existing, and is left alone here rather than fixed as a side effect of this feature.
-        /// </remarks>
-        private static Rect MultiSelectPanelRect(float scale, Rect frame)
+        /// <summary>RAISE, in the slot BUILD occupies when multi-select is off.</summary>
+        private static Rect MultiSelectRaiseRect(float scale, Rect frame)
         {
-            var width = Mathf.Min(frame.width - 16f * scale, 360f * scale);
-            var height = 112f * scale;
-            return new Rect(frame.x + 8f * scale, frame.yMax - height - 262f * scale, width, height);
+            var launcher = TowerPaletteLauncherRect(scale, frame);
+            return new Rect(launcher.x, launcher.y, 148f * scale, launcher.height);
+        }
+
+        /// <summary>SELL, immediately right of RAISE and clear of the SEND dock's launcher.</summary>
+        private static Rect MultiSelectSellRect(float scale, Rect frame)
+        {
+            var raise = MultiSelectRaiseRect(scale, frame);
+            return new Rect(raise.xMax + 8f * scale, raise.y, 148f * scale, raise.height);
         }
 
         private static Rect SelectedTowerPanelRect(float scale, Rect frame)
