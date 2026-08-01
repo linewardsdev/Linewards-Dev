@@ -323,6 +323,12 @@ Listed here so they do not sit invisibly inside the plan doc:
    everything else follows from it.
 2. **HUD technology** (item 10) — uGUI + TextMeshPro is conventional and lower-risk;
    UI Toolkit is more modern but a larger migration. All UI motion waits on this.
+   **Better informed as of 2026-08-01:** TextMeshPro is now already in the project and
+   proven on real in-game content, because the board-text pass needed it. If the answer is
+   uGUI + TMP, half the dependency work is done and the text stack is known to work; if the
+   answer is UI Toolkit, TMP stays in regardless, since board labels are world-space and do
+   not migrate with the HUD. That asymmetry did not exist when this decision was written and
+   it lowers the cost of the conventional option specifically.
 3. **Normal map route** (item 3) — Meshy re-generation versus a Blender bake stage.
 4. **Whether to re-source albedo.** The reference research says simple albedo plus authored
    roughness is what produces the target look; Meshy's generated albedo is the opposite.
