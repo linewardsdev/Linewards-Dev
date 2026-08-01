@@ -22,10 +22,14 @@ items 29–31 are from the same day's live iOS-simulator playtest of the device 
 claim is not chased).
 
 **Worked 2026-08-01.** Items 22 and 27 are resolved and deleted per this file's own rule,
-and item 23 is rewritten to show what closed versus what remains. Numbers are still not
-reused. Items 24 and 25 touch `UnityVerticalSliceRenderer`, which was being actively
-edited in the shared working tree that day — whoever picks them up should check for
-in-flight client work first.
+and item 23 was rewritten mid-day to show what closed versus what remained. Numbers are
+still not reused. Items 24 and 25 touch `UnityVerticalSliceRenderer`, which was being
+actively edited in the shared working tree that day — whoever picks them up should check
+for in-flight client work first.
+
+**Worked 2026-08-01 (later the same day).** Item 23's remaining half — the attack phase —
+is resolved, so the item is now fully closed and deleted; both its rows are in the ledger
+below. Nothing else changed.
 
 **Re-verified 2026-07-31** against the working tree after `4bb48d2` (art-doc archive),
 `151df11` (this file committed) and `bff79e3` (code comments recited by name). Items 5–15
@@ -63,7 +67,8 @@ than left as written; each carries its own dated finding.
 | --- | --- | --- |
 | 22 | `264991c` | `SimulationPluginSyncTests` compares the committed Unity plugin against the source build — declared members always, IL when built Release, which is what CI does. Deliberately not a byte comparison: MVID, PE stamp and PDB id are build identity and differ between machines on an in-sync plugin (measured: 148 differing bytes in an otherwise identical 135,680). Verified by flipping one constant and watching the IL half fail while the member half correctly stayed green. Caught its own first real drift twice during the session that wrote it. |
 | 27 | `264991c` | Eighteen `First`/`FirstOrDefault` catalog scans in per-tick bot and upgrade paths replaced with an id index, matching what `CombatContent` already did. |
-| 23 (part) | `264991c` | Movement and healing no longer rebuild the creep array per creep, and `CombatState` no longer copies twice per mutation or copies the collection that did not change. The attack phase is still quadratic — see the rewritten item. |
+| 23 (part) | `264991c` | Movement and healing no longer rebuild the creep array per creep, and `CombatState` no longer copies twice per mutation or copies the collection that did not change. The attack phase was left quadratic and closed separately, in the row below. |
+| 23 (rest) | `0b19a2d` | The attack phase now shares one mutable `CombatDamageBuffer` across both damage phases and all four damage paths, so a hit is a slot write rather than an array rebuild and the state is rebuilt once per tick. Measured on a saturated 266-creep, 120-tower board: 1,279.9 → 860.8 KB allocated per tick (−33%), and 54,992 → 386 element copies per tick, a factor of 142. Swept against creep count with towers held fixed, the marginal cost of one more creep fell from 2.06 to 0.38 KB/tick — 5.5x flatter, 82% of the N-dependent growth gone — which is the quadratic term itself rather than a constant. A real bot match barely moves (634.9 → 631.4 MB over 1,500 ticks) because it peaks at 101 creeps and is dominated by bot decisions, so this buys headroom rather than today's frame time. Determinism proven by hashing the complete event stream: eight digests across five board sizes, two kill-heavy boards and a full seed-1 bot match (26,526 events, 1,025 commands) are all byte-identical before and after. The first attempt exposed the creeps as a hole-skipping iterator and measured 25% SLOWER despite allocating 2.5x less, because LINQ lost its fast path — recorded in the class, since it is not visible by reading. Closes every part this item named; one instance of the same pattern survives outside its scope, in `LocalVerticalSlice.AdvanceOneTick`, where each leak does a `RemoveCreep` and a `Creeps.Concat` rebuild per transferred creep. That is bounded by leaks per tick rather than by hits per tick, so it is a much smaller case, but a mass leak still pays it — unmeasured, and left for whoever finds it worth a number. |
 
 **The plan that sequences this work is [`GRAPHICS_AA_UPLIFT.md`](GRAPHICS_AA_UPLIFT.md).**
 That document holds the wave ordering, the raised quality target, the craft scorecard
@@ -388,29 +393,6 @@ Two decisions, then one mechanical task:
   from here forward).
 - Decide whether AI staging intermediates (raw AIDrop contents, as opposed to selected
   production assets) belong in the repo at all.
-
-## 23. O(N²) state copying in the combat tick — movement and healing fixed, the attack phase is not
-
-**Substantially resolved in `264991c`; one phase remains.**
-
-Resolved: movement rebuilt the whole creep array once per creep, so the phase every creep
-passes through every tick cost N array rebuilds — roughly 70,000 element copies at the 266
-creeps the capture harness has measured. It now builds one list and adopts it. Healing did
-the same plus a linear scan per healed creep, and now indexes by entity id. `CombatState`
-no longer copies twice per mutation (`Replace` copied, then the constructor copied again),
-and no longer copies the collection that did not change — `RemoveCreep` was rebuilding the
-tower array too.
-
-**Still open: the attack phase.** `ApplyDamage` still calls `ReplaceCreep`, and
-`RemoveCreep` again on a kill, once per damaging hit — so a board where every tower hits
-every tick is still quadratic. Fixing it needs a mutable buffer threaded through all four
-damage paths (direct fire, splash, chain, artillery), which is why it was left out of the
-first pass rather than folded in: that change cannot be reviewed by inspection the way the
-movement one can.
-
-Note for whoever takes it: entity order and event order are load-bearing. `SelectTarget`,
-Pulse's splash `Take(2)` and `ChainArc` all tie-break on entity id, and several tests
-assert on event ordering.
 
 ## 24. The renderer re-does per-snapshot work at per-frame rate, with string keys
 
