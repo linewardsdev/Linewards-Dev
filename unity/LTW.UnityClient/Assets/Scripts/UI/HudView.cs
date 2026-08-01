@@ -60,6 +60,9 @@ namespace LTW.UnityClient.UI
 
         public bool IncomeTickSoon { get; private set; }
 
+        /// <summary>Whether the local seat is out, so the HUD reads as a spectator's.</summary>
+        public bool IsLocalSeatEliminated { get; private set; }
+
         public void Initialize(UnitySimulationDriver driver)
         {
             simulationDriver = driver;
@@ -103,7 +106,14 @@ namespace LTW.UnityClient.UI
             lastObservedTick = snapshot.Tick.Value;
             var player = snapshot.Players.Get(simulationDriver.LocalPlayerId);
             GoldText = player.Gold.Amount.ToString();
-            IncomeText = player.Income.Amount.ToString();
+
+            // EffectiveIncome, not Income. Income is the economy this seat built and keeps; what the
+            // stats bar's "+N" claims is what the next income tick will pay, and for an eliminated
+            // seat that is nothing. Reading Income here was already reading the LIVE snapshot value
+            // — the value simply does not change on elimination, because the simulation withholds
+            // the payment rather than zeroing the number (OPEN_ITEMS.md item 31).
+            IncomeText = player.EffectiveIncome.Amount.ToString();
+            IsLocalSeatEliminated = player.IsEliminated;
             LivesText = player.Lives.Amount.ToString();
             PressureText = snapshot.Creeps.Count.ToString();
             MatchTimeText = snapshot.Tick.Value.ToString();
@@ -144,6 +154,13 @@ namespace LTW.UnityClient.UI
             var strip = CompactTopHudRect(scale, height);
             DrawHudFrame(strip, StateAccent(), scale);
             DrawHudHeader(strip, headerHeight, scale);
+
+            // Below the whole strip, so it sits under the stats drawer when that is open rather than
+            // through it — `height` already includes the drawer when statsExpanded.
+            if (IsLocalSeatEliminated)
+            {
+                DrawSpectatorBanner(strip, scale);
+            }
 
             if (!statsExpanded)
             {
@@ -243,10 +260,40 @@ namespace LTW.UnityClient.UI
             DrawHudCell(state, StateAccent(), true, scale);
             metaStyle!.fontSize = Mathf.RoundToInt(9f * scale);
             metaStyle.normal.textColor = StateAccent();
-            var stateText = simulationDriver != null && simulationDriver.IsOpeningBuildCountdown
-                ? "BUILD"
-                : simulationDriver != null && simulationDriver.HasStarted ? "LIVE" : "READY";
+            // OUT outranks every other state. A defeated seat is still HasStarted and not paused, so
+            // without this the cell went on reading LIVE for a player who had nothing left to do.
+            var stateText = IsLocalSeatEliminated
+                ? "OUT"
+                : simulationDriver != null && simulationDriver.IsOpeningBuildCountdown
+                    ? "BUILD"
+                    : simulationDriver != null && simulationDriver.HasStarted ? "LIVE" : "READY";
             GUI.Label(state, stateText, metaStyle);
+        }
+
+        /// <summary>
+        /// The one line telling a defeated player what has happened to their controls.
+        /// </summary>
+        /// <remarks>
+        /// Deliberately a strip under the HUD rather than a modal panel. The match continues without
+        /// this seat and the board is still worth watching, so taking the screen would be wrong —
+        /// and <see cref="RuntimeUiChrome.ModalScreenActive"/> is explicitly the "a session screen
+        /// owns the display" flag, which this is not.
+        ///
+        /// It is not optional decoration. BUILD, MULTI and SEND all disappear on elimination, and a
+        /// HUD that silently loses three buttons reads as a crash rather than as a state; this is
+        /// what makes the absence legible. It is NOT the defeat/results moment item 31 also asks
+        /// for — that needs a design decision about what a mid-match defeat screen even contains,
+        /// and is left open.
+        /// </remarks>
+        private void DrawSpectatorBanner(Rect strip, float scale)
+        {
+            var height = 24f * scale;
+            var banner = new Rect(strip.x, strip.yMax + 6f * scale, strip.width, height);
+            DrawHudCell(banner, Danger, true, scale);
+
+            metaStyle!.fontSize = Mathf.RoundToInt(10f * scale);
+            metaStyle.normal.textColor = Danger;
+            GUI.Label(banner, "YOU ARE OUT  •  SPECTATING", metaStyle);
         }
 
         private static Rect CompactTopHudRect(float scale, float height)
@@ -304,6 +351,11 @@ namespace LTW.UnityClient.UI
 
         private Color StateAccent()
         {
+            if (IsLocalSeatEliminated)
+            {
+                return Danger;
+            }
+
             if (simulationDriver != null && simulationDriver.IsOpeningBuildCountdown)
             {
                 return SignalGold;

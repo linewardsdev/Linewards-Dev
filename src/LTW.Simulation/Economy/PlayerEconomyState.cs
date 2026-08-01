@@ -56,6 +56,26 @@ public sealed class PlayerEconomyState
     public bool IsEliminated { get; }
 
     /// <summary>
+    /// The gold this seat will actually be paid at the next income tick — zero once eliminated.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="Income"/> is the economy the player built and keeps: it is what the match summary
+    /// reports and what an elimination does NOT undo. This is the different question a presentation
+    /// layer is really asking, and until now it could not be asked at all.
+    ///
+    /// Elimination is enforced as a filter inside <c>EconomyService.ApplyIncomeTick</c>, which is
+    /// correct and is not changing. But it meant "does this seat earn anything" lived only in that
+    /// loop, so a HUD holding a snapshot had no way to derive it — the Unity client read
+    /// <see cref="Income"/>, faithfully, and went on showing a defeated seat the +10 it started the
+    /// match with for the rest of the match (OPEN_ITEMS.md item 31). The value was live; there was
+    /// simply no live value that meant what the HUD was trying to say.
+    ///
+    /// <c>EliminatedSeatEarnsNothingAndReportsThat</c> in PlayerEliminationTests pins this to what
+    /// the income tick actually pays, so the two cannot drift apart.
+    /// </remarks>
+    public Income EffectiveIncome => IsEliminated ? new Income(0) : Income;
+
+    /// <summary>
     /// This player's tier for one tower line (0 ARCANE, 1 FOUNDRY, 2 GROVE), scaling its damage.
     /// </summary>
     public int TowerLineTier(int lineIndex) => TierAt(towerLineTiers, lineIndex);

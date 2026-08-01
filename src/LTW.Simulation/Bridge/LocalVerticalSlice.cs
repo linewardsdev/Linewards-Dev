@@ -255,6 +255,34 @@ public sealed class LocalVerticalSlice
     }
 
     /// <summary>
+    /// Takes a seat's last life so editor/playtest scenarios can show the eliminated state without
+    /// playing a match out to it. Third of the trio alongside <see cref="GrantLocalPlaytestGold"/>.
+    /// </summary>
+    /// <remarks>
+    /// Deliberately routed through the same <see cref="PlayerEliminatedEvent"/> and
+    /// <c>WipeEliminatedLane</c> the real defeat path uses, rather than just setting the flag. A
+    /// screenshot of a seat that is "eliminated" but still has its towers standing and its creeps
+    /// walking would be a picture of a state the game cannot actually be in, and the whole point of
+    /// RealUiCaptureRunner is that its captures are the real UI rather than a mock of it.
+    ///
+    /// It does NOT check for a match end afterwards: that is a per-tick concern and the next
+    /// AdvanceOneTick resolves it normally, so eliminating the last-but-one seat still produces a
+    /// match summary on the following tick exactly as a leak would.
+    /// </remarks>
+    public void EliminateForLocalPlaytest(PlayerId playerId)
+    {
+        var player = players.Get(playerId);
+        if (player.IsEliminated)
+        {
+            return;
+        }
+
+        players = players.Replace(player.WithLives(new Lives(0)));
+        pendingEvents.Add(new PlayerEliminatedEvent(tick, playerId));
+        WipeEliminatedLane(playerId);
+    }
+
+    /// <summary>
     /// Which player must send in order for the creeps to arrive in <paramref name="laneId"/>,
     /// or null if no active player currently routes there.
     /// </summary>

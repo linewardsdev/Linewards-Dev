@@ -74,6 +74,15 @@ namespace LTW.UnityClient.Editor
             // the mode must be gone: while it stayed live its buttons sat under the dock, so board
             // taps kept toggling towers into a batch the player could not see.
             ("real-10-send-over-multi-select", ShowSendOverMultiSelect),
+            // The local seat eliminated, with BOTH bottom panels deliberately open on the frame it
+            // happens. Nothing else in the repo could see this state: the dock stayed open and
+            // browsable over the elimination banner and the HUD went on advertising +10 income, and
+            // it survived to a device build because no capture ever drove a match this far.
+            ("real-11-local-seat-eliminated", EliminateTheLocalSeat),
+            // 2.5s later, after forcing both panels back open behind the HUD's back. "Closed once"
+            // and "cannot be open" look identical in a single frame; this is the shot that tells
+            // them apart, and it is the half of item 31 that was actually about input gating.
+            ("real-12-eliminated-reopen-refused", ForcePanelsOpenWhileEliminated),
         };
 
         /// <summary>The portrait surface the HUD is authored against, matching MotionCaptureRunner.</summary>
@@ -425,6 +434,70 @@ namespace LTW.UnityClient.Editor
             // Exactly what the SEND button does, so the capture exercises the real path.
             touch.CloseBottomPanelsForSend();
             SetPrivate(dock, "isExpanded", true);
+        }
+
+        /// <summary>
+        /// Opens both bottom panels and then takes the local seat's last life.
+        /// </summary>
+        /// <remarks>
+        /// The panels are opened FIRST on purpose. A capture of the eliminated HUD taken from a
+        /// clean state proves nothing — the panels would have been shut anyway. Opening them and
+        /// then eliminating makes the shot answer the actual question: do they go away.
+        ///
+        /// RefreshSnapshot is called explicitly because the shot is taken in this same frame, and
+        /// the HUD reads elimination off the driver's snapshot rather than off the simulation. The
+        /// driver would refresh on its own next frame; without this the capture would be one frame
+        /// stale, which is exactly the frame being captured.
+        /// </remarks>
+        private static void EliminateTheLocalSeat()
+        {
+            var touch = Object.FindAnyObjectByType<TouchPlacementController>();
+            var driver = Object.FindAnyObjectByType<UnitySimulationDriver>();
+            var dock = Dock();
+            var sim = Simulation();
+            if (touch == null || driver == null || dock == null || sim == null)
+            {
+                Debug.LogWarning("REALUI could not reach the components needed for the eliminated state");
+                return;
+            }
+
+            SetPrivate(touch, "isPaletteExpanded", true);
+            SetPrivate(touch, "selectedTowerCategory", -1);
+            SetPrivate(dock, "isExpanded", true);
+
+            sim.EliminateForLocalPlaytest(sim.LocalPlayerId);
+            driver.RefreshSnapshot();
+
+            var seat = sim.GetSnapshot().Players.Get(sim.LocalPlayerId);
+            Debug.Log($"REALUI eliminated P{sim.LocalPlayerId.Value}: isEliminated={seat.IsEliminated} income={seat.Income.Amount} effective={seat.EffectiveIncome.Amount} driverSaysOut={driver.IsLocalSeatEliminated}");
+        }
+
+        /// <summary>Sets both panels' open flags again, from outside, to prove they cannot stay open.</summary>
+        private static void ForcePanelsOpenWhileEliminated()
+        {
+            var touch = Object.FindAnyObjectByType<TouchPlacementController>();
+            var dock = Dock();
+            if (touch == null || dock == null)
+            {
+                return;
+            }
+
+            SetPrivate(touch, "isPaletteExpanded", true);
+            SetPrivate(dock, "isExpanded", true);
+            Debug.Log($"REALUI forced panels open while eliminated; paletteExpanded={touch.IsTowerPaletteExpanded} dockExpanded={dock.IsExpanded}");
+        }
+
+        /// <summary>The live simulation behind the command adapter, or null if it is not up yet.</summary>
+        private static LocalVerticalSlice Simulation()
+        {
+            var commands = Object.FindAnyObjectByType<UnityCommandAdapter>();
+            if (commands == null)
+            {
+                return null;
+            }
+
+            var field = typeof(UnityCommandAdapter).GetField("simulation", BindingFlags.Instance | BindingFlags.NonPublic);
+            return field?.GetValue(commands) as LocalVerticalSlice;
         }
 
         private static void OpenBuildPalette()
