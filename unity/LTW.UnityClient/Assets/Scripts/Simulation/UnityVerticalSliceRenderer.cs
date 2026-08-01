@@ -1086,21 +1086,31 @@ namespace LTW.UnityClient.Simulation
                         var spawnColor = CreepRoleColor(spawned.CreepId.Value, spawned.SenderId.Value);
                         var isTransferArrival = leakTransferCandidates.Contains(TransferCandidateKey(spawned.Tick, spawned.SenderId)) &&
                             !queuedSpawnKeys.Contains(SpawnEventKey(spawned.Tick, spawned.SenderId, spawned.DefenderId, spawned.CreepId.Value));
-                        if (isTransferArrival)
-                        {
-                            var transferLabelPosition = spawnPosition + Vector3.back * 1.25f;
-                            SpawnCreepTransferArrivalCue(spawned.DefenderId.Value, spawnColor);
-                            SpawnFloatingText(transferLabelPosition, "TRANSFER", spawnColor, 0.82f);
-                            SpawnReducedEffectCue(transferLabelPosition, "TRANSFER", spawnColor);
-                        }
-                        else
+                        // A lane transfer is deliberately SILENT. It used to announce itself with
+                        // three beams across the gate and a floating "TRANSFER" label, and on a
+                        // board where several lanes hand creeps along at once that reads as stray
+                        // lasers firing at nothing — the cue describes bookkeeping (one entity
+                        // retired, its successor created in the next lane) rather than anything the
+                        // player did or can answer.
+                        //
+                        // The creep itself is unaffected: it walks in at the gate and is visible the
+                        // whole way, which is the part that actually matters. Detection is kept
+                        // rather than deleted precisely so the ordinary arrival cue below does NOT
+                        // fire for a transfer — without the flag a hand-off would be announced as a
+                        // fresh spawn, which is a different wrong answer.
+                        if (!isTransferArrival)
                         {
                             SpawnCreepArrivalCue(spawned.DefenderId.Value, spawnColor);
                             SpawnFloatingText(spawnPosition, SpawnLabel(spawned.CreepId.Value), spawnColor, 0.48f);
                             SpawnReducedEffectCue(spawnPosition, "SPAWN", spawnColor);
+
+                            // Inside the branch, not after it. Left outside, this burst kept firing
+                            // on every hand-off and the gate still flashed on transfers — silencing
+                            // the beams while leaving this would have moved the problem rather than
+                            // fixed it.
+                            SpawnEffect(spawnPosition, spawnColor, 0.52f, 0.28f, BurstShape.Rise);
                         }
 
-                        SpawnEffect(spawnPosition, spawnColor, 0.52f, 0.28f, BurstShape.Rise);
                         break;
                     case TowerFiredEvent fired:
                         var firedTowerKey = fired.TowerEntityId.Value.ToString();
@@ -1962,15 +1972,6 @@ namespace LTW.UnityClient.Simulation
             SpawnCellFrameCue(spawn, color, 0.22f);
             SpawnBeam(spawn + new Vector3(-0.54f, 0.22f, 0.54f), spawn + new Vector3(0.54f, 0.22f, -0.54f), color, 0.18f);
             SpawnBeam(spawn + new Vector3(0.54f, 0.22f, 0.54f), spawn + new Vector3(-0.54f, 0.22f, -0.54f), color, 0.18f);
-        }
-
-        private void SpawnCreepTransferArrivalCue(int laneId, Color color)
-        {
-            var spawn = SpawnPosition(laneId);
-            SpawnCellFrameCue(spawn, color, 0.34f);
-            SpawnBeam(spawn + new Vector3(-0.68f, 0.28f, 0.62f), spawn + new Vector3(0.68f, 0.28f, 0.62f), color, 0.24f);
-            SpawnBeam(spawn + new Vector3(-0.68f, 0.28f, -0.62f), spawn + new Vector3(0.68f, 0.28f, -0.62f), color, 0.24f);
-            SpawnBeam(spawn + new Vector3(-0.44f, 0.18f, 0f), spawn + new Vector3(0.44f, 0.38f, 0f), SignalGold, 0.24f);
         }
 
         /// <summary>
