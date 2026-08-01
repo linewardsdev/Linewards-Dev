@@ -21,9 +21,9 @@ items 29–32 are from the same day's live iOS-simulator playtest of the device 
 (item 29 was withdrawn the same day as a reviewer misread — it is kept, marked, so the
 claim is not chased; item 33 was split out of item 30 when that item was resolved).
 
-**Worked 2026-08-01.** Items 22, 27 and 30 are resolved and deleted per this file's own rule.
-Numbers are still not reused. Items 24 and 25 touch `UnityVerticalSliceRenderer`, which was
-being actively edited in the shared working tree that day — whoever picks them up should
+**Worked 2026-08-01.** Items 22, 27, 30 and 31 are resolved and deleted per this file's own
+rule. Numbers are still not reused. Items 24 and 25 touch `UnityVerticalSliceRenderer`, which
+was being actively edited in the shared working tree that day — whoever picks them up should
 check for in-flight client work first.
 
 **Worked 2026-08-01 (later the same day).** Item 23's remaining half — the attack phase — is
@@ -32,7 +32,8 @@ below.
 
 Item 30's resolution disproved its own root cause, so item 15's resolution note is corrected
 in place rather than left contradicting the ledger, and item 33 carries out the MSAA finding
-that item 30 had parked at the end of itself.
+that item 30 had parked at the end of itself. Item 31 asked for two things and got one, so
+item 35 carries out the defeat moment rather than letting the ledger imply it shipped.
 
 **Re-verified 2026-07-31** against the working tree after `4bb48d2` (art-doc archive),
 `151df11` (this file committed) and `bff79e3` (code comments recited by name). Items 5–15
@@ -72,6 +73,7 @@ than left as written; each carries its own dated finding.
 | 27 | `264991c` | Eighteen `First`/`FirstOrDefault` catalog scans in per-tick bot and upgrade paths replaced with an id index, matching what `CombatContent` already did. |
 | 34 (new) | (this commit) | **CI was red on `main`.** `SimulationPluginSyncTests` ran its member half in every configuration on the stated grounds that signatures are configuration-independent. They are not, and the committed plugin is a Release build, so the guard failed in one configuration or the other whatever was committed — a Debug plugin failed CI's `--configuration Release`, a Release plugin failed every local run. Measured: 1,045 authored members on both sides with names and attributes identical, yet 146 signature blobs differing by one or two bytes, because signature blobs encode types as metadata TOKENS and token values are indices into tables whose size depends on how many compiler-generated types exist. Filtering the generated members was tried and rejected — it fixes the type-set half but not the token half, and applying it to the IL digest would blind that digest to changes inside lambda bodies. Both halves are now gated on the suite being built in the configuration the plugin is, and the committed plugin is a Release build. The cost is that a local Debug run checks nothing, exactly as the IL half already behaved; the stronger fix, if local feedback is wanted, is to decode signatures into type names rather than hashing raw token bytes. |
 | 32 (new) | `bd384c7` | The batch playtest's 180s wall-clock budget had quietly become too small rather than generous, so it failed intermittently — including on a clean tree, which cost an hour of bisecting changes that were not the cause. Not a regression: `MatchEscalationRules` deliberately closes matches by escalating sent-creep health, and its own sweep table records "8-lane close 4472" for the start tick it picked. Measured directly — all-bot matches are deterministic and seeds 1-5 each ended at exactly tick 4471. Budget raised to 420s, roughly 3x the slowest observed run. `Finish` also now LOGS its failure reason: it had recorded it only into the report written on success, so a timeout exited 1 with an empty log. |
+| 31 | `667f58f` | **The income half was misdiagnosed in the item.** `HudView` was already reading the live snapshot value, not an authored constant — the live value simply does not change on elimination, because the simulation withholds the *payment* (a `Where` filter in `ApplyIncomeTick`) rather than zeroing the *number*. Measured: the eliminated seat's `Income` was exactly 10, the value every seat starts at, and its gold did not move across a full income interval. `Income` is deliberately kept — it is the economy the seat built and is what `MatchSummary` reports — so there was no live value meaning "what this seat earns" for a HUD to read. `PlayerEconomyState.EffectiveIncome` is now that value; its test measures the gold actually paid across an income tick and requires the two to agree, so the derived value cannot drift from the filter. The rest was client gating: the dock and palette now close and stop drawing their launchers, board taps are dropped, the builder avatar goes with them, and the stats bar reads `+0` with an `OUT` state and a SPECTATING strip — a strip rather than a modal, because the match continues without this seat. The teardown sits on the frame tick rather than in `OnGUI`, where it was first written: `OnGUI` does not run in batchmode, so `EliminatedSeatCheck` (a headless play-mode check in the shape of `SessionModalityCheck`) failed the first version with both panels still open. That check also forces both panels back open *after* elimination and requires them shut a frame later, because "closed once" is what a naive fix achieves and "cannot be open" is what this defect needed. Verified by looking at the capture: `real-11` shows `L0 G8396 +0 P112`, `OUT`, the spectator strip and no BUILD/MULTI/SEND; `real-12` shows both panels still gone one frame after being forced open behind the HUD's back. **Not resolved:** the defeat/results moment, split out as item 35. |
 | 30 | `11524ec` | **The magenta was not the shader.** LTWFillBar really was a built-in-pipeline pass under a `UniversalPipeline` tag and is now URP HLSL, but it was not what shipped magenta: compiled explicitly for Metal/iOS, the *old* CGPROGRAM pass succeeds on all four variants it has (vertex and fragment × `INSTANCING_ON` on and off, 2080/2933/1512/2132 bytes of bytecode), so there was never a missing variant to fall back from. The real cause is that `UniversalRenderPipelineAsset.defaultMaterial` is wrapped in `#if UNITY_EDITOR` with a bare `return null` for players, so every `GameObject.CreatePrimitive` object in a build arrives with a working mesh, a working renderer and **no material** — and the creep health bars are exactly that, two `PrimitiveType.Cube` children from `EnsureChild`. That is why it looked correct in the Editor for the whole life of the URP migration. Measured on the device shots themselves: all magenta sits in the 38–60% x band where the creeps walk, in bars of exactly the two-piece back+fill silhouette `ConfigureCreepHealthBar` builds; the lane pressure meters live in the lane gutters and are not magenta in any of the four captures — they are not even in frame, so "and all eight pressure meters" was inference, not observation. `RenderCompat.CreatePrimitive` now backfills a material only when one is missing, so the Editor path is byte-for-byte unchanged and only the player is repaired; the five runtime primitive sites moved onto it (health bars and every pooled board primitive, the builder avatar, the tower selection rings, and the placement ghost — `BoardMeshBuilder.PrimitiveMesh` is left alone, since it destroys its probe before anything renders). Verified by play-mode capture at 1080x1920 with graphics enabled: 0 magenta pixels of 2,073,600 in both framings, health bars drawing gold-on-dark, and all eight gauges drawing per-lane red/amber fills off one shared material — which is also the proof the `MaterialPropertyBlock` instancing path survived the HLSL conversion. An isolated render through the converted shader returns exactly the property-block values (1,0,0) and (0,0,1) either side of the fill threshold. **Not verified on device:** neither half of this can reproduce in the Editor by construction, so the fix is argued from URP's own source and the shipped pixels, and wants a device re-test to close. |
 | 23 (rest) | `0b19a2d` | The attack phase now shares one mutable `CombatDamageBuffer` across both damage phases and all four damage paths, so a hit is a slot write rather than an array rebuild and the state is rebuilt once per tick. Measured on a saturated 266-creep, 120-tower board: 1,279.9 → 860.8 KB allocated per tick (−33%), and 54,992 → 386 element copies per tick, a factor of 142. Swept against creep count with towers held fixed, the marginal cost of one more creep fell from 2.06 to 0.38 KB/tick — 5.5x flatter, 82% of the N-dependent growth gone — which is the quadratic term itself rather than a constant. A real bot match barely moves (634.9 → 631.4 MB over 1,500 ticks) because it peaks at 101 creeps and is dominated by bot decisions, so this buys headroom rather than today's frame time. Determinism proven by hashing the complete event stream: eight digests across five board sizes, two kill-heavy boards and a full seed-1 bot match (26,526 events, 1,025 commands) are all byte-identical before and after. The first attempt exposed the creeps as a hole-skipping iterator and measured 25% SLOWER despite allocating 2.5x less, because LINQ lost its fast path — recorded in the class, since it is not visible by reading. Closes every part this item named; one instance of the same pattern survives outside its scope, in `LocalVerticalSlice.AdvanceOneTick`, where each leak does a `RemoveCreep` and a `Creeps.Concat` rebuild per transferred creep. That is bounded by leaks per tick rather than by hits per tick, so it is a much smaller case, but a mass leak still pays it — unmeasured, and left for whoever finds it worth a number. |
 | 23 (part) | `264991c` | Movement and healing no longer rebuild the creep array per creep, and `CombatState` no longer copies twice per mutation or copies the collection that did not change. The attack phase was left quadratic and closed separately, in the row below. |
@@ -533,17 +535,6 @@ than the code was the defect: a dark creep on a dark board next to a bright mage
 health bar reads as "artifact, no unit" at a glance. Pause the match and inspect at
 native resolution before calling something invisible.
 
-## 31. Elimination has no UI state: the dock stays open, BUILD/SEND stay live, and the HUD shows income a dead seat does not earn
-
-Same session, directly observed. After `PLAYER 1 OUT`, the send dock remained open and browsable over the
-elimination banner, the BUILD and SEND buttons remained active, and the top bar kept
-showing `+10` income for an eliminated seat (the simulation correctly pays nothing — the
-display reads the authored value). The lane wipe itself behaved exactly as
-`WipeEliminatedLane` documents. What is missing is presentation: a defeat/results moment
-and a spectator state for the rest of the match. Note the simulation's own
-`MatchSummary`/`MatchEndedEvent` only fire when the whole match resolves, so the
-mid-match eliminated-seat experience needs its own design decision.
-
 ## 33. MSAA sample-count mismatch on Metal: attachments created with 4 samples, render passes asking for 1
 
 Carried out of item 30, which noted it as "separately, and probably unrelated" — it is
@@ -566,6 +557,40 @@ Not investigated beyond that, and **not** reproduced — like the item-30 defect
 Metal player, not the Editor. Worth pairing with a device re-test rather than chased from
 here. Note that `QualitySettings.asset`'s own `antiAliasing` fields are dead under URP
 (item 15), so the sample count in play is always the URP asset's, whichever tier is active.
+
+## 35. A defeated seat gets a spectator state but no defeat moment
+
+Carried out of item 31, which asked for two things — "a defeat/results moment **and** a
+spectator state for the rest of the match". The spectator state shipped in `667f58f`: the
+seat's controls stand down, the board stays watchable, and a strip under the HUD says
+`YOU ARE OUT • SPECTATING`. The defeat moment did not, and is kept as its own item rather
+than folded into that resolution, because it is a design decision and not a defect.
+
+What is missing is the beat where the player is *told they lost*, with their own numbers,
+at the moment it happens. Today the transition is: the lane wipes, a `PLAYER 1 OUT`
+floating text plays over it, and three buttons vanish. The strip is what stops that reading
+as a crash; it is not a result.
+
+The reason this cannot be borrowed from what already exists: `MatchSummary` and
+`MatchEndedEvent` fire only when the whole match resolves to one survivor
+(`EconomyService.TryCreateMatchSummary` returns null until `ActivePlayers.Count == 1`), and
+`LocalSessionFlowOverlay` drives its results panel off `LatestMatchSummary`. A seat
+eliminated at tick 900 of a 4,400-tick match has no summary to show and will not have one
+for a long time. So this needs its own answer to three questions, none of which the
+simulation currently has an opinion on:
+
+1. What does a mid-match defeat screen say? Placement is not known yet — the seat is out,
+   but whether it finished 8th or 3rd depends on a match that is still running.
+2. Is it modal? `RuntimeUiChrome.ModalScreenActive` is the existing "a session screen owns
+   the display" flag and would work, but taking the screen fights the spectator state that
+   was just built, so at most it should be dismissible.
+3. Does the player get an exit? There is a RESET in the live rail, but "leave this match"
+   and "reset this match" are not the same act, and neither is currently offered as a
+   consequence of losing.
+
+Worth pairing with R1 (play the game with human hands) rather than designed from here: how
+long a defeated player actually wants to keep watching is the input this needs, and nobody
+has watched yet.
 
 ---
 

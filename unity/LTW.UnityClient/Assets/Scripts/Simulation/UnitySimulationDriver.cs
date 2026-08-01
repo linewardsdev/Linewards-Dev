@@ -87,6 +87,23 @@ namespace LTW.UnityClient.Simulation
         public LaneId LocalPlayerLaneId => simulation is null ? new LaneId(1) : simulation.LocalPlayerLaneId;
 
         /// <summary>
+        /// Whether the local seat is out of the match, so its command surfaces must stand down.
+        /// </summary>
+        /// <remarks>
+        /// A derived read rather than a published flag, which is where this deliberately differs
+        /// from <see cref="UI.RuntimeUiChrome.ModalScreenActive"/>. That one has to be a flag because
+        /// it depends on state private to LocalSessionFlowOverlay — a settings panel being open —
+        /// that nothing else can see. Elimination is already a fact of the snapshot every HUD
+        /// component holds, so publishing a second copy of it would only create something that can
+        /// disagree with the simulation, and would stop working if the overlay were ever absent.
+        ///
+        /// Answers false rather than throwing before <see cref="Initialize"/> has run, matching
+        /// <see cref="LocalPlayerId"/>: a HUD that has not been handed a match yet is not eliminated.
+        /// </remarks>
+        public bool IsLocalSeatEliminated =>
+            LatestSnapshot is not null && LatestSnapshot.Players.Get(LocalPlayerId).IsEliminated;
+
+        /// <summary>
         /// Ticks between income payouts, read from the sim rather than a client-side copy
         /// (OPEN_ITEMS.md's retired 2026-07-29 review, grouped smaller items — HudView used to hardcode this separately). Falls back to the
         /// sim's current default only before <see cref="Initialize"/> has run.

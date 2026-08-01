@@ -148,6 +148,40 @@ namespace LTW.UnityClient.UI
 
         public void SendColossus() => Send(commandAdapter.SendColossusCreep(), "Siege Colossus sent", commandAdapter.SendCost(SampleVerticalSliceContent.ColossusCreepId), 14);
 
+        /// <summary>
+        /// Keeps the dock shut for a seat that is out of the match.
+        /// </summary>
+        /// <remarks>
+        /// EconomyService rejects every send from an eliminated player, so an open dock offers
+        /// fifteen creeps that would each be refused — it was staying open and fully browsable over
+        /// the elimination banner (OPEN_ITEMS.md item 31).
+        ///
+        /// This component enforces its own invariant rather than leaving it to
+        /// TouchPlacementController, which also calls <see cref="CloseDock"/> when the seat is out.
+        /// Two components, one rule, and no dependence on which of their Updates runs first — and
+        /// the dock keeps holding it if that component is ever absent from a scene.
+        ///
+        /// In Update rather than OnGUI because OnGUI does not run in batchmode, so a rule enforced
+        /// from a draw callback is one EliminatedSeatCheck cannot verify. It caught this.
+        /// </remarks>
+        private void Update()
+        {
+            if (IsLocalSeatEliminated)
+            {
+                CloseDock();
+            }
+        }
+
+        /// <summary>Whether the seat this client drives is out of the match.</summary>
+        private bool IsLocalSeatEliminated
+        {
+            get
+            {
+                EnsureDriver();
+                return simulationDriver != null && simulationDriver.IsLocalSeatEliminated;
+            }
+        }
+
         private void OnGUI()
         {
             if (!showRuntimeDock)
@@ -159,6 +193,15 @@ namespace LTW.UnityClient.UI
             // scrim can dim this component but cannot stop it taking the click, because IMGUI
             // dispatches events in draw order and the HUD draws first.
             if (RuntimeUiChrome.ModalScreenActive)
+            {
+                return;
+            }
+
+            // The local seat is out. Update has already closed the dock; this stops the SEND launcher
+            // being drawn, which is the control that would otherwise reopen it. Both halves are
+            // needed: closing without this leaves SEND on screen, and this without closing leaves
+            // `isExpanded` true, which keeps the tower palette suppressed by IsSendDockExpanded.
+            if (IsLocalSeatEliminated)
             {
                 return;
             }

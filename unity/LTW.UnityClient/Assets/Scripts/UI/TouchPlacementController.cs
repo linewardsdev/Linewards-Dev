@@ -253,6 +253,28 @@ namespace LTW.UnityClient.UI
 
         private void Update()
         {
+            // Everything this component offers is gone once the seat is out. Placement, selling and
+            // upgrading are all refused by the simulation for an eliminated player, and the lane the
+            // taps would land on has been wiped — so a board tap could only move a cursor around an
+            // empty grid or arm a batch that can never be acted on.
+            //
+            // The teardown lives HERE rather than in OnGUI, which is where it was first written.
+            // OnGUI does not run in batchmode, so a state rule enforced from a draw callback cannot
+            // be checked by EliminatedSeatCheck — it failed exactly that way, and the panels really
+            // did stay open in a headless run. A rule about what state is legal belongs on the frame
+            // tick; OnGUI's job is only to not draw it.
+            //
+            // Ahead of TickBuilderWalk, so the builder goes with the controls: it is the world-space
+            // half of the build affordance, and leaving it pacing a lane that has just been cleared
+            // of everything else is the same lie the live BUILD button was.
+            if (IsLocalSeatEliminated)
+            {
+                CloseBottomPanelsForSend();
+                CloseSendDock();
+                HideBuilderAvatar();
+                return;
+            }
+
             TickBuilderWalk();
 
             if (!Input.GetMouseButtonDown(0))
@@ -320,6 +342,15 @@ namespace LTW.UnityClient.UI
             // scrim can dim this component but cannot stop it taking the click, because IMGUI
             // dispatches events in draw order and the HUD draws first.
             if (RuntimeUiChrome.ModalScreenActive)
+            {
+                return;
+            }
+
+            // The local seat is out — no BUILD, no MULTI, no placement panel, no selected-tower
+            // panel. Update has already closed all of them (OPEN_ITEMS.md item 31); this only has to
+            // stop drawing, because the launchers are drawn from the closed state and would put BUILD
+            // and MULTI back on screen for a seat that cannot use either.
+            if (IsLocalSeatEliminated)
             {
                 return;
             }
@@ -1677,6 +1708,27 @@ namespace LTW.UnityClient.UI
         private void CloseSendDock() => SendDock?.CloseDock();
 
         private bool IsSendDockExpanded() => SendDock?.IsExpanded == true;
+
+        /// <summary>
+        /// Whether the seat this client drives is out of the match.
+        /// </summary>
+        /// <remarks>
+        /// Resolves the driver lazily, the same way <see cref="SendDock"/> and
+        /// <c>SelectTowerAt</c> already do, because this component is wired up by
+        /// UnityMatchBootstrapper in some scenes and found by type in others.
+        /// </remarks>
+        private bool IsLocalSeatEliminated
+        {
+            get
+            {
+                if (simulationDriver == null)
+                {
+                    simulationDriver = Object.FindAnyObjectByType<UnitySimulationDriver>();
+                }
+
+                return simulationDriver != null && simulationDriver.IsLocalSeatEliminated;
+            }
+        }
 
         private SendDockController? SendDock
         {

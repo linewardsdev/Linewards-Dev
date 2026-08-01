@@ -80,6 +80,64 @@ public sealed class PlayerEliminationTests
         output.WriteLine($"creeps still in flight that P{victim.Value} sent: {theirCreepsElsewhere}");
     }
 
+    /// <summary>
+    /// A defeated seat earns nothing, and its state says so without the reader having to know why.
+    /// </summary>
+    /// <remarks>
+    /// The gap this closes is a reporting one, not a payment one — the payment was always correct.
+    /// `Income` keeps the value the seat built up, because that is what the match summary reports
+    /// and what elimination does not undo, so a presentation layer reading `Income` reads a live
+    /// number that means "the economy this player had" and shows it as "what this player earns".
+    /// That is how the Unity HUD kept advertising +10 for a seat being paid zero (item 31).
+    ///
+    /// Asserting `EffectiveIncome` alone would be a tautology over its own one-line body. What makes
+    /// this a test is measuring the gold across a real income tick and requiring the two to agree,
+    /// so the derived value cannot drift from the `ApplyIncomeTick` filter that does the paying.
+    /// </remarks>
+    [Fact]
+    public void EliminatedSeatEarnsNothingAndReportsThat()
+    {
+        var slice = RunUntilEliminated(out var victim, out _);
+        var survivor = slice.GetSnapshot().Players.Players.First(p => !p.IsEliminated).PlayerId;
+
+        var before = slice.GetSnapshot().Players;
+        Assert.True(before.Get(victim).Income.Amount > 0, "the economy the seat built is kept, not erased");
+        Assert.Equal(0, before.Get(victim).EffectiveIncome.Amount);
+        Assert.Equal(before.Get(survivor).Income.Amount, before.Get(survivor).EffectiveIncome.Amount);
+
+        var victimGoldBefore = before.Get(victim).Gold.Amount;
+        var survivorGoldBefore = before.Get(survivor).Gold.Amount;
+        var incomeTicks = 0;
+        var creditedToVictim = 0;
+
+        // A whole income interval, with nothing sent, so the only gold movement available is income
+        // itself. The eliminated seat has no towers left to earn signal gold and is credited nothing
+        // for its own in-flight creeps, so its gold is frozen unless income pays it.
+        for (var i = 0; i < slice.IncomeIntervalTicks + 1; i++)
+        {
+            slice.AdvanceOneTick();
+            foreach (var e in slice.DrainEvents())
+            {
+                if (e is IncomeTickEvent income)
+                {
+                    incomeTicks++;
+                    if (income.PlayerId.Equals(victim))
+                    {
+                        creditedToVictim += income.GoldAwarded.Amount;
+                    }
+                }
+            }
+        }
+
+        var after = slice.GetSnapshot().Players;
+        output.WriteLine($"P{victim.Value} eliminated: income {after.Get(victim).Income.Amount}, effective {after.Get(victim).EffectiveIncome.Amount}, gold {victimGoldBefore} -> {after.Get(victim).Gold.Amount}");
+
+        Assert.True(incomeTicks > 0, "an income tick must have happened for this to be measuring anything");
+        Assert.Equal(0, creditedToVictim);
+        Assert.Equal(victimGoldBefore, after.Get(victim).Gold.Amount);
+        Assert.True(after.Get(survivor).Gold.Amount > survivorGoldBefore, "an active seat is still paid");
+    }
+
     [Fact]
     public void The_wipe_announces_each_removed_entity_so_presentation_can_react()
     {
