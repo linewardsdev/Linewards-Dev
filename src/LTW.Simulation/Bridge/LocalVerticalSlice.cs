@@ -1359,7 +1359,9 @@ public sealed class LocalVerticalSlice
             return;
         }
 
-        players = players.Replace(player.WithGold(new Gold(player.Gold.Amount + definition.SignalGoldPerHit)));
+        var amount = new Gold(definition.SignalGoldPerHit);
+        players = players.Replace(player.WithGold(new Gold(player.Gold.Amount + amount.Amount)));
+        pendingEvents.Add(new TowerEarnedGoldEvent(tick, tower.OwnerId, tower.LaneId, tower.EntityId, tower.Position, amount));
     }
 
     /// <summary>

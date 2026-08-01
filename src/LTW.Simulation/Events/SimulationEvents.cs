@@ -155,6 +155,44 @@ public sealed class TowerUpgradedEvent : ISimulationEvent
     public Gold Cost { get; }
 }
 
+/// <summary>
+/// A tower paid its owner for landing a hit.
+/// </summary>
+/// <remarks>
+/// Raised so the client can SAY so. The Relay Ward has earned gold on every hit for as long as the
+/// mechanic has existed and it was working correctly the whole time, but nothing told the player:
+/// no cue, no floating text, no event, and +1 landing inside a gold total that also receives income
+/// every few seconds. The tower was reported as broken because from the outside it is
+/// indistinguishable from broken.
+///
+/// Carries Position because the point is to show the gold AT the tower that earned it — a number in
+/// the corner would prove gold arrived without saying which tower is paying for itself.
+/// </remarks>
+public sealed class TowerEarnedGoldEvent : ISimulationEvent
+{
+    public TowerEarnedGoldEvent(SimulationTick tick, PlayerId playerId, LaneId laneId, EntityId towerEntityId, GridPosition position, Gold amount)
+    {
+        Tick = tick;
+        PlayerId = playerId;
+        LaneId = laneId;
+        TowerEntityId = towerEntityId;
+        Position = position;
+        Amount = amount;
+    }
+
+    public SimulationTick Tick { get; }
+
+    public PlayerId PlayerId { get; }
+
+    public LaneId LaneId { get; }
+
+    public EntityId TowerEntityId { get; }
+
+    public GridPosition Position { get; }
+
+    public Gold Amount { get; }
+}
+
 public sealed class CreepQueuedEvent : ISimulationEvent
 {
     public CreepQueuedEvent(SimulationTick tick, PlayerId senderId, PlayerId defenderId, ContentId creepId, int quantity)

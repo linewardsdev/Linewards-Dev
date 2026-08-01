@@ -1066,6 +1066,18 @@ namespace LTW.UnityClient.Simulation
                         SpawnFloatingText(sellPosition, $"+{towerSold.Refund.Amount}", SignalGold, 0.58f);
                         SpawnReducedEffectCue(sellPosition, "SELL", SignalGold);
                         break;
+                    case TowerEarnedGoldEvent earned:
+                        // Shown AT the tower, not in the gold total. This mechanic has always worked
+                        // and has never been visible: +1 arriving silently inside a total that also
+                        // receives income reads as nothing happening, which is why the tower that
+                        // has it was reported as broken. Deliberately quiet — it fires on every hit,
+                        // so a short small number that does not stack up the screen.
+                        SpawnFloatingText(
+                            GridToWorld(earned.Position, earned.LaneId) + Vector3.up * 0.85f,
+                            $"+{earned.Amount.Amount}",
+                            SignalGold,
+                            0.42f);
+                        break;
                     case CreepQueuedEvent queued:
                         SpawnSendCue(queued);
                         break;
