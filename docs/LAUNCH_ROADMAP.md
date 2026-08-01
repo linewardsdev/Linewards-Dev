@@ -55,8 +55,13 @@ launch.
 
 ### P1 — should land before public launch (tier C), not blocking soft launch
 
-- **Bots reach only 5 of 15 towers** (`BotTowerForSlot`), and two profiles repeat one tower
-  forever. Bots are the shipped opponent — bot quality *is* product quality here.
+- **Bot quality is product quality** — bots are the shipped opponent. The specific claim
+  this entry used to make ("bots reach only 5 of 15 towers", citing `BotTowerForSlot`) is
+  **retired: it was measured false and the method it named no longer exists.** A seed-1
+  8-lane match places all 15 tower types, from 120 Arrows down to 6 Barricades, with none at
+  zero. What actually remains, per open item R3: bots never sell, `Decide` sees only an
+  economy record rather than the board, and there is no randomness anywhere in bot
+  decisions — so a human meets the identical opponent every single match.
 - **No LODs**, ~15k tris × 30 units, CPU skinning. A performance problem before a visual one.
 - **Settings persistence** — some `PlayerPrefs` use exists; needs an audit.
 - **Two capture states land nothing in frame**, so a blocking readability category cannot

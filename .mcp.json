@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "blender": {
+      "command": "/Users/admin/Library/Python/3.9/bin/uvx",
+      "args": ["blender-mcp"]
+    }
+  }
+}
