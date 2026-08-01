@@ -19,7 +19,7 @@ ledger below. Items 18–20 were opened by the work that resolved them. Items 21
 from the 2026-08-01 code review (simulation, Unity client, CI, and repository mechanics);
 items 29–32 are from the same day's live iOS-simulator playtest of the device build
 (item 29 was withdrawn the same day as a reviewer misread — it is kept, marked, so the
-claim is not chased; item 32 was split out of item 30 when that item was resolved).
+claim is not chased; item 33 was split out of item 30 when that item was resolved).
 
 **Worked 2026-08-01.** Items 22, 27 and 30 are resolved and deleted per this file's own rule,
 and item 23 is rewritten to show what closed versus what remains. Numbers are still not
@@ -28,7 +28,7 @@ edited in the shared working tree that day — whoever picks them up should chec
 in-flight client work first.
 
 Item 30's resolution disproved its own root cause, so item 15's resolution note is corrected
-in place rather than left contradicting the ledger, and item 32 carries out the MSAA finding
+in place rather than left contradicting the ledger, and item 33 carries out the MSAA finding
 that item 30 had parked at the end of itself.
 
 **Re-verified 2026-07-31** against the working tree after `4bb48d2` (art-doc archive),
@@ -555,7 +555,7 @@ and a spectator state for the rest of the match. Note the simulation's own
 `MatchSummary`/`MatchEndedEvent` only fire when the whole match resolves, so the
 mid-match eliminated-seat experience needs its own design decision.
 
-## 32. MSAA sample-count mismatch on Metal: attachments created with 4 samples, render passes asking for 1
+## 33. MSAA sample-count mismatch on Metal: attachments created with 4 samples, render passes asking for 1
 
 Carried out of item 30, which noted it as "separately, and probably unrelated" — it is
 separate, so it is kept rather than folded into that item's resolution. The device log
