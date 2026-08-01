@@ -70,6 +70,10 @@ namespace LTW.UnityClient.Editor
             // Multi-select with a real selection, so the batch panel is shown carrying counts and
             // both action prices rather than its empty prompt.
             ("real-09-multi-select", ShowMultiSelection),
+            // Multi-select turned on and THEN the send dock opened. The dock must own the screen and
+            // the mode must be gone: while it stayed live its buttons sat under the dock, so board
+            // taps kept toggling towers into a batch the player could not see.
+            ("real-10-send-over-multi-select", ShowSendOverMultiSelect),
         };
 
         /// <summary>The portrait surface the HUD is authored against, matching MotionCaptureRunner.</summary>
@@ -409,6 +413,18 @@ namespace LTW.UnityClient.Editor
             {
                 toggle.Invoke(touch, new object[] { tower });
             }
+        }
+
+        private static void ShowSendOverMultiSelect()
+        {
+            ShowMultiSelection();
+            var dock = Dock();
+            var touch = Object.FindAnyObjectByType<TouchPlacementController>();
+            if (dock == null || touch == null) return;
+
+            // Exactly what the SEND button does, so the capture exercises the real path.
+            touch.CloseBottomPanelsForSend();
+            SetPrivate(dock, "isExpanded", true);
         }
 
         private static void OpenBuildPalette()

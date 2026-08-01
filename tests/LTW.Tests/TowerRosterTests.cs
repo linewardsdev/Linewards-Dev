@@ -89,8 +89,9 @@ public class TowerRosterTests
         var catalog = SampleVerticalSliceContent.Create();
 
         // The Relay Ward is exempt. Its stats are deliberately weak because it earns gold on every
-        // hit (LocalVerticalSlice.ApplyRelaySignalGold), a payoff these four numbers cannot
-        // express. Every other tower has to justify itself on stats alone.
+        // hit — authored as TowerDefinition.SignalGoldPerHit and paid by
+        // LocalVerticalSlice.ApplySignalGold — a payoff these four numbers cannot express. Every
+        // other tower has to justify itself on stats alone.
         var exempt = new[] { "tower.relay" };
 
         foreach (var tower in catalog.Towers)

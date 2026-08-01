@@ -70,6 +70,42 @@ namespace LTW.UnityClient.UI
 
         public bool IsExpanded => isExpanded;
 
+        /// <summary>
+        /// Whether a GUI-space point lands on this dock's launcher or its expanded panel.
+        /// </summary>
+        /// <remarks>
+        /// Exists because TouchPlacementController's world-tap gate knew about every runtime panel
+        /// EXCEPT this one, so taps on the send dock fell through to the board. Harmless-looking
+        /// while a stray board tap only moved a build cursor; disruptive once multi-select made
+        /// every stray tap toggle a tower in or out of a batch, which is how it was found.
+        ///
+        /// The dock answers for its own geometry rather than exporting rects for the other
+        /// controller to re-derive. A second copy of these numbers is exactly how the two panels
+        /// drifted apart before.
+        /// </remarks>
+        public bool ContainsPoint(Vector2 guiPoint)
+        {
+            var scale = MobileViewportLayout.UiScale();
+            var frame = MobileViewportLayout.ScreenRect();
+            return LauncherRect(scale, frame).Contains(guiPoint)
+                || (isExpanded && PanelRect(scale, frame).Contains(guiPoint));
+        }
+
+        private static Rect LauncherRect(float scale, Rect frame)
+        {
+            var launcherWidth = 76f * scale;
+            var launcherHeight = 44f * scale;
+            return new Rect(frame.xMax - launcherWidth - 12f * scale, frame.yMax - launcherHeight - MobileViewportLayout.BottomMargin(scale), launcherWidth, launcherHeight);
+        }
+
+        private static Rect PanelRect(float scale, Rect frame)
+        {
+            var width = Mathf.Min(frame.width - 16f * scale, 430f * scale);
+            var height = 282f * scale;
+            var launcherClearance = 136f * scale;
+            return new Rect(frame.xMax - width - 8f * scale, frame.yMax - height - MobileViewportLayout.BottomMargin(scale) - launcherClearance, width, height);
+        }
+
         public void CloseDock()
         {
             isExpanded = false;
@@ -131,9 +167,7 @@ namespace LTW.UnityClient.UI
 
             var scale = MobileViewportLayout.UiScale();
             var frame = MobileViewportLayout.ScreenRect();
-            var launcherWidth = 76f * scale;
-            var launcherHeight = 44f * scale;
-            var launcherRect = new Rect(frame.xMax - launcherWidth - 12f * scale, frame.yMax - launcherHeight - MobileViewportLayout.BottomMargin(scale), launcherWidth, launcherHeight);
+            var launcherRect = LauncherRect(scale, frame);
             var touchPlacement = TouchPlacement;
             if (touchPlacement?.IsTowerPaletteExpanded == true)
             {
@@ -153,14 +187,11 @@ namespace LTW.UnityClient.UI
                 return;
             }
 
-            var width = Mathf.Min(frame.width - 16f * scale, 430f * scale);
             // One height for both states. The picker used to need a taller panel because it stacked
             // three full-width cards; laid out as a row sized to the card art's own aspect it fits
             // inside the same 282 the creep grids use, so the dock no longer resizes under the
             // player as they step between the picker and a category.
-            var height = 282f * scale;
-            var launcherClearance = 136f * scale;
-            var rect = new Rect(frame.xMax - width - 8f * scale, frame.yMax - height - MobileViewportLayout.BottomMargin(scale) - launcherClearance, width, height);
+            var rect = PanelRect(scale, frame);
 
             DrawPanel(rect, PanelInk);
             DrawAccent(new Rect(rect.x, rect.yMax - 4f * scale, rect.width, 4f * scale), SignalGold);

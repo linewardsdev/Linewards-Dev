@@ -1066,6 +1066,18 @@ namespace LTW.UnityClient.Simulation
                         SpawnFloatingText(sellPosition, $"+{towerSold.Refund.Amount}", SignalGold, 0.58f);
                         SpawnReducedEffectCue(sellPosition, "SELL", SignalGold);
                         break;
+                    case TowerEarnedGoldEvent earned:
+                        // Shown AT the tower, not in the gold total. This mechanic has always worked
+                        // and has never been visible: +1 arriving silently inside a total that also
+                        // receives income reads as nothing happening, which is why the tower that
+                        // has it was reported as broken. Deliberately quiet — it fires on every hit,
+                        // so a short small number that does not stack up the screen.
+                        SpawnFloatingText(
+                            GridToWorld(earned.Position, earned.LaneId) + Vector3.up * 0.85f,
+                            $"+{earned.Amount.Amount}",
+                            SignalGold,
+                            0.42f);
+                        break;
                     case CreepQueuedEvent queued:
                         SpawnSendCue(queued);
                         break;
@@ -2027,6 +2039,19 @@ namespace LTW.UnityClient.Simulation
                 // an energy pulse, and a ring that visibly grows outward from the spinning Ring
                 // part reads as that far better than a static glow ever could. A quick gold core
                 // pop underneath gives it a starting flash to expand from.
+                // Four short radial spokes, thrown outward the instant it fires. Measured at the
+                // board camera, this tower's cue put 146 lit pixels on screen at the moment of
+                // firing — the lowest in the roster by two orders of magnitude — because everything
+                // it drew was an expanding ring or a particle burst, and BOTH of those develop over
+                // later frames rather than existing when the shot happens. Spokes are geometry, so
+                // they are there immediately, and radiating outward is the one direction language
+                // that does not contradict an omnidirectional splash emitter.
+                for (var spoke = 0; spoke < 4; spoke++)
+                {
+                    var heading = Quaternion.Euler(0f, 45f + spoke * 90f, 0f) * Vector3.forward;
+                    SpawnBeam(At(Vector3.up * 0.5f), At(Vector3.up * 0.5f) + heading * 0.72f, shotColor, style.Duration, style.Width * 1.3f, style.Intensity);
+                }
+
                 SpawnExpandingRing(At(Vector3.up * 0.5f), shotColor, 0.15f, 1.6f, 0.4f);
                 SpawnEffect(At(Vector3.up * 0.5f), SignalGold, 0.16f, 0.1f);
                 // SpawnCellFrameCue drew the same kind of static square-outline box this VFX used
@@ -2079,6 +2104,11 @@ namespace LTW.UnityClient.Simulation
             {
                 // A support tower, not a weapon: a maintenance pulse rather than a shot. The
                 // servicing tether to its neighbours is drawn continuously elsewhere.
+                // A thin service beam first, for the same reason as Pulse above: rings and bursts
+                // both arrive late, and measured at the instant of firing this tower put 424 lit
+                // pixels on screen. Kept deliberately thin and short-lived — this is a support
+                // tower and the beam is there to say WHEN it acted, not to look like a weapon.
+                SpawnBeam(muzzle, impact, shotColor, style.Duration * 0.8f, style.Width * 0.6f, style.Intensity);
                 SpawnExpandingRing(muzzle, shotColor, 0.3f, 0.95f, style.Duration * 1.6f);
                 SpawnExpandingRing(impact, shotColor, 0.2f, 0.6f, style.Duration);
                 SpawnEffect(impact, shotColor, 0.24f, 0.12f);
@@ -4545,8 +4575,15 @@ namespace LTW.UnityClient.Simulation
                 // No cleanly separable emitter part on this mesh, so the name is carried by a
                 // heartbeat-shaped pulse on the whole Body: peaked, not sinusoidal. Yaw locked —
                 // a dome has no facing, and rotating it read as the whole tower spinning.
+                // Amplitude raised from 0.022 after measuring it on screen: the throb that names
+                // this tower moved its silhouette 0.62px peak-to-peak at 1080x1920, which is not a
+                // pulse anyone can see. Sharpness 3 keeps the shape — most of the cycle sits near
+                // rest and it spikes — so a larger amplitude reads as a harder beat rather than as a
+                // wobble. Still the weakest px-per-amplitude in the roster: a low flat dome changes
+                // very little on screen when it scales, which is why it needs the most: 0.09 only
+                // reached 2.55px, so this is the measured amount rather than a guessed one.
                 case TowerVisualRole.Pulse:
-                    return new TowerMotionProfile(1.1f, 0.022f, sharpness: 3f, locksYaw: true);
+                    return new TowerMotionProfile(1.1f, 0.112f, sharpness: 3f, locksYaw: true);
 
                 // The split Spire spins continuously; Body adds a faint glow-breathe underneath.
                 case TowerVisualRole.Prism:
@@ -4574,8 +4611,11 @@ namespace LTW.UnityClient.Simulation
                 // mass behind it, so what little movement there is comes from the coil, not a barrel.
                 // Yaw locked: a tiered masonry pagoda cannot swivel on its foundations, and Chain Arc
                 // leaps between creeps rather than firing along a line, so it has nothing to point.
+                // Amplitude raised from 0.014, which measured 0.89px on screen — invisible. The
+                // fast rate is what makes it read as electrical rather than as breathing, so the
+                // rate is untouched and only the depth changes.
                 case TowerVisualRole.Tesla:
-                    return new TowerMotionProfile(3.2f, 0.014f, sharpness: 2f, locksYaw: true, suppressRecoil: false, recoilScale: 0.35f);
+                    return new TowerMotionProfile(3.2f, 0.05f, sharpness: 2f, locksYaw: true, suppressRecoil: false, recoilScale: 0.35f);
 
                 // A furnace. Slow heavy peaked pulse, like a bellows. Yaw locked: it fires upward
                 // out of its stacks, so it has no facing to turn toward a target.
@@ -4585,8 +4625,10 @@ namespace LTW.UnityClient.Simulation
                 // — the same conflation the Barricade Bastion already had to be rescued from. Having
                 // no facing is a reason not to TURN; it is not a reason to lob the heaviest shell on
                 // the board (14 damage on a 6-tick cooldown) with no reaction whatsoever.
+                // Amplitude raised from 0.02, measured at 1.18px — a bellows nobody could see
+                // working. The slow rate and the peaked shape are the bellows; only the depth moves.
                 case TowerVisualRole.Foundry:
-                    return new TowerMotionProfile(0.8f, 0.02f, sharpness: 2.5f, locksYaw: true, suppressRecoil: false, recoilScale: 1.8f);
+                    return new TowerMotionProfile(0.8f, 0.054f, sharpness: 2.5f, locksYaw: true, suppressRecoil: false, recoilScale: 1.8f);
 
                 // Yaw locked and nearly inert by design — a fixed emplacement that fires along one
                 // direction only. Any turn or sway would contradict the mechanic. The kick is
@@ -4622,8 +4664,11 @@ namespace LTW.UnityClient.Simulation
 
                 // A flower. Slow open-and-close bloom, peaked so it reads as breathing.
                 // Yaw locked: a flower on a stalk. The peaked open-and-close pulse already names the tower.
+                // Amplitude raised from 0.035, measured at 1.66px. This is the tower whose NAME is
+                // the motion, and after the yaw lock the bloom is the only thing it does; at under
+                // two pixels it did not do it.
                 case TowerVisualRole.Bloomheart:
-                    return new TowerMotionProfile(0.9f, 0.035f, sharpness: 2f, driftHz: 0.5f, driftAmp: 0.02f, locksYaw: true, suppressRecoil: false, recoilScale: 0.6f);
+                    return new TowerMotionProfile(0.9f, 0.068f, sharpness: 2f, driftHz: 0.5f, driftAmp: 0.02f, locksYaw: true, suppressRecoil: false, recoilScale: 0.6f);
 
                 // Coiled and tense. Very little motion until it strikes, so almost static — which is
                 // exactly why the strike itself is one of the hardest kicks here. A snare whose whole

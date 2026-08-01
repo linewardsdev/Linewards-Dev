@@ -88,8 +88,11 @@ public static class SampleVerticalSliceContent
                 // compensating mechanic, so there was never a reason to build one. Reach is what a
                 // shrine that projects influence should be selling, and it is the only tower under
                 // 30 gold that has it.
+                // Control's damage 2 -> 3 is main's cost-curve compression; Relay's signalGoldPerHit
+                // is this branch making its income authored rather than inferred from its name. The
+                // two touch adjacent lines and are independent.
                 new TowerDefinition(ControlTowerId, "Control Ward", new Gold(24), rangeCells: 3, damage: 3, attackCooldownTicks: 3, categoryIndex: 0),
-                new TowerDefinition(UtilityTowerId, "Relay Ward", new Gold(28), rangeCells: 2, damage: 2, attackCooldownTicks: 4, categoryIndex: 0),
+                new TowerDefinition(UtilityTowerId, "Relay Ward", new Gold(28), rangeCells: 2, damage: 2, attackCooldownTicks: 4, categoryIndex: 0, signalGoldPerHit: 1),
                 new TowerDefinition(PulseTowerId, "Pulse Ward", new Gold(32), rangeCells: 1, damage: 6, attackCooldownTicks: 4, categoryIndex: 0),
                 new TowerDefinition(PrismTowerId, "Prism Ward", new Gold(42), rangeCells: 4, damage: 9, attackCooldownTicks: 6, categoryIndex: 0),
 

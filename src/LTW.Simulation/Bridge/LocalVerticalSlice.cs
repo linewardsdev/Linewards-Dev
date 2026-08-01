@@ -16,7 +16,6 @@ namespace LTW.Simulation.Bridge;
 public sealed class LocalVerticalSlice
 {
     private const int StartingLives = 220;
-    private const int RelaySignalGoldPerHit = 1;
 
     private readonly ContentCatalog content;
     private readonly EconomyService economy;
@@ -780,7 +779,7 @@ public sealed class LocalVerticalSlice
         {
             if (simulationEvent is CreepDamagedEvent damaged)
             {
-                ApplyRelaySignalGold(damaged);
+                ApplySignalGold(damaged);
             }
 
             if (simulationEvent is CreepKilledEvent killed && creepsBeforeCombat.TryGetValue(killed.CreepEntityId, out var killedCreep))
@@ -1379,10 +1378,28 @@ public sealed class LocalVerticalSlice
 
     private EntityId NextEntityId() => new EntityId(nextEntityId++);
 
-    private void ApplyRelaySignalGold(CreepDamagedEvent damaged)
+    /// <summary>
+    /// Pays a tower's owner for landing a hit, where the tower's content says it earns.
+    /// </summary>
+    /// <remarks>
+    /// Lives here rather than in CombatService so economy types stay out of combat, which is the
+    /// separation the architecture keeps everywhere else.
+    ///
+    /// The amount is read from the tower's definition. It used to be a constant applied to any
+    /// tower whose content id contained "relay", "utility" or "economy" — correct for the one tower
+    /// that has ever earned, and a trap for any future tower whose id happened to contain one of
+    /// those words.
+    /// </remarks>
+    private void ApplySignalGold(CreepDamagedEvent damaged)
     {
         var tower = combatState.Towers.FirstOrDefault(candidate => candidate.EntityId.Equals(damaged.TowerEntityId));
-        if (tower is null || !IsRelayTower(tower.TowerId))
+        if (tower is null)
+        {
+            return;
+        }
+
+        var definition = content.Towers.FirstOrDefault(candidate => candidate.Id.Equals(tower.TowerId));
+        if (definition is null || definition.SignalGoldPerHit <= 0)
         {
             return;
         }
@@ -1393,7 +1410,9 @@ public sealed class LocalVerticalSlice
             return;
         }
 
-        players = players.Replace(player.WithGold(new Gold(player.Gold.Amount + RelaySignalGoldPerHit)));
+        var amount = new Gold(definition.SignalGoldPerHit);
+        players = players.Replace(player.WithGold(new Gold(player.Gold.Amount + amount.Amount)));
+        pendingEvents.Add(new TowerEarnedGoldEvent(tick, tower.OwnerId, tower.LaneId, tower.EntityId, tower.Position, amount));
     }
 
     /// <summary>
@@ -1466,10 +1485,6 @@ public sealed class LocalVerticalSlice
         };
     }
 
-    private static bool IsRelayTower(ContentId towerId) =>
-        towerId.Value.IndexOf("relay", System.StringComparison.OrdinalIgnoreCase) >= 0 ||
-        towerId.Value.IndexOf("utility", System.StringComparison.OrdinalIgnoreCase) >= 0 ||
-        towerId.Value.IndexOf("economy", System.StringComparison.OrdinalIgnoreCase) >= 0;
 
     private sealed class TowerPlacementValidation
     {

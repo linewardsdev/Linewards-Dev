@@ -518,6 +518,54 @@ public sealed class VerticalSliceBridgeTests
         Assert.Equal(goldBeforeCombat + 1, simulation.GetSnapshot().Players.Get(playerOne).Gold.Amount);
     }
 
+    /// <summary>
+    /// The hazard the substring match used to carry: a tower named like the Relay but authored to
+    /// earn nothing must earn nothing.
+    /// </summary>
+    /// <remarks>
+    /// Signal gold was decided by testing whether a content id CONTAINED "relay", "utility" or
+    /// "economy". That was correct for the only tower that has ever earned, and silently wrong for
+    /// any future tower whose id happened to include one of those words — it would have started
+    /// paying gold on every hit with no code written and no test failing. This pins the rule to the
+    /// authored number instead of to the name, so the trap cannot be reintroduced by naming.
+    /// </remarks>
+    [Fact]
+    public void A_tower_named_like_the_relay_earns_nothing_unless_its_content_says_so()
+    {
+        var baseContent = SampleVerticalSliceContent.Create();
+        var arrow = baseContent.Towers.Single(tower => tower.Id.Equals(SampleVerticalSliceContent.TowerId));
+
+        // Every word the old predicate matched on, in one id, with no signal gold authored.
+        var impostorId = new ContentId("tower.relay_utility_economy_hub");
+        var impostor = new TowerDefinition(
+            impostorId, "Impostor", arrow.Cost, arrow.RangeCells, arrow.Damage, arrow.AttackCooldownTicks, categoryIndex: 0);
+
+        var content = new ContentCatalog(
+            baseContent.Version,
+            baseContent.Towers.Append(impostor).ToArray(),
+            baseContent.Creeps,
+            baseContent.Techs,
+            baseContent.Maps,
+            baseContent.BotProfiles);
+
+        var simulation = new LocalVerticalSlice(content, enableBots: false);
+        var playerOne = new PlayerId(1);
+        Assert.True(simulation.PlaceTower(playerOne, new LaneId(1), impostorId, new GridPosition(1, 1)).Accepted);
+        var goldBeforeCombat = simulation.GetSnapshot().Players.Get(playerOne).Gold.Amount;
+
+        Assert.True(simulation.QueueSend(new PlayerId(8), SampleVerticalSliceContent.CreepId).Accepted);
+
+        var events = new List<ISimulationEvent>();
+        for (var tick = 0; tick < 40 && !events.Any(e => e is CreepDamagedEvent); tick++)
+        {
+            simulation.AdvanceOneTick();
+            events.AddRange(simulation.DrainEvents());
+        }
+
+        Assert.Contains(events, simulationEvent => simulationEvent is CreepDamagedEvent damaged && damaged.DefenderId.Equals(playerOne));
+        Assert.Equal(goldBeforeCombat, simulation.GetSnapshot().Players.Get(playerOne).Gold.Amount);
+    }
+
     [Fact]
     public void Expanded_roster_content_accepts_new_tower_and_creep_commands()
     {
