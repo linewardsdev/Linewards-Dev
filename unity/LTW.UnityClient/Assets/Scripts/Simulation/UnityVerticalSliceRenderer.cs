@@ -2027,6 +2027,19 @@ namespace LTW.UnityClient.Simulation
                 // an energy pulse, and a ring that visibly grows outward from the spinning Ring
                 // part reads as that far better than a static glow ever could. A quick gold core
                 // pop underneath gives it a starting flash to expand from.
+                // Four short radial spokes, thrown outward the instant it fires. Measured at the
+                // board camera, this tower's cue put 146 lit pixels on screen at the moment of
+                // firing — the lowest in the roster by two orders of magnitude — because everything
+                // it drew was an expanding ring or a particle burst, and BOTH of those develop over
+                // later frames rather than existing when the shot happens. Spokes are geometry, so
+                // they are there immediately, and radiating outward is the one direction language
+                // that does not contradict an omnidirectional splash emitter.
+                for (var spoke = 0; spoke < 4; spoke++)
+                {
+                    var heading = Quaternion.Euler(0f, 45f + spoke * 90f, 0f) * Vector3.forward;
+                    SpawnBeam(At(Vector3.up * 0.5f), At(Vector3.up * 0.5f) + heading * 0.72f, shotColor, style.Duration, style.Width * 1.3f, style.Intensity);
+                }
+
                 SpawnExpandingRing(At(Vector3.up * 0.5f), shotColor, 0.15f, 1.6f, 0.4f);
                 SpawnEffect(At(Vector3.up * 0.5f), SignalGold, 0.16f, 0.1f);
                 // SpawnCellFrameCue drew the same kind of static square-outline box this VFX used
@@ -2079,6 +2092,11 @@ namespace LTW.UnityClient.Simulation
             {
                 // A support tower, not a weapon: a maintenance pulse rather than a shot. The
                 // servicing tether to its neighbours is drawn continuously elsewhere.
+                // A thin service beam first, for the same reason as Pulse above: rings and bursts
+                // both arrive late, and measured at the instant of firing this tower put 424 lit
+                // pixels on screen. Kept deliberately thin and short-lived — this is a support
+                // tower and the beam is there to say WHEN it acted, not to look like a weapon.
+                SpawnBeam(muzzle, impact, shotColor, style.Duration * 0.8f, style.Width * 0.6f, style.Intensity);
                 SpawnExpandingRing(muzzle, shotColor, 0.3f, 0.95f, style.Duration * 1.6f);
                 SpawnExpandingRing(impact, shotColor, 0.2f, 0.6f, style.Duration);
                 SpawnEffect(impact, shotColor, 0.24f, 0.12f);

@@ -212,6 +212,53 @@ Effects that look right in isolation have twice this week turned out invisible i
 4. **Compare against the Foundry mortar**, which is the in-house benchmark for a weapon that reads
    as its theme.
 
+## Visibility pass (2026-07-31)
+
+Item 1 above is now measured rather than eyeballed, the same way the tower idle pass was.
+`Assets/Editor/WeaponEffectVisibilityProbe.cs` places one of every tower, fires ONE cue at a time
+at damage 6 / tier 1, and counts how many pixels the shot brightens at the real board camera
+against the declared 1080x1920 surface. Evidence in
+`docs/screenshot-reviews/weapon-effect-visibility-*.md`.
+
+### Isolating the shot took three attempts
+
+Worth recording, because the first two produce confident numbers that mean nothing:
+
+1. **Diff against a live board.** Every tower came back at 24/24 frames and 24-40k lit pixels. That
+   is not the weapons — it is rings spinning, dishes turning, spore fog churning and fifteen towers
+   breathing, with the shot lost inside it.
+2. **An ambient control run, subtracted.** Worse: ambient drifts further from its own baseline the
+   longer a window runs, so a control measured over the same 24 frames overshot, and four towers
+   scored *negative* against it.
+3. **`Time.timeScale = 0`.** Ambient is then not estimated, it is zero, and what remains is exactly
+   the geometry the shot added.
+
+**Scope of the number, stated plainly:** with time frozen this measures what a cue puts on screen at
+the *instant of firing*. Expanding rings open from a fraction of their radius and particle bursts
+have not emitted yet, so neither contributes. That is a limitation of the instrument AND the answer
+to a real question — whether a shot registers when it happens, or only afterwards.
+
+### What it found
+
+Thirteen of fifteen towers lit 2,700-18,600 pixels. Two lit almost nothing:
+
+| Tower | Before | After | Change |
+| --- | --- | --- | --- |
+| Pulse Ward | 146px | 2,411px | four radial spokes at the muzzle |
+| Repair Drone | 424px | 5,003px | a thin service beam to the target |
+
+They were the only two towers whose cue contained **no immediately-drawn geometry at all** — both
+were built entirely from `SpawnExpandingRing` and `SpawnEffect`, and both of those arrive over later
+frames. Every other tower draws beams, which exist the moment the shot does.
+
+The fixes stay in character rather than bolting a weapon onto a support tower. Pulse gets spokes
+radiating outward, the one direction language that does not contradict an omnidirectional splash
+emitter; the Repair Drone's beam is deliberately thin and short, there to say *when* it acted rather
+than to look like ordnance.
+
+This also confirms, with a number, the thing the Layer 3 notes recorded by eye: `SpawnExpandingRing`
+is a weak carrier. It is fine as a supporting layer and cannot be the whole of a cue.
+
 ## Decisions
 
 Answered by the owner 2026-07-31.
