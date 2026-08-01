@@ -423,6 +423,30 @@ Two ways out, and the coverage report deliberately does not pick one:
 
 Sequence before Wave 1: the promotion gate is what every other art item is checked by.
 
+**State confirmed 2026-08-01, so the decision is made against facts rather than prose.**
+`validate_role_coverage.py --strict` exits 2 as described. Exactly 10 roles carry a
+production reference — `tower.arrow`, `control`, `prism`, `pulse`, `relay` and `creep.brute`,
+`runner`, `shade`, `siege`, `swarm` — and 20 do not. The item's counts are accurate and have
+not drifted.
+
+**What each option would cost, since neither is estimated above:**
+
+- *Retire the target-reference score.* The scoring path is `VisualImprovementCycleReport`,
+  which resolves references through `VisualTargetReferenceCatalog` and already emits a
+  finding when a package resolves none. Retiring the score means changing that one report
+  generator and the cycle doc; no art is produced or discarded. Cheapest by a wide margin,
+  and it deletes a gate rather than fixing it — which is the real question, not the cost.
+- *Promote a current capture per role.* `VisualReviewCaptureRunner.CaptureRoleLineupReviewSet`
+  already produces per-role lineups, and several exist under `screenshot-reviews/`. So the
+  capture half is largely built. What does not exist is the re-baselining rule: a reference
+  that is regenerated from the asset it scores will always match it, so this option is only
+  meaningful with an explicit rule for when a reference may be updated and who approves it.
+  That rule is the actual work, not the captures.
+
+**Blocked on the owner.** Both paths are viable and cheap; they encode different beliefs
+about whether identity is judged against a plate or against the built asset, which is not a
+call this file can make.
+
 ---
 
 # Code and repo health items (opened 2026-08-01)
