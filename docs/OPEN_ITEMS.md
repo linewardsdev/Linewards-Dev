@@ -21,6 +21,12 @@ items 29–31 are from the same day's live iOS-simulator playtest of the device 
 (item 29 was withdrawn the same day as a reviewer misread — it is kept, marked, so the
 claim is not chased).
 
+**Worked 2026-08-01.** Items 22 and 27 are resolved and deleted per this file's own rule,
+and item 23 is rewritten to show what closed versus what remains. Numbers are still not
+reused. Items 24 and 25 touch `UnityVerticalSliceRenderer`, which was being actively
+edited in the shared working tree that day — whoever picks them up should check for
+in-flight client work first.
+
 **Re-verified 2026-07-31** against the working tree after `4bb48d2` (art-doc archive),
 `151df11` (this file committed) and `bff79e3` (code comments recited by name). Items 5–15
 and 17 all still hold as written. Item 16 was substantially resolved by the archive commit
@@ -50,6 +56,14 @@ than left as written; each carries its own dated finding.
 | 16 | `892b64b` | Dangerous editor version struck from 3 runnable commands across 2 archived docs; roster claim and capture-state numbering corrected. |
 | 9 | `652249d` | VFX system built. Root cause was structural rather than neglect: `com.unity.modules.particlesystem` was not in the manifest, so `ParticleSystem` did not exist as a type — the fourteen named VFX prefabs were unbuildable, not unbuilt. One shared world-space emitter per shape rather than one pooled per burst, which measured 2,769 → 6,082 peak objects and was abandoned; the shipped design runs at 2,118, *below* the pre-VFX baseline. |
 | 15 (part) | `b22aefd`, `9c504f3`, `1551cd5` | LOD cross-fade and GPU skinning fixed and guarded; two shaders moved to URP HLSL for SRP batching (LTWFillBar deliberately left on the GPU-instancing path, against the item's wording); three per-tier URP assets authored and assigned across all six quality levels. |
+
+### Resolved 2026-08-01
+
+| Item | Commit | Outcome |
+| --- | --- | --- |
+| 22 | `264991c` | `SimulationPluginSyncTests` compares the committed Unity plugin against the source build — declared members always, IL when built Release, which is what CI does. Deliberately not a byte comparison: MVID, PE stamp and PDB id are build identity and differ between machines on an in-sync plugin (measured: 148 differing bytes in an otherwise identical 135,680). Verified by flipping one constant and watching the IL half fail while the member half correctly stayed green. Caught its own first real drift twice during the session that wrote it. |
+| 27 | `264991c` | Eighteen `First`/`FirstOrDefault` catalog scans in per-tick bot and upgrade paths replaced with an id index, matching what `CombatContent` already did. |
+| 23 (part) | `264991c` | Movement and healing no longer rebuild the creep array per creep, and `CombatState` no longer copies twice per mutation or copies the collection that did not change. The attack phase is still quadratic — see the rewritten item. |
 
 **The plan that sequences this work is [`GRAPHICS_AA_UPLIFT.md`](GRAPHICS_AA_UPLIFT.md).**
 That document holds the wave ordering, the raised quality target, the craft scorecard
@@ -375,33 +389,28 @@ Two decisions, then one mechanical task:
 - Decide whether AI staging intermediates (raw AIDrop contents, as opposed to selected
   production assets) belong in the repo at all.
 
-## 22. Nothing verifies the committed simulation DLL matches the source
+## 23. O(N²) state copying in the combat tick — movement and healing fixed, the attack phase is not
 
-`unity/LTW.UnityClient/Assets/Plugins/LTW.Simulation.dll` is a hand-copied build of
-`src/LTW.Simulation`. CI (`.github/workflows/dotnet.yml`) formats and tests the *source*;
-Unity runs the *DLL*. If a sync is forgotten, the game silently plays different rules
-than the 268 tests verify — and with two agents committing concurrently, that is a live
-hazard, not a theoretical one.
+**Substantially resolved in `264991c`; one phase remains.**
 
-Cheapest fix: a CI step that rebuilds `LTW.Simulation` in Release and compares against
-the committed DLL (byte-compare after deterministic build, or assembly version stamp),
-failing on drift. Longer term, an asmdef over shared sources or a local UPM package
-removes the copy entirely. **Do this one first — it is an hour of CI work protecting the
-integrity of everything the test suite claims.**
+Resolved: movement rebuilt the whole creep array once per creep, so the phase every creep
+passes through every tick cost N array rebuilds — roughly 70,000 element copies at the 266
+creeps the capture harness has measured. It now builds one list and adopts it. Healing did
+the same plus a linear scan per healed creep, and now indexes by entity id. `CombatState`
+no longer copies twice per mutation (`Replace` copied, then the constructor copied again),
+and no longer copies the collection that did not change — `RemoveCreep` was rebuilding the
+tower array too.
 
-## 23. O(N²) state copying in the combat tick
+**Still open: the attack phase.** `ApplyDamage` still calls `ReplaceCreep`, and
+`RemoveCreep` again on a kill, once per damaging hit — so a board where every tower hits
+every tick is still quadratic. Fixing it needs a mutable buffer threaded through all four
+damage paths (direct fire, splash, chain, artillery), which is why it was left out of the
+first pass rather than folded in: that change cannot be reviewed by inspection the way the
+movement one can.
 
-`CombatState` rebuilds both entity arrays on every `ReplaceCreep`/`ReplaceTower`, and
-`CombatService.MoveCreeps` calls `ReplaceCreep` once per creep (healing, shells and
-attacks do the same). Each replace also copies twice — `Replace` calls `ToArray()`, then
-the constructor calls `ToArray()` again. The harness has measured 266 creeps on screen;
-at that count movement alone is ~70k element copies and 500+ array allocations per tick,
-all GC pressure on a mobile target.
-
-The immutability is valuable at the API boundary but does not need to hold per-mutation:
-let `Advance` work on an internal mutable buffer and construct one `CombatState` per
-tick. Every external guarantee is preserved and the quadratic term goes away. Fix the
-double `ToArray()` regardless.
+Note for whoever takes it: entity order and event order are load-bearing. `SelectTarget`,
+Pulse's splash `Take(2)` and `ChainArc` all tie-break on entity id, and several tests
+assert on event ordering.
 
 ## 24. The renderer re-does per-snapshot work at per-frame rate, with string keys
 
@@ -437,13 +446,6 @@ assembly — against the project's own "data drives balance" principle, and in t
 
 Move the decision logic into `Bots/` and express build orders as content data. This
 serves R3 directly.
-
-## 27. Linear content lookups in per-tick paths
-
-`content.Towers.First(...)` / `content.Creeps.First(...)` appear throughout
-`LocalVerticalSlice`'s per-tick bot passes and upgrade-eligibility scans. `CombatContent`
-already builds `Dictionary<ContentId, ...>` indexes — the bridge should use the same.
-Harmless at a 15-tower roster, free to fix, and removes a scaling trap.
 
 ## 28. CI never compiles the Unity client
 
