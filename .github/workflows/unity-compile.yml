@@ -1,0 +1,79 @@
+name: Unity client compile
+
+# Open item 28: only the .NET solution was checked, so ~10k lines of Editor tooling and the
+# client scripts compiled solely when someone opened Unity locally. A broken editor script
+# then surfaced days later, in somebody else's session, as a mystery.
+#
+# This job needs a Unity licence, which is an account credential rather than something that
+# can live in the repo. It is therefore GATED on the secret existing: with no licence
+# configured the gate job reports "not configured" and the compile is skipped, so this file
+# is inert until the credentials are added and cannot break the existing pipeline in the
+# meantime. Adding UNITY_LICENSE, UNITY_EMAIL and UNITY_PASSWORD to the repository secrets
+# turns it on with no further edit.
+#
+# NOTE: unverified end to end. Without a licence there is no way to run it even once, so
+# treat the first licensed run as the real test of this file rather than as a formality.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    outputs:
+      licensed: ${{ steps.check.outputs.licensed }}
+    steps:
+      # Secrets cannot be read directly in a job-level `if`, so the presence of one is
+      # resolved here into an output the compile job can branch on.
+      - id: check
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+        run: |
+          if [ -n "$UNITY_LICENSE" ]; then
+            echo "licensed=true" >> "$GITHUB_OUTPUT"
+            echo "Unity licence present; the client will be compiled."
+          else
+            echo "licensed=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::No UNITY_LICENSE secret configured, so the Unity client compile is skipped. See open item 28."
+          fi
+
+  compile:
+    needs: gate
+    if: needs.gate.outputs.licensed == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          lfs: false
+
+      # Unity re-imports the whole project without this, which dominates the run.
+      - name: Cache the Unity library
+        uses: actions/cache@v4
+        with:
+          path: unity/LTW.UnityClient/Library
+          key: unity-library-${{ hashFiles('unity/LTW.UnityClient/Packages/packages-lock.json') }}
+          restore-keys: unity-library-
+
+      # A real build, deliberately, rather than an -executeMethod that returns. Editor scripts
+      # compile during import and runtime scripts during the build, so a build is the only
+      # check that covers BOTH halves — and the editor tooling is the half that has actually
+      # been breaking.
+      - name: Build the client
+        uses: game-ci/unity-builder@v4
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+        with:
+          projectPath: unity/LTW.UnityClient
+          unityVersion: 6000.5.3f1
+          targetPlatform: StandaloneLinux64
+          allowDirtyBuild: true
