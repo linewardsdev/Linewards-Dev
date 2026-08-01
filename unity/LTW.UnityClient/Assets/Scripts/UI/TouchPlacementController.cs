@@ -1118,7 +1118,7 @@ namespace LTW.UnityClient.UI
 
         private void CreateBuilderPart(string partName, PrimitiveType primitiveType, Vector3 localPosition, Vector3 localScale)
         {
-            var part = GameObject.CreatePrimitive(primitiveType);
+            var part = RenderCompat.CreatePrimitive(primitiveType);
             if (part == null || builderAvatar == null)
             {
                 return;
@@ -1234,7 +1234,7 @@ namespace LTW.UnityClient.UI
             {
                 if (index >= selectionRings.Count)
                 {
-                    var created = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+                    var created = RenderCompat.CreatePrimitive(PrimitiveType.Cylinder);
                     created.name = "SelectedTowerRangeRing";
                     selectionRings.Add(created);
                 }

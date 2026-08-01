@@ -356,7 +356,7 @@ namespace LTW.UnityClient.Simulation
             SendDockController sendDock,
             TouchPlacementController placement)
         {
-            var ghost = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            var ghost = RenderCompat.CreatePrimitive(PrimitiveType.Cylinder);
             ghost.name = "Placement Ghost";
             ghost.transform.SetParent(matchObject.transform, false);
             ghost.transform.localScale = new Vector3(0.62f, 0.78f, 0.62f);

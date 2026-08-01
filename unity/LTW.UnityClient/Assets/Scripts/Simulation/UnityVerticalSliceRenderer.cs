@@ -2953,9 +2953,11 @@ namespace LTW.UnityClient.Simulation
             return instance;
         }
 
+        // RenderCompat.CreatePrimitive, not GameObject.CreatePrimitive: URP hands a player-built
+        // primitive a null material, which draws magenta. See RenderCompat.CreatePrimitive.
         private static GameObject CreatePrimitive(string name, PrimitiveType primitiveType)
         {
-            var instance = GameObject.CreatePrimitive(primitiveType);
+            var instance = RenderCompat.CreatePrimitive(primitiveType);
             instance.name = name;
             return instance;
         }
@@ -6122,7 +6124,10 @@ namespace LTW.UnityClient.Simulation
                 return child;
             }
 
-            child = GameObject.CreatePrimitive(primitiveType);
+            // The creep health bars are built here, and they are what shipped magenta: a player's
+            // GameObject.CreatePrimitive returns a renderer with no material. See
+            // RenderCompat.CreatePrimitive.
+            child = RenderCompat.CreatePrimitive(primitiveType);
             child.name = name;
             child.transform.SetParent(parent.transform, false);
             return child;

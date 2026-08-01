@@ -81,11 +81,76 @@ namespace LTW.UnityClient.Simulation
             }
         }
 
+        /// <summary>
+        /// <see cref="GameObject.CreatePrimitive"/> that is guaranteed to arrive with a material.
+        /// </summary>
+        /// <remarks>
+        /// This is open item 30's actual root cause, and it only bites in a PLAYER.
+        /// <c>GameObject.CreatePrimitive</c> takes its material from
+        /// <c>GraphicsSettings.currentRenderPipeline.defaultMaterial</c>, and URP's implementation of
+        /// that property (<c>UniversalRenderPipelineAsset.DefaultResources.cs</c>) is wrapped in
+        /// <c>#if UNITY_EDITOR</c> with a bare <c>return null</c> for players. So every primitive
+        /// created at runtime has a working mesh, a working renderer, and NO material in a build, and
+        /// a renderer with no material draws with the magenta error shader.
+        ///
+        /// In the Editor the same call returns URP's Lit.mat and everything looks correct, which is
+        /// exactly why the defect reached a device build and was blamed on a shader.
+        ///
+        /// The repair is deliberately conditional on the material being missing, so the Editor path
+        /// is untouched and the two environments are not silently given different materials.
+        /// </remarks>
+        public static GameObject CreatePrimitive(PrimitiveType primitiveType)
+        {
+            var instance = GameObject.CreatePrimitive(primitiveType);
+            EnsureMaterial(instance);
+            return instance;
+        }
+
+        /// <summary>
+        /// Gives a renderer a material if it has none. See <see cref="CreatePrimitive"/> for why an
+        /// object can reach here without one.
+        /// </summary>
+        /// <remarks>
+        /// One shared fallback rather than one per object: callers that tint a primitive all go
+        /// through <c>renderer.material</c>, which clones before writing, so nobody mutates this
+        /// instance. Callers that assign <c>sharedMaterial</c> replace it outright.
+        /// </remarks>
+        public static void EnsureMaterial(GameObject instance)
+        {
+            if (instance == null || !instance.TryGetComponent<Renderer>(out var renderer))
+            {
+                return;
+            }
+
+            if (renderer.sharedMaterial != null)
+            {
+                return;
+            }
+
+            renderer.sharedMaterial = DefaultPrimitiveMaterial;
+        }
+
+        private static Material defaultPrimitiveMaterial;
+
+        private static Material DefaultPrimitiveMaterial
+        {
+            get
+            {
+                if (defaultPrimitiveMaterial == null)
+                {
+                    defaultPrimitiveMaterial = new Material(Lit) { name = "LTW Default Primitive" };
+                }
+
+                return defaultPrimitiveMaterial;
+            }
+        }
+
         /// <summary>Clears cached lookups, for when the active pipeline changes in-editor.</summary>
         public static void ResetCache()
         {
             litShader = null;
             unlitShader = null;
+            defaultPrimitiveMaterial = null;
         }
     }
 }
