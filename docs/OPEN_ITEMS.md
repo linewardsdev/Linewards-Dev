@@ -15,7 +15,11 @@ new set of open items, and this is the project's tracker for those.
 
 Items 1–4 are carried forward from the retired version, updated against what was verified
 on 2026-07-31. Items 5–16 were new that day; most are now resolved and deleted, see the
-ledger below. Items 18–20 were opened by the work that resolved them.
+ledger below. Items 18–20 were opened by the work that resolved them. Items 21–28 are
+from the 2026-08-01 code review (simulation, Unity client, CI, and repository mechanics);
+items 29–31 are from the same day's live iOS-simulator playtest of the device build
+(item 29 was withdrawn the same day as a reviewer misread — it is kept, marked, so the
+claim is not chased).
 
 **Re-verified 2026-07-31** against the working tree after `4bb48d2` (art-doc archive),
 `151df11` (this file committed) and `bff79e3` (code comments recited by name). Items 5–15
@@ -347,6 +351,185 @@ Two ways out, and the coverage report deliberately does not pick one:
   changes, so the target reflects the 3D era.
 
 Sequence before Wave 1: the promotion gate is what every other art item is checked by.
+
+---
+
+# Code and repo health items (opened 2026-08-01)
+
+Findings from the 2026-08-01 code review (simulation, Unity client, CI, and repository
+mechanics). Verified against a clean tree at `9ac06b9` with all 268 tests passing.
+These deliberately do not repeat R1–R5 below, which still stand.
+
+## 21. The git repository is 1.58 GiB and growing, with no LFS
+
+The pack contains 25–54 MB binary blobs committed directly: Meshy FBX exports, 4K baked
+textures, and intermediates under `Assets/Art/AIStaging/.../AIDrop/` and
+`GeneratedAssets/`. Every clone and CI checkout pays this forever, and each art
+regeneration adds another copy to history — the migration only gets more expensive with
+delay.
+
+Two decisions, then one mechanical task:
+
+- Adopt Git LFS for `*.fbx` and art `*.png` (and whether to rewrite history or migrate
+  from here forward).
+- Decide whether AI staging intermediates (raw AIDrop contents, as opposed to selected
+  production assets) belong in the repo at all.
+
+## 22. Nothing verifies the committed simulation DLL matches the source
+
+`unity/LTW.UnityClient/Assets/Plugins/LTW.Simulation.dll` is a hand-copied build of
+`src/LTW.Simulation`. CI (`.github/workflows/dotnet.yml`) formats and tests the *source*;
+Unity runs the *DLL*. If a sync is forgotten, the game silently plays different rules
+than the 268 tests verify — and with two agents committing concurrently, that is a live
+hazard, not a theoretical one.
+
+Cheapest fix: a CI step that rebuilds `LTW.Simulation` in Release and compares against
+the committed DLL (byte-compare after deterministic build, or assembly version stamp),
+failing on drift. Longer term, an asmdef over shared sources or a local UPM package
+removes the copy entirely. **Do this one first — it is an hour of CI work protecting the
+integrity of everything the test suite claims.**
+
+## 23. O(N²) state copying in the combat tick
+
+`CombatState` rebuilds both entity arrays on every `ReplaceCreep`/`ReplaceTower`, and
+`CombatService.MoveCreeps` calls `ReplaceCreep` once per creep (healing, shells and
+attacks do the same). Each replace also copies twice — `Replace` calls `ToArray()`, then
+the constructor calls `ToArray()` again. The harness has measured 266 creeps on screen;
+at that count movement alone is ~70k element copies and 500+ array allocations per tick,
+all GC pressure on a mobile target.
+
+The immutability is valuable at the API boundary but does not need to hold per-mutation:
+let `Advance` work on an internal mutable buffer and construct one `CombatState` per
+tick. Every external guarantee is preserved and the quadratic term goes away. Fix the
+double `ToArray()` regardless.
+
+## 24. The renderer re-does per-snapshot work at per-frame rate, with string keys
+
+`UnityVerticalSliceRenderer.RenderSnapshot` runs every frame (~60 fps) against a snapshot
+that changes at ~4 Hz. Per entity per frame it allocates `EntityId.Value.ToString()`,
+concatenates `"t" + key` / `"c" + key` shadow keys, and re-applies colors, health bars
+and overlays whose inputs only change on a new tick; `new int[LaneCount + 1]` is also
+allocated each frame.
+
+Two parts: key the entity dictionaries by `long` instead of `string` (removes most of the
+per-frame garbage), and split the loop into per-frame work (transform interpolation,
+hit-flash) versus per-snapshot work (everything else), gated on a snapshot tick number.
+
+## 25. The two biggest client classes need splitting before the HUD migration lands
+
+`UnityVerticalSliceRenderer` is 6,370 lines and owns board mesh baking, object pooling,
+VFX, contact shadows, tower and creep motion, pressure meters, and camera configuration;
+`TouchPlacementController` is 2,007. The client has no test framework, so these files are
+where regressions hide. The seams are already visible: `BoardMeshBuilder` exists, the
+pooling code is self-contained, and creep vs tower presentation barely interact.
+
+Sequence this *before* the item-10 HUD migration, which will churn these same files.
+
+## 26. Bot AI is embedded in the match bridge and hardcoded against sample content
+
+About a third of `LocalVerticalSlice` is bot decision logic — `TryPlaceBotTower`,
+`BestMazingPlacement`, `TryBuyBotTier`, `TryUpgradeBotTower`, pressure heuristics, and
+three build-order arrays — despite `Bots/` and `BotController` existing for exactly this.
+Worse, the build orders reference `SampleVerticalSliceContent.*TowerId` constants
+directly, so bot behaviour is compiled against sample content inside the simulation
+assembly — against the project's own "data drives balance" principle, and in tension with
+`BotProfileDefinition` already living in content.
+
+Move the decision logic into `Bots/` and express build orders as content data. This
+serves R3 directly.
+
+## 27. Linear content lookups in per-tick paths
+
+`content.Towers.First(...)` / `content.Creeps.First(...)` appear throughout
+`LocalVerticalSlice`'s per-tick bot passes and upgrade-eligibility scans. `CombatContent`
+already builds `Dictionary<ContentId, ...>` indexes — the bridge should use the same.
+Harmless at a 15-tower roster, free to fix, and removes a scaling trap.
+
+## 28. CI never compiles the Unity client
+
+Only the .NET solution is checked. The ~10k lines of Editor tooling and the client
+scripts compile only when someone opens Unity locally, so a broken editor script surfaces
+days later as a mystery in the other agent's session. Add a batch-mode compile check
+(license permitting) — or at minimum item 22's DLL-drift check, which catches the most
+dangerous subset.
+
+---
+
+# Live device-build playtest items (opened 2026-08-01)
+
+Findings from the first interactive play session of the actual iOS build — the R1/R2
+pass, run on the iPhone 17 simulator. Full session notes and screenshots in
+[`screenshot-reviews/ios-sim-live-playtest-20260801/`](screenshot-reviews/ios-sim-live-playtest-20260801/).
+
+## 29. WITHDRAWN — "creeps are invisible in the device build" was a misread
+
+**This item was wrong and is retained only so nobody chases it.** It originally claimed
+the iOS build stripped the physics module and that no creep body rendered. Both halves
+are false, disproved the same day by re-running the build paused and inspecting the lane
+at native resolution (`ios-sim-live-playtest-20260801/04-paused-creeps-render-correctly.png`):
+**creeps render correctly** — full mesh, texture, contact shadow, per-creep motion.
+
+What was actually true, and what it turned out to mean:
+
+- The `Can't add component because class 'BoxCollider' doesn't exist!` console spam is
+  real, but **benign**. The physics assemblies *are* in the built app
+  (`UnityEngine.PhysicsModule.dll` is listed in its `ScriptingAssemblies.json`); the
+  native classes are dropped by engine code stripping (`stripEngineCode: 1`).
+  `GameObject.CreatePrimitive` logs the failure and still returns a working
+  mesh+renderer object, so nothing visual depends on it. Nothing in the client depends
+  on colliders either: the only `Raycast` in runtime code is
+  `TouchPlacementController:283`, which is `UnityEngine.Plane.Raycast` (pure math, not
+  physics), and `UnityVerticalSliceRenderer.DestroyPrimitiveCollider` exists purely to
+  *delete* the colliders primitives arrive with.
+- So the only real cost is log noise — and a small free win: primitives are being created
+  with colliders the code immediately destroys. Worth suppressing at the source rather
+  than adding the physics module.
+- The lives drain that prompted the original claim (220→0 in ~3 minutes) was ordinary
+  play: a three-tower defence against seven sending bots, not blindness.
+
+Lesson for future device reviews, since this is the second time the *reviewer* rather
+than the code was the defect: a dark creep on a dark board next to a bright magenta
+health bar reads as "artifact, no unit" at a glance. Pause the match and inspect at
+native resolution before calling something invisible.
+
+## 30. LTWFillBar is a built-in-pipeline shader tagged for URP — every health bar and pressure meter renders magenta on device
+
+Confirmed and root-caused in the same session
+(`04-paused-creeps-render-correctly.png` shows it clearly: a solid magenta bar above
+each creep). This is the finding item 29 was obscuring, and it is the most visible
+graphics defect in the shipped build — it is on *every creep on screen*, plus the eight
+lane pressure meters.
+
+`Assets/Resources/Shaders/LTWFillBar.shader` declares
+`"RenderPipeline" = "UniversalPipeline"` but its pass is a **built-in-pipeline shader**:
+`CGPROGRAM`, `#include "UnityCG.cginc"`, `fixed4`, `UnityObjectToClipPos`. With
+`FallBack Off` there is nothing to degrade to, so in the URP Metal player it fails to
+produce a usable variant and draws with the error material.
+
+**This directly revises item 15's resolution note**, which recorded LTWFillBar as
+deliberately *not* converted to URP HLSL because it is built for GPU instancing via
+`MaterialPropertyBlock`. That reasoning was sound about batching and wrong about
+correctness: the choice was between two SRP-batcher outcomes, but the shader also has to
+*compile for the pipeline it is tagged for*. It needs the URP HLSL conversion
+(`HLSLPROGRAM`, `Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl`),
+and the instancing path can be preserved through it.
+
+Separately, and probably unrelated, the log repeats
+`RenderPass: Attachment 0 was created with 4 samples but 1 samples were requested`,
+`EndRenderPass: Not inside a Renderpass` and `NextSubPass: Not inside a Renderpass` — an
+MSAA sample-count mismatch between the URP asset and the render pass on Metal. Neither
+this nor the magenta reproduces in the Editor, which is why both survived to a build.
+
+## 31. Elimination has no UI state: the dock stays open, BUILD/SEND stay live, and the HUD shows income a dead seat does not earn
+
+Same session, directly observed. After `PLAYER 1 OUT`, the send dock remained open and browsable over the
+elimination banner, the BUILD and SEND buttons remained active, and the top bar kept
+showing `+10` income for an eliminated seat (the simulation correctly pays nothing — the
+display reads the authored value). The lane wipe itself behaved exactly as
+`WipeEliminatedLane` documents. What is missing is presentation: a defeat/results moment
+and a spectator state for the rest of the match. Note the simulation's own
+`MatchSummary`/`MatchEndedEvent` only fire when the whole match resolves, so the
+mid-match eliminated-seat experience needs its own design decision.
 
 ---
 
