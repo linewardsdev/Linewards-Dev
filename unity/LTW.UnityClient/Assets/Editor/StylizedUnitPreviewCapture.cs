@@ -42,7 +42,22 @@ namespace LTW.UnityClient.Editor
         /// disk cannot lie in that way.
         /// </remarks>
         [MenuItem("Line Wards/Review/Capture Units As Currently Authored")]
-        public static void CaptureCurrent() => Render("capture_current.png");
+        public static void CaptureCurrent() => Render("capture_current.png", 1400, 800);
+
+        /// <summary>
+        /// The same framing at the pixel size units actually occupy in the game.
+        /// </summary>
+        /// <remarks>
+        /// This is the capture that decides whether any of the shading work was worth doing, and it
+        /// is the one the project keeps not taking. The asset review measured towers at roughly 46px
+        /// and creeps between 16 and 105px on a phone; a 1400px poster render says nothing about
+        /// whether a rim, a contour or a shading ramp survives to that. Rendering at 240x137 puts the
+        /// tower at about the measured size, and the file is then upscaled with nearest-neighbour for
+        /// inspection so what is written is genuinely that many pixels rather than a resample of a
+        /// larger render.
+        /// </remarks>
+        [MenuItem("Line Wards/Review/Capture Units At Game Size")]
+        public static void CaptureGameSize() => Render("capture_gamesize.png", 240, 137);
 
         [MenuItem("Line Wards/Review/Capture Stylized Shader Comparison")]
         public static void Capture()
@@ -123,7 +138,7 @@ namespace LTW.UnityClient.Editor
                 var directory = Path.GetFullPath(Path.Combine(Application.dataPath, OutputDirectory));
                 Directory.CreateDirectory(directory);
 
-                RenderTo(cam, Path.Combine(directory, "after_stylized.png"));
+                RenderTo(cam, Path.Combine(directory, "after_stylized.png"), 1400, 800);
 
                 // Same geometry, same lights, stock Lit. Rebuilt from each material's own albedo and
                 // colour so the comparison isolates the lighting model rather than the texture set.
@@ -151,7 +166,7 @@ namespace LTW.UnityClient.Editor
                         .ToArray();
                 }
 
-                RenderTo(cam, Path.Combine(directory, "before_urp_lit.png"));
+                RenderTo(cam, Path.Combine(directory, "before_urp_lit.png"), 1400, 800);
 
                 foreach (var pair in original)
                 {
@@ -167,7 +182,7 @@ namespace LTW.UnityClient.Editor
         }
 
         /// <summary>Builds the preview scene, renders one frame to <paramref name="fileName"/>, tears it down.</summary>
-        private static void Render(string fileName)
+        private static void Render(string fileName, int width, int height)
         {
             var root = new GameObject("StylizedPreviewRoot");
             try
@@ -196,7 +211,7 @@ namespace LTW.UnityClient.Editor
                 var cam = root.GetComponentInChildren<Camera>();
                 var directory = Path.GetFullPath(Path.Combine(Application.dataPath, OutputDirectory));
                 Directory.CreateDirectory(directory);
-                RenderTo(cam, Path.Combine(directory, fileName));
+                RenderTo(cam, Path.Combine(directory, fileName), width, height);
                 Debug.Log($"[StylizedPreview] Wrote {Path.Combine(directory, fileName)}");
             }
             finally
@@ -243,9 +258,9 @@ namespace LTW.UnityClient.Editor
             cam.backgroundColor = new Color(0.045f, 0.052f, 0.07f, 1f);
         }
 
-        private static void RenderTo(Camera cam, string path)
+        private static void RenderTo(Camera cam, string path, int width, int height)
         {
-            var rt = new RenderTexture(1400, 800, 24, RenderTextureFormat.ARGB32) { antiAliasing = 4 };
+            var rt = new RenderTexture(width, height, 24, RenderTextureFormat.ARGB32) { antiAliasing = 4 };
             var previous = RenderTexture.active;
             try
             {

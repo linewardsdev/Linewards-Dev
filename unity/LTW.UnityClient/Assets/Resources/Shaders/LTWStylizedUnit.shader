@@ -70,23 +70,23 @@ Shader "LTW/Stylized Unit"
         _SpecRoughFloor ("Specular Roughness Floor", Range(0.05,1)) = 0.35
 
         [Header(Shading Ramp)]
-        _ShadeColor ("Shade Colour", Color) = (0.34,0.40,0.56,1)
+        _ShadeColor ("Shade Colour", Color) = (0.10,0.11,0.22,1)
         _ShadeStrength ("Shade Strength", Range(0,1)) = 0.85
-        _RampStart ("Ramp Start", Range(0,1)) = 0.18
-        _RampEnd ("Ramp End", Range(0,1)) = 0.85
+        _RampStart ("Ramp Start", Range(0,1)) = 0.30
+        _RampEnd ("Ramp End", Range(0,1)) = 0.80
 
         [Header(Occlusion)]
         _OcclusionMap ("Occlusion (R)", 2D) = "white" {}
         _OcclusionStrength ("Occlusion Strength", Range(0,1)) = 1.0
-        _AOTint ("AO Tint", Color) = (0.28,0.32,0.45,1)
+        _AOTint ("AO Tint", Color) = (0.16,0.18,0.30,1)
 
         [Header(Silhouette)]
         _RimColor ("Rim Colour", Color) = (0.55,0.80,1.0,1)
         _RimPower ("Rim Power", Range(0.5,8)) = 2.6
-        _RimStrength ("Rim Strength", Range(0,3)) = 0.9
+        _RimStrength ("Rim Strength", Range(0,3)) = 0.70
         _ContourColor ("Contour Colour", Color) = (0.05,0.06,0.10,1)
         _ContourPower ("Contour Power", Range(1,16)) = 6.0
-        _ContourStrength ("Contour Strength", Range(0,1)) = 0.35
+        _ContourStrength ("Contour Strength", Range(0,1)) = 0.30
 
         [Header(Emission)]
         _EmissionMap ("Emission", 2D) = "black" {}

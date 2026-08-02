@@ -105,7 +105,7 @@ Material:
     - _ClearCoatMask: 0
     - _ClearCoatSmoothness: 0
     - _ContourPower: 6
-    - _ContourStrength: 0.35
+    - _ContourStrength: 0.3
     - _Cull: 2
     - _Cutoff: 0.5
     - _DetailAlbedoMapScale: 1
@@ -121,11 +121,11 @@ Material:
     - _OcclusionStrength: 0
     - _Parallax: 0.02
     - _QueueOffset: 0
-    - _RampEnd: 0.85
-    - _RampStart: 0.18
+    - _RampEnd: 0.8
+    - _RampStart: 0.3
     - _ReceiveShadows: 1
     - _RimPower: 2.6
-    - _RimStrength: 0.9
+    - _RimStrength: 0.7
     - _ShadeStrength: 0.85
     - _Smoothness: 0.42
     - _SmoothnessTextureChannel: 0
@@ -140,13 +140,13 @@ Material:
     - _XRMotionVectorsPass: 1
     - _ZWrite: 1
     m_Colors:
-    - _AOTint: {r: 0.28, g: 0.32, b: 0.45, a: 1}
+    - _AOTint: {r: 0.16, g: 0.18, b: 0.3, a: 1}
     - _BaseColor: {r: 0.74, g: 0.5399999, b: 1, a: 1}
     - _Color: {r: 0.74, g: 0.5399999, b: 1, a: 1}
     - _ContourColor: {r: 0.05, g: 0.06, b: 0.1, a: 1}
     - _EmissionColor: {r: 0, g: 0, b: 0, a: 1}
     - _RimColor: {r: 0.55, g: 0.8, b: 1, a: 1}
-    - _ShadeColor: {r: 0.34, g: 0.4, b: 0.56, a: 1}
+    - _ShadeColor: {r: 0.1, g: 0.11, b: 0.22, a: 1}
     - _SpecColor: {r: 0.19999996, g: 0.19999996, b: 0.19999996, a: 1}
   m_BuildTextureStacks: []
   m_AllowLocking: 1
