@@ -137,9 +137,23 @@ namespace LTW.UnityClient.EditorTools
                     continue;
                 }
 
+                // Already stylized: re-seed the authored defaults rather than skipping.
+                //
+                // This is the tuning path, and skipping here defeated it. The doc is explicit that the
+                // shading values are "a starting bracket to tune by eye against a capture", so the
+                // second run matters more than the first — and the first version of this method
+                // treated an already-migrated material as done, which meant a retuned default reached
+                // nothing that had already moved. Textures and colours are left alone; only the
+                // authored shading controls are re-applied.
                 if (material.shader == shader)
                 {
                     alreadyDone++;
+                    if (apply)
+                    {
+                        ApplyStylizedDefaults(material, Capture(material));
+                        EditorUtility.SetDirty(material);
+                    }
+
                     continue;
                 }
 
@@ -257,15 +271,15 @@ namespace LTW.UnityClient.EditorTools
             public const float SpecRoughFloor = 0.35f;
             public const float OcclusionStrength = 1.0f;
             public const float ShadeStrength = 0.85f;
-            public const float RampStart = 0.18f;
-            public const float RampEnd = 0.85f;
+            public const float RampStart = 0.30f;
+            public const float RampEnd = 0.80f;
             public const float RimPower = 2.6f;
-            public const float RimStrength = 0.9f;
+            public const float RimStrength = 0.70f;
             public const float ContourPower = 6.0f;
-            public const float ContourStrength = 0.35f;
+            public const float ContourStrength = 0.30f;
 
-            public static readonly Color ShadeColor = new Color(0.34f, 0.40f, 0.56f, 1f);
-            public static readonly Color AOTint = new Color(0.28f, 0.32f, 0.45f, 1f);
+            public static readonly Color ShadeColor = new Color(0.10f, 0.11f, 0.22f, 1f);
+            public static readonly Color AOTint = new Color(0.16f, 0.18f, 0.30f, 1f);
             public static readonly Color RimColor = new Color(0.55f, 0.80f, 1.00f, 1f);
             public static readonly Color ContourColor = new Color(0.05f, 0.06f, 0.10f, 1f);
         }
