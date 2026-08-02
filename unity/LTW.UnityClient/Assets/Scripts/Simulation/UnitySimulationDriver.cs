@@ -72,9 +72,52 @@ namespace LTW.UnityClient.Simulation
 
         public MatchSummary? LatestMatchSummary { get; private set; }
 
-        public ReplayRecord? LatestReplay { get; private set; }
+        /// <summary>
+        /// The simulation revision <see cref="LatestSnapshot"/> was built at, for consumers that do
+        /// per-snapshot rather than per-frame work.
+        /// </summary>
+        /// <remarks>
+        /// Published so a component reading this driver every frame can answer "is this the same
+        /// board I already handled?" with one comparison and no allocation. It is the same value the
+        /// gate below uses, so a consumer cannot disagree with the driver about what is new.
+        ///
+        /// It is strictly FINER-grained than <c>UnityVerticalSliceRenderer</c>'s snapshot hash — it
+        /// moves when a seat's gold moves, which that hash ignores — and that direction is the safe
+        /// one. It means this driver can republish a snapshot the renderer then decides is unchanged,
+        /// which costs a hash. The dangerous direction cannot happen: the renderer's hash is a pure
+        /// function of the snapshot, and the snapshot is a pure function of the state this counts, so
+        /// there is no board the renderer would call new that this calls unchanged.
+        /// </remarks>
+        public long SnapshotRevision { get; private set; } = long.MinValue;
 
-        public BotDiagnosticsSnapshot? LatestBotDiagnostics { get; private set; }
+        /// <summary>
+        /// Send-only telemetry for the match so far. Built on demand — nothing publishes it.
+        /// </summary>
+        /// <remarks>
+        /// This used to be republished on every frame alongside the snapshot, and it was the single
+        /// most expensive thing in that refresh: <c>ReplayRecord</c>'s constructor copies the entire
+        /// accepted-command list of the match so far, and seed 1 finishes with 5,754 of them
+        /// (OPEN_ITEMS item 36). Nothing on the frame path needs it. Its three readers are
+        /// <c>LocalReplayExporter</c> and <c>LocalPlaytestRecorder</c>, which want it when a match
+        /// ends or a human asks for an export, and <c>LocalPlaytestBatchRunner</c>, which reads it
+        /// once at the end of a batch run.
+        ///
+        /// So it is a call, not a cache, and deliberately not memoised: the freshest possible answer
+        /// costs the same as a stale one at the rate anybody actually asks, and a cache here would
+        /// need its own invalidation to avoid exporting a replay that stops one command short.
+        /// </remarks>
+        public ReplayRecord? LatestReplay => simulation?.GetReplayRecord();
+
+        /// <summary>
+        /// Bot profiles and their recent sends. Built on demand — see <see cref="LatestReplay"/>.
+        /// </summary>
+        /// <remarks>
+        /// Same treatment and the same reason: its only frame-path reader is
+        /// <c>DiagnosticsOverlay</c>, which is off unless <c>-ltwDiagnostics</c> was passed and which
+        /// now rebuilds its text per snapshot rather than per frame, so this is reached at the tick
+        /// rate rather than the frame rate even with the overlay on.
+        /// </remarks>
+        public BotDiagnosticsSnapshot? LatestBotDiagnostics => simulation?.GetBotDiagnostics();
 
         /// <summary>
         /// The seat this client drives, surfaced so HUD and input code stop assuming player 1.
@@ -113,10 +156,8 @@ namespace LTW.UnityClient.Simulation
         public void Initialize(LocalVerticalSlice localSimulation)
         {
             simulation = localSimulation;
-            LatestSnapshot = simulation.GetSnapshot();
-            LatestMatchSummary = simulation.MatchSummary;
-            LatestReplay = simulation.GetReplayRecord();
-            LatestBotDiagnostics = simulation.GetBotDiagnostics();
+            SnapshotRevision = long.MinValue;
+            RefreshSnapshot();
         }
 
         private void Update()
@@ -159,6 +200,44 @@ namespace LTW.UnityClient.Simulation
             RefreshSnapshot(drainEvents: true);
         }
 
+        /// <summary>
+        /// Republishes <see cref="LatestSnapshot"/> if — and only if — the simulation has moved.
+        /// </summary>
+        /// <remarks>
+        /// This is called from <see cref="Update"/> on every frame, at ~60 fps, against a simulation
+        /// ticking at 4 Hz, so fourteen calls in fifteen have nothing new to publish. It used to
+        /// rebuild everything anyway — an order of magnitude more than the whole renderer after
+        /// OPEN_ITEMS item 24, and the reason that item's win showed up as more frames rather than
+        /// less garbage. Measured by <c>RendererAllocationProbe</c> on a paused seed-1 board at tick
+        /// 3160 (576 creeps, 432 towers), renderer off so nothing else is running: 619.7 KB/frame
+        /// above the same session's idle floor before, 0.0 KB/frame after — the floor itself.
+        ///
+        /// <b>The snapshot's defensive copy is untouched, and that is the point.</b>
+        /// <c>VerticalSliceSnapshot</c> copies the creep, tower and aim-target lists on purpose, so a
+        /// caller holding an old snapshot cannot watch it mutate underneath. Making it shallow would
+        /// have been the wrong fix and would have broken exactly the callers this driver serves —
+        /// the fix is to stop building a snapshot that is going to be identical, not to make the
+        /// snapshot cheaper to be wrong with.
+        ///
+        /// <b>Why the gate is the simulation's revision and not the tick.</b> Commands apply
+        /// synchronously, and the opening build countdown is thirty seconds in which the tick never
+        /// advances while the player builds — <c>UnityCommandAdapter.PlaceTower</c> is deliberately
+        /// not gated on the match having started, unlike every other command there. A tick gate
+        /// leaves a tower built during the countdown invisible until the match starts, and that is
+        /// measured rather than reasoned: <c>OpeningCountdownFreshnessCheck</c> passes against this
+        /// gate and fails against a build with the non-tick half of the revision removed, with the
+        /// board still reporting zero towers. <c>LocalVerticalSlice</c> counts its own state changes
+        /// on the field writes rather than at call sites, so a synchronous command bumps the revision
+        /// in the same breath as it changes the board. Why not the renderer's snapshot hash, which
+        /// answers the same question one layer up: computing it needs a snapshot, and building the
+        /// snapshot is the cost being avoided.
+        ///
+        /// <see cref="LatestEvents"/> is still drained every frame it is asked for, unchanged, and
+        /// deliberately not put behind the gate. An event is consumed once, so a frame that skipped
+        /// the drain would lose it, and there is no revision to hang it on anyway — draining is
+        /// itself a mutation. It is also nearly free between ticks, where there is nothing to drain:
+        /// what is left of this method after the gate measures inside the probe's noise floor.
+        /// </remarks>
         public void RefreshSnapshot(bool drainEvents = false)
         {
             if (simulation is null)
@@ -166,15 +245,19 @@ namespace LTW.UnityClient.Simulation
                 return;
             }
 
-            LatestSnapshot = simulation.GetSnapshot();
+            var revision = simulation.StateRevision;
+            if (revision != SnapshotRevision || LatestSnapshot is null)
+            {
+                LatestSnapshot = simulation.GetSnapshot();
+                SnapshotRevision = revision;
+            }
+
             if (drainEvents)
             {
                 LatestEvents = simulation.DrainEvents();
             }
 
             LatestMatchSummary = simulation.MatchSummary;
-            LatestReplay = simulation.GetReplayRecord();
-            LatestBotDiagnostics = simulation.GetBotDiagnostics();
         }
 
         public void BeginOpeningBuildCountdown()

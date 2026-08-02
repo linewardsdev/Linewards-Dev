@@ -1,0 +1,829 @@
+using System;
+using System.Collections.Generic;
+using LTW.Simulation.Combat;
+using LTW.Simulation.Events;
+using LTW.Simulation.Primitives;
+using LTW.UnityClient.UI;
+using UnityEngine;
+
+namespace LTW.UnityClient.Simulation
+{
+    /// <summary>
+    /// World VFX: particle bursts, weapon beams, expanding rings, mortar shells in flight,
+    /// spore fog, and the per-tower mechanic markers and servicing tethers.
+    /// </summary>
+    public sealed partial class UnityVerticalSliceRenderer
+    {
+        /// <summary>
+        /// Height for board decals that span MORE than their own cell — currently Grovebond's bond
+        /// ring and Thorn Snare's bramble zone.
+        /// </summary>
+        /// <remarks>
+        /// Both were drawn at floor level (BoardTopY + ~0.012), which is correct for a decal that
+        /// stays inside one cell, and wrong for these two. Grovebond's ring is 1.25-1.9 cells across
+        /// so that it visibly reaches the neighbours it is bonded to, and Thorn's is sized to the
+        /// braked span. Reaching onto a neighbouring cell means reaching under that cell's raised
+        /// build plate, and the ring disappears beneath it — reported from play as "the sapling
+        /// underglow is below some of the game board".
+        ///
+        /// Anchored just under <see cref="TowerBaseClearance"/> rather than to a measured plate
+        /// height: towers stand ON the plates, so every plate is necessarily below the height a
+        /// tower's own base sits at, and staying below that keeps these decals reading as painted on
+        /// the board rather than floating across the towers they belong to.
+        /// </remarks>
+        private const float SpanningDecalLift = 0.07f;
+
+        // Sphere-shaped impact effects and cube-shaped beams keep separate pools; sharing one made
+        // them hand each other the wrong primitive shape (see GetPooled).
+        private readonly Queue<GameObject> effectPool = new Queue<GameObject>();
+        private readonly Queue<GameObject> beamPool = new Queue<GameObject>();
+        private readonly Queue<GameObject> textPool = new Queue<GameObject>();
+
+        private Material shockwaveRingMaterial;
+        private readonly Queue<GameObject> shockwaveRingPool = new Queue<GameObject>();
+        private readonly List<ExpandingRingEffect> activeShockwaveRings = new List<ExpandingRingEffect>();
+        private readonly List<MortarShellEffect> activeMortarShells = new List<MortarShellEffect>();
+        private readonly Dictionary<long, GameObject> towerMechanicMarkers = new Dictionary<long, GameObject>();
+        // Keyed by the SERVICED tower's id, not the drone's — a tower can have at most one tether
+        // regardless of how many drones are adjacent to it (see UpdateTowerServicingTether), so this
+        // stays a strict one-per-tower dictionary just like towerMechanicMarkers above. Kept separate
+        // from that dictionary rather than merged into it because the two hold different pooled
+        // shapes (a flat ring vs. a stretched cube) drawn from different pools; see GetPooled's own
+        // comment on why ring and beam pools must not mix.
+        private readonly Dictionary<long, GameObject> towerServicingTethers = new Dictionary<long, GameObject>();
+
+        /// <summary>One drifting fog disc per Spore Cloud Bloom, sized to that tower's attack range.</summary>
+        /// <remarks>
+        /// Its own dictionary and its own pool rather than sharing towerMechanicMarkers, for the same
+        /// reason the servicing tethers have theirs: a pooled object carries the material it was
+        /// built with, so mixing a fog quad into the shockwave-ring pool would hand a ring the fog
+        /// shader (or the reverse) the first time one was recycled.
+        /// </remarks>
+        private readonly Dictionary<long, GameObject> towerSporeFog = new Dictionary<long, GameObject>();
+        private readonly Queue<GameObject> sporeFogPool = new Queue<GameObject>();
+        private Material sporeFogMaterial;
+
+        private void SpawnEffect(Vector3 position, Color color) => SpawnEffect(position, color, 0.62f, 0.3f);
+
+        private void SpawnReducedEffectCue(Vector3 position, string label, Color color)
+        {
+            if (PresentationPreferences.ReducedEffects)
+            {
+                SpawnFloatingText(position + Vector3.up * 0.18f, label, color, 0.5f);
+            }
+        }
+
+        private void SpawnEffect(Vector3 position, Color color, float scale, float duration) =>
+            SpawnEffect(position, color, scale, duration, BurstShape.Impact);
+
+        /// <summary>
+        /// Emits a particle burst for a game event.
+        /// </summary>
+        /// <remarks>
+        /// Every effect in the game routes through here, which is why upgrading this one method from
+        /// a primitive to a particle system upgrades roughly twenty call sites at once — build, sell,
+        /// spawn, hit, kill, leak, income, elimination, muzzle flash and mortar impact.
+        ///
+        /// It used to spawn a pooled sphere, set its colour, and release it after `duration`. That is
+        /// a shape which appears, holds and vanishes: nothing about it moves, so it read as a debug
+        /// gizmo regardless of colour.
+        ///
+        /// No pooling and no TimedPresentation registration, unlike every other presentation object
+        /// here. A burst emits into a shared long-lived system (see LTWParticleBurst), so it costs
+        /// particles rather than GameObjects and there is nothing to release. Pooling an emitter per
+        /// burst was tried first and measured: peak active presentation objects went from 2,769 to
+        /// 6,082 on the same seed, because each emitter must outlive its own particles and most
+        /// effects here are shorter than the pad that requires.
+        ///
+        /// The signature is unchanged so the existing call sites keep their tuned scales and
+        /// durations. Those values were chosen against the old flash and still mean the same things —
+        /// how big the event is and how long it lasts.
+        /// </remarks>
+        private void SpawnEffect(Vector3 position, Color color, float scale, float duration, BurstShape shape, Vector3 direction = default)
+        {
+            if (PresentationPreferences.ReducedEffects)
+            {
+                return;
+            }
+
+            BurstEmitter(shape)?.Emit(position, color, scale, duration, direction);
+        }
+
+        /// <summary>The shared emitter for one burst shape, created on first use.</summary>
+        /// <remarks>
+        /// Parented to this renderer so the emitters are torn down with the match rather than
+        /// leaking across resets, and so they never appear in the pooled-object accounting the
+        /// batch harness asserts on — they are fixtures, not pooled instances.
+        /// </remarks>
+        private LTWParticleBurst BurstEmitter(BurstShape shape)
+        {
+            if (burstEmitters.TryGetValue(shape, out var emitter) && emitter != null)
+            {
+                return emitter;
+            }
+
+            emitter = LTWParticleBurst.Create(transform, shape);
+            burstEmitters[shape] = emitter;
+            return emitter;
+        }
+
+        private readonly Dictionary<BurstShape, LTWParticleBurst> burstEmitters =
+            new Dictionary<BurstShape, LTWParticleBurst>();
+
+        /// <summary>Kills every live particle. Called on reset so effects do not survive a match.</summary>
+        private void ClearBurstEmitters()
+        {
+            foreach (var pair in burstEmitters)
+            {
+                if (pair.Value != null)
+                {
+                    pair.Value.ClearAll();
+                }
+            }
+        }
+
+        /// <summary>Default beam thickness. Wider than the old 0.06 box, which was a wire.</summary>
+        private const float DefaultBeamWidth = 0.16f;
+
+        /// <summary>
+        /// How much wider the beam's mesh is than the beam it draws. The shader treats the inner
+        /// 1/<see cref="BeamHaloWidthScale"/> of the tube as the bright core and fades a halo across
+        /// the rest, so <c>width</c> stays the width of the visible shot at every call site.
+        /// </summary>
+        private const float BeamHaloWidthScale = 3f;
+
+        private Material weaponBeamMaterial;
+
+        private Material WeaponBeamMaterial()
+        {
+            if (weaponBeamMaterial == null)
+            {
+                weaponBeamMaterial = BoardRenderResources.CreateWeaponBeamMaterial("LTW Weapon Beam");
+            }
+
+            return weaponBeamMaterial;
+        }
+
+        private void SpawnBeam(Vector3 start, Vector3 end, Color color, float duration) =>
+            SpawnBeam(start, end, color, duration, DefaultBeamWidth, 1f);
+
+        /// <summary>
+        /// A tower's shot: a hot core in a soft glow, tapering toward the target.
+        /// </summary>
+        /// <remarks>
+        /// The mesh is still a cube, but it is no longer drawn as one. LTWWeaponBeam fades alpha
+        /// radially from the cube's axis, so the square cross-section never shows and the box reads
+        /// as a round tube — which is why this does not need to billboard a quad toward an
+        /// orthographic camera, the usual way beam rendering goes wrong.
+        ///
+        /// <paramref name="width"/> and <paramref name="intensity"/> exist for the per-line and
+        /// per-tier work: a GROVE vine is thicker and dimmer than an ARCANE lance, and a tier-3 shot
+        /// is heavier than a tier-1 one. Callers that do not care get the defaults.
+        ///
+        /// Still early-outs under ReducedEffects, so any mechanic whose ONLY tell is a beam is
+        /// invisible at that setting. That is a known gap, not a new one.
+        /// </remarks>
+        private void SpawnBeam(Vector3 start, Vector3 end, Color color, float duration, float width, float intensity)
+        {
+            if (PresentationPreferences.ReducedEffects)
+            {
+                return;
+            }
+
+            var beam = GetPooled(beamPool, "TowerBeam", PrimitiveType.Cube);
+            var midpoint = Vector3.Lerp(start, end, 0.5f);
+            var distance = Vector3.Distance(start, end);
+            beam.transform.position = midpoint;
+            beam.transform.LookAt(end);
+            // Wider than the beam being drawn: LTWWeaponBeam fades a soft halo out across the mesh
+            // and keeps the requested width as its bright core, so the geometry has to extend past
+            // the visible shot or there is no room for the falloff.
+            var meshWidth = width * BeamHaloWidthScale;
+            beam.transform.localScale = new Vector3(meshWidth, meshWidth, Mathf.Max(0.1f, distance));
+
+            if (beam.TryGetComponent<Renderer>(out var renderer))
+            {
+                // sharedMaterial would recolour every live beam at once; each shot needs its own.
+                renderer.material = WeaponBeamMaterial();
+                var instance = renderer.material;
+                instance.color = color;
+                if (instance.HasProperty("_Color")) instance.SetColor("_Color", color);
+                if (instance.HasProperty("_CoreColor"))
+                {
+                    // The core is the shot's colour pushed toward white, so every beam has a hotter
+                    // inside than its edge without needing a second colour authored per caller.
+                    instance.SetColor("_CoreColor", Color.Lerp(color, Color.white, 0.72f));
+                }
+
+                if (instance.HasProperty("_Intensity")) instance.SetFloat("_Intensity", intensity);
+                // Driven from the same constant that widened the mesh, so the core stays exactly the
+                // requested width however BeamHaloWidthScale is retuned.
+                if (instance.HasProperty("_CoreRadius")) instance.SetFloat("_CoreRadius", 1f / BeamHaloWidthScale);
+                // Casting shadows from a glow is wrong and costs a pass per shot.
+                renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                renderer.receiveShadows = false;
+            }
+
+            timedPresentations.Add(new TimedPresentation(beam, Time.time + duration, beamPool));
+        }
+
+        /// <summary>
+        /// A flat ring that grows from startScale to endScale and fades to transparent over
+        /// duration — a real shockwave, unlike <see cref="SpawnEffect"/>'s static spawn-hold-vanish
+        /// flash. Built from the same quad+soft-falloff-shader combo as the ground contact shadow
+        /// decals (<see cref="BoardRenderResources.ContactShadowMesh"/>/CreateContactShadowMaterial),
+        /// since that shader already gives a soft radially-fading edge for free.
+        /// </summary>
+        private void SpawnExpandingRing(Vector3 position, Color color, float startScale, float endScale, float duration)
+        {
+            if (PresentationPreferences.ReducedEffects)
+            {
+                return;
+            }
+
+            var ring = GetPooledShockwaveRing();
+            ring.transform.position = position;
+            ring.transform.localScale = new Vector3(startScale, 1f, startScale);
+            SetColor(ring, color);
+            activeShockwaveRings.Add(new ExpandingRingEffect(ring, Time.time, duration, startScale, endScale, color));
+        }
+
+        /// <summary>
+        /// Launches a mortar shell: an arcing projectile plus a ground telegraph at the cell it will
+        /// land on.
+        /// </summary>
+        /// <remarks>
+        /// The telegraph is the important half. A Foundry Core deals no damage when it fires and its
+        /// shell lands half a second later, so without a marker on the ground the player has no way to
+        /// read where or when — the tower becomes hidden dice and reads as broken. With it, the delay
+        /// is fair information: you can see the shell in the air and the cell it is committed to.
+        ///
+        /// The whole flight is animated client-side from the launch event, which is why
+        /// TowerFiredEvent carries ImpactTick and ImpactPosition. Keying the landing off the damage
+        /// event instead would make a shell that hits nothing visually evaporate in mid-air — and
+        /// while the simulation now refuses to fire shells it cannot land, a shell can still lose its
+        /// target to another tower during the flight.
+        /// </remarks>
+        private void SpawnMortarShell(Vector3 from, Vector3 to, float flightSeconds)
+        {
+            if (PresentationPreferences.ReducedEffects || flightSeconds <= 0f)
+            {
+                return;
+            }
+
+            var shell = GetPooled(effectPool, "MortarShell", PrimitiveType.Sphere);
+            shell.transform.localScale = Vector3.one * 0.22f;
+            shell.transform.position = from + Vector3.up * MortarLaunchHeight;
+            SetColor(shell, MortarShellColor);
+
+            // A ring that contracts onto the impact cell, so its size reads as a countdown.
+            var telegraph = GetPooledShockwaveRing();
+            telegraph.transform.position = to + Vector3.up * 0.02f;
+            telegraph.transform.localScale = new Vector3(MortarTelegraphStartScale, 1f, MortarTelegraphStartScale);
+            SetColor(telegraph, MortarTelegraphColor);
+
+            activeMortarShells.Add(new MortarShellEffect(shell, telegraph, from, to, Time.time, flightSeconds));
+        }
+
+        private void UpdateMortarShells()
+        {
+            for (var index = activeMortarShells.Count - 1; index >= 0; index--)
+            {
+                var shell = activeMortarShells[index];
+                var t = Mathf.Clamp01((Time.time - shell.StartTime) / shell.Duration);
+
+                // Straight line across the board, parabola in height: 4t(1-t) peaks at t=0.5 and is
+                // zero at both ends, so the shell leaves the stacks and meets the ground exactly on
+                // the telegraph.
+                var ground = Vector3.Lerp(shell.From, shell.To, t);
+                var lift = MortarLaunchHeight + MortarArcHeight * 4f * t * (1f - t);
+                shell.Shell.transform.position = new Vector3(ground.x, shell.From.y + lift, ground.z);
+
+                // Telegraph contracts and brightens as impact approaches.
+                var telegraphScale = Mathf.Lerp(MortarTelegraphStartScale, MortarTelegraphEndScale, t);
+                shell.Telegraph.transform.localScale = new Vector3(telegraphScale, 1f, telegraphScale);
+                SetColor(shell.Telegraph, new Color(
+                    MortarTelegraphColor.r,
+                    MortarTelegraphColor.g,
+                    MortarTelegraphColor.b,
+                    Mathf.Lerp(MortarTelegraphColor.a * 0.55f, MortarTelegraphColor.a, t)));
+
+                if (t < 1f)
+                {
+                    continue;
+                }
+
+                // Impact. The crater fires whether or not anything was standing there, so a shell that
+                // loses its target still visibly lands rather than vanishing.
+                SpawnExpandingRing(shell.To + Vector3.up * 0.05f, MortarImpactColor, 0.2f, 1.9f, 0.34f);
+                SpawnEffect(shell.To + Vector3.up * 0.12f, MortarImpactColor, 0.6f, 0.24f);
+
+                ReleaseToPool(shell.Shell, effectPool);
+                ReleaseToPool(shell.Telegraph, shockwaveRingPool);
+                activeMortarShells.RemoveAt(index);
+            }
+        }
+
+        /// <summary>
+        /// Draws the standing ground marker a tower's mechanic needs, if it has one.
+        /// </summary>
+        /// <remarks>
+        /// Two mechanics are invisible without this, and an invisible mechanic is a spreadsheet:
+        ///
+        /// Thorn Snare brakes creeps that stand in its zone. The creep does visibly crawl, but nothing
+        /// says WHERE the zone is, so the player cannot place a second tower to exploit it. A decal
+        /// over the braked cells makes the zone a thing you can build around.
+        ///
+        /// Grovebond gives a Sapling +1 damage per adjacent Grove tower. Three of its four states are
+        /// otherwise pixel-identical — the only evidence is a damage number that has to be compared
+        /// against a different sapling. The marker's brightness tracks the bonus.
+        ///
+        /// One pooled quad per tower, updated in place, released with the tower.
+        /// </remarks>
+        private void UpdateTowerMechanicMarker(
+            long key,
+            string towerId,
+            GridPosition position,
+            LaneId laneId,
+            LTW.Simulation.Bridge.VerticalSliceSnapshot snapshot)
+        {
+            var isThorn = towerId.Contains("thorn");
+            var isSapling = towerId.Contains("sapling");
+            if ((!isThorn && !isSapling) || PresentationPreferences.ReducedEffects)
+            {
+                ReleaseTowerMechanicMarker(key);
+                return;
+            }
+
+            if (!towerMechanicMarkers.TryGetValue(key, out var marker) || marker == null)
+            {
+                marker = GetPooledShockwaveRing();
+                marker.name = $"TowerMechanicMarker_{key}";
+                towerMechanicMarkers[key] = marker;
+            }
+
+            var centre = GridToWorld(position, laneId);
+            if (isThorn)
+            {
+                // Sized to the braked span rather than to the tower: BrambleZoneCells in the
+                // simulation is 3, and the zone starts at the first route cell in range.
+                marker.transform.position = new Vector3(centre.x, BoardTopY + SpanningDecalLift, centre.z);
+                marker.transform.localScale = new Vector3(BrambleMarkerScale, 1f, BrambleMarkerScale);
+                SetColor(marker, BrambleMarkerColor);
+                return;
+            }
+
+            // Grovebond: brightness and size track the bonus, so a bonded cluster reads at a glance.
+            var bonus = CountAdjacentGroveTowers(position, laneId, snapshot);
+            if (bonus == 0)
+            {
+                // An unbonded sapling gets no ring at all. That is the clearest possible read of the
+                // mechanic: the ring's presence means "this one is bonded".
+                ReleaseTowerMechanicMarker(key);
+                return;
+            }
+
+            marker.transform.position = new Vector3(centre.x, BoardTopY + SpanningDecalLift, centre.z);
+            // Floors were originally 0.55 scale / 0.16 alpha, which at the common bonus of 1 was
+            // invisible under the tower mesh — verified in a capture. The ring now starts wide enough
+            // to clear the silhouette and opaque enough to see, and still grows with the bonus.
+            var scale = Mathf.Lerp(1.25f, 1.9f, (bonus - 1) / 2f);
+            marker.transform.localScale = new Vector3(scale, 1f, scale);
+            SetColor(marker, new Color(
+                GrovebondMarkerColor.r,
+                GrovebondMarkerColor.g,
+                GrovebondMarkerColor.b,
+                Mathf.Lerp(0.34f, GrovebondMarkerColor.a, (bonus - 1) / 2f)));
+        }
+
+        /// <summary>
+        /// Mirrors CombatService.GrovebondBonus: orthogonal only, same lane, same owner, capped at 3.
+        /// </summary>
+        /// <remarks>
+        /// Duplicating the rule in presentation is a real risk of drift, but the alternative is a new
+        /// snapshot field carrying a number that only exists to be drawn. Kept honest by the marker
+        /// being the only consumer — if it disagrees with the damage numbers, the marker is wrong.
+        /// </remarks>
+        private static int CountAdjacentGroveTowers(
+            GridPosition position,
+            LaneId laneId,
+            LTW.Simulation.Bridge.VerticalSliceSnapshot snapshot)
+        {
+            var adjacent = 0;
+            for (var index = 0; index < snapshot.Towers.Count; index++)
+            {
+                var other = snapshot.Towers[index];
+                if (other.LaneId.Value != laneId.Value)
+                {
+                    continue;
+                }
+
+                if (Mathf.Abs(other.Position.X - position.X) + Mathf.Abs(other.Position.Y - position.Y) != 1)
+                {
+                    continue;
+                }
+
+                var id = other.TowerId.Value;
+                if (id.Contains("sapling") || id.Contains("bloomheart") || id.Contains("thorn")
+                    || id.Contains("spore") || id.Contains("canopy"))
+                {
+                    adjacent++;
+                }
+            }
+
+            return Mathf.Min(3, adjacent);
+        }
+
+        /// <summary>
+        /// Draws a persistent tether from a tower to the Repair Drone Spire servicing it, if any.
+        /// </summary>
+        /// <remarks>
+        /// CombatService.EffectiveCooldown reduces a serviced tower's cooldown by one tick and does
+        /// nothing else visible, so without this the only evidence was a tower firing slightly
+        /// faster than its stated cooldown — not something a player can see, only measure
+        /// (GAMEPLAY_REVIEW_FINDINGS.md's open "Repair Drone's [buff] is invisible" item, written
+        /// against the mechanic's earlier +1 range shape and stale since Servicing replaced it — a
+        /// range halo would now show the wrong thing, since range no longer changes).
+        ///
+        /// Mirrors CombatService.IsServicedByDrone client-side, the same tradeoff already accepted
+        /// for CountAdjacentGroveTowers above: duplicating the adjacency rule here risks drift from
+        /// the simulation, but the alternative is a snapshot field that exists only to be drawn, and
+        /// the tether being the only consumer keeps it honest — if it disagrees with a tower's
+        /// actual fire rate, the tether is wrong, not the mechanic.
+        ///
+        /// A tower gets at most one tether even if multiple drones are adjacent, since Servicing
+        /// does not stack (see EffectiveCooldown's own comment on why). The lowest EntityId among
+        /// adjacent drones is picked so the choice is stable and independent of snapshot ordering,
+        /// not because the specific choice of drone matters.
+        /// </remarks>
+        private void UpdateTowerServicingTether(long key, LTW.Simulation.Combat.TowerCombatState tower, LTW.Simulation.Bridge.VerticalSliceSnapshot snapshot)
+        {
+            if (PresentationPreferences.ReducedEffects || IsRepairDroneTower(tower.TowerId.Value))
+            {
+                // The drone itself never grows a tether toward whichever neighbour happens to
+                // service IT in turn (two adjacent drones is a legal, if unusual, placement) — a
+                // tether reads as "this tower is being helped", which is not the drone's story.
+                ReleaseTowerServicingTether(key);
+                return;
+            }
+
+            LTW.Simulation.Combat.TowerCombatState drone = null;
+            for (var index = 0; index < snapshot.Towers.Count; index++)
+            {
+                var other = snapshot.Towers[index];
+                if (other.EntityId.Equals(tower.EntityId))
+                {
+                    continue;
+                }
+
+                if (!other.LaneId.Equals(tower.LaneId) || !other.OwnerId.Equals(tower.OwnerId))
+                {
+                    continue;
+                }
+
+                if (!IsRepairDroneTower(other.TowerId.Value))
+                {
+                    continue;
+                }
+
+                if (Mathf.Abs(other.Position.X - tower.Position.X) + Mathf.Abs(other.Position.Y - tower.Position.Y) != 1)
+                {
+                    continue;
+                }
+
+                if (drone == null || other.EntityId.Value < drone.EntityId.Value)
+                {
+                    drone = other;
+                }
+            }
+
+            if (drone == null)
+            {
+                ReleaseTowerServicingTether(key);
+                return;
+            }
+
+            if (!towerServicingTethers.TryGetValue(key, out var tether) || tether == null)
+            {
+                tether = GetPooled(beamPool, "ServicingTether", PrimitiveType.Cube);
+                towerServicingTethers[key] = tether;
+            }
+
+            var from = GridToWorld(tower.Position, tower.LaneId) + Vector3.up * ServicingTetherHeight;
+            var to = GridToWorld(drone.Position, drone.LaneId) + Vector3.up * ServicingTetherHeight;
+            var midpoint = Vector3.Lerp(from, to, 0.5f);
+            var distance = Vector3.Distance(from, to);
+            tether.transform.position = midpoint;
+            tether.transform.LookAt(to);
+            tether.transform.localScale = new Vector3(ServicingTetherThickness, ServicingTetherThickness, Mathf.Max(0.1f, distance));
+            // Assert the material, don't just tint it. This shares beamPool with SpawnBeam, which
+            // assigns the additive LTWWeaponBeam material — and SetColor only writes .color, so a
+            // tether recycled from a released beam would keep that shader and draw as a glowing
+            // additive tube instead of a solid line, at random, depending on pool order. Exactly the
+            // failure GetPooled's own comment describes for meshes, one dimension over.
+            if (tether.TryGetComponent<Renderer>(out var tetherRenderer))
+            {
+                tetherRenderer.sharedMaterial = BoardRenderResources.SharedOpaque(ServicingTetherColor);
+            }
+        }
+
+        private static bool IsRepairDroneTower(string towerId) => towerId.IndexOf("repair_drone", StringComparison.OrdinalIgnoreCase) >= 0;
+
+        private void ReleaseTowerServicingTether(long key)
+        {
+            if (!towerServicingTethers.TryGetValue(key, out var tether))
+            {
+                return;
+            }
+
+            if (tether != null)
+            {
+                ReleaseToPool(tether, beamPool);
+            }
+
+            towerServicingTethers.Remove(key);
+        }
+
+        private void ReleaseTowerMechanicMarker(long key)
+        {
+            if (!towerMechanicMarkers.TryGetValue(key, out var marker))
+            {
+                return;
+            }
+
+            if (marker != null)
+            {
+                ReleaseToPool(marker, shockwaveRingPool);
+            }
+
+            towerMechanicMarkers.Remove(key);
+        }
+
+        private void UpdateExpandingRings()
+        {
+            for (var index = activeShockwaveRings.Count - 1; index >= 0; index--)
+            {
+                var ring = activeShockwaveRings[index];
+                var t = Mathf.Clamp01((Time.time - ring.StartTime) / ring.Duration);
+                var scale = Mathf.Lerp(ring.StartScale, ring.EndScale, t);
+                ring.Object.transform.localScale = new Vector3(scale, 1f, scale);
+                SetColor(ring.Object, new Color(ring.BaseColor.r, ring.BaseColor.g, ring.BaseColor.b, ring.BaseColor.a * (1f - t)));
+
+                if (t >= 1f)
+                {
+                    ReleaseToPool(ring.Object, shockwaveRingPool);
+                    activeShockwaveRings.RemoveAt(index);
+                }
+            }
+        }
+
+        private Material ShockwaveRingMaterial()
+        {
+            if (shockwaveRingMaterial == null)
+            {
+                shockwaveRingMaterial = BoardRenderResources.CreateContactShadowMaterial(
+                    "LTW Shockwave Ring",
+                    Color.white,
+                    0.55f);
+            }
+
+            return shockwaveRingMaterial;
+        }
+
+        /// <summary>
+        /// Green spore fog spreading from a Spore Cloud Bloom out to the edge of its range.
+        /// </summary>
+        /// <remarks>
+        /// The fog IS the range indicator: it is densest over the tower and fades to nothing exactly
+        /// where the tower stops reaching, so a player can read how far it covers without a range
+        /// ring drawn on top.
+        ///
+        /// One honest imprecision. Range in the simulation is MANHATTAN — CombatService.IsInRange
+        /// sums |dx| + |dy| — so the true footprint is a diamond, while this is a circle. A circle
+        /// inscribed to touch the diamond's points therefore overstates the diagonals, and one
+        /// shrunk to fit understates the axes. It is drawn at the full range because fog with a
+        /// visible diamond edge would look authored rather than atmospheric, and because the whole
+        /// point of the gradient is that the boundary is not locatable anyway. If the fog is ever
+        /// promoted from atmosphere to a precise range READOUT, this has to become a diamond.
+        ///
+        /// Scale is diameter, hence 2x the range. Sat just above the spanning board decals so the
+        /// fog layers over the lane rather than fighting the bramble and bond rings for the same
+        /// millimetre.
+        /// </remarks>
+        private void UpdateSporeFog(long key, string towerId, Vector3 towerPosition, float rangeCells)
+        {
+            if (!ContainsRole(towerId, "spore") || PresentationPreferences.ReducedEffects)
+            {
+                ReleaseSporeFog(key);
+                return;
+            }
+
+            if (!towerSporeFog.TryGetValue(key, out var fog) || fog == null)
+            {
+                fog = GetPooledSporeFog();
+                fog.name = $"SporeFog_{key}";
+                towerSporeFog[key] = fog;
+            }
+
+            var diameter = Mathf.Max(1f, rangeCells * 2f);
+            fog.transform.position = new Vector3(towerPosition.x, BoardTopY + SporeFogLift, towerPosition.z);
+            fog.transform.localScale = new Vector3(diameter, 1f, diameter);
+        }
+
+        /// <summary>Just above SpanningDecalLift, so fog reads as sitting over the ground markings.</summary>
+        private const float SporeFogLift = 0.075f;
+
+        /// <summary>
+        /// A tower's attack range in cells, read from the simulation and cached per tower id.
+        /// </summary>
+        /// <remarks>
+        /// Read rather than copied: a client-side table of ranges is exactly the drift that put
+        /// three different Arrow costs in the codebase before UnityCommandAdapter started reading
+        /// cost from ContentCatalog. Cached because this runs per Spore Cloud per frame and the
+        /// lookup is a linear scan of the tower list.
+        ///
+        /// Falls back to 3 — Spore Cloud's authored range — only if the driver is not wired yet, so
+        /// a fog that appears before the simulation is up is the right size rather than a dot.
+        /// </remarks>
+        private readonly Dictionary<string, float> towerRangeCells = new Dictionary<string, float>();
+
+        private float TowerRangeCells(string towerId)
+        {
+            if (towerRangeCells.TryGetValue(towerId, out var cached))
+            {
+                return cached;
+            }
+
+            var range = 3f;
+            var catalog = simulationDriver != null ? simulationDriver.Content : null;
+            if (catalog != null)
+            {
+                foreach (var tower in catalog.Towers)
+                {
+                    if (tower.Id.Value == towerId)
+                    {
+                        range = tower.RangeCells;
+                        break;
+                    }
+                }
+
+                towerRangeCells[towerId] = range;
+            }
+
+            return range;
+        }
+
+        private Material SporeFogMaterial()
+        {
+            if (sporeFogMaterial == null)
+            {
+                sporeFogMaterial = BoardRenderResources.CreateSporeFogMaterial(
+                    "LTW Spore Fog",
+                    new Color(0.42f, 0.86f, 0.34f, 0.26f),
+                    softness: 0.95f,
+                    churn: 0.55f,
+                    speed: 0.45f);
+            }
+
+            return sporeFogMaterial;
+        }
+
+        private GameObject GetPooledSporeFog()
+        {
+            if (sporeFogPool.Count > 0)
+            {
+                var pooled = sporeFogPool.Dequeue();
+                pooled.SetActive(true);
+                return pooled;
+            }
+
+            var fog = new GameObject("SporeFog");
+            fog.AddComponent<MeshFilter>().sharedMesh = BoardRenderResources.ContactShadowMesh;
+            var renderer = fog.AddComponent<MeshRenderer>();
+            renderer.sharedMaterial = SporeFogMaterial();
+            renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            renderer.receiveShadows = false;
+            renderer.lightProbeUsage = UnityEngine.Rendering.LightProbeUsage.Off;
+            renderer.reflectionProbeUsage = UnityEngine.Rendering.ReflectionProbeUsage.Off;
+            return fog;
+        }
+
+        private void ReleaseSporeFog(long key)
+        {
+            if (!towerSporeFog.TryGetValue(key, out var fog))
+            {
+                return;
+            }
+
+            if (fog != null)
+            {
+                fog.SetActive(false);
+                sporeFogPool.Enqueue(fog);
+            }
+
+            towerSporeFog.Remove(key);
+        }
+
+        private GameObject GetPooledShockwaveRing()
+        {
+            if (shockwaveRingPool.Count > 0)
+            {
+                var pooled = shockwaveRingPool.Dequeue();
+                pooled.SetActive(true);
+                return pooled;
+            }
+
+            var ring = new GameObject("ShockwaveRing");
+            ring.AddComponent<MeshFilter>().sharedMesh = BoardRenderResources.ContactShadowMesh;
+            var renderer = ring.AddComponent<MeshRenderer>();
+            renderer.sharedMaterial = ShockwaveRingMaterial();
+            renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            renderer.receiveShadows = false;
+            renderer.lightProbeUsage = UnityEngine.Rendering.LightProbeUsage.Off;
+            renderer.reflectionProbeUsage = UnityEngine.Rendering.ReflectionProbeUsage.Off;
+            return ring;
+        }
+
+        /// <summary>
+        /// Bramble zone footprint, in cells. Deliberately NOT tuned for looks.
+        /// </summary>
+        /// <remarks>
+        /// CombatService.BrambleZoneCells is 3, and the zone starts at the first route cell in range,
+        /// so this shows the braked span rather than the tower. Shrinking it to calm the visual down
+        /// would make it lie about how much lane the brake actually covers — opacity is the knob for
+        /// that, not size.
+        /// </remarks>
+        private const float BrambleMarkerScale = 2.6f;
+
+        /// <summary>
+        /// Alpha dropped from 0.34. The marker is 2.6 cells across, and until the decal was lifted
+        /// clear of the raised build plates most of that area was hidden under them — so 0.34 was
+        /// tuned against a fraction of the footprint that actually shows now. At full visibility the
+        /// same value read as a purple slab over the lane ("thorn ground bloom is too much").
+        /// </remarks>
+        private static readonly Color BrambleMarkerColor = new Color(0.42f, 0.24f, 0.58f, 0.15f);
+        private static readonly Color GrovebondMarkerColor = new Color(0.55f, 0.95f, 0.38f, 0.7f);
+
+        // Repair Drone Spire's own catalog accent (TowerCatalog.cs, id 9, label "DRONE"), reused here
+        // rather than an invented color so the tether reads as belonging to the drone at a glance.
+        // Thickness/height/alpha were raised past a first guess (0.05/0.18/0.62) after a capture at
+        // the actual in-game ActiveLane camera distance showed it lost against both towers' own
+        // range-halo spheres — the same failure Grovebond's ring hit originally ("invisible under
+        // the tower mesh... starts wide enough to clear the silhouette"). A further attempt at 0.48
+        // rose into the always-on-top role-marker text layer and read WORSE, not better, so this
+        // stayed at the value that measurably improved on the first guess without competing with
+        // that text.
+        private static readonly Color ServicingTetherColor = new Color(0.95f, 0.82f, 0.45f, 0.85f);
+        private const float ServicingTetherThickness = 0.11f;
+        private const float ServicingTetherHeight = 0.34f;
+
+        private const float MortarLaunchHeight = 0.62f;
+        private const float MortarArcHeight = 1.15f;
+        private const float MortarTelegraphStartScale = 1.6f;
+        private const float MortarTelegraphEndScale = 0.62f;
+        private static readonly Color MortarShellColor = new Color(1f, 0.62f, 0.24f, 1f);
+        private static readonly Color MortarTelegraphColor = new Color(1f, 0.45f, 0.18f, 0.72f);
+        private static readonly Color MortarImpactColor = new Color(1f, 0.55f, 0.2f, 1f);
+
+        /// <summary>A shell in flight, with the ground telegraph marking where it will land.</summary>
+        private readonly struct MortarShellEffect
+        {
+            public MortarShellEffect(GameObject shell, GameObject telegraph, Vector3 from, Vector3 to, float startTime, float duration)
+            {
+                Shell = shell;
+                Telegraph = telegraph;
+                From = from;
+                To = to;
+                StartTime = startTime;
+                Duration = duration;
+            }
+
+            public GameObject Shell { get; }
+            public GameObject Telegraph { get; }
+            public Vector3 From { get; }
+            public Vector3 To { get; }
+            public float StartTime { get; }
+            public float Duration { get; }
+        }
+
+        private readonly struct ExpandingRingEffect
+        {
+            public ExpandingRingEffect(GameObject @object, float startTime, float duration, float startScale, float endScale, Color baseColor)
+            {
+                Object = @object;
+                StartTime = startTime;
+                Duration = duration;
+                StartScale = startScale;
+                EndScale = endScale;
+                BaseColor = baseColor;
+            }
+
+            public GameObject Object { get; }
+            public float StartTime { get; }
+            public float Duration { get; }
+            public float StartScale { get; }
+            public float EndScale { get; }
+            public Color BaseColor { get; }
+        }
+    }
+}
