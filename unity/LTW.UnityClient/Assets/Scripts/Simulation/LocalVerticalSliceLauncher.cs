@@ -28,7 +28,7 @@ namespace LTW.UnityClient.Simulation
             var playtestRecorder = matchObject.AddComponent<LocalPlaytestRecorder>();
             var performanceSampler = matchObject.AddComponent<DevicePerformanceSampler>();
             var stressHarness = matchObject.AddComponent<HeavySendStressHarness>();
-            var results = new GameObject("Match Results").AddComponent<MatchResultsBillboard>();
+            var shellScreens = CreateShellScreens(matchObject);
             var sessionOverlay = matchObject.AddComponent<LocalSessionFlowOverlay>();
             var diagnosticsOverlay = matchObject.AddComponent<DiagnosticsOverlay>();
             var controls = matchObject.AddComponent<LocalVerticalSliceDevelopmentControls>();
@@ -50,13 +50,39 @@ namespace LTW.UnityClient.Simulation
             playtestRecorder.Initialize(driver, replayExporter);
             performanceSampler.Initialize(driver, renderer);
             stressHarness.Initialize(commands, performanceSampler);
-            results.Initialize(driver);
-            sessionOverlay.Initialize(driver, playtestRecorder);
+            sessionOverlay.Initialize(driver, playtestRecorder, shellScreens);
             diagnosticsOverlay.Initialize(driver);
             controls.Initialize(commands, driver, renderer, replayExporter, playtestRecorder, stressHarness, placement, laneViewToggle, feedback);
             bootstrapper.Initialize(driver, commands);
             renderer.SetCameraFraming(renderer.CameraFraming);
             CreateRuntimeHud(matchObject, camera, commands, feedback, sendDock, placement);
+        }
+
+        /// <summary>
+        /// Creates the runtime UI Toolkit surface the title, pause and results screens render into.
+        /// </summary>
+        /// <remarks>
+        /// Created here, at runtime, for the same reason every other component is: the scene asset
+        /// <c>Assets/Scenes/LocalVerticalSlice.unity</c> contains zero GameObjects. The one thing
+        /// that could not be built this way is the <c>PanelSettings</c>, which is a ScriptableObject
+        /// and therefore has to exist on disk — see
+        /// <c>LTW.UnityClient.Editor.ShellPanelSettingsGenerator</c>, which authors and commits it.
+        ///
+        /// No EventSystem and no input module are added alongside it. UI Toolkit falls back to its
+        /// own runtime event system when the scene has none, and that fallback reads legacy
+        /// <c>Input</c>, which is exactly what this project is set to (<c>activeInputHandler: 0</c>).
+        /// Verified rather than assumed: <c>LTW.UnityClient.Editor.ShellInputCheck</c> drives a
+        /// press at the centre of START GAME through that path and asserts the build countdown began.
+        ///
+        /// Its own GameObject rather than another component on the match object, because a
+        /// UIDocument's lifetime is the panel's: disabling this object should take the shell down
+        /// without touching the simulation.
+        /// </remarks>
+        private static ShellScreenView CreateShellScreens(GameObject matchObject)
+        {
+            var shellObject = new GameObject("LTW Shell Screens");
+            shellObject.transform.SetParent(matchObject.transform, false);
+            return shellObject.AddComponent<ShellScreenView>();
         }
 
         private static Camera CreateCamera()

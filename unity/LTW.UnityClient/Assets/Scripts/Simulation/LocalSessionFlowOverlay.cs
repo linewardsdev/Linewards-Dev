@@ -5,7 +5,24 @@ using UnityEngine;
 
 namespace LTW.UnityClient.Simulation
 {
-    public sealed class LocalSessionFlowOverlay : MonoBehaviour
+    /// <summary>
+    /// Owns session flow: which shell state the app is in, and what each shell action does.
+    /// </summary>
+    /// <remarks>
+    /// Title, pause and results are no longer drawn here. They are full-screen UI Toolkit
+    /// compositions in <see cref="UI.ShellScreenView"/>, and this component drives that view and
+    /// receives its taps through <see cref="IShellScreenActions"/>. What stays in IMGUI is the
+    /// second rank of panels — READY, HOW TO PLAY, SETTINGS, the opening build countdown and the
+    /// live pause/reset rail — because those are not the screens this pass was asked to replace and
+    /// migrating them would have meant migrating the whole HUD with them.
+    ///
+    /// The split does not move the decision anywhere. This component still computes the session
+    /// state, still publishes <see cref="RuntimeUiChrome.ModalScreenActive"/> from it, and still
+    /// performs every action; the view only renders and reports. Principle 3 of
+    /// docs/GAME_MENU_AND_RUNTIME_FLOW.md — opening a menu must not mutate simulation state — is
+    /// therefore still enforced in one place.
+    /// </remarks>
+    public sealed class LocalSessionFlowOverlay : MonoBehaviour, IShellScreenActions
     {
         private static readonly Color Cloud = new Color(0.957f, 0.969f, 1f, 1f);
         private static readonly Color MutedCloud = new Color(0.62f, 0.72f, 0.88f, 1f);
@@ -17,6 +34,7 @@ namespace LTW.UnityClient.Simulation
 
         private UnitySimulationDriver simulationDriver = null!;
         private LocalPlaytestRecorder? playtestRecorder;
+        private ShellScreenView? shellScreens;
         private GUIStyle? buttonStyle;
         private GUIStyle? titleStyle;
         private GUIStyle? subtitleStyle;
@@ -32,10 +50,12 @@ namespace LTW.UnityClient.Simulation
             HowTo
         }
 
-        public void Initialize(UnitySimulationDriver driver, LocalPlaytestRecorder recorder)
+        public void Initialize(UnitySimulationDriver driver, LocalPlaytestRecorder recorder, ShellScreenView? shellScreenView = null)
         {
             simulationDriver = driver;
             playtestRecorder = recorder;
+            shellScreens = shellScreenView;
+            shellScreens?.Initialize(driver, this);
         }
 
         /// <summary>
@@ -59,12 +79,55 @@ namespace LTW.UnityClient.Simulation
         private void Update()
         {
             RuntimeUiChrome.ModalScreenActive = simulationDriver is not null && OwnsDisplay;
+
+            // Driven from the same Update that publishes modality, off the same state, so the
+            // rendered screen and the input gate cannot disagree for a frame.
+            shellScreens?.Show(ActiveShellScreen);
         }
 
         private void OnDisable()
         {
             // Otherwise a disabled overlay leaves the HUD permanently suppressed.
             RuntimeUiChrome.ModalScreenActive = false;
+            shellScreens?.Show(ShellScreen.None);
+        }
+
+        /// <summary>
+        /// Which full-screen shell composition should be up this frame, if any.
+        /// </summary>
+        /// <remarks>
+        /// Deliberately a narrower question than <see cref="OwnsDisplay"/>, and the two are not
+        /// interchangeable. READY, HOW TO PLAY, SETTINGS and the opening build countdown are all
+        /// still IMGUI, so they own the display without a UI Toolkit screen behind them; the tests
+        /// below are ordered to match <see cref="OnGUI"/> exactly so the two can never disagree
+        /// about which state is active.
+        ///
+        /// SETTINGS is the one case where a shell screen stays up underneath: the IMGUI settings
+        /// panel draws over the runtime panel, so leaving the title or pause composition behind it
+        /// keeps the app in the place the player opened settings from instead of dropping them onto
+        /// a dimmed board for the duration.
+        /// </remarks>
+        private ShellScreen ActiveShellScreen
+        {
+            get
+            {
+                if (simulationDriver is null || simulationDriver.IsOpeningBuildCountdown)
+                {
+                    return ShellScreen.None;
+                }
+
+                if (simulationDriver.LatestMatchSummary is not null)
+                {
+                    return ShellScreen.Results;
+                }
+
+                if (!simulationDriver.HasStarted)
+                {
+                    return preMatchScreen == PreMatchScreen.Title ? ShellScreen.Title : ShellScreen.None;
+                }
+
+                return simulationDriver.IsPaused ? ShellScreen.Pause : ShellScreen.None;
+            }
         }
 
         /// <summary>
@@ -126,22 +189,21 @@ namespace LTW.UnityClient.Simulation
                 return;
             }
 
+            // Results, title and pause are full-screen UI Toolkit compositions now. They paint
+            // their own field, so there is no scrim to draw and nothing for IMGUI to add here.
             if (simulationDriver.LatestMatchSummary is not null)
             {
-                RuntimeUiChrome.DrawModalScrim();
-                DrawResultsPanel(scale);
                 return;
             }
 
             if (!simulationDriver.HasStarted)
             {
-                RuntimeUiChrome.DrawModalScrim();
-
                 if (preMatchScreen == PreMatchScreen.Title)
                 {
-                    DrawTitlePanel(scale);
                     return;
                 }
+
+                RuntimeUiChrome.DrawModalScrim();
 
                 if (preMatchScreen == PreMatchScreen.HowTo)
                 {
@@ -155,61 +217,12 @@ namespace LTW.UnityClient.Simulation
 
             if (simulationDriver.IsPaused)
             {
-                RuntimeUiChrome.DrawModalScrim();
-                DrawPausePanel(scale);
                 return;
             }
 
             // The live rail is the one state that is NOT modal — it sits alongside the HUD during
             // play rather than taking the screen, so it gets no scrim and blocks nothing.
             DrawLiveRail(scale);
-        }
-
-        private void DrawTitlePanel(float scale)
-        {
-            var panel = CenteredPanel(scale, 348f, 284f);
-            DrawPanel(panel, scale);
-
-            DrawLabel(panel.x + 22f * scale, panel.y + 20f * scale, panel.width - 44f * scale, 32f * scale, "LINE WARDS", titleStyle!, TextAnchor.MiddleCenter);
-            DrawLabel(panel.x + 22f * scale, panel.y + 54f * scale, panel.width - 44f * scale, 22f * scale, "EIGHT-LANE TOWER DUEL", subtitleStyle!, TextAnchor.MiddleCenter);
-            DrawLabel(
-                panel.x + 30f * scale,
-                panel.y + 88f * scale,
-                panel.width - 60f * scale,
-                48f * scale,
-                "Build defenses, send pressure, and read the rotating lane war before it overruns you.",
-                bodyStyle!,
-                TextAnchor.MiddleCenter);
-
-            var buttonWidth = 126f * scale;
-            var buttonHeight = 30f * scale;
-            var gap = 8f * scale;
-            var leftX = panel.center.x - buttonWidth - gap * 0.5f;
-            var rightX = panel.center.x + gap * 0.5f;
-            var topY = panel.yMax - 108f * scale;
-
-            if (DrawButton(new Rect(leftX, topY, buttonWidth, buttonHeight), "START GAME", MintSignal, scale))
-            {
-                ResetToReady();
-                simulationDriver.BeginOpeningBuildCountdown();
-            }
-
-            if (DrawButton(new Rect(rightX, topY, buttonWidth, buttonHeight), "HOW TO PLAY", SignalGold, scale, 10f))
-            {
-                preMatchScreen = PreMatchScreen.HowTo;
-            }
-
-            if (DrawButton(new Rect(leftX, topY + buttonHeight + gap, buttonWidth, buttonHeight), "SETTINGS", ArcaneBlue, scale))
-            {
-                showSettings = true;
-            }
-
-            if (DrawButton(new Rect(rightX, topY + buttonHeight + gap, buttonWidth, buttonHeight), "QUIT", WarningRose, scale))
-            {
-                QuitGame();
-            }
-
-            DrawLabel(panel.x + 22f * scale, panel.yMax - 26f * scale, panel.width - 44f * scale, 16f * scale, "Prototype local vertical slice", smallStyle!, TextAnchor.MiddleCenter);
         }
 
         private void DrawHowToPanel(float scale)
@@ -287,43 +300,6 @@ namespace LTW.UnityClient.Simulation
             }
         }
 
-        private void DrawPausePanel(float scale)
-        {
-            var panel = CenteredPanel(scale, 316f, 224f);
-            DrawPanel(panel, scale);
-
-            DrawLabel(panel.x + 22f * scale, panel.y + 20f * scale, panel.width - 44f * scale, 28f * scale, "PAUSED", titleStyle!, TextAnchor.MiddleCenter);
-            DrawLabel(panel.x + 26f * scale, panel.y + 58f * scale, panel.width - 52f * scale, 36f * scale, "Take a breath. The lanes are holding.", bodyStyle!, TextAnchor.MiddleCenter);
-
-            var buttonWidth = 112f * scale;
-            var buttonHeight = 30f * scale;
-            var gap = 8f * scale;
-            var rowY = panel.yMax - 82f * scale;
-            var startX = panel.center.x - buttonWidth - gap * 0.5f;
-
-            if (DrawButton(new Rect(startX, rowY, buttonWidth, buttonHeight), "RESUME", MintSignal, scale))
-            {
-                simulationDriver.TogglePause();
-            }
-
-            if (DrawButton(new Rect(startX + buttonWidth + gap, rowY, buttonWidth, buttonHeight), "SETTINGS", ArcaneBlue, scale))
-            {
-                showSettings = true;
-            }
-
-            var lowerWidth = 92f * scale;
-            var lowerY = rowY + buttonHeight + gap;
-            if (DrawButton(new Rect(panel.center.x - lowerWidth - gap * 0.5f, lowerY, lowerWidth, 24f * scale), "RESET", WarningRose, scale, 10f))
-            {
-                ResetToReady();
-            }
-
-            if (DrawButton(new Rect(panel.center.x + gap * 0.5f, lowerY, lowerWidth, 24f * scale), "MENU", Cloud, scale, 10f))
-            {
-                ResetToTitle();
-            }
-        }
-
         private void DrawBuildCountdownPanel(float scale)
         {
             var frame = MobileViewportLayout.ScreenRect();
@@ -350,41 +326,6 @@ namespace LTW.UnityClient.Simulation
             }
 
             if (DrawButton(new Rect(startX + buttonWidth + gap, rowY, buttonWidth, buttonHeight), "MENU", Cloud, scale, 9f))
-            {
-                ResetToTitle();
-            }
-        }
-
-        private void DrawResultsPanel(float scale)
-        {
-            var frame = MobileViewportLayout.ScreenRect();
-            var margin = MobileViewportLayout.EdgeMargin(scale);
-            var width = Mathf.Min(304f * scale, frame.width - margin * 2f);
-            var height = 94f * scale;
-            var panel = new Rect(frame.center.x - width * 0.5f, frame.yMax - height - margin, width, height);
-            DrawPanel(panel, scale);
-
-            DrawLabel(panel.x + 18f * scale, panel.y + 10f * scale, panel.width - 36f * scale, 22f * scale, "MATCH COMPLETE", subtitleStyle!, TextAnchor.MiddleCenter);
-            DrawLabel(panel.x + 22f * scale, panel.y + 30f * scale, panel.width - 44f * scale, 18f * scale, "Use the scoreboard above, then choose the next run.", bodyStyle!, TextAnchor.MiddleCenter);
-
-            var buttonWidth = 84f * scale;
-            var buttonHeight = 30f * scale;
-            var gap = 6f * scale;
-            var rowY = panel.yMax - 38f * scale;
-            var startX = panel.center.x - buttonWidth * 1.5f - gap;
-
-            if (DrawButton(new Rect(startX, rowY, buttonWidth, buttonHeight), "REMATCH", MintSignal, scale))
-            {
-                ResetToReady();
-                simulationDriver.BeginOpeningBuildCountdown();
-            }
-
-            if (DrawButton(new Rect(startX + buttonWidth + gap, rowY, buttonWidth, buttonHeight), "SETTINGS", ArcaneBlue, scale))
-            {
-                showSettings = true;
-            }
-
-            if (DrawButton(new Rect(startX + (buttonWidth + gap) * 2f, rowY, buttonWidth, buttonHeight), "MENU", Cloud, scale))
             {
                 ResetToTitle();
             }
@@ -513,7 +454,59 @@ namespace LTW.UnityClient.Simulation
             return RuntimeUiChrome.DrawPanelButton(rect, label, accent, scale, buttonStyle);
         }
 
-        private void ResetToReady()
+        // ------------------------------------------------------------ IShellScreenActions
+        //
+        // Every one of these is the body the corresponding IMGUI button used to run, unchanged.
+        // The shell screens moved to UI Toolkit; what the buttons do did not, which is the point:
+        // START GAME still resets to READY and then opens the build countdown, REMATCH does the
+        // same pair, RESET still resets, MENU still returns to the title.
+
+        /// <summary>Title: START GAME.</summary>
+        public void StartGame()
+        {
+            ResetToReady();
+            simulationDriver.BeginOpeningBuildCountdown();
+        }
+
+        /// <summary>Title: HOW TO PLAY. Still an IMGUI panel — not in this pass's scope.</summary>
+        public void ShowHowToPlay()
+        {
+            preMatchScreen = PreMatchScreen.HowTo;
+        }
+
+        /// <summary>Title, pause and results: SETTINGS. Still an IMGUI panel.</summary>
+        public void OpenSettings()
+        {
+            showSettings = true;
+        }
+
+        /// <summary>Pause: RESUME.</summary>
+        public void ResumeMatch()
+        {
+            simulationDriver.TogglePause();
+        }
+
+        /// <summary>Results: REMATCH. The same pair of calls as <see cref="StartGame"/>.</summary>
+        public void Rematch()
+        {
+            ResetToReady();
+            simulationDriver.BeginOpeningBuildCountdown();
+        }
+
+        /// <summary>Pause and results: EXIT TO TITLE.</summary>
+        public void ReturnToTitle()
+        {
+            ResetToTitle();
+        }
+
+        /// <summary>Title: QUIT.</summary>
+        public void QuitGame()
+        {
+            QuitApplication();
+        }
+
+        /// <summary>Pause: RESET MATCH. Public because the shell screens call it.</summary>
+        public void ResetToReady()
         {
             showSettings = false;
             preMatchScreen = PreMatchScreen.Ready;
@@ -529,7 +522,7 @@ namespace LTW.UnityClient.Simulation
             playtestRecorder?.ResetRecorder();
         }
 
-        private static void QuitGame()
+        private static void QuitApplication()
         {
 #if UNITY_EDITOR
             UnityEditor.EditorApplication.isPlaying = false;

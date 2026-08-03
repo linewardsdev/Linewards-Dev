@@ -43,6 +43,8 @@ namespace LTW.UnityClient.Editor
         private static int shot;
         private static double startedAt;
         private static double nextShotAt;
+        private static bool setupDone;
+        private static EditorWindow gameView;
         private static bool previousPlayModeOptionsEnabled;
         private static EnterPlayModeOptions previousPlayModeOptions;
 
@@ -83,11 +85,32 @@ namespace LTW.UnityClient.Editor
             // and "cannot be open" look identical in a single frame; this is the shot that tells
             // them apart, and it is the half of item 31 that was actually about input gating.
             ("real-12-eliminated-reopen-refused", ForcePanelsOpenWhileEliminated),
+            // ---------------------------------------------------------------- shell screens
+            // The three full-screen UI Toolkit compositions. They come last because each one
+            // resets or ends the match, which would take the board out from under every shot
+            // above; within the group they run live -> results -> title, so the pause shot still
+            // has a populated board behind its veil and the title shot can reset freely.
+            ("real-13-shell-pause", ShowPausedMatch),
+            ("real-14-shell-results-defeat", ShowResultsWithLocalSeatBeaten),
+            ("real-15-shell-results-victory", ShowResultsWithLocalSeatWinning),
+            ("real-16-shell-title", ShowTitle),
+            // Settings is still IMGUI and is reachable from all three shell screens, so this is
+            // the shot that says whether an IMGUI panel lands over or under a runtime UI Toolkit
+            // panel. If it lands under, the shell has to stand down while settings is open.
+            ("real-17-settings-over-title", ShowSettingsOverTitle),
         };
 
         /// <summary>The portrait surface the HUD is authored against, matching MotionCaptureRunner.</summary>
         private const int CaptureWidth = 1080;
         private const int CaptureHeight = 1920;
+
+        /// <summary>Seconds between a shot's setup and its capture, so transitions can finish.</summary>
+        /// <remarks>
+        /// 0.6 comfortably clears the shell screens' 200ms fade and 280ms lift with room for the
+        /// frame the class change lands on. Long enough to photograph the settled state; short
+        /// enough that seventeen shots still run in under a minute.
+        /// </remarks>
+        private const double SettleSeconds = 0.6d;
 
         public static void Run()
         {
@@ -95,7 +118,10 @@ namespace LTW.UnityClient.Editor
             Directory.CreateDirectory(outputDirectory);
             shot = 0;
             seeded = false;
+            setupDone = false;
             running = true;
+
+            PinGameViewToPortrait();
 
             // Declare the portrait surface the UI is designed for, exactly as MotionCaptureRunner
             // and VisualReviewCaptureRunner already do. Without it the HUD lays out against the raw
@@ -123,6 +149,102 @@ namespace LTW.UnityClient.Editor
             EditorApplication.update -= Tick;
             EditorApplication.update += Tick;
         }
+
+        /// <summary>
+        /// Forces the Game view itself to 1080x1920, rather than only telling the HUD it is.
+        /// </summary>
+        /// <remarks>
+        /// <see cref="MobileViewportLayout.SetCaptureViewportOverride"/> makes IMGUI lay out as if
+        /// the surface were portrait, and for a long time that was enough, because IMGUI is the only
+        /// thing that reads it. It is not enough any more. A UI Toolkit panel scales against the real
+        /// <c>Screen</c>, so on a maximised 3840x2160 editor Game view the shell screens compose
+        /// themselves for a 16:9 landscape display while the HUD next to them composes for a
+        /// portrait phone — one capture, two different surfaces, and neither of them the product.
+        ///
+        /// Pinning the Game view makes the declared surface and the real one the same thing, which
+        /// also retires the discrepancy for the existing shots: they stop being portrait panels
+        /// anchored in the corner of a landscape canvas and become an actual phone frame.
+        ///
+        /// Reflection, because <c>GameViewSizes</c> and <c>GameView</c> are both editor-internal.
+        /// It reports rather than throws if the shape ever changes — a landscape capture is a
+        /// degraded capture, not a failed run, and the size is logged with every shot so a reviewer
+        /// can see which they are looking at.
+        /// </remarks>
+        private static void PinGameViewToPortrait()
+        {
+            try
+            {
+                var editorAssembly = typeof(EditorWindow).Assembly;
+                var sizesType = editorAssembly.GetType("UnityEditor.GameViewSizes");
+                var sizeType = editorAssembly.GetType("UnityEditor.GameViewSize");
+                var sizeKindType = editorAssembly.GetType("UnityEditor.GameViewSizeType");
+                var gameViewType = editorAssembly.GetType("UnityEditor.GameView");
+                if (sizesType == null || sizeType == null || sizeKindType == null || gameViewType == null)
+                {
+                    Debug.LogWarning("REALUI could not reach the Game view size API; capturing at the editor's own size.");
+                    return;
+                }
+
+                var singleton = typeof(ScriptableSingleton<>).MakeGenericType(sizesType);
+                var instance = singleton.GetProperty("instance", BindingFlags.Public | BindingFlags.Static)?.GetValue(null);
+                var group = sizesType.GetProperty("currentGroup")?.GetValue(instance);
+                if (group == null)
+                {
+                    Debug.LogWarning("REALUI could not reach the current Game view size group.");
+                    return;
+                }
+
+                var groupType = group.GetType();
+                var constructor = sizeType.GetConstructor(new[] { sizeKindType, typeof(int), typeof(int), typeof(string) });
+                var size = constructor?.Invoke(new[]
+                {
+                    System.Enum.Parse(sizeKindType, "FixedResolution"), CaptureWidth, CaptureHeight, (object)PortraitSizeName
+                });
+                if (size == null)
+                {
+                    Debug.LogWarning("REALUI could not build a fixed-resolution Game view size.");
+                    return;
+                }
+
+                // Re-added every run rather than reused: the custom size list is a persisted editor
+                // preference, and a stale entry from an older run is exactly the kind of thing that
+                // silently captures at the wrong resolution months later.
+                var total = (int)groupType.GetMethod("GetTotalCount").Invoke(group, null);
+                var builtin = (int)groupType.GetMethod("GetBuiltinCount").Invoke(group, null);
+                for (var index = total - 1; index >= builtin; index--)
+                {
+                    var existing = groupType.GetMethod("GetGameViewSize").Invoke(group, new object[] { index });
+                    var name = sizeType.GetProperty("baseText")?.GetValue(existing) as string;
+                    if (name == PortraitSizeName)
+                    {
+                        groupType.GetMethod("RemoveCustomSize").Invoke(group, new object[] { index });
+                    }
+                }
+
+                groupType.GetMethod("AddCustomSize").Invoke(group, new[] { size });
+                var selected = (int)groupType.GetMethod("GetTotalCount").Invoke(group, null) - 1;
+
+                gameView = EditorWindow.GetWindow(gameViewType, false, "Game", true);
+                gameViewType
+                    .GetMethod("SizeSelectionCallback", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
+                    ?.Invoke(gameView, new object[] { selected, null });
+
+                // Maximised so nothing docked alongside it can take the tab. A run was lost to
+                // exactly that: the AI Assistant package raised a window mid-run, the Game view
+                // stopped being the visible tab, and seven ScreenCapture calls logged success and
+                // wrote no files at all — the same silent failure -batchmode produces.
+                gameView.maximized = true;
+                gameView.Repaint();
+
+                Debug.Log($"REALUI pinned the Game view to {CaptureWidth}x{CaptureHeight} (size index {selected}).");
+            }
+            catch (System.Exception exception)
+            {
+                Debug.LogWarning($"REALUI could not pin the Game view: {exception.Message}");
+            }
+        }
+
+        private const string PortraitSizeName = "LTW Portrait 1080x1920";
 
         private static void Tick()
         {
@@ -159,16 +281,39 @@ namespace LTW.UnityClient.Editor
             }
 
             var entry = Shots[shot];
-            entry.Setup?.Invoke();
+
+            // Setup runs a beat BEFORE the shot, which is what the comment on Shots always claimed
+            // and what the code never did. It captured in the same editor tick the setup ran in, so
+            // anything that needs a frame to become visible was photographed before it did.
+            //
+            // Nothing caught that while the UI was entirely IMGUI, because IMGUI is immediate: a
+            // panel drawn from state set microseconds earlier is already on screen. It stopped being
+            // true the moment a screen had an enter transition — the first UI Toolkit shell captures
+            // came back showing an empty board, because a 200ms fade had not started yet.
+            if (!setupDone)
+            {
+                entry.Setup?.Invoke();
+                setupDone = true;
+                nextShotAt = EditorApplication.timeSinceStartup + SettleSeconds;
+                return;
+            }
+
+            // Re-asserted per shot rather than once at the start, for the same reason it is
+            // maximised: ScreenCapture reads the presented frame, so a Game view that is not the
+            // front tab produces no frame and no error.
+            if (gameView != null)
+            {
+                gameView.Focus();
+            }
 
             var path = Path.Combine(outputDirectory, entry.Name + ".png");
             ScreenCapture.CaptureScreenshot(path);
             Debug.Log($"REALUI captured {entry.Name} -> {path}");
 
             shot++;
-            // ScreenCapture writes at end of frame; leave room for the file to land and for any
-            // setup action to be reflected in the next frame's UI.
-            nextShotAt = EditorApplication.timeSinceStartup + 2.5d;
+            setupDone = false;
+            // ScreenCapture writes at end of frame; leave room for the file to land.
+            nextShotAt = EditorApplication.timeSinceStartup + 1.5d;
         }
 
         private static bool Seed()
@@ -487,6 +632,140 @@ namespace LTW.UnityClient.Editor
             Debug.Log($"REALUI forced panels open while eliminated; paletteExpanded={touch.IsTowerPaletteExpanded} dockExpanded={dock.IsExpanded}");
         }
 
+        private static LocalSessionFlowOverlay Overlay() => Object.FindAnyObjectByType<LocalSessionFlowOverlay>();
+
+        private static UnitySimulationDriver Driver() => Object.FindAnyObjectByType<UnitySimulationDriver>();
+
+        /// <summary>
+        /// A clean, populated, running board — then paused, so the pause screen has something real
+        /// behind its veil.
+        /// </summary>
+        /// <remarks>
+        /// Rebuilt rather than inherited from the shots above. Shot 11 eliminates the local seat and
+        /// wipes its lane, so continuing from there would capture the pause screen over an empty
+        /// half-board reporting zero lives — a picture of a state a player would almost never pause
+        /// in, which is not what this shot is for.
+        /// </remarks>
+        private static void ShowPausedMatch()
+        {
+            var driver = Driver();
+            var sim = Simulation();
+            var touch = Object.FindAnyObjectByType<TouchPlacementController>();
+            var dock = Dock();
+            if (driver == null || sim == null)
+            {
+                Debug.LogWarning("REALUI could not reach the driver/simulation for the pause shot");
+                return;
+            }
+
+            if (touch != null)
+            {
+                SetPrivate(touch, "isPaletteExpanded", false);
+                SetPrivate(touch, "selectedTower", null);
+            }
+
+            if (dock != null)
+            {
+                SetPrivate(dock, "isExpanded", false);
+            }
+
+            driver.ResetMatch();
+            driver.StartMatch();
+            sim.GrantLocalPlaytestGold(sim.LocalPlayerId, new Gold(4000));
+
+            var lane = sim.LocalPlayerLaneId;
+            foreach (var cell in new[] { new GridPosition(1, 5), new GridPosition(3, 5), new GridPosition(2, 8), new GridPosition(4, 9) })
+            {
+                sim.PlaceTower(sim.LocalPlayerId, lane, SampleVerticalSliceContent.TowerId, cell);
+            }
+
+            // Long enough for the bots to open and for creeps to be walking somewhere.
+            for (var index = 0; index < 160; index++)
+            {
+                sim.AdvanceOneTick();
+            }
+
+            driver.RefreshSnapshot(drainEvents: true);
+            driver.PauseMatch();
+        }
+
+        private static void ShowResultsWithLocalSeatBeaten() => ForceMatchEnd(localSeatWins: false);
+
+        private static void ShowResultsWithLocalSeatWinning() => ForceMatchEnd(localSeatWins: true);
+
+        /// <summary>
+        /// Ends the match by taking every seat but one, so the results screen has a real summary.
+        /// </summary>
+        /// <remarks>
+        /// Both outcomes are captured because the headline is the one place on that screen where the
+        /// composition changes rather than the numbers: VICTORY is gold and DEFEAT is cloud, and a
+        /// single shot would only ever show one of them. The state is produced through
+        /// <c>EliminateForLocalPlaytest</c> and a real tick — the same path a leak takes — rather
+        /// than by writing a MatchSummary into the driver, so what is captured is a state the game
+        /// can actually be in.
+        /// </remarks>
+        private static void ForceMatchEnd(bool localSeatWins)
+        {
+            var driver = Driver();
+            var sim = Simulation();
+            if (driver == null || sim == null)
+            {
+                Debug.LogWarning("REALUI could not reach the driver/simulation for the results shot");
+                return;
+            }
+
+            driver.ResetMatch();
+            driver.StartMatch();
+
+            var seats = sim.GetSnapshot().Players.Players.Select(player => player.PlayerId).ToList();
+            var survivor = localSeatWins
+                ? sim.LocalPlayerId
+                : seats.FirstOrDefault(seat => !seat.Equals(sim.LocalPlayerId));
+
+            // A few ticks of real play first, so the scoreboard carries gold and income that the
+            // match produced rather than eight identical starting rows.
+            for (var index = 0; index < 120; index++)
+            {
+                sim.AdvanceOneTick();
+            }
+
+            foreach (var seat in seats.Where(seat => !seat.Equals(survivor)))
+            {
+                sim.EliminateForLocalPlaytest(seat);
+            }
+
+            // The summary is created during a tick, not by the elimination itself.
+            sim.AdvanceOneTick();
+            driver.RefreshSnapshot(drainEvents: true);
+
+            Debug.Log(
+                $"REALUI forced match end: survivor=P{survivor.Value} localWins={localSeatWins} " +
+                $"summary={(driver.LatestMatchSummary is null ? "NULL" : $"winner P{driver.LatestMatchSummary.WinnerId.Value} at T{driver.LatestMatchSummary.CompletedAtTick.Value}")}");
+        }
+
+        private static void ShowTitle()
+        {
+            var overlay = Overlay();
+            if (overlay == null)
+            {
+                Debug.LogWarning("REALUI no LocalSessionFlowOverlay found for the title shot");
+                return;
+            }
+
+            overlay.ReturnToTitle();
+        }
+
+        private static void ShowSettingsOverTitle()
+        {
+            var overlay = Overlay();
+            if (overlay == null)
+            {
+                return;
+            }
+
+            overlay.OpenSettings();
+        }
+
         /// <summary>The live simulation behind the command adapter, or null if it is not up yet.</summary>
         private static LocalVerticalSlice Simulation()
         {
@@ -546,7 +825,15 @@ namespace LTW.UnityClient.Editor
             EditorSettings.enterPlayModeOptionsEnabled = previousPlayModeOptionsEnabled;
             EditorSettings.enterPlayModeOptions = previousPlayModeOptions;
 
-            Debug.Log($"REALUI DONE shots={shot} dir={outputDirectory}");
+            var written = Directory.Exists(outputDirectory) ? Directory.GetFiles(outputDirectory, "*.png").Length : 0;
+            if (error == null && written < Shots.Length)
+            {
+                Debug.LogError(
+                    $"REALUI only {written} of {Shots.Length} screenshots reached disk. ScreenCapture " +
+                    "reports nothing when the Game view is not presenting, so this is the only place it shows.");
+            }
+
+            Debug.Log($"REALUI DONE shots={shot} written={written} dir={outputDirectory}");
 
             // Exiting the process while still in play mode leaves a Temp/__Backupscenes entry
             // behind, and the next editor launch restores that backup instead of the real scene —
