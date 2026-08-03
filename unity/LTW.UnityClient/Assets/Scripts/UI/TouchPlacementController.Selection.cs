@@ -72,7 +72,12 @@ namespace LTW.UnityClient.UI
                 HideSelectionRing();
             }
 
-            var snapshot = simulationDriver?.LatestSnapshot;
+            if (simulationDriver == null)
+            {
+                return false;
+            }
+
+            var snapshot = simulationDriver.LatestSnapshot;
             if (snapshot is null)
             {
                 return false;

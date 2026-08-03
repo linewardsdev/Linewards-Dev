@@ -100,7 +100,7 @@ namespace LTW.UnityClient.Simulation
             {
                 label = textObject.AddComponent<TMPro.TextMeshPro>();
                 label.alignment = TMPro.TextAlignmentOptions.Center;
-                label.enableWordWrapping = false;
+                label.textWrappingMode = TMPro.TextWrappingModes.NoWrap;
                 label.fontSize = 3.4f;
                 label.raycastTarget = false;
                 // The outline is the whole point of moving to SDF: board text sits over lane
@@ -687,46 +687,6 @@ namespace LTW.UnityClient.Simulation
             // shows. The sender-side SEND cue and the gate effect still mark the event.
             SpawnReducedEffectCue(defenderPosition, "SEND", color);
             PlaySound(sendClip);
-        }
-
-        private static string SpawnLabel(string creepId)
-        {
-            if (ContainsRole(creepId, "brute") || ContainsRole(creepId, "tank"))
-            {
-                return "BRUTE";
-            }
-
-            if (ContainsRole(creepId, "swarm"))
-            {
-                return "SWARM";
-            }
-
-            if (ContainsRole(creepId, "boss"))
-            {
-                return "BOSS";
-            }
-
-            if (ContainsRole(creepId, "flying") || ContainsRole(creepId, "air"))
-            {
-                return "AIR";
-            }
-
-            if (ContainsRole(creepId, "invisible") || ContainsRole(creepId, "stealth"))
-            {
-                return "STEALTH";
-            }
-
-            if (ContainsRole(creepId, "attacker") || ContainsRole(creepId, "siege"))
-            {
-                return "SIEGE";
-            }
-
-            if (ContainsRole(creepId, "aura") || ContainsRole(creepId, "support"))
-            {
-                return "AURA";
-            }
-
-            return "RUNNER";
         }
 
         /// <summary>One animating board label: where it started, when, and for how long.</summary>
