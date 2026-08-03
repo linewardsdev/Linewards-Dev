@@ -217,13 +217,21 @@ namespace LTW.UnityClient.Simulation
             }
         }
 
-        private void SpawnCreepArrivalCue(int laneId, Color color)
-        {
-            var spawn = SpawnPosition(laneId);
-            SpawnCellFrameCue(spawn, color, 0.22f);
-            SpawnBeam(spawn + new Vector3(-0.54f, 0.22f, 0.54f), spawn + new Vector3(0.54f, 0.22f, -0.54f), color, 0.18f);
-            SpawnBeam(spawn + new Vector3(0.54f, 0.22f, 0.54f), spawn + new Vector3(-0.54f, 0.22f, -0.54f), color, 0.18f);
-        }
+        /// <summary>Marks the gate cell a creep has just walked into.</summary>
+        /// <remarks>
+        /// The frame is the whole cue. It used to also draw two beams across the diagonals, and a
+        /// square outline with an X through it is the single most recognisable "this asset failed
+        /// to load" glyph there is — it was reported as one. The diagonals reached ±0.54 against a
+        /// cell about a unit across, so the X overhung the frame it was drawn in and read as a
+        /// symbol stamped on the board rather than as anything happening in the world.
+        ///
+        /// Nothing is lost by dropping them: the caller already raises a <c>BurstShape.Rise</c> at
+        /// the same position, which is the part that reads as an arrival, and the frame still says
+        /// which cell. Two overlapping tells for one event, one of which looked like an error, is
+        /// how the board ended up feeling marked up.
+        /// </remarks>
+        private void SpawnCreepArrivalCue(int laneId, Color color) =>
+            SpawnCellFrameCue(SpawnPosition(laneId), color, 0.22f);
 
         /// <summary>
         /// All the offsets below are expressed relative to the tower's base — the same numeric
