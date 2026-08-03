@@ -44,6 +44,19 @@ namespace LTW.UnityClient.Simulation
         private readonly List<ExpandingRingEffect> activeShockwaveRings = new List<ExpandingRingEffect>();
         private readonly List<MortarShellEffect> activeMortarShells = new List<MortarShellEffect>();
         private readonly Dictionary<long, GameObject> towerMechanicMarkers = new Dictionary<long, GameObject>();
+
+        /// <summary>One decal per braked cell, keyed by lane and cell rather than by tower.</summary>
+        /// <remarks>
+        /// Keyed by CELL because that is what the mechanic is: two thorn towers whose coverage
+        /// overlaps brake the shared cell once, and keying by tower would stack two decals on it and
+        /// draw it twice as dense for no mechanical reason. The simulation already de-duplicates by
+        /// route index for the same reason; this keeps the drawing honest to that.
+        /// </remarks>
+        private readonly Dictionary<long, GameObject> brambleCellDecals = new Dictionary<long, GameObject>();
+
+        private readonly HashSet<long> liveBrambleCells = new HashSet<long>();
+
+        private readonly List<long> staleBrambleCells = new List<long>();
         // Keyed by the SERVICED tower's id, not the drone's — a tower can have at most one tether
         // regardless of how many drones are adjacent to it (see UpdateTowerServicingTether), so this
         // stays a strict one-per-tower dictionary just like towerMechanicMarkers above. Kept separate
@@ -365,11 +378,10 @@ namespace LTW.UnityClient.Simulation
             var centre = GridToWorld(position, laneId);
             if (isThorn)
             {
-                // Sized to the braked span rather than to the tower: BrambleZoneCells in the
-                // simulation is 3, and the zone starts at the first route cell in range.
-                marker.transform.position = new Vector3(centre.x, BoardTopY + SpanningDecalLift, centre.z);
-                marker.transform.localScale = new Vector3(BrambleMarkerScale, 1f, BrambleMarkerScale);
-                SetColor(marker, BrambleMarkerColor);
+                // Thorn's zone is drawn per braked CELL by UpdateBrambleCells, from the cells the
+                // simulation reports. This marker is released rather than drawn, so the tower does
+                // not carry a second, differently-shaped claim about the same mechanic.
+                ReleaseTowerMechanicMarker(key);
                 return;
             }
 
@@ -604,6 +616,80 @@ namespace LTW.UnityClient.Simulation
             towerServicingTethers.Remove(key);
         }
 
+        /// <summary>
+        /// Draws the braked ground, one decal per cell the simulation reports as under bramble.
+        /// </summary>
+        /// <remarks>
+        /// Driven entirely by <c>snapshot.BrambleCells</c>, which is resolved through the same
+        /// <c>BuildBrambleZones</c> that halves creep pace — so the ground drawn and the ground that
+        /// brakes are the same set by construction, and a test asserts they agree every tick. The
+        /// previous per-tower disc computed its own footprint and had already drifted from the rule.
+        ///
+        /// Cells no longer braked are released each frame, so selling a Thorn Snare or re-mazing a
+        /// lane clears its ground immediately rather than leaving decals over cells that no longer
+        /// slow anything.
+        /// </remarks>
+        private void UpdateBrambleCells(LTW.Simulation.Bridge.VerticalSliceSnapshot snapshot)
+        {
+            liveBrambleCells.Clear();
+
+            if (!PresentationPreferences.ReducedEffects)
+            {
+                foreach (var lane in snapshot.BrambleCells)
+                {
+                    foreach (var cell in lane.Value)
+                    {
+                        var key = BrambleCellKey(lane.Key, cell);
+                        liveBrambleCells.Add(key);
+
+                        if (!brambleCellDecals.TryGetValue(key, out var decal) || decal == null)
+                        {
+                            decal = GetPooledShockwaveRing();
+                            decal.name = $"BrambleCell_{lane.Key.Value}_{cell.X}_{cell.Y}";
+                            brambleCellDecals[key] = decal;
+                        }
+
+                        var centre = GridToWorld(cell, lane.Key);
+                        decal.transform.position = new Vector3(centre.x, BoardTopY + SpanningDecalLift, centre.z);
+                        decal.transform.localScale = new Vector3(BrambleCellScale, 1f, BrambleCellScale);
+                        SetColor(decal, BrambleMarkerColor);
+                    }
+                }
+            }
+
+            if (brambleCellDecals.Count == liveBrambleCells.Count)
+            {
+                return;
+            }
+
+            // Collected into a reusable scratch list rather than a LINQ projection, because a
+            // dictionary cannot be modified while it is being enumerated and this file follows the
+            // renderer's no-LINQ-in-render-paths rule. The list is a field so a frame that releases
+            // nothing allocates nothing.
+            staleBrambleCells.Clear();
+            foreach (var existing in brambleCellDecals)
+            {
+                if (!liveBrambleCells.Contains(existing.Key))
+                {
+                    staleBrambleCells.Add(existing.Key);
+                }
+            }
+
+            foreach (var key in staleBrambleCells)
+            {
+                if (brambleCellDecals.TryGetValue(key, out var stale) && stale != null)
+                {
+                    ReleaseToPool(stale, shockwaveRingPool);
+                }
+
+                brambleCellDecals.Remove(key);
+            }
+        }
+
+        /// <summary>Lane and cell packed into one key. The board is far smaller than the 16 bits each gets.</summary>
+        private static long BrambleCellKey(LaneId laneId, GridPosition cell) =>
+            ((long)laneId.Value << 32) | ((long)(ushort)cell.X << 16) | (ushort)cell.Y;
+
         private void ReleaseTowerMechanicMarker(long key)
         {
             if (!towerMechanicMarkers.TryGetValue(key, out var marker))
@@ -805,23 +891,33 @@ namespace LTW.UnityClient.Simulation
         }
 
         /// <summary>
-        /// Bramble zone footprint, in cells. Deliberately NOT tuned for looks.
+        /// One decal per braked cell, from the cells the simulation says are braked.
         /// </summary>
         /// <remarks>
-        /// CombatService.BrambleZoneCells is 3, and the zone starts at the first route cell in range,
-        /// so this shows the braked span rather than the tower. Shrinking it to calm the visual down
-        /// would make it lie about how much lane the brake actually covers — opacity is the knob for
-        /// that, not size.
+        /// Replaces a fixed 2.6-cell disc centred on the tower, which was wrong in two ways that
+        /// compounded into the mechanic being invisible — the owner did not know the game HAD a
+        /// slowing tower.
+        ///
+        /// It was the wrong SIZE, and drifting. Its comment read "CombatService.BrambleZoneCells is
+        /// 3, and the zone starts at the first route cell in range", which stopped being true: the
+        /// cap was lifted when the maze showed 3 cells out of 52 contributed 0%, so the zone now
+        /// follows the tower's real coverage with 3 as a MINIMUM. A disc sized to the old cap
+        /// under-draws every zone bigger than it, and on a serpentine route that passes one tower
+        /// several times the real zone is several separate runs the disc cannot express at all.
+        /// That is a client-side copy of a simulation rule going stale — the exact failure this
+        /// codebase keeps recording.
+        ///
+        /// It was the wrong SHAPE, which is what forced it faint. Alpha went 0.34 -> 0.15 because a
+        /// solid disc that size read as "a purple slab over the lane". The slab was the problem, not
+        /// the opacity: a shape that covers cells the brake does not is bound to look wrong at any
+        /// alpha loud enough to notice. Per-cell decals cover only braked ground, so they can be
+        /// legible without lying — hence the higher alpha here.
         /// </remarks>
-        private const float BrambleMarkerScale = 2.6f;
+        private static readonly Color BrambleMarkerColor = new Color(0.46f, 0.26f, 0.62f, 0.34f);
 
-        /// <summary>
-        /// Alpha dropped from 0.34. The marker is 2.6 cells across, and until the decal was lifted
-        /// clear of the raised build plates most of that area was hidden under them — so 0.34 was
-        /// tuned against a fraction of the footprint that actually shows now. At full visibility the
-        /// same value read as a purple slab over the lane ("thorn ground bloom is too much").
-        /// </remarks>
-        private static readonly Color BrambleMarkerColor = new Color(0.42f, 0.24f, 0.58f, 0.15f);
+        /// <summary>A shade under a full cell, so adjacent braked cells read as a patch with texture
+        /// rather than one flat rectangle.</summary>
+        private const float BrambleCellScale = 0.92f;
         /// <summary>
         /// Alpha dropped from 0.7, for exactly the reason recorded on <see cref="BrambleMarkerColor"/>
         /// above.

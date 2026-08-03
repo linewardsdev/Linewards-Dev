@@ -324,6 +324,53 @@ public sealed class TowerMechanicTests
     }
 
     /// <summary>
+    /// The cells the client draws are exactly the cells that brake a creep.
+    /// </summary>
+    /// <remarks>
+    /// Bramble Hold was invisible until presentation was given `GetBrambleCells` and `IsBraked`, and
+    /// the risk that introduces is a decal that disagrees with the mechanic — which would look like a
+    /// deliberate design choice rather than a bug. This walks a creep the length of the lane and
+    /// asserts the two answers agree on every tick: standing on a drawn cell must mean braked, and
+    /// being braked must mean standing on a drawn cell.
+    /// </remarks>
+    [Fact]
+    public void Bramble_cells_drawn_match_the_cells_that_brake()
+    {
+        var service = new CombatService();
+        var content = Content();
+        var routes = Routes();
+
+        var towers = new[] { Tower("tower.thorn_snare", 10, x: 2, y: 8) };
+        var state = new CombatState(
+            new[] { service.SpawnCreep(new EntityId(1), Creep("creep.colossus"), Attacker, Lane) },
+            towers);
+
+        var drawn = service.GetBrambleCells(state, content, routes);
+        Assert.True(drawn.ContainsKey(Lane), "a thorn tower on the route drew no cells at all");
+        var drawnCells = drawn[Lane].ToHashSet();
+
+        var sawBraked = false;
+        for (var tick = 0; tick < 200; tick++)
+        {
+            var creep = service.GetCreepSnapshots(state, content, routes).SingleOrDefault();
+            if (creep is null)
+            {
+                break;
+            }
+
+            var standingOnDrawnCell = drawnCells.Contains(creep.Position);
+            Assert.True(
+                creep.IsBraked == standingOnDrawnCell,
+                $"tick {tick}: IsBraked={creep.IsBraked} but standing on a drawn cell={standingOnDrawnCell} at {creep.Position}");
+            sawBraked |= creep.IsBraked;
+
+            state = service.Advance(state, content, routes, new SimulationTick(tick)).State;
+        }
+
+        Assert.True(sawBraked, "the creep never entered the zone, so the agreement was never tested");
+    }
+
+    /// <summary>
     /// A route can pass a single Thorn Snare twice — near it, away, then back — which is normal on a
     /// mazed lane. BrambleZonesFor must brake each visit as its own span rather than collapsing the
     /// first and last covered indices into one span that also brakes the stretch in between where

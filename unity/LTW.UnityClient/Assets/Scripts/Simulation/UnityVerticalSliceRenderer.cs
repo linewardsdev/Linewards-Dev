@@ -374,6 +374,13 @@ namespace LTW.UnityClient.Simulation
             if (snapshotChanged)
             {
                 ReleaseMissingTowers();
+
+                // After the tower loop and gated on snapshotChanged, because the braked cells only
+                // move when the simulation does — a tower built or sold, or a lane re-mazed. Running
+                // it per frame would rebuild the same decals sixty times a second, which is the cost
+                // item 24 was opened to remove from this renderer.
+                UpdateBrambleCells(snapshot);
+
                 visibleKeys.Clear();
                 Array.Clear(pressureByLane, 0, pressureByLane.Length);
             }
