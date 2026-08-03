@@ -506,21 +506,85 @@ wrote normally to a scratch copy.
 regenerable 1024-derived ones are the art this game ships. Nothing here answers that; it only
 means a stray re-run can no longer answer it by accident.
 
-## 19. Eight of fifteen creeps have no usable emissive detail
+## 19. Nine of fifteen creeps have no usable emissive detail, and eight of those cannot be fixed by editing the map
 
-Sharper than the count in the old item 7, and measured from the maps rather than the
-materials:
+**The count was 8 and the test was wrong, corrected 2026-08-03.** The old test here was
+"0.00% of texture above quarter brightness", which is a reasonable-looking proxy and is not
+what the renderer does.
 
-- **Five have no `Baked_Emit.png` at all**: burrower, colossus, stalker, warden, zephyr.
-- **Three have one that is functionally blank** — 0.00% of texture above quarter
-  brightness: obsidianbrute (peak 0.224), revenant (0.047), shade (0.259).
+What actually reaches the screen is `linear(texel) * EmissionMultiplier`, with the multiplier
+at 1.8 and the bloom threshold at 1.05 (`CreepBodyMaterialTuning`). Inverting the sRGB transfer
+function, **a map must peak above 0.788 stored sRGB for any part of it to bloom.** That is the
+real acceptance test, and it is measurable from the files. Measured across the roster:
 
-The five without maps are left with black emission deliberately: emission with no map
-multiplies against 1 and would light the entire body uniformly, a lantern rather than a
-highlight. `CreepBodyMaterialTuning.ValidateTuning` reports them by name on every run.
+| creep | peak (sRGB) | on screen (x1.8, linear) | blooms |
+|---|---|---|---|
+| swarm | 1.000 | 1.800 | yes |
+| serpent | 0.957 | 1.628 | yes |
+| wisp | 0.910 | 1.453 | yes |
+| siege | 0.882 | 1.355 | yes |
+| brute | 0.835 | 1.198 | yes |
+| runner | 0.827 | 1.173 | yes |
+| **turretwalker** | **0.784** | **1.040** | **no — missed by 1%** |
+| shade | 0.259 | 0.098 | no |
+| obsidianbrute | 0.224 | 0.074 | no |
+| revenant | 0.047 | 0.007 | no |
+| burrower, colossus, stalker, warden, zephyr | — | — | no map at all |
 
-This is art generation, not a material fix — it needs emission maps authored or
-regenerated. Pairs with item 3, since both are "the generator was never asked for this map".
+**`ValidateTuning` structurally cannot catch this.** It reads the material's emission
+multiplier, which is 1.8 for every creep that has a map bound at all, so a correctly-bound but
+far-too-dark map passes it. It reports the five with no map and is silent on the four whose maps
+are present and useless. That is why this item had to measure from the maps rather than the
+materials, and it is worth keeping in mind before trusting that validator as a gate.
+
+**Turretwalker is the case the old test missed**, and it is the most annoying one: it has the
+richest emissive map in the game — 7.5% lit area, 72 blobs of 20px or more, largest 1933px — and
+none of it bloomed, short of the threshold by one percent. It passed the old quarter-brightness
+test comfortably (1.67% of texture above it) while failing the test that governs what renders.
+
+### Fixed: turretwalker only (`tools/art_pipeline/expose_creep_emissive.py`)
+
+A gain applied in **linear** space, not stored sRGB — a multiply on stored sRGB values is not a
+multiply on light. Turretwalker needed x1.3 to reach 0.878 stored / 1.342 on screen, matching
+Siege mid-cohort.
+
+### Not fixable this way: obsidianbrute, shade, revenant
+
+Re-exposure was tried on all three and **withdrawn after measurement**. These are 8-bit PNGs
+whose lit regions occupy the bottom of the range — peaks of 57/255, 66/255 and 12/255. The gain
+needed to lift them (x18.3, x13.7, x203.6) amplifies 8-bit quantization error along with the
+signal, and not equally across channels, so the hue of the detail shifts. Measured mean
+per-channel chromaticity drift **on the bright texels that carry the art**: obsidianbrute 0.069,
+shade 0.025, revenant 0.043 — against 0.0018 for turretwalker's accepted x1.3.
+
+The tool now measures that drift on its own quantized output and **refuses to write above 0.01**,
+so the refusal is enforced by measurement rather than by a comment. Run it and it reports which
+maps need re-baking:
+
+```
+$ python3 tools/art_pipeline/expose_creep_emissive.py --check
+obsidianbrute   REFUSED  source peaks at 57/255, so the x18.3 gain needed shifts hue by 0.0691
+shade           REFUSED  source peaks at 66/255, so the x13.7 gain needed shifts hue by 0.0252
+turretwalker    would fix  peak 0.784 -> 0.878, on-screen 1.040 -> 1.342 (x1.3, hue drift 0.0018)
+revenant        REFUSED  source peaks at 12/255, so the x203.6 gain needed shifts hue by 0.0430
+```
+
+Revenant is the worst of them and was never really a candidate: peak 0.047 with a largest
+connected blob of **5 pixels** is bake noise, not art authored too dark. It belongs with the five
+that have no map at all.
+
+### What remains: eight creeps, and it is a bake job
+
+- **Re-bake at proper exposure** (structure exists, range does not): obsidianbrute, shade.
+- **Author from scratch**: revenant, burrower, colossus, stalker, warden, zephyr.
+
+Both need the emission pass regenerated at source, which is the same generator gap as item 3 —
+"the generator was never asked for this map". The five without maps are deliberately left at
+black emission meanwhile: emission with no map multiplies against 1 and would light the entire
+body uniformly, a lantern rather than a highlight.
+
+**Acceptance test for the re-bakes, so this does not recur:** peak above 0.788 stored sRGB, and
+`expose_creep_emissive.py --check` reporting them as already blooming rather than as candidates.
 
 ## 20. The target-reference gate measures ten roles against a retired era, and twenty against nothing
 
@@ -715,6 +779,35 @@ simulation currently has an opinion on:
 Worth pairing with R1 (play the game with human hands) rather than designed from here: how
 long a defeated player actually wants to keep watching is the input this needs, and nobody
 has watched yet.
+
+## 39. Every creep body material is at smoothness 0.42 against a constant of 0.45, so the tuning validator fails roster-wide
+
+Found 2026-08-03 while validating the item 19 emissive work, and unrelated to it.
+
+`CreepBodyMaterialTuning.BodySmoothness` is `0.45f`, with a comment saying it matches
+`TowerBodyMaterialTuning.BodySmoothness` deliberately — and that one is `0.45f` too, so the
+constants agree with each other. The committed materials do not: every
+`mat_creep_*_3d_body_v01.mat` carries `_Smoothness: 0.42`.
+
+The effect is that `Line Wards/Art/Validate Creep Body Material Tuning` fails on all fifteen
+creeps, one `CREEP TUNING FAIL` line each. Confirmed from the committed files, not just a live
+editor — `git show HEAD:<mat>` gives 0.42 for brute, siege and turretwalker.
+
+The likely story is that the constant moved to 0.45 in `19650e6` ("Reconcile the tower and creep
+material split; neither cluster was the right target") and `ApplyTuning` was never re-run
+afterwards, leaving the materials on the old value.
+
+**Not fixed here, deliberately.** The fix is probably one click — run
+`Line Wards/Art/Apply Creep Body Material Tuning` and commit the fifteen materials — but it is a
+visual change across the entire creep roster made on the assumption that the constant is the
+intended value rather than the materials. Given `19650e6`'s own message says neither cluster was
+the right target, that assumption is worth an owner confirming before fifteen materials move.
+
+There is a real cost to leaving it: the validator currently fails for everyone on every run, so
+it cannot be used as a gate, and any genuine regression it catches will be lost in fifteen lines
+of expected noise.
+
+---
 
 ## 37. Two dead private methods in the renderer, found by item 25 and left there
 
