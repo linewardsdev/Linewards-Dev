@@ -862,6 +862,56 @@ Worth pairing with R1 (play the game with human hands) rather than designed from
 long a defeated player actually wants to keep watching is the input this needs, and nobody
 has watched yet.
 
+## 40. Seventeen compiler warnings in the Editor assembly, invisible unless it recompiles
+
+Filed 2026-08-03. All pre-existing — every file involved is untouched by recent work — but
+they went unnoticed for a reason worth recording: **Unity does not re-emit warnings for an
+assembly it did not recompile.** A batchmode run that only rebuilds the runtime assembly logs
+nothing from `Assets/Editor/`, so a build can look clean and not be. It was reported as clean
+in this session on exactly that basis, and that report was wrong.
+
+Three groups:
+
+- **`CS0618` `FindObjectsByType<T>(FindObjectsSortMode)` is obsolete** — six sites:
+  `MotionCaptureRunner:245`, `ShellInputCheck:214`, `TowerMotionAmplitudeProbe:258`,
+  `VisualReviewCaptureRunner:1293`, `WeaponEffectVisibilityProbe:282`. **Not a blind fix.** The
+  replacement overloads differ in whether inactive objects are included, and every one of these
+  sites is a capture or probe tool whose measurements back items elsewhere in this file. Change
+  the overload and the set of objects found can change with it, which would silently move
+  numbers that other items cite. Each needs its intended `FindObjectsInactive` stated and then
+  re-verified against a known capture.
+- **`CS8632` nullable annotation outside a `#nullable` context** — five sites in
+  `TowerMotionAmplitudeProbe` and `WeaponEffectVisibilityProbe`. Harmless and trivially fixed by
+  enabling the context or dropping the annotations.
+- **One `CS0414`** (`WeaponEffectVisibilityProbe.measuringAmbient` assigned but never used) and
+  **one `CS8604`** (`LocalPlaytestBatchRunner:429`, possible null into `ContentId`). The latter
+  is the only one that could be a real defect and is worth a look on its own.
+
+The cost of leaving it is the same as item 39's: a permanently noisy build in which a genuine
+new warning is invisible. **To see these at all, force the Editor assembly to recompile** —
+touching any file under `Assets/Editor/` is enough.
+
+---
+
+## 41. `PromoteCreep3DSet` silently overwrites committed motion styles with spec defaults
+
+Found 2026-08-03 during the wave 2.3 rig work and deliberately not shipped — the change was
+reverted out of that branch rather than carried, since it is unrelated to rigging.
+
+Running the tool resets `motionStyle` to `Auto` for zephyr, stalker, burrower, warden and
+colossus. Their spec files say `Auto`; the committed creep library says 4, 5, 2, 2 and 2. The
+tool prefers the spec and writes over the library **without reporting that it did so**.
+
+Which side is correct is the open question. If the committed values were hand-tuned after the
+specs were written, the tool destroys tuning every time anyone runs it. If the specs are
+authoritative, the library has drifted and should be reconciled. Either way a promotion tool
+silently discarding committed data is the defect, independent of which value wins: at minimum
+it should report the overwrite, and probably refuse it without an explicit flag.
+
+Same shape as item 39 — a tool and its data disagree, and the tool wins quietly.
+
+---
+
 ## 39. Every creep body material is at smoothness 0.42 against a constant of 0.45, so the tuning validator fails roster-wide
 
 Found 2026-08-03 while validating the item 19 emissive work, and unrelated to it.
