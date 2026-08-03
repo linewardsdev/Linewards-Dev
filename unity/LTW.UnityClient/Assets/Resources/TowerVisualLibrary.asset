@@ -52,7 +52,7 @@ MonoBehaviour:
   - towerId: tower.prism
     role: 4
     prefab: {fileID: 1891049805039902047, guid: ddff33573a97a4937948f0dd9c01a640, type: 3}
-    scale: {x: 0.62, y: 0.62, z: 0.62}
+    scale: {x: 0.79, y: 0.79, z: 0.79}
     lift: 0
     bodyRendererPath: BodyTintAnchor
     roleMarkerRendererPath: RoleMarker

@@ -87,7 +87,7 @@ namespace LTW.UnityClient.Editor
                 TowerVisualRole.Prism,
                 "Assets/Art/AIStaging/Models/Towers/Prism/AIDrop/prism_split_base_core_0727b.fbx",
                 Tower3DImportPipeline.RuntimePrefabFolder + "/Tower_Prism_3D.prefab",
-                new Vector3(0.62f, 0.62f, 0.62f),
+                new Vector3(0.79f, 0.79f, 0.79f),
                 0f,
                 new[] { "Muzzle", "Lens", "PrismSpire", "PrismLens", "BeamAnchor" },
                 new Vector3(0f, 0.20f, 0.38f),
