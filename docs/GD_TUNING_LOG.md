@@ -1844,3 +1844,119 @@ motivated the income ceiling in the first place — and it is not creeps driving
 665 is a sixth of the old 4,111. It is towers and their effects. Separately, the batch run now
 takes 145s against the runner's 180s timeout, and one run did time out before a clean re-run
 passed; that margin wants widening before it starts producing flaky evidence.
+
+## 2026-08-03 (art): Siege, Serpent And Runner Are Rigged — And None Of Them Had Legs
+
+OPEN_ITEMS item 11's wave 2.3. Three of the seven creeps with no armature now carry one, each
+with a single `Walk` state matching the other eight. Four remain: revenant, shade, swarm, wisp.
+
+**Item 4's rule was applied first, and it paid off in a way it did not anticipate.** The
+standing rule is "render-check from the actual game camera before investing in leg
+articulation, because the legs may be occluded". Run against the three static meshes before
+any rig was written, it found no occlusion on any of them — and found there were no legs to
+occlude:
+
+| Creep | What it actually is | Measured on the prepared mesh |
+| --- | --- | --- |
+| Siege | A four-**wheeled** armoured ram | Four discs r=0.098 on the flanks, hubs z=0.129, front pair x=-0.022 and rear x=+0.319. Both flanks agree to 0.002. |
+| Serpent | A closed **coil** | Ground band occupied at all twelve 30-degree sectors, outer radius 0.407-0.473; radial mass peaks twice (r=0.26, r=0.40). |
+| Runner | It **floats** | 52 of 7702 verts below 18% of height, forming one stalk at x [-0.070,+0.023]. Body mass starts at z=0.069. |
+
+The obvious reading of item 11 was "point `rig_quadruped_creep.py` at the next creep along".
+That would have produced three thigh-and-shin rigs for limbs that do not exist. Each creep got
+a script for its own body plan instead, following the walker's precedent of splitting out
+rather than widening a shared script: `rig_wheeled_ram.py`, `rig_coiled_serpent.py`,
+`rig_bladed_runner.py`.
+
+### Foot skate
+
+Ground speed is `SpeedPerSecond 1 / CombatService.BaseMovementCost 3` at 4 ticks/sec =
+**1.3333 world units/sec**, played at 1.00x since all three are speed 1. Worth noting against
+the walker's entry above: `BaseMovementCost` was 1 when that was written, so its 8 units/sec is
+2.667 today and its residual is nearer 2.8x than 8.3x.
+
+| | Spire Turret Walker | siege | serpent | runner |
+| --- | ---: | ---: | ---: | ---: |
+| Before | 51x | — | — | — |
+| **After** | 8.3x | **0.99x** | **8.34x** | **11.85x** |
+
+**The Siege's 0.99x is not a tuning win, it is a structural one.** Every skate figure in this
+log has been a trade-off against legibility because a leg's stride is bounded by its length. A
+wheel has no such bound: contact speed is `2*pi*r` per revolution and the revolution rate is
+free, so the rate was *solved* from the creep's ground speed instead of traded against it. 52
+frames carrying 3 revolutions lands 0.016% off exact, and 1.38 rev/sec is a full turn every
+0.72s — legible, not strobing. This is the lever the walker never had, and it is available to
+any creep with rolling gear.
+
+**The other two figures are honest, not good, and they cannot be improved by a clip.** Neither
+a coiled snake nor a floating blade pushes against the ground, so nothing in their geometry
+implies forward travel; 8.34x and 11.85x say "this creep is being carried down the lane", which
+is true of every creep in the roster that does not walk. Raising the serpent's number to 1x
+would need its coil shear to go from 8 degrees to 66, which destroys the mesh — the same
+"trades one artefact for another" wall the walker hit.
+
+### The symmetric-pose defect
+
+Item 4's second walker defect was mirrored contact poses that read identically head-on. Handled
+per creep rather than generically: the Siege's bob rides the wheels while its roll and mantlet
+yaw run once per clip, so no two of its 52 frames repeat a pose; the Runner's left and right
+blades run half a cycle apart, so the pair is asymmetric at every frame but the two crossings;
+the Serpent's wave is a travelling phase around eight sectors, which has no mirror symmetry at
+all.
+
+### Two creeps were facing backwards
+
+Both flagged in `Creep3DProofSetGenerator` as unverified first guesses, both confirmed wrong.
+
+- **Runner.** Its comment read "Yaw 90 is a first guess... verifying with a capture before
+  trusting the sign." The lance is at Blender +X, which maps to Unity -X, and yaw 90 sends that
+  to +Z — up the lane. Now 270.
+- **Serpent.** Yaw 0, uncaptured. Head faces Blender -Y, which maps to Unity +Z: exactly the
+  Brute's original problem. Now 180.
+
+Both are 180-degree flips, so prefab bounds and the solved runtime scales are untouched.
+
+### The leg-visibility table's numbers were wrong; its conclusion was not
+
+`screenshot-reviews/creep-leg-visibility/` derives on-screen heights from 61.9 px per world
+unit and "meshes normalised to ~1.25 units tall". The camera is not the one at
+`orthographicSize = 15.5` (that is `LocalVerticalSliceLauncher`'s bootstrap camera) — the match
+camera measures **~113 px/unit** off the grid in a real capture — and the intake normalises the
+LARGEST dimension to 0.900, not height to 1.25. The errors do not cancel:
+
+| | table said | measured |
+| --- | ---: | ---: |
+| siege | 105 px | **44 px** |
+| serpent | 95 px | **42 px** |
+| runner | 84 px | **31 px** |
+
+The ordering is unaffected, so item 11's sequence still holds. What changes is the conclusion
+about which *axis* to spend on: these creeps are short and wide, height projects at sin(30) =
+50% while footprint keeps 87-100%, so the motion worth buying is horizontal. Which is what all
+three rigs are — wheel rotation, a tangential coil wave, a blade sweep. None of them moves
+anything up and down as its primary channel.
+
+### Verification
+
+`measure_creep_gait.py` restored from `ab0553f` and generalised off named leg bones onto the
+deformed mesh, so it can measure a wheel or a coil. Two wrong answers on the way to the numbers
+above, both recorded in its docstring: a contact *band* averages a correctly rolling wheel with
+static hull (reported 6.1x for a 0.99x rig), and even a per-part band averages a rim's interior
+with its surface (reported 1.58x). Evaluating at the contact patch — the lowest few verts of
+each part, re-picked per frame — is exact for a wheel at any smoothing width.
+
+Blender scripts run clean from `--background`; Unity 6000.5.3f1 batchmode imports, configures
+and validates 15/15 wrappers with no errors; `dotnet test LTW.sln` 280/280. Incidental
+regeneration churn on the eight creeps outside this change was reverted, as it was for the
+walker.
+
+**Not verified:** how any of it feels in motion to a human eye. Frame renders from the match
+camera confirm the poses are distinct and in-game captures confirm the clips play at real size;
+whether the Siege reads as *rolling* rather than as a wheel-textured sled is a judgement only a
+real playtest makes.
+
+**One regression found and deliberately not shipped:** `PromoteCreep3DSet` resets `motionStyle`
+to `Auto` for zephyr, stalker, burrower, warden and colossus, because their specs carry
+`CreepVisualMotionStyle.Auto` while the committed library carries 4/5/2/2/2. The library and
+the specs disagree and the tool silently prefers the specs. Reverted out of this branch; needs
+someone to decide which side is right.

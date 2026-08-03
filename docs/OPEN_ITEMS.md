@@ -289,6 +289,34 @@ provides for all fifteen.
 Occlusion still has to be checked per creep, exactly as above. Height caps how much a leg
 COULD read; an overhanging shell takes it to zero regardless.
 
+**The rule paid off again on 2026-08-03, in a way it did not anticipate.** Applied to siege,
+serpent and runner before rigging them (item 11, wave 2.3), the check found no occlusion on
+any of the three — and found that **none of them has legs at all**. The siege is a wheeled
+ram, the serpent is a coil, the runner floats. The rule as written asks "can the legs be
+seen"; the answer here was "there are no legs", one step earlier, and it saved three
+thigh-and-shin rigs for limbs that do not exist. Record and images:
+[`screenshot-reviews/creep-rigs-wave-2-3/`](screenshot-reviews/creep-rigs-wave-2-3/).
+
+**So the rule generalises: render first and ask what the creep IS, not just whether its legs
+are visible.** Two of the remaining four are already suspect on the same grounds — swarm is a
+crystal cluster and wisp is an orbital ring, and neither is obviously a walker either.
+
+**The threshold's number is right; the table's numbers are not.** The 35 px bar stands, but
+the on-screen heights in `creep-leg-visibility/` are derived from two wrong constants that do
+not cancel — 61.9 px per world unit (that is `LocalVerticalSliceLauncher`'s bootstrap camera,
+not the match camera, which resolves ~113 px/unit measured off the grid in a real capture),
+and "normalised to ~1.25 units tall" (the intake normalises the LARGEST dimension to 0.900,
+whatever axis that is; `UnitBoundsReport` measures siege at 0.506 tall and runner at 0.448).
+Recomputed with height projecting at sin(30): **siege 44 px, serpent 42 px, runner 31 px**,
+against the 105/95/84 the table claims. The ordering is unaffected — every row is scaled by
+the same two constants — but the absolute figures are roughly half, and the runner sits below
+the table's own threshold.
+
+That sharpens the rule rather than weakening it. These creeps are short and wide, so the
+motion worth spending on is in the **horizontal** plane, which the camera preserves at 87-100%,
+not the vertical plane, which it halves. That is why wave 2.3's rigs are wheel rotation, a
+tangential coil wave and a blade sweep rather than anything that moves up and down.
+
 ---
 
 # Graphics uplift items (opened 2026-07-31)
@@ -403,6 +431,59 @@ first (105/95/84px, no animator); then revenant and shade; then swarm and wisp, 
 small and abstract enough that body motion probably reads better than legs regardless.
 
 Wave 2.3–2.5.
+
+---
+
+### Wave 2.3 shipped, 2026-08-03: siege, serpent and runner are rigged and animated
+
+Branch `art/creep-rigs-wave-2-3`. Full record with images and measurements in
+[`screenshot-reviews/creep-rigs-wave-2-3/`](screenshot-reviews/creep-rigs-wave-2-3/) and
+`GD_TUNING_LOG.md`. **Four remain: revenant, shade, swarm, wisp.**
+
+**The headline is not "three more rigs". It is that none of the three had legs**, which item
+4's render-check-first rule surfaced before any rig was written:
+
+- **siege** is a four-wheeled armoured battering ram. Four discs of radius 0.098 on the
+  flanks, hubs at z=0.129, chassis riding above them, plow nose overhanging with no wheel
+  under it.
+- **serpent** is a closed coil — ground contact at all twelve 30-degree sectors, two turns of
+  body, head raised in the middle.
+- **runner** floats. Fifty-two of its 7702 vertices sit below 18% of its height and they form
+  one stalk, not four columns.
+
+Pointing `rig_quadruped_creep.py` at any of them — the obvious reading of this item — would
+have built thigh-and-shin rigs for limbs that do not exist. Each got a script for its own body
+plan instead, following `rig_turret_walker.py`'s precedent: `rig_wheeled_ram.py`,
+`rig_coiled_serpent.py`, `rig_bladed_runner.py`. Each has one `Walk` state, matching the other
+eight.
+
+**Foot skate, measured against the walker's 51x:**
+
+| | siege | serpent | runner |
+| --- | ---: | ---: | ---: |
+| Skate | **0.99x** | 8.34x | 11.85x |
+
+Only the siege's is a gait number, and it is essentially exact — a wheel has no stride limit,
+so its rotation rate was *solved* from the creep's real ground speed rather than traded off
+against legibility, which is the lever the walker never had. The other two have no ground
+contact pushing them along, so their figures say "this creep is carried down the lane", which
+is true and no clip can change it.
+
+**Also fixed while here:** the runner and the serpent were both facing *backwards* down the
+lane — both flagged in the source as unverified first guesses, both confirmed wrong by
+capture, both corrected by a 180-degree yaw that leaves prefab bounds and solved scales
+untouched.
+
+**Not verified:** how any of it feels in motion to a human. Frame renders and in-game captures
+confirm the poses are distinct and the clips play; whether the siege reads as *rolling* rather
+than as a wheel-textured sled is a judgement only a real playtest makes.
+
+**One regression found, not caused here, and left alone:** running
+`Creep3DProofSetGenerator.PromoteCreep3DSet` resets `motionStyle` to `Auto` for the five
+Category 3 creeps (zephyr, stalker, burrower, warden, colossus), because their specs carry
+`CreepVisualMotionStyle.Auto` while the committed `CreepVisualLibrary.asset` carries 4/5/2/2/2.
+Whichever is right, the library and the specs disagree and the tool silently prefers the specs.
+Reverted out of this branch rather than shipped.
 
 ## 15. Performance debt that will land before ship
 

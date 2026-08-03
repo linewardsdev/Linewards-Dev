@@ -43,19 +43,32 @@ namespace LTW.UnityClient.Editor
                 CreepVisualRole.Runner,
                 CreepVisualMotionStyle.RunnerDart,
                 CreepDeathCueStyle.SparkBurst,
-                ModelRoot + "/Runner/AIDrop/runner_meshy_blade_claw_blend_0725021347_prepared.fbx",
+                // Rigged variant: same prepared mesh with a blade/spine skeleton and a beat cycle
+                // added (tools/art_pipeline/rig_bladed_runner.py). Built against the prepared FBX
+                // so the scale/rotation values below stay valid.
+                ModelRoot + "/Runner/AIDrop/runner_meshy_blade_claw_blend_0725021347_prepared_rigged.fbx",
                 ModelRoot + "/Runner/AIDrop/runner_meshy_blade_claw_blend_0725021347_prepared_Textures",
                 Creep3DImportPipeline.RuntimePrefabFolder + "/Creep_Runner_3D.prefab",
                 new Vector3(1.08f, 1.08f, 1.08f),
                 1f,
                 // The blade-claw mesh is 0.90 wide but only 0.23 tall, so at board scale it reads
-                // as a sliver no scale can rescue without overflowing the lane. Pitching it nose-up
-                // trades unseen depth for silhouette, roughly doubling apparent height, and suits a
-                // darting creep. Set back to Vector3.zero to return it flat.
-                // Yaw 90 is a first guess to test whether it turns the blade to face down the lane
-                // (creeps travel toward -Z); verifying with a capture before trusting the sign.
-                new Vector3(35f, 90f, 0f),
-                0.42f),
+                // as a sliver no scale can rescue without overflowing the lane. The 35 buys back
+                // silhouette, roughly doubling apparent height — though note it is a ROLL about the
+                // creep's own long axis, not the nose-up pitch the original comment called it: the
+                // long axis is Unity X before the yaw, and a rotation about X leaves it alone and
+                // turns the flat blade plane edge-up instead. That is what takes the prefab from
+                // 0.230 to the 0.448 UnitBoundsReport measures. Set back to Vector3.zero to
+                // return it flat.
+                //
+                // Yaw was 90 and its own comment asked for a capture before the sign was trusted.
+                // Captured (docs/screenshot-reviews/creep-rigs-wave-2-3/) and the sign was wrong:
+                // the lance sits at Blender +X, which maps to Unity -X, and yaw 90 sends that to
+                // +Z — up the lane, away from travel. The creep was flying backwards. 270 points
+                // it down the lane. Bounds are unchanged either way, so the solved runtime scale
+                // above still holds.
+                new Vector3(35f, 270f, 0f),
+                0.42f,
+                RiggedCreepSetup.RunnerControllerPath),
             new(
                 "Brute",
                 "creep.brute",
@@ -108,15 +121,21 @@ namespace LTW.UnityClient.Editor
                 CreepVisualRole.Siege,
                 CreepVisualMotionStyle.SiegeWindup,
                 CreepDeathCueStyle.HeavyShatter,
-                ModelRoot + "/Siege/AIDrop/siege_meshy_beast_hybrid_blend_0725021332_prepared.fbx",
+                // Rigged variant: same prepared mesh with four rolling wheels, a sprung chassis and
+                // a ram head added (tools/art_pipeline/rig_wheeled_ram.py). Built against the
+                // prepared FBX so the scale/rotation values below stay valid.
+                ModelRoot + "/Siege/AIDrop/siege_meshy_beast_hybrid_blend_0725021332_prepared_rigged.fbx",
                 ModelRoot + "/Siege/AIDrop/siege_meshy_beast_hybrid_blend_0725021332_prepared_Textures",
                 Creep3DImportPipeline.RuntimePrefabFolder + "/Creep_Siege_3D.prefab",
                 new Vector3(1.36f, 1.36f, 1.36f),
                 1f,
-                // Raw mesh bounds are long on X, short on Y, same profile as Runner (which needed
-                // yaw 90 to face down the lane) — same fix, verify with a capture.
+                // Raw mesh bounds are long on X, short on Y, same profile as Runner — yaw 90 to
+                // face down the lane. Verified with a capture, unlike the Runner's, and this one
+                // was right: the plow nose sits at Blender -X, which maps to Unity +X, and yaw 90
+                // sends that to -Z, the travel direction.
                 new Vector3(0f, 90f, 0f),
-                0.46f),
+                0.46f,
+                RiggedCreepSetup.SiegeControllerPath),
 
             // Category 2 additions. Orientation/scale below are first guesses from a Blender-space
             // facing check (docs/GD_TUNING_LOG.md has the render-based reasoning per creep) — the
@@ -185,13 +204,23 @@ namespace LTW.UnityClient.Editor
                 // pulse instead.
                 CreepVisualMotionStyle.Coil,
                 CreepDeathCueStyle.ShardScatter,
-                ModelRoot + "/Serpent/AIDrop/serpent_meshy_serpent_v01_prepared.fbx",
+                // Rigged variant: same prepared mesh with an eight-sector coil ring and a head
+                // added (tools/art_pipeline/rig_coiled_serpent.py). Built against the prepared FBX
+                // so the scale/rotation values below stay valid.
+                ModelRoot + "/Serpent/AIDrop/serpent_meshy_serpent_v01_prepared_rigged.fbx",
                 ModelRoot + "/Serpent/AIDrop/serpent_meshy_serpent_v01_prepared_Textures",
                 Creep3DImportPipeline.RuntimePrefabFolder + "/Creep_Serpent_3D.prefab",
                 new Vector3(1.23f, 1.23f, 1.23f),
                 1f,
-                Vector3.zero,
-                0.42f),
+                // Was Vector3.zero, uncaptured. Captured while rigging
+                // (docs/screenshot-reviews/creep-rigs-wave-2-3/) and it was backwards, the same
+                // way the Brute's was before it got yaw 180: the head faces Blender -Y, which maps
+                // to Unity +Z, so at yaw 0 the creep presented its tail coil to the camera and its
+                // face to the leak gate. Bounds are symmetric about the coil axis so the solved
+                // runtime scale above is unaffected.
+                new Vector3(0f, 180f, 0f),
+                0.42f,
+                RiggedCreepSetup.SerpentControllerPath),
             new(
                 "TurretWalker",
                 "creep.turret_walker",

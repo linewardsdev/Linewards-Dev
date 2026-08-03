@@ -36,6 +36,19 @@ namespace LTW.UnityClient.Editor
         public const string TurretWalkerRiggedModelPath =
             "Assets/Art/AIStaging/Models/Creeps/Turretwalker/AIDrop/turretwalker_meshy_turretwalker_v01_prepared_rigged.fbx";
 
+        // Wave 2.3 (OPEN_ITEMS item 11). None of these three is a walker, which is why each has
+        // its own script rather than another entry in rig_quadruped_creep.py's PROFILES table:
+        // the Siege is a wheeled ram, the Serpent is a coil, and the Runner floats. Item 4's
+        // render-check-first rule is what surfaced that, ahead of any rig work.
+        public const string SiegeRiggedModelPath =
+            "Assets/Art/AIStaging/Models/Creeps/Siege/AIDrop/siege_meshy_beast_hybrid_blend_0725021332_prepared_rigged.fbx";
+
+        public const string SerpentRiggedModelPath =
+            "Assets/Art/AIStaging/Models/Creeps/Serpent/AIDrop/serpent_meshy_serpent_v01_prepared_rigged.fbx";
+
+        public const string RunnerRiggedModelPath =
+            "Assets/Art/AIStaging/Models/Creeps/Runner/AIDrop/runner_meshy_blade_claw_blend_0725021347_prepared_rigged.fbx";
+
         // Category 3: Meshy-rigged bipeds, used as delivered. The clip each carries follows the
         // creep's speed — the running clip for the fast ones (Zephyr, Stalker), walking for the
         // slow ones — because a run cycle's longer stride and faster cadence measurably reduces
@@ -66,6 +79,9 @@ namespace LTW.UnityClient.Editor
         public const string BurrowerControllerPath = ControllerFolder + "/Creep_Burrower_3D.controller";
         public const string WardenControllerPath = ControllerFolder + "/Creep_Warden_3D.controller";
         public const string ColossusControllerPath = ControllerFolder + "/Creep_Colossus_3D.controller";
+        public const string SiegeControllerPath = ControllerFolder + "/Creep_Siege_3D.controller";
+        public const string SerpentControllerPath = ControllerFolder + "/Creep_Serpent_3D.controller";
+        public const string RunnerControllerPath = ControllerFolder + "/Creep_Runner_3D.controller";
 
         /// <summary>
         /// Every creep carrying a hand-authored rig, paired with the controller built for it.
@@ -76,6 +92,12 @@ namespace LTW.UnityClient.Editor
         /// bipeds, so every quadruped here is rigged by that script instead — and conversely the
         /// Category 3 bipeds need no script at all, arriving with a 24-bone humanoid rig and
         /// clips already authored.
+        ///
+        /// The last three are not quadrupeds and do not share a script, because they do not share
+        /// a body plan: rig_wheeled_ram.py rolls the Siege's four wheels, rig_coiled_serpent.py
+        /// runs a wave around the Serpent's coil, and rig_bladed_runner.py beats the Runner's
+        /// blades. "Rig the remaining creeps as quadrupeds" was the reading item 11 invited, and
+        /// the render check item 4 mandates is what showed none of the three has legs at all.
         /// </remarks>
         private static readonly (string ModelPath, string ControllerPath)[] RiggedCreeps =
         {
@@ -87,6 +109,9 @@ namespace LTW.UnityClient.Editor
             (BurrowerRiggedModelPath, BurrowerControllerPath),
             (WardenRiggedModelPath, WardenControllerPath),
             (ColossusRiggedModelPath, ColossusControllerPath),
+            (SiegeRiggedModelPath, SiegeControllerPath),
+            (SerpentRiggedModelPath, SerpentControllerPath),
+            (RunnerRiggedModelPath, RunnerControllerPath),
         };
 
         [MenuItem("Line Wards/Art/Configure Rigged Creep Animation")]
