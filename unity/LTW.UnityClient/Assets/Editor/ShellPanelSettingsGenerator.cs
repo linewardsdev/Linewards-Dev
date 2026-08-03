@@ -29,13 +29,27 @@ namespace LTW.UnityClient.Editor
         internal const string ThemePath = "Assets/Resources/UI/LineWardsRuntimeTheme.tss";
 
         /// <summary>
-        /// The portrait surface the shell screens are authored against, matching the capture runners.
+        /// The portrait surface the shell screens are authored against: 9:19.5, the same aspect
+        /// <see cref="MobileViewportLayout.PortraitAspect"/> gives the board and the IMGUI HUD.
         /// </summary>
         /// <remarks>
-        /// Identical to <c>RealUiCaptureRunner</c>'s 1080x1920 on purpose: a capture that pins the
-        /// viewport to one surface while the UI lays out against another is not evidence of anything.
+        /// Was 1080x1920, chosen to match <c>RealUiCaptureRunner</c>'s capture surface. That looked
+        /// like the careful choice and was the wrong one, because 1080x1920 is 9:16 and every other
+        /// surface in the game is laid out at 9:19.5. The menu was the only thing in the build
+        /// authored against a different aspect from the board behind it.
+        ///
+        /// 9:19.5 is what makes the arithmetic close. The board column is
+        /// <c>PortraitAspect * screenHeight</c> wide at any window wider than portrait, and with
+        /// <c>match = 1</c> the design's 1080 units resolve to <c>1080 * screenHeight / 2340</c>,
+        /// which is the same number — so the shell lands exactly on the column at every aspect
+        /// rather than only at one.
+        ///
+        /// This no longer matches the capture runner's 1080x1920, and should not: the shell now
+        /// lays out against the column the runner itself produces, so a capture at any surface
+        /// shows the same relationship the device will. The runner still captures 9:16, which is
+        /// a legitimate surface to check letterboxing at, just not the aspect the game targets.
         /// </remarks>
-        internal static readonly Vector2Int ReferenceResolution = new Vector2Int(1080, 1920);
+        internal static readonly Vector2Int ReferenceResolution = new Vector2Int(1080, 2340);
 
         [MenuItem("Line Wards/UI/Create Shell Panel Settings")]
         public static void Run()
@@ -73,11 +87,18 @@ namespace LTW.UnityClient.Editor
             settings.referenceResolution = ReferenceResolution;
             settings.screenMatchMode = PanelScreenMatchMode.MatchWidthOrHeight;
 
-            // Match width, not height. Horizontal fit is the binding constraint on a phone menu —
-            // a wordmark that overflows the column is a defect, whereas extra vertical room is
-            // absorbed by the flexible spacers in the layout. Matching height instead would keep the
-            // vertical rhythm and let text run off the side on a 19.5:9 handset.
-            settings.match = 0f;
+            // Match height, not width. This was width, on the reasoning that horizontal fit is the
+            // binding constraint on a phone menu and vertical slack gets absorbed by the layout's
+            // spacers. That holds on a handset and fails everywhere else: matching width scales by
+            // screenWidth / 1080, so in a 16:9 editor Game view at 1920x1080 the factor is 1.78 and
+            // a design 1920 units tall demands 3413 pixels of a 1080-pixel window.
+            //
+            // Height is the stable axis here because the board column is always full height and only
+            // its width collapses. With the reference resolution at 9:19.5, matching height puts the
+            // design's width exactly on the column width at every aspect, so the horizontal overflow
+            // the old comment was guarding against cannot occur -- it is prevented by the reference
+            // aspect being right, not by the match axis.
+            settings.match = 1f;
 
             // Overlay, above everything the cameras drew. It must not clear: the pause and results
             // screens deliberately let the board read through their own translucent field.

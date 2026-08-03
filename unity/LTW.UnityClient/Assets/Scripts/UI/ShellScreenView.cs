@@ -289,9 +289,14 @@ namespace LTW.UnityClient.UI
             PaintBackdrops(root);
             WireActions(root);
 
-            // Safe-area insets cannot be resolved until the panel has a size, and the panel is
-            // resized whenever the surface changes, so this recomputes rather than reading once.
-            shellRoot.RegisterCallback<GeometryChangedEvent>(_ => ApplySafeArea());
+            // Neither inset can be resolved until the panel has a size, and the panel is resized
+            // whenever the surface changes, so these recompute rather than reading once.
+            shellRoot.RegisterCallback<GeometryChangedEvent>(_ =>
+            {
+                ApplyViewportColumn();
+                ApplySafeArea();
+            });
+            ApplyViewportColumn();
             ApplySafeArea();
 
             built = true;
@@ -375,7 +380,57 @@ namespace LTW.UnityClient.UI
         /// <see cref="MobileViewportLayout"/> is the source rather than <c>Screen.safeArea</c>
         /// directly, so a capture that declares its own surface gets the surface it declared —
         /// exactly as the IMGUI HUD already does.
+        ///
+        /// Note the resolved size is the portrait column, not the window, since
+        /// <see cref="ApplyViewportColumn"/> insets the root first. On a handset the two are the
+        /// same and this is exact. On a surface wider than 9:19.5 the column is centred and a
+        /// screen-edge cutout falls outside it entirely, so scaling the inset down with the column
+        /// errs towards padding that is not needed rather than a cutout that is not cleared.
         /// </remarks>
+        /// <summary>
+        /// Confines the shell to the same portrait column the board and the IMGUI HUD occupy.
+        /// </summary>
+        /// <remarks>
+        /// A <c>PanelSettings</c> panel always fills the whole window; it has no viewport concept.
+        /// Everything else in the game is laid out inside <see cref="MobileViewportLayout.CameraRect"/>,
+        /// a centred, full-height column whose width collapses as the window gets wider than the
+        /// 9:19.5 target. Left alone the shell is the only surface spanning the full window, so in a
+        /// 16:9 Game view the board sits in 26 percent of the width with the menu drawn across all
+        /// of it — the two read as different aspect ratios because they are.
+        ///
+        /// Insetting the root rather than scaling it keeps every length in the USS a reference unit:
+        /// the panel still resolves those against the full window, and the reference resolution's
+        /// 9:19.5 aspect is what makes the design's width land on the column width. This only moves
+        /// the column's edges into place.
+        /// </remarks>
+        private void ApplyViewportColumn()
+        {
+            if (shellRoot is null)
+            {
+                return;
+            }
+
+            // Percent rather than pixels on purpose. A pixel inset needs the panel's width, and the
+            // nearest thing to hand is the parent, which is the UXML TemplateContainer — that does
+            // not stretch to the panel by default, so its resolved width is not dependable. A
+            // percentage is resolved against the containing block by the layout engine itself, which
+            // needs no width read here and stays correct through a resize.
+            var inset = Mathf.Clamp01(MobileViewportLayout.CameraRect().xMin) * 100f;
+
+            // Writing a style that is already set still schedules another geometry pass, and this
+            // runs from the geometry callback, so an unguarded assignment loops every frame.
+            var current = shellRoot.style.left;
+            if (current.keyword == StyleKeyword.Undefined
+                && current.value.unit == LengthUnit.Percent
+                && Mathf.Approximately(current.value.value, inset))
+            {
+                return;
+            }
+
+            shellRoot.style.left = Length.Percent(inset);
+            shellRoot.style.right = Length.Percent(inset);
+        }
+
         private void ApplySafeArea()
         {
             if (shellRoot is null)
