@@ -1960,3 +1960,68 @@ to `Auto` for zephyr, stalker, burrower, warden and colossus, because their spec
 `CreepVisualMotionStyle.Auto` while the committed library carries 4/5/2/2/2. The library and
 the specs disagree and the tool silently prefers the specs. Reverted out of this branch; needs
 someone to decide which side is right.
+
+## 2026-08-01: Category Tiers Now Require Income, Not Just Gold
+
+Tiers were gated on gold alone, and gold and income are not the same claim. Gold arrives from kill
+bounties, leak bounties and the 100-gold opening bank; income only rises by sending creeps. So a
+player who never sent anything could sit on a lane, collect bounties, and buy a tier at the
+starting income of **10** — buying power without ever building the economy meant to pay for it.
+
+A tier now also requires a minimum income, and the requirement is **derived from the tier's own
+price** rather than authored as a second table:
+
+```
+  MinimumIncomeFor(kind, tier) = CostFor(kind, tier) / 2
+
+  SendCategory  tier 2   120G -> income  60      TowerLine  tier 2   140G -> income  70
+  SendCategory  tier 3   300G -> income 150      TowerLine  tier 3   360G -> income 180
+```
+
+Half, so a tier has to pay for itself in about two income ticks before you are allowed to buy it.
+Deriving it means a future retune of `TowerLineCost` or `SendCategoryCost` cannot leave a threshold
+behind pointing at a price that no longer exists — the same reasoning already applied to
+`TowerUpgradePercentOfCost`.
+
+### The thresholds were measured, not chosen
+
+Before adding the gate, a probe logged the income every bot had at the moment it bought a tier,
+across a three- and an eight-lane match on seed 1:
+
+```
+  tier 2 purchases:  income 198, 203, 216, 240, 245, 246, 263, 321
+  tier 3 purchases:  income 407, 408, 410, 418, 427, 429, 441, 489, 585, 591, 600
+```
+
+Bots are already far above the requirements. **Not one purchase in either match would have been
+refused**, which is the point: the gate targets a human rush and leaves every balance number
+already measured against bot opponents intact. `TierIncomeGateTests` pins that as an assertion
+against the weakest observed values (198 and 407), so a future cost retune that pushes a
+requirement past them fails a test rather than silently invalidating the tuning log.
+
+A separate test plays a full eight-lane match and asserts tier 3 is still reached, because a
+threshold nobody can meet is indistinguishable from deleting the feature and no unit test would
+notice.
+
+### Two prices means the UI has to say which one is missing
+
+`InsufficientIncome` is its own rejection reason rather than folded into `InsufficientGold`,
+because the two are fixed by opposite actions: gold by waiting and banking, income only by sending
+— which spends the gold. A card that says "UP 140G" and then refuses, or a toast that says "Need
+more gold", points the player at the one move that cannot help.
+
+The tier button now reads **`NEED +70`** instead of `UP 140G` whenever income is the blocker, and
+the rejection toast reads "Send creeps to raise income first".
+
+### Fallout worth recording
+
+Ten existing tests broke, all for the same reason: they granted gold to reach a tier, and gold
+alone stopped being sufficient. Added `GrantLocalPlaytestIncome` alongside the existing
+`GrantLocalPlaytestGold` and granted income next to every such grant.
+
+One of them, `An_unaffordable_tier_is_refused_and_charges_nothing`, needed more than a mechanical
+fix: at starting income 10 against a requirement of 60, it was being refused for income and never
+reaching the gold path it existed to test. It now grants income first, so the assertion it makes is
+the assertion it means.
+
+284 tests passing, zero skipped.

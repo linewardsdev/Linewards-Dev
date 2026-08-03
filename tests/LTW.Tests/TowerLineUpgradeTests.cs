@@ -52,6 +52,7 @@ public sealed class TowerLineUpgradeTests
         var grant = goldAfterSetup + spend - Gold(slice);
         Assert.True(grant > 0, $"setup needs a positive grant, got {grant}");
         slice.GrantLocalPlaytestGold(Player, new Gold(grant));
+        slice.GrantLocalPlaytestIncome(Player, new Income(1000));
 
         Assert.True(slice.PlaceTower(Player, Lane, SampleVerticalSliceContent.TowerId, ArrowCell).Accepted);
         Assert.True(slice.PlaceTower(Player, Lane, SampleVerticalSliceContent.PrismTowerId, PrismCell).Accepted);

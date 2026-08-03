@@ -39,6 +39,13 @@ public sealed class SnapshotRevisionTests
         var player = simulation.LocalPlayerId;
         var lane = simulation.LocalPlayerLaneId;
         simulation.GrantLocalPlaytestGold(player, new Gold(100_000));
+        // Tiers are gated on income as well as gold, so a seat holding only gold has its tier
+        // purchases rejected and the two AssertMoves calls below stop measuring anything. Taken
+        // from the rules table rather than written as a number, so retuning a tier's price cannot
+        // leave a stale threshold here — the same reason the rule itself derives from the price.
+        simulation.GrantLocalPlaytestIncome(player, new Income(Math.Max(
+            CategoryTierRules.MinimumIncomeFor(CategoryKind.TowerLine, 2),
+            CategoryTierRules.MinimumIncomeFor(CategoryKind.SendCategory, 2))));
         var tickBefore = simulation.GetSnapshot().Tick;
         var line = TowerLineIndex(simulation, SampleVerticalSliceContent.TowerId);
 

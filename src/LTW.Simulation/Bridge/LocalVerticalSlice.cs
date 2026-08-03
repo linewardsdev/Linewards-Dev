@@ -342,6 +342,30 @@ public sealed class LocalVerticalSlice
     }
 
     /// <summary>
+    /// Grants income directly, so a scenario can reach the tier gate without playing an economy out.
+    /// </summary>
+    /// <remarks>
+    /// Added with the income requirement on category tiers. Before it, every test and editor
+    /// scenario that wanted a tier simply granted gold — which stopped being sufficient the moment
+    /// tiers also required income, and left a set of tests failing for a reason that had nothing to
+    /// do with what they were testing.
+    ///
+    /// Sits on the bridge next to <see cref="GrantLocalPlaytestGold"/> and for the same reason:
+    /// production economy rules in EconomyService stay untouched, and the only way to raise income
+    /// in a real match remains sending creeps.
+    /// </remarks>
+    public void GrantLocalPlaytestIncome(PlayerId playerId, Income amount)
+    {
+        if (amount.Amount <= 0)
+        {
+            return;
+        }
+
+        var player = players.Get(playerId);
+        players = players.Replace(player.WithIncome(new Income(player.Income.Amount + amount.Amount)));
+    }
+
+    /// <summary>
     /// Clears a player's send cooldown so editor/playtest scenarios can queue several sends in one
     /// tick. Sits alongside <see cref="GrantLocalPlaytestGold"/> for the same reason: the
     /// production rule in EconomyService stays untouched.
@@ -520,6 +544,15 @@ public sealed class LocalVerticalSlice
         if (targetTier != currentTier + 1)
         {
             return VerticalSliceCommandResult.Reject(CommandRejectionReason.InvalidTier);
+        }
+
+        // Income before gold, and the order matters. A player short on both should be told to build
+        // their economy rather than to keep banking, because banking is exactly what will not fix
+        // the income requirement.
+        var minimumIncome = CategoryTierRules.MinimumIncomeFor(categoryKind, targetTier);
+        if (player.Income.Amount < minimumIncome)
+        {
+            return VerticalSliceCommandResult.Reject(CommandRejectionReason.InsufficientIncome);
         }
 
         var cost = CategoryTierRules.CostFor(categoryKind, targetTier);

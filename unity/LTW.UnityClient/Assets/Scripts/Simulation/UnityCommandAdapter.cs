@@ -127,6 +127,26 @@ namespace LTW.UnityClient.Simulation
                 : LTW.Simulation.Content.CategoryTierRules.CostFor(kind, current + 1);
         }
 
+        /// <summary>Income the player must already be earning to buy the next tier, or 0 at the top.</summary>
+        /// <remarks>
+        /// Exposed alongside <see cref="NextTierCost"/> because the two together are what the card
+        /// has to say. A tier now has two prices and only one of them is gold; showing the gold and
+        /// silently refusing on the other leaves a button that looks affordable and does nothing.
+        /// </remarks>
+        public int NextTierMinimumIncome(LTW.Simulation.Commands.CategoryKind kind, int categoryIndex)
+        {
+            var current = kind == LTW.Simulation.Commands.CategoryKind.TowerLine
+                ? TowerLineTier(categoryIndex)
+                : SendCategoryTier(categoryIndex);
+            return current >= LTW.Simulation.Content.CategoryTierRules.MaxTier
+                ? 0
+                : LTW.Simulation.Content.CategoryTierRules.MinimumIncomeFor(kind, current + 1);
+        }
+
+        /// <summary>The local player's income right now.</summary>
+        public int CurrentPlayerIncome() =>
+            simulation is null ? 0 : simulation.GetSnapshot().Players.Get(simulation.LocalPlayerId).Income.Amount;
+
         public int MaxCategoryTier => LTW.Simulation.Content.CategoryTierRules.MaxTier;
 
         public VerticalSliceCommandResult BuyTowerLineTier(int lineIndex) =>

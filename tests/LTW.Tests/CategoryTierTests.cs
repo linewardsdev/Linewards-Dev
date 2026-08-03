@@ -47,6 +47,7 @@ public sealed class CategoryTierTests
     {
         var slice = Slice();
         slice.GrantLocalPlaytestGold(new PlayerId(1), new Gold(1000));
+        slice.GrantLocalPlaytestIncome(new PlayerId(1), new Income(1000));
         var goldBefore = Player(slice, 1).Gold.Amount;
 
         var result = slice.BuyCategoryTier(new PlayerId(1), CategoryKind.TowerLine, Arcane, 2);
@@ -61,6 +62,7 @@ public sealed class CategoryTierTests
     {
         var slice = Slice();
         slice.GrantLocalPlaytestGold(new PlayerId(1), new Gold(5000));
+        slice.GrantLocalPlaytestIncome(new PlayerId(1), new Income(1000));
 
         // Skipping straight to 3 is refused even though the gold is plainly there, so the
         // escalating cost is actually paid rather than stepped over.
@@ -83,6 +85,7 @@ public sealed class CategoryTierTests
     {
         var slice = Slice();
         slice.GrantLocalPlaytestGold(new PlayerId(1), new Gold(5000));
+        slice.GrantLocalPlaytestIncome(new PlayerId(1), new Income(1000));
         Assert.True(slice.BuyCategoryTier(new PlayerId(1), CategoryKind.SendCategory, Core, 2).Accepted);
         var goldAfterFirst = Player(slice, 1).Gold.Amount;
 
@@ -97,6 +100,13 @@ public sealed class CategoryTierTests
     public void An_unaffordable_tier_is_refused_and_charges_nothing()
     {
         var slice = Slice();
+
+        // Income is granted so that GOLD is the thing being tested. A starting player has income 10
+        // against a tier-2 requirement of 60, so without this the purchase is refused for
+        // InsufficientIncome and the gold path below is never reached — the test would still pass
+        // its "refused and charges nothing" claim while asserting the wrong reason for it.
+        slice.GrantLocalPlaytestIncome(new PlayerId(1), new Income(1000));
+
         var goldBefore = Player(slice, 1).Gold.Amount;
         Assert.True(goldBefore < CategoryTierRules.CostFor(CategoryKind.SendCategory, 2));
 
@@ -113,6 +123,7 @@ public sealed class CategoryTierTests
     {
         var slice = Slice();
         slice.GrantLocalPlaytestGold(new PlayerId(1), new Gold(5000));
+        slice.GrantLocalPlaytestIncome(new PlayerId(1), new Income(1000));
 
         Assert.Equal(
             CommandRejectionReason.InvalidContentId,
@@ -127,6 +138,7 @@ public sealed class CategoryTierTests
     {
         var slice = Slice();
         slice.GrantLocalPlaytestGold(new PlayerId(1), new Gold(5000));
+        slice.GrantLocalPlaytestIncome(new PlayerId(1), new Income(1000));
 
         Assert.True(slice.BuyCategoryTier(new PlayerId(1), CategoryKind.TowerLine, Arcane, 2).Accepted);
 
@@ -143,6 +155,7 @@ public sealed class CategoryTierTests
     {
         var slice = Slice();
         slice.GrantLocalPlaytestGold(new PlayerId(1), new Gold(5000));
+        slice.GrantLocalPlaytestIncome(new PlayerId(1), new Income(1000));
 
         Assert.True(slice.BuyCategoryTier(new PlayerId(1), CategoryKind.TowerLine, Arcane, 2).Accepted);
 
@@ -155,6 +168,7 @@ public sealed class CategoryTierTests
     {
         var slice = Slice();
         slice.GrantLocalPlaytestGold(new PlayerId(1), new Gold(5000));
+        slice.GrantLocalPlaytestIncome(new PlayerId(1), new Income(1000));
 
         Assert.True(slice.QueueSend(new PlayerId(1), SampleVerticalSliceContent.BruteCreepId, 1).Accepted);
         var baseline = slice.GetSnapshot().Creeps.Single().Health;
@@ -177,6 +191,7 @@ public sealed class CategoryTierTests
     {
         var slice = Slice();
         slice.GrantLocalPlaytestGold(new PlayerId(1), new Gold(5000));
+        slice.GrantLocalPlaytestIncome(new PlayerId(1), new Income(1000));
         Assert.True(slice.QueueSend(new PlayerId(1), SampleVerticalSliceContent.BruteCreepId, 3).Accepted);
 
         var before = slice.GetSnapshot().Creeps
@@ -213,6 +228,7 @@ public sealed class CategoryTierTests
     {
         var slice = Slice();
         slice.GrantLocalPlaytestGold(new PlayerId(1), new Gold(5000));
+        slice.GrantLocalPlaytestIncome(new PlayerId(1), new Income(1000));
         Assert.True(slice.BuyCategoryTier(new PlayerId(1), CategoryKind.SendCategory, Core, 2).Accepted);
         Assert.True(slice.BuyCategoryTier(new PlayerId(1), CategoryKind.SendCategory, Core, 3).Accepted);
         Assert.True(slice.QueueSend(new PlayerId(1), SampleVerticalSliceContent.BruteCreepId, 1).Accepted);

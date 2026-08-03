@@ -37,6 +37,11 @@ namespace LTW.UnityClient.UI
             var message = reason switch
             {
                 CommandRejectionReason.InsufficientGold => "Need more gold",
+                // Named separately from gold, because the two are fixed by opposite actions: gold
+                // by waiting and banking, income only by sending — which spends the gold. Telling a
+                // player short on income to "need more gold" points them at the one move that
+                // cannot work.
+                CommandRejectionReason.InsufficientIncome => "Send creeps to raise income first",
                 CommandRejectionReason.CooldownActive => "Send cooling down",
                 CommandRejectionReason.MatchPaused => "Start or resume match",
                 CommandRejectionReason.CellOccupied => "Cell already has a tower",
