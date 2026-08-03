@@ -515,17 +515,73 @@ namespace LTW.UnityClient.Simulation
             var distance = Vector3.Distance(from, to);
             tether.transform.position = midpoint;
             tether.transform.LookAt(to);
-            tether.transform.localScale = new Vector3(ServicingTetherThickness, ServicingTetherThickness, Mathf.Max(0.1f, distance));
-            // Assert the material, don't just tint it. This shares beamPool with SpawnBeam, which
-            // assigns the additive LTWWeaponBeam material — and SetColor only writes .color, so a
-            // tether recycled from a released beam would keep that shader and draw as a glowing
-            // additive tube instead of a solid line, at random, depending on pool order. Exactly the
-            // failure GetPooled's own comment describes for meshes, one dimension over.
+            // Mesh is wider than the tether it draws, for the same reason SpawnBeam's is: the shader
+            // keeps the inner 1/BeamHaloWidthScale as the bright core and fades a halo across the
+            // rest, so the geometry has to extend past the visible line or the falloff has no room.
+            var tetherMeshWidth = ServicingTetherThickness * BeamHaloWidthScale;
+            tether.transform.localScale = new Vector3(tetherMeshWidth, tetherMeshWidth, Mathf.Max(0.1f, distance));
+            // Assert the material, don't just tint it. This shares beamPool with SpawnBeam, so a
+            // recycled object arrives carrying whatever the last user put on it. Exactly the failure
+            // GetPooled's own comment describes for meshes, one dimension over.
             if (tether.TryGetComponent<Renderer>(out var tetherRenderer))
             {
-                tetherRenderer.sharedMaterial = BoardRenderResources.SharedOpaque(ServicingTetherColor);
+                tetherRenderer.sharedMaterial = ServicingTetherMaterial();
             }
         }
+
+        private Material servicingTetherMaterial;
+
+        /// <summary>
+        /// The Repair Drone's service link: the same beam shader as a shot, tuned to read as a
+        /// standing connection rather than a fired one.
+        /// </summary>
+        /// <remarks>
+        /// This was a solid opaque cube, and at board scale a 0.11 box in the drone's gold read as
+        /// a bar of UI debris lying across the lane rather than an effect — which is what it was
+        /// mistaken for. The information it carries is worth keeping and is not carried anywhere
+        /// else: a serviced tower fires one tick faster (CombatService.IsServicedByDrone), and
+        /// nothing on screen otherwise says which neighbour is getting it. Range has a halo;
+        /// "this one is cooling down faster" has only this.
+        ///
+        /// So the fix is how it draws, not whether. LTWWeaponBeam already fades radially from the
+        /// cube's axis, which turns the box into a soft tube and removes the hard slab edges.
+        ///
+        /// Three deliberate differences from a weapon shot:
+        ///
+        /// - `_Taper` 0. A shot narrows toward its target because it has a direction; a link between
+        ///   two towers is symmetric and tapering it would imply a flow that does not exist.
+        /// - `_Intensity` well below a shot's. This is on screen continuously for as long as the two
+        ///   towers stand, where a shot flashes for a fraction of a second, so it has to sit under
+        ///   the combat it shares a board with rather than compete.
+        /// - Shared, not per-instance. Every tether is the same colour, so one material serves all of
+        ///   them and keeps the SRP Batcher's path — unlike SpawnBeam, which needs a colour per shot.
+        ///
+        /// The colour is deliberately unchanged: (0.95, 0.82, 0.45) is the Repair Drone's own entry
+        /// in TowerCatalog, so the link reads as belonging to the tower that casts it.
+        /// </remarks>
+        private Material ServicingTetherMaterial()
+        {
+            if (servicingTetherMaterial == null)
+            {
+                servicingTetherMaterial = BoardRenderResources.CreateWeaponBeamMaterial("LTW Servicing Tether");
+                var material = servicingTetherMaterial;
+                material.color = ServicingTetherColor;
+                if (material.HasProperty("_Color")) material.SetColor("_Color", ServicingTetherColor);
+                if (material.HasProperty("_CoreColor"))
+                {
+                    material.SetColor("_CoreColor", Color.Lerp(ServicingTetherColor, Color.white, 0.55f));
+                }
+
+                if (material.HasProperty("_CoreRadius")) material.SetFloat("_CoreRadius", 1f / BeamHaloWidthScale);
+                if (material.HasProperty("_Taper")) material.SetFloat("_Taper", 0f);
+                if (material.HasProperty("_Intensity")) material.SetFloat("_Intensity", ServicingTetherIntensity);
+            }
+
+            return servicingTetherMaterial;
+        }
+
+        /// <summary>Dimmer than a shot, because it is on screen continuously rather than for a frame.</summary>
+        private const float ServicingTetherIntensity = 0.55f;
 
         private static bool IsRepairDroneTower(string towerId) => towerId.IndexOf("repair_drone", StringComparison.OrdinalIgnoreCase) >= 0;
 

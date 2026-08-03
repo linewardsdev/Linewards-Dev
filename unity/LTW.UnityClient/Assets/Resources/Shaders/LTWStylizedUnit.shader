@@ -247,10 +247,18 @@ Shader "LTW/Stylized Unit"
                 for (uint i = 0u; i < count; ++i)
                 {
                     Light add = GetAdditionalLight(i, input.positionWS);
-                    half  addRamp = StylizedRamp(dot(N, add.direction),
-                                                 add.shadowAttenuation * add.distanceAttenuation,
-                                                 _RampStart, _RampEnd);
-                    color += albedo * add.color * addRamp * ao;
+                    half addNdl = dot(N, add.direction);
+                    half addRamp = StylizedRamp(addNdl,
+                                                add.shadowAttenuation * add.distanceAttenuation,
+                                                _RampStart, _RampEnd);
+
+                    // Gated on the UNWRAPPED normal so a light cannot reach a surface pointing away
+                    // from it. The wrap in StylizedRamp is deliberate for the key light — it is what
+                    // makes the main gradient broad and terminator-free — but applied per additional
+                    // light it means every one of them contributes on every surface, including back
+                    // faces. On a board carrying a glow light under each unit that stacks, and the
+                    // 2026-08-03 in-game review saw the result as creeps reading overexposed.
+                    color += albedo * add.color * addRamp * ao * saturate(addNdl * 1.5h);
                 }
                 #endif
 

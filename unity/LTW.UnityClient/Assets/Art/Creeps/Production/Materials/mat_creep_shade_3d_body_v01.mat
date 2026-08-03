@@ -114,12 +114,12 @@ Material:
     - _RampStart: 0.3
     - _ReceiveShadows: 1
     - _RimPower: 2.6
-    - _RimStrength: 0.7
+    - _RimStrength: 0.28
     - _ShadeStrength: 0.85
     - _Smoothness: 0.42
     - _SmoothnessTextureChannel: 0
     - _SpecRoughFloor: 0.35
-    - _SpecStrength: 0.25
+    - _SpecStrength: 0.12
     - _SpecularHighlights: 1
     - _SrcBlend: 1
     - _SrcBlendAlpha: 1
