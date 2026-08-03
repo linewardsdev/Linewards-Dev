@@ -715,6 +715,29 @@ Worth pairing with R1 (play the game with human hands) rather than designed from
 long a defeated player actually wants to keep watching is the input this needs, and nobody
 has watched yet.
 
+## 38. Four LOD meshes are tracked without their `.meta`, so their GUIDs differ per clone
+
+Found while building the UI Toolkit shell screens, unrelated to that work.
+
+These four are tracked with **no committed `.meta`** (they arrived in `c8a46d6`):
+
+- `Assets/Art/Creeps/Production/LODs/creep_turretwalker_3d_LOD1.fbx`
+- `Assets/Art/Creeps/Production/LODs/creep_turretwalker_3d_LOD2.fbx`
+- `Assets/Art/Towers/Production/LODs/tower_arrow_3d_LOD1.fbx`
+- `Assets/Art/Towers/Production/LODs/tower_arrow_3d_LOD2.fbx`
+
+Unity mints a `.meta` on first import, and the GUID inside it is what every reference in the
+project resolves against. With no `.meta` committed, **each clone generates a different GUID
+for the same file**, so any prefab, LOD Group or material that references one of these
+resolves in the machine that authored it and breaks everywhere else. It also produces
+untracked files that reappear after every editor run, which is how it was noticed.
+
+Nothing references them today, which is the only reason this has not already broken —
+so it is cheap to fix now and expensive to fix after the LOD work in item 15 wires them up.
+
+**Fix:** commit the four `.meta` files. Whoever does it should generate them on one machine,
+commit, and have a second clone confirm the GUIDs match rather than assuming.
+
 ## 37. Two dead private methods in the renderer, found by item 25 and left there
 
 Opened by item 25 (`f6187bd`), which had to move both and could not delete either: that
