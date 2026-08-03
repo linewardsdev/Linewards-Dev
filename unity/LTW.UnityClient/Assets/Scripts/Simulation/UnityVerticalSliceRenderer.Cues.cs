@@ -673,9 +673,38 @@ namespace LTW.UnityClient.Simulation
             var senderPosition = GridToWorld(new GridPosition(CenterColumn, LaneLength - 1), new LaneId(queued.SenderId.Value)) + Vector3.up * 0.2f;
             var defenderPosition = SpawnPosition(queued.DefenderId.Value);
             var color = CreepRoleColor(queued.CreepId.Value, queued.SenderId.Value);
-            SpawnEffect(senderPosition, color, 0.44f, 0.24f);
-            SpawnBeam(senderPosition + Vector3.up * 0.18f, defenderPosition + Vector3.up * 0.18f, color, 0.22f);
-            SpawnEffect(defenderPosition, color, 0.54f, 0.3f);
+
+            // Both ends of this cue live in their own lanes, and the active-lane camera shows one
+            // lane. Drawn ungated, a cross-lane send put a full-saturation additive beam from a
+            // sender gate that is off-screen, diagonally across the whole visible board and out
+            // past the HUD — by a wide margin the largest thing on screen, every time anyone sent
+            // anything, for an event in a lane the player cannot see. The burst at the sender's
+            // gate had the same problem: it landed in open space beside the lane.
+            //
+            // `IsOnActiveLane` returns true whenever the camera is framing more than one lane, so
+            // in the overview framings the departure, the transit and the arrival all still read
+            // as they were designed to. This only stands the off-lane halves down when there is no
+            // lane on screen to show them in.
+            //
+            // Same reasoning that already gates the SEND text below, applied to the geometry that
+            // is far louder than the text ever was.
+            var senderVisible = IsOnActiveLane(senderPosition);
+            var defenderVisible = IsOnActiveLane(defenderPosition);
+
+            if (senderVisible)
+            {
+                SpawnEffect(senderPosition, color, 0.44f, 0.24f);
+            }
+
+            if (senderVisible && defenderVisible)
+            {
+                SpawnBeam(senderPosition + Vector3.up * 0.18f, defenderPosition + Vector3.up * 0.18f, color, 0.22f);
+            }
+
+            if (defenderVisible)
+            {
+                SpawnEffect(defenderPosition, color, 0.54f, 0.3f);
+            }
             // Only the local player's own sends. A banner for an opponent sending into someone
             // else's lane is 12% of all board text and nothing the player can act on.
             if (simulationDriver != null && queued.SenderId.Equals(simulationDriver.LocalPlayerId))

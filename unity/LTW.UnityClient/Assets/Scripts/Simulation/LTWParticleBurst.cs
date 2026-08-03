@@ -212,13 +212,14 @@ namespace LTW.UnityClient.Simulation
             }
 
             var count = ParticleCountFor(shape);
+            var particleColor = SharedOut(color, count);
             for (var index = 0; index < count; index++)
             {
                 var particle = new ParticleSystem.EmitParams
                 {
                     position = position + StartOffset(shape, scale),
                     velocity = Velocity(shape, scale, direction),
-                    startColor = color,
+                    startColor = particleColor,
                     startSize = StartSize(shape, scale),
                     // Staggered so a burst does not blink out all at once, which is the specific
                     // thing that made the old primitive effects read as a toggle rather than an
@@ -230,6 +231,32 @@ namespace LTW.UnityClient.Simulation
                 system.Emit(particle, 1);
             }
         }
+
+        /// <summary>
+        /// Splits one burst's brightness across its particles instead of giving each the full
+        /// colour.
+        /// </summary>
+        /// <remarks>
+        /// The pass blends `SrcAlpha One`, so overlapping particles accumulate and never occlude —
+        /// that is the point of an additive spark. Emitting every one of them at the caller's alpha
+        /// meant the accumulation in the middle of a burst summed to several times white and
+        /// clipped, so the core rendered as one flat slab of fully saturated colour with no
+        /// internal structure and a hard rim where the sum crossed 1.0. Measured on a send cue:
+        /// 24,803 pixels of exactly RGB(0,255,255) — the red channel pinned at zero and green and
+        /// blue pinned at maximum, which is what a saturated cyan clips to.
+        ///
+        /// `StartOffset` already carries a note about this, and widened the spawn radius so the
+        /// particles would not all start coincident. That treated the symptom; the cause is that
+        /// the burst's total brightness was never divided among its members.
+        ///
+        /// The divisor is `sqrt(count)` rather than `count` because the particles spread as they
+        /// travel and only a fraction overlap at any moment — dividing by the full count would
+        /// leave a fourteen-particle burst dimmer than a six-particle one, which is backwards. The
+        /// core still exceeds 1.0 and still blooms; it is a hot centre with a falloff around it
+        /// rather than a uniform plate.
+        /// </remarks>
+        private static Color SharedOut(Color color, int count) =>
+            new Color(color.r, color.g, color.b, color.a / Mathf.Sqrt(Mathf.Max(1, count)));
 
         private static int ParticleCountFor(BurstShape shape) => shape switch
         {
