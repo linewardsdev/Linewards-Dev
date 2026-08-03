@@ -426,7 +426,12 @@ namespace LTW.UnityClient.UI
 
         private void RefreshPauseStats()
         {
-            var snapshot = simulationDriver == null ? null : simulationDriver.LatestSnapshot;
+            if (simulationDriver == null)
+            {
+                return;
+            }
+
+            var snapshot = simulationDriver.LatestSnapshot;
             if (snapshot is null)
             {
                 return;
@@ -443,7 +448,12 @@ namespace LTW.UnityClient.UI
 
         private void RefreshResults()
         {
-            var summary = simulationDriver == null ? null : simulationDriver.LatestMatchSummary;
+            if (simulationDriver == null)
+            {
+                return;
+            }
+
+            var summary = simulationDriver.LatestMatchSummary;
             if (summary is null || resultsTable is null)
             {
                 return;
