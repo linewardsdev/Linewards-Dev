@@ -159,6 +159,13 @@ namespace LTW.UnityClient.Editor
                 SampleVerticalSliceContent.ObsidianBruteCreepId,
                 SampleVerticalSliceContent.TurretWalkerCreepId,
                 SampleVerticalSliceContent.BruteCreepId,
+                // Added with their rigs (OPEN_ITEMS item 11, wave 2.3). Both are "newly rigged",
+                // which is exactly the set the remark above says this roster is for; Serpent was
+                // already here as a procedural-motion creep and now qualifies twice over.
+                SampleVerticalSliceContent.SiegeCreepId,
+                // The Runner's id is the bare `CreepId`, not `RunnerCreepId` — it was the first
+                // creep in the slice and never got renamed when the rest gained prefixes.
+                SampleVerticalSliceContent.CreepId,
             };
 
             foreach (var creepId in roster)
