@@ -386,14 +386,18 @@ namespace LTW.UnityClient.Simulation
             marker.transform.position = new Vector3(centre.x, BoardTopY + SpanningDecalLift, centre.z);
             // Floors were originally 0.55 scale / 0.16 alpha, which at the common bonus of 1 was
             // invisible under the tower mesh — verified in a capture. The ring now starts wide enough
-            // to clear the silhouette and opaque enough to see, and still grows with the bonus.
+            // to clear the silhouette, and still grows with the bonus.
+            //
+            // Width is what fixed that invisibility, not alpha, which is why the alpha floor could
+            // come back down to 0.15 without reopening it: the ring is over twice as wide as the one
+            // that vanished, and it now sits above the build plates rather than under them.
             var scale = Mathf.Lerp(1.25f, 1.9f, (bonus - 1) / 2f);
             marker.transform.localScale = new Vector3(scale, 1f, scale);
             SetColor(marker, new Color(
                 GrovebondMarkerColor.r,
                 GrovebondMarkerColor.g,
                 GrovebondMarkerColor.b,
-                Mathf.Lerp(0.34f, GrovebondMarkerColor.a, (bonus - 1) / 2f)));
+                Mathf.Lerp(0.15f, GrovebondMarkerColor.a, (bonus - 1) / 2f)));
         }
 
         /// <summary>
@@ -762,7 +766,23 @@ namespace LTW.UnityClient.Simulation
         /// same value read as a purple slab over the lane ("thorn ground bloom is too much").
         /// </remarks>
         private static readonly Color BrambleMarkerColor = new Color(0.42f, 0.24f, 0.58f, 0.15f);
-        private static readonly Color GrovebondMarkerColor = new Color(0.55f, 0.95f, 0.38f, 0.7f);
+        /// <summary>
+        /// Alpha dropped from 0.7, for exactly the reason recorded on <see cref="BrambleMarkerColor"/>
+        /// above.
+        /// </summary>
+        /// <remarks>
+        /// Both markers were tuned while most of their footprint was hidden under the raised build
+        /// plates. Lifting them to <see cref="SpanningDecalLift"/> revealed the whole area and made
+        /// both far stronger than intended — Thorn's was corrected then ("thorn ground bloom is too
+        /// much"), Grovebond's was not, and it drew the same report from play. This applies the same
+        /// correction: Thorn went 0.34 to 0.15, so this takes the pair down by the same proportion.
+        ///
+        /// The SCALE is deliberately left alone. 1.25-1.9 cells is not decoration — it is how the
+        /// ring visibly reaches the neighbours it is bonded to, which is the whole read of the
+        /// mechanic, and it is also what made the ring legible when a narrower one was invisible
+        /// under the tower mesh. Brightness is the dial that was wrong; width was not.
+        /// </remarks>
+        private static readonly Color GrovebondMarkerColor = new Color(0.55f, 0.95f, 0.38f, 0.30f);
 
         // Repair Drone Spire's own catalog accent (TowerCatalog.cs, id 9, label "DRONE"), reused here
         // rather than an invented color so the tether reads as belonging to the drone at a glance.
