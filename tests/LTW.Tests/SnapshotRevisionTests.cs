@@ -39,6 +39,10 @@ public sealed class SnapshotRevisionTests
         var player = simulation.LocalPlayerId;
         var lane = simulation.LocalPlayerLaneId;
         simulation.GrantLocalPlaytestGold(player, new Gold(100_000));
+        // Income as well as gold: category tiers require a minimum income (see
+        // CategoryTierRules.MinimumIncomeFor), so the two BuyCategoryTier steps below are refused on
+        // income at the starting 10 no matter how much gold is banked.
+        simulation.GrantLocalPlaytestIncome(player, new Income(1000));
         var tickBefore = simulation.GetSnapshot().Tick;
         var line = TowerLineIndex(simulation, SampleVerticalSliceContent.TowerId);
 
