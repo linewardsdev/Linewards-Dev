@@ -688,6 +688,24 @@ namespace LTW.UnityClient.Simulation
             //
             // Same reasoning that already gates the SEND text below, applied to the geometry that
             // is far louder than the text ever was.
+            // Gating on the camera alone is not enough in the all-lanes framings, where
+            // `IsOnActiveLane` is true for every lane by design. Every seat sends continuously, so
+            // with a full table that permitted a beam per send across the whole board at once —
+            // a permanent crossfire of lasers between lanes, which is what a hand-off down the
+            // table looks like from the overview and why this reads as transfers firing at things.
+            //
+            // A send the local player is neither making nor receiving is not theirs to answer, so
+            // it gets no transit line. This is the rule the SEND text below already follows, and
+            // the beam is the loudest thing on the board rather than 12% of its text. Their own
+            // sends still draw, and a send arriving in their lane still draws, which are the two
+            // cases they can actually do something about.
+            // `!= null` rather than `?.`: simulationDriver is a UnityEngine.Object, and only the
+            // overloaded comparison treats a destroyed one as null. The null-conditional would
+            // sail past it. Same reason the SEND text below is written this way.
+            var localIsInvolved = simulationDriver != null
+                && (queued.SenderId.Equals(simulationDriver.LocalPlayerId)
+                    || queued.DefenderId.Equals(simulationDriver.LocalPlayerId));
+
             var senderVisible = IsOnActiveLane(senderPosition);
             var defenderVisible = IsOnActiveLane(defenderPosition);
 
@@ -696,7 +714,7 @@ namespace LTW.UnityClient.Simulation
                 SpawnEffect(senderPosition, color, 0.44f, 0.24f);
             }
 
-            if (senderVisible && defenderVisible)
+            if (senderVisible && defenderVisible && localIsInvolved)
             {
                 SpawnBeam(senderPosition + Vector3.up * 0.18f, defenderPosition + Vector3.up * 0.18f, color, 0.22f);
             }
