@@ -63,7 +63,64 @@ cloning `URP/Lit` materials off the migrated ones and force-enabling `_EMISSION`
 produced a red cast present in no shipped configuration, and would have made the shader look
 far better than it is. The fix was to render the real materials from disk in two passes.
 
+## In-game A/B, 2026-08-03 — the finding that split the defaults
+
+Everything above this section was judged from editor renders at poster size. On 2026-08-03
+the shader was finally compared **inside the running game**, flipping between stock and
+stylized in one editor session with the camera held still. That is the first time this work
+has been judged at the size players see, and it changed the design.
+
+**Towers and creeps wanted opposite things from the same numbers.**
+
+| Role | Before | After (single shared defaults) | Verdict |
+| --- | --- | --- | --- |
+| Arrow tower | deep saturated violet; outlines dissolve into the grid cells behind them | clear silhouette, legible plate rings — but violet washed out to silver-lavender | **too bright** |
+| Turret walker | near-black voids; only the teal leg emissive identified them | carapace and legs legible, teal now sits *on* a visible body | **about right** |
+
+The tower result was a genuine loss, not a nitpick: violet is the arrow line's identity, and
+the shared defaults traded it away for readability it did not need as badly as the creeps did.
+The walker result was the opposite — it fixed exactly the failure the rim and contour were
+written for, a dark unit on a dark board with no edge.
+
+The cause is that the two roles start from different places. **Creeps are dark objects that
+need lifting; towers are mid-value objects that need their depth preserved.** One set of
+numbers cannot do both, so `StylizedUnitMaterialMigration` now seeds per-role defaults chosen
+by folder:
+
+- **Creeps** keep the shipped values unchanged. They are working.
+- **Towers** get `_RampStart` 0.30 → 0.40 (more of each surface stays in shade), `_SpecStrength`
+  0.25 → 0.15 (the remaining brightness was specular on top), and a **violet** `_ShadeColor`
+  and `_AOTint` in place of the neutral indigo. The shade colour is the one that matters most:
+  neutral-cool was actively dragging purple toward grey across the whole shadowed half, so the
+  shade was fighting the role's identity instead of deepening it.
+
+**Two things this did not solve, stated plainly.**
+
+The walker is now *readable*, which is a lower bar than *good*. The gold joints and panel work
+visible in the poster render still do not survive at 46px, and no shader value will bring them
+back — that is normal-map and LOD territory, or accepting that this size carries only
+silhouette and value.
+
+Only the arrow tower and turret walker have baked AO. The ring definition that made the tower's
+dome read is partly AO, and the other 19 roles do not have it yet. Recommendation 3 of
+`PATH_TO_AAA.md` is now the highest-value remaining work, ahead of any further shader tuning.
+
 ## Using it
+
+**The tuning loop.** `LTW > Art > Stylized Units > A-B Compare` has two entries, BEFORE
+(stock URP/Lit) and AFTER (stylized). Flipping to AFTER **re-seeds the current authored
+defaults**, so the loop is: edit the constants in `StylizedUnitMaterialMigration`, let Unity
+recompile, flip to AFTER, look. Both directions report a count to the Console and **it must
+read 62 every time** — a changing count means the scope rules have drifted, which is how two
+separate bugs were caught (see below).
+
+Two practical traps, both hit during the 2026-08-03 session:
+
+- **Unity does not recompile scripts while in Play Mode.** Flipping to AFTER right after
+  editing a default will silently apply the OLD values. Exit Play Mode, wait for the reload,
+  then flip.
+- **Whichever side you leave it on is what is on disk and what gets committed.** Finish on
+  AFTER unless you mean not to.
 
 - `Line Wards > Review > Capture Units As Currently Authored` — one render of what is on disk.
 - `LTW > Art > Stylized Units > 1. Report What Would Change (Dry Run)` — prints, writes nothing.

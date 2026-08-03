@@ -150,7 +150,7 @@ namespace LTW.UnityClient.EditorTools
                     alreadyDone++;
                     if (apply)
                     {
-                        ApplyStylizedDefaults(material, Capture(material));
+                        ApplyStylizedDefaults(material, Capture(material), DefaultsFor(path));
                         EditorUtility.SetDirty(material);
                     }
 
@@ -164,14 +164,14 @@ namespace LTW.UnityClient.EditorTools
                                   + $"   occlusion {(carried.OcclusionMap != null ? carried.OcclusionMap.name : "(none)")}"
                                   + $"   emission {(carried.EmissionMap != null ? carried.EmissionMap.name : "(none)")}");
                 report.AppendLine($"      smoothness {carried.Smoothness.ToString("0.00", CultureInfo.InvariantCulture)}"
-                                  + $" -> {StylizedDefaults.Smoothness.ToString("0.00", CultureInfo.InvariantCulture)}"
+                                  + $" -> {DefaultsFor(path).Smoothness.ToString("0.00", CultureInfo.InvariantCulture)}"
                                   + $"   metallic {carried.Metallic.ToString("0.00", CultureInfo.InvariantCulture)}");
 
                 if (apply)
                 {
                     material.shader = shader;
                     ApplyCaptured(material, carried);
-                    ApplyStylizedDefaults(material, carried);
+                    ApplyStylizedDefaults(material, carried, DefaultsFor(path));
                     EditorUtility.SetDirty(material);
                 }
 
@@ -194,8 +194,44 @@ namespace LTW.UnityClient.EditorTools
             Debug.Log(report.ToString());
         }
 
+        /// <summary>The folders this migration considers, for tools that must agree with it.</summary>
+        internal static string[] MaterialFolders => UnitMaterialFolders;
+
+        /// <summary>
+        /// Re-applies the authored shading values for this material's role, leaving textures alone.
+        /// </summary>
+        /// <remarks>
+        /// Exists so <see cref="StylizedShaderABToggle"/> can seed current defaults every time it
+        /// flips to the stylized side. Without this the toggle only swapped the shader reference, so
+        /// a retuned constant did not reach anything already migrated and the A-B compared the new
+        /// numbers against nothing — which is precisely the loop the tuning work needs.
+        /// </remarks>
+        internal static void ReseedDefaults(Material material, string assetPath) =>
+            ApplyStylizedDefaults(material, Capture(material), DefaultsFor(assetPath));
+
+        /// <summary>
+        /// Whether this material is out of scope, exposed so other tools cannot disagree.
+        /// </summary>
+        /// <remarks>
+        /// <see cref="StylizedShaderABToggle"/> originally kept its own idea of which materials
+        /// counted and immediately drifted from this one — it restyled the role markers and energy
+        /// accents this list exists to protect, which is the defect that made the arrow tower render
+        /// as a solid cyan blob. Two copies of a scope rule is one too many.
+        /// </remarks>
+        internal static bool IsOutOfScope(string assetPath) => IsExcluded(assetPath);
+
         private static bool IsExcluded(string assetPath)
         {
+            // Standalone material assets only. Unity's asset search also returns the materials
+            // embedded inside imported FBXs, and the LOD meshes added four of those to the unit
+            // folders — enough to make the A-B toggle's switched count grow 62 -> 69 on a round
+            // trip. An embedded material belongs to its importer, not to this migration; a LOD
+            // should be sharing its source model's material anyway.
+            if (!assetPath.EndsWith(".mat", System.StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
             var name = Path.GetFileNameWithoutExtension(assetPath)
                 .ToLowerInvariant()
                 .Replace("_", string.Empty)
@@ -263,61 +299,141 @@ namespace LTW.UnityClient.EditorTools
         /// control is there and documented; the first pass leaves the albedo as-is so this migration is
         /// a pure lighting-model change and can be judged as one.
         /// </remarks>
-        private static class StylizedDefaults
+        /// <summary>
+        /// One role's shading values. Towers and creeps get different ones — see
+        /// <see cref="TowerDefaults"/> for why.
+        /// </summary>
+        private sealed class StylizedDefaults
         {
-            public const float Smoothness = 0.42f;
-            public const float AlbedoFlatten = 0f;
-            public const float SpecStrength = 0.25f;
-            public const float SpecRoughFloor = 0.35f;
-            public const float OcclusionStrength = 1.0f;
-            public const float ShadeStrength = 0.85f;
-            public const float RampStart = 0.30f;
-            public const float RampEnd = 0.80f;
-            public const float RimPower = 2.6f;
-            public const float RimStrength = 0.70f;
-            public const float ContourPower = 6.0f;
-            public const float ContourStrength = 0.30f;
+            public float Smoothness = 0.42f;
+            public float AlbedoFlatten = 0f;
+            public float SpecStrength = 0.25f;
+            public float SpecRoughFloor = 0.35f;
+            public float OcclusionStrength = 1.0f;
+            public float ShadeStrength = 0.85f;
+            public float RampStart = 0.30f;
+            public float RampEnd = 0.80f;
+            public float RimPower = 2.6f;
+            public float RimStrength = 0.70f;
+            public float ContourPower = 6.0f;
+            public float ContourStrength = 0.30f;
 
-            public static readonly Color ShadeColor = new Color(0.10f, 0.11f, 0.22f, 1f);
-            public static readonly Color AOTint = new Color(0.16f, 0.18f, 0.30f, 1f);
-            public static readonly Color RimColor = new Color(0.55f, 0.80f, 1.00f, 1f);
-            public static readonly Color ContourColor = new Color(0.05f, 0.06f, 0.10f, 1f);
+            public Color ShadeColor = new Color(0.10f, 0.11f, 0.22f, 1f);
+            public Color AOTint = new Color(0.16f, 0.18f, 0.30f, 1f);
+            public Color RimColor = new Color(0.55f, 0.80f, 1.00f, 1f);
+            public Color ContourColor = new Color(0.05f, 0.06f, 0.10f, 1f);
         }
 
-        private static void ApplyStylizedDefaults(Material material, CarriedValues carried)
+        /// <summary>
+        /// Creep values — the shipped set, unchanged.
+        /// </summary>
+        /// <remarks>
+        /// These are right and there is measured reason not to touch them. In the 2026-08-03 in-game
+        /// A/B (see `docs/screenshot-reviews/stylized-shader-20260801/README.md`), the turret walkers
+        /// went from near-black voids — where only the teal leg emissive identified them — to bodies
+        /// with legible carapace and separable legs. Creeps are DARK objects on a dark board, so the
+        /// thing they need from this shader is lift.
+        /// </remarks>
+        /// <remarks>
+        /// **Revised 2026-08-03 after in-game review: the creeps were blowing out.**
+        ///
+        /// The first in-game pass judged these from a single still frame and called them about right.
+        /// Watched in motion at real size they are not — the walkers read as overexposed. Measurement
+        /// cleared the obvious suspect: the walker's emission map is essentially black (mean 1,5,4 of
+        /// 255) so its 1.8 HDR white emission colour contributes almost nothing.
+        ///
+        /// The cause is the rim, and it is specific to creep geometry. A fresnel term assumes an edge
+        /// is a thin band around a broad surface, which holds for a tower dome and fails completely
+        /// for a walker's legs: on a thin limb almost every pixel faces away from the camera, so
+        /// `pow(fres, 2.6) * 0.7` adds more than half of full white across the WHOLE leg rather than
+        /// tracing its outline.
+        ///
+        /// So the rim comes down hard while the ramp stays where it is. That split matters — the ramp
+        /// is what lifted these bodies out of being near-black voids, which was the original defect,
+        /// and cutting it would undo the fix. It is the rim that overshot, not the lift.
+        /// </remarks>
+        private static readonly StylizedDefaults CreepDefaults = new StylizedDefaults
         {
-            material.SetFloat("_Smoothness", StylizedDefaults.Smoothness);
-            material.SetFloat("_AlbedoFlatten", StylizedDefaults.AlbedoFlatten);
-            material.SetFloat("_SpecStrength", StylizedDefaults.SpecStrength);
-            material.SetFloat("_SpecRoughFloor", StylizedDefaults.SpecRoughFloor);
-            material.SetFloat("_OcclusionStrength",
-                carried.OcclusionMap != null ? StylizedDefaults.OcclusionStrength : 0f);
-            material.SetFloat("_ShadeStrength", StylizedDefaults.ShadeStrength);
-            material.SetFloat("_RampStart", StylizedDefaults.RampStart);
-            material.SetFloat("_RampEnd", StylizedDefaults.RampEnd);
-            material.SetFloat("_RimPower", StylizedDefaults.RimPower);
-            material.SetFloat("_RimStrength", StylizedDefaults.RimStrength);
-            material.SetFloat("_ContourPower", StylizedDefaults.ContourPower);
-            material.SetFloat("_ContourStrength", StylizedDefaults.ContourStrength);
+            RimStrength = 0.28f,
+            SpecStrength = 0.12f
+        };
 
-            material.SetColor("_ShadeColor", StylizedDefaults.ShadeColor);
-            material.SetColor("_AOTint", StylizedDefaults.AOTint);
-            material.SetColor("_ContourColor", StylizedDefaults.ContourColor);
+        /// <summary>
+        /// Tower values — the same shader, pulled back.
+        /// </summary>
+        /// <remarks>
+        /// The same A/B showed towers want the opposite of creeps, which is why one shared set of
+        /// numbers could not serve both. The arrow tower gained real silhouette separation and legible
+        /// plate rings, but its deep violet washed out to silver-lavender — and violet is the arrow
+        /// line's identity, so that is a genuine loss rather than a nitpick.
+        ///
+        /// Three changes, each aimed at a specific cause of the wash:
+        ///
+        /// - `RampStart` 0.30 -> 0.40 puts more of each surface into shade, so a mid-value object
+        ///   keeps its depth instead of being lifted toward the lit end.
+        /// - `ShadeColor` goes from neutral indigo to a saturated violet. The neutral tint was
+        ///   actively dragging purple toward grey across the whole shadowed half; a violet shade
+        ///   deepens the role's identity instead of competing with it. This is the change that
+        ///   matters most.
+        /// - `SpecStrength` 0.25 -> 0.15, because the remaining brightness after the first two is
+        ///   specular sitting on top.
+        ///
+        /// Creeps are deliberately NOT given this treatment: applied to something already near-black
+        /// it would undo the lift that made them readable.
+        /// </remarks>
+        private static readonly StylizedDefaults TowerDefaults = new StylizedDefaults
+        {
+            RampStart = 0.40f,
+            SpecStrength = 0.15f,
+            ShadeColor = new Color(0.14f, 0.09f, 0.24f, 1f),
+            AOTint = new Color(0.20f, 0.13f, 0.32f, 1f)
+        };
+
+        /// <summary>Which set applies, from where the material lives.</summary>
+        /// <remarks>
+        /// Folder rather than a naming convention, because the folders are already the roster split
+        /// this migration scopes itself by, and a material that sits under Creeps but is named like a
+        /// tower is a filing mistake to fix rather than a case to encode here.
+        /// </remarks>
+        private static StylizedDefaults DefaultsFor(string assetPath) =>
+            assetPath.StartsWith("Assets/Art/Towers", StringComparison.OrdinalIgnoreCase)
+                ? TowerDefaults
+                : CreepDefaults;
+
+        private static void ApplyStylizedDefaults(Material material, CarriedValues carried, StylizedDefaults defaults)
+        {
+            material.SetFloat("_Smoothness", defaults.Smoothness);
+            material.SetFloat("_AlbedoFlatten", defaults.AlbedoFlatten);
+            material.SetFloat("_SpecStrength", defaults.SpecStrength);
+            material.SetFloat("_SpecRoughFloor", defaults.SpecRoughFloor);
+            material.SetFloat("_OcclusionStrength",
+                carried.OcclusionMap != null ? defaults.OcclusionStrength : 0f);
+            material.SetFloat("_ShadeStrength", defaults.ShadeStrength);
+            material.SetFloat("_RampStart", defaults.RampStart);
+            material.SetFloat("_RampEnd", defaults.RampEnd);
+            material.SetFloat("_RimPower", defaults.RimPower);
+            material.SetFloat("_RimStrength", defaults.RimStrength);
+            material.SetFloat("_ContourPower", defaults.ContourPower);
+            material.SetFloat("_ContourStrength", defaults.ContourStrength);
+
+            material.SetColor("_ShadeColor", defaults.ShadeColor);
+            material.SetColor("_AOTint", defaults.AOTint);
+            material.SetColor("_ContourColor", defaults.ContourColor);
 
             // Rim takes the material's own emission hue where it has one, so a role that already
             // carries an identity colour keeps it on its silhouette rather than every unit on the
             // board picking up the same cool edge. Falls back to the authored cool default.
             var emission = carried.EmissionColor;
             var hasIdentity = emission.maxColorComponent > 0.05f;
-            material.SetColor("_RimColor", hasIdentity ? Normalize(emission) : StylizedDefaults.RimColor);
+            material.SetColor("_RimColor", hasIdentity ? Normalize(emission, defaults.RimColor) : defaults.RimColor);
         }
 
         /// <summary>Brings an HDR emission colour back to a usable rim intensity, keeping its hue.</summary>
-        private static Color Normalize(Color color)
+        private static Color Normalize(Color color, Color fallbackRim)
         {
             var peak = Mathf.Max(color.maxColorComponent, 0.0001f);
             var scaled = new Color(color.r / peak, color.g / peak, color.b / peak, 1f);
-            return Color.Lerp(scaled, StylizedDefaults.RimColor, 0.25f);
+            return Color.Lerp(scaled, fallbackRim, 0.25f);
         }
     }
 }
