@@ -100,7 +100,7 @@ namespace LTW.UnityClient.Simulation
             {
                 label = textObject.AddComponent<TMPro.TextMeshPro>();
                 label.alignment = TMPro.TextAlignmentOptions.Center;
-                label.enableWordWrapping = false;
+                label.textWrappingMode = TMPro.TextWrappingModes.NoWrap;
                 label.fontSize = 3.4f;
                 label.raycastTarget = false;
                 // The outline is the whole point of moving to SDF: board text sits over lane
@@ -673,9 +673,56 @@ namespace LTW.UnityClient.Simulation
             var senderPosition = GridToWorld(new GridPosition(CenterColumn, LaneLength - 1), new LaneId(queued.SenderId.Value)) + Vector3.up * 0.2f;
             var defenderPosition = SpawnPosition(queued.DefenderId.Value);
             var color = CreepRoleColor(queued.CreepId.Value, queued.SenderId.Value);
-            SpawnEffect(senderPosition, color, 0.44f, 0.24f);
-            SpawnBeam(senderPosition + Vector3.up * 0.18f, defenderPosition + Vector3.up * 0.18f, color, 0.22f);
-            SpawnEffect(defenderPosition, color, 0.54f, 0.3f);
+
+            // Both ends of this cue live in their own lanes, and the active-lane camera shows one
+            // lane. Drawn ungated, a cross-lane send put a full-saturation additive beam from a
+            // sender gate that is off-screen, diagonally across the whole visible board and out
+            // past the HUD — by a wide margin the largest thing on screen, every time anyone sent
+            // anything, for an event in a lane the player cannot see. The burst at the sender's
+            // gate had the same problem: it landed in open space beside the lane.
+            //
+            // `IsOnActiveLane` returns true whenever the camera is framing more than one lane, so
+            // in the overview framings the departure, the transit and the arrival all still read
+            // as they were designed to. This only stands the off-lane halves down when there is no
+            // lane on screen to show them in.
+            //
+            // Same reasoning that already gates the SEND text below, applied to the geometry that
+            // is far louder than the text ever was.
+            // Gating on the camera alone is not enough in the all-lanes framings, where
+            // `IsOnActiveLane` is true for every lane by design. Every seat sends continuously, so
+            // with a full table that permitted a beam per send across the whole board at once —
+            // a permanent crossfire of lasers between lanes, which is what a hand-off down the
+            // table looks like from the overview and why this reads as transfers firing at things.
+            //
+            // A send the local player is neither making nor receiving is not theirs to answer, so
+            // it gets no transit line. This is the rule the SEND text below already follows, and
+            // the beam is the loudest thing on the board rather than 12% of its text. Their own
+            // sends still draw, and a send arriving in their lane still draws, which are the two
+            // cases they can actually do something about.
+            // `!= null` rather than `?.`: simulationDriver is a UnityEngine.Object, and only the
+            // overloaded comparison treats a destroyed one as null. The null-conditional would
+            // sail past it. Same reason the SEND text below is written this way.
+            var localIsInvolved = simulationDriver != null
+                && (queued.SenderId.Equals(simulationDriver.LocalPlayerId)
+                    || queued.DefenderId.Equals(simulationDriver.LocalPlayerId));
+
+            var senderVisible = IsOnActiveLane(senderPosition);
+            var defenderVisible = IsOnActiveLane(defenderPosition);
+
+            if (senderVisible)
+            {
+                SpawnEffect(senderPosition, color, 0.44f, 0.24f);
+            }
+
+            if (senderVisible && defenderVisible && localIsInvolved)
+            {
+                SpawnBeam(senderPosition + Vector3.up * 0.18f, defenderPosition + Vector3.up * 0.18f, color, 0.22f);
+            }
+
+            if (defenderVisible)
+            {
+                SpawnEffect(defenderPosition, color, 0.54f, 0.3f);
+            }
             // Only the local player's own sends. A banner for an opponent sending into someone
             // else's lane is 12% of all board text and nothing the player can act on.
             if (simulationDriver != null && queued.SenderId.Equals(simulationDriver.LocalPlayerId))
@@ -687,46 +734,6 @@ namespace LTW.UnityClient.Simulation
             // shows. The sender-side SEND cue and the gate effect still mark the event.
             SpawnReducedEffectCue(defenderPosition, "SEND", color);
             PlaySound(sendClip);
-        }
-
-        private static string SpawnLabel(string creepId)
-        {
-            if (ContainsRole(creepId, "brute") || ContainsRole(creepId, "tank"))
-            {
-                return "BRUTE";
-            }
-
-            if (ContainsRole(creepId, "swarm"))
-            {
-                return "SWARM";
-            }
-
-            if (ContainsRole(creepId, "boss"))
-            {
-                return "BOSS";
-            }
-
-            if (ContainsRole(creepId, "flying") || ContainsRole(creepId, "air"))
-            {
-                return "AIR";
-            }
-
-            if (ContainsRole(creepId, "invisible") || ContainsRole(creepId, "stealth"))
-            {
-                return "STEALTH";
-            }
-
-            if (ContainsRole(creepId, "attacker") || ContainsRole(creepId, "siege"))
-            {
-                return "SIEGE";
-            }
-
-            if (ContainsRole(creepId, "aura") || ContainsRole(creepId, "support"))
-            {
-                return "AURA";
-            }
-
-            return "RUNNER";
         }
 
         /// <summary>One animating board label: where it started, when, and for how long.</summary>

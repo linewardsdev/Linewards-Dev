@@ -8,6 +8,19 @@ Applies OPEN_ITEMS item 4's standing rule — *render-check from the actual game
 before investing in leg articulation* — to the whole roster at once, and turns it from a
 per-creep judgement call into a number.
 
+> **Corrected 2026-08-03 — the two constants below are wrong and the height column is roughly
+> 2x too large.** The camera is not the one at `orthographicSize = 15.5` (that is
+> `LocalVerticalSliceLauncher`'s bootstrap camera); the match camera is
+> `UnityVerticalSliceRenderer.Camera.cs` at 9.2 scaled by tilt compensation, and a real
+> capture's grid measures **~113 px per world unit**, not 61.9. And meshes are not normalised
+> to 1.25 units tall — the intake normalises the LARGEST dimension to 0.900, whatever axis
+> that is, so `UnitBoundsReport` measures siege at 0.506 tall, runner 0.448, swarm and shade
+> 0.750. With height projecting at sin(30) = 0.5, siege is **44 px** and not 105.
+> The ORDERING below is unaffected, since every row is scaled by the same two constants, so
+> the finding and the recommended sequence both still hold. Full working, and what it implies
+> about which axis of motion to spend on, in
+> [`../creep-rigs-wave-2-3/`](../creep-rigs-wave-2-3/).
+
 ## The measurement
 
 The match camera is orthographic at `orthographicSize = 15.5`, and captures are 1080x1920.

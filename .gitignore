@@ -60,6 +60,12 @@ Desktop.ini
 # Unity mono crash dumps, written into the project root on unclean editor exit
 mono_crash.mem.*.blob
 
+# Byte-cache from the Blender art-pipeline scripts. They only started producing it when the
+# rig scripts began importing a shared module (tools/art_pipeline/blender_game_camera.py)
+# rather than each duplicating the match-camera maths.
+__pycache__/
+*.pyc
+
 # Agent worktrees and session scratch. These are nested git repos; committing them
 # stages embedded repositories that a clone cannot resolve.
 .claude/

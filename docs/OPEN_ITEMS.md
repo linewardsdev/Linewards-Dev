@@ -102,6 +102,8 @@ than left as written; each carries its own dated finding.
 
 | Item | Commit | Outcome |
 | --- | --- | --- |
+| 38 (new) | `d53902e`, verified separately | Four LOD `.fbx` under `Art/{Creeps,Towers}/Production/LODs/` were tracked with no committed `.meta`, so every clone minted its own GUID for the same file and any future prefab, LOD Group or material referencing one would have resolved only on the machine that authored it. **Closed with a caveat about how, because it was not done deliberately:** the six metas (four asset, two folder) were swept into `d53902e` by an over-broad `git add -A` from a working tree where a local editor run had already generated them — which is precisely the "bake in one machine's GUIDs unverified" failure the item warned against, committed by the person who wrote the warning. The content is nevertheless correct, and that was then established rather than assumed: a second checkout at `d53902e` with **no `Library/` at all** was cold-imported by Unity 6000.5.3f1, exited 0, and left all four `.meta` byte-identical with `git status` clean — `21dd0941…`, `0391541f…`, `1c84ace3…`, `9efb8611…`. So the GUIDs are stable across a genuinely cold import on a second tree, which is the property the item asked for. Nothing references these meshes yet, so nothing had broken; item 15's LOD work can now wire them up safely. |
+| 37 | `29bc825` | Both dead private methods deleted after confirming each had exactly one textual occurrence repo-wide — its own declaration. `SpawnLabel`'s 39 lines went; the comment in `SpawnSendCue` explaining *why* the `"{qty}x {NAME}"` banner was removed stayed, per the item's own instruction. `ContainsRole`, its only dependency, has ~70 other callers and is untouched. `SetTransform`'s 5 lines went, superseded by `SetTowerTransform`/`SetCreepTransform`. On the item's "only inside a change already allowed to alter code" caveat: that constraint existed because item 25 was a pure-refactor commit claiming to change nothing, and it is satisfied just as well by a commit that says plainly it is deleting code. Unity 6000.5.3f1 compiles clean, exit 0. |
 | 36 | `2df60a7` | **The driver stopped rebuilding what had not changed, and the change signal is the simulation's own state counter rather than its tick.** `RefreshSnapshot` ran `GetSnapshot()`, `GetReplayRecord()` and `GetBotDiagnostics()` at the end of every `Update`, at ~60 fps against a 4 Hz simulation. **The snapshot's defensive copy is untouched, and that is the point** — copying the creep, tower and aim-target lists is what stops a caller holding an old snapshot watching it change underneath, so the fix is to stop building a snapshot that will be identical, not to make it shallow. `LocalVerticalSlice.StateRevision` is incremented by the SETTERS of the only four pieces of mutable state `GetSnapshot` reads — `players`, `combatState`, `tick`, and lane routes through `SetRoute` — rather than at call sites, so a mutator added later cannot forget it without also failing to change anything; the two uncounted pieces are argued in place, `combatContent` being reassigned only inside `AdvanceOneTick` three lines after the tick it rides with, and `grids` being read by pathing rather than by the snapshot. The renderer's item-24 hash could not be reused, for a structural reason worth recording rather than a stylistic one: computing it requires a snapshot, and building the snapshot is the cost being avoided. They are aligned instead. The revision is strictly FINER-grained — it moves when a seat's gold moves, which that hash ignores — and that direction is the safe one: the driver may republish a board the renderer then calls unchanged, costing a hash, while the dangerous direction cannot occur, because the hash is a pure function of the snapshot and the snapshot is a pure function of the state the revision counts. `GetReplayRecord` and `GetBotDiagnostics` are not published at all now; nothing on the frame path reads either, so both are on-demand properties, and `LocalPlaytestRecorder` asks whether the match ended before asking for a record that copies 5,754 accepted commands. **Measured with `RendererAllocationProbe`, which gained a fourth phase to isolate the driver** — renderer off, driver on, board frozen mid-match, so every byte is a rebuild of something that did not move — on item 24's own board, seed 1 at tick 3160, 576 creeps, 432 towers: the driver's share was **619.7 KB/frame** and now reads **0.0 KB/frame**, the idle floor exactly. Free-running at the shipped 4 ticks/s the whole client went **818.0 → 146.9 KB/frame**, and unlike item 24 — whose headroom went straight into drawing more frames — this is less garbage per unit of GAMEPLAY as well: the same forty ticks allocated 243.8 MB across 291 frames before and 81.8 MB across 544 after, −66% for +87% frames. The probe's idle floor itself fell 27,116 → 109 B/frame, which is named rather than buried: `DiagnosticsOverlay` was rebuilding its whole text with per-seat and per-lane LINQ every frame for a panel that is off unless `-ltwDiagnostics` was passed, and it is gated on the same revision now, because leaving it reading the on-demand diagnostics every frame would have moved that allocation rather than removed it. **The tick was not merely argued insufficient, it was built and watched fail.** `OpeningCountdownFreshnessCheck` is a new headless play-mode check in the shape of `EliminatedSeatCheck`: it builds two towers during the opening countdown — thirty seconds in which the tick is frozen at 0 and `UnityCommandAdapter.PlaceTower` is deliberately the one command not gated on the match having started — and requires each to reach both the published snapshot and the renderer within a frame, with the tick asserted unmoved so a regression that quietly starts the match cannot make it pass vacuously. It passes against the shipped signal; against a build with every increment except the tick's removed, all four assertions fail with the board still reporting zero towers. That run is also why `ActiveTowerPresentationCount` exists: the aggregate object count passed while the tower was not drawn, because a timed presentation moved it by the same amount, so the assertion was unsound until it counted towers. **Staleness checked rather than assumed.** `MotionCaptureRunner` at 0.05s intervals — five frames per tick, the only sampling that can see a 4 Hz stutter, which is the one failure this change can cause — gives mean absolute delta 0.3045 before against 0.2856 after, 1.823% against 1.993% of pixels changed, zero still pairs on either side, and a minimum per-pair delta that went UP (0.0663 → 0.0949), so no consecutive sub-tick pair became static. Its frame time went 22.29 ms to 0.80 ms over the same sequence. `RealUiCaptureRunner`'s state assertions are byte-identical across the change — tier-comparison cells and tiers, elimination state, effective income — though **its PNG writes produced no files for that run, so the pixels were not compared** — a real gap in this verification. Corrected on merge: the tool is not broken, it requires no `-batchmode` at all rather than merely no `-nographics`, since `ScreenCapture.CaptureScreenshot` needs a real Game view; run that way it produced 24 frames for item 25 and a 9-frame UI set the same day. So the pixels remain uncompared for this change specifically, and the next person should not plan around a tool limitation that does not exist. Six new tests hold the signal, the load-bearing one walking 400 ticks of a seed-1 match interleaved with commands and requiring that no snapshot ever changed while the revision held still; both directions were verified by breaking a setter and watching it fail. 280 tests pass in Release. Batch playtest passes unchanged at tick 4471, winner P4, 5,754 accepted commands. |
 | 24 | `3b51614` | **Both halves landed, and the item's ordering of them was wrong.** The presentation dictionaries are keyed by `EntityId.Value` as a `long`, the `"t"`/`"c"` shadow prefixes are one packed long and the `"{lane}:{x}:{y}"` cell keys one packed int, the per-frame `new int[LaneCount + 1]` and the three `List<string>` release sweeps reuse one buffer each, and `RenderSnapshot` is split into per-FRAME and per-SNAPSHOT halves. Measured on a deterministic seed-1 board at tick 3160 (576 creeps, 432 towers) with the match paused **and the driver frozen**, so every frame sees the identical snapshot object — the item's premise stated as a measurement rather than argued: the renderer allocated **1,953.2 KB/frame** before and now reads **4.0 KB/frame BELOW** the same session's renderer-disabled baseline, i.e. under the measurement's own ~20 KB/frame noise floor. Free-running at the shipped 4 ticks/s, the same forty ticks of gameplay drew 158 frames before and 429 after. But the item names the string keys as removing "most of the per-frame garbage" and they are the smallest part of it: keys and the split together reached 1,138.8 KB/frame (−42%), of which the keys alone measure 92.2 KB/frame. The other 1,138.8 KB was `UpdateTowerMotion` searching for Body, HeadPivot, Barrel and the Ring/Dish/Spire spin part on every tower on every frame — five recursive walks whose answer cannot change for the life of a pooled instance, each allocating one enumerator per node visited because `Transform`'s enumerator is a class. Those are cached per instance now. **The gate is a hash of the snapshot, not its tick, and that is not a stylistic choice**: commands apply synchronously and the opening build countdown is thirty seconds in which the tick does not advance while the player builds, so a tick gate would leave a tower upgraded during it wearing its old tier colour until the match started. **Motion proved, not assumed.** `MotionCaptureRunner` gained interval and resolution overrides first, because at its default 0.45s every consecutive pair of frames straddles a tick boundary — the sequence cannot see a 4 Hz stutter at all, which is the only failure this change can cause. At five frames per tick the before/after delta profiles agree on every statistic: mean absolute delta 0.2428 against 0.2422, 0.939% against 0.954% of pixels changed, no still frame on either side; at the default sampling they agree to three decimal places. Creep motion phases are bit-identical by construction — `CreepMotionPhase` still hashes the key's decimal DIGITS rather than the number, checked equal for every id from 1 to 200,000, because hashing the long would have re-scattered every creep on the board as a side effect of a dictionary key change. Batch playtest passes both sides, same winner and tick 4471, 218.47s → 206.44s, peak presentation objects unchanged (pooling is untouched). **What it did not buy:** total allocation per second of play is roughly unchanged, because the freed headroom goes straight into more frames and each frame still pays ~800 KB to `UnitySimulationDriver.RefreshSnapshot`. That is now the dominant source and is opened as item 36. `RendererAllocationProbe` is kept rather than deleted so these numbers can be re-run. |
 | 25 | `f6187bd` | **Both classes split, as partial classes, and nothing else changed.** `UnityVerticalSliceRenderer` goes 6,826 → 950 lines across eleven files and `TouchPlacementController` 2,059 → 369 across five. Partial rather than inheritance or extracted helpers, because a MonoBehaviour's serialised surface belongs to the type: a partial class provably cannot change it, and every `[SerializeField]` field is kept declared in the file that keeps the class declaration so that surface is still readable in one place. The scene asset turned out not to be the hazard the item feared — `LocalVerticalSlice.unity` has **no GameObjects at all** and both components are added at runtime by `LocalVerticalSliceLauncher`, so there was no authored value to lose — but the captures below were taken anyway, because that is a fact about today's scene rather than a property of the change. **Cut along the seams the item named**, all of which turned out to be real: board furniture and the `BoardMeshBuilder` bake (957) with its authored palette split off again (232), pooling (298), contact shadows (223), lane pressure gauges (158), camera framing (159), world VFX (829) separated from the per-event feedback cues (751), and tower (1,120) against creep (1,341) presentation. That last claim was checked rather than believed: a cross-reference pass over the finished split found exactly one call between them, `ApplyTowerColor` reaching for `AccentPoolColor` — a generic accent-alpha helper that is not creep code at all. It moved to the core file, and the two presentation parts now reference each other zero times in either direction. On the controller the cut that matters is `Gui.cs` (940), every IMGUI panel in one file so the item-10 HUD migration can lift it whole, with selection (372), the builder avatar (239) and the placement ghost (226) beside it. **Deliberately not moved:** `Update`, `RenderSnapshot`, `SnapshotPresentationRevision` and `RenderEvents` stay together in the renderer's core file, because item 24's per-frame/per-snapshot split lives across exactly those four and separating the gate from what it gates would have hidden it; the grid maths, the shared colour and child helpers, the release scratch buffers and the audio clips stay in core because more than one seam uses them and picking an owner would have been a design decision rather than a move. **The move is proved, not asserted** — no member body, signature, attribute or doc comment was touched, and a checker parsed the original and every new part and compared the multisets of member text: 473 of 473 renderer members and 153 of 153 controller members are byte-identical and appear exactly once. Static field initialisers were checked for cross-dependency before being moved apart, since their order across partial files is unspecified; the only two that call anything read `Environment.GetCommandLineArgs` and nothing else, so none can observe another. 274 tests pass in Release with none modified, Unity compiles with 0 `error CS`, and the batch playtest lands on tick 4471 with winner P4, 5,754 commands, identical creep and tower peaks and a clean reset — twice, either side of the `AccentPoolColor` correction. Wall time reads 286s against the ~210s on record, and 333s on the run that shared the machine with another Unity batch; the tick and the winner are the determinism signal and both are identical. **The scene binding was the real risk and it was tested for directly**, because a lost reference fails no compile and no headless run: `RealUiCaptureRunner` was run with graphics before and after, the frame-matched shot differs by a mean of 0.15/255 with 0.59% of pixels moving more than 8 (live animation between two unsynchronised captures), and 0 of 8,294,400 pixels are magenta in any of the 24 frames — towers and creeps draw their authored meshes, materials and contact shadows and every HUD panel draws. The captures are not committed: at ~1 MB each they would add 24 MB to the repository item 21 is open about. **Found and left:** `SpawnLabel` and `SetTransform` are private, 44 lines between them, and have no callers — carried out as item 37 rather than deleted here. |
@@ -114,6 +116,13 @@ than left as written; each carries its own dated finding.
 | 30 | `11524ec` | **The magenta was not the shader.** LTWFillBar really was a built-in-pipeline pass under a `UniversalPipeline` tag and is now URP HLSL, but it was not what shipped magenta: compiled explicitly for Metal/iOS, the *old* CGPROGRAM pass succeeds on all four variants it has (vertex and fragment × `INSTANCING_ON` on and off, 2080/2933/1512/2132 bytes of bytecode), so there was never a missing variant to fall back from. The real cause is that `UniversalRenderPipelineAsset.defaultMaterial` is wrapped in `#if UNITY_EDITOR` with a bare `return null` for players, so every `GameObject.CreatePrimitive` object in a build arrives with a working mesh, a working renderer and **no material** — and the creep health bars are exactly that, two `PrimitiveType.Cube` children from `EnsureChild`. That is why it looked correct in the Editor for the whole life of the URP migration. Measured on the device shots themselves: all magenta sits in the 38–60% x band where the creeps walk, in bars of exactly the two-piece back+fill silhouette `ConfigureCreepHealthBar` builds; the lane pressure meters live in the lane gutters and are not magenta in any of the four captures — they are not even in frame, so "and all eight pressure meters" was inference, not observation. `RenderCompat.CreatePrimitive` now backfills a material only when one is missing, so the Editor path is byte-for-byte unchanged and only the player is repaired; the five runtime primitive sites moved onto it (health bars and every pooled board primitive, the builder avatar, the tower selection rings, and the placement ghost — `BoardMeshBuilder.PrimitiveMesh` is left alone, since it destroys its probe before anything renders). Verified by play-mode capture at 1080x1920 with graphics enabled: 0 magenta pixels of 2,073,600 in both framings, health bars drawing gold-on-dark, and all eight gauges drawing per-lane red/amber fills off one shared material — which is also the proof the `MaterialPropertyBlock` instancing path survived the HLSL conversion. An isolated render through the converted shader returns exactly the property-block values (1,0,0) and (0,0,1) either side of the fill threshold. **Not verified on device:** neither half of this can reproduce in the Editor by construction, so the fix is argued from URP's own source and the shipped pixels, and wants a device re-test to close. |
 | 23 (rest) | `0b19a2d` | The attack phase now shares one mutable `CombatDamageBuffer` across both damage phases and all four damage paths, so a hit is a slot write rather than an array rebuild and the state is rebuilt once per tick. Measured on a saturated 266-creep, 120-tower board: 1,279.9 → 860.8 KB allocated per tick (−33%), and 54,992 → 386 element copies per tick, a factor of 142. Swept against creep count with towers held fixed, the marginal cost of one more creep fell from 2.06 to 0.38 KB/tick — 5.5x flatter, 82% of the N-dependent growth gone — which is the quadratic term itself rather than a constant. A real bot match barely moves (634.9 → 631.4 MB over 1,500 ticks) because it peaks at 101 creeps and is dominated by bot decisions, so this buys headroom rather than today's frame time. Determinism proven by hashing the complete event stream: eight digests across five board sizes, two kill-heavy boards and a full seed-1 bot match (26,526 events, 1,025 commands) are all byte-identical before and after. The first attempt exposed the creeps as a hole-skipping iterator and measured 25% SLOWER despite allocating 2.5x less, because LINQ lost its fast path — recorded in the class, since it is not visible by reading. Closes every part this item named; one instance of the same pattern survives outside its scope, in `LocalVerticalSlice.AdvanceOneTick`, where each leak does a `RemoveCreep` and a `Creeps.Concat` rebuild per transferred creep. That is bounded by leaks per tick rather than by hits per tick, so it is a much smaller case, but a mass leak still pays it — unmeasured, and left for whoever finds it worth a number. |
 | 23 (part) | `264991c` | Movement and healing no longer rebuild the creep array per creep, and `CombatState` no longer copies twice per mutation or copies the collection that did not change. The attack phase was left quadratic and closed separately, in the row below. |
+
+### Resolved 2026-08-03
+
+| Item | Commit | Outcome |
+| --- | --- | --- |
+| 17 decision 2 | (this commit) | **HUD technology decided: UI Toolkit**, with the three shell screens shipped as the pilot. See the row below for what that pilot measured. The decision that remains is scope — one pass at the in-match HUD or none this wave — not technology. |
+| 10 (shell half) | (this commit) | **Title, pause and results rebuilt as full-screen UI Toolkit compositions; the in-match HUD is untouched and still IMGUI.** The title was a 348x284 IMGUI card with a 2x2 button grid floating over a live board, which is the specific thing that made it read as a debug panel; it is now an opaque field with the wordmark at the optical centre and a four-deep action stack in the thumb zone, and the board does not read through it at all. Pause and results keep the board behind a translucent field, because the board is the thing being paused and scored. Hierarchy is carried by size, frame and order as well as colour: one gold primary, outlined secondaries, an unframed tertiary — and the destructive RESET MATCH carries a written consequence rather than relying on its violet frame, per the branding guide's rule against colour-only state. **Behaviour is byte-identical**: every action body is the one its IMGUI button ran, `LocalSessionFlowOverlay` still owns session state and still publishes `RuntimeUiChrome.ModalScreenActive`, and the batch playtest lands on tick 4471 with winner P4, unchanged. **Nothing had to be added to make input work** — the runtime module ships with the engine, and with no EventSystem in the scene UI Toolkit falls back to its own event system reading legacy `Input`, which is this project's setting. `ShellInputCheck` asserts that end to end in Play Mode by pressing START GAME and requiring the build countdown to have begun, because a rendered menu with dead buttons is indistinguishable from a working one in a screenshot. The one committed asset a runtime panel needs is a `PanelSettings` plus a theme `.tss`, generated by `ShellPanelSettingsGenerator` — necessary here specifically because `LocalVerticalSlice.unity` holds no GameObjects and a ScriptableObject cannot be `AddComponent`ed. **Two findings that will hit the HUD migration**: alpha composites in LINEAR, so a translucent USS colour arrives about twice as strong as its sRGB numbers suggest (a 12% gold row highlight came back as an opaque mustard bar; measured `rgba(77,163,255,0.08)` → sRGB (31,55,86) against (18,29,47) for naive blending), while opaque colours measure pixel-exact against the palette; and IMGUI draws OVER a runtime panel, which is what lets the IMGUI settings panel still open on top of the new title, and equally means a half-migrated HUD will have IMGUI permanently on top regardless of intent. **`MatchResultsBillboard` was deleted**, its scoreboard absorbed into the results screen — a summary exists only while a shell screen owns the display, so gating it like every other HUD component would have left a component that could never draw. **The capture tool needed three fixes before it could judge any of this**, and each was hiding a real defect rather than being cosmetic: it captured in the same editor tick its setup ran in, so the first shell shots photographed a fade that had not started and came back as an empty board; it only *declared* a 1080x1920 surface to IMGUI while the Game view stayed whatever size it was, so a UI Toolkit panel composed for 16:9 landscape in the same frame the HUD composed for a portrait phone; and a run lost seven screenshots to a Game view that stopped being the front tab, logging success and writing nothing — the same silent failure `-batchmode` produces, now caught by a file count at the end. Looking at the resulting captures found a real bug too: the results table keyed its rebuild on the completion tick, and two matches ending at the same tick made the screen announce a defeat over the winner's own scoreboard. It keys on summary identity now. 280 tests pass in Release, Unity compiles with 0 `error CS`, `SessionModalityCheck` and `ShellInputCheck` both pass, batch playtest unchanged at tick 4471 / winner P4. |
 
 **The plan that sequences this work is [`GRAPHICS_AA_UPLIFT.md`](GRAPHICS_AA_UPLIFT.md).**
 That document holds the wave ordering, the raised quality target, the craft scorecard
@@ -281,6 +290,34 @@ provides for all fifteen.
 Occlusion still has to be checked per creep, exactly as above. Height caps how much a leg
 COULD read; an overhanging shell takes it to zero regardless.
 
+**The rule paid off again on 2026-08-03, in a way it did not anticipate.** Applied to siege,
+serpent and runner before rigging them (item 11, wave 2.3), the check found no occlusion on
+any of the three — and found that **none of them has legs at all**. The siege is a wheeled
+ram, the serpent is a coil, the runner floats. The rule as written asks "can the legs be
+seen"; the answer here was "there are no legs", one step earlier, and it saved three
+thigh-and-shin rigs for limbs that do not exist. Record and images:
+[`screenshot-reviews/creep-rigs-wave-2-3/`](screenshot-reviews/creep-rigs-wave-2-3/).
+
+**So the rule generalises: render first and ask what the creep IS, not just whether its legs
+are visible.** Two of the remaining four are already suspect on the same grounds — swarm is a
+crystal cluster and wisp is an orbital ring, and neither is obviously a walker either.
+
+**The threshold's number is right; the table's numbers are not.** The 35 px bar stands, but
+the on-screen heights in `creep-leg-visibility/` are derived from two wrong constants that do
+not cancel — 61.9 px per world unit (that is `LocalVerticalSliceLauncher`'s bootstrap camera,
+not the match camera, which resolves ~113 px/unit measured off the grid in a real capture),
+and "normalised to ~1.25 units tall" (the intake normalises the LARGEST dimension to 0.900,
+whatever axis that is; `UnitBoundsReport` measures siege at 0.506 tall and runner at 0.448).
+Recomputed with height projecting at sin(30): **siege 44 px, serpent 42 px, runner 31 px**,
+against the 105/95/84 the table claims. The ordering is unaffected — every row is scaled by
+the same two constants — but the absolute figures are roughly half, and the runner sits below
+the table's own threshold.
+
+That sharpens the rule rather than weakening it. These creeps are short and wide, so the
+motion worth spending on is in the **horizontal** plane, which the camera preserves at 87-100%,
+not the vertical plane, which it halves. That is why wave 2.3's rigs are wheel rotation, a
+tangential coil wave and a blade sweep rather than anything that moves up and down.
+
 ---
 
 # Graphics uplift items (opened 2026-07-31)
@@ -288,9 +325,10 @@ COULD read; an overhanging shell takes it to zero regardless.
 Findings from the holistic graphics review. Full context, sequencing and the raised
 quality target are in [`GRAPHICS_AA_UPLIFT.md`](GRAPHICS_AA_UPLIFT.md).
 
-## 10. The HUD structurally cannot be animated — the font half is now resolved
+## 10. The HUD structurally cannot be animated — the font and shell halves are resolved
 
-Was two problems. One is fixed; the other is untouched and is the expensive one.
+Was two problems, then three parts. The font asset is fixed, the shell screens are migrated,
+and the in-match HUD is untouched and is the expensive part.
 
 **Resolved 2026-08-01 — the project now has a font asset and an SDF text stack.** The
 board-text pass added `com.unity.ugui` (which is how TextMeshPro ships in Unity 6) and
@@ -310,16 +348,57 @@ cost the same time twice:
   Only a shared `Material` with `OUTLINE_ON` enabled, assigned via `fontSharedMaterial`,
   is honoured — and it batches, which the per-label routes do not.
 
-**Still open: the entire HUD is IMGUI** — `OnGUI` across 9 files, `GUI.skin`-derived
-styles. IMGUI is immediate-mode: there is no retained object to animate, so every UI motion
-item — scale pops, easing, transitions, state tweens — remains blocked until the HUD is
-migrated. The HUD also still draws in Unity's default IMGUI skin font, because that is a
-property of IMGUI rather than of the missing asset; having the asset does not change it.
+**Resolved 2026-08-03 for the shell screens — the technology question is settled and the
+pilot is shipped.** The owner chose UI Toolkit. Title, pause and results are now UXML + USS
+(`Assets/Resources/UI/ShellScreens.uxml`, `Assets/Scripts/UI/ShellScreenView.cs`), rendered
+through a runtime `UIDocument`, with real USS transitions: a 200ms opacity fade and a 280ms
+22px lift on entry. That is the first UI motion in the project, and it exists only because the
+elements are retained between frames.
 
-What has changed is the risk profile. The dependency decision is made, the package is in,
-and the text stack is proven in-tree on real content, so the migration no longer has to
-carry that question. **Decide the target technology (uGUI vs UI Toolkit) before committing
-to any UI polish date.** Wave 3.1-3.2.
+**Still open: the in-match HUD is still IMGUI** — `OnGUI` across 8 files (down from 9;
+`MatchResultsBillboard` was retired into the results screen), `GUI.skin`-derived styles. Scale
+pops, easing and state tweens remain blocked there for exactly the reason above, and the HUD
+still draws in Unity's default IMGUI skin font.
+
+What the pilot actually cost and taught, recorded so the HUD migration does not rediscover it:
+
+- **No EventSystem, no input module, nothing added to the manifest.** `com.unity.modules.uielements`
+  ships with the engine, and with no EventSystem in the scene UI Toolkit falls back to its own
+  runtime event system, which reads legacy `Input` — this project's setting
+  (`activeInputHandler: 0`). Clicks worked on the first run. `Assets/Editor/ShellInputCheck.cs`
+  asserts it in Play Mode by pressing START GAME and checking the build countdown began, because
+  a rendered menu with inert buttons is indistinguishable from a working one in a screenshot.
+- **A `PanelSettings` and a theme `.tss` are the only committed assets required**, and a
+  PanelSettings with no theme renders unstyled text at runtime.
+  `Assets/Editor/ShellPanelSettingsGenerator.cs` authors it. This matters here specifically
+  because `LocalVerticalSlice.unity` has no GameObjects: everything else is `AddComponent` at
+  runtime, and a ScriptableObject cannot be.
+- **Alpha composites in LINEAR.** A translucent USS colour arrives about twice as strong as its
+  sRGB numbers suggest — a 12% gold row highlight came back as an opaque mustard bar. Measured:
+  `rgba(77,163,255,0.08)` over the dark field lands at sRGB (31,55,86) where naive blending gives
+  (18,29,47). Opaque colours measure pixel-exact against the branding palette. The HUD is full of
+  translucent pills and fills, so this will hit every one of them.
+- **IMGUI draws OVER a runtime UI Toolkit panel.** That is what lets settings stay IMGUI while
+  opening on top of the new title screen, and it means a mixed HUD can be migrated piecewise —
+  but also that a half-migrated HUD will have IMGUI permanently on top of UI Toolkit regardless
+  of intent.
+- **Nothing about modality changed.** `RuntimeUiChrome.ModalScreenActive` is still the input gate.
+  The two systems read input independently, so a full-screen UI Toolkit backdrop hides the HUD
+  and does nothing whatsoever about the HUD's clicks.
+- **The capture tooling needed fixing first, and would have hidden the result otherwise.**
+  `RealUiCaptureRunner` captured in the same editor tick its setup ran in, which is invisible
+  while everything is immediate-mode and fatal the moment a screen has an enter transition: the
+  first shell captures came back showing an empty board. It also only *declared* a 1080x1920
+  surface to the IMGUI layout while the Game view stayed at whatever size it was, so a UI Toolkit
+  panel — which scales against the real `Screen` — composed for 16:9 landscape in the same frame
+  the HUD composed for a portrait phone.
+
+**Argues for continuing into the HUD:** the input and dependency questions are answered and cost
+nothing; transitions work; the palette lands exactly on opaque colours; the two technologies
+coexist with a known draw order, so it can be done piecewise rather than as one cutover.
+**Argues against doing it soon:** the mixed state is visibly ugly — the IMGUI settings panel over
+the new title screen is two different games in one frame (see the shell captures) — so a partial
+HUD migration will look worse than either endpoint until it finishes. Wave 3.1-3.2.
 
 ## 11. Seven creeps have no animation, and the eight that do have one clip
 
@@ -353,6 +432,59 @@ first (105/95/84px, no animator); then revenant and shade; then swarm and wisp, 
 small and abstract enough that body motion probably reads better than legs regardless.
 
 Wave 2.3–2.5.
+
+---
+
+### Wave 2.3 shipped, 2026-08-03: siege, serpent and runner are rigged and animated
+
+Branch `art/creep-rigs-wave-2-3`. Full record with images and measurements in
+[`screenshot-reviews/creep-rigs-wave-2-3/`](screenshot-reviews/creep-rigs-wave-2-3/) and
+`GD_TUNING_LOG.md`. **Four remain: revenant, shade, swarm, wisp.**
+
+**The headline is not "three more rigs". It is that none of the three had legs**, which item
+4's render-check-first rule surfaced before any rig was written:
+
+- **siege** is a four-wheeled armoured battering ram. Four discs of radius 0.098 on the
+  flanks, hubs at z=0.129, chassis riding above them, plow nose overhanging with no wheel
+  under it.
+- **serpent** is a closed coil — ground contact at all twelve 30-degree sectors, two turns of
+  body, head raised in the middle.
+- **runner** floats. Fifty-two of its 7702 vertices sit below 18% of its height and they form
+  one stalk, not four columns.
+
+Pointing `rig_quadruped_creep.py` at any of them — the obvious reading of this item — would
+have built thigh-and-shin rigs for limbs that do not exist. Each got a script for its own body
+plan instead, following `rig_turret_walker.py`'s precedent: `rig_wheeled_ram.py`,
+`rig_coiled_serpent.py`, `rig_bladed_runner.py`. Each has one `Walk` state, matching the other
+eight.
+
+**Foot skate, measured against the walker's 51x:**
+
+| | siege | serpent | runner |
+| --- | ---: | ---: | ---: |
+| Skate | **0.99x** | 8.34x | 11.85x |
+
+Only the siege's is a gait number, and it is essentially exact — a wheel has no stride limit,
+so its rotation rate was *solved* from the creep's real ground speed rather than traded off
+against legibility, which is the lever the walker never had. The other two have no ground
+contact pushing them along, so their figures say "this creep is carried down the lane", which
+is true and no clip can change it.
+
+**Also fixed while here:** the runner and the serpent were both facing *backwards* down the
+lane — both flagged in the source as unverified first guesses, both confirmed wrong by
+capture, both corrected by a 180-degree yaw that leaves prefab bounds and solved scales
+untouched.
+
+**Not verified:** how any of it feels in motion to a human. Frame renders and in-game captures
+confirm the poses are distinct and the clips play; whether the siege reads as *rolling* rather
+than as a wheel-textured sled is a judgement only a real playtest makes.
+
+**One regression found, not caused here, and left alone:** running
+`Creep3DProofSetGenerator.PromoteCreep3DSet` resets `motionStyle` to `Auto` for the five
+Category 3 creeps (zephyr, stalker, burrower, warden, colossus), because their specs carry
+`CreepVisualMotionStyle.Auto` while the committed `CreepVisualLibrary.asset` carries 4/5/2/2/2.
+Whichever is right, the library and the specs disagree and the tool silently prefers the specs.
+Reverted out of this branch rather than shipped.
 
 ## 15. Performance debt that will land before ship
 
@@ -404,14 +536,21 @@ Listed here so they do not sit invisibly inside the plan doc:
 1. **Confirm the raised quality target** in `GRAPHICS_AA_UPLIFT.md` §3, which replaces the
    retired "2000 polished prototype" bar. It is a real scope increase, not a reframing, and
    everything else follows from it.
-2. **HUD technology** (item 10) — uGUI + TextMeshPro is conventional and lower-risk;
-   UI Toolkit is more modern but a larger migration. All UI motion waits on this.
-   **Better informed as of 2026-08-01:** TextMeshPro is now already in the project and
-   proven on real in-game content, because the board-text pass needed it. If the answer is
-   uGUI + TMP, half the dependency work is done and the text stack is known to work; if the
-   answer is UI Toolkit, TMP stays in regardless, since board labels are world-space and do
-   not migrate with the HUD. That asymmetry did not exist when this decision was written and
-   it lowers the cost of the conventional option specifically.
+2. ~~**HUD technology** (item 10)~~ — **DECIDED 2026-08-03: UI Toolkit.** The shell screens
+   (title, pause, results) are the pilot and are shipped in UXML + USS; see item 10 for what
+   building them measured. TextMeshPro stays in regardless — board labels are world-space and
+   do not migrate with the HUD — so the earlier note about uGUI + TMP being half-paid-for is
+   moot rather than overturned.
+
+   Three things the pilot settled that were open when this decision was written: the runtime
+   module ships with the engine and needed nothing added to the manifest; runtime pointer input
+   worked with no EventSystem and no input module, on this project's legacy `Input` setting; and
+   the only committed assets a runtime panel requires are a `PanelSettings` and a theme `.tss`.
+   The residual risk is not technical. It is that a piecewise HUD migration looks worse than
+   either endpoint while it is in flight, because IMGUI draws over UI Toolkit and the two skins
+   do not resemble each other at all — which is visible right now in the settings-over-title
+   capture. **What still needs deciding is whether the in-match HUD is migrated in one pass or
+   not at all this wave**, not which technology it would use.
 3. **Normal map route** (item 3) — Meshy re-generation versus a Blender bake stage.
 4. **Whether to re-source albedo.** The reference research says simple albedo plus authored
    roughness is what produces the target look; Meshy's generated albedo is the opposite.
@@ -449,21 +588,85 @@ wrote normally to a scratch copy.
 regenerable 1024-derived ones are the art this game ships. Nothing here answers that; it only
 means a stray re-run can no longer answer it by accident.
 
-## 19. Eight of fifteen creeps have no usable emissive detail
+## 19. Nine of fifteen creeps have no usable emissive detail, and eight of those cannot be fixed by editing the map
 
-Sharper than the count in the old item 7, and measured from the maps rather than the
-materials:
+**The count was 8 and the test was wrong, corrected 2026-08-03.** The old test here was
+"0.00% of texture above quarter brightness", which is a reasonable-looking proxy and is not
+what the renderer does.
 
-- **Five have no `Baked_Emit.png` at all**: burrower, colossus, stalker, warden, zephyr.
-- **Three have one that is functionally blank** — 0.00% of texture above quarter
-  brightness: obsidianbrute (peak 0.224), revenant (0.047), shade (0.259).
+What actually reaches the screen is `linear(texel) * EmissionMultiplier`, with the multiplier
+at 1.8 and the bloom threshold at 1.05 (`CreepBodyMaterialTuning`). Inverting the sRGB transfer
+function, **a map must peak above 0.788 stored sRGB for any part of it to bloom.** That is the
+real acceptance test, and it is measurable from the files. Measured across the roster:
 
-The five without maps are left with black emission deliberately: emission with no map
-multiplies against 1 and would light the entire body uniformly, a lantern rather than a
-highlight. `CreepBodyMaterialTuning.ValidateTuning` reports them by name on every run.
+| creep | peak (sRGB) | on screen (x1.8, linear) | blooms |
+|---|---|---|---|
+| swarm | 1.000 | 1.800 | yes |
+| serpent | 0.957 | 1.628 | yes |
+| wisp | 0.910 | 1.453 | yes |
+| siege | 0.882 | 1.355 | yes |
+| brute | 0.835 | 1.198 | yes |
+| runner | 0.827 | 1.173 | yes |
+| **turretwalker** | **0.784** | **1.040** | **no — missed by 1%** |
+| shade | 0.259 | 0.098 | no |
+| obsidianbrute | 0.224 | 0.074 | no |
+| revenant | 0.047 | 0.007 | no |
+| burrower, colossus, stalker, warden, zephyr | — | — | no map at all |
 
-This is art generation, not a material fix — it needs emission maps authored or
-regenerated. Pairs with item 3, since both are "the generator was never asked for this map".
+**`ValidateTuning` structurally cannot catch this.** It reads the material's emission
+multiplier, which is 1.8 for every creep that has a map bound at all, so a correctly-bound but
+far-too-dark map passes it. It reports the five with no map and is silent on the four whose maps
+are present and useless. That is why this item had to measure from the maps rather than the
+materials, and it is worth keeping in mind before trusting that validator as a gate.
+
+**Turretwalker is the case the old test missed**, and it is the most annoying one: it has the
+richest emissive map in the game — 7.5% lit area, 72 blobs of 20px or more, largest 1933px — and
+none of it bloomed, short of the threshold by one percent. It passed the old quarter-brightness
+test comfortably (1.67% of texture above it) while failing the test that governs what renders.
+
+### Fixed: turretwalker only (`tools/art_pipeline/expose_creep_emissive.py`)
+
+A gain applied in **linear** space, not stored sRGB — a multiply on stored sRGB values is not a
+multiply on light. Turretwalker needed x1.3 to reach 0.878 stored / 1.342 on screen, matching
+Siege mid-cohort.
+
+### Not fixable this way: obsidianbrute, shade, revenant
+
+Re-exposure was tried on all three and **withdrawn after measurement**. These are 8-bit PNGs
+whose lit regions occupy the bottom of the range — peaks of 57/255, 66/255 and 12/255. The gain
+needed to lift them (x18.3, x13.7, x203.6) amplifies 8-bit quantization error along with the
+signal, and not equally across channels, so the hue of the detail shifts. Measured mean
+per-channel chromaticity drift **on the bright texels that carry the art**: obsidianbrute 0.069,
+shade 0.025, revenant 0.043 — against 0.0018 for turretwalker's accepted x1.3.
+
+The tool now measures that drift on its own quantized output and **refuses to write above 0.01**,
+so the refusal is enforced by measurement rather than by a comment. Run it and it reports which
+maps need re-baking:
+
+```
+$ python3 tools/art_pipeline/expose_creep_emissive.py --check
+obsidianbrute   REFUSED  source peaks at 57/255, so the x18.3 gain needed shifts hue by 0.0691
+shade           REFUSED  source peaks at 66/255, so the x13.7 gain needed shifts hue by 0.0252
+turretwalker    would fix  peak 0.784 -> 0.878, on-screen 1.040 -> 1.342 (x1.3, hue drift 0.0018)
+revenant        REFUSED  source peaks at 12/255, so the x203.6 gain needed shifts hue by 0.0430
+```
+
+Revenant is the worst of them and was never really a candidate: peak 0.047 with a largest
+connected blob of **5 pixels** is bake noise, not art authored too dark. It belongs with the five
+that have no map at all.
+
+### What remains: eight creeps, and it is a bake job
+
+- **Re-bake at proper exposure** (structure exists, range does not): obsidianbrute, shade.
+- **Author from scratch**: revenant, burrower, colossus, stalker, warden, zephyr.
+
+Both need the emission pass regenerated at source, which is the same generator gap as item 3 —
+"the generator was never asked for this map". The five without maps are deliberately left at
+black emission meanwhile: emission with no map multiplies against 1 and would light the entire
+body uniformly, a lantern rather than a highlight.
+
+**Acceptance test for the re-bakes, so this does not recur:** peak above 0.788 stored sRGB, and
+`expose_creep_emissive.py --check` reporting them as already blooming rather than as candidates.
 
 ## 20. The target-reference gate measures ten roles against a retired era, and twenty against nothing
 
@@ -659,31 +862,85 @@ Worth pairing with R1 (play the game with human hands) rather than designed from
 long a defeated player actually wants to keep watching is the input this needs, and nobody
 has watched yet.
 
-## 37. Two dead private methods in the renderer, found by item 25 and left there
+## 40. Seventeen compiler warnings in the Editor assembly, invisible unless it recompiles
 
-Opened by item 25 (`f6187bd`), which had to move both and could not delete either: that
-item's whole claim is that it changed nothing, and a deletion is a behaviour change however
-obviously safe it looks.
+Filed 2026-08-03. All pre-existing — every file involved is untouched by recent work — but
+they went unnoticed for a reason worth recording: **Unity does not re-emit warnings for an
+assembly it did not recompile.** A batchmode run that only rebuilds the runtime assembly logs
+nothing from `Assets/Editor/`, so a build can look clean and not be. It was reported as clean
+in this session on exactly that basis, and that report was wrong.
 
-Both are `private` on `UnityVerticalSliceRenderer`, so the compiler has already proved the
-call set is empty within the type and a repo-wide grep finds nothing outside it:
+Three groups:
 
-- `SpawnLabel(string creepId)` — 39 lines, in `UnityVerticalSliceRenderer.Cues.cs`. Maps a
-  creep content id to a short display label. Orphaned by a decision recorded in
-  `SpawnSendCue` immediately above it: the `"{qty}x {NAME}"` spawn banner over the
-  defender's gate was removed for dominating the top of the board, and this was the only
-  thing that named the creep in it. So the deletion is not a cleanup of something never
-  used — it is the last piece of a feature that was removed on purpose, and the comment
-  explaining why should not go with it.
-- `SetTransform(GameObject, GridPosition, LaneId, float)` — 5 lines, in
-  `UnityVerticalSliceRenderer.cs`. Position plus a uniform scale. Superseded by
-  `SetTowerTransform` and `SetCreepTransform`, which both resolve lift and per-role or
-  per-profile scale that this one has no parameter for.
+- **`CS0618` `FindObjectsByType<T>(FindObjectsSortMode)` is obsolete** — six sites:
+  `MotionCaptureRunner:245`, `ShellInputCheck:214`, `TowerMotionAmplitudeProbe:258`,
+  `VisualReviewCaptureRunner:1293`, `WeaponEffectVisibilityProbe:282`. **Not a blind fix.** The
+  replacement overloads differ in whether inactive objects are included, and every one of these
+  sites is a capture or probe tool whose measurements back items elsewhere in this file. Change
+  the overload and the set of objects found can change with it, which would silently move
+  numbers that other items cite. Each needs its intended `FindObjectsInactive` stated and then
+  re-verified against a known capture.
+- **`CS8632` nullable annotation outside a `#nullable` context** — five sites in
+  `TowerMotionAmplitudeProbe` and `WeaponEffectVisibilityProbe`. Harmless and trivially fixed by
+  enabling the context or dropping the annotations.
+- **One `CS0414`** (`WeaponEffectVisibilityProbe.measuringAmbient` assigned but never used) and
+  **one `CS8604`** (`LocalPlaytestBatchRunner:429`, possible null into `ContentId`). The latter
+  is the only one that could be a real defect and is worth a look on its own.
 
-Small, and worth doing only inside a change that is already allowed to alter code rather
-than as its own commit.
+The cost of leaving it is the same as item 39's: a permanently noisy build in which a genuine
+new warning is invisible. **To see these at all, force the Editor assembly to recompile** —
+touching any file under `Assets/Editor/` is enough.
 
 ---
+
+## 41. `PromoteCreep3DSet` silently overwrites committed motion styles with spec defaults
+
+Found 2026-08-03 during the wave 2.3 rig work and deliberately not shipped — the change was
+reverted out of that branch rather than carried, since it is unrelated to rigging.
+
+Running the tool resets `motionStyle` to `Auto` for zephyr, stalker, burrower, warden and
+colossus. Their spec files say `Auto`; the committed creep library says 4, 5, 2, 2 and 2. The
+tool prefers the spec and writes over the library **without reporting that it did so**.
+
+Which side is correct is the open question. If the committed values were hand-tuned after the
+specs were written, the tool destroys tuning every time anyone runs it. If the specs are
+authoritative, the library has drifted and should be reconciled. Either way a promotion tool
+silently discarding committed data is the defect, independent of which value wins: at minimum
+it should report the overwrite, and probably refuse it without an explicit flag.
+
+Same shape as item 39 — a tool and its data disagree, and the tool wins quietly.
+
+---
+
+## 39. Every creep body material is at smoothness 0.42 against a constant of 0.45, so the tuning validator fails roster-wide
+
+Found 2026-08-03 while validating the item 19 emissive work, and unrelated to it.
+
+`CreepBodyMaterialTuning.BodySmoothness` is `0.45f`, with a comment saying it matches
+`TowerBodyMaterialTuning.BodySmoothness` deliberately — and that one is `0.45f` too, so the
+constants agree with each other. The committed materials do not: every
+`mat_creep_*_3d_body_v01.mat` carries `_Smoothness: 0.42`.
+
+The effect is that `Line Wards/Art/Validate Creep Body Material Tuning` fails on all fifteen
+creeps, one `CREEP TUNING FAIL` line each. Confirmed from the committed files, not just a live
+editor — `git show HEAD:<mat>` gives 0.42 for brute, siege and turretwalker.
+
+The likely story is that the constant moved to 0.45 in `19650e6` ("Reconcile the tower and creep
+material split; neither cluster was the right target") and `ApplyTuning` was never re-run
+afterwards, leaving the materials on the old value.
+
+**Not fixed here, deliberately.** The fix is probably one click — run
+`Line Wards/Art/Apply Creep Body Material Tuning` and commit the fifteen materials — but it is a
+visual change across the entire creep roster made on the assumption that the constant is the
+intended value rather than the materials. Given `19650e6`'s own message says neither cluster was
+the right target, that assumption is worth an owner confirming before fifteen materials move.
+
+There is a real cost to leaving it: the validator currently fails for everyone on every run, so
+it cannot be used as a gate, and any genuine regression it catches will be lost in fifteen lines
+of expected noise.
+
+---
+
 
 # Recommended next improvements (2026-07-31)
 

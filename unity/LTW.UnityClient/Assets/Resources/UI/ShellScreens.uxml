@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <Style src="ShellScreens.uss" />
+
+    <!--
+        The three shell screens, all present in one document and switched by display.
+
+        One document rather than three, because the shell is a single place in the app and this
+        keeps the enter transition, the safe-area padding and the backdrop layering defined once.
+        Only one screen is ever .is-shown; the rest are display:none, so they cost no layout and
+        cannot take a pointer.
+
+        Nothing here is interactive except the Buttons: every container and label is
+        picking-mode="Ignore" so a stray pick never lands on a backdrop.
+    -->
+    <ui:VisualElement name="shell-root" class="ltw-shell" picking-mode="Ignore">
+
+        <!-- ============================================================ TITLE -->
+        <ui:VisualElement name="screen-title" class="ltw-screen" picking-mode="Ignore">
+            <ui:VisualElement name="title-field" class="ltw-field ltw-field--solid" picking-mode="Ignore" />
+            <ui:VisualElement name="title-glow" class="ltw-glow" picking-mode="Ignore" />
+            <ui:VisualElement name="title-safe" class="ltw-safe" picking-mode="Ignore">
+                <ui:VisualElement class="ltw-column" picking-mode="Ignore">
+                    <ui:VisualElement class="ltw-spacer" picking-mode="Ignore" />
+
+                    <ui:Label text="COMPETITIVE TOWER WARS" class="ltw-eyebrow" picking-mode="Ignore" />
+                    <ui:Label text="LINE WARDS" class="ltw-wordmark" picking-mode="Ignore" />
+                    <ui:VisualElement class="ltw-rule" picking-mode="Ignore" />
+                    <ui:Label text="Build. Send. Outlast." class="ltw-tagline" picking-mode="Ignore" />
+
+                    <ui:VisualElement class="ltw-spacer ltw-spacer--tight" picking-mode="Ignore" />
+
+                    <ui:Button name="title-start" text="START GAME" class="ltw-action ltw-action--primary" />
+                    <ui:Button name="title-howto" text="HOW TO PLAY" class="ltw-action ltw-action--secondary" />
+                    <ui:Button name="title-settings" text="SETTINGS" class="ltw-action ltw-action--secondary" />
+                    <ui:Button name="title-quit" text="QUIT" class="ltw-action ltw-action--tertiary" />
+
+                    <ui:Label name="title-footer" text="Prototype local vertical slice" class="ltw-footer" picking-mode="Ignore" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+        </ui:VisualElement>
+
+        <!-- ============================================================ PAUSE -->
+        <ui:VisualElement name="screen-pause" class="ltw-screen" picking-mode="Ignore">
+            <ui:VisualElement name="pause-field" class="ltw-field ltw-field--veil" picking-mode="Ignore" />
+            <ui:VisualElement name="pause-safe" class="ltw-safe" picking-mode="Ignore">
+                <ui:VisualElement class="ltw-column" picking-mode="Ignore">
+                    <ui:VisualElement class="ltw-spacer ltw-spacer--tight" picking-mode="Ignore" />
+
+                    <ui:Label text="MATCH HELD" class="ltw-eyebrow" picking-mode="Ignore" />
+                    <ui:Label text="PAUSED" class="ltw-headline" picking-mode="Ignore" />
+                    <ui:VisualElement class="ltw-rule ltw-rule--quiet" picking-mode="Ignore" />
+                    <ui:Label name="pause-note" text="Ticks are stopped. Nothing moves until you resume." class="ltw-note" picking-mode="Ignore" />
+
+                    <ui:VisualElement name="pause-stats" class="ltw-stats" picking-mode="Ignore">
+                        <ui:VisualElement class="ltw-stat" picking-mode="Ignore">
+                            <ui:Label name="pause-lives" text="-" class="ltw-stat__value" picking-mode="Ignore" />
+                            <ui:Label text="LIVES" class="ltw-stat__label" picking-mode="Ignore" />
+                        </ui:VisualElement>
+                        <ui:VisualElement class="ltw-stat" picking-mode="Ignore">
+                            <ui:Label name="pause-gold" text="-" class="ltw-stat__value" picking-mode="Ignore" />
+                            <ui:Label text="GOLD" class="ltw-stat__label" picking-mode="Ignore" />
+                        </ui:VisualElement>
+                        <ui:VisualElement class="ltw-stat" picking-mode="Ignore">
+                            <ui:Label name="pause-income" text="-" class="ltw-stat__value" picking-mode="Ignore" />
+                            <ui:Label text="INCOME" class="ltw-stat__label" picking-mode="Ignore" />
+                        </ui:VisualElement>
+                    </ui:VisualElement>
+
+                    <ui:VisualElement class="ltw-spacer" picking-mode="Ignore" />
+
+                    <ui:Button name="pause-resume" text="RESUME" class="ltw-action ltw-action--primary" />
+                    <ui:Button name="pause-settings" text="SETTINGS" class="ltw-action ltw-action--secondary" />
+                    <ui:Button name="pause-reset" text="RESET MATCH" class="ltw-action ltw-action--secondary ltw-action--caution" />
+                    <ui:Label text="Clears every tower and returns the board to READY." class="ltw-consequence" picking-mode="Ignore" />
+                    <ui:Button name="pause-menu" text="EXIT TO TITLE" class="ltw-action ltw-action--tertiary" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+        </ui:VisualElement>
+
+        <!-- ========================================================== RESULTS -->
+        <ui:VisualElement name="screen-results" class="ltw-screen" picking-mode="Ignore">
+            <ui:VisualElement name="results-field" class="ltw-field ltw-field--heavy" picking-mode="Ignore" />
+            <ui:VisualElement name="results-glow" class="ltw-glow" picking-mode="Ignore" />
+            <ui:VisualElement name="results-safe" class="ltw-safe" picking-mode="Ignore">
+                <ui:VisualElement class="ltw-column" picking-mode="Ignore">
+                    <ui:VisualElement class="ltw-spacer ltw-spacer--tight" picking-mode="Ignore" />
+
+                    <ui:Label text="MATCH COMPLETE" class="ltw-eyebrow" picking-mode="Ignore" />
+                    <ui:Label name="results-headline" text="DEFEAT" class="ltw-headline" picking-mode="Ignore" />
+                    <ui:Label name="results-note" text="-" class="ltw-note" picking-mode="Ignore" />
+                    <ui:VisualElement class="ltw-rule ltw-rule--quiet" picking-mode="Ignore" />
+
+                    <ui:VisualElement name="results-table" class="ltw-table" picking-mode="Ignore" />
+
+                    <ui:VisualElement class="ltw-spacer ltw-spacer--tight" picking-mode="Ignore" />
+
+                    <ui:Button name="results-rematch" text="REMATCH" class="ltw-action ltw-action--primary" />
+                    <ui:Button name="results-settings" text="SETTINGS" class="ltw-action ltw-action--secondary" />
+                    <ui:Button name="results-menu" text="EXIT TO TITLE" class="ltw-action ltw-action--tertiary" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+        </ui:VisualElement>
+
+    </ui:VisualElement>
+</ui:UXML>

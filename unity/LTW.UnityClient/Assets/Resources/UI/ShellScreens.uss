@@ -1,0 +1,496 @@
+/*
+ * Line Wards shell screens: title, pause, results.
+ *
+ * Authored against a 1080x1920 reference surface (see LineWardsShellPanelSettings), so every
+ * length below is in reference units, not device pixels.
+ *
+ * Palette, from docs/BRANDING_GUIDE.md. Written as literals rather than as custom properties
+ * on purpose: var() resolves through inheritance from wherever the sheet's :root matches, and
+ * this sheet is attached to a UIDocument's sub-tree rather than to the panel root, so a :root
+ * block here is not reliably in the inheritance chain. A palette that silently resolves to
+ * nothing turns every surface transparent, which is a worse failure than repeating six hex codes.
+ *
+ *   night ink    #10182F     arcane blue  #4DA3FF     ward violet  #9B6CFF
+ *   signal gold  #FFC84A     mint signal  #59E1B6     cloud        #F4F7FF
+ *
+ * Every alpha below is far lower than it looks like it should be, and that is deliberate. This
+ * project renders in Linear colour space, so UI Toolkit composites alpha in LINEAR, not in the
+ * sRGB numbers written here. Measured on a 1080x1920 capture: rgba(77,163,255,0.08) over the dark
+ * field lands at sRGB (31,55,86) — where blending the sRGB values directly would give (18,29,47).
+ * A tint authored by sRGB intuition therefore arrives roughly twice as strong as intended, which
+ * is how a 12% row highlight came back as an opaque mustard bar. Opaque colours are unaffected and
+ * measure pixel-exact against the palette above.
+ *
+ * Colour is never the only carrier of meaning. The primary action on each screen is also the
+ * tallest, the widest and the first in reading order; the destructive action also carries a
+ * written consequence line; a results row spells out WON / OUT / ALIVE as a word.
+ */
+
+/* ---------------------------------------------------------------- structure */
+
+.ltw-shell {
+    position: absolute;
+    left: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+}
+
+/*
+ * One screen. Hidden screens are display:none, so they cost no layout and cannot be picked; the
+ * visible one fades and lifts in through .is-entered, which the presenter adds one frame after
+ * the screen is shown so the transition has a resolved start value to run from.
+ */
+.ltw-screen {
+    position: absolute;
+    left: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    display: none;
+    opacity: 0;
+    transition-property: opacity;
+    transition-duration: 200ms;
+    transition-timing-function: ease-out;
+}
+
+.ltw-screen.is-shown {
+    display: flex;
+}
+
+.ltw-screen.is-entered {
+    opacity: 1;
+}
+
+/* The field a screen sits on. Opacity is per-screen; see the modifiers below. */
+.ltw-field {
+    position: absolute;
+    left: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgb(9, 13, 27);
+    -unity-background-scale-mode: stretch-to-fill;
+    background-size: 100% 100%;
+}
+
+/* The title owns the display outright: no board reads through it. */
+.ltw-field--solid {
+    opacity: 1;
+}
+
+/*
+ * Pause keeps the board legible underneath — it is a moment inside a match, not a new place.
+ *
+ * 0.91 rather than the 0.88 this started at. A pause lands on whatever the board happened to be
+ * doing, and at 0.88 the capture caught PAUSED sitting across a creep and a green health bar. The
+ * extra three points costs almost nothing in board legibility and buys a header that reads
+ * cleanly whatever is behind it; the text shadows below do the rest.
+ */
+.ltw-field--veil {
+    opacity: 0.91;
+}
+
+/* Results is heavier than pause: the match is over, the board is no longer actionable. */
+.ltw-field--heavy {
+    opacity: 0.95;
+}
+
+/* A soft ward-energy bloom, painted from a texture generated in ShellScreenView. */
+.ltw-glow {
+    position: absolute;
+    -unity-background-scale-mode: stretch-to-fill;
+    background-size: 100% 100%;
+}
+
+/*
+ * Both bleed well past their own screen so the ellipse never shows an edge. The first pass kept
+ * the glow inside the frame and it read as a lens flare sitting on the menu rather than as light
+ * behind it — a visible boundary is what gives a soft blob away.
+ */
+#title-glow {
+    left: -55%;
+    right: -55%;
+    top: -18%;
+    height: 88%;
+}
+
+#results-glow {
+    left: -50%;
+    right: -50%;
+    top: -26%;
+    height: 72%;
+}
+
+.ltw-safe {
+    position: absolute;
+    left: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    align-items: center;
+}
+
+/*
+ * The content column. Capped rather than full-bleed so the composition stays a portrait column
+ * on a tablet instead of stretching into a wide band of centred text.
+ */
+.ltw-column {
+    width: 100%;
+    max-width: 780px;
+    flex-grow: 1;
+    padding-left: 46px;
+    padding-right: 46px;
+    padding-top: 40px;
+    padding-bottom: 46px;
+    align-items: stretch;
+    translate: 0 22px;
+    transition-property: translate;
+    transition-duration: 280ms;
+    transition-timing-function: ease-out;
+}
+
+.ltw-screen.is-entered .ltw-column {
+    translate: 0 0;
+}
+
+.ltw-spacer {
+    flex-grow: 1;
+    min-height: 20px;
+}
+
+/*
+ * A half-weight spacer, for the side of a screen that should give up more of the slack.
+ *
+ * Every screen anchors its actions to the bottom, so how the leftover height is split is the whole
+ * of the vertical composition. Pause and results put this above their content, which pulls the
+ * headline up into a header instead of leaving it floating mid-board; the title puts it below,
+ * which drops the wordmark to the optical centre rather than stranding it in the top third.
+ * Splitting the slack evenly was the first attempt and it produced two voids per screen, which is
+ * what makes a layout read as accidental rather than composed.
+ */
+.ltw-spacer--tight {
+    /*
+     * 0.5, not 0.4, and the difference is a flexbox rule rather than taste: when the flex-grow
+     * values in a container sum to LESS than one, only that fraction of the free space is handed
+     * out and the remainder is simply left at the end. Results uses this class on both of its
+     * spacers, and at 0.4 each they summed to 0.8 — which parked 150px of unused column below the
+     * last button and pulled the whole screen off the bottom edge. At 0.5 they sum to exactly one.
+     */
+    flex-grow: 0.5;
+    min-height: 10px;
+}
+
+/* ---------------------------------------------------------------- typography */
+
+.ltw-eyebrow {
+    font-size: 21px;
+    letter-spacing: 7px;
+    color: rgb(77, 163, 255);
+    -unity-font-style: bold;
+    -unity-text-align: middle-center;
+    margin-top: 0;
+    margin-bottom: 14px;
+    white-space: normal;
+    text-shadow: 0 3px 12px rgba(4, 7, 16, 0.95);
+}
+
+.ltw-wordmark {
+    font-size: 96px;
+    letter-spacing: 4px;
+    color: rgb(244, 247, 255);
+    -unity-font-style: bold;
+    -unity-text-align: middle-center;
+    margin-top: 0;
+    margin-bottom: 0;
+    text-shadow: 0 6px 20px rgba(4, 7, 16, 0.95);
+    white-space: nowrap;
+}
+
+.ltw-headline {
+    font-size: 82px;
+    letter-spacing: 6px;
+    color: rgb(244, 247, 255);
+    -unity-font-style: bold;
+    -unity-text-align: middle-center;
+    margin-top: 0;
+    margin-bottom: 0;
+    text-shadow: 0 6px 20px rgba(4, 7, 16, 0.95);
+    white-space: nowrap;
+}
+
+.ltw-headline--won {
+    color: rgb(255, 200, 74);
+}
+
+.ltw-rule {
+    height: 3px;
+    width: 140px;
+    align-self: center;
+    background-color: rgb(255, 200, 74);
+    margin-top: 28px;
+    margin-bottom: 26px;
+}
+
+.ltw-rule--quiet {
+    background-color: rgba(77, 163, 255, 0.6);
+    width: 104px;
+    margin-top: 22px;
+    margin-bottom: 20px;
+}
+
+.ltw-tagline {
+    font-size: 31px;
+    letter-spacing: 2px;
+    color: rgb(150, 168, 205);
+    -unity-text-align: middle-center;
+    margin-top: 0;
+    margin-bottom: 0;
+    white-space: normal;
+}
+
+.ltw-note {
+    font-size: 22px;
+    color: rgb(150, 168, 205);
+    -unity-text-align: middle-center;
+    margin-top: 14px;
+    margin-bottom: 0;
+    white-space: normal;
+    text-shadow: 0 3px 12px rgba(4, 7, 16, 0.95);
+}
+
+.ltw-footer {
+    font-size: 19px;
+    letter-spacing: 2px;
+    color: rgb(104, 122, 158);
+    -unity-text-align: middle-center;
+    margin-top: 26px;
+    margin-bottom: 0;
+    white-space: normal;
+}
+
+/* ---------------------------------------------------------------- actions */
+
+/*
+ * Three weights, and they differ by size and position as well as by fill. The primary is the
+ * tallest and the first; the secondary is shorter and outlined; the tertiary carries no frame at
+ * all. Read the stack in greyscale and the order is still obvious.
+ *
+ * Everything the default runtime theme puts on a Button is reset here — margin, padding and its
+ * background image — because inheriting half of Unity's stock button and overriding the other
+ * half is exactly how UI ends up looking like an engine default with a tint on it.
+ */
+.ltw-action {
+    height: 100px;
+    margin-left: 0;
+    margin-right: 0;
+    margin-top: 15px;
+    margin-bottom: 0;
+    padding-left: 12px;
+    padding-right: 12px;
+    padding-top: 0;
+    padding-bottom: 0;
+    background-image: none;
+    border-left-width: 2px;
+    border-right-width: 2px;
+    border-top-width: 2px;
+    border-bottom-width: 2px;
+    border-top-left-radius: 10px;
+    border-top-right-radius: 10px;
+    border-bottom-left-radius: 10px;
+    border-bottom-right-radius: 10px;
+    font-size: 31px;
+    letter-spacing: 4px;
+    -unity-font-style: bold;
+    -unity-text-align: middle-center;
+    white-space: nowrap;
+    transition-property: all;
+    transition-duration: 110ms;
+    transition-timing-function: ease-out;
+}
+
+.ltw-action:hover {
+    scale: 1.012 1.012;
+}
+
+.ltw-action:active {
+    scale: 0.985 0.985;
+}
+
+.ltw-action--primary {
+    height: 122px;
+    font-size: 37px;
+    background-color: rgb(255, 200, 74);
+    border-color: rgb(255, 226, 152);
+    color: rgb(22, 17, 4);
+}
+
+.ltw-action--primary:hover {
+    background-color: rgb(255, 216, 124);
+}
+
+.ltw-action--secondary {
+    height: 94px;
+    font-size: 28px;
+    background-color: rgba(77, 163, 255, 0.04);
+    border-color: rgba(77, 163, 255, 0.5);
+    color: rgb(244, 247, 255);
+}
+
+.ltw-action--secondary:hover {
+    background-color: rgba(77, 163, 255, 0.09);
+    border-color: rgb(77, 163, 255);
+}
+
+.ltw-action--tertiary {
+    height: 76px;
+    font-size: 24px;
+    background-color: rgba(0, 0, 0, 0);
+    border-color: rgba(0, 0, 0, 0);
+    color: rgb(150, 168, 205);
+}
+
+.ltw-action--tertiary:hover {
+    color: rgb(244, 247, 255);
+    border-color: rgba(150, 168, 205, 0.42);
+}
+
+/*
+ * Destructive. The violet frame separates it from the plain secondaries, and the consequence
+ * line under it is what actually says why — because a frame on its own is only a colour.
+ */
+.ltw-action--caution {
+    background-color: rgba(155, 108, 255, 0.035);
+    border-color: rgba(155, 108, 255, 0.55);
+    color: rgb(212, 222, 245);
+}
+
+.ltw-action--caution:hover {
+    background-color: rgba(155, 108, 255, 0.08);
+    border-color: rgba(155, 108, 255, 0.85);
+}
+
+.ltw-consequence {
+    font-size: 19px;
+    color: rgb(104, 122, 158);
+    -unity-text-align: middle-center;
+    margin-top: 8px;
+    margin-bottom: 0;
+    white-space: normal;
+    text-shadow: 0 3px 12px rgba(4, 7, 16, 0.95);
+}
+
+/* ---------------------------------------------------------------- status strip */
+
+.ltw-stats {
+    flex-direction: row;
+    justify-content: space-between;
+    margin-top: 26px;
+}
+
+.ltw-stat {
+    flex-grow: 1;
+    flex-basis: 0;
+    align-items: center;
+    padding-top: 16px;
+    padding-bottom: 14px;
+    background-color: rgba(77, 163, 255, 0.045);
+    border-top-width: 2px;
+    border-color: rgba(77, 163, 255, 0.34);
+    margin-left: 5px;
+    margin-right: 5px;
+}
+
+.ltw-stat__value {
+    font-size: 42px;
+    color: rgb(244, 247, 255);
+    -unity-font-style: bold;
+    margin-top: 0;
+    margin-bottom: 0;
+}
+
+.ltw-stat__label {
+    font-size: 17px;
+    letter-spacing: 3px;
+    color: rgb(104, 122, 158);
+    margin-top: 4px;
+    margin-bottom: 0;
+}
+
+/* ---------------------------------------------------------------- scoreboard */
+
+.ltw-table {
+    margin-top: 4px;
+    margin-bottom: 4px;
+}
+
+/*
+ * Every row carries a 4px left rail, transparent by default. The winner and the local seat colour
+ * theirs in rather than filling the whole row, because a tinted band is the thing that went wrong
+ * twice here: strong enough to see, it read as an opaque brown bar over the dark field; weak
+ * enough not to, it read as nothing. A solid rail is unambiguous at any alpha, it keeps every row
+ * on the same text baseline, and the row still says WON or OUT in words regardless.
+ */
+.ltw-row {
+    flex-direction: row;
+    align-items: center;
+    height: 52px;
+    padding-left: 12px;
+    padding-right: 14px;
+    border-bottom-width: 1px;
+    border-bottom-color: rgba(150, 168, 205, 0.16);
+    border-left-width: 4px;
+    border-left-color: rgba(0, 0, 0, 0);
+}
+
+.ltw-row--head {
+    height: 40px;
+    border-bottom-width: 2px;
+    border-bottom-color: rgba(77, 163, 255, 0.5);
+}
+
+.ltw-row--winner {
+    background-color: rgba(255, 200, 74, 0.022);
+    border-left-color: rgb(255, 200, 74);
+}
+
+.ltw-row--local {
+    background-color: rgba(77, 163, 255, 0.03);
+    border-left-color: rgba(77, 163, 255, 0.8);
+}
+
+.ltw-cell {
+    font-size: 24px;
+    color: rgb(244, 247, 255);
+    -unity-text-align: middle-left;
+    flex-grow: 1;
+    flex-basis: 0;
+    margin-top: 0;
+    margin-bottom: 0;
+    white-space: nowrap;
+}
+
+.ltw-cell--seat {
+    flex-grow: 1.5;
+    -unity-font-style: bold;
+}
+
+.ltw-cell--num {
+    -unity-text-align: middle-right;
+}
+
+.ltw-row--head .ltw-cell {
+    font-size: 17px;
+    letter-spacing: 3px;
+    color: rgb(104, 122, 158);
+    -unity-font-style: bold;
+}
+
+.ltw-row--winner .ltw-cell {
+    color: rgb(255, 200, 74);
+    -unity-font-style: bold;
+}
+
+.ltw-cell--out {
+    color: rgb(104, 122, 158);
+}

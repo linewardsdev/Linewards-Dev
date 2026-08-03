@@ -782,12 +782,6 @@ namespace LTW.UnityClient.Simulation
             ClearBurstEmitters();
         }
 
-        private static void SetTransform(GameObject instance, GridPosition position, LaneId laneId, float scale)
-        {
-            instance.transform.position = GridToWorld(position, laneId);
-            instance.transform.localScale = Vector3.one * scale;
-        }
-
         /// <summary>
         /// Owner/sender colour softened for the pool under a unit. These renderers run the
         /// soft-falloff shader, and colour is written straight onto the material — including its
