@@ -55,16 +55,22 @@ are done, so a licensed pass becomes **a file-for-file replacement** of WAVs who
 roles and target levels are already documented. It also changes the floor — the game today
 sounds like a game, not a terminal.
 
-Known gaps, deliberately left:
+Three gaps from the first pass were closed the same day:
 
-- **No per-role shot variety.** Every tower fires the same zap. The director keys cues by
-  event, not by tower id; per-role clips would need the cue enum widened and are exactly
-  the kind of thing a licensed pack provides.
-- **No UI sounds** (menu taps, dock navigation, rejection buzz). Rejections surface
-  through synchronous command results rather than the event stream, so wiring them touches
-  UI code, not the renderer — kept out of this pass to keep the diff reviewable.
-- **No ducking.** Big moments (elimination, match end) play over the bed rather than
-  pushing it down. Worth doing only if a listener says the bed fights them.
+- **Per-family shot voices.** ARCANE keeps the energy zap; FOUNDRY fires a mechanical
+  punch-and-ring; GROVE a woody thwack with no metal in it. Resolved per shot through
+  `TowerCatalog.ForContentId` off the same per-cell role map the weapon visuals use, with
+  the arcane zap as the unknown-id fallback — a roster addition degrades to the default
+  voice, not to silence. Per-ROLE (15-way) variety remains a licensed-pack concern.
+- **The UI says no out loud.** Every rejection in the game — placement, sends, upgrades —
+  funnels through `PlacementFeedbackView.ShowRejected`, so one hook there voices them all
+  with a dull double buzz, via a null-tolerant `LTWAudioDirector.TryPlay` static since UI
+  views live far from the presentation root. Dock/menu tap ticks remain open: the dock is
+  immediate-mode UI with no single selection choke point, so taps mean edits at many draw
+  sites and were not worth that diff yet.
+- **Ducking.** Elimination pushes the bed to 40%, match end to 20%, declared per cue in
+  the same config table as everything else. Attack is instant — a duck that fades in
+  arrives after the moment it exists to clear space for — hold is 2.2s, release ~1.5s.
 
 ## How to tune after listening
 

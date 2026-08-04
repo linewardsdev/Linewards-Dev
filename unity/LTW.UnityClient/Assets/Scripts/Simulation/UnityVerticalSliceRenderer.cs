@@ -584,7 +584,17 @@ namespace LTW.UnityClient.Simulation
 
                         break;
                     case TowerFiredEvent fired:
-                        audioDirector.Play(LTWAudioCue.TowerShot);
+                        // One shot voice per tower family, resolved through the same per-cell role
+                        // map the weapon visuals use. ForContentId falls back to entry 0 (arcane)
+                        // for an unknown id, so a roster addition degrades to the default zap
+                        // rather than to silence.
+                        audioDirector.Play(
+                            TowerCatalog.ForContentId(TowerRoleAt(fired.TowerPosition, fired.LaneId)).Category switch
+                            {
+                                TowerCatalog.CategoryFoundry => LTWAudioCue.TowerShotFoundry,
+                                TowerCatalog.CategoryGrove => LTWAudioCue.TowerShotGrove,
+                                _ => LTWAudioCue.TowerShot
+                            });
                         var firedTowerKey = fired.TowerEntityId.Value;
                         towerLastFiredAt[firedTowerKey] = Time.time;
                         towerAimTarget[firedTowerKey] = GridToWorld(fired.TargetPosition, fired.LaneId);

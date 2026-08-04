@@ -1,3 +1,4 @@
+#nullable enable
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -12,6 +13,9 @@ namespace LTW.UnityClient.Simulation
         TierPurchased,
         CreepSent,
         TowerShot,
+        TowerShotFoundry,
+        TowerShotGrove,
+        UiReject,
         CreepHit,
         CreepKilled,
         CreepLeaked,
@@ -60,6 +64,10 @@ namespace LTW.UnityClient.Simulation
             public float Gain;
             public float PitchJitter;
             public float MinInterval;
+
+            /// <summary>How far this cue pushes the music down, 0..1. Zero for almost every
+            /// cue: ducking is for the few moments the bed must get out of the way of.</summary>
+            public float Duck;
         }
 
         /// <summary>
@@ -77,19 +85,42 @@ namespace LTW.UnityClient.Simulation
             // The two constant textures of a fight. Their files already peak low; the interval
             // is what keeps forty shots a second from becoming one long shot.
             { LTWAudioCue.TowerShot, new CueConfig { ClipName = "tower_shot", Gain = 0.9f, PitchJitter = 0.08f, MinInterval = 0.07f } },
+            { LTWAudioCue.TowerShotFoundry, new CueConfig { ClipName = "tower_shot_foundry", Gain = 0.9f, PitchJitter = 0.08f, MinInterval = 0.07f } },
+            { LTWAudioCue.TowerShotGrove, new CueConfig { ClipName = "tower_shot_grove", Gain = 0.9f, PitchJitter = 0.08f, MinInterval = 0.07f } },
+            { LTWAudioCue.UiReject, new CueConfig { ClipName = "ui_reject", Gain = 1f, PitchJitter = 0f, MinInterval = 0.15f } },
             { LTWAudioCue.CreepHit, new CueConfig { ClipName = "creep_hit", Gain = 0.9f, PitchJitter = 0.10f, MinInterval = 0.06f } },
             { LTWAudioCue.CreepKilled, new CueConfig { ClipName = "creep_killed", Gain = 1f, PitchJitter = 0.06f, MinInterval = 0.07f } },
             { LTWAudioCue.CreepLeaked, new CueConfig { ClipName = "creep_leaked", Gain = 1f, PitchJitter = 0.02f, MinInterval = 0.25f } },
             { LTWAudioCue.IncomeTick, new CueConfig { ClipName = "income_tick", Gain = 1f, PitchJitter = 0.01f, MinInterval = 0.15f } },
             { LTWAudioCue.CreepSnared, new CueConfig { ClipName = "creep_snared", Gain = 1f, PitchJitter = 0.06f, MinInterval = 0.20f } },
-            { LTWAudioCue.PlayerEliminated, new CueConfig { ClipName = "player_eliminated", Gain = 1f, PitchJitter = 0f, MinInterval = 0.5f } },
-            { LTWAudioCue.MatchWon, new CueConfig { ClipName = "match_won", Gain = 1f, PitchJitter = 0f, MinInterval = 1f } },
-            { LTWAudioCue.MatchLost, new CueConfig { ClipName = "match_lost", Gain = 1f, PitchJitter = 0f, MinInterval = 1f } }
+            { LTWAudioCue.PlayerEliminated, new CueConfig { ClipName = "player_eliminated", Gain = 1f, PitchJitter = 0f, MinInterval = 0.5f, Duck = 0.6f } },
+            { LTWAudioCue.MatchWon, new CueConfig { ClipName = "match_won", Gain = 1f, PitchJitter = 0f, MinInterval = 1f, Duck = 0.8f } },
+            { LTWAudioCue.MatchLost, new CueConfig { ClipName = "match_lost", Gain = 1f, PitchJitter = 0f, MinInterval = 1f, Duck = 0.8f } }
         };
 
         private const int VoiceCount = 8;
         private const string SfxResourceFolder = "Audio/SFX/";
         private const string MusicResourcePath = "Audio/Music/music_bed_loop";
+
+        /// <summary>
+        /// The live director, for callers with no path to the renderer's GameObject — in
+        /// practice the UI layer, whose views are constructed far from the presentation root.
+        /// </summary>
+        /// <remarks>
+        /// A null-tolerant static rather than a hard singleton: <see cref="TryPlay"/> before the
+        /// director exists (menu scene, unit-scale editor tools) is a no-op, not an error. Set in
+        /// Awake, cleared in OnDestroy, never lazily created — the renderer owns the lifecycle.
+        /// </remarks>
+        public static LTWAudioDirector? Instance { get; private set; }
+
+        /// <summary>Plays a cue if a director is alive; silently does nothing otherwise.</summary>
+        public static void TryPlay(LTWAudioCue cue)
+        {
+            if (Instance != null)
+            {
+                Instance.Play(cue);
+            }
+        }
 
         private readonly Dictionary<LTWAudioCue, AudioClip> clips = new Dictionary<LTWAudioCue, AudioClip>();
         private readonly Dictionary<LTWAudioCue, float> lastPlayed = new Dictionary<LTWAudioCue, float>();
@@ -97,8 +128,20 @@ namespace LTW.UnityClient.Simulation
         private AudioSource musicSource = null!;
         private int nextVoice;
 
+        /// <summary>Fraction of music volume currently allowed by ducking, 1 = no duck.</summary>
+        private float duckLevel = 1f;
+        private float duckHoldUntil;
+        private float duckTarget = 1f;
+
+        /// <summary>Seconds the bed stays ducked after a ducking cue fires.</summary>
+        private const float DuckHoldSeconds = 2.2f;
+
+        /// <summary>Per-second recovery rate; ~1.5s from a full duck back to level.</summary>
+        private const float DuckReleasePerSecond = 0.65f;
+
         private void Awake()
         {
+            Instance = this;
             voices = new AudioSource[VoiceCount];
             for (var index = 0; index < VoiceCount; index++)
             {
@@ -145,10 +188,27 @@ namespace LTW.UnityClient.Simulation
         /// </summary>
         private void Update()
         {
-            var target = PresentationPreferences.AudioMuted ? 0f : PresentationPreferences.MusicVolume;
+            if (Time.unscaledTime >= duckHoldUntil && duckTarget < 1f)
+            {
+                duckTarget = 1f;
+            }
+
+            duckLevel = duckTarget < duckLevel
+                ? duckTarget // instant attack: the duck exists to clear space NOW
+                : Mathf.MoveTowards(duckLevel, duckTarget, DuckReleasePerSecond * Time.unscaledDeltaTime);
+
+            var target = (PresentationPreferences.AudioMuted ? 0f : PresentationPreferences.MusicVolume) * duckLevel;
             if (!Mathf.Approximately(musicSource.volume, target))
             {
                 musicSource.volume = target;
+            }
+        }
+
+        private void OnDestroy()
+        {
+            if (Instance == this)
+            {
+                Instance = null;
             }
         }
 
@@ -171,6 +231,12 @@ namespace LTW.UnityClient.Simulation
             }
 
             lastPlayed[cue] = Time.unscaledTime;
+
+            if (config.Duck > 0f)
+            {
+                duckTarget = Mathf.Min(duckTarget, 1f - config.Duck);
+                duckHoldUntil = Mathf.Max(duckHoldUntil, Time.unscaledTime + DuckHoldSeconds);
+            }
 
             var voice = voices[nextVoice];
             nextVoice = (nextVoice + 1) % VoiceCount;

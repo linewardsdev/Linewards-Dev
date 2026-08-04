@@ -162,11 +162,38 @@ def creep_sent() -> np.ndarray:
 
 
 def tower_shot() -> np.ndarray:
-    """A single ward discharging: 60ms falling zap. Peaks LOW - this is the roster's most
-    frequent sound by an order of magnitude, and the limiter alone cannot make loud cheap."""
+    """ARCANE discharge: 60ms falling zap. Peaks LOW - shots are the roster's most frequent
+    sound by an order of magnitude, and the limiter alone cannot make loud cheap. The three
+    shot voices share that constraint and differ in character, one per tower family."""
     zap = env(sweep(1400, 320, 0.06), 0.002, 0.02)
     snap = env(noise(0.03, 3000), 0.001, 0.008) * 0.5
     return polish(pad_sum([zap, snap]), 0.14)
+
+
+def tower_shot_foundry() -> np.ndarray:
+    """FOUNDRY discharge: mechanical - a low punch with a short metallic ring, machined
+    where the arcane zap is energy."""
+    punch = env(sweep(300, 90, 0.07), 0.002, 0.025)
+    ring = env(partials(870, [(1, 0.5), (1.83, 0.3)], 0.08, detune=0.01), 0.002, 0.025)
+    grit = env(noise(0.04, 1800), 0.001, 0.012) * 0.6
+    return polish(pad_sum([punch, ring, grit]), 0.15)
+
+
+def tower_shot_grove() -> np.ndarray:
+    """GROVE discharge: organic - a woody thwack and a leafy noise flick, no metal and no
+    electricity anywhere in it."""
+    thwack = env(sweep(420, 180, 0.05), 0.002, 0.018)
+    body = env(partials(255, [(1, 0.7), (2.4, 0.25)], 0.06, detune=0.008), 0.002, 0.02)
+    leaves = env(noise(0.05, 5200), 0.001, 0.018) * 0.45
+    return polish(pad_sum([thwack, body, leaves]), 0.14)
+
+
+def ui_reject() -> np.ndarray:
+    """Denied: a dull double buzz, low and deliberately unmusical. It must be unmistakable
+    as 'no' while staying quiet - rejections often come in taps of three."""
+    a = env(partials(110, [(1, 1.0), (2.02, 0.55), (2.98, 0.3)], 0.07, detune=0.015), 0.003, 0.03)
+    b = env(partials(98, [(1, 1.0), (2.02, 0.55)], 0.09, detune=0.015), 0.003, 0.04)
+    return polish(pad_sum([a, (b, 0.085)]), 0.22)
 
 
 def creep_hit() -> np.ndarray:
@@ -318,6 +345,8 @@ def music_bed() -> np.ndarray:
 SFX = {
     "tower_placed": tower_placed, "tower_sold": tower_sold, "tower_upgraded": tower_upgraded,
     "tier_purchased": tier_purchased, "creep_sent": creep_sent, "tower_shot": tower_shot,
+    "tower_shot_foundry": tower_shot_foundry, "tower_shot_grove": tower_shot_grove,
+    "ui_reject": ui_reject,
     "creep_hit": creep_hit, "creep_killed": creep_killed, "creep_leaked": creep_leaked,
     "income_tick": income_tick, "creep_snared": creep_snared, "player_eliminated": player_eliminated,
     "match_won": match_won, "match_lost": match_lost,
