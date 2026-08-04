@@ -98,8 +98,30 @@ second closed the distance between synthesized and produced, all generator-side:
   edit mode, singly or in sequence — the whole set reviewable in under a minute, including
   the cues a normal match rarely produces.
 
-Still deliberately deferred: **music intensity stems** (loop-locked tension/combat layers
-driven by lane pressure — real machinery, its own pass) and dock tap ticks.
+## Music intensity, 2026-08-04 — the score answers the board
+
+The bed is no longer static. Music is three vertically-remixed stems, all 48 seconds from
+the same chord table, every oscillator loop-quantized:
+
+- **`music_bed_loop`** — the original bed, always sounding.
+- **`music_stem_tension`** — a sparse in-chord arpeggio and airy octave pad; fades in from
+  intensity 0.15, full at 0.5.
+- **`music_stem_combat`** — a low modal pulse in 4/4 with a sub swell on the chord roots,
+  mono and bass-heavy on purpose; fades in from 0.45, full at 0.85.
+
+Because all three share one chord schedule and one loop length, there is no transition
+system — a stem becoming audible IS the transition, and it is always in tune and in phase.
+They start sample-locked via `PlayScheduled` on a shared dspTime and stay locked because
+their frame counts are identical (`--verify` asserts this).
+
+**Intensity** is a 0..1 sensor reading fed by the renderer once per snapshot from the same
+per-lane creep counts the pressure meters draw: the local lane dominates (~10 creeps
+in-lane reads as full siege), the board total contributes half-weight (~80 board-wide).
+Every audible decision lives in the director: rise slews at 0.35/s so the music answers a
+wave promptly, fall at 0.12/s so a fight audibly winds down rather than switching off.
+Ducking and mute apply to the whole stem bus.
+
+Still deliberately deferred: dock tap ticks.
 
 ## How to tune after listening
 

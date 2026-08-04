@@ -457,6 +457,30 @@ def render(name: str, variant: str, sound: Sound) -> np.ndarray:
 MUSIC_SECONDS = 48.0
 XFADE_SECONDS = 2.0
 
+# Dm(add9) -> Bbmaj7 -> F(add9) -> Csus2, twelve seconds each. Module-level because the
+# stems must agree with the bed note for note: three files built from one chord table are
+# phase-locked AND harmony-locked by construction, which is the entire trick that makes
+# vertical remixing free of transition logic.
+MUSIC_CHORDS = [
+    [146.83, 220.0, 293.66, 329.63],
+    [116.54, 174.61, 220.0, 261.63],
+    [174.61, 220.0, 261.63, 392.0],
+    [130.81, 196.0, 261.63, 293.66],
+]
+
+
+def music_place(out: np.ndarray, voice: np.ndarray, at_seconds: float) -> None:
+    """Adds a voice into a music buffer at an offset, wrapping across the loop seam —
+    a note that starts at second 47.6 must spill into second 0, or the seam clicks."""
+    start = int(at_seconds * MUSIC_RATE) % len(out)
+    end = start + len(voice)
+    if end <= len(out):
+        out[start:end] += voice
+    else:
+        split = len(out) - start
+        out[start:] += voice[:split]
+        out[:end - len(out)] += voice[split:]
+
 
 def loop_quantize(freq: float) -> float:
     """Nearest frequency completing whole cycles per loop, so the seam is phase-exact."""
@@ -475,13 +499,7 @@ def music_bed() -> np.ndarray:
     n = int(MUSIC_RATE * MUSIC_SECONDS)
     x = np.arange(n) / MUSIC_RATE
 
-    # Dm(add9) -> Bbmaj7 -> F(add9) -> Csus2, as note frequencies.
-    chords = [
-        [146.83, 220.0, 293.66, 329.63],
-        [116.54, 174.61, 220.0, 261.63],
-        [174.61, 220.0, 261.63, 392.0],
-        [130.81, 196.0, 261.63, 293.66],
-    ]
+    chords = MUSIC_CHORDS
     seg = n // 4
     fade = int(MUSIC_RATE * 3.0)
 
@@ -518,6 +536,107 @@ def music_bed() -> np.ndarray:
     return np.stack([left, right], axis=1)
 
 
+def music_stem_tension() -> np.ndarray:
+    """The middle intensity layer: a sparse arpeggio walking the current chord, with an
+    airy octave pad. Fades in when the board starts carrying real pressure.
+
+    Same loop length and chord table as the bed, every frequency loop-quantized, so it can
+    only ever agree with what is already playing — there is no transition to compose, the
+    layer simply becomes audible. Notes land every 0.75s (64 per loop, an exact divisor)
+    and each spills across the seam via music_place, so the loop point stays silent-clean.
+    """
+    global RNG
+    RNG = _rng_for("music_stem_tension")
+    n = int(MUSIC_RATE * MUSIC_SECONDS)
+    x = np.arange(n) / MUSIC_RATE
+    out = np.zeros(n)
+
+    note_every = 0.75
+    count = int(MUSIC_SECONDS / note_every)
+    for i in range(count):
+        at = i * note_every
+        chord = MUSIC_CHORDS[int(at // 12) % 4]
+        tone = chord[int(RNG.integers(0, len(chord)))] * (2 if RNG.random() < 0.35 else 1)
+        f = loop_quantize(tone)
+        dur = 0.6
+        v = np.sin(2 * math.pi * f * np.arange(int(MUSIC_RATE * dur)) / MUSIC_RATE)
+        v += 0.3 * np.sin(2 * math.pi * f * 2 * np.arange(int(MUSIC_RATE * dur)) / MUSIC_RATE)
+        e = np.exp(-np.arange(len(v)) / (0.28 * MUSIC_RATE))
+        a = max(1, int(0.006 * MUSIC_RATE))
+        e[:a] *= np.linspace(0, 1, a)
+        music_place(out, v * e * 0.16, at)
+
+    # Airy octave pad: the bed's chords an octave up, very quiet, slow-breathing.
+    seg = n // 4
+    fade = int(MUSIC_RATE * 3.0)
+    for index, chord in enumerate(MUSIC_CHORDS):
+        gain = np.zeros(n)
+        start = index * seg
+        gain[start:start + seg] = 1.0
+        ramp = np.linspace(0, 1, fade)
+        gain[start:start + fade] = np.minimum(gain[start:start + fade], ramp)
+        tail = np.arange(fade)
+        gain[(start + seg - fade + tail) % n] = np.minimum(gain[(start + seg - fade + tail) % n], 1 - ramp)
+        for voice, freq in enumerate(chord):
+            f = loop_quantize(freq * 2)
+            lfo = 0.8 + 0.2 * np.sin(2 * math.pi * loop_quantize(1 / (7 + voice)) * x + voice * 2.1)
+            out += gain * lfo * 0.035 * np.sin(2 * math.pi * f * x + voice)
+
+    out = np.tanh(out * 1.2)
+    out *= 0.22 / np.max(np.abs(out))
+    return out
+
+
+def music_stem_combat() -> np.ndarray:
+    """The top intensity layer: a low modal pulse on the tonic in 4/4, with a sub swell
+    following the chord roots. Fades in when the board is genuinely under siege.
+
+    Kept mono and bass-heavy on purpose — low frequencies carry urgency without adding
+    melodic information that could fight the cues, and mono bass is standard practice
+    anyway. A pulse every 0.5s is 96 per loop, exact, so the grid loops seamlessly.
+    """
+    global RNG
+    RNG = _rng_for("music_stem_combat")
+    n = int(MUSIC_RATE * MUSIC_SECONDS)
+    x = np.arange(n) / MUSIC_RATE
+    out = np.zeros(n)
+
+    thump_len = int(0.22 * MUSIC_RATE)
+    tx = np.arange(thump_len) / MUSIC_RATE
+    thump = (np.sin(2 * math.pi * loop_quantize(73.42) * tx) * np.exp(-tx / 0.06)
+             + 0.5 * np.sin(2 * math.pi * loop_quantize(110.0) * tx) * np.exp(-tx / 0.035))
+    a = max(1, int(0.003 * MUSIC_RATE))
+    thump[:a] *= np.linspace(0, 1, a)
+
+    accents = [1.0, 0.55, 0.75, 0.55]  # 4/4, the downbeat leads
+    for i in range(int(MUSIC_SECONDS / 0.5)):
+        music_place(out, thump * accents[i % 4], i * 0.5)
+
+    # Sub swell on each chord's root, an octave down: the floor tightening its grip.
+    seg = n // 4
+    fade = int(MUSIC_RATE * 3.0)
+    for index, chord in enumerate(MUSIC_CHORDS):
+        gain = np.zeros(n)
+        start = index * seg
+        gain[start:start + seg] = 1.0
+        ramp = np.linspace(0, 1, fade)
+        gain[start:start + fade] = np.minimum(gain[start:start + fade], ramp)
+        tail = np.arange(fade)
+        gain[(start + seg - fade + tail) % n] = np.minimum(gain[(start + seg - fade + tail) % n], 1 - ramp)
+        out += gain * 0.30 * np.sin(2 * math.pi * loop_quantize(chord[0] / 2) * x)
+
+    out = np.tanh(out * 1.2)
+    out *= 0.26 / np.max(np.abs(out))
+    return out
+
+
+MUSIC_STEMS = {
+    "music_bed_loop": music_bed,
+    "music_stem_tension": music_stem_tension,
+    "music_stem_combat": music_stem_combat,
+}
+
+
 # --------------------------------------------------------------------------- output
 
 def write_wav(path: Path, data: np.ndarray, rate: int) -> None:
@@ -552,16 +671,25 @@ def verify() -> int:
         if abs(raw[0]) > 0.02 or abs(raw[-1]) > 0.02:
             failures.append(f"{variant}: does not start/end near zero (click)")
 
-    path = MUSIC_DIR / "music_bed_loop.wav"
-    if path.exists():
+    frame_counts = {}
+    for stem_name in MUSIC_STEMS:
+        path = MUSIC_DIR / f"{stem_name}.wav"
+        if not path.exists():
+            failures.append(f"{stem_name}: missing")
+            continue
         with wave.open(str(path)) as f:
-            raw = np.frombuffer(f.readframes(f.getnframes()), dtype="<i2").reshape(-1, 2) / 32767.0
-        seam = float(np.max(np.abs(raw[0] - raw[-1])))
-        step = float(np.max(np.abs(np.diff(raw[:, 0]))))
+            channels = f.getnchannels()
+            frame_counts[stem_name] = f.getnframes()
+            raw = np.frombuffer(f.readframes(f.getnframes()), dtype="<i2").astype(float) / 32767.0
+            if channels == 2:
+                raw = raw.reshape(-1, 2)[:, 0]
+        seam = float(abs(raw[0] - raw[-1]))
+        step = float(np.max(np.abs(np.diff(raw))))
         if seam > step * 2:
-            failures.append(f"music: seam discontinuity {seam:.4f} exceeds 2x max in-loop step {step:.4f}")
-    else:
-        failures.append("music: missing")
+            failures.append(f"{stem_name}: seam discontinuity {seam:.4f} exceeds 2x max in-loop step {step:.4f}")
+    # Stems only stay phase-locked if every loop is the same exact length in frames.
+    if len(set(frame_counts.values())) > 1:
+        failures.append(f"stems differ in frame count: {frame_counts}")
 
     for line in failures:
         print(f"FAIL  {line}")
@@ -581,10 +709,12 @@ def main() -> int:
             data = render(name, variant, sound)
             write_wav(SFX_DIR / f"{variant}.wav", data, SFX_RATE)
             print(f"wrote {variant}.wav  ({len(data) / SFX_RATE:.2f}s, peak {np.max(np.abs(data)):.2f})")
-    music = music_bed()
-    write_wav(MUSIC_DIR / "music_bed_loop.wav", music, MUSIC_RATE)
-    print(f"wrote music_bed_loop.wav  ({MUSIC_SECONDS:.0f}s stereo, "
-          f"{(MUSIC_DIR / 'music_bed_loop.wav').stat().st_size / 1e6:.1f} MB)")
+    for stem_name, stem_fn in MUSIC_STEMS.items():
+        stem = stem_fn()
+        write_wav(MUSIC_DIR / f"{stem_name}.wav", stem, MUSIC_RATE)
+        channels = "stereo" if stem.ndim == 2 else "mono"
+        print(f"wrote {stem_name}.wav  ({MUSIC_SECONDS:.0f}s {channels}, "
+              f"{(MUSIC_DIR / f'{stem_name}.wav').stat().st_size / 1e6:.1f} MB)")
     return 0
 
 

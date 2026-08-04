@@ -105,7 +105,21 @@ namespace LTW.UnityClient.Simulation
 
         private const int VoiceCount = 8;
         private const string SfxResourceFolder = "Audio/SFX/";
-        private const string MusicResourcePath = "Audio/Music/music_bed_loop";
+        /// <summary>
+        /// The music, as vertically-remixed stems: the bed always sounds, tension joins
+        /// under moderate pressure, combat under siege. All three are the same 48 seconds
+        /// in the same key with the same chord schedule — generated from one chord table
+        /// and loop-quantized, so "transition" is just a stem's volume moving. They are
+        /// started sample-locked with PlayScheduled on a shared dspTime and stay locked
+        /// because their lengths are byte-identical (the generator's --verify asserts it).
+        /// </summary>
+        private static readonly (string Path, float In, float Full)[] MusicStems =
+        {
+            // (resource, intensity where the stem starts fading in, intensity where it is full)
+            ("Audio/Music/music_bed_loop", 0f, 0f),        // always on
+            ("Audio/Music/music_stem_tension", 0.15f, 0.5f),
+            ("Audio/Music/music_stem_combat", 0.45f, 0.85f)
+        };
 
         /// <summary>
         /// The live director, for callers with no path to the renderer's GameObject — in
@@ -134,8 +148,18 @@ namespace LTW.UnityClient.Simulation
         /// the one repetition a random pick would still allow, and the one people notice.</summary>
         private readonly Dictionary<LTWAudioCue, int> lastVariant = new Dictionary<LTWAudioCue, int>();
         private AudioSource[] voices = null!;
-        private AudioSource musicSource = null!;
+        private AudioSource[] musicSources = null!;
         private int nextVoice;
+
+        /// <summary>Smoothed board intensity, 0..1, driving the stem mix.</summary>
+        private float intensity;
+        private float intensityTarget;
+
+        /// <summary>Per-second slew. Rising is quicker than falling so the music answers a
+        /// wave promptly but relaxes gradually — a fight that just ended should audibly
+        /// wind down, not switch off.</summary>
+        private const float IntensityRisePerSecond = 0.35f;
+        private const float IntensityFallPerSecond = 0.12f;
 
         /// <summary>Fraction of music volume currently allowed by ducking, 1 = no duck.</summary>
         private float duckLevel = 1f;
@@ -187,26 +211,44 @@ namespace LTW.UnityClient.Simulation
                 }
             }
 
-            musicSource = gameObject.AddComponent<AudioSource>();
-            musicSource.playOnAwake = false;
-            musicSource.spatialBlend = 0f;
-            musicSource.loop = true;
-            var music = Resources.Load<AudioClip>(MusicResourcePath);
-            if (music != null)
+            musicSources = new AudioSource[MusicStems.Length];
+            // A beat of scheduling headroom so every stem starts on the same dsp sample;
+            // Play() in a loop would start them a few callbacks apart and they would never
+            // realign for the rest of the session.
+            var startAt = AudioSettings.dspTime + 0.25;
+            for (var index = 0; index < MusicStems.Length; index++)
             {
-                musicSource.clip = music;
-                musicSource.Play();
-            }
-            else
-            {
-                Debug.LogError("[Audio] Missing music bed at Resources/" + MusicResourcePath);
+                var source = gameObject.AddComponent<AudioSource>();
+                source.playOnAwake = false;
+                source.spatialBlend = 0f;
+                source.loop = true;
+                source.volume = 0f;
+                var clip = Resources.Load<AudioClip>(MusicStems[index].Path);
+                if (clip == null)
+                {
+                    Debug.LogError("[Audio] Missing music stem at Resources/" + MusicStems[index].Path);
+                }
+                else
+                {
+                    source.clip = clip;
+                    source.PlayScheduled(startAt);
+                }
+
+                musicSources[index] = source;
             }
         }
 
         /// <summary>
-        /// Music volume tracks the prefs every frame. Polling is deliberate: the overlay
-        /// writes prefs directly and there is no change event to subscribe to, and one float
-        /// compare per frame is beneath measurement.
+        /// Feeds the stem mix. The renderer calls this once per snapshot with a 0..1 read
+        /// of how much trouble the board is in; everything audible about it — slew, curves,
+        /// which stem carries what — is decided here, so the caller stays a sensor.
+        /// </summary>
+        public void SetIntensity(float value) => intensityTarget = Mathf.Clamp01(value);
+
+        /// <summary>
+        /// Music volumes track prefs, duck and intensity every frame. Polling is deliberate:
+        /// the overlay writes prefs directly with no change event, and a handful of float
+        /// ops per frame is beneath measurement.
         /// </summary>
         private void Update()
         {
@@ -219,10 +261,19 @@ namespace LTW.UnityClient.Simulation
                 ? duckTarget // instant attack: the duck exists to clear space NOW
                 : Mathf.MoveTowards(duckLevel, duckTarget, DuckReleasePerSecond * Time.unscaledDeltaTime);
 
-            var target = (PresentationPreferences.AudioMuted ? 0f : PresentationPreferences.MusicVolume) * duckLevel;
-            if (!Mathf.Approximately(musicSource.volume, target))
+            intensity = Mathf.MoveTowards(intensity, intensityTarget,
+                (intensityTarget > intensity ? IntensityRisePerSecond : IntensityFallPerSecond) * Time.unscaledDeltaTime);
+
+            var bus = (PresentationPreferences.AudioMuted ? 0f : PresentationPreferences.MusicVolume) * duckLevel;
+            for (var index = 0; index < musicSources.Length; index++)
             {
-                musicSource.volume = target;
+                var (_, fadeIn, full) = MusicStems[index];
+                var stemGain = full <= fadeIn ? 1f : Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(fadeIn, full, intensity));
+                var target = bus * stemGain;
+                if (!Mathf.Approximately(musicSources[index].volume, target))
+                {
+                    musicSources[index].volume = target;
+                }
             }
         }
 

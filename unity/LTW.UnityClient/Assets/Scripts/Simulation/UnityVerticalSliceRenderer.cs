@@ -513,6 +513,25 @@ namespace LTW.UnityClient.Simulation
                 ReleaseMissingCreeps();
                 ReleaseMissingContactShadows();
                 UpdateLanePressureIndicators(pressureByLane);
+
+                // The music's read of how much trouble the board is in, fed from the same
+                // per-lane counts the pressure meters draw. The LOCAL lane dominates — ten
+                // creeps bearing down on you is a siege, ten spread across opponents is
+                // scenery — with the board total as a lighter second term so a huge match
+                // still registers even while your own lane is briefly clear. The divisors
+                // are the normalization: ~10 creeps in-lane or ~80 board-wide reads as
+                // full intensity. This is a sensor reading; every audible decision (slew,
+                // stem curves) lives in the director.
+                var localLane = simulationDriver != null ? simulationDriver.LocalPlayerId.Value : 1;
+                var localPressure = localLane >= 1 && localLane < pressureByLane.Length ? pressureByLane[localLane] : 0;
+                var totalPressure = 0;
+                for (var lane = 1; lane < pressureByLane.Length; lane++)
+                {
+                    totalPressure += pressureByLane[lane];
+                }
+
+                audioDirector.SetIntensity(localPressure / 10f + totalPressure / 80f * 0.5f);
+
                 lastAppliedSnapshotRevision = revision;
             }
         }
