@@ -258,7 +258,12 @@ public sealed class SupportCreepTests
     [Fact]
     public void A_binder_slows_the_towers_near_it()
     {
-        Assert.Equal(1, ArmedCooldown(new[] { "creep.siege", "creep.serpent" }) - ArmedCooldown(new[] { "creep.siege" }));
+        // Read from the rule rather than written as a number. This asserted a literal 1 and broke
+        // when the fire-rate rebalance moved the brake to 2 — the mechanic was fine, the test was
+        // just restating a constant it did not own.
+        Assert.Equal(
+            SupportAuraField.BinderCooldownExtraTicks,
+            ArmedCooldown(new[] { "creep.siege", "creep.serpent" }) - ArmedCooldown(new[] { "creep.siege" }));
     }
 
     /// <summary>Ticks the tower waits after firing once, with these creeps in the lane.</summary>

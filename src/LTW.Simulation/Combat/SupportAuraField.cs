@@ -54,12 +54,15 @@ public sealed class SupportAuraField
 
     /// <summary>Extra ticks added to a bound tower's cooldown between shots.</summary>
     /// <remarks>
-    /// One tick, against authored cooldowns of 2 to 6, so a Binder costs a fast tower a third of
-    /// its rate and a slow one a sixth. It is expressed as a flat tick rather than a percentage so
-    /// it hurts the cheap rapid towers most, which is the intent — the counter to a Binder should
-    /// be heavy single shots, not more of the same.
+    /// Two ticks, against authored cooldowns of 2 to 12. It is expressed as a flat tick count rather
+    /// than a percentage so it hurts the fast towers most, which is the intent — the counter to a
+    /// Binder should be heavy single shots, not more of the same.
+    ///
+    /// It moved from one to two with the fire-rate rebalance, for the same reason the Repair Drone's
+    /// relief did: a flat tick is worth whatever a tick is worth, so doubling every cooldown on the
+    /// roster would otherwise have halved this mechanic without touching its definition.
     /// </remarks>
-    public const int BinderCooldownExtraTicks = 1;
+    public const int BinderCooldownExtraTicks = 2;
 
     /// <summary>Cells from the Binder, in Manhattan distance, that towers are slowed within.</summary>
     /// <remarks>

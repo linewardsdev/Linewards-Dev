@@ -191,11 +191,17 @@ namespace LTW.UnityClient.Simulation
         /// with nothing bounding the total. Measured on an eight-lane match: 26,071 live presentation
         /// objects against about 1,100 creeps and towers, so roughly 25,000 of them were beams.
         ///
-        /// 96 is far above what one lane can produce — around twenty towers firing every couple of
-        /// ticks at up to three beams a shot sustains about 24 alive — so normal play never reaches
-        /// it, while the worst case stops scaling with how much is happening at once.
+        /// 96 was the first value here and it was wrong. It rested on an estimate of about 24 alive;
+        /// measured, one lane peaked near 1,190, so the cap was dropping 17,491 on-camera beams
+        /// against 11,573 drawn — the majority of what a player could see, and worst exactly when
+        /// their own lane was busiest.
+        ///
+        /// 1,500 is a safety net rather than a clamp. Halving every tower's fire rate took the
+        /// measured peak to about 700, and at that level the cap and no cap produce the same wall
+        /// time (63.5s either way), so nothing is being bought by clipping. It exists only so a
+        /// pathological case cannot allocate without bound.
         /// </remarks>
-        private const int MaxLiveBeams = 96;
+        private const int MaxLiveBeams = 1500;
 
         private void SpawnBeam(Vector3 start, Vector3 end, Color color, float duration, float width, float intensity)
         {

@@ -329,11 +329,21 @@ public sealed class CombatService
     public const int BaseMovementCost = 3;
 
     /// <summary>
-    /// Cells under bramble cost this much movement, so exactly half speed. Defined as a multiple of
-    /// <see cref="BaseMovementCost"/> rather than a bare number, so retuning the global pace cannot
-    /// silently change what Thorn Snare's brake is worth.
+    /// Cells under bramble cost this much movement, so a third of normal speed. Defined as a
+    /// multiple of <see cref="BaseMovementCost"/> rather than a bare number, so retuning the global
+    /// pace cannot silently change what Thorn Snare's brake is worth.
     /// </summary>
-    private const int BrambleMovementCost = BaseMovementCost * 2;
+    /// <remarks>
+    /// Raised from x2 to x3 by the fire-rate rebalance, and the reason generalises to every
+    /// time-buying effect on the roster. A slow is worth the SHOTS it buys, not the seconds:
+    /// shots gained is extra-time divided by cooldown. Doubling every tower's cooldown therefore
+    /// halved what this was worth, and MechanicContributionTests measured it going from a 20%
+    /// contribution to exactly 0% — the creeps were held longer and no tower was ready to use it.
+    ///
+    /// Restoring the multiplier restores the shots: x2 leaves one unit of extra time per cell, x3
+    /// leaves two, which is what the doubled cooldown needs to buy the same extra shot.
+    /// </remarks>
+    private const int BrambleMovementCost = BaseMovementCost * 3;
 
     /// <summary>
     /// Advances one creep by one tick, returning its new path index and leftover movement.
@@ -686,9 +696,19 @@ public sealed class CombatService
     /// same number, so a serviced tower inside a Binder's reach simply comes back to its authored
     /// rate — the two cancel, which is the reading a player would expect without being told.
     /// </remarks>
+    /// <summary>Ticks a Repair Drone takes off a serviced tower's cooldown.</summary>
+    /// <remarks>
+    /// Two, not one, and it moved with the fire-rate rebalance rather than independently. A flat tick
+    /// of relief is worth whatever a tick is worth: against the old cooldowns of 1 to 6 it was a
+    /// large fraction of a shot, and doubling every cooldown silently halved the drone's entire
+    /// contribution without anything in its own definition changing. Scaling it alongside keeps the
+    /// mechanic worth what it was tuned to be worth.
+    /// </remarks>
+    private const int DroneCooldownReliefTicks = 2;
+
     private static int EffectiveCooldown(IReadOnlyList<TowerCombatState> allTowers, TowerCombatState tower, int authoredCooldown, SupportAuraField auras)
     {
-        var cooldown = IsServicedByDrone(allTowers, tower) ? Math.Max(1, authoredCooldown - 1) : authoredCooldown;
+        var cooldown = IsServicedByDrone(allTowers, tower) ? Math.Max(1, authoredCooldown - DroneCooldownReliefTicks) : authoredCooldown;
         return auras.IsBound(tower.EntityId) ? cooldown + SupportAuraField.BinderCooldownExtraTicks : cooldown;
     }
 

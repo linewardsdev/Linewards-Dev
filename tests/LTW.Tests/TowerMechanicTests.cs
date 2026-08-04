@@ -132,7 +132,7 @@ public sealed class TowerMechanicTests
             new[] { CreepAt(service, 1, "creep.brute", pathIndex: 8) },
             new[] { Tower("tower.sapling", 10, x: 2, y: 8) });
 
-        Assert.Equal(3, DamageFrom(service, state));
+        Assert.Equal(6, DamageFrom(service, state));
     }
 
     [Fact]
@@ -158,7 +158,7 @@ public sealed class TowerMechanicTests
             .Where(damaged => damaged.TowerEntityId.Equals(new EntityId(10)))
             .Sum(damaged => damaged.DamageDealt);
 
-        Assert.Equal(6, saplingDamage);
+        Assert.Equal(12, saplingDamage);
     }
 
     [Fact]
@@ -179,15 +179,15 @@ public sealed class TowerMechanicTests
             .Where(damaged => damaged.TowerEntityId.Equals(new EntityId(10)))
             .Sum(damaged => damaged.DamageDealt);
 
-        Assert.Equal(3, saplingDamage);
+        Assert.Equal(6, saplingDamage);
     }
 
     // ---- Spore Cloud: Rot --------------------------------------------------------------------
 
     [Theory]
-    [InlineData("creep.runner", 4)]        // 13 max health, below the step: floors at authored 4
-    [InlineData("creep.serpent", 4)]       // 26 max health / 24 per step = 108% of base 4
-    [InlineData("creep.obsidian_brute", 6)] // 40 max health / 24 per step = 166% of base 4
+    [InlineData("creep.runner", 8)]        // 13 max health, below the step: floors at authored 8
+    [InlineData("creep.serpent", 8)]       // 26 max health / 24 per step = 108% of base 8
+    [InlineData("creep.obsidian_brute", 13)] // 40 max health / 24 per step = 166% of base 8
     public void Rot_scales_with_the_targets_authored_max_health(string creepId, int expected)
     {
         var service = new CombatService();
@@ -210,7 +210,7 @@ public sealed class TowerMechanicTests
 
         var result = service.Advance(state, Content(), Routes(), new SimulationTick(0));
 
-        Assert.Equal(6, result.Events.OfType<CreepDamagedEvent>().Single().DamageDealt);
+        Assert.Equal(13, result.Events.OfType<CreepDamagedEvent>().Single().DamageDealt);
     }
 
     // ---- Bloomheart: Crowd Bloom --------------------------------------------------------------
@@ -223,7 +223,7 @@ public sealed class TowerMechanicTests
             new[] { CreepAt(service, 1, "creep.colossus", pathIndex: 8) },
             new[] { Tower("tower.bloomheart", 10, x: 2, y: 8) });
 
-        Assert.Equal(4, DamageFrom(service, state));
+        Assert.Equal(8, DamageFrom(service, state));
     }
 
     [Fact]
@@ -244,7 +244,7 @@ public sealed class TowerMechanicTests
         var damage = result.Events.OfType<CreepDamagedEvent>().Single().DamageDealt;
 
         // 4 authored + 2 others on the cell.
-        Assert.Equal(6, damage);
+        Assert.Equal(12, damage);
     }
 
     [Fact]
@@ -260,7 +260,7 @@ public sealed class TowerMechanicTests
         var damage = result.Events.OfType<CreepDamagedEvent>().Single().DamageDealt;
 
         // 4 authored + 3 cap, not + 7.
-        Assert.Equal(7, damage);
+        Assert.Equal(14, damage);
     }
 
     [Fact]
@@ -282,7 +282,7 @@ public sealed class TowerMechanicTests
             .First();
 
         // Spread out in single file, so no crowd bonus at all.
-        Assert.Equal(4, primary.DamageDealt);
+        Assert.Equal(8, primary.DamageDealt);
     }
 
     // ---- Thorn Snare: Bramble Hold -----------------------------------------------------------
@@ -485,12 +485,12 @@ public sealed class TowerMechanicTests
         var byCreep = result.Events.OfType<CreepDamagedEvent>()
             .ToDictionary(damaged => damaged.CreepEntityId.Value, damaged => damaged.DamageDealt);
 
-        // Entity 3 is the front-most and takes the primary 5; the arc then jumps BACK through the
-        // queue, halving: entity 2 takes 2, entity 1 takes 1.
+        // Entity 3 is the front-most and takes the primary 10; the arc then jumps BACK through the
+        // queue, halving: entity 2 takes 5, entity 1 takes 2.
         Assert.Equal(3, byCreep.Count);
-        Assert.Equal(5, byCreep[3]);
-        Assert.Equal(2, byCreep[2]);
-        Assert.Equal(1, byCreep[1]);
+        Assert.Equal(10, byCreep[3]);
+        Assert.Equal(5, byCreep[2]);
+        Assert.Equal(2, byCreep[1]);
     }
 
     [Fact]
@@ -521,7 +521,7 @@ public sealed class TowerMechanicTests
             new[] { CreepAt(service, 1, "creep.colossus", pathIndex: 8) },
             new[] { Tower("tower.tesla", 10, x: 2, y: 9) });
 
-        Assert.Equal(5, DamageFrom(service, state));
+        Assert.Equal(10, DamageFrom(service, state));
     }
 
     // ---- Repair Drone Spire: cooldown servicing ----------------------------------------------
@@ -605,7 +605,7 @@ public sealed class TowerMechanicTests
     /// A tower already firing every tick has nothing to gain, so the drone is not universally useful.
     /// </summary>
     [Fact]
-    public void Repair_drone_does_nothing_for_a_tower_already_at_minimum_cooldown()
+    public void Repair_drone_cannot_push_a_tower_below_the_one_tick_floor()
     {
         var service = new CombatService();
         var content = Content();
@@ -631,7 +631,18 @@ public sealed class TowerMechanicTests
             return shots;
         }
 
-        Assert.Equal(ShotsWith(withDrone: false), ShotsWith(withDrone: true));
+        // Gatling is the fastest tower on the roster, and the drone's relief is now large enough to
+        // take it past zero — max(1, 2 - 2) — so the CLAMP is what this exercises rather than a
+        // no-op. It used to assert no change at all, which was true only while some tower already
+        // sat at the floor; after the fire-rate rebalance none does, and asserting "no change" would
+        // have been asserting that the drone is broken.
+        var unserviced = ShotsWith(withDrone: false);
+        var serviced = ShotsWith(withDrone: true);
+
+        Assert.True(serviced > unserviced, $"the drone did nothing for the fastest tower ({serviced} vs {unserviced})");
+
+        // One tick is the floor, so over six ticks the serviced tower cannot fire more than six times.
+        Assert.True(serviced <= 6, $"a serviced Gatling fired {serviced} times in 6 ticks, so the floor is not holding");
     }
 
     // ---- Elder Canopy: back-most targeting ---------------------------------------------------
