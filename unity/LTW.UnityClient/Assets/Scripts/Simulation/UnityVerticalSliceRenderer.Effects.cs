@@ -183,9 +183,38 @@ namespace LTW.UnityClient.Simulation
         /// Still early-outs under ReducedEffects, so any mechanic whose ONLY tell is a beam is
         /// invisible at that setting. That is a known gap, not a new one.
         /// </remarks>
+        /// <summary>Most beams alive at once before new ones are dropped.</summary>
+        /// <remarks>
+        /// Beams were the only pooled presentation with no ceiling on them. Floating labels have had
+        /// both a cap and a lane filter for a while, and bursts were moved onto shared particle
+        /// emitters, which left beams as the one thing that still allocated a GameObject per shot
+        /// with nothing bounding the total. Measured on an eight-lane match: 26,071 live presentation
+        /// objects against about 1,100 creeps and towers, so roughly 25,000 of them were beams.
+        ///
+        /// 96 is far above what one lane can produce — around twenty towers firing every couple of
+        /// ticks at up to three beams a shot sustains about 24 alive — so normal play never reaches
+        /// it, while the worst case stops scaling with how much is happening at once.
+        /// </remarks>
+        private const int MaxLiveBeams = 96;
+
         private void SpawnBeam(Vector3 start, Vector3 end, Color color, float duration, float width, float intensity)
         {
             if (PresentationPreferences.ReducedEffects)
+            {
+                return;
+            }
+
+            // Off-camera lanes cost exactly as much to draw and can never be seen. The board holds
+            // eight lanes and the camera frames one, so this is most of the work — the same reason
+            // SpawnFloatingText has filtered on it for a while, applied to the one cue that did not.
+            if (!IsOnActiveLane(Vector3.Lerp(start, end, 0.5f)))
+            {
+                return;
+            }
+
+            // Dropped rather than queued, matching the floating labels: a shot that cannot be drawn
+            // now is worthless a second later, and queueing keeps the cost while losing the timing.
+            if (liveBeams >= MaxLiveBeams)
             {
                 return;
             }
@@ -224,6 +253,7 @@ namespace LTW.UnityClient.Simulation
                 renderer.receiveShadows = false;
             }
 
+            liveBeams++;
             timedPresentations.Add(new TimedPresentation(beam, Time.time + duration, beamPool));
         }
 

@@ -216,6 +216,7 @@ namespace LTW.UnityClient.Simulation
                 lastCreepHealth.Remove(key);
                 creepHitFlashUntil.Remove(key);
                 creepHitFlashApplied.Remove(key);
+                creepFacingYaw.Remove(key);
                 creepAnimators.Remove(key);
             }
         }

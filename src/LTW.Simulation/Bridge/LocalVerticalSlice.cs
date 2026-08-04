@@ -169,8 +169,78 @@ public sealed class LocalVerticalSlice
     /// </remarks>
     private void SetRoute(LaneId laneId, IReadOnlyList<GridPosition> route)
     {
+        var previous = routes.TryGetValue(laneId, out var existing) ? existing : null;
         routes[laneId] = route;
+        RemapCreepsOntoNewRoute(laneId, previous, route);
         stateRevision++;
+    }
+
+    /// <summary>
+    /// Keeps creeps standing where they were when their lane's route is rebuilt.
+    /// </summary>
+    /// <remarks>
+    /// A creep's position is a PathIndex, and an index only means a place while the route it indexes
+    /// is the same route. Building or selling a tower reshapes the lane, and until this existed every
+    /// creep in it kept the index it had — so index 12 stopped being the cell it was standing on and
+    /// became whatever index 12 happened to be on the new path. Reported from play as creeps jumping
+    /// around the board whenever a tower goes down, and it was never cosmetic: the simulation really
+    /// did move them, which changes what is in range of what.
+    ///
+    /// The remap is by POSITION: take the cell the creep was actually standing on, and give it the
+    /// index of the nearest cell on the new route. Nearest rather than "same distance from the end"
+    /// because a rebuilt route is usually a different LENGTH, so preserving progress-along-the-route
+    /// would slide everything backwards the moment a maze got longer — which is a defence buff nobody
+    /// asked for and would make building mid-wave the strongest move in the game.
+    ///
+    /// Ties break to the LOWER index, which is the conservative direction: a creep may be nudged
+    /// slightly back along a re-routed path but is never handed free progress for standing still.
+    ///
+    /// Creeps that ignore the maze are skipped, and must be: they walk the direct route, which this
+    /// never touches, so remapping them onto the mazed one would teleport the one unit that is
+    /// supposed to be immune to mazing.
+    /// </remarks>
+    private void RemapCreepsOntoNewRoute(LaneId laneId, IReadOnlyList<GridPosition>? previous, IReadOnlyList<GridPosition> route)
+    {
+        if (previous is null || previous.Count == 0 || route.Count == 0 || ReferenceEquals(previous, route))
+        {
+            return;
+        }
+
+        var moved = new List<CreepCombatState>();
+        foreach (var creep in combatState.Creeps)
+        {
+            if (creep.IsDead || creep.HasLeaked || creep.IgnoresMaze || !creep.LaneId.Equals(laneId))
+            {
+                continue;
+            }
+
+            var standingOn = previous[Math.Min(creep.PathIndex, previous.Count - 1)];
+            var nearest = 0;
+            var bestDistance = int.MaxValue;
+            for (var index = 0; index < route.Count; index++)
+            {
+                var candidate = route[index];
+                var distance = Math.Abs(candidate.X - standingOn.X) + Math.Abs(candidate.Y - standingOn.Y);
+                if (distance < bestDistance)
+                {
+                    bestDistance = distance;
+                    nearest = index;
+                }
+            }
+
+            if (nearest != creep.PathIndex)
+            {
+                // Movement progress is dropped rather than carried. It is a fraction of the step INTO
+                // the next cell of the old route, and that next cell is generally somewhere else now,
+                // so carrying it would advance the creep along a step it never started.
+                moved.Add(creep.WithMovement(nearest, 0));
+            }
+        }
+
+        foreach (var creep in moved)
+        {
+            combatState = combatState.ReplaceCreep(creep);
+        }
     }
 
     public MatchSummary? MatchSummary { get; private set; }

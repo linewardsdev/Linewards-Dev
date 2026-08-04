@@ -77,6 +77,22 @@ namespace LTW.UnityClient.Simulation
         private readonly Dictionary<long, int> lastCreepHealth = new Dictionary<long, int>();
         private readonly Dictionary<long, float> creepHitFlashUntil = new Dictionary<long, float>();
 
+        /// <summary>Which way each creep is currently facing, in degrees of yaw.</summary>
+        /// <remarks>
+        /// Creeps had no facing at all: their rotation came entirely from idle role motion, so one
+        /// walking a corner kept pointing down the lane and slid sideways through it. Reported from
+        /// play as creeps not turning when they hit an obstacle.
+        ///
+        /// Held per creep because turning has to be SMOOTHED. Snapping to each new heading the tick
+        /// a route step changes direction reads as a flicker, not a turn, and a mazed lane is mostly
+        /// corners.
+        ///
+        /// Yaw only. These models are normalised at import — the per-creep ImportEulerAngles of 0,
+        /// 90, 135 and 180 exist to point every one of them the same way — and the lane runs along
+        /// +Z, so a straight walk resolves to identity and nothing changes on the straights.
+        /// </remarks>
+        private readonly Dictionary<long, float> creepFacingYaw = new Dictionary<long, float>();
+
         /// <summary>
         /// The hit-flash state each creep's colours were last written for.
         /// </summary>
@@ -96,6 +112,14 @@ namespace LTW.UnityClient.Simulation
         private readonly List<long> keysToReleaseScratch = new List<long>();
 
         private readonly List<TimedPresentation> timedPresentations = new List<TimedPresentation>();
+
+        /// <summary>How many beams are alive, so the cap can be checked without scanning.</summary>
+        /// <remarks>
+        /// A counter rather than a second list, because beams already live in timedPresentations and
+        /// a parallel list would be two things to keep in step. Incremented where one is added and
+        /// decremented where one expires; both sites are the only places beams enter and leave.
+        /// </remarks>
+        private int liveBeams;
 
         public PresentationDetail Detail => presentationDetail;
 
@@ -408,7 +432,8 @@ namespace LTW.UnityClient.Simulation
 
                 // Per frame: where the creep is, and the bob/sway/flinch it carries. Both interpolate
                 // continuously, so both would visibly stutter at the snapshot rate.
-                SetCreepTransform(creepObject, CreepTravelPosition(creep), creep.LaneId, creep.CreepId.Value, visualProfile, isNewCreep, hitFlashUntil, key);
+                SetCreepTransform(creepObject, CreepTravelPosition(creep), creep.LaneId, creep.CreepId.Value, visualProfile, isNewCreep, hitFlashUntil, key,
+                    CreepFacingYaw(creep, key, isNewCreep));
 
                 var flashChanged = !creepHitFlashApplied.TryGetValue(key, out var appliedFlash) || appliedFlash != isHitFlashing;
                 if (snapshotChanged || flashChanged)
@@ -776,9 +801,53 @@ namespace LTW.UnityClient.Simulation
                     continue;
                 }
 
+                if (ReferenceEquals(presentation.Pool, beamPool))
+                {
+                    liveBeams--;
+                }
+
                 ReleaseToPool(presentation.Object, presentation.Pool);
                 timedPresentations.RemoveAt(index);
             }
+        }
+
+        /// <summary>How fast a creep swings round to a new heading, in degrees per second.</summary>
+        /// <remarks>
+        /// 540 is a turn the eye reads as deliberate — about a third of a second for the 180 a
+        /// switchback demands — without letting a creep drift visibly sideways while it comes round.
+        /// </remarks>
+        private const float CreepTurnDegreesPerSecond = 540f;
+
+        /// <summary>
+        /// The yaw a creep should be drawn at: its heading along the route, smoothed.
+        /// </summary>
+        /// <remarks>
+        /// Heading comes from the cell it is walking TOWARD, not from frame-to-frame movement.
+        /// Differencing positions would work while a creep moves and produce a zero-length vector the
+        /// moment it stops or the snapshot repeats, which is most frames at four ticks a second.
+        ///
+        /// A creep that has arrived — its next cell is its current one, at the end of a route — keeps
+        /// the facing it had rather than snapping to some default.
+        /// </remarks>
+        private float CreepFacingYaw(CreepPresentationSnapshot creep, long key, bool isNew)
+        {
+            var heading = GridToWorld(creep.NextPosition, creep.LaneId) - GridToWorld(creep.Position, creep.LaneId);
+            var known = creepFacingYaw.TryGetValue(key, out var current);
+            if (heading.sqrMagnitude < 0.0001f)
+            {
+                return known ? current : 0f;
+            }
+
+            var target = Quaternion.LookRotation(heading, Vector3.up).eulerAngles.y;
+
+            // A creep that has just spawned takes its heading immediately. Easing in from zero would
+            // spin every arrival through whatever angle separates the gate from due north.
+            var yaw = isNew || !known
+                ? target
+                : Mathf.MoveTowardsAngle(current, target, CreepTurnDegreesPerSecond * Time.deltaTime);
+
+            creepFacingYaw[key] = yaw;
+            return yaw;
         }
 
         private void ReleaseAllActiveObjects()
@@ -800,6 +869,7 @@ namespace LTW.UnityClient.Simulation
             creepHitFlashUntil.Clear();
             creepHitFlashApplied.Clear();
             foreach (var presentation in timedPresentations) ReleaseToPool(presentation.Object, presentation.Pool);
+            liveBeams = 0;
             timedPresentations.Clear();
             foreach (var ring in activeShockwaveRings) ReleaseToPool(ring.Object, shockwaveRingPool);
             activeShockwaveRings.Clear();
