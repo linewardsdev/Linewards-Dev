@@ -46,7 +46,18 @@ REPO = Path(__file__).resolve().parents[2]
 SFX_DIR = REPO / "unity/LTW.UnityClient/Assets/Resources/Audio/SFX"
 MUSIC_DIR = REPO / "unity/LTW.UnityClient/Assets/Resources/Audio/Music"
 
-RNG = np.random.default_rng(20260803)  # date-seeded; regeneration is bit-identical
+def _rng_for(name: str) -> np.random.Generator:
+    """Every sound gets its own generator, seeded from its name.
+
+    A single shared RNG was the first version, and it made a lie of this file's editing
+    promise: noise() draws from the stream in call order, so ADDING one sound shifted the
+    draws for every sound generated after it — seven unrelated WAVs changed bytes when the
+    family shot voices landed. Per-name seeding makes edits isolated: touching one sound's
+    function can only ever change that sound's file."""
+    return np.random.default_rng(20260803 + int.from_bytes(name.encode()[:8].ljust(8, b'\0'), 'big') % 1000003)
+
+
+RNG = _rng_for("default")  # rebound per sound by main() and music_bed()
 
 
 # --------------------------------------------------------------------------- primitives
@@ -289,6 +300,8 @@ def music_bed() -> np.ndarray:
     Deliberately event-free: no percussion, no melody. The game's own cues are the melody -
     this bed exists so silence between them stops sounding like a broken build.
     """
+    global RNG
+    RNG = _rng_for("music_bed")
     n = int(MUSIC_RATE * MUSIC_SECONDS)
     x = np.arange(n) / MUSIC_RATE
 
@@ -406,6 +419,8 @@ def main() -> int:
         return verify()
 
     for name, fn in SFX.items():
+        global RNG
+        RNG = _rng_for(name)
         data = fn()
         write_wav(SFX_DIR / f"{name}.wav", data, SFX_RATE)
         print(f"wrote {name}.wav  ({len(data) / SFX_RATE:.2f}s, peak {np.max(np.abs(data)):.2f})")
