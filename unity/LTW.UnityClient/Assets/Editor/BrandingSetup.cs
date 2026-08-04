@@ -32,6 +32,9 @@ namespace LTW.UnityClient.Editor
         private const string IconFolder = BrandingFolder + "/AppIcon";
         private const string SplashLogoPath = BrandingFolder + "/splash_wordmark.png";
 
+        /// <summary>The symbol-only mark the title screen draws, under Resources so USS can find it.</summary>
+        private const string ShellMarkPath = "Assets/Resources/UI/brand_mark.png";
+
         /// <summary>Company name, which also decides the persistent data path.</summary>
         /// <remarks>
         /// Replaces "LTWPlaceholder". Worth knowing before it changes: this is the folder name in
@@ -52,6 +55,7 @@ namespace LTW.UnityClient.Editor
             PlayerSettings.companyName = CompanyName;
             PlayerSettings.productName = "Line Wards";
 
+            PinShellMarkImport(problems);
             ApplyPlatformIcons(NamedBuildTarget.iOS, problems);
             ApplyIcons(NamedBuildTarget.Standalone, problems);
             ApplySplash(problems);
@@ -72,6 +76,35 @@ namespace LTW.UnityClient.Editor
             {
                 EditorApplication.Exit(problems.Count == 0 ? 0 : 1);
             }
+        }
+
+        /// <summary>
+        /// Stops the title-screen mark being rescaled on import.
+        /// </summary>
+        /// <remarks>
+        /// The mark is 512x440 — deliberately trimmed to its own bounds — and Unity's default import
+        /// rounds a non-power-of-two texture to the nearest power of two, which would stretch it to
+        /// 512x512 and visibly squash the tower. Exactly the trap the icon sizes hit, so it is pinned
+        /// here rather than left to a hand-written .meta that a fresh clone would have to be trusted
+        /// to carry.
+        /// </remarks>
+        private static void PinShellMarkImport(List<string> problems)
+        {
+            if (AssetImporter.GetAtPath(ShellMarkPath) is not TextureImporter importer)
+            {
+                problems.Add($"no texture importer at {ShellMarkPath} — is the mark missing?");
+                return;
+            }
+
+            if (importer.npotScale == TextureImporterNPOTScale.None && importer.alphaIsTransparency)
+            {
+                return;
+            }
+
+            importer.npotScale = TextureImporterNPOTScale.None;
+            importer.alphaIsTransparency = true;
+            importer.SaveAndReimport();
+            Debug.Log("BRANDING: title-screen mark import pinned (no NPOT rescale, alpha is transparency).");
         }
 
         /// <summary>

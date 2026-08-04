@@ -183,6 +183,27 @@
 
 /* ---------------------------------------------------------------- typography */
 
+/*
+ * The brand SYMBOL only, above the wordmark — which stays as live text.
+ *
+ * Baking "LINE WARDS" into the image was the obvious move and the wrong one. Text reflows and
+ * stays crisp at any density, and this is a phone-first game shipping to a wide range of screens;
+ * a bitmap wordmark would have to be authored per size and could not be localised. The symbol has
+ * no such problem, so the split is: distinctive mark as art, words as words.
+ *
+ * Sized in px to match the surrounding type scale rather than as a percentage, so it holds its
+ * relationship to the wordmark under it instead of growing with the safe area.
+ */
+.ltw-brand-mark {
+    background-image: resource("UI/brand_mark");
+    -unity-background-scale-mode: scale-to-fit;
+    width: 188px;
+    height: 162px;
+    align-self: center;
+    margin-top: 0;
+    margin-bottom: 18px;
+}
+
 .ltw-eyebrow {
     font-size: 21px;
     letter-spacing: 7px;
