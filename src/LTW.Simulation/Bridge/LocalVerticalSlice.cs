@@ -293,7 +293,7 @@ public sealed class LocalVerticalSlice
         // The enforcement in EconomyService is left intact and still tested with explicit values, so
         // the rule can be turned back on by changing this one number. CreepDefinition.IgnoresSendCooldown
         // also stays: it is inert at 0, but if a cooldown ever returns, Category 2 remains exempt.
-        economy = new EconomyService(new EconomyRules(incomeIntervalTicks: 50, sendCooldownTicks: 0, sellRefundPercent: 50, leakLifeLoss: 1, incomeCeiling: 600, incomeTaperStart: 300));
+        economy = new EconomyService(new EconomyRules(incomeIntervalTicks: 50, sendCooldownTicks: 0, sellRefundPercent: 50, leakLifeLoss: 1, incomeCeiling: EconomyRules.DefaultIncomeCeiling, incomeTaperStart: EconomyRules.DefaultIncomeTaperStart));
         pathService = new GridPathService();
         combat = new CombatService();
         commandValidator = new CommandContentValidator();
@@ -619,13 +619,17 @@ public sealed class LocalVerticalSlice
         // Income before gold, and the order matters. A player short on both should be told to build
         // their economy rather than to keep banking, because banking is exactly what will not fix
         // the income requirement.
-        var minimumIncome = CategoryTierRules.MinimumIncomeFor(categoryKind, targetTier);
+        // Priced against what this player already holds, not the list price. Both the gate and the
+        // charge below read the same number, so a seat is never refused for an income it would have
+        // met at the price it was actually about to pay.
+        var upgradesOwned = CategoryTierRules.UpgradesOwned(player);
+        var minimumIncome = CategoryTierRules.MinimumIncomeFor(categoryKind, targetTier, upgradesOwned);
         if (player.Income.Amount < minimumIncome)
         {
             return VerticalSliceCommandResult.Reject(CommandRejectionReason.InsufficientIncome);
         }
 
-        var cost = CategoryTierRules.CostFor(categoryKind, targetTier);
+        var cost = CategoryTierRules.CostFor(categoryKind, targetTier, upgradesOwned);
         if (player.Gold.Amount < cost)
         {
             return VerticalSliceCommandResult.Reject(CommandRejectionReason.InsufficientGold);

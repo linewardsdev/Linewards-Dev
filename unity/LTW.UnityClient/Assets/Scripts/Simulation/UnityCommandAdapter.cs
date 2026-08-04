@@ -124,8 +124,23 @@ namespace LTW.UnityClient.Simulation
                 : SendCategoryTier(categoryIndex);
             return current >= LTW.Simulation.Content.CategoryTierRules.MaxTier
                 ? 0
-                : LTW.Simulation.Content.CategoryTierRules.CostFor(kind, current + 1);
+                : LTW.Simulation.Content.CategoryTierRules.CostFor(kind, current + 1, UpgradesOwned());
         }
+
+        /// <summary>
+        /// Tiers the local seat already holds, which is what the next one is priced against.
+        /// </summary>
+        /// <remarks>
+        /// Both prices below escalate with this, so the card has to read it too. Showing the list
+        /// price while the bridge charges the escalated one is exactly the mismatch the remarks on
+        /// <see cref="NextTierCost"/> already warn about — a card that advertises a price the
+        /// simulation would not charge — and it would widen with every tier the player bought.
+        /// </remarks>
+        private int UpgradesOwned() =>
+            simulation is null
+                ? 0
+                : LTW.Simulation.Content.CategoryTierRules.UpgradesOwned(
+                    simulation.GetSnapshot().Players.Get(simulation.LocalPlayerId));
 
         /// <summary>Income the player must already be earning to buy the next tier, or 0 at the top.</summary>
         /// <remarks>
@@ -140,7 +155,7 @@ namespace LTW.UnityClient.Simulation
                 : SendCategoryTier(categoryIndex);
             return current >= LTW.Simulation.Content.CategoryTierRules.MaxTier
                 ? 0
-                : LTW.Simulation.Content.CategoryTierRules.MinimumIncomeFor(kind, current + 1);
+                : LTW.Simulation.Content.CategoryTierRules.MinimumIncomeFor(kind, current + 1, UpgradesOwned());
         }
 
         /// <summary>The local player's income right now.</summary>

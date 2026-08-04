@@ -339,7 +339,10 @@ public sealed class BotController
             return;
         }
 
-        var cost = CategoryTierRules.CostFor(kind, targetTier);
+        // The escalated price, matching what the bridge will charge. Budgeting against the list
+        // price would have the bot decide it can afford a tier, ask for it, and be refused — every
+        // tick, forever, once it holds a few tiers.
+        var cost = CategoryTierRules.CostFor(kind, targetTier, CategoryTierRules.UpgradesOwned(player));
         if (player.Gold.Amount - profileDefinition.MinimumGoldReserve < cost)
         {
             return;

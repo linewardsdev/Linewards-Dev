@@ -186,7 +186,13 @@ public sealed class IncomeCeilingTests
         output.WriteLine($"completed at {slice.MatchSummary?.CompletedAtTick.Value}, peak creeps {peakCreeps}, peak income {peakIncome}");
 
         Assert.NotNull(slice.MatchSummary);
-        Assert.True(peakIncome <= 600, $"income reached {peakIncome}, so the ceiling is not holding");
+        // Against the constant, not a literal. The ceiling moved from 600 to 900 when category tier
+        // costs began escalating, and a hardcoded bound fails on the change rather than on the
+        // property — the property being that income stops at whatever the ceiling is, which is what
+        // keeps creep counts survivable.
+        Assert.True(
+            peakIncome <= EconomyRules.DefaultIncomeCeiling,
+            $"income reached {peakIncome} against a ceiling of {EconomyRules.DefaultIncomeCeiling}, so the ceiling is not holding");
         Assert.True(peakCreeps < 1_500, $"{peakCreeps} creeps were alive at once (was 4,111 before the ceiling); this is a device performance problem");
     }
 }

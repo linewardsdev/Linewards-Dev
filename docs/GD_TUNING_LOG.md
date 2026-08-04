@@ -1845,6 +1845,58 @@ motivated the income ceiling in the first place — and it is not creeps driving
 takes 145s against the runner's 180s timeout, and one run did time out before a clean re-run
 passed; that margin wants widening before it starts producing flaky evidence.
 
+## 2026-08-03: Category Tiers Now Cost More The More You Hold, And Income Reaches 900
+
+Two changes, made together because the first does not work without the second.
+
+**Tier prices escalate 25% of list per tier already held, counted across every track.** The cost
+tables escalated *within* a track — tier 3 is about 2.5x tier 2 — but said nothing about breadth,
+so tier 2 in all six tracks cost 780 gold flat and the sixth was priced exactly like the first.
+Spreading across every category was strictly better than committing to one. The first purchase is
+now at list, the twelfth and last at 3.75x it.
+
+| tiers held | tower tier 2 | tower tier 3 | income gate on tier 3 |
+|---|---|---|---|
+| 0 | 140 | 360 | 180 |
+| 3 | 245 | 630 | 315 |
+| 6 | 350 | 900 | 450 |
+| 9 | 455 | 1170 | 585 |
+| 11 | 525 | 1350 | 675 |
+
+**The income ceiling moved 600 to 900**, taper start left at 300. Not a separate wish: the income
+gate is half the price, so escalating the price escalates the gate. The dearest purchase on the
+board — a tower line's tier 3, held to last — now demands 675 income. Under the old 600 ceiling
+that tier was not expensive, it was **unreachable**: no bank could satisfy a gate the economy could
+not reach. Anyone retuning either side has to re-check that the highest requirement the board can
+produce stays under the ceiling, or the last upgrades quietly become impossible rather than costly.
+
+### Measured, eight lanes, seed 1, same tree either side
+
+| | before | after |
+|---|---|---|
+| completed at tick | 4273 | **3568** |
+| winner | seat 4 | seat 4 |
+| peak income | 600 | 900 |
+| total gold banked at the end | 25051 | 25979 |
+
+**Matches got 16.5% shorter, and that is the ceiling rather than the escalator.** More income buys
+more sends, which resolves lanes faster. The escalator pulls the other way — note total gold banked
+barely moved despite income rising by half, which is the sink absorbing the difference rather than
+players sitting on it. Whether a ~3.5k-tick match is better than a ~4.3k one is a judgement call
+this measurement cannot make; it is flagged rather than assumed.
+
+**Tier investment tracks winning.** At the end of the measured match the winner held 6 tiers against
+a table median of 2, with the two runners-up on 4. That is the correlation the mechanic was supposed
+to create, and it did not exist to check before.
+
+**Not verified: how any of this feels to a human.** Every number here is bot-versus-bot.
+
+**One thing to watch.** Escalating on *total* tiers held means depth costs as much as breadth — a
+second tier in the line you have already invested in is priced like a first tier in a fresh one.
+That is a real tension with the design doc's goal of rewarding specialisation, and the obvious knob
+if the behaviour disappoints: count distinct tracks touched rather than total tiers held, and depth
+becomes free while breadth still pays.
+
 ## 2026-08-03 (art): Siege, Serpent And Runner Are Rigged — And None Of Them Had Legs
 
 OPEN_ITEMS item 11's wave 2.3. Three of the seven creeps with no armature now carry one, each

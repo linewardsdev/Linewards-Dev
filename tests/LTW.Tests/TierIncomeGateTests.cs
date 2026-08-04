@@ -81,13 +81,19 @@ public sealed class TierIncomeGateTests
     [InlineData(CategoryKind.TowerLine, 3)]
     public void The_threshold_is_half_the_price_and_inclusive(CategoryKind kind, int tier)
     {
-        var required = CategoryTierRules.MinimumIncomeFor(kind, tier);
-        Assert.Equal(CategoryTierRules.CostFor(kind, tier) / 2, required);
-        output.WriteLine($"{kind} tier {tier}: costs {CategoryTierRules.CostFor(kind, tier)}G, requires income {required}");
-
-        // One short of the requirement is refused...
+        // Measured after the climb, not before it. Reaching tier 3 means buying tier 2 first, and a
+        // tier already held escalates the price of the next one — so the threshold for tier 3 is
+        // half of the ESCALATED price, and computing it from the list price tests a number the
+        // bridge will never charge.
         var justUnder = Slice();
         RaiseTo(justUnder, kind, tier - 1);
+        var owned = CategoryTierRules.UpgradesOwned(justUnder.GetSnapshot().Players.Get(Player));
+        var required = CategoryTierRules.MinimumIncomeFor(kind, tier, owned);
+        var price = CategoryTierRules.CostFor(kind, tier, owned);
+        Assert.Equal(price / 2, required);
+        output.WriteLine($"{kind} tier {tier}: costs {price}G at this point in the climb, requires income {required}");
+
+        // One short of the requirement is refused...
         justUnder.GrantLocalPlaytestIncome(Player, new Income(required - 1 - CurrentIncome(justUnder)));
         Assert.Equal(CommandRejectionReason.InsufficientIncome,
             justUnder.BuyCategoryTier(Player, kind, Core, tier).RejectionReason);
@@ -184,7 +190,12 @@ public sealed class TierIncomeGateTests
     {
         for (var step = 2; step <= tier; step++)
         {
-            slice.GrantLocalPlaytestIncome(Player, new Income(CategoryTierRules.MinimumIncomeFor(kind, step)));
+            // Priced against what is already held. Each step raises the price of the next, so
+            // granting the list requirement leaves the climb one purchase short of itself from the
+            // second step on, and RaiseTo would fail on its own assertion rather than set up the
+            // state the caller asked for.
+            var owned = CategoryTierRules.UpgradesOwned(slice.GetSnapshot().Players.Get(Player));
+            slice.GrantLocalPlaytestIncome(Player, new Income(CategoryTierRules.MinimumIncomeFor(kind, step, owned)));
             Assert.True(slice.BuyCategoryTier(Player, kind, Core, step).Accepted);
         }
     }
