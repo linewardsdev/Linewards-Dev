@@ -44,7 +44,7 @@ launch.
 | --- | --- | --- | --- |
 | 1 | **Never run on a phone** | Both device-validation docs are empty templates, zero runs | 1–2 d |
 | 2 | **App identity is entirely placeholder** | `applicationIdentifier` is **empty**; `productName: LTW.UnityClient`; `companyName: LTWPlaceholder`; no app icon; no splash. Brand is "Line Wards" and nothing uses it | 1 d |
-| 3 | **Audio is seven sine beeps** | `CreateTone(...)` generates 7 procedural tones; **zero** audio asset files in the project. No music, no real SFX | 4–6 d |
+| 3 | **Audio is seven sine beeps** — *substantially closed 2026-08-03* | Was: 7 procedural tones, zero asset files. Now: 14 synthesized WAV cues + a 48s music bed (`tools/audio/synthesize_game_audio.py`, regenerable), an `LTWAudioDirector` with rate limiting and pitch variation, and cue coverage for seven previously-silent events including tower shots. See `AUDIO_DIRECTION.md`. **Not yet auditioned by a human ear**, and the licensed/authored pass is still the path to shipped quality — but it is now a file-for-file swap into a finished pipeline rather than systems work. Residual estimate: 2–3 d | ~~4–6 d~~ 2–3 d |
 | 4 | **No menu or title scene** | `Assets/Scenes/` contains only `LocalVerticalSlice.unity`; the app-shell is an in-match overlay | 3–4 d |
 | 5 | **No crash reporting or analytics** | Zero references anywhere | 1 d |
 | 6 | **Store accounts not enrolled** | Apple Developer Program $99/yr, 24–48h approval; Google Play Console $25 one-time | External |

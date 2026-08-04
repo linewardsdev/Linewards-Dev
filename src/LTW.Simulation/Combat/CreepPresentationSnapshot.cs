@@ -5,7 +5,7 @@ namespace LTW.Simulation.Combat;
 
 public sealed class CreepPresentationSnapshot
 {
-    public CreepPresentationSnapshot(EntityId entityId, ContentId creepId, PlayerId senderId, LaneId laneId, GridPosition position, int health, int maxHealth, int speedPerSecond, GridPosition nextPosition, int movementProgress, int movementCost)
+    public CreepPresentationSnapshot(EntityId entityId, ContentId creepId, PlayerId senderId, LaneId laneId, GridPosition position, int health, int maxHealth, int speedPerSecond, GridPosition nextPosition, int movementProgress, int movementCost, bool isBraked)
     {
         EntityId = entityId;
         CreepId = creepId;
@@ -18,6 +18,7 @@ public sealed class CreepPresentationSnapshot
         NextPosition = nextPosition;
         MovementProgress = movementProgress;
         MovementCost = movementCost;
+        IsBraked = isBraked;
     }
 
     public EntityId EntityId { get; }
@@ -79,4 +80,12 @@ public sealed class CreepPresentationSnapshot
     /// cell and then holds, which reads as being caught by the brambles rather than as an artefact.
     /// </remarks>
     public int MovementCost { get; }
+
+    /// <summary>True while a Thorn Snare's brambles are halving this creep's pace.</summary>
+    /// <remarks>
+    /// The creep-side half of making Bramble Hold visible. The ground decal says where the brake is;
+    /// this says who is currently caught in it, which is the part that reads at a glance when a lane
+    /// is busy. Presentation-only — combat reads the zones directly.
+    /// </remarks>
+    public bool IsBraked { get; }
 }

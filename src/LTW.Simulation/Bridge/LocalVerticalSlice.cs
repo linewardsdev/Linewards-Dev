@@ -1083,7 +1083,8 @@ public sealed class LocalVerticalSlice
             players,
             combat.GetCreepSnapshots(combatState, combatContent, routeSet),
             combatState.Towers,
-            combat.GetTowerAimSnapshots(combatState, combatContent, routeSet));
+            combat.GetTowerAimSnapshots(combatState, combatContent, routeSet),
+            combat.GetBrambleCells(combatState, combatContent, routeSet));
 
     public IReadOnlyList<ISimulationEvent> DrainEvents()
     {

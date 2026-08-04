@@ -773,7 +773,7 @@ namespace LTW.UnityClient.Simulation
             // dominated the top of the board and duplicated information the send dock already
             // shows. The sender-side SEND cue and the gate effect still mark the event.
             SpawnReducedEffectCue(defenderPosition, "SEND", color);
-            PlaySound(sendClip);
+            audioDirector.Play(LTWAudioCue.CreepSent);
         }
 
         /// <summary>One animating board label: where it started, when, and for how long.</summary>

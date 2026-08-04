@@ -18,13 +18,15 @@ public sealed class VerticalSliceSnapshot
         EconomyPlayerSet players,
         IReadOnlyList<CreepPresentationSnapshot> creeps,
         IReadOnlyList<TowerCombatState> towers,
-        IReadOnlyList<TowerAimSnapshot> towerAimTargets)
+        IReadOnlyList<TowerAimSnapshot> towerAimTargets,
+        IReadOnlyDictionary<LaneId, IReadOnlyList<GridPosition>> brambleCells)
     {
         Tick = tick;
         Players = players;
         Creeps = creeps.ToArray();
         Towers = towers.ToArray();
         TowerAimTargets = towerAimTargets.ToArray();
+        BrambleCells = brambleCells.ToDictionary(lane => lane.Key, lane => (IReadOnlyList<GridPosition>)lane.Value.ToArray());
     }
 
     public SimulationTick Tick { get; }
@@ -36,4 +38,11 @@ public sealed class VerticalSliceSnapshot
     public IReadOnlyList<TowerCombatState> Towers { get; }
 
     public IReadOnlyList<TowerAimSnapshot> TowerAimTargets { get; }
+
+    /// <summary>Grid cells under a Thorn Snare's brambles, per lane, so the client can draw the brake.</summary>
+    /// <remarks>
+    /// Copied at construction like everything else here. Empty for a lane with no thorn tower, and
+    /// absent entirely rather than present-and-empty, so a renderer can skip a lane with one lookup.
+    /// </remarks>
+    public IReadOnlyDictionary<LaneId, IReadOnlyList<GridPosition>> BrambleCells { get; }
 }
