@@ -643,7 +643,15 @@ namespace LTW.UnityClient.Simulation
                         // Shown at the sender's lane rather than at the leak, because the two events
                         // happen in different places and the point is that a leak over there is a
                         // gain over here.
-                        if (leak.SenderId.Value != leak.DefenderId.Value)
+                        //
+                        // Only when the local seat is the one gaining. The justification above is
+                        // specifically that the player who earned the life would otherwise see their
+                        // counter move with no explanation — which is an argument about the person
+                        // watching, and there is nobody to inform when two opponents trade a leak.
+                        // Ungated it also meant one leak lit up two lanes at once, the defender's and
+                        // a sender's somewhere else on the board, for an exchange the player was not
+                        // part of.
+                        if (leak.SenderId.Value != leak.DefenderId.Value && IsLocalSeat(leak.SenderId))
                         {
                             var stealPosition = IncomePosition(leak.SenderId.Value);
                             SpawnEffect(stealPosition, MintSignal, 0.5f, 0.3f, BurstShape.Rise);
@@ -655,11 +663,25 @@ namespace LTW.UnityClient.Simulation
                         TriggerHapticFeedback();
                         break;
                     case IncomeTickEvent incomeTick:
-                        SpawnIncomeLaneCue(incomeTick.PlayerId.Value);
-                        SpawnEffect(IncomePosition(incomeTick.PlayerId.Value), SignalGold, 0.46f, 0.22f, BurstShape.Rise);
-                        SpawnFloatingText(IncomePosition(incomeTick.PlayerId.Value), $"+{incomeTick.GoldAwarded.Amount} income", SignalGold, 0.58f);
-                        SpawnReducedEffectCue(IncomePosition(incomeTick.PlayerId.Value), "INCOME", SignalGold);
-                        PlaySound(incomeClip);
+                        // One of these fires for every seat still alive, all on the same tick. At
+                        // eight lanes, a 50-tick interval and 4 ticks a second, that is eight lane
+                        // beams, eight bursts and eight labels going off together every 12.5
+                        // seconds — a synchronised pulse across the whole board, seven eighths of it
+                        // describing other people's economies. Nothing there is actionable: an
+                        // opponent's income is worth knowing as a number, which is what the scoreboard
+                        // is for, and is not worth a beam across their lane on a timer.
+                        //
+                        // The local seat's own income keeps every part of its cue. That one answers a
+                        // real question — why the gold total just jumped.
+                        if (IsLocalSeat(incomeTick.PlayerId))
+                        {
+                            SpawnIncomeLaneCue(incomeTick.PlayerId.Value);
+                            SpawnEffect(IncomePosition(incomeTick.PlayerId.Value), SignalGold, 0.46f, 0.22f, BurstShape.Rise);
+                            SpawnFloatingText(IncomePosition(incomeTick.PlayerId.Value), $"+{incomeTick.GoldAwarded.Amount} income", SignalGold, 0.58f);
+                            SpawnReducedEffectCue(IncomePosition(incomeTick.PlayerId.Value), "INCOME", SignalGold);
+                            PlaySound(incomeClip);
+                        }
+
                         break;
                     case PlayerEliminatedEvent eliminated:
                         SpawnLaneShutdownCue(eliminated.PlayerId.Value);

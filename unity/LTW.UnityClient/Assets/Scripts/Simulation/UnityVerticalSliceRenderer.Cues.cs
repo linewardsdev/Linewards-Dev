@@ -152,6 +152,21 @@ namespace LTW.UnityClient.Simulation
             return Mathf.Abs(position.x - laneCentreX) <= LaneSpacing * 0.5f;
         }
 
+        /// <summary>Whether this is the seat the client is playing.</summary>
+        /// <remarks>
+        /// The companion to <see cref="IsOnActiveLane"/>: that one asks whether a cue is somewhere
+        /// the player can see, this one whether it is about something the player can answer. Most
+        /// per-seat events fire once for every seat on the same tick, so without this the board
+        /// spends seven eighths of its cues narrating other people's matches.
+        ///
+        /// <c>!= null</c> rather than <c>?.</c> — simulationDriver is a UnityEngine.Object and only
+        /// the overloaded comparison treats a destroyed one as null; the null-conditional operator
+        /// sails straight past it. With no driver this returns false, which stands a cue down
+        /// rather than showing every seat's.
+        /// </remarks>
+        private bool IsLocalSeat(PlayerId playerId) =>
+            simulationDriver != null && playerId.Equals(simulationDriver.LocalPlayerId);
+
         private Material boardTextMaterial;
 
         /// <summary>
@@ -707,12 +722,7 @@ namespace LTW.UnityClient.Simulation
             // the beam is the loudest thing on the board rather than 12% of its text. Their own
             // sends still draw, and a send arriving in their lane still draws, which are the two
             // cases they can actually do something about.
-            // `!= null` rather than `?.`: simulationDriver is a UnityEngine.Object, and only the
-            // overloaded comparison treats a destroyed one as null. The null-conditional would
-            // sail past it. Same reason the SEND text below is written this way.
-            var localIsInvolved = simulationDriver != null
-                && (queued.SenderId.Equals(simulationDriver.LocalPlayerId)
-                    || queued.DefenderId.Equals(simulationDriver.LocalPlayerId));
+            var localIsInvolved = IsLocalSeat(queued.SenderId) || IsLocalSeat(queued.DefenderId);
 
             var senderVisible = IsOnActiveLane(senderPosition);
             var defenderVisible = IsOnActiveLane(defenderPosition);
