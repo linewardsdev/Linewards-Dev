@@ -513,6 +513,25 @@ namespace LTW.UnityClient.Simulation
                 ReleaseMissingCreeps();
                 ReleaseMissingContactShadows();
                 UpdateLanePressureIndicators(pressureByLane);
+
+                // The music's read of how much trouble the board is in, fed from the same
+                // per-lane counts the pressure meters draw. The LOCAL lane dominates — ten
+                // creeps bearing down on you is a siege, ten spread across opponents is
+                // scenery — with the board total as a lighter second term so a huge match
+                // still registers even while your own lane is briefly clear. The divisors
+                // are the normalization: ~10 creeps in-lane or ~80 board-wide reads as
+                // full intensity. This is a sensor reading; every audible decision (slew,
+                // stem curves) lives in the director.
+                var localLane = simulationDriver != null ? simulationDriver.LocalPlayerId.Value : 1;
+                var localPressure = localLane >= 1 && localLane < pressureByLane.Length ? pressureByLane[localLane] : 0;
+                var totalPressure = 0;
+                for (var lane = 1; lane < pressureByLane.Length; lane++)
+                {
+                    totalPressure += pressureByLane[lane];
+                }
+
+                audioDirector.SetIntensity(localPressure / 10f + totalPressure / 80f * 0.5f);
+
                 lastAppliedSnapshotRevision = revision;
             }
         }
@@ -619,7 +638,8 @@ namespace LTW.UnityClient.Simulation
                                 TowerCatalog.CategoryFoundry => LTWAudioCue.TowerShotFoundry,
                                 TowerCatalog.CategoryGrove => LTWAudioCue.TowerShotGrove,
                                 _ => LTWAudioCue.TowerShot
-                            });
+                            },
+                            PanFor(fired.TowerPosition, fired.LaneId));
                         var firedTowerKey = fired.TowerEntityId.Value;
                         towerLastFiredAt[firedTowerKey] = Time.time;
                         towerAimTarget[firedTowerKey] = GridToWorld(fired.TargetPosition, fired.LaneId);
@@ -654,7 +674,7 @@ namespace LTW.UnityClient.Simulation
                             SpawnReducedEffectCue(hitPosition, "HIT", new Color(1f, 0.88f, 0.44f));
                         }
 
-                        audioDirector.Play(LTWAudioCue.CreepHit);
+                        audioDirector.Play(LTWAudioCue.CreepHit, PanFor(damaged.TowerPosition, damaged.LaneId));
                         break;
                     case CreepKilledEvent creepKilled:
                         var killedCreepKey = creepKilled.CreepEntityId.Value;
@@ -759,6 +779,34 @@ namespace LTW.UnityClient.Simulation
         /// Simulation ticks per second, read from the driver so a tick count from an event converts
         /// to real seconds. Falls back to the driver's own default if the driver is missing.
         /// </summary>
+        /// <summary>
+        /// A gentle stereo position for a board cell: where the event sits relative to what
+        /// the camera is framing, scaled well short of hard panning.
+        /// </summary>
+        /// <remarks>
+        /// This is width, not localisation — the cap is ±0.35 and most events land far
+        /// inside it. Anchored to the ACTIVE framing rather than the board: in lane framing
+        /// the player is looking at one lane, and panning by absolute board X would put the
+        /// whole visible fight in one ear. In lane framing the pan spans the lane's seven
+        /// cells; in overview it spans the eight lanes.
+        /// </remarks>
+        private float PanFor(GridPosition position, LaneId laneId)
+        {
+            if (cameraFraming == LaneCameraFraming.ActiveLane)
+            {
+                if (laneId.Value != activeLaneCameraId)
+                {
+                    return 0f; // off-screen lane: centred, like distant sound through a wall
+                }
+
+                return (position.X - CenterColumn) / (float)CenterColumn * 0.25f;
+            }
+
+            var worldX = LaneOffset(laneId.Value) + position.X;
+            var boardWidth = LaneOffset(LaneCount) + LaneWidth - 1f;
+            return Mathf.Clamp((worldX / boardWidth - 0.5f) * 0.7f, -0.35f, 0.35f);
+        }
+
         private float SimulationTicksPerSecond() => simulationDriver != null ? simulationDriver.TicksPerSecond : 4f;
 
         private string TowerRoleAt(GridPosition position, LaneId laneId)

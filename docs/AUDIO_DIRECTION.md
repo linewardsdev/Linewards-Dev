@@ -72,6 +72,57 @@ Three gaps from the first pass were closed the same day:
   the same config table as everything else. Attack is instant — a duck that fades in
   arrives after the moment it exists to clear space for — hold is 2.2s, release ~1.5s.
 
+## Second pass, 2026-08-04 — "sounds good, just basic"
+
+That verdict named the gap precisely: the first pass was dry additive synthesis. The
+second closed the distance between synthesized and produced, all generator-side:
+
+- **Space.** Every cue passes through a Schroeder reverb baked into its file, tuned as one
+  room per family (`ROOM_ARCANE/FOUNDRY/GROVE/STING/UI` in the generator) so the mix
+  sounds like places rather than boxes. Renormalized to each cue's pre-verb peak: space
+  never changes loudness, so the mix policy is untouched.
+- **One key.** Every tonal cue now draws from the D-minor `NOTE` table. Confirmations sit
+  on the D tonic, victory rises through the relative major (F–A–C–F), defeat walks down to
+  the tonic and stays, the leak alarm is Bb falling onto A — the key's own maximal
+  dissonance, in the score but unmistakably wrong. Frequency literals outside the table
+  are reserved for noise-adjacent content and metal modes.
+- **Real instruments.** GROVE shots are Karplus-Strong plucked strings (a physical model —
+  the delay line IS a string). Kills, upgrades, the foundry ring and the elimination hit
+  are modal synthesis: banks of decaying resonant modes, near-harmonic ratios reading as
+  glass, inharmonic as struck metal.
+- **Variants.** Constant cues ship 2–3 takes (`name_v1..vN.wav`), parameter-jittered under
+  per-variant seeds; the director picks randomly but never repeats back to back.
+- **Width.** Shots and hits pan gently (±0.25 in-lane, ±0.35 in overview) relative to what
+  the camera is framing — width, not localisation, and an off-screen lane stays centred.
+- **The audition window** (`Line Wards > Review > Audition Audio`) plays every file in
+  edit mode, singly or in sequence — the whole set reviewable in under a minute, including
+  the cues a normal match rarely produces.
+
+## Music intensity, 2026-08-04 — the score answers the board
+
+The bed is no longer static. Music is three vertically-remixed stems, all 48 seconds from
+the same chord table, every oscillator loop-quantized:
+
+- **`music_bed_loop`** — the original bed, always sounding.
+- **`music_stem_tension`** — a sparse in-chord arpeggio and airy octave pad; fades in from
+  intensity 0.15, full at 0.5.
+- **`music_stem_combat`** — a low modal pulse in 4/4 with a sub swell on the chord roots,
+  mono and bass-heavy on purpose; fades in from 0.45, full at 0.85.
+
+Because all three share one chord schedule and one loop length, there is no transition
+system — a stem becoming audible IS the transition, and it is always in tune and in phase.
+They start sample-locked via `PlayScheduled` on a shared dspTime and stay locked because
+their frame counts are identical (`--verify` asserts this).
+
+**Intensity** is a 0..1 sensor reading fed by the renderer once per snapshot from the same
+per-lane creep counts the pressure meters draw: the local lane dominates (~10 creeps
+in-lane reads as full siege), the board total contributes half-weight (~80 board-wide).
+Every audible decision lives in the director: rise slews at 0.35/s so the music answers a
+wave promptly, fall at 0.12/s so a fight audibly winds down rather than switching off.
+Ducking and mute apply to the whole stem bus.
+
+Still deliberately deferred: dock tap ticks.
+
 ## How to tune after listening
 
 | You hear | Change |
