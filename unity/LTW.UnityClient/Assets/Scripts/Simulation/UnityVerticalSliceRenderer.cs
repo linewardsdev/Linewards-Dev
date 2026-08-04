@@ -42,14 +42,7 @@ namespace LTW.UnityClient.Simulation
         [SerializeField] private CreepVisualLibrary creepVisualLibrary = null!;
         [SerializeField] private bool suppressCreepGameplayOverlays;
 
-        private AudioSource feedbackAudioSource = null!;
-        private AudioClip towerBuiltClip = null!;
-        private AudioClip towerHitClip = null!;
-        private AudioClip sendClip = null!;
-        private AudioClip creepKilledClip = null!;
-        private AudioClip incomeClip = null!;
-        private AudioClip leakClip = null!;
-        private AudioClip eliminationClip = null!;
+        private LTWAudioDirector audioDirector = null!;
 
         /// <summary>
         /// Per-entity presentation state, keyed by <see cref="EntityId.Value"/> itself.
@@ -76,6 +69,10 @@ namespace LTW.UnityClient.Simulation
         private readonly Dictionary<int, int> towerTiersByCell = new Dictionary<int, int>();
         private readonly Dictionary<long, int> lastCreepHealth = new Dictionary<long, int>();
         private readonly Dictionary<long, float> creepHitFlashUntil = new Dictionary<long, float>();
+
+        /// <summary>Creeps currently inside a bramble zone, for the snare cue's rising edge —
+        /// the sound plays when a creep is CAUGHT, not every tick it stays held.</summary>
+        private readonly HashSet<long> brakedCreepKeys = new HashSet<long>();
 
         /// <summary>
         /// The hit-flash state each creep's colours were last written for.
@@ -139,16 +136,7 @@ namespace LTW.UnityClient.Simulation
             boardBuildBandTexture = Resources.Load<Texture2D>(BoardBuildBandTextureResourcePath);
             boardRouteCoreTexture = Resources.Load<Texture2D>(BoardRouteCoreTextureResourcePath);
 
-            feedbackAudioSource = gameObject.AddComponent<AudioSource>();
-            feedbackAudioSource.playOnAwake = false;
-            feedbackAudioSource.spatialBlend = 0f;
-            towerBuiltClip = CreateTone("TowerBuiltCue", 660f, 0.07f);
-            towerHitClip = CreateTone("TowerHitCue", 720f, 0.035f);
-            sendClip = CreateTone("SendCue", 440f, 0.06f);
-            creepKilledClip = CreateTone("CreepKilledCue", 880f, 0.05f);
-            incomeClip = CreateTone("IncomeCue", 1040f, 0.045f);
-            leakClip = CreateTone("LeakCue", 180f, 0.14f);
-            eliminationClip = CreateTone("EliminationCue", 120f, 0.22f);
+            audioDirector = gameObject.AddComponent<LTWAudioDirector>();
             ConfigureDefaultCamera();
         }
 
@@ -475,6 +463,14 @@ namespace LTW.UnityClient.Simulation
 
                     lastKnownCreepIds[key] = creep.CreepId.Value;
                     lastCreepHealth[key] = creep.Health;
+                    if (creep.IsBraked && brakedCreepKeys.Add(key))
+                    {
+                        audioDirector.Play(LTWAudioCue.CreepSnared);
+                    }
+                    else if (!creep.IsBraked)
+                    {
+                        brakedCreepKeys.Remove(key);
+                    }
                     if (creep.LaneId.Value >= 1 && creep.LaneId.Value < pressureByLane.Length)
                     {
                         pressureByLane[creep.LaneId.Value]++;
@@ -523,7 +519,13 @@ namespace LTW.UnityClient.Simulation
                         // No "WARD" label: it confirmed an action the player had just taken, at the
                         // cell they had just tapped, where the tower is now visibly standing.
                         SpawnReducedEffectCue(buildPosition, "BUILD", MintSignal);
-                        PlaySound(towerBuiltClip);
+                        audioDirector.Play(LTWAudioCue.TowerPlaced);
+                        break;
+                    case CategoryTierPurchasedEvent tierPurchased:
+                        audioDirector.Play(LTWAudioCue.TierPurchased);
+                        break;
+                    case TowerUpgradedEvent towerUpgraded:
+                        audioDirector.Play(LTWAudioCue.TowerUpgraded);
                         break;
                     case TowerSoldEvent towerSold:
                         var sellPosition = PositionFor(towerSold.TowerEntityId.Value);
@@ -531,6 +533,7 @@ namespace LTW.UnityClient.Simulation
                         SpawnEffect(sellPosition, SignalGold, 0.42f, 0.24f);
                         SpawnFloatingText(sellPosition, $"+{towerSold.Refund.Amount}", SignalGold, 0.58f);
                         SpawnReducedEffectCue(sellPosition, "SELL", SignalGold);
+                        audioDirector.Play(LTWAudioCue.TowerSold);
                         break;
                     case TowerEarnedGoldEvent earned:
                         // Shown AT the tower, not in the gold total. This mechanic has always worked
@@ -581,6 +584,7 @@ namespace LTW.UnityClient.Simulation
 
                         break;
                     case TowerFiredEvent fired:
+                        audioDirector.Play(LTWAudioCue.TowerShot);
                         var firedTowerKey = fired.TowerEntityId.Value;
                         towerLastFiredAt[firedTowerKey] = Time.time;
                         towerAimTarget[firedTowerKey] = GridToWorld(fired.TargetPosition, fired.LaneId);
@@ -615,7 +619,7 @@ namespace LTW.UnityClient.Simulation
                             SpawnReducedEffectCue(hitPosition, "HIT", new Color(1f, 0.88f, 0.44f));
                         }
 
-                        PlaySound(towerHitClip);
+                        audioDirector.Play(LTWAudioCue.CreepHit);
                         break;
                     case CreepKilledEvent creepKilled:
                         var killedCreepKey = creepKilled.CreepEntityId.Value;
@@ -626,7 +630,7 @@ namespace LTW.UnityClient.Simulation
                         SpawnEffect(killPosition, SignalGold, 0.42f, 0.2f);
                         SpawnFloatingText(killPosition, $"+{creepKilled.BountyAwarded.Amount}", SignalGold, 0.56f);
                         SpawnReducedEffectCue(killPosition, "KILL", SignalGold);
-                        PlaySound(creepKilledClip);
+                        audioDirector.Play(LTWAudioCue.CreepKilled);
                         break;
                     case LeakEvent leak:
                         var leakCreepKey = leak.CreepEntityId.Value;
@@ -658,7 +662,7 @@ namespace LTW.UnityClient.Simulation
                             SpawnReducedEffectCue(stealPosition, "STOLE", MintSignal);
                         }
 
-                        PlaySound(leakClip);
+                        audioDirector.Play(LTWAudioCue.CreepLeaked);
                         TriggerHapticFeedback();
                         break;
                     case IncomeTickEvent incomeTick:
@@ -666,20 +670,23 @@ namespace LTW.UnityClient.Simulation
                         SpawnEffect(IncomePosition(incomeTick.PlayerId.Value), SignalGold, 0.46f, 0.22f, BurstShape.Rise);
                         SpawnFloatingText(IncomePosition(incomeTick.PlayerId.Value), $"+{incomeTick.GoldAwarded.Amount} income", SignalGold, 0.58f);
                         SpawnReducedEffectCue(IncomePosition(incomeTick.PlayerId.Value), "INCOME", SignalGold);
-                        PlaySound(incomeClip);
+                        audioDirector.Play(LTWAudioCue.IncomeTick);
                         break;
                     case PlayerEliminatedEvent eliminated:
                         SpawnLaneShutdownCue(eliminated.PlayerId.Value);
                         SpawnEffect(LaneCenter(eliminated.PlayerId.Value) + Vector3.up * 0.2f, LeakRed, 1.15f, 0.55f, BurstShape.Sweep);
                         SpawnFloatingText(LaneCenter(eliminated.PlayerId.Value) + Vector3.up * 1.2f, $"PLAYER {eliminated.PlayerId.Value} OUT", LeakRed, 0.8f);
                         SpawnReducedEffectCue(LaneCenter(eliminated.PlayerId.Value), "OUT", LeakRed);
-                        PlaySound(eliminationClip);
+                        audioDirector.Play(LTWAudioCue.PlayerEliminated);
                         break;
                     case MatchEndedEvent ended:
                         SpawnVictoryLaneCue(ended.WinnerId.Value);
                         SpawnFloatingText(LaneCenter(ended.WinnerId.Value) + Vector3.up * 1.85f, $"PLAYER {ended.WinnerId.Value} WINS", SignalGold, 1f);
                         SpawnReducedEffectCue(LaneCenter(ended.WinnerId.Value), "WIN", SignalGold);
-                        PlaySound(eliminationClip);
+                        audioDirector.Play(
+                            simulationDriver != null && ended.WinnerId.Equals(simulationDriver.LocalPlayerId)
+                                ? LTWAudioCue.MatchWon
+                                : LTWAudioCue.MatchLost);
                         break;
                 }
             }
@@ -690,14 +697,6 @@ namespace LTW.UnityClient.Simulation
         /// to real seconds. Falls back to the driver's own default if the driver is missing.
         /// </summary>
         private float SimulationTicksPerSecond() => simulationDriver != null ? simulationDriver.TicksPerSecond : 4f;
-
-        private void PlaySound(AudioClip clip)
-        {
-            if (!PresentationPreferences.AudioMuted && feedbackAudioSource != null && PresentationPreferences.FeedbackVolume > 0f)
-            {
-                feedbackAudioSource.PlayOneShot(clip, PresentationPreferences.FeedbackVolume);
-            }
-        }
 
         private string TowerRoleAt(GridPosition position, LaneId laneId)
         {
@@ -729,21 +728,6 @@ namespace LTW.UnityClient.Simulation
         private static Vector3 AllLaneCenter() => new Vector3((LaneOffset(1) + LaneOffset(LaneCount)) * 0.5f + BoardCenterX, 0f, BoardCenterZ);
 
         private static Vector3 IncomePosition(int playerId) => new Vector3(LaneOffset(playerId) + 1.2f, 1.25f, WorldZ(1));
-
-        private static AudioClip CreateTone(string name, float frequency, float duration)
-        {
-            const int sampleRate = 22050;
-            var sampleCount = Mathf.CeilToInt(sampleRate * duration);
-            var samples = new float[sampleCount];
-            for (var index = 0; index < sampleCount; index++)
-            {
-                samples[index] = Mathf.Sin(2f * Mathf.PI * frequency * index / sampleRate) * 0.2f;
-            }
-
-            var clip = AudioClip.Create(name, sampleCount, 1, sampleRate, false);
-            clip.SetData(samples, 0);
-            return clip;
-        }
 
         private void ReleaseExpiredPresentations()
         {
