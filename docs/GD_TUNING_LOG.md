@@ -1845,6 +1845,54 @@ motivated the income ceiling in the first place — and it is not creeps driving
 takes 145s against the runner's 180s timeout, and one run did time out before a clean re-run
 passed; that margin wants widening before it starts producing flaky evidence.
 
+## 2026-08-03: A Tier Now Raises What Its Own Units Cost
+
+The other half of the tier sink, and the half that was actually asked for. The earlier entry today
+escalated the price of *buying* a tier; it left the units the tier improves priced exactly as
+authored. So a tier-3 send category put **225% creep health on the board for the gold that bought
+100%**, and a tier-3 tower line built **190% damage for the price of 100%**. The tier's own price
+was the entire balancing lever and everything after it was free power, which made a tier a
+strictly correct purchase the moment it was affordable.
+
+**Charged at 65% of the power increase**, as a share rather than a second table, so it tracks the
+health and damage curves automatically and a retune of either cannot leave a price pointing at
+power that no longer exists.
+
+| tier | creep health | send cost | tower damage | build cost |
+|---|---|---|---|---|
+| 1 | 100% | 100% | 100% | 100% |
+| 2 | 150% | 132% | 140% | 126% |
+| 3 | 225% | 181% | 190% | 158% |
+
+Deliberately under 100% of the increase. At 100 the tier would be economically neutral — you would
+pay exactly what the extra power is worth and the only thing left to buy is fewer units carrying
+the same total, which is not worth what a tier costs. At 65 a tier-3 creep carries 225% health for
+181% price: **24% more health per gold** than tier 1, so the tier stays an upgrade.
+
+### Measured, eight lanes, seed 1, same tree either side
+
+Toggled on the constant rather than by stashing, so the two runs differ only in this number.
+
+| | charge-back 0 | charge-back 65 |
+|---|---|---|
+| completed at tick | 3670 | **4396** |
+| winner | seat 4 | seat 4 |
+| peak income | 900 | 900 |
+| total gold banked at the end | 28811 | **39292** |
+| towers standing | 60 | 60 |
+
+**This undoes the shortening the income ceiling caused.** Match length across today's three
+economy changes: 4273 originally, 3568 after the ceiling went to 900, 4396 now — within 3% of where
+it started. That was not designed, and it is worth not reading as more than it is: two changes
+pulling opposite ways happened to land near the original, on one seed.
+
+**Gold banked rose 36%.** Units cost more and the bots did not adapt their spending, so the surplus
+sits in the bank. Either the economy has slack the bots are not using, or their reserve logic wants
+looking at — the tower count is identical at 60, so they are not converting it into board presence.
+Flagged, not chased.
+
+**Not verified: how any of this feels to a human.** All bot-versus-bot, one seed.
+
 ## 2026-08-03: Category Tiers Now Cost More The More You Hold, And Income Reaches 900
 
 Two changes, made together because the first does not work without the second.

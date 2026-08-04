@@ -382,7 +382,7 @@ public sealed class LocalVerticalSlice
         var towerEntityId = NextEntityId();
         grids[laneId] = grid.WithOccupied(position);
         SetRoute(laneId, placement.Route);
-        players = players.Replace(player.WithGold(new Gold(player.Gold.Amount - tower.Cost.Amount)));
+        players = players.Replace(player.WithGold(new Gold(player.Gold.Amount - TowerBuildCostFor(player, tower))));
         // The owner's line tier is baked in HERE, at build time. A tier bought later raises what
         // new towers are built at and leaves this one where it is until it is paid for
         // individually — see UpgradeTower.
@@ -1211,13 +1211,28 @@ public sealed class LocalVerticalSlice
 
         var tower = TowerFor(towerId);
         var player = players.Get(playerId);
-        if (player.Gold.Amount < tower.Cost.Amount)
+        if (player.Gold.Amount < TowerBuildCostFor(player, tower))
         {
             return TowerPlacementValidation.Reject(CommandRejectionReason.InsufficientGold);
         }
 
         return TowerPlacementValidation.Accept(grid, placement, tower, player);
     }
+
+    /// <summary>
+    /// What this player pays to build <paramref name="tower"/>, at their line's tier.
+    /// </summary>
+    /// <remarks>
+    /// One function because the affordability check and the charge live in different methods —
+    /// ValidateTowerPlacement decides, PlaceTower deducts — and the two reading the price
+    /// separately is how a seat gets told it can afford a tower and then billed something else.
+    ///
+    /// The tier is the owner's at the moment of building, which is the same instant the tier is
+    /// baked into the tower's damage. A line upgraded afterwards changes neither this tower's
+    /// damage nor the price already paid for it.
+    /// </remarks>
+    private static int TowerBuildCostFor(PlayerEconomyState player, TowerDefinition tower) =>
+        tower.Cost.Amount * CategoryTierRules.TowerBuildCostPercentFor(player.TowerLineTier(tower.CategoryIndex)) / 100;
 
     private EntityId NextEntityId() => new EntityId(nextEntityId++);
 

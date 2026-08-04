@@ -139,8 +139,11 @@ namespace LTW.UnityClient.Simulation
         private int UpgradesOwned() =>
             simulation is null
                 ? 0
-                : LTW.Simulation.Content.CategoryTierRules.UpgradesOwned(
-                    simulation.GetSnapshot().Players.Get(simulation.LocalPlayerId));
+                : LTW.Simulation.Content.CategoryTierRules.UpgradesOwned(LocalSeat());
+
+        /// <summary>The local seat's economy state, which every tiered price is read against.</summary>
+        private LTW.Simulation.Economy.PlayerEconomyState LocalSeat() =>
+            simulation!.GetSnapshot().Players.Get(simulation.LocalPlayerId);
 
         /// <summary>Income the player must already be earning to buy the next tier, or 0 at the top.</summary>
         /// <remarks>
@@ -365,7 +368,11 @@ namespace LTW.UnityClient.Simulation
             {
                 if (tower.Id.Value == contentId)
                 {
-                    return tower.Cost.Amount;
+                    // At the local seat's line tier, which is what the bridge charges. A palette
+                    // quoting the authored cost after the line is upgraded is a card that says one
+                    // number and bills another, and the gap grows with the tier.
+                    var tier = LocalSeat().TowerLineTier(tower.CategoryIndex);
+                    return tower.Cost.Amount * LTW.Simulation.Content.CategoryTierRules.TowerBuildCostPercentFor(tier) / 100;
                 }
             }
 
@@ -393,7 +400,9 @@ namespace LTW.UnityClient.Simulation
             {
                 if (creep.Id.Equals(creepId))
                 {
-                    return creep.Cost.Amount;
+                    // At the local seat's send-category tier, matching EconomyService.SendCostFor.
+                    var tier = LocalSeat().SendCategoryTier(creep.CategoryIndex);
+                    return creep.Cost.Amount * LTW.Simulation.Content.CategoryTierRules.SendCostPercentFor(tier) / 100;
                 }
             }
 
@@ -420,8 +429,9 @@ namespace LTW.UnityClient.Simulation
 
         /// <summary>Gold one press of a send button actually costs, batch included.</summary>
         /// <remarks>
-        /// This is what the HUD must display and gate on. It mirrors EconomyService's
-        /// `creep.Cost.Amount * quantity`, which is the value the simulation charges.
+        /// This is what the HUD must display and gate on. It mirrors EconomyService.SendCostFor,
+        /// which prices the creep at the sender's category tier and then multiplies by quantity —
+        /// in that order, so a batch costs exactly what the same number of single sends would.
         /// </remarks>
         public int SendCost(LTW.Simulation.Content.ContentId creepId) =>
             CreepCost(creepId) * SendQuantity(creepId);

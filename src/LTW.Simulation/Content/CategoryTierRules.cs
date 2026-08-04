@@ -49,6 +49,49 @@ public static class CategoryTierRules
     public static int CreepHealthPercentFor(int tier) => PercentAt(CreepHealthPercent, tier);
 
     /// <summary>
+    /// How much of a tier's power increase is charged back on the unit's own price.
+    /// </summary>
+    /// <remarks>
+    /// A tier used to make its units strictly better at no change in price: a tier-3 send category
+    /// put 225% health on the board for the gold that bought 100%, and a tier-3 tower line built
+    /// 190% damage for the cost of 100%. Buying the tier was the whole transaction, and everything
+    /// after it was free. That is the half of this mechanic that was missing.
+    ///
+    /// Charged as a share of the increase rather than a second hand-authored table, so it tracks
+    /// <see cref="CreepHealthPercent"/> and <see cref="TowerDamagePercent"/> automatically and a
+    /// retune of either cannot leave a price behind pointing at power that no longer exists — the
+    /// same reasoning <see cref="MinimumIncomePercentOfCost"/> is written with.
+    ///
+    /// 65%, deliberately under 100. At 100 the tier would be economically neutral — you would pay
+    /// exactly what the extra power is worth, and the only thing left to buy would be fewer units
+    /// carrying the same total, which is not worth what a tier costs. At 65 a tier-3 creep carries
+    /// 225% health for 181% price, so 24% more health per gold than tier 1, and the tier stays an
+    /// upgrade while the free ride ends.
+    /// </remarks>
+    private const int PowerChargedBackPercent = 65;
+
+    /// <summary>
+    /// Percent to apply to a creep's authored send cost at this tier.
+    /// </summary>
+    /// <remarks>
+    /// Tier 1 is exactly the authored cost, so an unupgraded roster is priced as written.
+    /// </remarks>
+    public static int SendCostPercentFor(int tier) => ChargedPercent(CreepHealthPercentFor(tier));
+
+    /// <summary>
+    /// Percent to apply to a tower's authored build cost at this tier.
+    /// </summary>
+    /// <remarks>
+    /// Charged at build time, matching where the line tier is baked into the tower itself. A tower
+    /// standing before the tier was bought keeps both its old damage and the price already paid;
+    /// raising that one costs <see cref="TowerUpgradePercentOfCost"/> separately.
+    /// </remarks>
+    public static int TowerBuildCostPercentFor(int tier) => ChargedPercent(TowerDamagePercentFor(tier));
+
+    private static int ChargedPercent(int powerPercent) =>
+        100 + ((powerPercent - 100) * PowerChargedBackPercent / 100);
+
+    /// <summary>
     /// How much each tier already bought adds to the price of the next one, as a percent of the
     /// next one's list price.
     /// </summary>
