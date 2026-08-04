@@ -113,6 +113,14 @@ namespace LTW.UnityClient.Simulation
 
         private readonly List<TimedPresentation> timedPresentations = new List<TimedPresentation>();
 
+        /// <summary>How many beams are alive, so the cap can be checked without scanning.</summary>
+        /// <remarks>
+        /// A counter rather than a second list, because beams already live in timedPresentations and
+        /// a parallel list would be two things to keep in step. Incremented where one is added and
+        /// decremented where one expires; both sites are the only places beams enter and leave.
+        /// </remarks>
+        private int liveBeams;
+
         public PresentationDetail Detail => presentationDetail;
 
         public int ActivePresentationObjectCount => activeTowers.Count + activeCreeps.Count + timedPresentations.Count;
@@ -793,6 +801,11 @@ namespace LTW.UnityClient.Simulation
                     continue;
                 }
 
+                if (ReferenceEquals(presentation.Pool, beamPool))
+                {
+                    liveBeams--;
+                }
+
                 ReleaseToPool(presentation.Object, presentation.Pool);
                 timedPresentations.RemoveAt(index);
             }
@@ -856,6 +869,7 @@ namespace LTW.UnityClient.Simulation
             creepHitFlashUntil.Clear();
             creepHitFlashApplied.Clear();
             foreach (var presentation in timedPresentations) ReleaseToPool(presentation.Object, presentation.Pool);
+            liveBeams = 0;
             timedPresentations.Clear();
             foreach (var ring in activeShockwaveRings) ReleaseToPool(ring.Object, shockwaveRingPool);
             activeShockwaveRings.Clear();
