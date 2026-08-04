@@ -49,3 +49,30 @@ blown past white. **Unclipped glow** = bright and saturated but still resolvable
 recurs constantly, and there the clipping collapsed *while unclipped glow went up* — the same
 light, now legible as a gradient instead of a flat plate. Had the effects simply not fired, glow
 would have fallen with it. `real-05` is the control and is unchanged on both metrics.
+
+---
+
+## 3. The lane direction markers were not arrows
+
+Same board, separate cause, found while tracing the above.
+
+`CreateFlowArrow` built four pieces: a shaft, two heads at ±42°, and a "base". The base was
+**0.28 wide in X against a shaft 0.035 wide**, laid *across* the shaft rather than along it — so
+the widest element in a direction marker was a bar perpendicular to the direction it indicated.
+It sat at Z+0.03 while the shaft spanned ±0.09, so it crossed the shaft near the top and drew a
+plus sign.
+
+The shaft also sat lower than the heads — y −0.005 against 0, so 0.011 above the plate against
+their 0.0175 — and was under half their width, leaving it too faint to visually connect them.
+Together: a plus with a detached V beneath it. Reported as "a blue square with an x through it",
+alongside the arrival cue that genuinely did draw one.
+
+Fixed by deleting the base and giving shaft and heads a shared height and thickness, with the
+shaft long enough to overlap the heads. Verified numerically before capturing — shaft spans
+Z −0.110..+0.230, a head reaches Z −0.272..−0.028, overlapping through 0.082 rather than meeting
+at a hairline, and the head's inner edge at x −0.015 sits inside the shaft's edge at +0.037.
+
+`05-flow-arrow-before.png` / `06-flow-arrow-after.png`, same crop of the same lane cell.
+
+Worth noting these markers are static board decoration, always on screen — so unlike the send
+and burst fixes above, a capture *is* decisive here and there is no timing caveat.

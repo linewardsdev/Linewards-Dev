@@ -789,39 +789,56 @@ namespace LTW.UnityClient.Simulation
             }
         }
 
+        /// <summary>
+        /// The direction marker repeated down a lane: a shaft with a V head, pointing the way
+        /// creeps travel.
+        /// </summary>
+        /// <remarks>
+        /// It did not read as an arrow, and the reason was a fourth piece — a "base" 0.28 wide in
+        /// X against a shaft 0.035 wide, laid across the shaft rather than along it. That made the
+        /// widest element in the marker a bar perpendicular to the direction it was supposed to
+        /// indicate, and because it sat at Z+0.03 while the shaft spanned ±0.09, it crossed the
+        /// shaft near the top and drew a plus sign. The base is gone.
+        ///
+        /// The shaft also sat lower than the heads (y −0.005 against 0, so 0.011 above the plate
+        /// against their 0.0175) and was less than half their width, which left it too faint to
+        /// connect them. Read together, a plus with a detached V under it — reported as a cross
+        /// and chevron rather than an arrow. Shaft and heads now share a height and a thickness,
+        /// and the shaft is long enough to overlap the heads rather than stop short of them.
+        ///
+        /// Lengths are chosen so the pieces meet: the shaft spans Z −0.11 to +0.23, and a head
+        /// 0.26 long rotated 42° reaches from Z −0.247 up to −0.053, so the two overlap through
+        /// −0.11..−0.053 instead of meeting at a hairline.
+        /// </remarks>
         private void CreateFlowArrow(int laneId, int y)
         {
             var offset = LaneOffset(laneId);
             var color = RouteTriangleColor(laneId);
+            const float Thickness = 0.075f;
+            const float Height = 0.035f;
+
             CreateBoardPiece(
                 $"Lane{laneId}Flow_{y}_Shaft",
                 PrimitiveType.Cube,
-                new Vector3(offset + CenterColumn, -0.005f, WorldZ(y)),
-                new Vector3(0.035f, 0.032f, 0.18f),
+                new Vector3(offset + CenterColumn, 0f, WorldZ(y) + 0.06f),
+                new Vector3(Thickness, Height, 0.34f),
                 color);
 
             var eastHead = CreateBoardPiece(
                 $"Lane{laneId}Flow_{y}_HeadA",
                 PrimitiveType.Cube,
-                new Vector3(offset + CenterColumn + 0.12f, 0f, WorldZ(y) - 0.18f),
-                new Vector3(0.05f, 0.035f, 0.24f),
+                new Vector3(offset + CenterColumn + 0.10f, 0f, WorldZ(y) - 0.15f),
+                new Vector3(Thickness, Height, 0.26f),
                 color);
             eastHead.transform.rotation = Quaternion.Euler(0f, 42f, 0f);
 
             var westHead = CreateBoardPiece(
                 $"Lane{laneId}Flow_{y}_HeadB",
                 PrimitiveType.Cube,
-                new Vector3(offset + CenterColumn - 0.12f, 0f, WorldZ(y) - 0.18f),
-                new Vector3(0.05f, 0.035f, 0.24f),
+                new Vector3(offset + CenterColumn - 0.10f, 0f, WorldZ(y) - 0.15f),
+                new Vector3(Thickness, Height, 0.26f),
                 color);
             westHead.transform.rotation = Quaternion.Euler(0f, -42f, 0f);
-
-            CreateBoardPiece(
-                $"Lane{laneId}Flow_{y}_Base",
-                PrimitiveType.Cube,
-                new Vector3(offset + CenterColumn, -0.002f, WorldZ(y) + 0.03f),
-                new Vector3(0.28f, 0.028f, 0.035f),
-                new Color(color.r * 0.72f, color.g * 0.72f, color.b * 0.72f));
         }
 
         private GameObject CreateBoardRail(string name, Vector3 position, Vector3 scale, Color color) =>
