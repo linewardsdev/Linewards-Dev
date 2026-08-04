@@ -492,12 +492,21 @@ namespace LTW.UnityClient.Simulation
             }
         }
 
+        /// <summary>Which kind of creep got through, marked alongside the gate line.</summary>
+        /// <remarks>
+        /// Both accents run along X, parallel to the gate line the leak cue draws, so a role tell
+        /// reads as a second stroke on that line rather than as a mark stamped on the creep.
+        ///
+        /// The siege tell used to be a diagonal laid across a vertical, which is two beams crossing
+        /// at a point — the same crossed-sticks shape that made the arrival cue read as a missing
+        /// asset, for the same reason. Its gold is kept, as a stroke just behind the red one, so
+        /// the information survives without the glyph.
+        /// </remarks>
         private void SpawnCreepLeakRoleCue(Vector3 position, string creepId)
         {
             if (ContainsRole(creepId, "siege") || ContainsRole(creepId, "attacker"))
             {
-                SpawnBeam(position + new Vector3(-0.46f, 0.22f, -0.48f), position + new Vector3(0.46f, 0.22f, 0.48f), LeakRed, 0.24f);
-                SpawnBeam(position + new Vector3(0f, 0.28f, -0.62f), position + new Vector3(0f, 0.28f, 0.62f), SignalGold, 0.24f);
+                SpawnBeam(position + new Vector3(-0.5f, 0.26f, 0.08f), position + new Vector3(0.5f, 0.26f, 0.08f), SignalGold, 0.24f);
                 return;
             }
 
@@ -655,12 +664,25 @@ namespace LTW.UnityClient.Simulation
             SpawnBeam(northEast, southEast, color, duration);
         }
 
+        /// <summary>The line across the gate a leaking creep just crossed.</summary>
+        /// <remarks>
+        /// The line is the cue. This used to raise a burst here as well, at
+        /// <c>GridToWorld(CenterColumn, LaneLength - 1)</c> — which is the gate cell, and a creep
+        /// leaks *at* the gate, so it landed on top of the caller's own burst at the creep's
+        /// position. Two clouds, fourteen particles and twenty, in the same place at the same
+        /// moment, which is most of why a leak looked like a smear rather than an event.
+        ///
+        /// One burst and one line reads as a thing crossing a threshold. Two bursts and a line
+        /// reads as a mess in the shape of a leak.
+        /// </remarks>
         private void SpawnLeakGateCue(int laneId)
         {
             var offset = LaneOffset(laneId);
-            var gateCenter = GridToWorld(new GridPosition(CenterColumn, LaneLength - 1), new LaneId(laneId)) + Vector3.up * 0.24f;
-            SpawnEffect(gateCenter, LeakRed, 0.72f, 0.34f);
-            SpawnBeam(new Vector3(offset + 0.7f, 0.48f, WorldZ(LaneLength - 1)), new Vector3(offset + LaneWidth - 1.7f, 0.48f, WorldZ(LaneLength - 1)), LeakRed, 0.3f);
+            SpawnBeam(
+                new Vector3(offset + 0.7f, 0.48f, WorldZ(LaneLength - 1)),
+                new Vector3(offset + LaneWidth - 1.7f, 0.48f, WorldZ(LaneLength - 1)),
+                LeakRed,
+                0.3f);
         }
 
         private void SpawnIncomeLaneCue(int laneId)

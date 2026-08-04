@@ -627,7 +627,13 @@ namespace LTW.UnityClient.Simulation
                         var leakingCreepId = CreepIdFor(leakCreepKey);
                         SpawnLeakGateCue(leak.DefenderId.Value);
                         SpawnCreepLeakRoleCue(position, leakingCreepId);
-                        SpawnEffect(position, LeakRed, 0.86f, 0.42f, BurstShape.Sweep);
+                        // 0.86 made this the second-largest burst in the game, behind only the 1.15
+                        // of a player being eliminated — which happens once per seat per match,
+                        // where a leak happens constantly. Brought to 0.6: still the heaviest thing
+                        // that routinely occurs, and no longer competing with the end of someone's
+                        // match. It is now also the only burst at this position, since the gate cue
+                        // no longer raises a second one on the same spot.
+                        SpawnEffect(position, LeakRed, 0.6f, 0.42f, BurstShape.Sweep);
                         SpawnFloatingText(position, $"-{leak.LivesLost.Amount} LIFE", LeakRed, 0.72f);
                         SpawnReducedEffectCue(position, "LEAK", LeakRed);
                         if (leak.BountyAwarded.Amount > 0)
