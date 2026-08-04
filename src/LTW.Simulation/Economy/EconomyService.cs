@@ -89,7 +89,10 @@ public sealed class EconomyService
             return SendResult.Reject(players, CommandRejectionReason.CooldownActive);
         }
 
-        var cost = creep.Cost.Amount * quantity;
+        // Priced at the sender's tier for this creep's category, not the authored cost. A tier
+        // raises the health of everything in the category, and until now raised nothing about what
+        // it charged — so the tier paid for itself once and every send after it was free power.
+        var cost = SendCostFor(sender, creep, quantity);
         if (sender.Gold.Amount < cost)
         {
             return SendResult.Reject(players, CommandRejectionReason.InsufficientGold);
@@ -110,6 +113,26 @@ public sealed class EconomyService
         }
 
         return SendResult.Accept(players.Replace(updatedSender), targetId);
+    }
+
+    /// <summary>
+    /// What <paramref name="quantity"/> of <paramref name="creep"/> costs this sender right now.
+    /// </summary>
+    /// <remarks>
+    /// Public because the send dock has to show it. A card quoting the authored cost while the
+    /// economy charges the tiered one is a button that looks affordable and is refused, and the gap
+    /// widens with every tier bought — the same failure the category tier cards were already
+    /// written to avoid.
+    ///
+    /// The multiplier applies to the unit price and the quantity multiplies the result, so a bulk
+    /// send is priced exactly as the same number of single sends. Doing it the other way rounds
+    /// once per batch instead of once per creep and makes quantity a cheap way to shave gold.
+    /// </remarks>
+    public int SendCostFor(PlayerEconomyState sender, CreepDefinition creep, int quantity)
+    {
+        var tier = sender.SendCategoryTier(creep.CategoryIndex);
+        var unitCost = creep.Cost.Amount * CategoryTierRules.SendCostPercentFor(tier) / 100;
+        return unitCost * quantity;
     }
 
     /// <summary>

@@ -1845,6 +1845,106 @@ motivated the income ceiling in the first place — and it is not creeps driving
 takes 145s against the runner's 180s timeout, and one run did time out before a clean re-run
 passed; that margin wants widening before it starts producing flaky evidence.
 
+## 2026-08-03: A Tier Now Raises What Its Own Units Cost
+
+The other half of the tier sink, and the half that was actually asked for. The earlier entry today
+escalated the price of *buying* a tier; it left the units the tier improves priced exactly as
+authored. So a tier-3 send category put **225% creep health on the board for the gold that bought
+100%**, and a tier-3 tower line built **190% damage for the price of 100%**. The tier's own price
+was the entire balancing lever and everything after it was free power, which made a tier a
+strictly correct purchase the moment it was affordable.
+
+**Charged at 65% of the power increase**, as a share rather than a second table, so it tracks the
+health and damage curves automatically and a retune of either cannot leave a price pointing at
+power that no longer exists.
+
+| tier | creep health | send cost | tower damage | build cost |
+|---|---|---|---|---|
+| 1 | 100% | 100% | 100% | 100% |
+| 2 | 150% | 132% | 140% | 126% |
+| 3 | 225% | 181% | 190% | 158% |
+
+Deliberately under 100% of the increase. At 100 the tier would be economically neutral — you would
+pay exactly what the extra power is worth and the only thing left to buy is fewer units carrying
+the same total, which is not worth what a tier costs. At 65 a tier-3 creep carries 225% health for
+181% price: **24% more health per gold** than tier 1, so the tier stays an upgrade.
+
+### Measured, eight lanes, seed 1, same tree either side
+
+Toggled on the constant rather than by stashing, so the two runs differ only in this number.
+
+| | charge-back 0 | charge-back 65 |
+|---|---|---|
+| completed at tick | 3670 | **4396** |
+| winner | seat 4 | seat 4 |
+| peak income | 900 | 900 |
+| total gold banked at the end | 28811 | **39292** |
+| towers standing | 60 | 60 |
+
+**This undoes the shortening the income ceiling caused.** Match length across today's three
+economy changes: 4273 originally, 3568 after the ceiling went to 900, 4396 now — within 3% of where
+it started. That was not designed, and it is worth not reading as more than it is: two changes
+pulling opposite ways happened to land near the original, on one seed.
+
+**Gold banked rose 36%.** Units cost more and the bots did not adapt their spending, so the surplus
+sits in the bank. Either the economy has slack the bots are not using, or their reserve logic wants
+looking at — the tower count is identical at 60, so they are not converting it into board presence.
+Flagged, not chased.
+
+**Not verified: how any of this feels to a human.** All bot-versus-bot, one seed.
+
+## 2026-08-03: Category Tiers Now Cost More The More You Hold, And Income Reaches 900
+
+Two changes, made together because the first does not work without the second.
+
+**Tier prices escalate 25% of list per tier already held, counted across every track.** The cost
+tables escalated *within* a track — tier 3 is about 2.5x tier 2 — but said nothing about breadth,
+so tier 2 in all six tracks cost 780 gold flat and the sixth was priced exactly like the first.
+Spreading across every category was strictly better than committing to one. The first purchase is
+now at list, the twelfth and last at 3.75x it.
+
+| tiers held | tower tier 2 | tower tier 3 | income gate on tier 3 |
+|---|---|---|---|
+| 0 | 140 | 360 | 180 |
+| 3 | 245 | 630 | 315 |
+| 6 | 350 | 900 | 450 |
+| 9 | 455 | 1170 | 585 |
+| 11 | 525 | 1350 | 675 |
+
+**The income ceiling moved 600 to 900**, taper start left at 300. Not a separate wish: the income
+gate is half the price, so escalating the price escalates the gate. The dearest purchase on the
+board — a tower line's tier 3, held to last — now demands 675 income. Under the old 600 ceiling
+that tier was not expensive, it was **unreachable**: no bank could satisfy a gate the economy could
+not reach. Anyone retuning either side has to re-check that the highest requirement the board can
+produce stays under the ceiling, or the last upgrades quietly become impossible rather than costly.
+
+### Measured, eight lanes, seed 1, same tree either side
+
+| | before | after |
+|---|---|---|
+| completed at tick | 4273 | **3568** |
+| winner | seat 4 | seat 4 |
+| peak income | 600 | 900 |
+| total gold banked at the end | 25051 | 25979 |
+
+**Matches got 16.5% shorter, and that is the ceiling rather than the escalator.** More income buys
+more sends, which resolves lanes faster. The escalator pulls the other way — note total gold banked
+barely moved despite income rising by half, which is the sink absorbing the difference rather than
+players sitting on it. Whether a ~3.5k-tick match is better than a ~4.3k one is a judgement call
+this measurement cannot make; it is flagged rather than assumed.
+
+**Tier investment tracks winning.** At the end of the measured match the winner held 6 tiers against
+a table median of 2, with the two runners-up on 4. That is the correlation the mechanic was supposed
+to create, and it did not exist to check before.
+
+**Not verified: how any of this feels to a human.** Every number here is bot-versus-bot.
+
+**One thing to watch.** Escalating on *total* tiers held means depth costs as much as breadth — a
+second tier in the line you have already invested in is priced like a first tier in a fresh one.
+That is a real tension with the design doc's goal of rewarding specialisation, and the obvious knob
+if the behaviour disappoints: count distinct tracks touched rather than total tiers held, and depth
+becomes free while breadth still pays.
+
 ## 2026-08-03 (art): Siege, Serpent And Runner Are Rigged — And None Of Them Had Legs
 
 OPEN_ITEMS item 11's wave 2.3. Three of the seven creeps with no armature now carry one, each

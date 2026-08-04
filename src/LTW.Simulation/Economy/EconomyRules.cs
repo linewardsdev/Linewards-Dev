@@ -12,8 +12,19 @@ public sealed class EconomyRules
     public const int DefaultIncomeTaperStart = 300;
 
     /// <summary>Income ceiling applied when a caller does not specify one.</summary>
-    /// <remarks>Twice the taper start, giving a wide band to fall off across rather than a cliff.</remarks>
-    public const int DefaultIncomeCeiling = 600;
+    /// <remarks>
+    /// Was 600, described as twice the taper start to give a wide band to fall off across. The band
+    /// is now three times it, 300 to 900, which is gentler still — the taper start is deliberately
+    /// unchanged so the opening and midgame are untouched and only the top of the curve moves.
+    ///
+    /// Raised because category tier costs now escalate 25% per tier already held, and the income
+    /// gate is half the price. The dearest purchase on the board — a tower line's tier 3, held to
+    /// last — costs 1350 and so demands 675 income. Under a 600 ceiling that upgrade was not
+    /// expensive but impossible: no bank could satisfy a gate the economy could not reach. 900
+    /// clears the worst case with room, and <see cref="Content.CategoryTierRules.MinimumIncomeFor"/>
+    /// carries the same warning for anyone retuning the other side of it.
+    /// </remarks>
+    public const int DefaultIncomeCeiling = 900;
 
     public EconomyRules(
         int incomeIntervalTicks,

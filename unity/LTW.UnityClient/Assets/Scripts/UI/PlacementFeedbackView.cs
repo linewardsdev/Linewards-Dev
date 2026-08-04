@@ -34,6 +34,10 @@ namespace LTW.UnityClient.UI
 
         public void ShowRejected(CommandRejectionReason reason)
         {
+            // Every rejection in the game funnels through this view - placement, sends, upgrades -
+            // so this one call is the whole of "the UI says no out loud". TryPlay because the
+            // feedback view can outlive or predate the match's audio director.
+            Simulation.LTWAudioDirector.TryPlay(Simulation.LTWAudioCue.UiReject);
             var message = reason switch
             {
                 CommandRejectionReason.InsufficientGold => "Need more gold",

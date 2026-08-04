@@ -49,13 +49,120 @@ public static class CategoryTierRules
     public static int CreepHealthPercentFor(int tier) => PercentAt(CreepHealthPercent, tier);
 
     /// <summary>
-    /// Gold to buy <paramref name="targetTier"/> for one category, or 0 if that tier is not
-    /// purchasable (tier 1, or past the top).
+    /// How much of a tier's power increase is charged back on the unit's own price.
+    /// </summary>
+    /// <remarks>
+    /// A tier used to make its units strictly better at no change in price: a tier-3 send category
+    /// put 225% health on the board for the gold that bought 100%, and a tier-3 tower line built
+    /// 190% damage for the cost of 100%. Buying the tier was the whole transaction, and everything
+    /// after it was free. That is the half of this mechanic that was missing.
+    ///
+    /// Charged as a share of the increase rather than a second hand-authored table, so it tracks
+    /// <see cref="CreepHealthPercent"/> and <see cref="TowerDamagePercent"/> automatically and a
+    /// retune of either cannot leave a price behind pointing at power that no longer exists — the
+    /// same reasoning <see cref="MinimumIncomePercentOfCost"/> is written with.
+    ///
+    /// 65%, deliberately under 100. At 100 the tier would be economically neutral — you would pay
+    /// exactly what the extra power is worth, and the only thing left to buy would be fewer units
+    /// carrying the same total, which is not worth what a tier costs. At 65 a tier-3 creep carries
+    /// 225% health for 181% price, so 24% more health per gold than tier 1, and the tier stays an
+    /// upgrade while the free ride ends.
+    /// </remarks>
+    private const int PowerChargedBackPercent = 65;
+
+    /// <summary>
+    /// Percent to apply to a creep's authored send cost at this tier.
+    /// </summary>
+    /// <remarks>
+    /// Tier 1 is exactly the authored cost, so an unupgraded roster is priced as written.
+    /// </remarks>
+    public static int SendCostPercentFor(int tier) => ChargedPercent(CreepHealthPercentFor(tier));
+
+    /// <summary>
+    /// Percent to apply to a tower's authored build cost at this tier.
+    /// </summary>
+    /// <remarks>
+    /// Charged at build time, matching where the line tier is baked into the tower itself. A tower
+    /// standing before the tier was bought keeps both its old damage and the price already paid;
+    /// raising that one costs <see cref="TowerUpgradePercentOfCost"/> separately.
+    /// </remarks>
+    public static int TowerBuildCostPercentFor(int tier) => ChargedPercent(TowerDamagePercentFor(tier));
+
+    private static int ChargedPercent(int powerPercent) =>
+        100 + ((powerPercent - 100) * PowerChargedBackPercent / 100);
+
+    /// <summary>
+    /// How much each tier already bought adds to the price of the next one, as a percent of the
+    /// next one's list price.
+    /// </summary>
+    /// <remarks>
+    /// The tables above escalate <em>within</em> a track — tier 3 costs about 2.5x tier 2 — but
+    /// said nothing about breadth. A player could take tier 2 in all six tracks for 780 gold flat,
+    /// paying the same for the sixth as for the first, which made spreading across every category
+    /// strictly better than committing to one. This is the sink that was missing.
+    ///
+    /// 25% of list, counted against every tier the player already holds anywhere. The first
+    /// purchase is at list, the twelfth and last is at 3.75x it. Integer percent, applied as
+    /// <c>value * percent / 100</c>, so the arithmetic stays exact and deterministic — the same
+    /// rule the damage and health tables follow, and for the same reason.
+    ///
+    /// Counted across ALL tracks rather than per track, which is the literal shape of "each upgrade
+    /// makes the next cost more". It does mean going deep costs more too: a second tier in the line
+    /// you have already invested in is the same price as a first tier in a fresh one. That is a
+    /// real tension with the design doc's stated goal of rewarding specialisation, and it is the
+    /// obvious thing to change if the measured behaviour disappoints — count distinct tracks
+    /// touched instead of total tiers held, and depth becomes free while breadth still pays.
+    /// </remarks>
+    public const int EscalationPercentPerUpgrade = 25;
+
+    /// <summary>
+    /// Tiers this player has already bought, across every tower line and send category.
+    /// </summary>
+    /// <remarks>
+    /// Tier 1 is the free default, so a track contributes <c>tier - 1</c>. Reads the player's own
+    /// state rather than a running counter, so it cannot drift out of step with what was actually
+    /// purchased and needs nothing added to the replay record.
+    /// </remarks>
+    public static int UpgradesOwned(PlayerEconomyState player)
+    {
+        var owned = 0;
+        for (var index = 0; index < PlayerEconomyState.CategoryCount; index++)
+        {
+            owned += player.TowerLineTier(index) - 1;
+            owned += player.SendCategoryTier(index) - 1;
+        }
+
+        return owned;
+    }
+
+    /// <summary>
+    /// List price of <paramref name="targetTier"/> for one category, before escalation, or 0 if
+    /// that tier is not purchasable (tier 1, or past the top).
     /// </summary>
     public static int CostFor(CategoryKind kind, int targetTier)
     {
         var costs = kind == CategoryKind.TowerLine ? TowerLineCost : SendCategoryCost;
         return targetTier >= 0 && targetTier < costs.Length ? costs[targetTier] : 0;
+    }
+
+    /// <summary>
+    /// What <paramref name="targetTier"/> actually costs a player holding
+    /// <paramref name="upgradesOwned"/> tiers already.
+    /// </summary>
+    /// <remarks>
+    /// A tier nobody can buy stays free rather than escalating from zero to zero, so callers can
+    /// use this for display without special-casing tier 1.
+    /// </remarks>
+    public static int CostFor(CategoryKind kind, int targetTier, int upgradesOwned)
+    {
+        var listPrice = CostFor(kind, targetTier);
+        if (listPrice <= 0)
+        {
+            return 0;
+        }
+
+        var owned = upgradesOwned > 0 ? upgradesOwned : 0;
+        return listPrice * (100 + (EscalationPercentPerUpgrade * owned)) / 100;
     }
 
     /// <summary>
@@ -90,6 +197,24 @@ public static class CategoryTierRules
     /// </remarks>
     public static int MinimumIncomeFor(CategoryKind kind, int targetTier) =>
         CostFor(kind, targetTier) * MinimumIncomePercentOfCost / 100;
+
+    /// <summary>
+    /// Income required for <paramref name="targetTier"/> at the price this player actually pays.
+    /// </summary>
+    /// <remarks>
+    /// The requirement is a share of the price, so escalating the price escalates this with it —
+    /// which is the intended coupling, but it has a hard edge worth stating. The dearest purchase
+    /// on the board is a tower line's tier 3 at list 360; held to last it is the twelfth upgrade,
+    /// costs 1350, and demands 675 income. Against the old ceiling of 600 that tier was not
+    /// expensive, it was <em>unreachable</em> — the gate would have refused it at any bank.
+    ///
+    /// That is why <see cref="EconomyRules.DefaultIncomeCeiling"/> moved to 900 in the same change.
+    /// Anyone retuning either the escalator or the tables should re-check this: the highest
+    /// requirement the board can produce has to stay under the ceiling, or the last upgrades quietly
+    /// become impossible rather than costly.
+    /// </remarks>
+    public static int MinimumIncomeFor(CategoryKind kind, int targetTier, int upgradesOwned) =>
+        CostFor(kind, targetTier, upgradesOwned) * MinimumIncomePercentOfCost / 100;
 
     /// <summary>
     /// Share of a tower's build cost charged to raise that one tower by a tier.

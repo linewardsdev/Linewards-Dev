@@ -293,7 +293,7 @@ public sealed class LocalVerticalSlice
         // The enforcement in EconomyService is left intact and still tested with explicit values, so
         // the rule can be turned back on by changing this one number. CreepDefinition.IgnoresSendCooldown
         // also stays: it is inert at 0, but if a cooldown ever returns, Category 2 remains exempt.
-        economy = new EconomyService(new EconomyRules(incomeIntervalTicks: 50, sendCooldownTicks: 0, sellRefundPercent: 50, leakLifeLoss: 1, incomeCeiling: 600, incomeTaperStart: 300));
+        economy = new EconomyService(new EconomyRules(incomeIntervalTicks: 50, sendCooldownTicks: 0, sellRefundPercent: 50, leakLifeLoss: 1, incomeCeiling: EconomyRules.DefaultIncomeCeiling, incomeTaperStart: EconomyRules.DefaultIncomeTaperStart));
         pathService = new GridPathService();
         combat = new CombatService();
         commandValidator = new CommandContentValidator();
@@ -382,7 +382,7 @@ public sealed class LocalVerticalSlice
         var towerEntityId = NextEntityId();
         grids[laneId] = grid.WithOccupied(position);
         SetRoute(laneId, placement.Route);
-        players = players.Replace(player.WithGold(new Gold(player.Gold.Amount - tower.Cost.Amount)));
+        players = players.Replace(player.WithGold(new Gold(player.Gold.Amount - TowerBuildCostFor(player, tower))));
         // The owner's line tier is baked in HERE, at build time. A tier bought later raises what
         // new towers are built at and leaves this one where it is until it is paid for
         // individually — see UpgradeTower.
@@ -619,13 +619,17 @@ public sealed class LocalVerticalSlice
         // Income before gold, and the order matters. A player short on both should be told to build
         // their economy rather than to keep banking, because banking is exactly what will not fix
         // the income requirement.
-        var minimumIncome = CategoryTierRules.MinimumIncomeFor(categoryKind, targetTier);
+        // Priced against what this player already holds, not the list price. Both the gate and the
+        // charge below read the same number, so a seat is never refused for an income it would have
+        // met at the price it was actually about to pay.
+        var upgradesOwned = CategoryTierRules.UpgradesOwned(player);
+        var minimumIncome = CategoryTierRules.MinimumIncomeFor(categoryKind, targetTier, upgradesOwned);
         if (player.Income.Amount < minimumIncome)
         {
             return VerticalSliceCommandResult.Reject(CommandRejectionReason.InsufficientIncome);
         }
 
-        var cost = CategoryTierRules.CostFor(categoryKind, targetTier);
+        var cost = CategoryTierRules.CostFor(categoryKind, targetTier, upgradesOwned);
         if (player.Gold.Amount < cost)
         {
             return VerticalSliceCommandResult.Reject(CommandRejectionReason.InsufficientGold);
@@ -1079,7 +1083,8 @@ public sealed class LocalVerticalSlice
             players,
             combat.GetCreepSnapshots(combatState, combatContent, routeSet),
             combatState.Towers,
-            combat.GetTowerAimSnapshots(combatState, combatContent, routeSet));
+            combat.GetTowerAimSnapshots(combatState, combatContent, routeSet),
+            combat.GetBrambleCells(combatState, combatContent, routeSet));
 
     public IReadOnlyList<ISimulationEvent> DrainEvents()
     {
@@ -1207,13 +1212,28 @@ public sealed class LocalVerticalSlice
 
         var tower = TowerFor(towerId);
         var player = players.Get(playerId);
-        if (player.Gold.Amount < tower.Cost.Amount)
+        if (player.Gold.Amount < TowerBuildCostFor(player, tower))
         {
             return TowerPlacementValidation.Reject(CommandRejectionReason.InsufficientGold);
         }
 
         return TowerPlacementValidation.Accept(grid, placement, tower, player);
     }
+
+    /// <summary>
+    /// What this player pays to build <paramref name="tower"/>, at their line's tier.
+    /// </summary>
+    /// <remarks>
+    /// One function because the affordability check and the charge live in different methods —
+    /// ValidateTowerPlacement decides, PlaceTower deducts — and the two reading the price
+    /// separately is how a seat gets told it can afford a tower and then billed something else.
+    ///
+    /// The tier is the owner's at the moment of building, which is the same instant the tier is
+    /// baked into the tower's damage. A line upgraded afterwards changes neither this tower's
+    /// damage nor the price already paid for it.
+    /// </remarks>
+    private static int TowerBuildCostFor(PlayerEconomyState player, TowerDefinition tower) =>
+        tower.Cost.Amount * CategoryTierRules.TowerBuildCostPercentFor(player.TowerLineTier(tower.CategoryIndex)) / 100;
 
     private EntityId NextEntityId() => new EntityId(nextEntityId++);
 

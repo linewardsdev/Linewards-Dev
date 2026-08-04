@@ -9,6 +9,7 @@ namespace LTW.UnityClient.Simulation
         private const string TextScaleKey = "ltw.presentation.text-scale";
         private const string AudioMutedKey = "ltw.presentation.audio-muted";
         private const string FeedbackVolumeKey = "ltw.presentation.feedback-volume";
+        private const string MusicVolumeKey = "ltw.presentation.music-volume";
 
         public static bool ReducedEffects
         {
@@ -46,6 +47,21 @@ namespace LTW.UnityClient.Simulation
             set
             {
                 PlayerPrefs.SetFloat(FeedbackVolumeKey, Mathf.Clamp01(value));
+                PlayerPrefs.Save();
+            }
+        }
+
+        /// <summary>
+        /// Music bed level, separate from feedback cues because they serve different needs: a
+        /// player who wants quiet music but loud leak alarms is the normal case, not the edge.
+        /// Defaults modest — the bed is a floor for the mix, not a voice in it.
+        /// </summary>
+        public static float MusicVolume
+        {
+            get => Mathf.Clamp(PlayerPrefs.GetFloat(MusicVolumeKey, 0.4f), 0f, 1f);
+            set
+            {
+                PlayerPrefs.SetFloat(MusicVolumeKey, Mathf.Clamp01(value));
                 PlayerPrefs.Save();
             }
         }

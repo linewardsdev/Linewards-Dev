@@ -136,6 +136,10 @@ public sealed class CombatService
         CombatContent content,
         LaneRouteSet routes)
     {
+        // Built once for the whole snapshot, exactly as MoveCreeps builds it once for the whole
+        // creep loop. Per creep it would be O(creeps x towers) on a path that runs every frame.
+        var brambleZones = BuildBrambleZones(state.Towers, content, routes);
+
         return state.Creeps
             .Where(creep => !creep.IsDead && !creep.HasLeaked)
             .Select(creep => new CreepPresentationSnapshot(
@@ -152,8 +156,75 @@ public sealed class CombatService
                 // The creep's own cost, not the global one. A support creep banks movement against
                 // 4 rather than 3, and a renderer told otherwise interpolates it at the wrong pace
                 // and visibly stutters between cells.
-                content.GetCreep(creep.CreepId).MovementCost))
+                content.GetCreep(creep.CreepId).MovementCost,
+                // The same condition MoveCreeps brakes on, so the creep-side tell cannot disagree
+                // with whether the creep is actually slowed. A flyer is never braked because it is
+                // not walking the mazed route these spans are measured against.
+                !content.GetCreep(creep.CreepId).IgnoresMaze
+                    && IsUnderBramble(brambleZones, creep.LaneId, creep.PathIndex)))
             .ToArray();
+    }
+
+    /// <summary>
+    /// The grid cells currently under a Thorn Snare's brambles, per lane, for presentation.
+    /// </summary>
+    /// <remarks>
+    /// Exists so the client can DRAW the brake. Bramble Hold has been one of the roster's most-tuned
+    /// mechanics — zone widened, capped at 3 cells, then uncapped again when the maze showed the cap
+    /// contributed 0% — and until now nothing on screen said it was happening at all. The owner did
+    /// not know the game had a slowing tower, which is a readability failure rather than a design one.
+    ///
+    /// Resolved through <see cref="BuildBrambleZones"/> rather than recomputed, so the cells drawn are
+    /// by construction the cells braked. A presentation copy of "which cells does a thorn tower cover"
+    /// would be a second definition of the mechanic, free to drift from the one that moves creeps —
+    /// and it would drift silently, because a wrong decal looks like a design choice.
+    ///
+    /// Mazed route only, matching the mechanic: a flyer ignores brambles, so there is nothing to draw
+    /// for it.
+    /// </remarks>
+    /// <summary>Bramble cells where every creep walks the same route. See the Advance overload above.</summary>
+    public IReadOnlyDictionary<LaneId, IReadOnlyList<GridPosition>> GetBrambleCells(
+        CombatState state,
+        CombatContent content,
+        IReadOnlyDictionary<LaneId, IReadOnlyList<GridPosition>> routes) =>
+        GetBrambleCells(state, content, LaneRouteSet.Single(routes));
+
+    public IReadOnlyDictionary<LaneId, IReadOnlyList<GridPosition>> GetBrambleCells(
+        CombatState state,
+        CombatContent content,
+        LaneRouteSet routes)
+    {
+        var cells = new Dictionary<LaneId, IReadOnlyList<GridPosition>>();
+        foreach (var lane in BuildBrambleZones(state.Towers, content, routes))
+        {
+            if (!routes.Mazed.TryGetValue(lane.Key, out var route))
+            {
+                continue;
+            }
+
+            // Deduplicated by route index: two thorn towers covering the same stretch, or one tower
+            // whose runs touch, would otherwise stack decals on a cell and draw it twice as dense as
+            // its neighbour for no mechanical reason — the brake does not stack either.
+            var seen = new HashSet<int>();
+            var laneCells = new List<GridPosition>();
+            foreach (var span in lane.Value)
+            {
+                for (var index = Math.Max(0, span.Start); index <= Math.Min(route.Count - 1, span.End); index++)
+                {
+                    if (seen.Add(index))
+                    {
+                        laneCells.Add(route[index]);
+                    }
+                }
+            }
+
+            if (laneCells.Count > 0)
+            {
+                cells[lane.Key] = laneCells;
+            }
+        }
+
+        return cells;
     }
 
     /// <summary>
