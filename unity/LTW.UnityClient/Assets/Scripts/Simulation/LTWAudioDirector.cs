@@ -68,6 +68,11 @@ namespace LTW.UnityClient.Simulation
             /// <summary>How far this cue pushes the music down, 0..1. Zero for almost every
             /// cue: ducking is for the few moments the bed must get out of the way of.</summary>
             public float Duck;
+
+            /// <summary>How many takes exist on disk (`name_v1..vN`). 1 means a single
+            /// `name.wav`. Multi-take cues are the constant ones — pitch jitter disguises
+            /// repetition of one sample but cannot hide it across a long fight.</summary>
+            public int Variants;
         }
 
         /// <summary>
@@ -77,22 +82,22 @@ namespace LTW.UnityClient.Simulation
         /// </summary>
         private static readonly Dictionary<LTWAudioCue, CueConfig> Cues = new Dictionary<LTWAudioCue, CueConfig>
         {
-            { LTWAudioCue.TowerPlaced, new CueConfig { ClipName = "tower_placed", Gain = 1f, PitchJitter = 0.03f, MinInterval = 0.08f } },
+            { LTWAudioCue.TowerPlaced, new CueConfig { ClipName = "tower_placed", Gain = 1f, PitchJitter = 0.03f, MinInterval = 0.08f , Variants = 2 } },
             { LTWAudioCue.TowerSold, new CueConfig { ClipName = "tower_sold", Gain = 1f, PitchJitter = 0.03f, MinInterval = 0.08f } },
             { LTWAudioCue.TowerUpgraded, new CueConfig { ClipName = "tower_upgraded", Gain = 1f, PitchJitter = 0.02f, MinInterval = 0.10f } },
             { LTWAudioCue.TierPurchased, new CueConfig { ClipName = "tier_purchased", Gain = 1f, PitchJitter = 0.01f, MinInterval = 0.20f } },
-            { LTWAudioCue.CreepSent, new CueConfig { ClipName = "creep_sent", Gain = 1f, PitchJitter = 0.05f, MinInterval = 0.09f } },
+            { LTWAudioCue.CreepSent, new CueConfig { ClipName = "creep_sent", Gain = 1f, PitchJitter = 0.05f, MinInterval = 0.09f , Variants = 2 } },
             // The two constant textures of a fight. Their files already peak low; the interval
             // is what keeps forty shots a second from becoming one long shot.
-            { LTWAudioCue.TowerShot, new CueConfig { ClipName = "tower_shot", Gain = 0.9f, PitchJitter = 0.08f, MinInterval = 0.07f } },
-            { LTWAudioCue.TowerShotFoundry, new CueConfig { ClipName = "tower_shot_foundry", Gain = 0.9f, PitchJitter = 0.08f, MinInterval = 0.07f } },
-            { LTWAudioCue.TowerShotGrove, new CueConfig { ClipName = "tower_shot_grove", Gain = 0.9f, PitchJitter = 0.08f, MinInterval = 0.07f } },
+            { LTWAudioCue.TowerShot, new CueConfig { ClipName = "tower_shot", Gain = 0.9f, PitchJitter = 0.08f, MinInterval = 0.07f , Variants = 3 } },
+            { LTWAudioCue.TowerShotFoundry, new CueConfig { ClipName = "tower_shot_foundry", Gain = 0.9f, PitchJitter = 0.08f, MinInterval = 0.07f , Variants = 3 } },
+            { LTWAudioCue.TowerShotGrove, new CueConfig { ClipName = "tower_shot_grove", Gain = 0.9f, PitchJitter = 0.08f, MinInterval = 0.07f , Variants = 3 } },
             { LTWAudioCue.UiReject, new CueConfig { ClipName = "ui_reject", Gain = 1f, PitchJitter = 0f, MinInterval = 0.15f } },
-            { LTWAudioCue.CreepHit, new CueConfig { ClipName = "creep_hit", Gain = 0.9f, PitchJitter = 0.10f, MinInterval = 0.06f } },
-            { LTWAudioCue.CreepKilled, new CueConfig { ClipName = "creep_killed", Gain = 1f, PitchJitter = 0.06f, MinInterval = 0.07f } },
+            { LTWAudioCue.CreepHit, new CueConfig { ClipName = "creep_hit", Gain = 0.9f, PitchJitter = 0.10f, MinInterval = 0.06f , Variants = 3 } },
+            { LTWAudioCue.CreepKilled, new CueConfig { ClipName = "creep_killed", Gain = 1f, PitchJitter = 0.06f, MinInterval = 0.07f , Variants = 3 } },
             { LTWAudioCue.CreepLeaked, new CueConfig { ClipName = "creep_leaked", Gain = 1f, PitchJitter = 0.02f, MinInterval = 0.25f } },
             { LTWAudioCue.IncomeTick, new CueConfig { ClipName = "income_tick", Gain = 1f, PitchJitter = 0.01f, MinInterval = 0.15f } },
-            { LTWAudioCue.CreepSnared, new CueConfig { ClipName = "creep_snared", Gain = 1f, PitchJitter = 0.06f, MinInterval = 0.20f } },
+            { LTWAudioCue.CreepSnared, new CueConfig { ClipName = "creep_snared", Gain = 1f, PitchJitter = 0.06f, MinInterval = 0.20f , Variants = 2 } },
             { LTWAudioCue.PlayerEliminated, new CueConfig { ClipName = "player_eliminated", Gain = 1f, PitchJitter = 0f, MinInterval = 0.5f, Duck = 0.6f } },
             { LTWAudioCue.MatchWon, new CueConfig { ClipName = "match_won", Gain = 1f, PitchJitter = 0f, MinInterval = 1f, Duck = 0.8f } },
             { LTWAudioCue.MatchLost, new CueConfig { ClipName = "match_lost", Gain = 1f, PitchJitter = 0f, MinInterval = 1f, Duck = 0.8f } }
@@ -122,8 +127,12 @@ namespace LTW.UnityClient.Simulation
             }
         }
 
-        private readonly Dictionary<LTWAudioCue, AudioClip> clips = new Dictionary<LTWAudioCue, AudioClip>();
+        private readonly Dictionary<LTWAudioCue, AudioClip[]> clips = new Dictionary<LTWAudioCue, AudioClip[]>();
         private readonly Dictionary<LTWAudioCue, float> lastPlayed = new Dictionary<LTWAudioCue, float>();
+
+        /// <summary>Last take played per cue, so the variant pick never repeats back to back —
+        /// the one repetition a random pick would still allow, and the one people notice.</summary>
+        private readonly Dictionary<LTWAudioCue, int> lastVariant = new Dictionary<LTWAudioCue, int>();
         private AudioSource[] voices = null!;
         private AudioSource musicSource = null!;
         private int nextVoice;
@@ -153,16 +162,29 @@ namespace LTW.UnityClient.Simulation
 
             foreach (var cue in Cues)
             {
-                var clip = Resources.Load<AudioClip>(SfxResourceFolder + cue.Value.ClipName);
-                if (clip == null)
+                var count = Mathf.Max(1, cue.Value.Variants);
+                var takes = new AudioClip[count];
+                var loaded = 0;
+                for (var index = 0; index < count; index++)
                 {
-                    // A missing clip stays silent rather than falling back to a beep: silence is
-                    // an honest bug report, a beep is the 1980s sound this work removes.
-                    Debug.LogError($"[Audio] Missing clip '{cue.Value.ClipName}' for cue {cue.Key}.");
-                    continue;
+                    var clipName = count == 1 ? cue.Value.ClipName : $"{cue.Value.ClipName}_v{index + 1}";
+                    takes[index] = Resources.Load<AudioClip>(SfxResourceFolder + clipName);
+                    if (takes[index] == null)
+                    {
+                        // A missing clip stays silent rather than falling back to a beep: silence
+                        // is an honest bug report, a beep is the 1980s sound this work removes.
+                        Debug.LogError($"[Audio] Missing clip '{clipName}' for cue {cue.Key}.");
+                    }
+                    else
+                    {
+                        loaded++;
+                    }
                 }
 
-                clips[cue.Key] = clip;
+                if (loaded > 0)
+                {
+                    clips[cue.Key] = takes;
+                }
             }
 
             musicSource = gameObject.AddComponent<AudioSource>();
@@ -212,14 +234,20 @@ namespace LTW.UnityClient.Simulation
             }
         }
 
-        public void Play(LTWAudioCue cue)
+        public void Play(LTWAudioCue cue) => Play(cue, 0f);
+
+        /// <summary>
+        /// Plays a cue, optionally panned. Pan is set every play — the voices are shared,
+        /// so an unset pan would inherit whatever the previous cue on that voice left.
+        /// </summary>
+        public void Play(LTWAudioCue cue, float pan)
         {
             if (PresentationPreferences.AudioMuted || PresentationPreferences.FeedbackVolume <= 0f)
             {
                 return;
             }
 
-            if (!clips.TryGetValue(cue, out var clip))
+            if (!clips.TryGetValue(cue, out var takes))
             {
                 return;
             }
@@ -238,9 +266,29 @@ namespace LTW.UnityClient.Simulation
                 duckHoldUntil = Mathf.Max(duckHoldUntil, Time.unscaledTime + DuckHoldSeconds);
             }
 
+            var take = 0;
+            if (takes.Length > 1)
+            {
+                lastVariant.TryGetValue(cue, out var previous);
+                take = Random.Range(0, takes.Length - 1);
+                if (take >= previous)
+                {
+                    take++; // uniform over every take except the one just heard
+                }
+
+                lastVariant[cue] = take;
+            }
+
+            var clip = takes[take];
+            if (clip == null)
+            {
+                return;
+            }
+
             var voice = voices[nextVoice];
             nextVoice = (nextVoice + 1) % VoiceCount;
             voice.pitch = 1f + (config.PitchJitter > 0f ? Random.Range(-config.PitchJitter, config.PitchJitter) : 0f);
+            voice.panStereo = Mathf.Clamp(pan, -0.4f, 0.4f);
             voice.PlayOneShot(clip, config.Gain * PresentationPreferences.FeedbackVolume);
         }
     }

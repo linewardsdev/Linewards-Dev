@@ -36,6 +36,7 @@ This folder contains the durable project documentation for Line Wards, the mobil
 - [iOS device validation](IOS_DEVICE_VALIDATION.md)
 - [Android device validation](ANDROID_DEVICE_VALIDATION.md)
 - [Store signing prerequisites](STORE_SIGNING_PREREQUISITES.md)
+- [Security considerations](SECURITY_CONSIDERATIONS.md) — threat model, anti-cheat boundaries, receipt validation, and cross-platform determinism
 
 ## Product And Brand
 

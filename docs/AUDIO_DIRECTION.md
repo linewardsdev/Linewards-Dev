@@ -72,6 +72,35 @@ Three gaps from the first pass were closed the same day:
   the same config table as everything else. Attack is instant — a duck that fades in
   arrives after the moment it exists to clear space for — hold is 2.2s, release ~1.5s.
 
+## Second pass, 2026-08-04 — "sounds good, just basic"
+
+That verdict named the gap precisely: the first pass was dry additive synthesis. The
+second closed the distance between synthesized and produced, all generator-side:
+
+- **Space.** Every cue passes through a Schroeder reverb baked into its file, tuned as one
+  room per family (`ROOM_ARCANE/FOUNDRY/GROVE/STING/UI` in the generator) so the mix
+  sounds like places rather than boxes. Renormalized to each cue's pre-verb peak: space
+  never changes loudness, so the mix policy is untouched.
+- **One key.** Every tonal cue now draws from the D-minor `NOTE` table. Confirmations sit
+  on the D tonic, victory rises through the relative major (F–A–C–F), defeat walks down to
+  the tonic and stays, the leak alarm is Bb falling onto A — the key's own maximal
+  dissonance, in the score but unmistakably wrong. Frequency literals outside the table
+  are reserved for noise-adjacent content and metal modes.
+- **Real instruments.** GROVE shots are Karplus-Strong plucked strings (a physical model —
+  the delay line IS a string). Kills, upgrades, the foundry ring and the elimination hit
+  are modal synthesis: banks of decaying resonant modes, near-harmonic ratios reading as
+  glass, inharmonic as struck metal.
+- **Variants.** Constant cues ship 2–3 takes (`name_v1..vN.wav`), parameter-jittered under
+  per-variant seeds; the director picks randomly but never repeats back to back.
+- **Width.** Shots and hits pan gently (±0.25 in-lane, ±0.35 in overview) relative to what
+  the camera is framing — width, not localisation, and an off-screen lane stays centred.
+- **The audition window** (`Line Wards > Review > Audition Audio`) plays every file in
+  edit mode, singly or in sequence — the whole set reviewable in under a minute, including
+  the cues a normal match rarely produces.
+
+Still deliberately deferred: **music intensity stems** (loop-locked tension/combat layers
+driven by lane pressure — real machinery, its own pass) and dock tap ticks.
+
 ## How to tune after listening
 
 | You hear | Change |
