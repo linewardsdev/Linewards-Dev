@@ -869,6 +869,14 @@ public sealed class LocalVerticalSlice
 
     public VerticalSliceCommandResult SellTowerAt(PlayerId playerId, LaneId laneId, GridPosition position)
     {
+        // Before the lookup, not after. Elimination wipes the lane, so by the time this searches
+        // there is no tower to find and the honest "you are out" would come back as NotOwner — a
+        // rejection that happens to be right while saying something false about why.
+        if (players.Get(playerId).IsEliminated)
+        {
+            return VerticalSliceCommandResult.Reject(CommandRejectionReason.PlayerEliminated);
+        }
+
         var tower = combatState.Towers
             .Where(candidate => candidate.OwnerId.Equals(playerId) && candidate.LaneId.Equals(laneId) && candidate.Position.Equals(position))
             .OrderByDescending(candidate => candidate.EntityId.Value)
@@ -878,6 +886,16 @@ public sealed class LocalVerticalSlice
 
     private VerticalSliceCommandResult SellTower(PlayerId playerId, TowerCombatState tower)
     {
+        // The single-tower path. SellTowers, the batch one, already refused an eliminated seat; this
+        // one did not, so the same act was allowed or refused depending on which entry point the
+        // caller happened to use. Eliminating also wipes the lane, so in practice this mostly
+        // refused for NotOwner instead — the right answer for the wrong reason, and only by
+        // accident of ordering.
+        if (players.Get(playerId).IsEliminated)
+        {
+            return VerticalSliceCommandResult.Reject(CommandRejectionReason.PlayerEliminated);
+        }
+
         var towerDefinition = TowerFor(tower.TowerId);
         var refund = economy.CalculateSellRefund(towerDefinition);
         var player = players.Get(playerId);
@@ -1079,6 +1097,19 @@ public sealed class LocalVerticalSlice
         if (!topology.HasPlayer(playerId))
         {
             return TowerPlacementValidation.Reject(CommandRejectionReason.InvalidPlayer);
+        }
+
+        // A seat that is out cannot build. This sits in the validator rather than in PlaceTower so
+        // that CanPlaceTower answers the same way — a UI that greys the cell and a command that
+        // refuses it have to agree, or the board offers a build it will not honour.
+        //
+        // It matters most for bots, which no caller filters: AdvanceOneTick runs TakeTurn for every
+        // bot in the dictionary with no elimination check, so a defeated bot goes on taking turns
+        // and only the individual commands stop it. UpgradeTower, SellTowers and BuyCategoryTier
+        // each checked; this one did not, so a defeated bot rebuilt its wiped lane.
+        if (players.Get(playerId).IsEliminated)
+        {
+            return TowerPlacementValidation.Reject(CommandRejectionReason.PlayerEliminated);
         }
 
         if (!grids.TryGetValue(laneId, out var grid))
