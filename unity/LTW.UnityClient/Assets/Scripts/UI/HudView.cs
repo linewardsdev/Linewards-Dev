@@ -296,12 +296,21 @@ namespace LTW.UnityClient.UI
             GUI.Label(banner, "YOU ARE OUT  •  SPECTATING", metaStyle);
         }
 
-        private static Rect CompactTopHudRect(float scale, float height)
-        {
-            var full = MobileViewportLayout.TopHudRect(scale, height);
-            var width = Mathf.Min(full.width, 358f * scale);
-            return new Rect(full.x + (full.width - width) * 0.5f, full.y, width, height);
-        }
+        /// <summary>The top strip, spanning the width it is given.</summary>
+        /// <remarks>
+        /// This used to clamp to <c>358 * scale</c> and centre the result. `TopHudRect` has already
+        /// taken the edge margin off both sides, so the clamp was a second, tighter inset on top of
+        /// it: at the 430x932 surface `UiScale` is written against, the margin leaves 414 points and
+        /// the clamp threw 56 of them away. It is not a device-specific artefact — the strip was
+        /// narrower than its own dock everywhere, with the board's corner pylons left stranded in
+        /// the gap either side of it.
+        ///
+        /// <see cref="DrawHudHeader"/> takes the extra width without changes: the LINE and LIVE
+        /// cells are <c>min(fixed, proportion)</c> and settle on their fixed widths, so everything
+        /// gained goes to the centre readout, which is the element that actually wanted room.
+        /// </remarks>
+        private static Rect CompactTopHudRect(float scale, float height) =>
+            MobileViewportLayout.TopHudRect(scale, height);
 
         private static float DrawStatPill(float x, float y, float width, float height, string label, string value, Color accent, float scale)
         {
@@ -372,16 +381,25 @@ namespace LTW.UnityClient.UI
             GUI.color = previousColor;
         }
 
+        /// <summary>
+        /// The plate behind the top strip.
+        /// </summary>
+        /// <remarks>
+        /// Drawn procedurally rather than from `ui_hud_chrome_option_06`, which is a 512x270 panel
+        /// — aspect 1.90 — and was being `StretchToFill`ed into a strip whose aspect is 6.92. That
+        /// is a 3.65x horizontal stretch, and it is why the concentric rings authored into that
+        /// plate arrived as long smears behind the readout. Widening the strip to the full width it
+        /// is allotted takes the stretch to about 4.2x, so the texture gets further from usable the
+        /// more correct the layout becomes.
+        ///
+        /// No amount of scale mode fixes it: `ScaleToFit` would letterbox a plate that has to span
+        /// the strip, and `ScaleAndCrop` would show a slice of the middle and throw the authored
+        /// edges away. The asset would have to be nine-sliced, or redrawn at the strip's aspect, to
+        /// be used here. Until one of those exists the procedural path is the honest choice — it is
+        /// flat, it is consistent with every other panel in the HUD, and it is correct at any width.
+        /// </remarks>
         private static void DrawHudFrame(Rect rect, Color accent, float scale)
         {
-            if (RuntimeUiArtLibrary.DrawChromeTexture(rect, "ui_hud_chrome_option_06", new Color(1f, 1f, 1f, 0.92f)))
-            {
-                Fill(new Rect(rect.x + 10f * scale, rect.yMax - 5f * scale, rect.width - 20f * scale, 4f * scale), accent);
-                Fill(new Rect(rect.x + 6f * scale, rect.y + 10f * scale, 4f * scale, rect.height - 20f * scale), new Color(accent.r, accent.g, accent.b, 0.42f));
-                Fill(new Rect(rect.xMax - 10f * scale, rect.y + 10f * scale, 4f * scale, rect.height - 20f * scale), new Color(SignalGold.r, SignalGold.g, SignalGold.b, 0.42f));
-                return;
-            }
-
             Fill(rect, DeepInk);
             Fill(new Rect(rect.x + 4f * scale, rect.y + 4f * scale, rect.width - 8f * scale, rect.height - 8f * scale), NightInk);
             Fill(new Rect(rect.x + 10f * scale, rect.y + 3f * scale, rect.width - 20f * scale, 2f * scale), SlateEdge);
