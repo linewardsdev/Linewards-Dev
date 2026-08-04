@@ -315,13 +315,29 @@ namespace LTW.UnityClient.Simulation
             CreateCornerPylon(laneId, "SouthEast", new Vector3(offset + LaneWidth - 0.36f, -0.08f, -0.25f), accent, focusScale);
         }
 
+        /// <summary>Corner trim on a lane plate.</summary>
+        /// <remarks>
+        /// A flat chip, not a post. This was 0.22 x 0.38 x 0.22 sitting at y −0.08, so it stood
+        /// 0.11 proud of a board surface at y 0 — an untextured cube taller than it was wide,
+        /// flat-shaded, floating just off the plate edge. At the shipped camera it read as a solid
+        /// blue rectangle with no relationship to anything near it, and was reported as one.
+        ///
+        /// <see cref="CreateLaneFlowTickMarks"/> immediately below already carries this exact
+        /// finding about a different element — "tilted cubes sitting proud of the gutter ... read as
+        /// loose blue shards stuck to the board edge rather than as trim" — and was cut back to full
+        /// detail only because of it. The same reasoning was never applied here.
+        ///
+        /// Wider and much flatter, tucked to the plate, so it reads as a corner marking on the
+        /// board rather than an object resting on it. The dimensions now match the surface bands
+        /// this file uses everywhere else for trim.
+        /// </remarks>
         private void CreateCornerPylon(int laneId, string name, Vector3 position, Color color, float focusScale)
         {
             CreateBoardPiece(
                 $"Lane{laneId}{name}Pylon",
                 PrimitiveType.Cube,
-                position,
-                new Vector3(0.22f * focusScale, 0.38f * focusScale, 0.22f * focusScale),
+                new Vector3(position.x, -0.012f, position.z),
+                new Vector3(0.30f * focusScale, 0.045f, 0.30f * focusScale),
                 color);
         }
 
