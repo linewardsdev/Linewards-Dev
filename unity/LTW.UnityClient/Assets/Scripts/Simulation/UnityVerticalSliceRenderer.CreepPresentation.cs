@@ -173,7 +173,7 @@ namespace LTW.UnityClient.Simulation
             return Vector3.Lerp(from, GridToWorld(creep.NextPosition, creep.LaneId), fraction);
         }
 
-        private static void SetCreepTransform(GameObject instance, Vector3 lanePosition, LaneId laneId, string creepId, CreepVisualProfile visualProfile, bool snapToTarget, float hitFlashUntil, long key)
+        private static void SetCreepTransform(GameObject instance, Vector3 lanePosition, LaneId laneId, string creepId, CreepVisualProfile visualProfile, bool snapToTarget, float hitFlashUntil, long key, float facingYaw)
         {
             var roleMotion = CreepRoleMotion(creepId, visualProfile, hitFlashUntil, IsRiggedCreep(instance, creepId), key);
             var targetPosition = lanePosition + CreepRoleOffset(creepId) + roleMotion.PositionOffset;
@@ -181,7 +181,11 @@ namespace LTW.UnityClient.Simulation
                 ? targetPosition
                 : Vector3.Lerp(instance.transform.position, targetPosition, Mathf.Clamp01(Time.deltaTime * 8f));
             instance.transform.localScale = CreepRoleScale(creepId, visualProfile) * roleMotion.ScaleMultiplier;
-            instance.transform.rotation = roleMotion.Rotation;
+            // Facing FIRST, then the idle motion, so sway and spin read as happening to a creep that
+            // is pointing somewhere rather than replacing where it points. The old line applied only
+            // the idle rotation, which is why a creep never turned: it faced its import orientation
+            // forever and strafed through every corner.
+            instance.transform.rotation = Quaternion.Euler(0f, facingYaw, 0f) * roleMotion.Rotation;
         }
 
         private static void ApplyCreepColor(GameObject creepObject, string creepId, int senderId, CreepVisualProfile visualProfile, float healthFraction, bool isHitFlashing)
