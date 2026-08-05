@@ -63,6 +63,18 @@ Do not add login, cloud saves, database storage, live networking, matchmaking, r
 - Use explicit IDs and value types for players, lanes, entities, grid positions, and ticks.
 - Seed every source of gameplay randomness and preserve the seed in replay data.
 - Keep Unity presentation objects pooled once repeated creep, projectile, or effect spawning begins.
+- **A second copy of a document is a defect waiting to happen.** Where one artifact restates
+  another — an HTML view of a markdown doc, a committed binary of generated data — generate
+  it, commit the generator, and give the generator a `--check` mode CI can run. Two
+  independent hand-maintained copies always diverge, and the divergence is invisible in
+  review because each file reads correctly on its own. Worked examples:
+  `tools/docs/render_roadmap.py` (the roadmap's Gantt view) and
+  `tools/audio/synthesize_game_audio.py` (every audio asset).
+- **When generating over an existing hand-authored artifact, reconcile first.** The stale
+  copy is not always the generated one: the roadmap's HTML had been re-verified against the
+  repo and carried three corrections and a whole section the markdown lacked, so generating
+  from the markdown would have deleted them. Diff the two and port what is newer before
+  wiring up the pipeline.
 
 ## Verification
 

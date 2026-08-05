@@ -1,5 +1,10 @@
 # Launch Roadmap
 
+> **This file is the source.** [`launch-roadmap.html`](launch-roadmap.html) — the Gantt
+> view — is generated from it by `tools/docs/render_roadmap.py`. Edit here, then run that
+> script and commit both; never edit the HTML. CI's `--check` fails on a stale page, and
+> generation fails if the timeline block below stops matching the week bullets.
+
 **Drafted 2026-07-31. Updated 2026-08-04** (audio closed; shell screens, identity and
 balance re-checked). Proposal for review — dates and scope are not committed to.
 

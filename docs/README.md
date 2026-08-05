@@ -9,6 +9,7 @@ This folder contains the durable project documentation for Line Wards, the mobil
 - [MVP status snapshot](MVP_STATUS.md)
 - [Agent and contributor guidance](AGENTS.md)
 - [Launch roadmap](LAUNCH_ROADMAP.md) — **proposal:** four weeks to a soft launch on 31 August, with the P0 gaps and external lead times
+- [Launch roadmap — Gantt view](launch-roadmap.html) — the same roadmap as a timeline page. **Generated** from the markdown by `tools/docs/render_roadmap.py`; edit the markdown and re-run rather than editing the HTML
 - [Open items](OPEN_ITEMS.md) — everything currently open or undecided, in one list
 - [Graphics AA uplift](GRAPHICS_AA_UPLIFT.md) — **the active graphics plan.** Raises the quality target above the retired "2000 baseline". Wave 0 is complete; see its execution status block for which planned items turned out to rest on wrong premises
 
