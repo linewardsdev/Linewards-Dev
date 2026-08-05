@@ -120,7 +120,7 @@
 
   <h1>Line Wards — Launch Roadmap</h1>
   <p class="sub">Four weeks to a soft launch · 1 – 31 August 2026</p>
-  <p class="stamp">Drafted 31 July 2026 · proposal for review, dates and scope not committed</p>
+  <p class="stamp">Drafted 31 July 2026 · updated 4 August 2026 (audio closed) · proposal for review, dates and scope not committed</p>
 
   <div class="alert">
     <b>Date check.</b> Today is Friday 31 July 2026, so “launch by end of July” is today.
@@ -192,8 +192,8 @@
 
     <div class="grp">Week 2 — look &amp; sound shipped</div>
     <div class="row">
-      <div class="lbl">Audio pass<small>music bed + 7 real SFX</small></div>
-      <div class="track"><div class="bar b2" style="left:25%;width:22%">4–6d · highest slip risk</div></div>
+      <div class="lbl">Audio pass<small>done early: 33 SFX + adaptive 3-stem score</small></div>
+      <div class="track"><div class="bar b4" style="left:0.5%;width:16%;opacity:.75">✓ done Aug 3–4</div></div>
     </div>
     <div class="row">
       <div class="lbl">Graphics Wave 1<small>AO un-discard, then normal maps</small></div>
@@ -253,10 +253,10 @@
 
   <h2>P0 — cannot soft-launch without these</h2>
   <table>
-    <tr><th class="n">#</th><th>Gap</th><th>Evidence, verified 31 Jul</th><th style="text-align:right">Est.</th></tr>
+    <tr><th class="n">#</th><th>Gap</th><th>Evidence, verified 31 Jul (updates dated inline)</th><th style="text-align:right">Est.</th></tr>
     <tr><td class="n">1</td><td><b>Never run on a phone</b></td><td class="e">Both device-validation docs are empty templates — zero runs</td><td class="est">1–2 d</td></tr>
     <tr><td class="n">2</td><td><b>App identity all placeholder</b></td><td class="e"><code>applicationIdentifier</code> is <b>empty</b>; product <code>LTW.UnityClient</code>; company <code>LTWPlaceholder</code>; no icon. Brand is “Line Wards” and nothing uses it</td><td class="est">1 d</td></tr>
-    <tr><td class="n">3</td><td><b>Audio is 7 sine beeps</b></td><td class="e"><code>CreateTone()</code> generates 7 procedural tones. <b>Zero</b> audio asset files. No music, no real SFX. Appears in no checklist</td><td class="est">4–6 d</td></tr>
+    <tr style="opacity:.6"><td class="n">3</td><td><b>Audio is 7 sine beeps</b> — closed 4 Aug</td><td class="e">Now 33 SFX takes + a three-stem adaptive score, regenerable from <code>tools/audio/synthesize_game_audio.py</code>; director with rate limiting, ducking, sample-locked stems. Auditioned by the owner. See <code>AUDIO_DIRECTION.md</code></td><td class="est"><s>4–6 d</s> done</td></tr>
     <tr><td class="n">4</td><td><b>No menu or title scene</b></td><td class="e"><code>Assets/Scenes/</code> holds only <code>LocalVerticalSlice.unity</code>; the shell is an in-match overlay</td><td class="est">3–4 d</td></tr>
     <tr><td class="n">5</td><td><b>No crash reporting</b></td><td class="e">Zero references anywhere in the client</td><td class="est">1 d</td></tr>
     <tr><td class="n">6</td><td><b>Store accounts not enrolled</b></td><td class="e">Apple $99/yr, Google $25 — external lead time</td><td class="est">external</td></tr>
@@ -284,9 +284,9 @@
       <p><b>Mitigate by</b> holding week 2 loosely, not by skipping the play session to protect the schedule.</p>
     </div>
     <div class="card">
-      <h3>2. Audio is underestimated <em>most likely to slip the date</em></h3>
-      <p>Least-tracked P0 item, in no checklist, and the only one with no scaffolding beyond code hooks.</p>
-      <p><b>Mitigate by</b> using licensed library audio rather than commissioning original work.</p>
+      <h3>2. Audio is underestimated <em>resolved 4 Aug — risk inverted</em></h3>
+      <p>Went from the least-tracked P0 item to closed, auditioned, with its own direction doc and regeneration pipeline.</p>
+      <p><b>Worth remembering:</b> the fix was making asset work reproducible code (synthesis in the repo), not budgeting more days or licensing.</p>
     </div>
     <div class="card">
       <h3>3. First store submission is rejected <em>common</em></h3>
