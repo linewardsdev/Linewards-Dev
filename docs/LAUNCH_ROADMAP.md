@@ -1,16 +1,21 @@
 # Launch Roadmap
 
-**Drafted 2026-07-31.** Proposal for review — dates and scope are not committed to.
+**Drafted 2026-07-31. Updated 2026-08-04** (audio closed; shell screens, identity and
+balance re-checked). Proposal for review — dates and scope are not committed to.
 
 ---
 
 ## First, the date
 
-Today is **Friday 31 July 2026**. "Launch by the end of July" is today, so this roadmap is
-built to **Sunday 31 August 2026** — four weeks. If the intended target really was July,
-the honest answer is that it is not reachable: the game has never run on a phone, has no
-app icon or bundle identifier, and neither store account is enrolled (Apple alone has a
-24–48h approval lead).
+**Where this stands, 4 August.** Three of the ten P0 gaps have moved since the 31 July
+draft: audio is closed, app identity is most of the way there, and a title/pause/results
+shell now exists. **The one that has not moved is the one that matters most** — the game
+still has never run on a phone, and roughly twenty acceptance boxes still need a human to
+play it. Every balance number below is bot-versus-bot. The 31 August target still assumes
+both store enrolments start immediately; Apple alone carries a 24–48h approval lead.
+
+The roadmap was drafted on **Friday 31 July 2026**, built to **Sunday 31 August 2026** —
+four weeks.
 
 Four weeks is aggressive but not unreasonable. The project has produced **779 commits in
 20 days** (first commit 2026-07-11), recently running 25–63 commits/day. The risk is not
@@ -43,14 +48,14 @@ launch.
 | # | Gap | Evidence | Est. |
 | --- | --- | --- | --- |
 | 1 | **Never run on a phone** | Both device-validation docs are empty templates, zero runs | 1–2 d |
-| 2 | **App identity is entirely placeholder** | `applicationIdentifier` is **empty**; `productName: LTW.UnityClient`; `companyName: LTWPlaceholder`; no app icon; no splash. Brand is "Line Wards" and nothing uses it | 1 d |
+| 2 | **App identity — mostly done, bundle id still placeholder** — *re-checked 2026-08-04* | Company is now `Line Wards Games`, product `Line Wards`, and a 1024px icon is set. **Still outstanding:** `applicationIdentifier` reads `com.ltwplaceholder.ltw` on both platforms — no longer empty, but not shippable, and it is the one field a store account binds to permanently | <1 d |
 | 3 | **Audio is seven sine beeps** — *closed 2026-08-04* | Was: 7 procedural tones, zero asset files. Now: 33 SFX takes + a three-stem adaptive score (bed/tension/combat, mixed by live lane pressure), all regenerable from `tools/audio/synthesize_game_audio.py` — per-family baked reverb, one D-minor key, Karplus-Strong and modal instruments, variant pools, camera-relative pan, a splash boom synced to the mortar's crater, and an `LTWAudioDirector` with rate limiting, ducking and sample-locked stems. **Auditioned by the owner 2026-08-04: "they all sound good."** See `AUDIO_DIRECTION.md`. A licensed pass remains optional polish — a file-for-file swap, no longer scheduled work | ~~4–6 d~~ done |
-| 4 | **No menu or title scene** | `Assets/Scenes/` contains only `LocalVerticalSlice.unity`; the app-shell is an in-match overlay | 3–4 d |
+| 4 | **Shell screens exist; still not a scene** — *re-checked 2026-08-04* | Title, pause and results now render through UI Toolkit — `ShellScreens.uxml/.uss`, `ShellScreenView.cs`, a generated `PanelSettings`, and the brand mark on the title. Captured and verified. **But `Assets/Scenes/` still holds only `LocalVerticalSlice.unity`**: the shell is a panel over the match, not a scene, so the app still boots straight into a running board. Whether that matters for Tier B is a call worth making deliberately rather than by default | 1–2 d |
 | 5 | **No crash reporting or analytics** | Zero references anywhere | 1 d |
 | 6 | **Store accounts not enrolled** | Apple Developer Program $99/yr, 24–48h approval; Google Play Console $25 one-time | External |
 | 7 | **No store listing assets** | No icon, screenshots, description, age rating, or privacy-policy URL | 2–3 d |
 | 8 | **~20 acceptance boxes need a human to play** | GD-01→10 unchecked; all balance is bot-vs-bot | 2–3 d |
-| 9 | **Graphics Wave 1 outstanding** | No normal maps, no bound AO on any asset | 3–5 d |
+| 9 | **Graphics Wave 1 — AO started, normal maps untouched** — *re-checked 2026-08-04* | Counted across the 119 unit materials: **0 bind a normal map**, **2 bind an occlusion map**. The bake pipeline exists (`tools/art/bake_all_ao.py`, `AssignBakedOcclusion`) and the shader has the slot, so this is now a run-it-across-the-roster job rather than a build-it one. Normal maps have not started | 2–4 d |
 | 10 | **Onboarding is partial** | Some flow in `LocalSessionFlowOverlay`; no first-run teaching | 2–3 d |
 
 ### P1 — should land before public launch (tier C), not blocking soft launch
@@ -78,6 +83,40 @@ and entitlements, Waves 2–3 of the graphics uplift beyond what tier B needs.
 
 Sequenced so that **externally-gated items start on day one** and everything with a review
 or approval delay is off the critical path by week three.
+
+<!-- gantt
+  Timeline geometry for docs/launch-roadmap.html, rendered by tools/docs/render_roadmap.py.
+  Lives here rather than in the HTML so this file stays the single source: the prose and the
+  chart are edited together or not at all.
+
+  Columns:  week | item | sub-label | left% | width% | badge
+    week    1-4, or "ext" for the externally-gated rows above week 1
+    item    must match a bold bullet title in that week (or a Dependency in the critical
+            path table, for ext rows). The renderer FAILS if it does not — that assertion
+            is the whole point of keeping this here, since a renamed bullet cannot then
+            silently leave a stale bar behind.
+    badge   text shown inside the bar; prefix with "done:" to draw it as complete
+
+ext | Apple Developer Program | $99/yr · 24–48h approval | 0.5 | 14 | enrol → active
+ext | Google Play Console | $25 · identity verification | 0.5 | 14 | enrol → active
+1 | Fix app identity | name, company, icon done · bundle id still placeholder | 0.5 | 8 | done:✓ most + 9 | 4 | id
+1 | Build to a physical iOS device | iOS then Android | 8 | 14 | 1–2d
+1 | Play the game, with hands, and write notes | unblocks ~20 acceptance boxes | 18 | 7 | ★
+1 | Act on what the play session finds | hold this time loosely | 22 | 12 | 2–3d
+2 | Audio pass | 33 SFX + adaptive 3-stem score | 0.5 | 16 | done:✓ done Aug 3–4
+2 | Graphics Wave 1 | AO pipeline exists, 2/119 bound · no normal maps | 25 | 19 | 2–4d
+2 | Title/menu scene | title, pause, results built · still a panel, not a scene | 25 | 12 | done:✓ done Aug 3 + 38 | 8 | scene?
+2 | App icon and splash | icon, splash and brand mark landed | 42 | 11 | done:✓ done Aug 4
+3 | Crash reporting and basic analytics | else feedback is anecdote | 50 | 9 | 1d
+3 | Onboarding / first-run teaching | teach mazing or players bounce | 53 | 14 | 2–3d
+3 | Performance validation on device | frame rate + thermals, heavy send | 60 | 11 | 2d
+3 | Store listing assets | screenshots, rating, privacy URL | 63 | 12 | 2–3d
+3 | Bot roster fix | only if week 1 flagged opponent quality | 68 | 7 | if needed
+4 | Upload to TestFlight and the Play internal track | 1–3d first review each | 75 | 11 | ext:submit → review
+4 | Recruit 10–20 testers | anyone who isn't you | 79 | 10 | &nbsp;
+4 | Triage and fix | no features scheduled here | 86 | 13.5 | reserved
+4 | Decide on tier C | submit publicly in September? | 95.5 | 4 | decision
+-->
 
 ### Week 1 (Aug 1–7) — Prove it is a game, on a phone
 
@@ -166,6 +205,36 @@ proceed without them.
 3. **Store review rejects the first submission.** Common causes for a first-time game:
    missing privacy policy, incomplete age rating, placeholder metadata. Weeks 3–4 exist to
    surface these early.
+
+## Landed since the draft — not on the critical path
+
+### Board readability (3–4 Aug)
+
+Five separate defects made the board look marked-up: a send beam drawn to an off-screen
+lane, additive bursts accumulating past white into flat saturated slabs, opponents' send
+beams crossfiring in the all-lanes view, an arrival cue that drew a square with an X
+through it, and lane direction markers that read as a cross rather than an arrow. **Worth
+knowing:** four of the five were independently authored as two beams crossing at a point,
+which is the universal "missing asset" glyph. That shape keeps getting written because each
+instance looks reasonable alone.
+
+### A defeated seat could rebuild (4 Aug)
+
+Bots kept taking turns after elimination, and the commands disagreed about whether to stop
+them: upgrade, sell-batch and tier-buy each refused, while `PlaceTower` and `SellTowerAt`
+did not — so a wiped lane came back. **Why it matters here:** this is exactly the class of
+thing a first tester finds in the first ten minutes, and it was invisible to every existing
+test because they all run two or three lanes rather than the eight that ship.
+
+### Economy: tiers now cost, twice (3–4 Aug)
+
+Category tiers escalate 25% per tier already held, and a tier now also raises what its own
+units cost — 65% of the power increase, so a tier-3 creep carries 225% health for 181%
+price. Previously the tier's own price was the entire lever and every unit after it was
+free power. The income ceiling moved 600 → 900 because the gate is half the price and the
+last upgrade had become unreachable rather than expensive. **Unverified:** all of it is
+bot-versus-bot on one seed. Match length landed within 3% of where it started, but by two
+changes pulling opposite ways rather than by design.
 
 ## What "done" means on 31 August
 
