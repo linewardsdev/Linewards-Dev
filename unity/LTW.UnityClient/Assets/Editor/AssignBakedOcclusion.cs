@@ -32,6 +32,10 @@ namespace LTW.UnityClient.Editor
             "Assets/Art/Creeps"
         };
 
+        /// <summary>Name with separators removed, so `elder_canopy` and `eldercanopy` compare equal.</summary>
+        private static string Flatten(string value) =>
+            value.Replace("_", string.Empty).Replace("-", string.Empty).Replace(" ", string.Empty);
+
         [MenuItem("LTW/Art/Stylized Units/3. Bind Baked Occlusion Maps")]
         public static void Bind()
         {
@@ -73,10 +77,19 @@ namespace LTW.UnityClient.Editor
 
                 // The role token is the part both names share: mat_tower_arrow_3d_body_runtime_v01
                 // and tower_arrow_3d_ao_v01 meet at "tower_arrow_3d".
+                //
+                // Compared with separators stripped, because the two sides disagree about them for
+                // four roles: the bake writes `tower_eldercanopy_3d_ao_v01` while the material is
+                // `mat_tower_elder_canopy_3d_body_runtime_v01`, and likewise for repair_drone,
+                // thorn_snare and spore_cloud. Matched literally, those four silently bind nothing —
+                // which is exactly what happened on the first run: 26 of 30, with no error, because
+                // "no AO for this role" and "AO whose name is punctuated differently" are
+                // indistinguishable to a Contains() check.
+                var flatName = Flatten(name);
                 var match = aoTextures.FirstOrDefault(candidate =>
                 {
-                    var stem = candidate.Key.ToLowerInvariant().Replace("_ao_v01", string.Empty);
-                    return name.Contains(stem);
+                    var stem = Flatten(candidate.Key.ToLowerInvariant().Replace("_ao_v01", string.Empty));
+                    return flatName.Contains(stem);
                 });
 
                 if (match.Value == null)
