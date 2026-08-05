@@ -16,6 +16,7 @@ namespace LTW.UnityClient.Simulation
         TowerShotFoundry,
         TowerShotGrove,
         UiReject,
+        SplashImpact,
         CreepHit,
         CreepKilled,
         CreepLeaked,
@@ -93,6 +94,10 @@ namespace LTW.UnityClient.Simulation
             { LTWAudioCue.TowerShotFoundry, new CueConfig { ClipName = "tower_shot_foundry", Gain = 0.9f, PitchJitter = 0.08f, MinInterval = 0.07f , Variants = 3 } },
             { LTWAudioCue.TowerShotGrove, new CueConfig { ClipName = "tower_shot_grove", Gain = 0.9f, PitchJitter = 0.08f, MinInterval = 0.07f , Variants = 3 } },
             { LTWAudioCue.UiReject, new CueConfig { ClipName = "ui_reject", Gain = 1f, PitchJitter = 0f, MinInterval = 0.15f } },
+            // Area damage: Pulse's burst at fire time, the mortar shell at LANDING time (the
+            // foundry family shot already reads as the launch). Interval sits above the shot
+            // cues' because two overlapping booms read as one bigger boom, not two events.
+            { LTWAudioCue.SplashImpact, new CueConfig { ClipName = "splash_impact", Gain = 1f, PitchJitter = 0.06f, MinInterval = 0.12f, Variants = 3 } },
             { LTWAudioCue.CreepHit, new CueConfig { ClipName = "creep_hit", Gain = 0.9f, PitchJitter = 0.10f, MinInterval = 0.06f , Variants = 3 } },
             { LTWAudioCue.CreepKilled, new CueConfig { ClipName = "creep_killed", Gain = 1f, PitchJitter = 0.06f, MinInterval = 0.07f , Variants = 3 } },
             { LTWAudioCue.CreepLeaked, new CueConfig { ClipName = "creep_leaked", Gain = 1f, PitchJitter = 0.02f, MinInterval = 0.25f } },

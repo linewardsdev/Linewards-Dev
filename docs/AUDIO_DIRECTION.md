@@ -121,6 +121,14 @@ Every audible decision lives in the director: rise slews at 0.35/s so the music 
 wave promptly, fall at 0.12/s so a fight audibly winds down rather than switching off.
 Ducking and mute apply to the whole stem bus.
 
+**Splash, 2026-08-04.** Area damage has its own voice: `splash_impact`, a mild explosive —
+sub drop, dark noise body, one bright crack, short modal rumble, in a bigger room than the
+foundry chamber because the tail is most of what separates "explosion" from "thud". Mild is
+the design constraint: splash fires constantly in a defended lane. It plays at two moments
+chosen to match the eye: Pulse's fire event (its burst is instantaneous) and the mortar
+shell's LANDING in `UpdateMortarShells`, synced with the crater ring — the foundry punch at
+fire time reads as the launch of the pair. Three takes, panned by impact point.
+
 Still deliberately deferred: dock tap ticks.
 
 ## How to tune after listening

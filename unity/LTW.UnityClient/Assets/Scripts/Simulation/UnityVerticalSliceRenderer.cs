@@ -632,13 +632,21 @@ namespace LTW.UnityClient.Simulation
                         // map the weapon visuals use. ForContentId falls back to entry 0 (arcane)
                         // for an unknown id, so a roster addition degrades to the default zap
                         // rather than to silence.
+                        // Pulse's burst is area damage delivered at fire time, so its fire
+                        // event carries the splash boom rather than the arcane zap. The mortar
+                        // is the other splash source and books its boom at shell LANDING in
+                        // UpdateMortarShells — at fire time it keeps the foundry punch, which
+                        // reads as the launch of the pair.
+                        var firedRole = TowerRoleAt(fired.TowerPosition, fired.LaneId);
                         audioDirector.Play(
-                            TowerCatalog.ForContentId(TowerRoleAt(fired.TowerPosition, fired.LaneId)).Category switch
-                            {
-                                TowerCatalog.CategoryFoundry => LTWAudioCue.TowerShotFoundry,
-                                TowerCatalog.CategoryGrove => LTWAudioCue.TowerShotGrove,
-                                _ => LTWAudioCue.TowerShot
-                            },
+                            firedRole.IndexOf("pulse", StringComparison.OrdinalIgnoreCase) >= 0
+                                ? LTWAudioCue.SplashImpact
+                                : TowerCatalog.ForContentId(firedRole).Category switch
+                                {
+                                    TowerCatalog.CategoryFoundry => LTWAudioCue.TowerShotFoundry,
+                                    TowerCatalog.CategoryGrove => LTWAudioCue.TowerShotGrove,
+                                    _ => LTWAudioCue.TowerShot
+                                },
                             PanFor(fired.TowerPosition, fired.LaneId));
                         var firedTowerKey = fired.TowerEntityId.Value;
                         towerLastFiredAt[firedTowerKey] = Time.time;
@@ -790,6 +798,23 @@ namespace LTW.UnityClient.Simulation
         /// whole visible fight in one ear. In lane framing the pan spans the lane's seven
         /// cells; in overview it spans the eight lanes.
         /// </remarks>
+        /// <summary>
+        /// Pan for a point already in world space — the mortar shell's landing site, which
+        /// exists as a world position rather than a grid cell. Same framing logic and caps
+        /// as <see cref="PanFor"/>.
+        /// </summary>
+        private float PanForWorld(Vector3 world)
+        {
+            if (cameraFraming == LaneCameraFraming.ActiveLane)
+            {
+                var laneCenterX = LaneOffset(activeLaneCameraId) + CenterColumn;
+                return Mathf.Clamp((world.x - laneCenterX) / CenterColumn * 0.25f, -0.25f, 0.25f);
+            }
+
+            var boardWidth = LaneOffset(LaneCount) + LaneWidth - 1f;
+            return Mathf.Clamp((world.x / boardWidth - 0.5f) * 0.7f, -0.35f, 0.35f);
+        }
+
         private float PanFor(GridPosition position, LaneId laneId)
         {
             if (cameraFraming == LaneCameraFraming.ActiveLane)
