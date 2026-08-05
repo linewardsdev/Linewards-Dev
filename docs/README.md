@@ -19,6 +19,7 @@ This folder contains the durable project documentation for Line Wards, the mobil
 - [Gameplay development checklist](GAMEPLAY_DEVELOPMENT_CHECKLIST.md)
 - [Gameplay review findings](GAMEPLAY_REVIEW_FINDINGS.md) — open defects found by capture review, with evidence
 - [GD tuning log](GD_TUNING_LOG.md) — the primary balance record: every measurement, fix and reversal, in order
+- [Audio direction](AUDIO_DIRECTION.md) — the sound of the game: cue palette, mix policy, the adaptive score, and the tuning table for after a listen
 - [Tower and creep roster](TOWER_AND_CREEP_ROSTER.md)
 - [Archived: the 5-role, pre-Meshy art era](archive/2026-07-art-pipeline/README.md) — five superseded art-pipeline docs, moved 2026-07-31
 - [Tower animation alignment](TOWER_ANIMATION_ALIGNMENT.md) — every tower reviewed on Type / Style / Intent / Name / Perceived Animation, with the benchmark each verdict was taken from

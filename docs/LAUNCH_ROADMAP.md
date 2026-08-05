@@ -44,7 +44,7 @@ launch.
 | --- | --- | --- | --- |
 | 1 | **Never run on a phone** | Both device-validation docs are empty templates, zero runs | 1–2 d |
 | 2 | **App identity is entirely placeholder** | `applicationIdentifier` is **empty**; `productName: LTW.UnityClient`; `companyName: LTWPlaceholder`; no app icon; no splash. Brand is "Line Wards" and nothing uses it | 1 d |
-| 3 | **Audio is seven sine beeps** — *substantially closed 2026-08-03* | Was: 7 procedural tones, zero asset files. Now: 14 synthesized WAV cues + a 48s music bed (`tools/audio/synthesize_game_audio.py`, regenerable), an `LTWAudioDirector` with rate limiting and pitch variation, and cue coverage for seven previously-silent events including tower shots. See `AUDIO_DIRECTION.md`. **Not yet auditioned by a human ear**, and the licensed/authored pass is still the path to shipped quality — but it is now a file-for-file swap into a finished pipeline rather than systems work. Residual estimate: 2–3 d | ~~4–6 d~~ 2–3 d |
+| 3 | **Audio is seven sine beeps** — *closed 2026-08-04* | Was: 7 procedural tones, zero asset files. Now: 33 SFX takes + a three-stem adaptive score (bed/tension/combat, mixed by live lane pressure), all regenerable from `tools/audio/synthesize_game_audio.py` — per-family baked reverb, one D-minor key, Karplus-Strong and modal instruments, variant pools, camera-relative pan, a splash boom synced to the mortar's crater, and an `LTWAudioDirector` with rate limiting, ducking and sample-locked stems. **Auditioned by the owner 2026-08-04: "they all sound good."** See `AUDIO_DIRECTION.md`. A licensed pass remains optional polish — a file-for-file swap, no longer scheduled work | ~~4–6 d~~ done |
 | 4 | **No menu or title scene** | `Assets/Scenes/` contains only `LocalVerticalSlice.unity`; the app-shell is an in-match overlay | 3–4 d |
 | 5 | **No crash reporting or analytics** | Zero references anywhere | 1 d |
 | 6 | **Store accounts not enrolled** | Apple Developer Program $99/yr, 24–48h approval; Google Play Console $25 one-time | External |
@@ -99,10 +99,10 @@ pending or live, and there is a written human account of what it is like to play
 
 ### Week 2 (Aug 8–14) — Make it look and sound shipped
 
-- **Audio pass.** The largest single unbudgeted item. Needs: a music bed, and real SFX for
-  build, hit, kill, send, income, leak, elimination, victory. The 7-tone scaffold means the
-  *hooks already exist* — this is asset work, not systems work. Licensed library audio is
-  the sane route at this stage.
+- **Audio pass.** ~~The largest single unbudgeted item.~~ *Done ahead of schedule
+  (2026-08-03/04): full synthesized cue set, adaptive three-stem score, director with rate
+  limiting — auditioned and approved. See `AUDIO_DIRECTION.md`.* Remaining audio work is
+  optional: dock tap ticks, and a licensed swap if synthesis ever stops being enough.
 - **Graphics Wave 1** — un-discard AO (a ~15-line script change recovering data already on
   disk), then normal maps. This is what makes the game stop looking like a prototype.
 - **Title/menu scene** — a real scene, not an in-match overlay. Play, settings, quit.
@@ -159,9 +159,10 @@ proceed without them.
 1. **Week 1's play session finds something structural.** This is the intended outcome — it
    is better to learn it in week 1 than week 4 — but it can consume days. Mitigate by
    holding week 2 lightly, not by skipping the session.
-2. **Audio is underestimated.** It is the least-tracked P0 item, appears in no checklist,
-   and is the one thing on this list with no existing scaffolding beyond the code hooks. If
-   anything slips the date, it will probably be this.
+2. **Audio is underestimated.** *Resolved 2026-08-04 — this risk inverted: audio went from
+   the least-tracked P0 item to closed (synthesis, not licensing), auditioned, with its own
+   direction doc and regeneration pipeline. Kept here because the mitigation is worth
+   remembering: the fix was making asset work reproducible code, not budgeting more days.*
 3. **Store review rejects the first submission.** Common causes for a first-time game:
    missing privacy policy, incomplete age rating, placeholder metadata. Weeks 3–4 exist to
    surface these early.
