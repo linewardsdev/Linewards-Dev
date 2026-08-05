@@ -366,6 +366,10 @@ namespace LTW.UnityClient.Simulation
                 // loses its target still visibly lands rather than vanishing.
                 SpawnExpandingRing(shell.To + Vector3.up * 0.05f, MortarImpactColor, 0.2f, 1.9f, 0.34f);
                 SpawnEffect(shell.To + Vector3.up * 0.12f, MortarImpactColor, 0.6f, 0.24f);
+                // The boom lands WITH the crater, not when the shell was fired — sound and
+                // ring are one event to the eye, and the flight delay is the whole point of
+                // a mortar. Panned by the impact point, which is a world position here.
+                audioDirector.Play(LTWAudioCue.SplashImpact, PanForWorld(shell.To));
 
                 ReleaseToPool(shell.Shell, effectPool);
                 ReleaseToPool(shell.Telegraph, shockwaveRingPool);

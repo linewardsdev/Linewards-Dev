@@ -376,6 +376,21 @@ def match_lost() -> np.ndarray:
     return polish(pad_sum(voices + [rumble]), 0.52)
 
 
+def splash_impact() -> np.ndarray:
+    """A mild explosive for area damage: Pulse's burst and the mortar shell's landing.
+
+    "Mild" is the design constraint, not a compromise — splash fires constantly in a
+    defended lane, so this sits well under a movie explosion: a sub drop for weight, a
+    dark noise body for the blast, one bright crack for the transient, and a short modal
+    rumble so the ground answers. No tonal centre on purpose; explosions are the one cue
+    family that should read as force rather than music."""
+    sub = env(sweep(jit(130, 0.1), 42, 0.22), 0.003, 0.09)
+    body = env(noise(jit(0.2, 0.15), jit(650, 0.2)), 0.004, 0.07)
+    crack = env(noise(0.03, 3600), 0.001, 0.01) * 0.7
+    rumble = modal(jit(58, 0.08), [(1, 0.6, 0.16), (1.7, 0.3, 0.09), (2.9, 0.15, 0.05)], 0.3)
+    return polish(pad_sum([sub, body, (crack, 0.004), (rumble, 0.02)]), 0.22)
+
+
 def ui_reject() -> np.ndarray:
     """Denied: a dull double buzz on the low dominant, deliberately unmusical in timbre
     while staying in key - rejections often come in taps of three."""
@@ -423,6 +438,9 @@ SFX = {
     "match_won": Sound(match_won, space=ROOM_STING),
     "match_lost": Sound(match_lost, space=ROOM_STING),
     "ui_reject": Sound(ui_reject, space=ROOM_UI),
+    # Bigger room than the foundry chamber: a blast needs air around it, and its tail is
+    # most of what separates "explosion" from "thud".
+    "splash_impact": Sound(splash_impact, variants=3, space=(0.28, 0.9, 1.3)),
 }
 
 
