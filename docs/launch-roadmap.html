@@ -120,13 +120,15 @@
 
   <h1>Line Wards — Launch Roadmap</h1>
   <p class="sub">Four weeks to a soft launch · 1 – 31 August 2026</p>
-  <p class="stamp">Drafted 31 July 2026 · updated 4 August 2026 (audio closed) · proposal for review, dates and scope not committed</p>
+  <p class="stamp">Drafted 31 July 2026 · updated 4 August 2026 (audio closed; shell screens, identity and balance re-checked) · proposal for review, dates and scope not committed</p>
 
   <div class="alert">
-    <b>Date check.</b> Today is Friday 31 July 2026, so “launch by end of July” is today.
-    This plan targets <b>31 August</b>. A July launch is not reachable: the game has never run on a
-    phone, has an empty bundle identifier, and neither store account is enrolled — Apple alone
-    carries a 24–48h approval lead.
+    <b>Where this stands, 4 August.</b> Three of the ten P0 gaps have moved since the 31 July draft:
+    audio is closed, app identity is most of the way there, and a title/pause/results shell now
+    exists. <b>The one that has not moved is the one that matters most</b> — the game still has
+    never run on a phone, and roughly twenty acceptance boxes still need a human to play it. Every
+    balance number below is bot-versus-bot. The 31 August target still assumes both store
+    enrolments start immediately; Apple alone carries a 24–48h approval lead.
   </div>
 
   <h2>What “launch” means</h2>
@@ -174,8 +176,8 @@
 
     <div class="grp">Week 1 — prove it’s a game</div>
     <div class="row">
-      <div class="lbl">Fix app identity<small>bundle id, name, company</small></div>
-      <div class="track"><div class="bar b1" style="left:0.5%;width:11%">1d</div></div>
+      <div class="lbl">Fix app identity<small>name, company, icon done · bundle id still placeholder</small></div>
+      <div class="track"><div class="bar b4" style="left:0.5%;width:8%;opacity:.75">✓ most</div><div class="bar b1" style="left:9%;width:4%">id</div></div>
     </div>
     <div class="row">
       <div class="lbl">Build to physical device<small>iOS then Android</small></div>
@@ -196,16 +198,16 @@
       <div class="track"><div class="bar b4" style="left:0.5%;width:16%;opacity:.75">✓ done Aug 3–4</div></div>
     </div>
     <div class="row">
-      <div class="lbl">Graphics Wave 1<small>AO un-discard, then normal maps</small></div>
-      <div class="track"><div class="bar b2" style="left:25%;width:19%">3–5d</div></div>
+      <div class="lbl">Graphics Wave 1<small>AO pipeline exists, 2/119 bound · no normal maps</small></div>
+      <div class="track"><div class="bar b2" style="left:25%;width:19%">2–4d</div></div>
     </div>
     <div class="row">
-      <div class="lbl">Title / menu scene<small>a real scene, not an overlay</small></div>
-      <div class="track"><div class="bar b2" style="left:33%;width:14%">3–4d</div></div>
+      <div class="lbl">Title / menu shell<small>title, pause, results built · still a panel, not a scene</small></div>
+      <div class="track"><div class="bar b4" style="left:25%;width:12%;opacity:.75">✓ done Aug 3</div><div class="bar b2" style="left:38%;width:8%">scene?</div></div>
     </div>
     <div class="row">
-      <div class="lbl">App icon &amp; splash<small>from the branding guide</small></div>
-      <div class="track"><div class="bar b2" style="left:42%;width:8%">1d</div></div>
+      <div class="lbl">App icon &amp; splash<small>icon, splash and brand mark landed</small></div>
+      <div class="track"><div class="bar b4" style="left:42%;width:11%;opacity:.75">✓ done Aug 4</div></div>
     </div>
 
     <div class="grp">Week 3 — make it survivable</div>
@@ -255,16 +257,49 @@
   <table>
     <tr><th class="n">#</th><th>Gap</th><th>Evidence, verified 31 Jul (updates dated inline)</th><th style="text-align:right">Est.</th></tr>
     <tr><td class="n">1</td><td><b>Never run on a phone</b></td><td class="e">Both device-validation docs are empty templates — zero runs</td><td class="est">1–2 d</td></tr>
-    <tr><td class="n">2</td><td><b>App identity all placeholder</b></td><td class="e"><code>applicationIdentifier</code> is <b>empty</b>; product <code>LTW.UnityClient</code>; company <code>LTWPlaceholder</code>; no icon. Brand is “Line Wards” and nothing uses it</td><td class="est">1 d</td></tr>
+    <tr><td class="n">2</td><td><b>App identity — mostly done, bundle id still placeholder</b> <span class="tag tp1">4 Aug</span></td><td class="e">Company is now <code>Line Wards Games</code>, product <code>Line Wards</code>, and a 1024px icon is set. <b>Still outstanding:</b> <code>applicationIdentifier</code> reads <code>com.ltwplaceholder.ltw</code> on both platforms — no longer empty, but not shippable, and it is the one field a store account binds to permanently</td><td class="est">&lt;1 d</td></tr>
     <tr style="opacity:.6"><td class="n">3</td><td><b>Audio is 7 sine beeps</b> — closed 4 Aug</td><td class="e">Now 33 SFX takes + a three-stem adaptive score, regenerable from <code>tools/audio/synthesize_game_audio.py</code>; director with rate limiting, ducking, sample-locked stems. Auditioned by the owner. See <code>AUDIO_DIRECTION.md</code></td><td class="est"><s>4–6 d</s> done</td></tr>
-    <tr><td class="n">4</td><td><b>No menu or title scene</b></td><td class="e"><code>Assets/Scenes/</code> holds only <code>LocalVerticalSlice.unity</code>; the shell is an in-match overlay</td><td class="est">3–4 d</td></tr>
+    <tr><td class="n">4</td><td><b>Shell screens exist; still not a scene</b> <span class="tag tp1">4 Aug</span></td><td class="e">Title, pause and results now render through UI Toolkit — <code>ShellScreens.uxml/.uss</code>, <code>ShellScreenView.cs</code>, a generated <code>PanelSettings</code>, and the brand mark on the title. Captured and verified. <b>But <code>Assets/Scenes/</code> still holds only <code>LocalVerticalSlice.unity</code></b>: the shell is a panel over the match, not a scene, so the app still boots straight into a running board. Whether that matters for Tier B is a call worth making deliberately rather than by default</td><td class="est">1–2 d</td></tr>
     <tr><td class="n">5</td><td><b>No crash reporting</b></td><td class="e">Zero references anywhere in the client</td><td class="est">1 d</td></tr>
     <tr><td class="n">6</td><td><b>Store accounts not enrolled</b></td><td class="e">Apple $99/yr, Google $25 — external lead time</td><td class="est">external</td></tr>
     <tr><td class="n">7</td><td><b>No store listing assets</b></td><td class="e">No icon, screenshots, description, age rating, or privacy-policy URL</td><td class="est">2–3 d</td></tr>
     <tr><td class="n">8</td><td><b>~20 acceptance boxes need a human</b></td><td class="e">GD-01→10 unchecked; all balance is bot-vs-bot arithmetic</td><td class="est">2–3 d</td></tr>
-    <tr><td class="n">9</td><td><b>Graphics Wave 1 outstanding</b></td><td class="e">No normal maps and no bound AO on any of the 30 assets</td><td class="est">3–5 d</td></tr>
+    <tr><td class="n">9</td><td><b>Graphics Wave 1 — AO started, normal maps untouched</b> <span class="tag tp1">4 Aug</span></td><td class="e">Counted across the 119 unit materials: <b>0 bind a normal map</b>, <b>2 bind an occlusion map</b>. The bake pipeline exists (<code>tools/art/bake_all_ao.py</code>, <code>AssignBakedOcclusion</code>) and the shader has the slot, so this is now a run-it-across-the-roster job rather than a build-it one. Normal maps have not started</td><td class="est">2–4 d</td></tr>
     <tr><td class="n">10</td><td><b>Onboarding is partial</b></td><td class="e">Some flow in <code>LocalSessionFlowOverlay</code>; no first-run teaching</td><td class="est">2–3 d</td></tr>
   </table>
+
+  <h2>Landed since the draft — not on the critical path</h2>
+  <div class="cols">
+    <div class="card">
+      <h3>Board readability <em>3–4 Aug</em></h3>
+      <p>Five separate defects made the board look marked-up: a send beam drawn to an off-screen
+        lane, additive bursts accumulating past white into flat saturated slabs, opponents' send
+        beams crossfiring in the all-lanes view, an arrival cue that drew a square with an X
+        through it, and lane direction markers that read as a cross rather than an arrow.</p>
+      <p><b>Worth knowing:</b> four of the five were independently authored as <em>two beams
+        crossing at a point</em>, which is the universal “missing asset” glyph. That shape keeps
+        getting written because each instance looks reasonable alone.</p>
+    </div>
+    <div class="card">
+      <h3>A defeated seat could rebuild <em>4 Aug</em></h3>
+      <p>Bots kept taking turns after elimination, and the commands disagreed about whether to stop
+        them: upgrade, sell-batch and tier-buy each refused, while <code>PlaceTower</code> and
+        <code>SellTowerAt</code> did not — so a wiped lane came back.</p>
+      <p><b>Why it matters here:</b> this is exactly the class of thing a first tester finds in the
+        first ten minutes, and it was invisible to every existing test because they all run two or
+        three lanes rather than the eight that ship.</p>
+    </div>
+    <div class="card">
+      <h3>Economy: tiers now cost, twice <em>3–4 Aug</em></h3>
+      <p>Category tiers escalate 25% per tier already held, and a tier now also raises what its own
+        units cost — 65% of the power increase, so a tier-3 creep carries 225% health for 181%
+        price. Previously the tier's own price was the entire lever and every unit after it was
+        free power. The income ceiling moved 600 → 900 because the gate is half the price and the
+        last upgrade had become unreachable rather than expensive.</p>
+      <p><b>Unverified:</b> all of it is bot-versus-bot on one seed. Match length landed within 3%
+        of where it started, but by two changes pulling opposite ways rather than by design.</p>
+    </div>
+  </div>
 
   <h2>Critical path — the uncompressible bits</h2>
   <div class="card" style="margin-bottom:14px">
