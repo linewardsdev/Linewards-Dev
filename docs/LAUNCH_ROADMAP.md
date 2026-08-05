@@ -60,7 +60,7 @@ launch.
 | 6 | **Store accounts not enrolled** | Apple Developer Program $99/yr, 24–48h approval; Google Play Console $25 one-time | External |
 | 7 | **No store listing assets** | No icon, screenshots, description, age rating, or privacy-policy URL | 2–3 d |
 | 8 | **~20 acceptance boxes need a human to play** | GD-01→10 unchecked; all balance is bot-vs-bot | 2–3 d |
-| 9 | **Graphics Wave 1 — AO started, normal maps untouched** — *re-checked 2026-08-04* | Counted across the 119 unit materials: **0 bind a normal map**, **2 bind an occlusion map**. The bake pipeline exists (`tools/art/bake_all_ao.py`, `AssignBakedOcclusion`) and the shader has the slot, so this is now a run-it-across-the-roster job rather than a build-it one. Normal maps have not started | 2–4 d |
+| 9 | **Graphics Wave 1 — AO done, normal maps blocked on a source** — *worked 2026-08-04* | **AO is bound on all 30 roles** (was 2 of 119): the maps had been baked and never bound, and the binder silently skipped four roles whose names disagree with their bake about separators. Evidence in `screenshot-reviews/stylized-shader-20260801/after_ao_bound_roster.png`. **Normal maps:** the shader now has a tangent-space slot, but generating maps needs a source — Meshy ships no high-poly, and baking high-to-low only pays once LOD groups are wired. See the open question in that folder's README | ~~2–4 d~~ AO done · normals need a decision |
 | 10 | **Onboarding is partial** | Some flow in `LocalSessionFlowOverlay`; no first-run teaching | 2–3 d |
 
 ### P1 — should land before public launch (tier C), not blocking soft launch
