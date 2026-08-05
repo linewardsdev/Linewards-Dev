@@ -142,3 +142,22 @@ All four run under `-batchmode -executeMethod`; `Apply` skips its confirmation d
 - **AO is inert on most materials.** `_OcclusionStrength` is set to 0 wherever a material has
   no occlusion map, which is nearly all of them — item 6 established there is no AO on disk to
   bind. The shader's AO tint path is built and waiting on recommendation 3.
+
+## AO bound across the roster, 2026-08-04
+
+`after_ao_bound_roster.png` is the same two units after occlusion was bound to all 30 roles
+(P0 row 9 counted 2 of 119 materials before this). Compared with `after_stylized.png` above,
+the tower's plate rings gain real crevice depth and the walker's joints separate from its
+carapace — which is what section 4.1 predicted when it called AO "the single largest
+contributor to units reading as solid objects rather than lit shapes".
+
+The binding had been sitting undone since the bake: 30 maps existed on disk and 0 were
+bound, because Unity held the editor bridge during the session that produced them.
+
+**One bug worth remembering.** The first binding run reported success at 26 of 30. The four
+it skipped — elder_canopy, repair_drone, thorn_snare, spore_cloud — disagree with their bake
+about separators (`tower_eldercanopy_3d_ao_v01` vs `mat_tower_elder_canopy_3d_body_...`), and
+a `Contains()` match cannot distinguish "this role has no AO" from "this role's AO is spelled
+differently". It failed silently with a plausible-looking count. Matching now strips
+separators — the third time that exact fix has been needed in this codebase, after
+`Tower_OwnerTrim` in the stylized migration.
