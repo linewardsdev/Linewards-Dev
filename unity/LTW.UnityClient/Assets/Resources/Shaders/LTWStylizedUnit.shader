@@ -75,6 +75,10 @@ Shader "LTW/Stylized Unit"
         _RampStart ("Ramp Start", Range(0,1)) = 0.30
         _RampEnd ("Ramp End", Range(0,1)) = 0.80
 
+        [Header(Normal)]
+        [Normal] _BumpMap ("Normal Map", 2D) = "bump" {}
+        _BumpScale ("Normal Scale", Range(0,2)) = 1.0
+
         [Header(Occlusion)]
         _OcclusionMap ("Occlusion (R)", 2D) = "white" {}
         _OcclusionStrength ("Occlusion Strength", Range(0,1)) = 1.0
@@ -117,11 +121,13 @@ Shader "LTW/Stylized Unit"
             #pragma multi_compile _ _ADDITIONAL_LIGHTS_VERTEX _ADDITIONAL_LIGHTS
             #pragma multi_compile_fog
             #pragma multi_compile_instancing
+            #pragma shader_feature_local _NORMALMAP
 
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
 
             TEXTURE2D(_BaseMap);      SAMPLER(sampler_BaseMap);
+            TEXTURE2D(_BumpMap);      SAMPLER(sampler_BumpMap);
             TEXTURE2D(_OcclusionMap); SAMPLER(sampler_OcclusionMap);
             TEXTURE2D(_EmissionMap);  SAMPLER(sampler_EmissionMap);
 
@@ -137,6 +143,7 @@ Shader "LTW/Stylized Unit"
                 half   _ShadeStrength;
                 half   _RampStart;
                 half   _RampEnd;
+                half   _BumpScale;
                 half   _OcclusionStrength;
                 half4  _AOTint;
                 half4  _RimColor;
@@ -152,6 +159,7 @@ Shader "LTW/Stylized Unit"
             {
                 float4 positionOS : POSITION;
                 float3 normalOS   : NORMAL;
+                float4 tangentOS  : TANGENT;
                 float2 uv         : TEXCOORD0;
                 UNITY_VERTEX_INPUT_INSTANCE_ID
             };
@@ -163,6 +171,7 @@ Shader "LTW/Stylized Unit"
                 float3 normalWS    : TEXCOORD1;
                 float3 positionWS  : TEXCOORD2;
                 float  fogFactor   : TEXCOORD3;
+                float4 tangentWS   : TEXCOORD4;
                 UNITY_VERTEX_INPUT_INSTANCE_ID
                 UNITY_VERTEX_OUTPUT_STEREO
             };
@@ -180,6 +189,7 @@ Shader "LTW/Stylized Unit"
                 output.positionCS = pos.positionCS;
                 output.positionWS = pos.positionWS;
                 output.normalWS   = nrm.normalWS;
+                output.tangentWS  = float4(nrm.tangentWS, input.tangentOS.w * GetOddNegativeScale());
                 output.uv         = TRANSFORM_TEX(input.uv, _BaseMap);
                 output.fogFactor  = ComputeFogFactor(pos.positionCS.z);
                 return output;
@@ -218,6 +228,17 @@ Shader "LTW/Stylized Unit"
                 ao = lerp(1.0h, ao, _OcclusionStrength);
 
                 float3 N = normalize(input.normalWS);
+
+                // Tangent-space normal, applied only where a map is bound. The default "bump"
+                // texture unpacks to (0,0,1), so an unmapped material resolves to its geometric
+                // normal exactly and the branch costs one sample rather than a wrong result.
+                #ifdef _NORMALMAP
+                    float3 bitangent = cross(N, input.tangentWS.xyz) * input.tangentWS.w;
+                    float3x3 tangentToWorld = float3x3(input.tangentWS.xyz, bitangent, N);
+                    half3 normalTS = UnpackNormalScale(
+                        SAMPLE_TEXTURE2D(_BumpMap, sampler_BumpMap, input.uv), _BumpScale);
+                    N = normalize(mul(normalTS, tangentToWorld));
+                #endif
                 float3 V = normalize(GetWorldSpaceViewDir(input.positionWS));
 
                 float4 shadowCoord = TransformWorldToShadowCoord(input.positionWS);
@@ -312,6 +333,7 @@ Shader "LTW/Stylized Unit"
                 half   _ShadeStrength;
                 half   _RampStart;
                 half   _RampEnd;
+                half   _BumpScale;
                 half   _OcclusionStrength;
                 half4  _AOTint;
                 half4  _RimColor;
