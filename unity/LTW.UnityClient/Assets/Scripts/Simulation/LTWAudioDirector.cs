@@ -248,7 +248,46 @@ namespace LTW.UnityClient.Simulation
         /// of how much trouble the board is in; everything audible about it — slew, curves,
         /// which stem carries what — is decided here, so the caller stays a sensor.
         /// </summary>
-        public void SetIntensity(float value) => intensityTarget = Mathf.Clamp01(value);
+        public void SetIntensity(float value)
+        {
+            if (!menuScored)
+            {
+                intensityTarget = Mathf.Clamp01(value);
+            }
+        }
+
+        /// <summary>
+        /// Scores a menu screen deliberately, overriding the board's pressure reading.
+        /// </summary>
+        /// <remarks>
+        /// The title screen already had music before this existed, but only by accident: the
+        /// director is built alongside the match, the match sits paused behind the title panel,
+        /// and a paused board has no creeps — so intensity read zero and the bed played. The
+        /// right sound for the right reason, and it would have broken silently the moment the
+        /// title moved into its own scene, or a match were left running behind a mid-session
+        /// menu.
+        ///
+        /// So a menu now STATES its intensity. While one is up the board's reading is ignored
+        /// rather than merely absent, which also fixes the case the accident could not survive:
+        /// opening the pause menu mid-siege no longer leaves the combat stem hammering under a
+        /// static screen.
+        ///
+        /// MenuIntensity is 0 — the bed alone, no tension, no combat. That is a composition
+        /// choice, not a fallback: the stems exist to answer the board, and a menu is the one
+        /// place there is no board to answer.
+        /// </remarks>
+        public void SetMenuScored(bool scored)
+        {
+            menuScored = scored;
+            if (scored)
+            {
+                intensityTarget = MenuIntensity;
+            }
+        }
+
+        private bool menuScored;
+
+        private const float MenuIntensity = 0f;
 
         /// <summary>
         /// Music volumes track prefs, duck and intensity every frame. Polling is deliberate:
