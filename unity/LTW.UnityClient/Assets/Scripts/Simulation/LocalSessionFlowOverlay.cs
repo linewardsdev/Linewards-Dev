@@ -82,7 +82,12 @@ namespace LTW.UnityClient.Simulation
 
             // Driven from the same Update that publishes modality, off the same state, so the
             // rendered screen and the input gate cannot disagree for a frame.
-            shellScreens?.Show(ActiveShellScreen);
+            var screen = ActiveShellScreen;
+            shellScreens?.Show(screen);
+
+            // The music is told a menu is up, from the same state and the same frame. Title,
+            // pause and results are all "no board to answer", so all three score the same way.
+            LTWAudioDirector.Instance?.SetMenuScored(screen != ShellScreen.None);
         }
 
         private void OnDisable()
@@ -90,6 +95,7 @@ namespace LTW.UnityClient.Simulation
             // Otherwise a disabled overlay leaves the HUD permanently suppressed.
             RuntimeUiChrome.ModalScreenActive = false;
             shellScreens?.Show(ShellScreen.None);
+            LTWAudioDirector.Instance?.SetMenuScored(false);
         }
 
         /// <summary>
