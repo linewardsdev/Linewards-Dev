@@ -1,5 +1,6 @@
 #nullable enable
 
+using System.Linq;
 using LTW.Simulation.Economy;
 using LTW.UnityClient.Simulation;
 using UnityEngine;
@@ -534,7 +535,13 @@ namespace LTW.UnityClient.UI
 
             resultsTable.Clear();
             resultsTable.Add(BuildHeaderRow());
-            foreach (var player in summary.Players)
+
+            // Sorted by finish rather than by seat number. A results table listing P1..P8 in seat
+            // order buries the one thing it exists to say. Seats with no placement (0) sort last,
+            // which is what an older summary built without elimination order produces.
+            foreach (var player in summary.Players
+                .OrderBy(player => player.Placement == 0 ? int.MaxValue : player.Placement)
+                .ThenBy(player => player.PlayerId.Value))
             {
                 resultsTable.Add(BuildPlayerRow(player, summary.WinnerId.Value));
             }
@@ -545,6 +552,7 @@ namespace LTW.UnityClient.UI
             var row = new VisualElement { pickingMode = PickingMode.Ignore };
             row.AddToClassList("ltw-row");
             row.AddToClassList("ltw-row--head");
+            row.Add(Cell("#", "ltw-cell--rank"));
             row.Add(Cell("SEAT", "ltw-cell--seat"));
             row.Add(Cell("STATE", null));
             row.Add(Cell("LIVES", "ltw-cell--num"));
@@ -576,12 +584,43 @@ namespace LTW.UnityClient.UI
             // greyscale screenshot and a colour-blind player, per docs/BRANDING_GUIDE.md.
             var state = isWinner ? "WON" : player.IsEliminated ? "OUT" : "ALIVE";
 
+            // Every defeated seat used to render as "OUT" and nothing else, so a seven-way loss
+            // read as a seven-way tie. The order they fell in was known and thrown away. Ordinals
+            // rather than bare numbers because "2nd" cannot be misread as a seat id in a table whose
+            // next column is one.
+            var placement = player.Placement > 0 ? Ordinal(player.Placement) : "—";
+
+            row.Add(Cell(placement, "ltw-cell--rank"));
             row.Add(Cell(seatLabel, "ltw-cell--seat"));
             row.Add(Cell(state, player.IsEliminated && !isWinner ? "ltw-cell--out" : null));
             row.Add(Cell(player.Lives.Amount.ToString(), "ltw-cell--num"));
             row.Add(Cell($"+{player.Income.Amount}", "ltw-cell--num"));
             row.Add(Cell(player.Gold.Amount.ToString(), "ltw-cell--num"));
             return row;
+        }
+
+        /// <summary>1 to 1st, 2 to 2nd, and so on.</summary>
+        /// <remarks>
+        /// The 11-13 exception is the whole reason this is a method rather than a format string:
+        /// 11th, 12th and 13th break the last-digit rule that gives 1st, 2nd and 3rd. Eight seats
+        /// never reach it today, and a table that starts printing "11st" the first time the mode
+        /// grows is not worth the two lines saved.
+        /// </remarks>
+        private static string Ordinal(int placement)
+        {
+            var lastTwo = placement % 100;
+            if (lastTwo is >= 11 and <= 13)
+            {
+                return $"{placement}th";
+            }
+
+            return (placement % 10) switch
+            {
+                1 => $"{placement}st",
+                2 => $"{placement}nd",
+                3 => $"{placement}rd",
+                _ => $"{placement}th"
+            };
         }
 
         private static Label Cell(string text, string? modifier)

@@ -477,6 +477,7 @@ public sealed class LocalVerticalSlice
         }
 
         players = players.Replace(player.WithLives(new Lives(0)));
+        RecordElimination(playerId);
         pendingEvents.Add(new PlayerEliminatedEvent(tick, playerId));
         WipeEliminatedLane(playerId);
     }
@@ -1045,6 +1046,7 @@ public sealed class LocalVerticalSlice
                 players = economy.ApplyLeak(players, leak.SenderId, leak.DefenderId, creep, leak.LivesLost).Players;
                 if (defenderLivesBefore > 0 && players.Get(leak.DefenderId).Lives.Amount == 0)
                 {
+                    RecordElimination(leak.DefenderId);
                     pendingEvents.Add(new PlayerEliminatedEvent(tick, leak.DefenderId));
                     WipeEliminatedLane(leak.DefenderId);
                 }
@@ -1073,7 +1075,7 @@ public sealed class LocalVerticalSlice
             pendingEvents.Add(simulationEvent);
         }
 
-        var summary = economy.TryCreateMatchSummary(players, tick);
+        var summary = economy.TryCreateMatchSummary(players, tick, eliminatedAtTick);
         if (!matchEnded && summary is not null) { matchEnded = true; MatchSummary = summary; pendingEvents.Add(new MatchEndedEvent(tick, summary.WinnerId)); }
     }
 
@@ -1240,6 +1242,22 @@ public sealed class LocalVerticalSlice
     /// </remarks>
     private static int TowerBuildCostFor(PlayerEconomyState player, TowerDefinition tower) =>
         tower.Cost.Amount * CategoryTierRules.TowerBuildCostPercentFor(player.TowerLineTier(tower.CategoryIndex)) / 100;
+
+    /// <summary>Tick each seat was eliminated, in the order it happened.</summary>
+    /// <remarks>
+    /// Kept here because this is the only place that sees eliminations as they occur. The final
+    /// player set cannot answer it — every defeated seat looks identical there, which is why the
+    /// results screen ranked nobody. Written once per seat: a seat cannot come back.
+    /// </remarks>
+    private readonly Dictionary<PlayerId, long> eliminatedAtTick = new Dictionary<PlayerId, long>();
+
+    private void RecordElimination(PlayerId playerId)
+    {
+        if (!eliminatedAtTick.ContainsKey(playerId))
+        {
+            eliminatedAtTick[playerId] = tick.Value;
+        }
+    }
 
     private EntityId NextEntityId() => new EntityId(nextEntityId++);
 

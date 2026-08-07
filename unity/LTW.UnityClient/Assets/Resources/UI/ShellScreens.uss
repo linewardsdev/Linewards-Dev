@@ -500,6 +500,15 @@
     -unity-text-align: middle-right;
 }
 
+/* The finish column. Narrow on purpose: it holds "1st" through "8th" and a dash, and at an equal
+   share of the row it would take as much width as GOLD for a third of the content. */
+.ltw-cell--rank {
+    flex-grow: 0.45;
+    -unity-text-align: middle-left;
+    color: rgb(150, 167, 199);
+    -unity-font-style: bold;
+}
+
 .ltw-row--head .ltw-cell {
     font-size: 17px;
     letter-spacing: 3px;

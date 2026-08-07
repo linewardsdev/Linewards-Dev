@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using LTW.Simulation.Commands;
 using LTW.Simulation.Content;
@@ -246,7 +247,25 @@ public sealed class EconomyService
     public Gold CalculateSellRefund(TowerDefinition tower) =>
         new Gold(tower.Cost.Amount * rules.SellRefundPercent / 100);
 
-    public MatchSummary? TryCreateMatchSummary(EconomyPlayerSet players, SimulationTick completedAtTick)
+    public MatchSummary? TryCreateMatchSummary(EconomyPlayerSet players, SimulationTick completedAtTick) =>
+        TryCreateMatchSummary(players, completedAtTick, eliminationOrder: null);
+
+    /// <summary>
+    /// The end-of-match record, with placements when the caller knows the order seats fell in.
+    /// </summary>
+    /// <param name="eliminationOrder">
+    /// Tick each seat was eliminated, keyed by seat. Null, or missing a seat, leaves that seat's
+    /// <see cref="PlayerEconomySummary.Placement"/> at 0 rather than inventing an order.
+    /// </param>
+    /// <remarks>
+    /// The order has to be supplied rather than derived here: this method sees only the final
+    /// player set, where every defeated seat looks identical — same zero lives, no record of when
+    /// it reached them. That is exactly why the results screen could not rank anyone.
+    /// </remarks>
+    public MatchSummary? TryCreateMatchSummary(
+        EconomyPlayerSet players,
+        SimulationTick completedAtTick,
+        IReadOnlyDictionary<PlayerId, long>? eliminationOrder)
     {
         var active = players.ActivePlayers;
         if (active.Count != 1)
@@ -254,8 +273,25 @@ public sealed class EconomyService
             return null;
         }
 
+        // Latest elimination first, so the seat that survived longest places second behind the
+        // winner. Seats with no recorded tick sort last and keep placement 0.
+        var ranked = eliminationOrder is null
+            ? new List<PlayerId>()
+            : players.Players
+                .Where(player => player.IsEliminated && eliminationOrder.ContainsKey(player.PlayerId))
+                .OrderByDescending(player => eliminationOrder[player.PlayerId])
+                .Select(player => player.PlayerId)
+                .ToList();
+
         var summaries = players.Players
-            .Select(player => new PlayerEconomySummary(player.PlayerId, player.Gold, player.Income, player.Lives, player.IsEliminated))
+            .Select(player =>
+            {
+                var placement = player.PlayerId.Equals(active[0].PlayerId)
+                    ? 1
+                    : ranked.IndexOf(player.PlayerId) is var index && index >= 0 ? index + 2 : 0;
+                return new PlayerEconomySummary(
+                    player.PlayerId, player.Gold, player.Income, player.Lives, player.IsEliminated, placement);
+            })
             .ToArray();
 
         return new MatchSummary(active[0].PlayerId, completedAtTick, summaries);
