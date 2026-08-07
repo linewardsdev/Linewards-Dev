@@ -131,6 +131,83 @@ not repeat the plan. Where an item names a wave, the wave is defined there.
 
 ---
 
+## 42. The match seed does nothing, so every balance measurement is one sample
+
+Found 2026-08-07 during a review playthrough. Five different seeds were run through the
+eight-lane match and produced **byte-identical results** — completed tick 4396, winner P4, and
+every seat's final gold to the coin.
+
+`LocalMatchOptions.Seed` is read in exactly one place in the whole simulation:
+`GetReplayRecord()`, where it is written into the replay's metadata. It never seeds anything.
+`SeededRandomSource` and `IRandomSource` exist under `src/LTW.Simulation/Random/`, and the only
+thing that references either is a test asserting the source reproduces itself — no simulation,
+bridge, bot or client code constructs one.
+
+So the simulation is fully deterministic with no randomness anywhere, and the seed is decorative.
+
+**Why it matters:** `GD_TUNING_LOG.md` cites a seed in ten places, in the form "measured on eight
+lanes, seed 1", which reads as one sample from a distribution. It is not. Every balance conclusion
+in this project rests on a **single trajectory**, and re-running "another seed" to check a result
+returns the same match. That is worth knowing before any of those numbers is treated as evidence
+of a range.
+
+Two ways out, and they are not the same size:
+
+- **Cheap and honest:** stop labelling measurements with seeds. Call it the deterministic
+  reference match, which is what it is. Costs nothing and stops the docs implying coverage that
+  does not exist.
+- **Valuable and larger:** wire the seed into bot decision-making so seeds genuinely vary, then
+  re-measure the balance claims across several. The infrastructure is already written and unused.
+
+Determinism itself is worth keeping — it is what makes replays and `ScenarioReplayTests` work. The
+defect is the labelling and the missing variance, not the determinism.
+
+---
+
+## 43. Two bot profiles hoard gold and die holding it
+
+Found 2026-08-07 in the same playthrough. Final state of the reference match:
+
+| seat | profile | outcome | gold at death |
+|---|---|---|---|
+| P3 | Defensive | eliminated | **23,932** |
+| P2 | Balanced | eliminated | **14,934** |
+| P6, P8, P5, P7 | Greedy | eliminated | 70, 26, 14, 3 |
+| P4 | Greedy | **won** | 53 |
+
+The five Greedy bots spend down to nothing. The Defensive and Balanced bots do not: between them
+they died holding **38,879 gold**, enough to have rebuilt their lanes many times over. The winner
+finished on 53.
+
+**Why it matters more than it looks.** This project has already been burned once by measuring
+balance against bots that could not play — the ones that never mazed, could build only 5 of 15
+towers, and stopped sending mid-match. This is the same shape. Every balance number is taken
+against a table where two of seven opponents are not converting income into defence, and
+Defensive/Balanced are the profiles a cautious human most resembles.
+
+It also interacts with the tier work of 2026-08-03/04: unit costs now scale with category tier, so
+gold banked rose 36% while tower count stayed identical. The surplus has to go somewhere and
+currently it goes nowhere.
+
+Worth checking whether the reserve floor (`GoldReserveFloor`) or the per-tick single-action shape
+of `TakeTurn` is the constraint, before retuning any prices around a spending pattern that may
+just be a bug.
+
+---
+
+## 44. The results screen ranks nobody
+
+Found 2026-08-07. Every defeated seat renders as `OUT` with no ordering, so a seven-way loss reads
+as a seven-way tie. Elimination order is known — `PlayerEliminatedEvent` carries the tick — so 2nd
+through 8th are derivable at match end.
+
+Small on its own, and it unblocks part of item 35. That item's stated obstacle for a mid-match
+defeat screen is "placement is not known yet — the seat is out, but whether it finished 8th or 3rd
+depends on a match that is still running". True during the match; **false at the end of it**, which
+is exactly where the results screen lives.
+
+---
+
 ## 1. `_EMISSION` keyword loss on tower body materials — self-healing, root cause still unknown
 
 The tower body materials repeatedly lost their `_EMISSION` shader keyword and went
