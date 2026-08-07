@@ -131,6 +131,55 @@ not repeat the plan. Where an item names a wave, the wave is defined there.
 
 ---
 
+## 45. Income pins at the ceiling because every send is guaranteed to grant at least 1
+
+Measured 2026-08-07. In the reference eight-lane match every seat reaches the 900 income ceiling
+between **58% and 69%** of the match, while **every elimination happens at 71% or later**. The
+economy finishes being contested immediately before the match starts being decided.
+
+**The taper is not the cause and cannot fix it.** `IncomeGainFor` tapers linearly with remaining
+headroom, but the result passes through integer *ceiling* division and then `Math.Max(1, tapered)`.
+Both floors are deliberate and documented — the remarks say rounding up exists "so the cheapest
+gain-1 creeps keep granting their full 1 across the whole band instead of silently becoming
+worthless", and `A_gain_one_creep_is_never_rounded_down_to_worthless` defends it. The consequence
+is that **every send grants at least 1 income however close the ceiling is**, so bots sending on
+the order of a thousand creeps a match always arrive at the cap. The taper controls how fast, never
+whether.
+
+**These two properties are in direct conflict** and no tuning reconciles them:
+
+- *Cheap creeps must always pay* (current, tested, deliberate) → income always reaches the ceiling.
+- *Income must stay contested late* (what the owner asked for) → gains must be able to reach zero.
+
+### Measured, both ways
+
+A change was written and reverted: keep ceiling division and the floor of 1 while headroom exceeds
+a tenth of the band, and floor-divide in the last tenth so the curve asymptotes.
+
+| | before | with the change |
+|---|---|---|
+| peak income | 900 (pinned) | **861** |
+| seats hitting the ceiling | all 7 | **none** |
+| match length | 4488 | 4580 |
+| eliminations | 71–99% | 70–99% (unchanged) |
+
+It works, and it breaks three tests that encode the superseded intent — including the gain-1 one,
+which is a genuine roster concern rather than a stale assertion: at ceiling 600 a gain-1 creep
+granted nothing from income 570 up.
+
+**Reverted rather than shipped with the tests rewritten**, because choosing between two documented
+design properties is an owner's call, not a cleanup. It also did not restore income as a
+*differentiator* — the seats still converged to within 2% of each other (840–861), because they all
+play alike. That part belongs to item 42 (no seed variation) and item 43 (bots not spending), not
+to the ceiling.
+
+**If the answer is "keep income contested":** take the floor-division change, accept that
+gain-1 creeps stop paying in the top tenth of the band, and retune the low end of the roster to
+compensate. **If the answer is "keep the low end alive":** the pin is the price, and the fix for a
+flat endgame is to make the seats diverge rather than to change the curve.
+
+---
+
 ## 42. The match seed is plumbed but not yet consumed — measurements are still one sample
 
 **Partly addressed 2026-08-07, and the remaining half is the important half.** `BotController` now
