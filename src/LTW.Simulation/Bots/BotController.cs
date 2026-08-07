@@ -6,6 +6,7 @@ using LTW.Simulation.Commands;
 using LTW.Simulation.Content;
 using LTW.Simulation.Economy;
 using LTW.Simulation.Primitives;
+using LTW.Simulation.Random;
 
 namespace LTW.Simulation.Bots;
 
@@ -30,10 +31,36 @@ public sealed class BotController
     private readonly BotDecisionProfile profile;
     private readonly ContentId creepId;
 
+    /// <summary>
+    /// This bot's own source of variation, seeded from the match seed and its seat.
+    /// </summary>
+    /// <remarks>
+    /// Until this existed the match seed did nothing at all — it was read once, in
+    /// <c>GetReplayRecord</c>, written into replay metadata and never used, and
+    /// <see cref="SeededRandomSource"/> was referenced only by a test asserting it reproduced
+    /// itself. Five different seeds produced byte-identical matches, so every balance number this
+    /// project has ever recorded as "measured on seed 1" was one trajectory rather than a sample.
+    ///
+    /// Per seat rather than one shared source, so a bot's rolls do not depend on how many other
+    /// bots took a turn first. A shared source would still be deterministic, but adding or removing
+    /// a seat would shift every later bot's stream and make two configurations incomparable for
+    /// reasons that have nothing to do with what changed.
+    ///
+    /// Determinism is preserved and still matters: the same seed and seat produce the same stream,
+    /// which is what keeps replays and <c>ScenarioReplayTests</c> honest.
+    /// </remarks>
+    private readonly IRandomSource random;
+
     public BotController(BotDecisionProfile profile, ContentId creepId)
+        : this(profile, creepId, new SeededRandomSource(0))
+    {
+    }
+
+    public BotController(BotDecisionProfile profile, ContentId creepId, IRandomSource random)
     {
         this.profile = profile;
         this.creepId = creepId;
+        this.random = random;
     }
 
     public BotDecisionProfile Profile => profile;
@@ -185,11 +212,39 @@ public sealed class BotController
     /// match — caught by <c>GameplayScenarioTests.Mixed_pressure_scenario_records_distinct_send_roles_and_defensive_response</c>,
     /// where a flat threshold left a 4-tower Balanced bot permanently locked out of sending.
     /// </remarks>
-    public int PressureThreshold(ContentCatalog content, int ownedTowerCount)
+    public int PressureThreshold(ContentCatalog content, int ownedTowerCount) =>
+        PressureThreshold(content, ownedTowerCount, 0L);
+
+    /// <summary>
+    /// How much incoming creep health this bot tolerates before it holds gold and builds instead of
+    /// sending.
+    /// </summary>
+    /// <remarks>
+    /// The tick argument is not decoration — without it this number is measured in different units
+    /// from the thing it is compared against, and that was a real defect rather than a rounding
+    /// concern.
+    ///
+    /// The left side, <c>LiveCreepHealthIn</c>, rides two escalators: `MatchEscalationRules` raises
+    /// every new creep's health by 20% per interval for the whole match, and a tier-3 send category
+    /// multiplies it again by 225%. The right side was a fixed 40–70 plus 15 a tower, so it topped
+    /// out around 340 while the left side grew without bound. Past that crossing every non-Greedy
+    /// bot reads its lane as permanently under pressure and <see cref="TrySend"/> returns early
+    /// forever — not sending less, sending *nothing*, for the rest of the match.
+    ///
+    /// That is where the hoarding came from. Greedy is exempt from the check, which is exactly why
+    /// the five Greedy seats spent down to 3–70 gold while the Defensive and Balanced seats died
+    /// holding 23,932 and 14,934. It looked like a spending-rate problem and was a gate that had
+    /// silently latched shut.
+    ///
+    /// Scaling by the same escalation the creeps get keeps both sides in the same units, so
+    /// "am I under pressure" keeps meaning what it meant at tick 0 instead of drifting to "yes".
+    /// </remarks>
+    public int PressureThreshold(ContentCatalog content, int ownedTowerCount, long tick)
     {
         var defenseBias = ResolveProfile(content).DefenseBias;
         var baseThreshold = System.Math.Max(10, 120 - defenseBias);
-        return baseThreshold + ownedTowerCount * 15;
+        var atTickZero = baseThreshold + (ownedTowerCount * 15);
+        return atTickZero * MatchEscalationRules.CreepHealthPercentFor(tick) / 100;
     }
 
     /// <summary>Sends, if this bot's own lane can currently spare the gold and the attention.</summary>
@@ -239,7 +294,7 @@ public sealed class BotController
         }
 
         var incomingHealth = match.LiveCreepHealthIn(match.HomeLaneFor(playerId));
-        return incomingHealth >= PressureThreshold(match.Content, match.TowersOwnedBy(playerId).Count);
+        return incomingHealth >= PressureThreshold(match.Content, match.TowersOwnedBy(playerId).Count, match.Tick.Value);
     }
 
     /// <summary>
@@ -572,12 +627,41 @@ public sealed class BotController
         }
 
         var max = available / creep.Cost.Amount;
-        return profile switch
+
+        // The base batch is the profile's character: Greedy commits three, Balanced two, Defensive
+        // one. It used to be the whole answer, and that is what made two profiles hoard.
+        //
+        // A flat cap cannot spend a growing income. At the 900 ceiling a seat earns 18 gold a tick
+        // while a Defensive bot buys one ~10-gold creep per opportunity, so the difference banks
+        // forever: measured across a full match, the Defensive bot died holding 23,932 gold and the
+        // Balanced bot 14,934, against a winner who finished on 53. Two of seven opponents were not
+        // converting income into pressure at all, which makes every balance number taken against
+        // this table a number taken against a table that is not playing.
+        var baseBatch = profile switch
         {
-            BotDecisionProfile.Greedy => System.Math.Min(3, max),
-            BotDecisionProfile.Balanced => System.Math.Min(2, max),
-            BotDecisionProfile.Defensive => 1,
+            BotDecisionProfile.Greedy => 3,
+            BotDecisionProfile.Balanced => 2,
             _ => 1
         };
+
+        // No jitter here, and the two attempts that put one here are worth recording so the next
+        // person does not spend the afternoon I did.
+        //
+        // Send quantity looks like the obvious place for the match seed to reach the simulation, and
+        // it is the wrong one twice over. Scaling the batch with the bank — meant to stop the
+        // hoarding — starved the build step that runs after the send in TakeTurn, and the Greedy
+        // seats finished a 1200-tick match having built ONE tower each with two lanes empty. Adding
+        // only a small +-1 breaks `Bot_profiles_produce_different_income_versus_defense_behavior`,
+        // because affordability already clamps the profiles unevenly: on that test's catalog Greedy
+        // picks a 30g brute and can afford 3, while Defensive picks a 10g runner and is limited by
+        // its base of 1, so a jitter that lifts Defensive by one ties it with a Balanced already
+        // clamped to 2. The strict Greedy > Balanced > Defensive ordering is the thing that test
+        // exists to defend, and it is worth more than the variation.
+        //
+        // The seed is plumbed as far as this class (see the remarks on `random`) and deliberately
+        // not consumed yet. It wants a decision that is not pinned to an exact value by a test and
+        // not upstream of the build step's gold — tower cell choice among equally-ranked cells is
+        // the strongest candidate.
+        return System.Math.Min(baseBatch, max);
     }
 }

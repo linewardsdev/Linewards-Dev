@@ -131,7 +131,34 @@ not repeat the plan. Where an item names a wave, the wave is defined there.
 
 ---
 
-## 42. The match seed does nothing, so every balance measurement is one sample
+## 42. The match seed is plumbed but not yet consumed — measurements are still one sample
+
+**Partly addressed 2026-08-07, and the remaining half is the important half.** `BotController` now
+takes an `IRandomSource`, and `LocalVerticalSlice` gives each bot one seeded from
+`(Seed * 397) ^ seatId` — per seat rather than shared, so adding or removing a seat does not shift
+every later bot's stream. Nothing consumes it yet, so **seeds still produce identical matches and
+the finding below still stands.**
+
+Two attempts to consume it in `GetSendQuantity` were made and both reverted, which is worth
+recording because it looks like the obvious site and is not:
+
+- **Scaling the batch with the bank** (also meant to fix item 43) starved the build step. Send runs
+  before build in `TakeTurn`, so bigger sends ate the gold building needed: the Greedy seats
+  finished a 1200-tick match having built **one tower each**, with two lanes empty. A bot that
+  never builds is a worse opponent than one that banks gold.
+- **A small ±1 jitter** breaks `Bot_profiles_produce_different_income_versus_defense_behavior`.
+  Affordability already clamps the profiles unevenly — on that test's catalog Greedy picks a 30g
+  brute and affords 3 while Defensive picks a 10g runner and is held at its base of 1 — so lifting
+  Defensive by one ties it with a Balanced already clamped to 2. The strict ordering is what that
+  test defends and it is worth more than the variation.
+
+**Where it should go instead:** a decision that is not pinned to an exact value by a test and not
+upstream of the build step's gold. Tower cell choice among equally-ranked mazing cells is the
+strongest candidate — it changes the shape of a lane without changing what anything costs.
+
+### The original finding, still true
+
+
 
 Found 2026-08-07 during a review playthrough. Five different seeds were run through the
 eight-lane match and produced **byte-identical results** — completed tick 4396, winner P4, and

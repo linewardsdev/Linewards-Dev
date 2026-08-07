@@ -1141,7 +1141,13 @@ public sealed class LocalVerticalSlice
                 playerId => playerId,
                 playerId => new BotController(
                     options.BotProfileFor(playerId),
-                    options.PrimaryCreepFor(playerId) ?? content.Creeps[0].Id));
+                    options.PrimaryCreepFor(playerId) ?? content.Creeps[0].Id,
+                    // Seed and seat together. The seed alone would hand every bot in a match the
+                    // same stream, so all eight would jitter identically and the table would be as
+                    // uniform as it was before; the seat alone would leave the seed doing nothing,
+                    // which is the defect being fixed. 397 is an odd multiplier so seats do not
+                    // collide across neighbouring seeds.
+                    new LTW.Simulation.Random.SeededRandomSource((options.Seed * 397) ^ playerId.Value)));
     }
 
     private void SeedExpandedLaneBotOpeners()
