@@ -612,16 +612,21 @@
 }
 
 /*
- * Fifteen icons, five to a row. The wrap lands exactly on the category boundaries — CORE, SUPPORT
- * and ELITE are five apiece, as are ARCANE, FOUNDRY and GROVE — so the grouping reads off the
- * layout without needing three headings.
+ * The whole half, grouped one row per category, so the grouping reads off the layout without
+ * needing three headings. Rows are built in code rather than produced by a wrap: a wrap only
+ * lands on the category boundaries while every category is the same size, and it stopped doing
+ * that the moment a sixth Arcane tower was added.
  */
 .ltw-codex-rail {
-    flex-direction: row;
-    flex-wrap: wrap;
-    justify-content: center;
+    flex-direction: column;
     margin-top: 18px;
     margin-bottom: 14px;
+}
+
+/* One row per category, built explicitly rather than left to a wrap — see CodexScreenView.BuildRail. */
+.ltw-codex-rail-row {
+    flex-direction: row;
+    justify-content: center;
 }
 
 .ltw-codex-chip {
@@ -673,4 +678,34 @@
     width: 160px;
     margin-top: 0;
     margin-bottom: 0;
+}
+
+/*
+ * The no-model state. Stats land before art on this roster — the Twin Crescent Ward shipped
+ * playable with no prefab, no icon and no visual profile — so "this unit exists and its model does
+ * not" is a state the codex genuinely has to render, not a defensive branch.
+ *
+ * Hidden by default and shown by class, so the normal case costs no layout.
+ */
+.ltw-codex-pending {
+    display: none;
+}
+
+.ltw-codex-pending.is-shown {
+    display: flex;
+    flex-grow: 1;
+    font-size: 26px;
+    letter-spacing: 5px;
+    color: rgb(104, 122, 158);
+    -unity-font-style: bold;
+    -unity-text-align: middle-center;
+}
+
+/* A rail chip standing in for an icon that has not been drawn yet. */
+.ltw-codex-chip--textual {
+    font-size: 20px;
+    letter-spacing: 1px;
+    -unity-font-style: bold;
+    color: rgb(150, 168, 205);
+    white-space: normal;
 }

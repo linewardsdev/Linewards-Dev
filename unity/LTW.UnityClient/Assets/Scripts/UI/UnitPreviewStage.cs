@@ -100,20 +100,32 @@ namespace LTW.UnityClient.UI
         /// <summary>Content id of whatever is currently on the stage, empty when it is clear.</summary>
         public string CurrentUnitId => currentUnitId;
 
-        /// <summary>Puts a tower on the stage, by simulation content id (e.g. "tower.relay").</summary>
-        public void ShowTower(string contentId)
+        /// <summary>
+        /// Puts a tower on the stage, by simulation content id (e.g. "tower.relay"). False when the
+        /// roster carries this tower but its art does not exist yet.
+        /// </summary>
+        /// <remarks>
+        /// A missing model is a reportable state, not an exception. Stats land before art — the Twin
+        /// Crescent Ward shipped playable with no prefab, icon or visual profile at all — so the
+        /// codex has to have something to say about a unit it cannot draw. Warning rather than
+        /// error, because <c>CodexRosterCheck</c> is what fails a build over this and it names
+        /// every gap at once; a runtime error here would be a second, noisier report of a condition
+        /// that is already known and already tracked.
+        /// </remarks>
+        public bool ShowTower(string contentId)
         {
-            if (currentUnitId == contentId)
-            {
-                return;
-            }
-
             towerLibrary ??= Resources.Load<TowerVisualLibrary>("TowerVisualLibrary");
             var profile = towerLibrary != null ? towerLibrary.FindProfile(contentId) : null;
             if (profile == null || profile.Prefab == null)
             {
-                Debug.LogError($"CODEX no tower visual profile with a prefab for '{contentId}'.");
-                return;
+                Debug.LogWarning($"CODEX '{contentId}' has no tower visual profile with a prefab; showing the no-model state.");
+                Clear();
+                return false;
+            }
+
+            if (currentUnitId == contentId)
+            {
+                return true;
             }
 
             Mount(
@@ -121,25 +133,28 @@ namespace LTW.UnityClient.UI
                 profile.Prefab,
                 profile.HasScale ? profile.Scale : Vector3.one,
                 TowerVisualTuning.SpinPartRestTiltDegrees(profile.Role));
+            return true;
         }
 
         /// <summary>Puts a creep on the stage, by simulation content id (e.g. "creep.wisp").</summary>
-        public void ShowCreep(string contentId)
+        public bool ShowCreep(string contentId)
         {
-            if (currentUnitId == contentId)
-            {
-                return;
-            }
-
             creepLibrary ??= Resources.Load<CreepVisualLibrary>("CreepVisualLibrary");
             var profile = creepLibrary != null ? creepLibrary.FindProfile(contentId) : null;
             if (profile == null || profile.Prefab == null)
             {
-                Debug.LogError($"CODEX no creep visual profile with a prefab for '{contentId}'.");
-                return;
+                Debug.LogWarning($"CODEX '{contentId}' has no creep visual profile with a prefab; showing the no-model state.");
+                Clear();
+                return false;
+            }
+
+            if (currentUnitId == contentId)
+            {
+                return true;
             }
 
             Mount(contentId, profile.Prefab, profile.HasScale ? profile.Scale : Vector3.one, spinPartRestTilt: 0f);
+            return true;
         }
 
         /// <summary>Empties the stage and stops the camera. Called when the codex closes.</summary>
@@ -163,6 +178,18 @@ namespace LTW.UnityClient.UI
             if (stageCamera != null)
             {
                 stageCamera.enabled = false;
+            }
+
+            // Wipe the target too. A disabled camera stops writing but does not erase, so the
+            // texture keeps the last unit it drew — which is how a codex entry with no model of its
+            // own ends up displaying the previous tower's, and how reopening the screen flashes
+            // whatever was on it when it closed.
+            if (texture != null)
+            {
+                var previous = RenderTexture.active;
+                RenderTexture.active = texture;
+                GL.Clear(true, true, new Color(0f, 0f, 0f, 0f));
+                RenderTexture.active = previous;
             }
         }
 

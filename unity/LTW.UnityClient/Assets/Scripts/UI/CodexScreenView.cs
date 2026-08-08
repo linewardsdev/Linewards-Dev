@@ -53,13 +53,14 @@ namespace LTW.UnityClient.UI
         private readonly Label? blurb;
         private readonly Label? traits;
         private readonly VisualElement? preview;
+        private readonly Label? previewPending;
         private readonly VisualElement? stats;
         private readonly VisualElement? rail;
         private readonly Button? tabWards;
         private readonly Button? tabCreeps;
 
         private UnitPreviewStage? stage;
-        private readonly List<VisualElement> chips = new();
+        private VisualElement[] chips = System.Array.Empty<VisualElement>();
 
         private bool showingCreeps;
         private int index;
@@ -79,6 +80,7 @@ namespace LTW.UnityClient.UI
             blurb = root.Q<Label>("codex-blurb");
             traits = root.Q<Label>("codex-traits");
             preview = root.Q<VisualElement>("codex-preview");
+            previewPending = root.Q<Label>("codex-preview-pending");
             stats = root.Q<VisualElement>("codex-stats");
             rail = root.Q<VisualElement>("codex-rail");
             tabWards = root.Q<Button>("codex-tab-wards");
@@ -92,7 +94,13 @@ namespace LTW.UnityClient.UI
             BuildRail();
         }
 
-        /// <summary>How many units are in the half currently shown. Both halves hold fifteen.</summary>
+        /// <summary>How many units are in the half currently shown.</summary>
+        /// <remarks>
+        /// Read from the catalog every time rather than cached or written down. The halves were the
+        /// same size when this was written and are not any more — the Twin Crescent Ward made the
+        /// wards sixteen against fifteen creeps — and a roster that grows on one side is the normal
+        /// case, not the exception.
+        /// </remarks>
         private int Count => showingCreeps ? CreepCatalog.Entries.Length : TowerCatalog.Entries.Length;
 
         /// <summary>Called every frame the codex is up; rebuilds only when the selection moved.</summary>
@@ -155,13 +163,18 @@ namespace LTW.UnityClient.UI
         // ------------------------------------------------------------------------------ rail
 
         /// <summary>
-        /// Builds the icon strip: every unit in the current half, five to a row.
+        /// Builds the icon strip: every unit in the current half, one row per category.
         /// </summary>
         /// <remarks>
-        /// The whole half at once rather than the current category only. Fifteen chips wrap to
-        /// three rows of five, which lands exactly on the category boundaries, so the grouping
-        /// reads without a heading — and it means any unit is one tap away instead of up to
-        /// fifteen presses of NEXT.
+        /// The whole half at once rather than the current category only, so any unit is one tap
+        /// away instead of up to fifteen presses of NEXT.
+        ///
+        /// One row PER CATEGORY, explicitly, rather than a wrap. The first version let fifteen
+        /// chips wrap five to a row, which landed on the category boundaries exactly because every
+        /// category held five — and then the Twin Crescent Ward made Arcane six, so the wrap put
+        /// one Arcane tower at the head of a row of Foundry ones and the grouping stopped meaning
+        /// anything. A layout whose correctness depends on every category being the same size is a
+        /// layout that breaks on the next unit added; this one does not care.
         /// </remarks>
         private void BuildRail()
         {
@@ -171,10 +184,36 @@ namespace LTW.UnityClient.UI
             }
 
             rail.Clear();
-            chips.Clear();
 
             var count = Count;
-            for (var slot = 0; slot < count; slot++)
+            chips = new VisualElement[count];
+
+            var categories = showingCreeps ? CreepCatalog.CategoryLabels.Length : TowerCatalog.CategoryLabels.Length;
+            for (var category = 0; category < categories; category++)
+            {
+                var row = new VisualElement { name = $"codex-rail-row-{category}" };
+                row.AddToClassList("ltw-codex-rail-row");
+                row.pickingMode = PickingMode.Ignore;
+
+                for (var slot = 0; slot < count; slot++)
+                {
+                    if (CategoryOf(slot) != category)
+                    {
+                        continue;
+                    }
+
+                    row.Add(BuildChip(slot));
+                }
+
+                rail.Add(row);
+            }
+        }
+
+        private int CategoryOf(int slot) =>
+            showingCreeps ? CreepCatalog.Entries[slot].Category : TowerCatalog.Entries[slot].Category;
+
+        private VisualElement BuildChip(int slot)
+        {
             {
                 var target = slot;
                 var chip = new Button(() =>
@@ -196,13 +235,19 @@ namespace LTW.UnityClient.UI
                 }
                 else
                 {
-                    // Never silent. An unresolved image in this project substitutes a placeholder
-                    // rather than failing, which is exactly how a missing brand mark shipped once.
-                    Debug.LogError($"CODEX missing icon Resources/Art/UI/Icons/{iconName}.");
+                    // Falls back to the unit's short label rather than an empty square, because a
+                    // roster entry whose icon has not been drawn yet is a real state here — an
+                    // unlabelled blank chip is indistinguishable from a layout bug, and it is not
+                    // tappable-looking, so the unit becomes unreachable from the rail.
+                    chip.text = showingCreeps
+                        ? CreepCatalog.Entries[slot].ShortLabel
+                        : TowerCatalog.Entries[slot].ShortLabel;
+                    chip.AddToClassList("ltw-codex-chip--textual");
+                    Debug.LogWarning($"CODEX no icon at Resources/Art/UI/Icons/{iconName}; the rail is showing its label instead.");
                 }
 
-                rail.Add(chip);
-                chips.Add(chip);
+                chips[slot] = chip;
+                return chip;
             }
         }
 
@@ -212,9 +257,9 @@ namespace LTW.UnityClient.UI
         {
             EnsureStage();
 
-            for (var slot = 0; slot < chips.Count; slot++)
+            for (var slot = 0; slot < chips.Length; slot++)
             {
-                chips[slot].EnableInClassList("ltw-codex-chip--current", slot == index);
+                chips[slot]?.EnableInClassList("ltw-codex-chip--current", slot == index);
             }
 
             if (tabWards != null)
@@ -257,8 +302,7 @@ namespace LTW.UnityClient.UI
         private void RenderTower(TowerCatalog.Entry entry)
         {
             var definition = FindTower(entry.ContentId);
-            stage?.ShowTower(entry.ContentId);
-            BindPreview();
+            BindPreview(stage != null && stage.ShowTower(entry.ContentId));
 
             if (eyebrow != null)
             {
@@ -304,8 +348,7 @@ namespace LTW.UnityClient.UI
         private void RenderCreep(CreepCatalog.Entry entry)
         {
             var definition = FindCreep(entry.ContentId);
-            stage?.ShowCreep(entry.ContentId);
-            BindPreview();
+            BindPreview(stage != null && stage.ShowCreep(entry.ContentId));
 
             if (eyebrow != null)
             {
@@ -353,21 +396,35 @@ namespace LTW.UnityClient.UI
         }
 
         /// <summary>
-        /// Points the preview element at the stage's render texture.
+        /// Points the preview element at the stage's render texture, or at the no-model state.
         /// </summary>
         /// <remarks>
         /// Re-assigned on every render rather than once, because the texture does not exist until
         /// the stage has mounted its first subject — binding it in the constructor would bind null
         /// and never recover.
+        ///
+        /// The no-model branch is load-bearing rather than defensive. Stats land before art on this
+        /// roster, so a unit with no prefab is a state the codex will genuinely be asked to show;
+        /// without this it kept whatever texture the PREVIOUS unit left bound, which is worse than
+        /// an empty card because it silently attributes one tower's model to another.
         /// </remarks>
-        private void BindPreview()
+        private void BindPreview(bool hasModel)
         {
-            if (preview == null || stage?.Texture == null)
+            if (preview == null)
             {
                 return;
             }
 
-            preview.style.backgroundImage = new StyleBackground(Background.FromRenderTexture(stage.Texture));
+            if (hasModel && stage?.Texture != null)
+            {
+                preview.style.backgroundImage = new StyleBackground(Background.FromRenderTexture(stage.Texture));
+            }
+            else
+            {
+                preview.style.backgroundImage = StyleKeyword.None;
+            }
+
+            previewPending?.EnableInClassList("is-shown", !hasModel);
         }
 
         private float TicksPerSecond =>

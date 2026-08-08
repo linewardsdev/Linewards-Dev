@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Reflection;
+using LTW.UnityClient.Simulation;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -7,8 +8,8 @@ using UnityEngine.UIElements;
 namespace LTW.UnityClient.Editor
 {
     /// <summary>
-    /// Opens the codex from the title screen in Play Mode, walks all thirty units, and asserts the
-    /// preview stage is actually drawing something.
+    /// Opens the codex from the title screen in Play Mode, walks every unit in both halves, and
+    /// asserts the preview stage is actually drawing something.
     /// </summary>
     /// <remarks>
     /// The thing this exists to catch is a BLANK STAGE. A camera that renders nothing produces a
@@ -77,6 +78,7 @@ namespace LTW.UnityClient.Editor
             private int locateAttempts;
             private int visited;
             private int variedTextures;
+            private int modelless;
 
             private void Update()
             {
@@ -126,15 +128,19 @@ namespace LTW.UnityClient.Editor
                         InspectCurrentUnit();
                         visited++;
 
-                        // Fifteen wards, then the same again for creeps after the tab flips.
-                        if (visited == 15)
+                        // Counts come from the catalogs, never from a literal. They were both 15
+                        // when this was written and the wards are 16 now, so a hardcoded 15/30 did
+                        // not fail — it quietly walked fifteen of the sixteen wards and reported
+                        // success. A coverage check that silently under-covers as the roster grows
+                        // is worse than no check, because it reads as a passing one.
+                        if (visited == TowerCatalog.Entries.Length)
                         {
                             Click(root.Q<Button>("codex-tab-creeps"));
                             settleFrames = SettleFramesPerUnit;
                             return;
                         }
 
-                        if (visited >= 30)
+                        if (visited >= TowerCatalog.Entries.Length + CreepCatalog.Entries.Length)
                         {
                             step++;
                             settleFrames = 2;
@@ -159,17 +165,18 @@ namespace LTW.UnityClient.Editor
                             failures.Add("BACK from the codex did not return to the title screen");
                         }
 
-                        if (variedTextures == 0)
+                        var drawable = visited - modelless;
+                        if (drawable > 0 && variedTextures == 0)
                         {
                             failures.Add(
                                 "the preview stage produced a uniform texture for every one of the " +
-                                $"{visited} units — the stage is rendering nothing");
+                                $"{drawable} units that have a model — the stage is rendering nothing");
                         }
-                        else if (variedTextures < visited)
+                        else if (variedTextures < drawable)
                         {
                             failures.Add(
-                                $"only {variedTextures} of {visited} units rendered anything; the rest " +
-                                "produced a uniform texture");
+                                $"only {variedTextures} of {drawable} units with a model rendered anything; " +
+                                "the rest produced a uniform texture");
                         }
 
                         Finish(null);
@@ -201,6 +208,17 @@ namespace LTW.UnityClient.Editor
                 if (traits == null || string.IsNullOrWhiteSpace(traits.text) || traits.text == "-")
                 {
                     failures.Add($"codex entry {where} ({label?.text}) has no trait line");
+                }
+
+                // A unit whose art has not been drawn yet is an expected state, not a failure — the
+                // Twin Crescent Ward shipped playable with no prefab at all. It is counted
+                // separately rather than skipped, so "the roster has gaps" and "the stage is
+                // broken" stay distinguishable in the result line.
+                var pending = root.Q<Label>("codex-preview-pending");
+                if (pending != null && pending.ClassListContains("is-shown"))
+                {
+                    modelless++;
+                    return;
                 }
 
                 var stage = FindAnyObjectByType<LTW.UnityClient.UI.UnitPreviewStage>();
@@ -337,8 +355,10 @@ namespace LTW.UnityClient.Editor
                 if (failures.Count == 0)
                 {
                     Debug.Log(
-                        $"CODEX OK: opened from the title, walked {visited} units, " +
-                        $"{variedTextures} of them rendered a non-uniform preview, and BACK returned to the title.");
+                        $"CODEX OK: opened from the title, walked all {visited} units " +
+                        $"({TowerCatalog.Entries.Length} wards + {CreepCatalog.Entries.Length} creeps), " +
+                        $"{variedTextures} rendered a non-uniform preview, {modelless} " +
+                        $"{(modelless == 1 ? "has" : "have")} no model yet, and BACK returned to the title.");
                 }
 
                 SessionState.SetBool(SessionKey, false);

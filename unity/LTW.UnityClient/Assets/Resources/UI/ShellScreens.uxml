@@ -67,7 +67,9 @@
                         <ui:Button name="codex-tab-creeps" text="CREEPS" class="ltw-tab" />
                     </ui:VisualElement>
 
-                    <ui:VisualElement name="codex-preview" class="ltw-codex-preview" />
+                    <ui:VisualElement name="codex-preview" class="ltw-codex-preview">
+                        <ui:Label name="codex-preview-pending" text="MODEL PENDING" class="ltw-codex-pending" picking-mode="Ignore" />
+                    </ui:VisualElement>
 
                     <ui:Label name="codex-eyebrow" text="WARD · ARCANE" class="ltw-eyebrow" picking-mode="Ignore" />
                     <ui:Label name="codex-name" text="ARROW TOWER" class="ltw-codex-name" picking-mode="Ignore" />
