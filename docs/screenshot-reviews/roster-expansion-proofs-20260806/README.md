@@ -76,6 +76,36 @@ adjust. Two screenshots of judgement per iteration. The remaining six cross-mesh
 Wall) now have a proven procedure. Exported over the failed FBX as the real
 `shardrunner_kitbash_runner_swarm_v01_prepared.fbx` — six of twelve kitbash units staged.
 
+## Cross-mesh wave, 2026-08-07 — all six converge in one session
+
+The remaining six units, each placed by eye in the live MCP session and judged per
+iteration (`crossmesh_wave_lineup.png`, left to right):
+
+- **Bramble Wall** (thorn snare + barricade): PASS, 2 iterations. The bastion squashed to
+  a low rampart with the thorn crown growing through its bore.
+- **Mycelial Node** (spore cloud ×3 + sapling): PASS, 2 iterations. Mushroom clusters
+  nestled into the stump's roots — reads as one colonized organism.
+- **Cracked Colossus** (colossus + swarm ×2): PASS, 3 iterations. The lesson generalized:
+  matching palettes camouflage — eruptions had to BREAK the silhouette (back crystal
+  cresting above the head) before "cracked" read at all.
+- **Lens Ward** (control + prism spire): PASS, 2 iterations. The control ward's empty
+  ring-gimbal was a ready socket; the split-parts prism file made the lens free — the
+  Twin Crescent convention paying out again.
+- **Magnetron Spire** (tesla + relay): PASS, 1 iteration. The coil pagoda planted on the
+  relay's dish, floating panels ringing the mast.
+- **Gloom Chanter** (shade + wisp ×2): PASS, 2 iterations. Two amber lantern satellites at
+  the wraith's shoulders — first attempt repeated the dominance trap (satellites at 0.42
+  swallowed the host), fixed at 0.19/0.15.
+
+Session pattern that held across all six: stage donors → look → place → look → adjust,
+converging in 1–3 iterations each. The recurring failure mode is always the same —
+attachment dominance — and always visible in one screenshot.
+
+**All twelve kitbash units of the plan now exist as staged prepared FBX.** The art half of
+the sibling wave is done; what remains before any of them are playable is the plan's
+per-unit checklist (promotion, materials, AO, LODs, rigs for the creeps, definitions,
+tests) and the six GENERATE slots.
+
 ## Files
 
 | File | Shows |
@@ -86,6 +116,7 @@ Wall) now have a proven procedure. Exported over the failed FBX as the real
 | `sibling_wave_pairs.png` | The four sibling-wave pairs, parent beside kitbash |
 | `sibling_wave_game_size.png` | The sibling wave at ~game scale |
 | `shard_runner_interactive_pair.png` | Shard Runner beside its parent — the interactive-session pass |
+| `crossmesh_wave_lineup.png` | All six cross-mesh units, one frame |
 
 Exported prepared-convention FBX (staged, not yet promoted): Twin Crescent under
 `AIStaging/Models/Towers/Arrow/AIDrop/`, Shard Runner under `Creeps/Runner/AIDrop/` —
