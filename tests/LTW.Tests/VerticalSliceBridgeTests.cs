@@ -206,9 +206,22 @@ public sealed class VerticalSliceBridgeTests
         }
 
         var snapshot = simulation.GetSnapshot();
-        Assert.Contains(snapshot.Towers, tower => tower.OwnerId.Equals(new PlayerId(2)) && tower.TowerId.Equals(SampleVerticalSliceContent.TowerId));
-        Assert.Contains(snapshot.Towers, tower => tower.OwnerId.Equals(new PlayerId(3)) && tower.TowerId.Equals(SampleVerticalSliceContent.ControlTowerId));
-        Assert.Contains(snapshot.Towers, tower => tower.OwnerId.Equals(new PlayerId(2)) && tower.TowerId.Equals(SampleVerticalSliceContent.PulseTowerId));
+        // Asserts the job, not the model. Build orders name roles now, so which tower fills the
+        // opening Dps slot is a content decision (currently the cheapest one in scope) rather than
+        // something a bot test should pin.
+        var content = SampleVerticalSliceContent.Create();
+        Assert.Contains(snapshot.Towers, tower =>
+            tower.OwnerId.Equals(new PlayerId(2))
+            && content.Towers.First(definition => definition.Id.Equals(tower.TowerId)).Role == LTW.Simulation.Content.TowerRole.Dps);
+        // P3 is Defensive and opens on Brake; P2 is Balanced and reaches Aoe. Which tower fills
+        // either is content's decision -- the planner takes the cheapest in the role -- so pinning
+        // Control Ward and Pulse Ward here would be asserting a price list rather than a build plan.
+        Assert.Contains(snapshot.Towers, tower =>
+            tower.OwnerId.Equals(new PlayerId(3))
+            && RoleOf(content, tower.TowerId) == LTW.Simulation.Content.TowerRole.Brake);
+        Assert.Contains(snapshot.Towers, tower =>
+            tower.OwnerId.Equals(new PlayerId(2))
+            && RoleOf(content, tower.TowerId) == LTW.Simulation.Content.TowerRole.Aoe);
         Assert.True(snapshot.Towers.Count(tower => tower.OwnerId.Equals(new PlayerId(2))) >= 3);
         Assert.True(snapshot.Towers.Count(tower => tower.OwnerId.Equals(new PlayerId(3))) >= 3);
     }
@@ -391,7 +404,11 @@ public sealed class VerticalSliceBridgeTests
         // spending resolves matches faster than the old tick-scheduled bots did, and a long-enough
         // window can run past one side's elimination, leaving only the other bot's decisions in
         // the last-12 "recent decisions" diagnostic window.
-        for (var tick = 0; tick < 100; tick++)
+        // 100 to 260. P3 is Defensive and cannot send until it holds 4 towers; its opening role is
+        // Brake, which now resolves to a 34-gold Thorn Snare where the order used to name a
+        // 24-gold Control Ward, so it reaches coverage later. What is under test is that it sends
+        // once covered, not that it covers by tick 100.
+        for (var tick = 0; tick < 260; tick++)
         {
             simulation.AdvanceOneTick();
         }
@@ -515,7 +532,9 @@ public sealed class VerticalSliceBridgeTests
         }
 
         Assert.Contains(events, simulationEvent => simulationEvent is CreepDamagedEvent damaged && damaged.DefenderId.Equals(playerOne));
-        Assert.Equal(goldBeforeCombat + 1, simulation.GetSnapshot().Players.Get(playerOne).Gold.Amount);
+        // 3, not 1. Relay Ward's signal gold was raised so Arcane's economic identity is worth the
+        // line having no brake of its own.
+        Assert.Equal(goldBeforeCombat + 3, simulation.GetSnapshot().Players.Get(playerOne).Gold.Amount);
     }
 
     /// <summary>
@@ -1086,8 +1105,11 @@ public sealed class VerticalSliceBridgeTests
         var options = LocalMatchOptions.Default.WithLane(2, profile: BotDecisionProfile.Balanced).WithLane(3, enabled: false);
         var simulation = new LocalVerticalSlice(SampleVerticalSliceContent.Create(), options);
 
-        // Let P2 (Balanced, defends lane 2) finish its opening tower package first.
-        for (var tick = 0; tick < 10; tick++)
+        // 10 to 140. Build orders name roles now, and a role resolves to the cheapest tower that
+        // does the job, so the opening package costs a different amount and lands at a different
+        // tick. The property under test is that P2 finishes its package before the pressure arrives,
+        // not that it finishes by tick 10.
+        for (var tick = 0; tick < 140; tick++)
         {
             simulation.AdvanceOneTick();
         }
@@ -1144,4 +1166,9 @@ public sealed class VerticalSliceBridgeTests
     }
 
     private static LocalMatchOptions ThreeLaneOptions() => new(laneCount: 3);
+
+    /// <summary>The authored role of a tower, for tests that assert a job rather than a model.</summary>
+    private static LTW.Simulation.Content.TowerRole RoleOf(
+        LTW.Simulation.Content.ContentCatalog content, LTW.Simulation.Content.ContentId towerId) =>
+        content.Towers.First(definition => definition.Id.Equals(towerId)).Role;
 }

@@ -114,15 +114,14 @@ public sealed class ContentValidator
                 errors.Add($"Bot profile '{profile.Id}' cannot contain negative tuning values.");
             }
 
-            // Checked here for the same reason a tech's unlocks are: a build order is a list of
-            // references into this catalog, and the bot resolves them at match speed. A typo would
-            // otherwise surface as a throw from the middle of a tick rather than as a content error
-            // before play — see docs/ARCHITECTURE.md's Content And Persistence section.
-            foreach (var towerId in profile.BuildOrder)
+            // Roles rather than tower ids. A build order names jobs now, so the thing worth validating
+            // is that some tower somewhere can do each job — an unfillable role would leave every bot
+            // falling back to Dps forever without ever saying why.
+            foreach (var role in profile.BuildOrder)
             {
-                if (!towerIds.Contains(towerId))
+                if (!catalog.Towers.Any(tower => tower.Role == role))
                 {
-                    errors.Add($"Bot profile '{profile.Id}' build order references missing tower '{towerId}'.");
+                    errors.Add($"Bot profile '{profile.Id}' asks for role {role}, which no tower in this catalog fills.");
                 }
             }
         }

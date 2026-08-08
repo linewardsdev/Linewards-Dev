@@ -23,7 +23,7 @@ public sealed class LocalThreePlayerMatchTests
         var minimumCoverage = new Dictionary<int, int> { [2] = 3, [3] = 4 };
         var validated = new HashSet<(long Tick, int PlayerId)>();
 
-        for (var tick = 0; tick < 60; tick++)
+        for (var tick = 0; tick < 200; tick++)
         {
             slice.AdvanceOneTick();
             var snapshot = slice.GetSnapshot();
