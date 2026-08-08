@@ -61,7 +61,38 @@ public sealed class BotController
         this.profile = profile;
         this.creepId = creepId;
         this.random = random;
+
+        // The line this bot commits to, drawn once from its own seeded stream.
+        //
+        // This is the first thing in the simulation the match seed actually reaches, and it is a
+        // decision worth spending it on: it is not pinned to an exact value by any test, and it is
+        // not upstream of the build step's gold — the two properties that made send quantity the
+        // wrong home for it twice (item 42).
+        //
+        // Chosen rather than discovered, because under the category lock a bot that simply built
+        // and committed to whatever came first would commit to the same line every time: with
+        // role-based orders every profile opens on the cheapest tower for its first role, which is
+        // the same tower for all of them. Eight seats all locked to Arcane is not a table.
+        preferredTowerLine = (int)(random.NextDouble() * PlayerEconomyState.CategoryCount);
+        if (preferredTowerLine >= PlayerEconomyState.CategoryCount)
+        {
+            preferredTowerLine = PlayerEconomyState.CategoryCount - 1;
+        }
     }
+
+    /// <summary>The tower line this bot intends to commit to, before it has built anything.</summary>
+    private readonly int preferredTowerLine;
+
+    /// <summary>Which line this bot should build from right now.</summary>
+    /// <remarks>
+    /// Its committed line once it has one, and its intended line before that. Returning the
+    /// preference pre-commitment is what makes the very first tower land in the line the bot meant
+    /// to play, rather than committing it to whichever line happened to hold the cheapest opener.
+    /// </remarks>
+    private int BuildLineFor(PlayerEconomyState player) =>
+        player.ChosenTowerLine == PlayerEconomyState.UnchosenTowerLine
+            ? preferredTowerLine
+            : player.ChosenTowerLine;
 
     public BotDecisionProfile Profile => profile;
 
@@ -318,7 +349,8 @@ public sealed class BotController
             profileDefinition,
             match.TowersOwnedBy(playerId).Count,
             match.Content,
-            match.PlayerState(playerId).ChosenTowerLine);
+            BuildLineFor(match.PlayerState(playerId)),
+            match.PlayerState(playerId).Gold.Amount - profileDefinition.MinimumGoldReserve);
         if (towerId is null)
         {
             return;

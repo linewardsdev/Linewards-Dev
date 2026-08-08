@@ -58,12 +58,27 @@ public static class BotBuildPlanner
     ///
     /// Cheapest-first within a role so a bot opens with what it can afford rather than saving for
     /// the dearest thing that happens to match.
+    ///
+    /// <paramref name="budget"/> is what the bot may actually spend this tick (gold above its
+    /// reserve floor), and the role is resolved against what that buys before it is resolved against
+    /// the line as a whole. Without it a bot idles at full pockets whenever its next role happens to
+    /// be dear: the lines are not evenly stocked, and the cheapest Dps costs 14 in Arcane, 30 in
+    /// Foundry and 46 in Grove, so under the category lock a Grove seat banked three times as long
+    /// before its first tower and stayed behind for the rest of the match. Measured at 600 ticks,
+    /// seeds 1-3.
+    ///
+    /// Falling back to the cheapest AFFORDABLE tower rather than waiting is also what a player does:
+    /// Grove's 10g Sapling is a wall rather than a gun, but it mazes, and the placement search scores
+    /// route length above coverage precisely because lengthening the walk helps every tower built
+    /// after it. When nothing at all is affordable the whole line stays in scope and the caller's
+    /// reserve check skips the build, which is the behaviour this had before.
     /// </remarks>
     public static ContentId? NextTower(
         BotProfileDefinition profile,
         int ownedTowerCount,
         ContentCatalog content,
-        int lineIndex)
+        int lineIndex,
+        int budget = int.MaxValue)
     {
         var buildOrder = profile.BuildOrder;
         if (buildOrder.Count == 0)
@@ -80,9 +95,15 @@ public static class BotBuildPlanner
             return null;
         }
 
-        var match = inLine.Where(tower => tower.Role == wanted).OrderBy(tower => tower.Cost.Amount).FirstOrDefault()
-            ?? inLine.Where(tower => tower.Role == TowerRole.Dps).OrderBy(tower => tower.Cost.Amount).FirstOrDefault()
-            ?? inLine.OrderBy(tower => tower.Cost.Amount).First();
+        // Nothing affordable leaves the full line in scope so the caller still sees a tower and its
+        // own reserve check makes the decision to wait — the planner does not silently return null
+        // for a poor bot, because "no tower for this role" and "cannot pay yet" are different states.
+        var affordable = inLine.Where(tower => tower.Cost.Amount <= budget).ToList();
+        var pool = affordable.Count > 0 ? affordable : inLine;
+
+        var match = pool.Where(tower => tower.Role == wanted).OrderBy(tower => tower.Cost.Amount).FirstOrDefault()
+            ?? pool.Where(tower => tower.Role == TowerRole.Dps).OrderBy(tower => tower.Cost.Amount).FirstOrDefault()
+            ?? pool.OrderBy(tower => tower.Cost.Amount).First();
 
         return match.Id;
     }

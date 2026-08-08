@@ -20,7 +20,10 @@ public sealed class TowerLineUpgradeTests
     private static readonly LaneId Lane = new(1);
     private static readonly GridPosition ArrowCell = new(2, 4);
     private static readonly GridPosition PrismCell = new(4, 6);
-    private static readonly GridPosition GatlingCell = new(2, 8);
+    /// <summary>The other line's tower, on a second seat — see <see cref="Slice"/>.</summary>
+    private static readonly GridPosition OtherLineCell = new(3, 7);
+    private static readonly PlayerId OtherPlayer = new(2);
+    private static readonly LaneId OtherLane = new(2);
 
     private static int CostOf(ContentId id) => SampleVerticalSliceContent.Create().Towers
         .Single(tower => tower.Id.Equals(id)).Cost.Amount;
@@ -33,10 +36,17 @@ public sealed class TowerLineUpgradeTests
         slice.GetSnapshot().Towers.Single(tower => tower.Position.Equals(cell)).Tier;
 
     /// <summary>
-    /// An Arcane Arrow and Prism plus a Foundry Gatling, Arcane raised to tier 2, and the player
-    /// left holding EXACTLY <paramref name="goldAfterSetup"/>.
+    /// An Arcane Arrow and Prism on the seat under test, a Foundry Gatling on a SECOND seat, Arcane
+    /// raised to tier 2, and the player left holding EXACTLY <paramref name="goldAfterSetup"/>.
     /// </summary>
     /// <remarks>
+    /// The Gatling sits on another seat because the category lock (2026-08-08) commits a seat to one
+    /// line with its first tower, so one player can no longer hold both an Arcane and a Foundry tower.
+    /// It is still here for the same reason as before — <c>Raising_a_line_leaves_the_other_lines_alone</c>
+    /// needs a tower the batch must not touch, and with every tower in Arcane a line-filtering bug
+    /// would upgrade them all and go unnoticed. Moving it to a second seat keeps that guard and adds
+    /// one: the batch must not reach across players either.
+    ///
     /// Gold is dialled in by computing the grant rather than by spending down to it, because
     /// GrantLocalPlaytestGold only ever adds. Setting the post-setup balance precisely is the whole
     /// point: the affordability behaviour under test is invisible unless the budget is exact.
@@ -47,7 +57,6 @@ public sealed class TowerLineUpgradeTests
 
         var spend = CostOf(SampleVerticalSliceContent.TowerId)
             + CostOf(SampleVerticalSliceContent.PrismTowerId)
-            + CostOf(SampleVerticalSliceContent.GatlingTowerId)
             + TierTwoCost;
         var grant = goldAfterSetup + spend - Gold(slice);
         Assert.True(grant > 0, $"setup needs a positive grant, got {grant}");
@@ -56,8 +65,10 @@ public sealed class TowerLineUpgradeTests
 
         Assert.True(slice.PlaceTower(Player, Lane, SampleVerticalSliceContent.TowerId, ArrowCell).Accepted);
         Assert.True(slice.PlaceTower(Player, Lane, SampleVerticalSliceContent.PrismTowerId, PrismCell).Accepted);
-        Assert.True(slice.PlaceTower(Player, Lane, SampleVerticalSliceContent.GatlingTowerId, GatlingCell).Accepted);
         Assert.True(slice.BuyCategoryTier(Player, CategoryKind.TowerLine, Arcane, 2).Accepted);
+
+        slice.GrantLocalPlaytestGold(OtherPlayer, new Gold(CostOf(SampleVerticalSliceContent.GatlingTowerId)));
+        Assert.True(slice.PlaceTower(OtherPlayer, OtherLane, SampleVerticalSliceContent.GatlingTowerId, OtherLineCell).Accepted);
 
         Assert.Equal(goldAfterSetup, Gold(slice));
         return slice;
@@ -86,7 +97,7 @@ public sealed class TowerLineUpgradeTests
 
         slice.UpgradeTowerLine(Player, Lane, Arcane);
 
-        Assert.Equal(1, TierOf(slice, GatlingCell));
+        Assert.Equal(1, TierOf(slice, OtherLineCell));
     }
 
     /// <summary>
@@ -178,6 +189,6 @@ public sealed class TowerLineUpgradeTests
         Assert.Equal(Gold(byHand), Gold(batched));
         Assert.Equal(TierOf(byHand, ArrowCell), TierOf(batched, ArrowCell));
         Assert.Equal(TierOf(byHand, PrismCell), TierOf(batched, PrismCell));
-        Assert.Equal(TierOf(byHand, GatlingCell), TierOf(batched, GatlingCell));
+        Assert.Equal(TierOf(byHand, OtherLineCell), TierOf(batched, OtherLineCell));
     }
 }
