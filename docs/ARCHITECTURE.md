@@ -2,7 +2,7 @@
 
 ## Goal
 
-Build a mobile-first Line Tower Wars prototype in Unity and C# that proves the core loop before committing to multiplayer infrastructure. The first playable version runs a complete three-player carousel match on one device with one human player and two simulated opponents.
+Build a mobile-first Line Tower Wars prototype in Unity and C# that proves the core loop before committing to multiplayer infrastructure. The first playable version runs a complete eight-player carousel match on one device with one human player and seven simulated opponents.
 
 The design must keep game rules, simulation, presentation, and future network services separate. `LTW.Simulation` is a pure .NET/C# library with no Unity dependencies. Online multiplayer is a later replacement for the source of player commands, not a rewrite of combat or pathing.
 
@@ -120,7 +120,7 @@ unthrottled, which is safe in-process and is prerequisite work for a networked b
 
 ### Match Simulation
 
-`LTW.Simulation` runs all three lanes, including AI-controlled players. It is pure gameplay logic with no Unity scene-object references, network calls, file writes, or UI dependencies.
+`LTW.Simulation` runs all eight lanes, including AI-controlled players. It is pure gameplay logic with no Unity scene-object references, network calls, file writes, or UI dependencies.
 
 Responsibilities:
 
@@ -203,7 +203,7 @@ Pathing is the principal technical risk, so it should be isolated behind a `Path
 - Creep movement should use cached paths until the grid changes.
 - Unit and projectile pools are owned by presentation, while simulation entities remain lightweight IDs and numeric state.
 
-The first benchmark should simulate three lanes under a heavy send scenario across the available iOS test devices. Record tick duration, active creeps, path recalculation time, memory usage, and dropped render frames. Validate on representative Android hardware before broadening content scope or distribution.
+The first benchmark should simulate eight lanes under a heavy send scenario — the shipped count, and the one where creep and effect counts actually bite across the available iOS test devices. Record tick duration, active creeps, path recalculation time, memory usage, and dropped render frames. Validate on representative Android hardware before broadening content scope or distribution.
 
 ## Testing Strategy
 
@@ -274,7 +274,7 @@ For online play:
 ## Delivery Phases
 
 1. **Local vertical slice:** one lane, one player, fixed waves, placement, basic combat, and profiling.
-2. **Simulated three-player match:** carousel routing, bots, income, elimination, and match results.
+2. **Simulated eight-player match:** carousel routing, bots, income, elimination, and match results.
 3. **Repeatability:** command logs, deterministic seed verification, automated simulation tests, and balance scenarios.
 4. **Device validation:** iOS TestFlight builds across the available test-device matrix, followed by Android internal builds, crash reporting, telemetry, and performance budgets.
 5. **Online spike:** headless authoritative simulation, command transport, and a small private match test.

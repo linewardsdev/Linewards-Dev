@@ -2,7 +2,12 @@
 
 ## Goal
 
-Deliver an offline Unity MVP with one human player, two simulated opponents, a three-player carousel, touch placement, sends, economy, combat, leaks, elimination, replayable results, a coherent local gameplay loop, and later iOS device validation.
+Deliver an offline Unity MVP with one human player, seven simulated opponents, an eight-player carousel, touch placement, sends, economy, combat, leaks, elimination, replayable results, a coherent local gameplay loop, and later iOS device validation.
+
+> **On the player counts below.** Completed MVP-0x entries say "three-player" because three
+> is what those milestones delivered, and they are left as the record of what shipped when.
+> The game now runs **eight** lanes by default (`LocalMatchOptions.laneCount: MaxLaneCount`).
+> Anything still unchecked is stated at eight.
 
 This is a work plan for parallel agents. Every initiative has one owner, an explicit dependency set, and a completion check. An initiative is complete only when its acceptance checks pass, not when code merely exists.
 
@@ -321,7 +326,7 @@ MVP-11 Android compatibility validation
 
 ### Acceptance Checks
 
-- [ ] The complete local three-player match works on the selected Android device.
+- [ ] The complete local eight-player match works on the selected Android device.
 - [ ] The stress scenario completes without corrupted state or a blocker-level performance failure.
 - [ ] Cross-platform behavior differences are either resolved or explicitly accepted for the MVP.
 

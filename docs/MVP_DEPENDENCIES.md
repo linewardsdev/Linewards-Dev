@@ -4,8 +4,8 @@
 
 This document defines the minimum code, tooling, and infrastructure required to ship the first playable Line Tower Wars mobile MVP:
 
-- One mobile player and two simulated opponents.
-- A complete three-player carousel match on one device.
+- One mobile player and seven simulated opponents.
+- A complete eight-player carousel match on one device.
 - Touch placement, sending, economy, combat, leaks, elimination, and match results.
 - Repeatable tests and device performance evidence.
 
@@ -72,7 +72,7 @@ These are code dependencies, not optional design notes. The MVP cannot prove its
 | Seeded random source | Reproducible random decisions for bots and any randomized gameplay | Must have |
 | Content definitions | Versioned tower, creep, tech, map, and bot parameters loaded outside rule code | Must have |
 | Replay record | Seed, content version, and accepted command log | Should have before balance work |
-| Bot controller | Greedy, balanced, and defensive command producers using the normal command model | Must have for the three-player MVP |
+| Bot controller | Greedy, balanced, and defensive command producers using the normal command model | Must have for the eight-player MVP |
 
 ### Explicitly Avoid In The Simulation Core
 
@@ -166,7 +166,7 @@ The game is not ready to expand content until it can produce evidence from real 
 Required measurements:
 
 - Simulation tick time, including worst-case path validation.
-- Render frame time and dropped frames during a heavy three-lane send.
+- Render frame time and dropped frames during a heavy eight-lane send (eight is the shipped count; three understates the load by more than half).
 - Active creep, projectile, and pooled-presentation-object counts.
 - Managed and native memory use across a complete match.
 - Battery and thermal behavior during an extended session.
@@ -180,7 +180,7 @@ Do not introduce these into the simulated MVP:
 
 | Dependency | Reason To Defer | Trigger To Revisit |
 | --- | --- | --- |
-| `LTW.MatchServer` runtime | No online players yet | Local three-player loop is fun and stable. |
+| `LTW.MatchServer` runtime | No online players yet | Local eight-player loop is fun and stable. |
 | WebSocket transport | No remote clients yet | Private online match spike. |
 | Container image and registry | No server deployment yet | First headless server proof. |
 | Cloud host or managed game hosting | No concurrency or regional demand yet | External multiplayer test with real players. |
@@ -196,7 +196,7 @@ Do not introduce these into the simulated MVP:
 2. Add fixed ticks, match state, commands, content loading, economy, and grid/path validation.
 3. Add one tower, one creep, one map, one player, and tests for legal and illegal placement.
 4. Add the Unity adapter, touch placement, basic rendering, and object pooling only when spawning repeats.
-5. Add carousel sends, two bots, leaks, life, elimination, and results.
+5. Add carousel sends, seven bots, leaks, life, elimination, and results.
 6. Add replay records, deterministic scenarios, and heavy-send benchmarks.
 7. Produce an iOS TestFlight build and validate across the available iOS devices.
 8. Produce an Android internal build for cross-platform validation.
@@ -207,8 +207,8 @@ Do not introduce these into the simulated MVP:
 The foundational dependency work is complete when:
 
 - `dotnet test` runs the simulation suite without Unity installed or open.
-- Unity runs a three-player match by referencing `LTW.Simulation`.
-- Two bots use the same command and validation path as the player.
+- Unity runs an eight-player match by referencing `LTW.Simulation`.
+- Bots use the same command and validation path as the player.
 - A replay can reproduce a known match result with the same seed and content version.
 - An iOS TestFlight build completes a stress scenario across the selected iOS baseline devices.
 - An Android internal build completes the same stress scenario on the selected Android baseline device.

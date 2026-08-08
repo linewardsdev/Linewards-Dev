@@ -39,7 +39,7 @@ Resume iOS TestFlight work only after this fork produces a local desktop/Unity s
 - [x] Capture one full local run with seed, match duration, winner, replay path, and Unity console status.
 - [x] Record the most painful usability gaps found during the run.
 
-Current evidence: the Unity batch playtest runner opens `Assets/Scenes/LocalVerticalSlice.unity`, starts Play Mode, runs the local three-player match, exports replay/report files, verifies reset cleanup, and writes repo evidence under `docs/playtest-evidence/`. The latest pass completed at tick 910 with P3 winning, 46 accepted replay commands, no critical Unity compile/runtime errors, and reset returning active presentation objects to zero. The run also exposed and fixed a match-end over-advance bug by making completed local matches ignore further `AdvanceOneTick` calls.
+Current evidence: the Unity batch playtest runner opens `Assets/Scenes/LocalVerticalSlice.unity`, starts Play Mode, runs the local eight-player match, exports replay/report files, verifies reset cleanup, and writes repo evidence under `docs/playtest-evidence/`. The latest pass completed at tick 910 with P3 winning, 46 accepted replay commands, no critical Unity compile/runtime errors, and reset returning active presentation objects to zero. The run also exposed and fixed a match-end over-advance bug by making completed local matches ignore further `AdvanceOneTick` calls.
 
 Local batch command:
 
