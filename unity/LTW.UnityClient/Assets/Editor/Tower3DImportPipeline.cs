@@ -19,8 +19,26 @@ namespace LTW.UnityClient.Editor
         private static readonly Color OwnerColor = new(0.36f, 1f, 0.78f, 1f);
         private static readonly Color RangeColor = new(0.24f, 0.62f, 1f, 0.18f);
 
-        public static bool GenerateWrapperIfRawExists(Tower3DImportSpec spec, Material material = null, bool writeSourceNotes = true)
+        /// <summary>
+        /// Builds the runtime wrapper prefab for one spec. Existing wrappers are left alone unless
+        /// <paramref name="overwrite"/> is set.
+        /// </summary>
+        /// <remarks>
+        /// The skip is not an optimisation, it is the safety. A wrapper is assembled from the raw
+        /// FBX alone, but the shipped prefabs have since had an LODGroup and their LOD1/LOD2
+        /// renderers bound by a later pass this method knows nothing about. Regenerating one
+        /// therefore rebuilds it *backwards*: an earlier run over the whole spec list quietly took
+        /// all fifteen towers from 9 renderers plus an LODGroup down to 5 and none, and the only
+        /// visible sign was a cheerful "Generated 15 wrappers" in the console. Adding a unit means
+        /// generating that unit; rebuilding the rest is a separate, deliberate act.
+        /// </remarks>
+        public static bool GenerateWrapperIfRawExists(Tower3DImportSpec spec, Material material = null, bool writeSourceNotes = true, bool overwrite = false)
         {
+            if (!overwrite && AssetDatabase.LoadAssetAtPath<GameObject>(spec.RuntimePrefabPath) != null)
+            {
+                return false;
+            }
+
             var rawPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(spec.RawPrefabPath);
             if (rawPrefab == null)
             {

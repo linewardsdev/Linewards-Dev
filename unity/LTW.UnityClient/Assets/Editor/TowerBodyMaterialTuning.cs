@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
@@ -93,16 +94,39 @@ namespace LTW.UnityClient.Editor
             ["bloomheart"] = new Color(2.0f, 0.62f, 1.44f),
             ["thorn_snare"] = new Color(2.0f, 0.34f, 0.86f),
             ["spore_cloud"] = new Color(1.06f, 2.0f, 0.82f),
+
+            // Roster expansion. Indigo at hue 236: the widest unused arc was 214-259, between
+            // Barricade and Control, and its middle is where this wants to sit anyway — kin to
+            // Arrow, which it is kitbashed from and shares a category with, without being
+            // mistaken for it at 25 degrees of separation. Barricade is only 22 degrees away but
+            // sits at saturation 0.20 against this 0.70, so the two never read as the same accent.
+            ["twin_crescent"] = new Color(0.60f, 0.693f, 2.0f),
         };
 
+        /// <summary>
+        /// Applies the tuned body values to every tower, or to one when the batch-mode run passes
+        /// <c>-ltwTowerRole &lt;role&gt;</c>.
+        /// </summary>
+        /// <remarks>
+        /// The filter exists so adding a unit does not mean rewriting fifteen shipped materials.
+        /// Those fifteen currently sit at _Smoothness 0.42 against the 0.45 this class asks for,
+        /// so an unscoped apply is not a no-op for them — it is an unreviewed change to how the
+        /// whole roster reflects light, arriving inside a commit about one new tower.
+        /// </remarks>
         [MenuItem("Line Wards/Art/Apply Tower Body Material Tuning")]
         public static void ApplyTuning()
         {
             var changed = 0;
             var missing = new List<string>();
+            var onlyRole = ReadArgumentValue("-ltwTowerRole");
 
             foreach (var pair in BodyEmission)
             {
+                if (onlyRole != null && !string.Equals(pair.Key, onlyRole, StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
                 var path = $"{MaterialFolder}/mat_tower_{pair.Key}_3d_body_runtime_v01.mat";
                 var material = AssetDatabase.LoadAssetAtPath<Material>(path);
                 if (material == null)
@@ -217,6 +241,20 @@ namespace LTW.UnityClient.Editor
 
         /// <summary>Mirrors UrpPostProcessingSetup's authored bloom threshold.</summary>
         private const float BloomThreshold = 1.05f;
+
+        private static string ReadArgumentValue(string name)
+        {
+            var args = Environment.GetCommandLineArgs();
+            for (var index = 0; index < args.Length - 1; index++)
+            {
+                if (string.Equals(args[index], name, StringComparison.OrdinalIgnoreCase))
+                {
+                    return args[index + 1];
+                }
+            }
+
+            return null;
+        }
 
         private static void SetFloat(Material material, string property, float value)
         {

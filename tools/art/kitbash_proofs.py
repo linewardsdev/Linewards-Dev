@@ -207,9 +207,39 @@ def render(path: Path, ortho_scale: float, res=(1600, 900)):
 
 
 def export_prepared(obj, path: Path):
+    """Export under the same contract `blender_prepare_tower_source.py` writes.
+
+    The `_prepared` in these filenames used to be a claim rather than a fact. A plain
+    `export_scene.fbx` omits both halves of what Unity intake expects — the
+    `LTW_Unity_ExportRoot` parent and `apply_unit_scale` — and the result imports a hundred
+    times too small. Nothing catches it: the mesh is valid, AO bakes fine, LODs decimate
+    fine, and the wrapper prefab generates with a cheerful success log. It only shows up as
+    a unit that has vanished from the board, which is a long way from the export call that
+    caused it. `unit_roster.check_prepared` now fails on a staged mesh missing the root.
+    """
+    path.parent.mkdir(parents=True, exist_ok=True)
+    root = bpy.data.objects.new("LTW_Unity_ExportRoot", None)
+    bpy.context.scene.collection.objects.link(root)
+    previous_parent = obj.parent
+    obj.parent = root
+    obj.matrix_parent_inverse.identity()
+
     bpy.ops.object.select_all(action="DESELECT")
     obj.select_set(True)
-    bpy.ops.export_scene.fbx(filepath=str(path), use_selection=True, path_mode="COPY", embed_textures=False)
+    root.select_set(True)
+    bpy.ops.export_scene.fbx(
+        filepath=str(path),
+        use_selection=True,
+        object_types={"MESH", "EMPTY"},
+        apply_unit_scale=True,
+        bake_space_transform=False,
+        add_leaf_bones=False,
+        path_mode="COPY",
+        embed_textures=False,
+    )
+
+    obj.parent = previous_parent
+    bpy.data.objects.remove(root, do_unlink=True)
     print(f"exported {path}")
 
 
@@ -244,9 +274,11 @@ def main():
     cam.location.x = 0
     render(OUT_DIR / "lineup_game_size.png", ortho_scale=22.0, res=(1100, 300))
 
-    staging_out = STAGING / "Towers/Arrow/AIDrop"
-    export_prepared(twin, staging_out / "twincrescent_kitbash_arrow_v01_prepared.fbx")
-    export_prepared(shard, STAGING / "Creeps/Runner/AIDrop/shardrunner_kitbash_runner_swarm_v01_prepared.fbx")
+    # Each kitbash exports to its OWN role folder, never the donor's. bake_all_ao.py and
+    # make_all_lods.py derive the roster from folder names and pick the shortest filename
+    # inside — a child left in its parent's folder silently becomes the parent's AO source.
+    export_prepared(twin, STAGING / "Towers/TwinCrescent/AIDrop/twincrescent_kitbash_arrow_v01_prepared.fbx")
+    export_prepared(shard, STAGING / "Creeps/ShardRunner/AIDrop/shardrunner_kitbash_runner_swarm_v01_prepared.fbx")
 
     print("kitbash proofs complete")
 

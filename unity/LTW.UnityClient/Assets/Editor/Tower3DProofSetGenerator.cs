@@ -7,6 +7,7 @@ namespace LTW.UnityClient.Editor
     public static class Tower3DProofSetGenerator
     {
         private const string GenerateMenuPath = "Line Wards/Art/Generate Available Tower 3D Proof Wrappers";
+        private const string RegenerateMenuPath = "Line Wards/Art/Regenerate ALL Tower 3D Proof Wrappers (discards LODs)";
         private const string ValidateMenuPath = "Line Wards/Art/Validate Tower 3D Proof Wrappers";
         private const string PromoteAvailableForReviewMenuPath = "Line Wards/Art/Promote Available Tower 3D Proofs For Review";
         private const string PromoteMenuPath = "Line Wards/Art/Promote Complete Tower 3D Set";
@@ -23,6 +24,27 @@ namespace LTW.UnityClient.Editor
                 0f,
                 new[] { "Muzzle", "Lens", "BowLeft", "BowRight" },
                 new Vector3(0f, 0.14f, 0.48f),
+                new Vector3(0f, 0.16f, 0.02f),
+                Quaternion.identity,
+                Vector3.zero,
+                Vector3.one,
+                false,
+                true,
+                false),
+            // Roster expansion A6. Sourced from the kitbash staging FBX rather than a split
+            // base/head file: this unit IS the arrow mesh with a second head, so it has no
+            // separable parts of its own and needs no split. Sockets match Arrow's because the
+            // geometry is Arrow's — the second muzzle is offset on X, mirroring the heads.
+            new(
+                "TwinCrescent",
+                "tower.twin_crescent",
+                TowerVisualRole.TwinCrescent,
+                "Assets/Art/AIStaging/Models/Towers/TwinCrescent/AIDrop/twincrescent_kitbash_arrow_v01_prepared.fbx",
+                Tower3DImportPipeline.RuntimePrefabFolder + "/Tower_TwinCrescent_3D.prefab",
+                new Vector3(0.78f, 0.78f, 0.78f),
+                0f,
+                new[] { "Muzzle", "Lens", "BowLeft", "BowRight" },
+                new Vector3(0.16f, 0.14f, 0.48f),
                 new Vector3(0f, 0.16f, 0.02f),
                 Quaternion.identity,
                 Vector3.zero,
@@ -294,13 +316,38 @@ namespace LTW.UnityClient.Editor
         [MenuItem(GenerateMenuPath)]
         public static void GenerateAvailableProofWrappers()
         {
+            GenerateWrappers(overwrite: false);
+        }
+
+        /// <summary>
+        /// Rebuilds every wrapper from its source FBX, discarding whatever the LOD pass and any
+        /// later hand-editing put on the existing prefabs. Only correct when those passes are
+        /// about to be re-run; see the remarks on GenerateWrapperIfRawExists.
+        /// </summary>
+        [MenuItem(RegenerateMenuPath)]
+        public static void RegenerateAllProofWrappers()
+        {
+            if (!EditorUtility.DisplayDialog(
+                    "Regenerate all Tower 3D wrappers?",
+                    "Every existing wrapper will be rebuilt from its source FBX. LOD groups and any " +
+                    "other post-generation edits will be lost and must be re-applied.",
+                    "Regenerate", "Cancel"))
+            {
+                return;
+            }
+
+            GenerateWrappers(overwrite: true);
+        }
+
+        private static void GenerateWrappers(bool overwrite)
+        {
             Tower3DImportPipeline.EnsureFolder(Tower3DImportPipeline.RuntimePrefabFolder);
             Tower3DImportPipeline.EnsureFolder(Tower3DImportPipeline.MaterialFolder);
             var generatedCount = 0;
 
             for (var index = 0; index < Specs.Length; index++)
             {
-                if (Tower3DImportPipeline.GenerateWrapperIfRawExists(Specs[index]))
+                if (Tower3DImportPipeline.GenerateWrapperIfRawExists(Specs[index], overwrite: overwrite))
                 {
                     generatedCount++;
                 }
@@ -308,7 +355,9 @@ namespace LTW.UnityClient.Editor
 
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
-            Debug.Log($"Generated {generatedCount} available Tower 3D proof wrapper(s). Missing raw generated prefabs are left untouched.");
+            var untouched = Specs.Length - generatedCount;
+            Debug.Log($"Generated {generatedCount} Tower 3D proof wrapper(s); {untouched} left untouched " +
+                      (overwrite ? "(no source FBX)." : "(already present, or no source FBX)."));
         }
 
         [MenuItem(ValidateMenuPath)]

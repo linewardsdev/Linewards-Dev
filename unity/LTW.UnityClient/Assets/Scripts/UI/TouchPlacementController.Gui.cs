@@ -667,6 +667,7 @@ namespace LTW.UnityClient.UI
             12 => TowerIconKind.Relay,
             13 => TowerIconKind.Pulse,
             14 => TowerIconKind.Control,
+            15 => TowerIconKind.Arrow,
             _ => TowerIconKind.Arrow
         };
 

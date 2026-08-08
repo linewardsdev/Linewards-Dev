@@ -75,6 +75,20 @@ Do not add login, cloud saves, database storage, live networking, matchmaking, r
   repo and carried three corrections and a whole section the markdown lacked, so generating
   from the markdown would have deleted them. Diff the two and port what is newer before
   wiring up the pipeline.
+- **A batch generator should skip what already exists, and say so.** The same hazard as
+  above, in its most common form: a generator that rebuilds every item in its list will
+  happily rebuild items that later passes have since added to.
+  `GenerateAvailableProofWrappers` builds a tower wrapper from its source FBX and knows
+  nothing about the LOD pass that runs afterwards, so one run over the whole spec list took
+  all fifteen shipped towers from 9 renderers plus an LODGroup down to 5 and none — and
+  logged "Generated 15 wrappers" while doing it. Default to skipping existing output;
+  make rebuilding-everything a separate, confirmed action.
+- **A filename is not evidence that a step ran.** Twelve kitbash meshes were named
+  `*_prepared.fbx` without going through the prepare stage, so they imported a hundred times
+  too small; AO, LODs and prefab generation all succeeded on them anyway. Where a naming
+  convention encodes a pipeline stage, add a check that reads the file and confirms the
+  stage's actual fingerprint — `tools/art/unit_roster.py` looks for the
+  `LTW_Unity_ExportRoot` node the prepare stage adds.
 
 ## Verification
 

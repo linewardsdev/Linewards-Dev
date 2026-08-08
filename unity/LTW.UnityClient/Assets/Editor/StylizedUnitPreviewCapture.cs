@@ -23,13 +23,57 @@ namespace LTW.UnityClient.Editor
     /// </remarks>
     public static class StylizedUnitPreviewCapture
     {
-        private const string OutputDirectory = "../../../docs/screenshot-reviews/stylized-shader-20260801";
+        private const string DefaultOutputDirectory = "../../../docs/screenshot-reviews/stylized-shader-20260801";
 
-        private static readonly string[] SubjectPrefabs =
+        /// <summary>
+        /// Where captures land, relative to <c>Application.dataPath</c>, overridable with
+        /// <c>-ltwPreviewOutputDir</c> so a new review does not overwrite the shipped
+        /// before/after pair this folder exists to hold.
+        /// </summary>
+        private static string OutputDirectory =>
+            ReadArgumentValue("-ltwPreviewOutputDir") ?? DefaultOutputDirectory;
+
+        private static readonly string[] DefaultSubjectPrefabs =
         {
             "Assets/Prefabs/Towers/Tower_Arrow_3D.prefab",
             "Assets/Prefabs/Creeps/Creep_TurretWalker_3D.prefab"
         };
+
+        /// <summary>
+        /// The default pair, or whatever <c>-ltwPreviewSubjects</c> names as a comma-separated list
+        /// of prefab paths. The framing holds two or three units before they run out of frame.
+        /// </summary>
+        /// <remarks>
+        /// Added so a newly integrated unit can be judged beside the one it was kitbashed from, in
+        /// the shipped shader and lighting, without editing this file for each unit.
+        /// </remarks>
+        private static string[] SubjectPrefabs
+        {
+            get
+            {
+                var requested = ReadArgumentValue("-ltwPreviewSubjects");
+                return string.IsNullOrWhiteSpace(requested)
+                    ? DefaultSubjectPrefabs
+                    : requested.Split(',', System.StringSplitOptions.RemoveEmptyEntries)
+                               .Select(entry => entry.Trim())
+                               .Where(entry => entry.Length > 0)
+                               .ToArray();
+            }
+        }
+
+        private static string ReadArgumentValue(string name)
+        {
+            var args = System.Environment.GetCommandLineArgs();
+            for (var index = 0; index < args.Length - 1; index++)
+            {
+                if (string.Equals(args[index], name, System.StringComparison.OrdinalIgnoreCase))
+                {
+                    return args[index + 1];
+                }
+            }
+
+            return null;
+        }
 
         /// <summary>
         /// Renders whatever materials are on disk right now, to one file.
