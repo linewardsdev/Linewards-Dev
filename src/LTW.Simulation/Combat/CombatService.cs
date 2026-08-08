@@ -468,7 +468,7 @@ public sealed class CombatService
             // the cells creeps are funnelled through — which is the mazed route by definition. A
             // flyer is not on this route at all, which is why MoveCreeps skips the check for it
             // rather than trying to translate these spans onto the direct one.
-            if (!IsThornTower(tower.TowerId) || !routes.Mazed.TryGetValue(tower.LaneId, out var route))
+            if (!content.GetTower(tower.TowerId).SlowsCreeps || !routes.Mazed.TryGetValue(tower.LaneId, out var route))
             {
                 continue;
             }
@@ -1232,7 +1232,6 @@ public sealed class CombatService
         return baseDamage * CrowdBloomPercentPerCreep * counted / 100;
     }
 
-    private static bool IsThornTower(ContentId towerId) => ContainsRole(towerId, "thorn");
 
     /// <summary>
     /// Target max health that buys one full multiple of the Spore Cloud Bloom's base damage.

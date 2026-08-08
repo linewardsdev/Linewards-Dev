@@ -132,6 +132,59 @@ not repeat the plan. Where an item names a wave, the wave is defined there.
 
 ---
 
+## 46. Forcing a category pick: staged, blocked on per-line bot build orders
+
+Reported from play 2026-08-07 — the first human playthrough of the session, and it found something
+no measurement had: **the game is too easy to solve.** Any scattered set of wards across categories
+blends DPS, AOE and slow into a defence that cannot lose, so there is no decision to make. The
+original Line Tower Wars answered this by making you pick a race and live with it.
+
+Three steps were agreed. One and a half are done.
+
+### Done: the tier sink now prices commitment
+
+`CategoryTierRules.UpgradesOwned` counted **every tier held**, so a second tier in the line you had
+already committed to cost exactly what a first tier in a fresh one did. Depth and breadth were
+priced identically, which is the opposite of the design doc's stated goal — "a sink that rewards
+specializing in one tower line or send category over spreading thin". It now counts **distinct
+tracks touched**, so going deep is nearly free and opening a third front is expensive.
+
+### Done: the slow is authored, and Foundry has one
+
+`TowerDefinition.SlowsCreeps` replaces a substring match on "thorn" in `CombatService`, so the
+brake is authored rather than inferred from a tower's name — the same correction
+`signalGoldPerHit` already had. Foundry Core carries Foundry's brake, as a concussive shell.
+
+**Why this was the blocker for the lock:** Bramble Hold was the ONLY slow on the roster and it is
+Grove's. Locking before this would have made Grove mandatory rather than making the choice
+interesting.
+
+### Not done: Arcane still has no brake
+
+Control Ward was given one — it is named for control and its own comment records that it had no
+compensating mechanic. It is too strong there: at 24 gold with range 3 it is the cheapest brake and
+the longest-reaching, and `Normal_pressure_scenario_records_income_and_active_combat` went from a
+leak inside 120 ticks to **zero leaks in 960 with every creep killed** — `ActiveCreeps 0,
+DamageEvents 15, LeakEvents 0`. The defence became lethal rather than slower. Withdrawn pending a
+brake that is weaker, shorter, or on a costlier Arcane tower.
+
+**Arcane needs one before the lock ships**, or locking into it is the losing pick.
+
+### Not done: the lock itself
+
+`PlayerEconomyState.ChosenTowerLine` and `CanBuildFromLine` exist and every wither carries them
+through. Enforcement was written — reject a placement outside the chosen line, commit on the first
+tower placed — and **withdrawn**, because it breaks the bots: their build orders span lines
+(Balanced goes Arrow/Arcane, Gatling/Foundry, Sapling/Grove), so under the lock every bot commits
+to its first tower's line and has the rest of its order rejected. Measured: mazing collapsed from
+16→30 cells to 16→18, and 17 tests failed.
+
+**The prerequisite is per-line build orders** — three line-pure orders, with a line assigned per
+seat so a table still has variety, and the profile continuing to drive aggression and reserve.
+That is a content restructure, not a patch.
+
+---
+
 ## 45. Income pins at the ceiling because every send is guaranteed to grant at least 1
 
 Measured 2026-08-07. In the reference eight-lane match every seat reaches the 900 income ceiling

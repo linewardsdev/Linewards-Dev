@@ -169,7 +169,7 @@ public static class SampleVerticalSliceContent
                 // opportunity-cost test failed: a Tesla returned 1.37 damage per gold against 1.24 for
                 // equal gold spent on plain Arrow Towers, so taking one was strictly correct.
                 new TowerDefinition(TeslaTowerId, "Tesla Coil Spire", new Gold(44), rangeCells: 3, damage: 10, attackCooldownTicks: 6, categoryIndex: 1),
-                new TowerDefinition(FoundryTowerId, "Foundry Core", new Gold(52), rangeCells: 2, damage: 24, attackCooldownTicks: 12, categoryIndex: 1),
+                new TowerDefinition(FoundryTowerId, "Foundry Core", new Gold(52), rangeCells: 2, damage: 24, attackCooldownTicks: 12, categoryIndex: 1, slowsCreeps: true),
                 // Range 1 to 2 and damage 3 to 5: the price of the fixed up-lane arc, and also a repair.
                 // At range 1 with a full diamond, 66 of 110 legal placements could hit nothing at
                 // all; at range 2 with the half-plane that falls to 34, all of them columns 0 and 6
@@ -194,7 +194,7 @@ public static class SampleVerticalSliceContent
                 // whole thing in one tick. Cost 26 to 30 pays for slowing every creep that crosses
                 // it, which roughly doubles the shot opportunities of every tower covering those
                 // cells.
-                new TowerDefinition(ThornSnareTowerId, "Thorn Snare Totem", new Gold(34), rangeCells: 2, damage: 10, attackCooldownTicks: 6, categoryIndex: 2),
+                new TowerDefinition(ThornSnareTowerId, "Thorn Snare Totem", new Gold(34), rangeCells: 2, damage: 10, attackCooldownTicks: 6, categoryIndex: 2, slowsCreeps: true),
                 // Authored damage is now only the FLOOR: Rot scales the real number off the target's max
                 // health (CombatService.RotDamage), so 4 is what it does to chaff and 15 is what it
                 // does to a Colossus. Cooldown slows to 6 because the payoff is per-shot magnitude

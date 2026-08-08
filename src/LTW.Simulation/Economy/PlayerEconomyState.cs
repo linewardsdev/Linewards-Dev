@@ -31,8 +31,10 @@ public sealed class PlayerEconomyState
         SimulationTick nextSendAvailableTick,
         bool isEliminated,
         int[]? towerLineTiers,
-        int[]? sendCategoryTiers)
+        int[]? sendCategoryTiers,
+        int chosenTowerLine = UnchosenTowerLine)
     {
+        ChosenTowerLine = chosenTowerLine;
         PlayerId = playerId;
         Gold = gold;
         Income = income;
@@ -54,6 +56,41 @@ public sealed class PlayerEconomyState
     public SimulationTick NextSendAvailableTick { get; }
 
     public bool IsEliminated { get; }
+
+    /// <summary>No line committed to yet.</summary>
+    public const int UnchosenTowerLine = -1;
+
+    /// <summary>
+    /// The one tower line this seat has committed to, or <see cref="UnchosenTowerLine"/>.
+    /// </summary>
+    /// <remarks>
+    /// Reported from play 2026-08-07: with every line buildable, a scattered set of wards blends
+    /// DPS, AOE and slow into something that cannot lose, so there is no decision to make. The
+    /// original Line Tower Wars answered this by making you pick a race and live with it, and this
+    /// is that.
+    ///
+    /// Committing is one-way. A seat that could re-pick mid-match would just be the old
+    /// build-everything with extra steps, and the whole value of the choice is that it closes doors.
+    ///
+    /// This only became shippable once every line had its own brake — Bramble Hold was the roster's
+    /// only slow and it is Grove's, so locking before that would have made Grove mandatory rather
+    /// than making the choice interesting. See <c>TowerDefinition.SlowsCreeps</c>.
+    /// </remarks>
+    public int ChosenTowerLine { get; }
+
+    /// <summary>Whether this seat may build from <paramref name="lineIndex"/>.</summary>
+    /// <remarks>
+    /// An uncommitted seat may build anything: the commitment happens on the first tower placed,
+    /// so the choice is made by playing rather than by a modal before the match starts.
+    /// </remarks>
+    public bool CanBuildFromLine(int lineIndex) =>
+        ChosenTowerLine == UnchosenTowerLine || ChosenTowerLine == lineIndex;
+
+    /// <summary>Commits this seat to a line. Ignored once committed — the choice is one-way.</summary>
+    public PlayerEconomyState WithChosenTowerLine(int lineIndex) =>
+        ChosenTowerLine != UnchosenTowerLine
+            ? this
+            : new PlayerEconomyState(PlayerId, Gold, Income, Lives, NextSendAvailableTick, IsEliminated, towerLineTiers, sendCategoryTiers, lineIndex);
 
     /// <summary>
     /// The gold this seat will actually be paid at the next income tick — zero once eliminated.
@@ -90,22 +127,22 @@ public sealed class PlayerEconomyState
     // the same failure shape TowerCombatState.WithNextAttackTick's remark warns about for the
     // mortar's shell fields.
     public PlayerEconomyState WithGold(Gold gold) =>
-        new PlayerEconomyState(PlayerId, gold, Income, Lives, NextSendAvailableTick, IsEliminated, towerLineTiers, sendCategoryTiers);
+        new PlayerEconomyState(PlayerId, gold, Income, Lives, NextSendAvailableTick, IsEliminated, towerLineTiers, sendCategoryTiers, ChosenTowerLine);
 
     public PlayerEconomyState WithIncome(Income income) =>
-        new PlayerEconomyState(PlayerId, Gold, income, Lives, NextSendAvailableTick, IsEliminated, towerLineTiers, sendCategoryTiers);
+        new PlayerEconomyState(PlayerId, Gold, income, Lives, NextSendAvailableTick, IsEliminated, towerLineTiers, sendCategoryTiers, ChosenTowerLine);
 
     public PlayerEconomyState WithLives(Lives lives) =>
-        new PlayerEconomyState(PlayerId, Gold, Income, lives, NextSendAvailableTick, lives.Amount == 0 || IsEliminated, towerLineTiers, sendCategoryTiers);
+        new PlayerEconomyState(PlayerId, Gold, Income, lives, NextSendAvailableTick, lives.Amount == 0 || IsEliminated, towerLineTiers, sendCategoryTiers, ChosenTowerLine);
 
     public PlayerEconomyState WithNextSendAvailableTick(SimulationTick nextSendAvailableTick) =>
-        new PlayerEconomyState(PlayerId, Gold, Income, Lives, nextSendAvailableTick, IsEliminated, towerLineTiers, sendCategoryTiers);
+        new PlayerEconomyState(PlayerId, Gold, Income, Lives, nextSendAvailableTick, IsEliminated, towerLineTiers, sendCategoryTiers, ChosenTowerLine);
 
     public PlayerEconomyState WithTowerLineTier(int lineIndex, int tier) =>
-        new PlayerEconomyState(PlayerId, Gold, Income, Lives, NextSendAvailableTick, IsEliminated, Replaced(towerLineTiers, lineIndex, tier), sendCategoryTiers);
+        new PlayerEconomyState(PlayerId, Gold, Income, Lives, NextSendAvailableTick, IsEliminated, Replaced(towerLineTiers, lineIndex, tier), sendCategoryTiers, ChosenTowerLine);
 
     public PlayerEconomyState WithSendCategoryTier(int categoryIndex, int tier) =>
-        new PlayerEconomyState(PlayerId, Gold, Income, Lives, NextSendAvailableTick, IsEliminated, towerLineTiers, Replaced(sendCategoryTiers, categoryIndex, tier));
+        new PlayerEconomyState(PlayerId, Gold, Income, Lives, NextSendAvailableTick, IsEliminated, towerLineTiers, Replaced(sendCategoryTiers, categoryIndex, tier), ChosenTowerLine);
 
     /// <summary>
     /// Copies this player's tiers out for combat to read. A copy rather than the array itself, so

@@ -125,14 +125,31 @@ public static class CategoryTierRules
     /// </remarks>
     public static int UpgradesOwned(PlayerEconomyState player)
     {
-        var owned = 0;
+        var tracksTouched = 0;
         for (var index = 0; index < PlayerEconomyState.CategoryCount; index++)
         {
-            owned += player.TowerLineTier(index) - 1;
-            owned += player.SendCategoryTier(index) - 1;
+            if (player.TowerLineTier(index) > 1)
+            {
+                tracksTouched++;
+            }
+
+            if (player.SendCategoryTier(index) > 1)
+            {
+                tracksTouched++;
+            }
         }
 
-        return owned;
+        // Distinct tracks touched, not tiers held, and the difference is the whole point of the
+        // sink. Counting tiers priced depth and breadth identically — a second tier in the line you
+        // had already committed to cost exactly what a first tier in a fresh one did — so nothing
+        // pushed a player to commit to anything. The design doc asked for a sink that "rewards
+        // specializing in one tower line or send category over spreading thin", and counting tiers
+        // did the opposite of that while looking like it was doing something.
+        //
+        // Counting tracks makes going deep nearly free and opening a third front expensive, which
+        // is the pressure that was intended. Reported from play 2026-08-07: any spread of wards
+        // across categories blends DPS, AOE and slow into something that cannot lose.
+        return tracksTouched;
     }
 
     /// <summary>

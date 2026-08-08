@@ -43,7 +43,7 @@ public sealed class ContentCatalog
 
 public sealed class TowerDefinition
 {
-    public TowerDefinition(ContentId id, string name, Gold cost, int rangeCells, int damage, int attackCooldownTicks, int categoryIndex, int signalGoldPerHit = 0)
+    public TowerDefinition(ContentId id, string name, Gold cost, int rangeCells, int damage, int attackCooldownTicks, int categoryIndex, int signalGoldPerHit = 0, bool slowsCreeps = false)
     {
         Id = id;
         Name = RequiredName(name, nameof(name));
@@ -53,6 +53,7 @@ public sealed class TowerDefinition
         AttackCooldownTicks = attackCooldownTicks;
         CategoryIndex = categoryIndex;
         SignalGoldPerHit = signalGoldPerHit;
+        SlowsCreeps = slowsCreeps;
     }
 
     public ContentId Id { get; }
@@ -82,6 +83,19 @@ public sealed class TowerDefinition
     /// every hit without a line of code being written. Authoring the number removes the guess.
     /// </remarks>
     public int SignalGoldPerHit { get; }
+
+    /// <summary>Whether this tower brakes creeps walking the mazed route through its range.</summary>
+    /// <remarks>
+    /// Authored rather than inferred from the tower's name, for the same reason
+    /// <see cref="SignalGoldPerHit"/> is: the mechanic used to be a substring match on "thorn" in
+    /// CombatService, so only one tower in the game could ever have it and giving another line a
+    /// brake meant naming a tower after a plant.
+    ///
+    /// That mattered more than tidiness. Bramble Hold was the ONLY slow on the roster and it lives
+    /// in Grove, so a player locked to Arcane or Foundry had no answer to speed at all — which is
+    /// what made a forced category pick unshippable until now.
+    /// </remarks>
+    public bool SlowsCreeps { get; }
 
     /// <summary>
     /// Which tower LINE this belongs to: 0 ARCANE, 1 FOUNDRY, 2 GROVE. Selects the upgrade tier
