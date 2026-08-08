@@ -167,13 +167,63 @@ namespace LTW.UnityClient.Simulation
                     towerSpinPartState[key] = spinState;
                 }
 
-                spinPart.localRotation = Quaternion.AngleAxis(Time.time * TowerRingSpinDegreesPerSecond, spinState.LocalSpinAxis) * spinState.RestLocalRotation;
+                // Rest tilt is applied BETWEEN the rest pose and the sweep: tip the part off
+                // horizontal first, then sweep that tipped part about world-up. The other order
+                // would tilt the whole swept result and give a wobble rather than a radar sweep.
+                var restTilt = SpinPartRestTiltDegrees(visualProfile.Role);
+                var tilted = restTilt == 0f
+                    ? spinState.RestLocalRotation
+                    : Quaternion.AngleAxis(restTilt, spinPart.parent.InverseTransformDirection(Vector3.forward).normalized)
+                      * spinState.RestLocalRotation;
+
+                spinPart.localRotation = Quaternion.AngleAxis(Time.time * TowerRingSpinDegreesPerSecond, spinState.LocalSpinAxis) * tilted;
             }
         }
 
         private const float TowerRingSpinDegreesPerSecond = 32f;
 
-        private static readonly string[] TowerSpinPartNames = { "Ring", "Dish", "Spire" };
+        /// <summary>
+        /// How far off horizontal a tower's spin part rests, in degrees. Zero for everything the
+        /// board reads correctly.
+        /// </summary>
+        /// <remarks>
+        /// This exists for the Relay, reported from play as "tilting away from the POV, almost as
+        /// if it's not quite 3D" (docs/screenshot-reviews/tower-perspective-relay).
+        ///
+        /// MEASURED CAUSE. The board camera is orthographic and looks down 56.5 degrees from
+        /// horizontal, so its view axis is 33.5 degrees off vertical. The Relay's dish is the only
+        /// genuinely flat hero feature on the roster whose face points straight UP, which puts its
+        /// normal 33.5 degrees off the view axis — it renders at 0.83 of its true width, near enough
+        /// to a perfect circle to carry no foreshortening at all. Every other tower's hero feature
+        /// is oriented horizontally and renders at 0.55 or less: Prism's spire, Tesla's coil and
+        /// Gatling's head all measure 0.55, the Repair Drone's 0.00. A circle has no orientation
+        /// cue, so the tower's dominant element gives the eye nothing to read depth from, and the
+        /// whole tower reads as a sprite.
+        ///
+        /// It also made the Relay's only idle animation invisible. The dish already sweeps about
+        /// world-up at <see cref="TowerRingSpinDegreesPerSecond"/>, and world-up was exactly its own
+        /// axis of symmetry — rendered at four sweep phases 90 degrees apart, all four frames came
+        /// out identical. Tipping the dish is what turns that existing sweep into a radar sweep.
+        ///
+        /// INTENT IS RECORDED, NOT INFERRED, which is what the review doc said would unblock this.
+        /// The hand-authored Relay that predates the Meshy model — TowerShape.SignalMast in
+        /// TowerVisualPrefabGenerator — mounts its two dishes at Euler X of -58 and +68 degrees.
+        /// A steeply pitched dish is the design; the imported replacement lost it.
+        ///
+        /// 40 rather than the recorded 58, and the difference is the part count. The original splays
+        /// TWO dishes in opposite directions, so one always presents a face to the camera. There is
+        /// one dish here, and rendered across the sweep at 58 it spends roughly a quarter of every
+        /// revolution edge-on and effectively disappears. At 40 it is dimensional at every phase and
+        /// legible at all of them.
+        ///
+        /// The number itself lives on <see cref="TowerVisualTuning"/> because the codex's preview
+        /// stage has to apply the same one — a correction made here alone would leave the screen
+        /// that exists to showcase a tower disagreeing with the game about what it looks like.
+        /// </remarks>
+        private static float SpinPartRestTiltDegrees(TowerVisualRole role) =>
+            TowerVisualTuning.SpinPartRestTiltDegrees(role);
+
+        private static readonly string[] TowerSpinPartNames = TowerVisualTuning.SpinPartNames;
 
         /// <summary>
         /// The four transforms <see cref="UpdateTowerMotion"/> drives, found once per pooled tower
