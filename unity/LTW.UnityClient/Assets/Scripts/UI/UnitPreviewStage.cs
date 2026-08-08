@@ -116,7 +116,11 @@ namespace LTW.UnityClient.UI
                 return;
             }
 
-            Mount(contentId, profile.Prefab, profile.HasScale ? profile.Scale : Vector3.one);
+            Mount(
+                contentId,
+                profile.Prefab,
+                profile.HasScale ? profile.Scale : Vector3.one,
+                TowerVisualTuning.SpinPartRestTiltDegrees(profile.Role));
         }
 
         /// <summary>Puts a creep on the stage, by simulation content id (e.g. "creep.wisp").</summary>
@@ -135,7 +139,7 @@ namespace LTW.UnityClient.UI
                 return;
             }
 
-            Mount(contentId, profile.Prefab, profile.HasScale ? profile.Scale : Vector3.one);
+            Mount(contentId, profile.Prefab, profile.HasScale ? profile.Scale : Vector3.one, spinPartRestTilt: 0f);
         }
 
         /// <summary>Empties the stage and stops the camera. Called when the codex closes.</summary>
@@ -162,7 +166,7 @@ namespace LTW.UnityClient.UI
             }
         }
 
-        private void Mount(string contentId, GameObject prefab, Vector3 scale)
+        private void Mount(string contentId, GameObject prefab, Vector3 scale, float spinPartRestTilt)
         {
             EnsureStage();
 
@@ -187,16 +191,73 @@ namespace LTW.UnityClient.UI
                 animator.cullingMode = AnimatorCullingMode.AlwaysAnimate;
             }
 
+            ApplySpinPartRestTilt(spinPartRestTilt);
+
             currentUnitId = contentId;
             spin = HeroYaw;
             subjectRoot.transform.localRotation = Quaternion.Euler(0f, spin, 0f);
 
+            // After the tilt, never before: a tipped dish occupies a different bounding box than a
+            // flat one, and framing the flat pose would crop the tipped one.
             Frame();
 
             if (stageCamera != null)
             {
                 stageCamera.enabled = true;
             }
+        }
+
+        /// <summary>
+        /// Puts a tower's spinning sub-part into the same rest pose the board gives it.
+        /// </summary>
+        /// <remarks>
+        /// The board renderer tips the Relay's dish off horizontal before sweeping it
+        /// (<c>UnityVerticalSliceRenderer.SpinPartRestTiltDegrees</c>, which has the measurements).
+        /// Without this the codex would show that dish lying flat while the game shows it tipped —
+        /// on the one screen whose whole job is to show the player what a tower looks like.
+        ///
+        /// Rest pose only. The codex does not sweep the part: the whole subject is already turning
+        /// on the stage, and a second rotation on top of that reads as a wobble rather than as a
+        /// mechanism.
+        /// </remarks>
+        private void ApplySpinPartRestTilt(float tilt)
+        {
+            if (tilt == 0f || subject == null)
+            {
+                return;
+            }
+
+            foreach (var name in TowerVisualTuning.SpinPartNames)
+            {
+                var part = FindDeep(subject.transform, name);
+                if (part == null)
+                {
+                    continue;
+                }
+
+                var axis = part.parent.InverseTransformDirection(Vector3.forward).normalized;
+                part.localRotation = Quaternion.AngleAxis(tilt, axis) * part.localRotation;
+                return;
+            }
+        }
+
+        private static Transform? FindDeep(Transform parent, string name)
+        {
+            if (parent.name == name)
+            {
+                return parent;
+            }
+
+            for (var index = 0; index < parent.childCount; index++)
+            {
+                var found = FindDeep(parent.GetChild(index), name);
+                if (found != null)
+                {
+                    return found;
+                }
+            }
+
+            return null;
         }
 
         /// <summary>
