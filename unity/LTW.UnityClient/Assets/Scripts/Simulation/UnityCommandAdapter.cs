@@ -588,12 +588,20 @@ namespace LTW.UnityClient.Simulation
         /// The send card needs it: a tap no longer produces a creep straight away, so without a
         /// count on the card the player has no way to tell a queued tap from one that did nothing.
         /// </remarks>
+        /// <remarks>
+        /// Read off the SNAPSHOT, not the simulation. Under a server the queue is authoritative
+        /// state that arrives over the wire like gold and lives; a client that reached into the
+        /// simulation would be reading a local guess, and this badge would drift the first time a
+        /// message was dropped — silently, and only for the player who queued.
+        /// </remarks>
         public int QueuedSendCount(LTW.Simulation.Content.ContentId creepId) =>
-            simulation is null ? 0 : simulation.QueuedSendCountFor(simulation.LocalPlayerId, creepId);
+            simulation is null
+                ? 0
+                : simulation.GetSnapshot().QueuedSendCountFor(simulation.LocalPlayerId, creepId);
 
         /// <summary>Total creeps waiting in the local seat's send queue.</summary>
         public int QueuedSendTotal() =>
-            simulation is null ? 0 : simulation.SendQueueFor(simulation.LocalPlayerId).Count;
+            simulation is null ? 0 : simulation.GetSnapshot().SendQueueFor(simulation.LocalPlayerId).Count;
 
         public VerticalSliceCommandResult SellLastSampleTower()
         {

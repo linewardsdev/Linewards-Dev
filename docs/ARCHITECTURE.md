@@ -2,7 +2,7 @@
 
 ## Goal
 
-Build a mobile-first Line Tower Wars prototype in Unity and C# that proves the core loop before committing to multiplayer infrastructure. The first playable version runs a complete three-player carousel match on one device with one human player and two simulated opponents.
+Build a mobile-first Line Tower Wars prototype in Unity and C# that proves the core loop before committing to multiplayer infrastructure. The first playable version runs a complete eight-player carousel match on one device with one human player and seven simulated opponents.
 
 The design must keep game rules, simulation, presentation, and future network services separate. `LTW.Simulation` is a pure .NET/C# library with no Unity dependencies. Online multiplayer is a later replacement for the source of player commands, not a rewrite of combat or pathing.
 
@@ -80,14 +80,47 @@ Initial command types:
 | --- | --- |
 | `PlaceTower` | Build a tower at a grid position. |
 | `SellTower` | Remove an owned tower for the allowed refund. |
-| `QueueSend` | Spend gold to send a creep to the next carousel lane. |
+| `QueueSend` | Spend gold to send a creep to the next carousel lane, now. |
+| `EnqueueSend` | Add one creep to this seat's send queue, to be paid for when gold allows. |
 | `BuyTech` | Unlock a permitted tech tier or branch. |
 | `SetBlueprintStep` | Request the next legal placement from a saved template. |
 | `PauseSimulation` | Prototype-only local pause control. |
 
+#### The send queue
+
+`EnqueueSend` exists because the game is played on a phone: sending means opening the dock, finding
+a card and tapping it, and a player cannot be asked to do that at the instant income lands. A tap
+states intent; the simulation pays for it when it can. Up to ten of any one creep may wait per seat.
+
+Three properties are load-bearing rather than incidental:
+
+- **Strictly first-in-first-out.** If the oldest entry cannot be paid for, the queue stops there
+  rather than looking past it for something cheaper. Skipping ahead would quietly reorder what the
+  player asked for, and a queue that reorders itself is worse than none — there is no way to predict
+  what a tap did. It drains in a loop, though, because gold arrives in lumps at the income tick.
+- **The queue is intent; the send is the fact.** Only the resulting `QueueSend` is written to the
+  accepted-command stream, at the tick gold reached it. The enqueue is never recorded. Recording
+  both would make a replay apply the intent and its effect and double every queued send.
+- **It is simulation state, not client state**, because it spends gold over time and gold is
+  authoritative. It travels back to the client in `VerticalSliceSnapshot` rather than being read off
+  the simulation, so under a server the UI is showing what arrived over the wire.
+
+### Command Authority And Rate
+
+Every command carries a `PlayerId`. Over a wire that field is attacker-controlled, so
+`ISeatAuthority` (`Authority/`) enforces that **the seat comes from the connection, never from the
+message** — `EnqueueSend` resolves through it and overwrites the id it was passed.
+`ICommandRateLimiter` bounds how often a seat may *ask*, as distinct from the game rules that bound
+what it may *have*: the ten-per-creep queue cap is depth, the limiter is request rate, and the send
+cooldown is neither (queueing is not attacking).
+
+Both are wired to the enqueue path only. Every other command still trusts its own `PlayerId` and is
+unthrottled, which is safe in-process and is prerequisite work for a networked build. See
+`MULTIPLAYER_SEATS_AND_AUTHORITY.md`.
+
 ### Match Simulation
 
-`LTW.Simulation` runs all three lanes, including AI-controlled players. It is pure gameplay logic with no Unity scene-object references, network calls, file writes, or UI dependencies.
+`LTW.Simulation` runs all eight lanes, including AI-controlled players. It is pure gameplay logic with no Unity scene-object references, network calls, file writes, or UI dependencies.
 
 Responsibilities:
 
@@ -170,7 +203,7 @@ Pathing is the principal technical risk, so it should be isolated behind a `Path
 - Creep movement should use cached paths until the grid changes.
 - Unit and projectile pools are owned by presentation, while simulation entities remain lightweight IDs and numeric state.
 
-The first benchmark should simulate three lanes under a heavy send scenario across the available iOS test devices. Record tick duration, active creeps, path recalculation time, memory usage, and dropped render frames. Validate on representative Android hardware before broadening content scope or distribution.
+The first benchmark should simulate eight lanes under a heavy send scenario — the shipped count, and the one where creep and effect counts actually bite across the available iOS test devices. Record tick duration, active creeps, path recalculation time, memory usage, and dropped render frames. Validate on representative Android hardware before broadening content scope or distribution.
 
 ## Testing Strategy
 
@@ -241,7 +274,7 @@ For online play:
 ## Delivery Phases
 
 1. **Local vertical slice:** one lane, one player, fixed waves, placement, basic combat, and profiling.
-2. **Simulated three-player match:** carousel routing, bots, income, elimination, and match results.
+2. **Simulated eight-player match:** carousel routing, bots, income, elimination, and match results.
 3. **Repeatability:** command logs, deterministic seed verification, automated simulation tests, and balance scenarios.
 4. **Device validation:** iOS TestFlight builds across the available test-device matrix, followed by Android internal builds, crash reporting, telemetry, and performance budgets.
 5. **Online spike:** headless authoritative simulation, command transport, and a small private match test.

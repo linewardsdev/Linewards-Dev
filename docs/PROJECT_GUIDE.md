@@ -29,7 +29,9 @@ The target experience is a fast, readable, skill-based free-for-all tower wars g
 
 ## Match Format
 
-The primary mode is free-for-all with a minimum of 3 players and an aspirational maximum of 8 players.
+The primary mode is free-for-all with **8 players**, which is what the simulation runs and what
+`LocalMatchOptions` defaults to. Three was the original minimum and eight the aspiration; eight
+shipped, and smaller counts survive only as test configurations.
 
 Baseline match length should be 5 to 10 minutes. Higher-rank games or stalemates may extend to 15 to 20 minutes, but the game should include pacing tools to avoid endless defensive lockups.
 
@@ -344,7 +346,7 @@ All functional content should be available from day one.
 
 The first playable MVP should prove:
 
-1. 3-player carousel FFA works.
+1. 8-player carousel FFA works.
 2. Touch tower placement feels precise.
 3. Sending creeps and growing income feels satisfying.
 4. Open-lane pathing can be validated quickly.
@@ -353,7 +355,7 @@ The first playable MVP should prove:
 
 Recommended MVP features:
 
-- 3-player FFA carousel.
+- 8-player FFA carousel.
 - One lane layout.
 - Small tower set.
 - Small creep set.
@@ -391,4 +393,4 @@ Defer:
 5. Decide initial income tick timing.
 6. Decide initial lane grid dimensions.
 7. Prototype path validation and draw mode.
-8. Test whether 3-player carousel pressure is fun before expanding to 4-8 players.
+8. Test whether 8-player carousel pressure is fun. (The expansion from 3 is done; what is untested is whether it is enjoyable, which still needs a human.)

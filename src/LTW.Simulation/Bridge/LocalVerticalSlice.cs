@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using LTW.Simulation.Bots;
 using LTW.Simulation.Combat;
+using LTW.Simulation.Authority;
 using LTW.Simulation.Commands;
 using LTW.Simulation.Content;
 using LTW.Simulation.Economy;
@@ -322,6 +323,13 @@ public sealed class LocalVerticalSlice
         players = CreateStartingPlayers(topology.Players);
         combatState = new CombatState(Enumerable.Empty<CreepCombatState>(), Enumerable.Empty<TowerCombatState>());
         bots = enableBots ? CreateBots(topology.Players) : new Dictionary<PlayerId, BotController>();
+
+        // Both are the local stand-ins for what a server will own. Constructed here rather than
+        // injected because nothing yet has anywhere to inject from; the point is that the bridge
+        // already asks the questions, so the server implementation replaces two objects rather than
+        // rewriting every call site. See ISeatAuthority and ICommandRateLimiter.
+        seatAuthority = new LocalSeatAuthority(topology.Players);
+        enqueueRateLimiter = new TokenBucketRateLimiter();
         botMatch = new BotMatchContext(this);
         tick = new SimulationTick(0);
     }
@@ -435,8 +443,40 @@ public sealed class LocalVerticalSlice
     /// it waits rather than being refused, and the player does not have to come back and re-tap when
     /// income lands.
     /// </remarks>
+    private readonly ISeatAuthority seatAuthority;
+
+    private readonly ICommandRateLimiter enqueueRateLimiter;
+
     public VerticalSliceCommandResult EnqueueSend(PlayerId playerId, ContentId creepId)
     {
+        // The seat comes from the authority, never from the argument. In-process those are the same
+        // value, which is exactly why this has to be written now: the day a client supplies the id
+        // over a wire, the only thing standing between it and queueing into another player's queue
+        // is that this line already exists and already ignores what it was told.
+        var seat = seatAuthority.ResolveSeat(playerId);
+        if (seat is null)
+        {
+            return VerticalSliceCommandResult.Reject(CommandRejectionReason.InvalidPlayer);
+        }
+
+        playerId = seat.Value;
+
+        // Request rate, not game rule. The ten-per-creep cap bounds how deep a queue gets; this
+        // bounds how often a client may ask, including asking for things it will be refused.
+        if (!enqueueRateLimiter.TryConsume(playerId, tick))
+        {
+            return VerticalSliceCommandResult.Reject(CommandRejectionReason.CooldownActive);
+        }
+        // Through the validator, like every other command. This is what lets an authoritative
+        // server accept or refuse an enqueue with the same reason codes it uses for a send, rather
+        // than the bridge having a second private opinion about what a valid creep id is.
+        var command = new EnqueueSendCommand(playerId, tick, creepId);
+        var contentResult = commandValidator.Validate(command, content);
+        if (!contentResult.Accepted)
+        {
+            return VerticalSliceCommandResult.Reject(contentResult.RejectionReason);
+        }
+
         if (!topology.HasPlayer(playerId))
         {
             return VerticalSliceCommandResult.Reject(CommandRejectionReason.InvalidPlayer);
@@ -445,11 +485,6 @@ public sealed class LocalVerticalSlice
         if (players.Get(playerId).IsEliminated)
         {
             return VerticalSliceCommandResult.Reject(CommandRejectionReason.PlayerEliminated);
-        }
-
-        if (content.Creeps.All(creep => !creep.Id.Equals(creepId)))
-        {
-            return VerticalSliceCommandResult.Reject(CommandRejectionReason.UnknownCreep);
         }
 
         if (!sendQueues.TryGetValue(playerId, out var queue))
@@ -1189,7 +1224,10 @@ public sealed class LocalVerticalSlice
             combat.GetCreepSnapshots(combatState, combatContent, routeSet),
             combatState.Towers,
             combat.GetTowerAimSnapshots(combatState, combatContent, routeSet),
-            combat.GetBrambleCells(combatState, combatContent, routeSet));
+            combat.GetBrambleCells(combatState, combatContent, routeSet),
+            sendQueues.ToDictionary(
+                entry => entry.Key,
+                entry => (IReadOnlyList<ContentId>)entry.Value.ToArray()));
 
     public IReadOnlyList<ISimulationEvent> DrainEvents()
     {

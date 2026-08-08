@@ -45,7 +45,7 @@ in a screenshot until someone compares against a much older build.
 Unity compile smoke also passes locally when `LTW.Simulation.dll` is built and copied to
 `unity/LTW.UnityClient/Assets/Plugins`. The latest batch Play Mode evidence run loaded
 `Assets/Scenes/LocalVerticalSlice.unity`, created the local match runtime objects, completed a
-three-player match at tick 910 with P3 as winner, exported replay/report files, and verified reset
+three-player match at tick 910 with P3 as winner (a run from when the sim was three lanes; it is eight now), exported replay/report files, and verified reset
 cleanup with zero active presentation objects. Repo evidence is tracked at
 `docs/playtest-evidence/local-unity-batch-20260713-055905.md`.
 
@@ -57,7 +57,7 @@ that editor after the mobile HUD treatment merge.
 Current code evidence:
 
 - `UnityVerticalSliceRenderer` renders side-by-side lane cells, towers, creeps, ownership colors, spawn boxes, and life-loss boxes.
-- The current vertical-slice lane layout uses three side-by-side 7x16 long north-south lanes, with spawn at `(3, 0)` and life loss at `(3, 15)`.
+- The current vertical-slice lane layout uses **eight** side-by-side 7x16 long north-south lanes, with spawn at `(3, 0)` and life loss at `(3, 15)`. It was three when this line was written.
 - Presentation pools exist for towers, creeps, effects, and floating text.
 - Simulation events create visual feedback for tower placement, tower damage, creep spawn, creep kill, leak, income tick, and elimination.
 - Basic generated audio cues, mobile vibration hooks, reduced-effects preference, text scale, and disabled/simplified presentation modes exist.
@@ -68,12 +68,12 @@ Remaining acceptance evidence:
 - Confirm full, simplified, and disabled presentation modes do not change simulation outcomes.
 - Add a normal-speed or less-accelerated stress capture so presentation pool growth can be evaluated under realistic frame pacing.
 
-## MVP-09 Full Local Three-Player Integration And Tuning
+## MVP-09 Full Local Multiplayer Integration And Tuning (three seats at the time, eight now)
 
 Current code evidence:
 
-- `LocalVerticalSlice` runs a three-player carousel with Player 1 as the human lane and two bot players.
-- The local sample map uses three 7x16 lanes.
+- `LocalVerticalSlice` runs an **eight-player** carousel with Player 1 as the human seat and seven bots. It ran three when this milestone closed; `LocalMatchOptions` now defaults to `laneCount: MaxLaneCount` (8).
+- The local sample map uses eight 7x16 lanes.
 - The bridge supports placement, sends, selling, reset, match summary, and replay records.
 - `LocalThreePlayerMatchTests` verifies a deterministic local bot match completes inside a 150-5,000 tick
   window. That window has been widened twice and for unrelated reasons: first from 900-1,800 after a

@@ -6,10 +6,19 @@ This log records the first gameplay pacing targets for the local vertical slice.
 
 ## Current Baseline
 
-- Three lanes: one human lane and two bot lanes.
+- **Eight lanes: one human seat and seven bots.** `LocalMatchOptions` defaults to
+  `laneCount: MaxLaneCount` (8), and that is what ships. This line said three lanes long after the
+  simulation ran eight — smaller configurations still appear throughout this log because individual
+  measurements isolate to 2 or 3 lanes on purpose, and those dated entries are records of what was
+  run rather than claims about the game.
 - Starting economy: 100 gold, 10 income, 220 lives.
 - Income interval: 50 simulation ticks.
-- Global send cooldown: 30 simulation ticks (documented from the start, but only actually enforced as of 2026-07-28 — see the final entry in this log).
+- Global send cooldown: **0 ticks — effectively off.** `EconomyRules` is constructed with
+  `sendCooldownTicks: 0`, so sends are limited by gold alone. This entry read "30 simulation ticks"
+  for a long time, which was wrong in an interesting way: the cooldown was documented from the
+  start, went unenforced until 2026-07-28, was then wired up, and is now configured to zero. The
+  mechanism works; nothing is currently asking it to do anything.
+- Income ceiling: 900, taper starting at 300 (raised from 600 on 2026-08-03 — see that entry).
 - Sell refund: 50% of tower cost.
 - Leak life loss: 1 life per leaked creep; Siege currently leaks for 2.
 - Prototype towers: Arrow, Control, Relay, Pulse, Prism.

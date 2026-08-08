@@ -99,7 +99,12 @@ namespace LTW.UnityClient.Simulation
         Sapling = 11,
         Bloomheart = 12,
         ThornSnare = 13,
-        SporeCloud = 14
+        SporeCloud = 14,
+
+        // Roster expansion. Appended with explicit values rather than inserted into a line's
+        // block: these are serialized by index into TowerVisualLibrary and every prefab that
+        // references one, so renumbering an existing role would silently repoint assets.
+        TwinCrescent = 15
     }
 
     /// <summary>

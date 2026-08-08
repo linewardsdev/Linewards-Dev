@@ -93,6 +93,9 @@ namespace LTW.UnityClient.Simulation
                 "Hits everything packed around its target. One cell of range, so it has to be built where the maze turns."),
             new(4, "tower.prism", "PRISM", "Prism ward", CategoryArcane, TowerRolePalette.Prism,
                 "The longest reach in Arcane and the hardest single hit. Slow enough that it wants a brake in front of it."),
+            // Roster expansion A6; colour lives in TowerRolePalette with the rest of the line.
+            new(15, "tower.twin_crescent", "TWIN", "Twin crescent ward", CategoryArcane, TowerRolePalette.TwinCrescent,
+                "Two crescents on one mount, firing in turn. Costs more than an Arrow for the same damage and buys steadier uptime rather than a bigger hit."),
 
             new(5, "tower.gatling", "GATLING", "Gatling turret", CategoryFoundry, new Color(0.87f, 0.62f, 0.28f),
                 "The fastest reload on the roster. Shreds anything cheap and does very little to anything armoured."),

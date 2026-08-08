@@ -17,6 +17,9 @@ public static class SampleVerticalSliceContent
 
     public static readonly ContentId PrismTowerId = new("tower.prism");
 
+    /// <summary>The arcane line's anti-chaff answer — see its definition for the mechanic.</summary>
+    public static readonly ContentId TwinCrescentTowerId = new("tower.twin_crescent");
+
     // Foundry line — industrial towers. Same five defensive questions as the arcane line
     // (single-target, chip, utility, close burst, long sniper) answered with heavier metal:
     // each trades a little efficiency for reach or burst relative to its arcane counterpart.
@@ -156,6 +159,23 @@ public static class SampleVerticalSliceContent
                 new TowerDefinition(UtilityTowerId, "Relay Ward", new Gold(28), rangeCells: 2, damage: 4, attackCooldownTicks: 8, categoryIndex: 0, signalGoldPerHit: 3, role: TowerRole.Economy),
                 new TowerDefinition(PulseTowerId, "Pulse Ward", new Gold(32), rangeCells: 1, damage: 12, attackCooldownTicks: 8, categoryIndex: 0, role: TowerRole.Aoe),
                 new TowerDefinition(PrismTowerId, "Prism Ward", new Gold(42), rangeCells: 4, damage: 18, attackCooldownTicks: 12, categoryIndex: 0, role: TowerRole.Dps),
+
+                // Twin Crescent fires TWICE per cooldown at two DIFFERENT creeps, and the second
+                // barrel is wasted when only one target is in range. That is the whole design: it
+                // is the line's anti-chaff option, strictly worse than Arrow into a single fat
+                // creep and roughly double into a crowd.
+                //
+                // Priced and paced off Arrow rather than invented: same range and damage, cooldown
+                // 4 -> 6 and cost 14 -> 30. Two shots on a 6-tick clock is 0.33 shots/tick against
+                // Arrow's 0.25, so it beats two Arrows (28 gold) on damage only when a second
+                // target exists, and loses to them outright when one does not. Those two gold of
+                // premium buy the tempo of one build slot instead of two, which is the real thing
+                // being sold on a 7x16 grid where slots are scarcer than gold.
+                // Tagged Dps on the merge that brought roles in. This tower arrived on a branch that
+                // predates TowerRole and so was added to the id-based build orders instead; with
+                // roles it needs no build-order entry at all -- a profile asking for Dps will pick it
+                // up on cost like any other, which is the point of naming jobs rather than models.
+                new TowerDefinition(TwinCrescentTowerId, "Twin Crescent Ward", new Gold(30), rangeCells: 2, damage: 6, attackCooldownTicks: 6, categoryIndex: 0, role: TowerRole.Dps),
 
                 // Foundry line. Costs sit above the arcane equivalents and the payoff is raw
                 // output: Gatling fires every tick for less damage per shot than Arrow but far

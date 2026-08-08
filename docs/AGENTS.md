@@ -2,7 +2,7 @@
 
 ## Project Context
 
-Line Tower Wars is a Unity and C# mobile game MVP. The first playable release is offline: one human player and two simulated opponents in a three-player carousel match.
+Line Tower Wars is a Unity and C# mobile game MVP. The first playable release is offline: one human player and seven simulated opponents in an eight-lane carousel match.
 
 Read these documents before changing code or project structure:
 
@@ -30,11 +30,11 @@ LTW.Tests           Fast tests for LTW.Simulation
 
 ## MVP Scope
 
-Build only the local three-player loop:
+Build only the local eight-player loop:
 
 - Touch tower placement with open-path validation.
 - Creep sending, income, carousel routing, combat, leaks, lives, elimination, and results.
-- Two simulated opponents with normal command access.
+- Seven simulated opponents with normal command access.
 - Seeded matches, replayable accepted command logs, and deterministic scenario tests.
 - iOS-first device validation, followed by Android compatibility validation.
 

@@ -29,7 +29,7 @@ Rules:
 - Do not duplicate economy, combat, pathing, leak, or result rules in Unity presentation code.
 - Unity code should render snapshots and submit commands through the existing adapter path.
 - Keep bots on the same command and validation path as the human player.
-- Keep MVP work focused on the offline local three-player loop unless the user explicitly expands scope.
+- Keep MVP work focused on the offline local eight-player loop unless the user explicitly expands scope.
 
 ## Unity MCP Usage
 

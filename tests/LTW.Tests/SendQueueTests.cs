@@ -159,4 +159,157 @@ public sealed class SendQueueTests
         Assert.False(result.Accepted);
         Assert.Equal(CommandRejectionReason.PlayerEliminated, result.RejectionReason);
     }
+
+    /// <summary>One seat's queue is its own.</summary>
+    /// <remarks>
+    /// The property an authoritative server depends on. A queue is per-seat private intent, so
+    /// filling one seat's must not consume another's capacity or reorder what it asked for.
+    /// </remarks>
+    [Fact]
+    public void Queues_are_per_seat()
+    {
+        var slice = Slice(0);
+        var other = new PlayerId(2);
+        var creep = SampleVerticalSliceContent.CreepId;
+
+        for (var i = 0; i < LocalVerticalSlice.MaxQueuedSendsPerCreep; i++)
+        {
+            Assert.True(slice.EnqueueSend(Seat, creep).Accepted);
+        }
+
+        Assert.Equal(CommandRejectionReason.SendQueueFull, slice.EnqueueSend(Seat, creep).RejectionReason);
+
+        // Seat 1 being full says nothing about seat 2.
+        Assert.True(slice.EnqueueSend(other, creep).Accepted);
+        Assert.Equal(10, slice.QueuedSendCountFor(Seat, creep));
+        Assert.Equal(1, slice.QueuedSendCountFor(other, creep));
+    }
+
+    /// <summary>An unknown creep is refused by the shared content validator, not by the bridge.</summary>
+    /// <remarks>
+    /// Matters because a server has to refuse a malformed enqueue with the same reason code it uses
+    /// for a malformed send. A bridge-local check would be a second opinion about what a valid creep
+    /// is, free to drift from the one every other command is held to.
+    /// </remarks>
+    [Fact]
+    public void An_unknown_creep_is_refused()
+    {
+        var slice = Slice(0);
+        var result = slice.EnqueueSend(Seat, new LTW.Simulation.Content.ContentId("creep.does_not_exist"));
+
+        Assert.False(result.Accepted);
+        Assert.Equal(CommandRejectionReason.UnknownCreep, result.RejectionReason);
+        Assert.Empty(slice.SendQueueFor(Seat));
+    }
+
+    /// <summary>
+    /// The replay stream records the send the queue produced, once, at the tick it happened.
+    /// </summary>
+    /// <remarks>
+    /// This is the claim the design rests on: the queue is intent and the send is the fact, so only
+    /// the send is recorded. If enqueues were recorded too, a replay would apply the intent AND its
+    /// effect and double every queued send. Asserted rather than assumed, because nothing else in
+    /// the suite would notice.
+    /// </remarks>
+    [Fact]
+    public void A_queued_send_is_recorded_once_when_it_is_paid_for()
+    {
+        var slice = Slice(0);
+        var creep = SampleVerticalSliceContent.CreepId;
+
+        Assert.True(slice.EnqueueSend(Seat, creep).Accepted);
+        var beforeDrain = slice.GetReplayRecord().AcceptedCommands.Count(c => c.PlayerId.Equals(Seat));
+
+        slice.AdvanceOneTick();
+
+        var afterDrain = slice.GetReplayRecord().AcceptedCommands.Count(c => c.PlayerId.Equals(Seat));
+        output.WriteLine($"  accepted commands for the seat: {beforeDrain} before the drain, {afterDrain} after");
+
+        // Exactly one new record: the send. The enqueue itself left no trace, which is what stops a
+        // replay double-sending.
+        Assert.Equal(beforeDrain + 1, afterDrain);
+        Assert.Empty(slice.SendQueueFor(Seat));
+    }
+
+    /// <summary>A seat that is not in this match cannot queue into it.</summary>
+    /// <remarks>
+    /// The seat-spoofing guard, exercised through the only door a client has. In-process the
+    /// claimed id is always the local seat, so this is the test that keeps
+    /// <see cref="LTW.Simulation.Authority.ISeatAuthority"/> honest before a server exists to
+    /// exercise it properly — without it the boundary is a comment.
+    /// </remarks>
+    [Fact]
+    public void A_seat_outside_the_match_is_refused()
+    {
+        var slice = Slice(0);
+        var notInThisMatch = new PlayerId(99);
+
+        var result = slice.EnqueueSend(notInThisMatch, SampleVerticalSliceContent.CreepId);
+
+        Assert.False(result.Accepted);
+        Assert.Equal(CommandRejectionReason.InvalidPlayer, result.RejectionReason);
+        Assert.Empty(slice.SendQueueFor(notInThisMatch));
+    }
+
+    /// <summary>Asking faster than the limiter allows is refused, without consuming queue depth.</summary>
+    /// <remarks>
+    /// Request rate, not game rule: the refusals here are for ASKING too often, and they land while
+    /// the queue still has room. A limiter that only bit once the queue was full would be the cap
+    /// wearing a different hat.
+    /// </remarks>
+    [Fact]
+    public void Asking_far_faster_than_a_human_is_throttled()
+    {
+        var slice = Slice(0);
+        var creep = SampleVerticalSliceContent.CreepId;
+        var accepted = 0;
+        var throttled = 0;
+
+        // Far past the largest honest burst the game can produce. A player filling every card
+        // queues about 150 entries across the roster, so the limiter has to sit well above that
+        // and still stop this.
+        for (var i = 0; i < 2_000; i++)
+        {
+            var result = slice.EnqueueSend(Seat, creep);
+            if (result.Accepted)
+            {
+                accepted++;
+            }
+            else if (result.RejectionReason == CommandRejectionReason.CooldownActive)
+            {
+                throttled++;
+            }
+        }
+
+        output.WriteLine($"  2000 requests on one tick: {accepted} accepted, {throttled} throttled");
+        Assert.True(throttled > 0, "the limiter never bit across 2000 requests on a single tick");
+
+        // The queue cap, not the limiter, is what stopped the accepted ones: a seat may hold ten of
+        // this creep and did. If the limiter were doing the stopping it would bite below that, and
+        // a real player filling a card would feel it.
+        Assert.Equal(LocalVerticalSlice.MaxQueuedSendsPerCreep, accepted);
+    }
+
+    /// <summary>The client-facing queue comes off the snapshot, not out of the simulation.</summary>
+    /// <remarks>
+    /// Under a server the snapshot is what arrives over the wire, so anything the UI shows has to
+    /// be reachable from it. This asserts the two views agree, which is what makes reading the
+    /// snapshot a safe substitute rather than a second source of truth.
+    /// </remarks>
+    [Fact]
+    public void The_snapshot_carries_the_queue()
+    {
+        var slice = Slice(0);
+        var creep = SampleVerticalSliceContent.BruteCreepId;
+
+        for (var i = 0; i < 3; i++)
+        {
+            Assert.True(slice.EnqueueSend(Seat, creep).Accepted);
+        }
+
+        var snapshot = slice.GetSnapshot();
+        Assert.Equal(slice.SendQueueFor(Seat).Count, snapshot.SendQueueFor(Seat).Count);
+        Assert.Equal(slice.QueuedSendCountFor(Seat, creep), snapshot.QueuedSendCountFor(Seat, creep));
+        Assert.Equal(3, snapshot.QueuedSendCountFor(Seat, creep));
+    }
 }
