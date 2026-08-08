@@ -312,7 +312,13 @@ public sealed class BotController
     private void TryBuild(PlayerId playerId, IBotMatchContext match)
     {
         var profileDefinition = ResolveProfile(match.Content);
-        var towerId = BotBuildPlanner.NextTower(profileDefinition, match.TowersOwnedBy(playerId).Count);
+        // The seat's committed line, or Unchosen while it has not built yet — the planner treats
+        // that as "every line is in scope", so this behaves exactly as before until the lock lands.
+        var towerId = BotBuildPlanner.NextTower(
+            profileDefinition,
+            match.TowersOwnedBy(playerId).Count,
+            match.Content,
+            match.PlayerState(playerId).ChosenTowerLine);
         if (towerId is null)
         {
             return;

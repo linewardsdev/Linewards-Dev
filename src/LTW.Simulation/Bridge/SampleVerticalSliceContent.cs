@@ -100,43 +100,41 @@ public static class SampleVerticalSliceContent
     // tower-count gate (BotProfileDefinition.MinimumTowerCoverage) clears on whichever jump first
     // covers the cumulative cost — even a few gold of difference in an early slot can push that past a
     // 50-tick boundary and shift the observable timing by up to a full income cycle.
-    private static readonly ContentId[] DefensiveBuildOrder =
+    private static readonly TowerRole[] DefensiveBuildOrder =
     {
-        ControlTowerId,
-        TowerId,
-        TowerId,
-        PulseTowerId,
-        PrismTowerId,
-        RepairDroneTowerId,
-        ElderCanopyTowerId,
-        ThornSnareTowerId,
-        BarricadeTowerId
+        // Holds first: a brake, then bodies, then something that hits a group. Defensive wants the
+        // lane slow before it wants it dead.
+        TowerRole.Brake,
+        TowerRole.Dps,
+        TowerRole.Dps,
+        TowerRole.Aoe,
+        TowerRole.Brake,
+        TowerRole.Support,
+        TowerRole.Dps,
+        TowerRole.Aoe,
     };
 
-    private static readonly ContentId[] BalancedBuildOrder =
+    private static readonly TowerRole[] BalancedBuildOrder =
     {
-        TowerId,
-        ControlTowerId,
-        PulseTowerId,
-        PulseTowerId,
-        GatlingTowerId,
-        SaplingTowerId,
-        TeslaTowerId,
-        BloomheartTowerId,
-        PrismTowerId,
-        FoundryTowerId,
-        SporeCloudTowerId
+        TowerRole.Dps,
+        TowerRole.Brake,
+        TowerRole.Aoe,
+        TowerRole.Dps,
+        TowerRole.Aoe,
+        TowerRole.Economy,
+        TowerRole.Dps,
+        TowerRole.Support,
     };
 
-    private static readonly ContentId[] GreedyBuildOrder =
+    private static readonly TowerRole[] GreedyBuildOrder =
     {
-        TowerId,
-        PrismTowerId,
-        TowerId,
-        SaplingTowerId,
-        GatlingTowerId,
-        UtilityTowerId,
-        SporeCloudTowerId
+        // Economy early and often: Greedy's lever is sending, and it wants the lane paying for it.
+        TowerRole.Dps,
+        TowerRole.Economy,
+        TowerRole.Dps,
+        TowerRole.Aoe,
+        TowerRole.Economy,
+        TowerRole.Dps,
     };
 
     public static ContentCatalog Create()
@@ -145,7 +143,7 @@ public static class SampleVerticalSliceContent
             "mvp-07-15-tower-3x5-roster",
             new[]
             {
-                new TowerDefinition(TowerId, "Arrow Tower", new Gold(14), rangeCells: 2, damage: 6, attackCooldownTicks: 4, categoryIndex: 0),
+                new TowerDefinition(TowerId, "Arrow Tower", new Gold(14), rangeCells: 2, damage: 6, attackCooldownTicks: 4, categoryIndex: 0, role: TowerRole.Dps),
                 // Range 3 rather than 2. At range 2 this was strictly worse than the Arrow Tower on
                 // every axis at once — dearer, same reach, same damage, slower — with no
                 // compensating mechanic, so there was never a reason to build one. Reach is what a
@@ -154,52 +152,52 @@ public static class SampleVerticalSliceContent
                 // Control's damage 2 -> 3 is main's cost-curve compression; Relay's signalGoldPerHit
                 // is this branch making its income authored rather than inferred from its name. The
                 // two touch adjacent lines and are independent.
-                new TowerDefinition(ControlTowerId, "Control Ward", new Gold(24), rangeCells: 3, damage: 6, attackCooldownTicks: 6, categoryIndex: 0),
-                new TowerDefinition(UtilityTowerId, "Relay Ward", new Gold(28), rangeCells: 2, damage: 4, attackCooldownTicks: 8, categoryIndex: 0, signalGoldPerHit: 1),
-                new TowerDefinition(PulseTowerId, "Pulse Ward", new Gold(32), rangeCells: 1, damage: 12, attackCooldownTicks: 8, categoryIndex: 0),
-                new TowerDefinition(PrismTowerId, "Prism Ward", new Gold(42), rangeCells: 4, damage: 18, attackCooldownTicks: 12, categoryIndex: 0),
+                new TowerDefinition(ControlTowerId, "Control Ward", new Gold(24), rangeCells: 3, damage: 6, attackCooldownTicks: 6, categoryIndex: 0, role: TowerRole.Dps),
+                new TowerDefinition(UtilityTowerId, "Relay Ward", new Gold(28), rangeCells: 2, damage: 4, attackCooldownTicks: 8, categoryIndex: 0, signalGoldPerHit: 3, role: TowerRole.Economy),
+                new TowerDefinition(PulseTowerId, "Pulse Ward", new Gold(32), rangeCells: 1, damage: 12, attackCooldownTicks: 8, categoryIndex: 0, role: TowerRole.Aoe),
+                new TowerDefinition(PrismTowerId, "Prism Ward", new Gold(42), rangeCells: 4, damage: 18, attackCooldownTicks: 12, categoryIndex: 0, role: TowerRole.Dps),
 
                 // Foundry line. Costs sit above the arcane equivalents and the payoff is raw
                 // output: Gatling fires every tick for less damage per shot than Arrow but far
                 // more over time, Foundry trades Prism's reach for a much harder single hit,
                 // and Barricade is the cheapest way to hold a cell at all.
-                new TowerDefinition(GatlingTowerId, "Gatling Turret", new Gold(30), rangeCells: 2, damage: 4, attackCooldownTicks: 2, categoryIndex: 1),
+                new TowerDefinition(GatlingTowerId, "Gatling Turret", new Gold(30), rangeCells: 2, damage: 4, attackCooldownTicks: 2, categoryIndex: 1, role: TowerRole.Dps),
                 // 38 to 44. Chain Arc turned out to be the strongest mechanic on the roster relative to
                 // its own baseline (+60% against a stack, +49% in a trickle), and at 38 the
                 // opportunity-cost test failed: a Tesla returned 1.37 damage per gold against 1.24 for
                 // equal gold spent on plain Arrow Towers, so taking one was strictly correct.
-                new TowerDefinition(TeslaTowerId, "Tesla Coil Spire", new Gold(44), rangeCells: 3, damage: 10, attackCooldownTicks: 6, categoryIndex: 1),
-                new TowerDefinition(FoundryTowerId, "Foundry Core", new Gold(52), rangeCells: 2, damage: 24, attackCooldownTicks: 12, categoryIndex: 1, slowsCreeps: true),
+                new TowerDefinition(TeslaTowerId, "Tesla Coil Spire", new Gold(44), rangeCells: 3, damage: 10, attackCooldownTicks: 6, categoryIndex: 1, role: TowerRole.Aoe),
+                new TowerDefinition(FoundryTowerId, "Foundry Core", new Gold(52), rangeCells: 2, damage: 24, attackCooldownTicks: 12, categoryIndex: 1, slowsCreeps: true, role: TowerRole.Brake),
                 // Range 1 to 2 and damage 3 to 5: the price of the fixed up-lane arc, and also a repair.
                 // At range 1 with a full diamond, 66 of 110 legal placements could hit nothing at
                 // all; at range 2 with the half-plane that falls to 34, all of them columns 0 and 6
                 // which no range-2 tower reaches the lane from anyway. Damage 5 also crosses the
                 // renderer's damage >= 5 threshold, so the shot changes colour and starts printing
                 // numbers — the bonus is literally visible.
-                new TowerDefinition(BarricadeTowerId, "Barricade Bastion", new Gold(18), rangeCells: 2, damage: 10, attackCooldownTicks: 8, categoryIndex: 1),
+                new TowerDefinition(BarricadeTowerId, "Barricade Bastion", new Gold(18), rangeCells: 2, damage: 10, attackCooldownTicks: 8, categoryIndex: 1, role: TowerRole.Wall),
                 // 34 to 40. At 34 the mandatory-buy test failed outright: a drone bundle returned
                 // 3.00 damage per gold against 2.86 for the best plain-damage bundle at comparable
                 // gold, so taking one was strictly correct and the choice was fake. 40 brings both
                 // drone bundles just under plain damage, which is what a support tower should be -
                 // a lateral option, not a free upgrade.
-                new TowerDefinition(RepairDroneTowerId, "Repair Drone Spire", new Gold(40), rangeCells: 3, damage: 6, attackCooldownTicks: 4, categoryIndex: 1),
+                new TowerDefinition(RepairDroneTowerId, "Repair Drone Spire", new Gold(40), rangeCells: 3, damage: 6, attackCooldownTicks: 4, categoryIndex: 1, role: TowerRole.Support),
 
                 // Grove line. Cheap and individually weak — the line you spam early and outgrow,
                 // except Elder Canopy, which is the roster's long-range anchor and priced for it.
-                new TowerDefinition(ElderCanopyTowerId, "Elder Canopy", new Gold(46), rangeCells: 5, damage: 14, attackCooldownTicks: 12, categoryIndex: 2),
-                new TowerDefinition(SaplingTowerId, "Sapling Sentinel", new Gold(10), rangeCells: 2, damage: 6, attackCooldownTicks: 6, categoryIndex: 2),
-                new TowerDefinition(BloomheartTowerId, "Bloomheart Totem", new Gold(22), rangeCells: 2, damage: 8, attackCooldownTicks: 6, categoryIndex: 2),
+                new TowerDefinition(ElderCanopyTowerId, "Elder Canopy", new Gold(46), rangeCells: 5, damage: 14, attackCooldownTicks: 12, categoryIndex: 2, role: TowerRole.Dps),
+                new TowerDefinition(SaplingTowerId, "Sapling Sentinel", new Gold(10), rangeCells: 2, damage: 6, attackCooldownTicks: 6, categoryIndex: 2, role: TowerRole.Wall),
+                new TowerDefinition(BloomheartTowerId, "Bloomheart Totem", new Gold(22), rangeCells: 2, damage: 8, attackCooldownTicks: 6, categoryIndex: 2, role: TowerRole.Support),
                 // Range 1 to 2 is required by the mechanic, not a buff: at range 1 the bramble zone
                 // could not reliably cover 3 route cells, and a speed-3 creep would step over the
                 // whole thing in one tick. Cost 26 to 30 pays for slowing every creep that crosses
                 // it, which roughly doubles the shot opportunities of every tower covering those
                 // cells.
-                new TowerDefinition(ThornSnareTowerId, "Thorn Snare Totem", new Gold(34), rangeCells: 2, damage: 10, attackCooldownTicks: 6, categoryIndex: 2, slowsCreeps: true),
+                new TowerDefinition(ThornSnareTowerId, "Thorn Snare Totem", new Gold(34), rangeCells: 2, damage: 10, attackCooldownTicks: 6, categoryIndex: 2, slowsCreeps: true, role: TowerRole.Brake),
                 // Authored damage is now only the FLOOR: Rot scales the real number off the target's max
                 // health (CombatService.RotDamage), so 4 is what it does to chaff and 15 is what it
                 // does to a Colossus. Cooldown slows to 6 because the payoff is per-shot magnitude
                 // against fat targets, not rate.
-                new TowerDefinition(SporeCloudTowerId, "Spore Cloud Bloom", new Gold(34), rangeCells: 3, damage: 8, attackCooldownTicks: 12, categoryIndex: 2)
+                new TowerDefinition(SporeCloudTowerId, "Spore Cloud Bloom", new Gold(34), rangeCells: 3, damage: 8, attackCooldownTicks: 12, categoryIndex: 2, role: TowerRole.Aoe)
             },
             new[]
             {

@@ -206,7 +206,13 @@ public sealed class VerticalSliceBridgeTests
         }
 
         var snapshot = simulation.GetSnapshot();
-        Assert.Contains(snapshot.Towers, tower => tower.OwnerId.Equals(new PlayerId(2)) && tower.TowerId.Equals(SampleVerticalSliceContent.TowerId));
+        // Asserts the job, not the model. Build orders name roles now, so which tower fills the
+        // opening Dps slot is a content decision (currently the cheapest one in scope) rather than
+        // something a bot test should pin.
+        var content = SampleVerticalSliceContent.Create();
+        Assert.Contains(snapshot.Towers, tower =>
+            tower.OwnerId.Equals(new PlayerId(2))
+            && content.Towers.First(definition => definition.Id.Equals(tower.TowerId)).Role == LTW.Simulation.Content.TowerRole.Dps);
         Assert.Contains(snapshot.Towers, tower => tower.OwnerId.Equals(new PlayerId(3)) && tower.TowerId.Equals(SampleVerticalSliceContent.ControlTowerId));
         Assert.Contains(snapshot.Towers, tower => tower.OwnerId.Equals(new PlayerId(2)) && tower.TowerId.Equals(SampleVerticalSliceContent.PulseTowerId));
         Assert.True(snapshot.Towers.Count(tower => tower.OwnerId.Equals(new PlayerId(2))) >= 3);

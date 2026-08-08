@@ -43,7 +43,7 @@ public sealed class ContentCatalog
 
 public sealed class TowerDefinition
 {
-    public TowerDefinition(ContentId id, string name, Gold cost, int rangeCells, int damage, int attackCooldownTicks, int categoryIndex, int signalGoldPerHit = 0, bool slowsCreeps = false)
+    public TowerDefinition(ContentId id, string name, Gold cost, int rangeCells, int damage, int attackCooldownTicks, int categoryIndex, int signalGoldPerHit = 0, bool slowsCreeps = false, TowerRole role = TowerRole.Dps)
     {
         Id = id;
         Name = RequiredName(name, nameof(name));
@@ -54,6 +54,7 @@ public sealed class TowerDefinition
         CategoryIndex = categoryIndex;
         SignalGoldPerHit = signalGoldPerHit;
         SlowsCreeps = slowsCreeps;
+        Role = role;
     }
 
     public ContentId Id { get; }
@@ -96,6 +97,9 @@ public sealed class TowerDefinition
     /// what made a forced category pick unshippable until now.
     /// </remarks>
     public bool SlowsCreeps { get; }
+
+    /// <summary>What job this tower is for. See <see cref="TowerRole"/>.</summary>
+    public TowerRole Role { get; }
 
     /// <summary>
     /// Which tower LINE this belongs to: 0 ARCANE, 1 FOUNDRY, 2 GROVE. Selects the upgrade tier
@@ -298,7 +302,7 @@ public sealed class BotProfileDefinition
         int aggression,
         int defenseBias,
         int minimumGoldReserve,
-        IReadOnlyList<ContentId>? buildOrder = null,
+        IReadOnlyList<TowerRole>? buildOrder = null,
         int minimumTowerCoverage = 0)
     {
         Id = id;
@@ -306,7 +310,7 @@ public sealed class BotProfileDefinition
         Aggression = aggression;
         DefenseBias = defenseBias;
         MinimumGoldReserve = minimumGoldReserve;
-        BuildOrder = buildOrder?.ToArray() ?? Array.Empty<ContentId>();
+        BuildOrder = buildOrder?.ToArray() ?? Array.Empty<TowerRole>();
         MinimumTowerCoverage = minimumTowerCoverage;
     }
 
@@ -342,7 +346,7 @@ public sealed class BotProfileDefinition
     /// simulation quietly invents a tower list for; <see cref="ContentValidator"/> checks every id
     /// named here exists in the same catalog's towers.
     /// </remarks>
-    public IReadOnlyList<ContentId> BuildOrder { get; }
+    public IReadOnlyList<TowerRole> BuildOrder { get; }
 
     /// <summary>
     /// Towers this profile finishes before it is allowed to send at all. A floor, never a ceiling.

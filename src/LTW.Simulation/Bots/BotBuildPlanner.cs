@@ -1,4 +1,6 @@
+using System.Linq;
 using LTW.Simulation.Content;
+using LTW.Simulation.Economy;
 using LTW.Simulation.Primitives;
 
 namespace LTW.Simulation.Bots;
@@ -36,7 +38,32 @@ public static class BotBuildPlanner
     /// that authors no build order for a profile has said its bots do not build, and inventing a
     /// tower for them would be the simulation making a balance decision the content declined to.
     /// </remarks>
-    public static ContentId? NextTower(BotProfileDefinition profile, int ownedTowerCount)
+    /// <summary>
+    /// The next tower to build: the role this profile wants next, resolved against what the seat's
+    /// line actually offers.
+    /// </summary>
+    /// <remarks>
+    /// Build orders name jobs rather than models (see <see cref="TowerRole"/>), so one order works
+    /// for every line and a seat committed to a line still has a plan. Naming towers is what broke
+    /// the bots under a category lock: an order spanning three lines leaves a locked seat with
+    /// everything after its first tower rejected.
+    ///
+    /// <paramref name="lineIndex"/> of <see cref="PlayerEconomyState.UnchosenTowerLine"/> means no
+    /// commitment yet, and every line is in scope.
+    ///
+    /// Falls back to <see cref="TowerRole.Dps"/> when a line cannot fill the role asked for, and to
+    /// the cheapest tower in the line if it cannot fill that either. A line missing a role is a
+    /// roster gap worth seeing rather than a reason for a bot to stop building — Arcane currently
+    /// has no Brake at all, deliberately, and its bots still have to play.
+    ///
+    /// Cheapest-first within a role so a bot opens with what it can afford rather than saving for
+    /// the dearest thing that happens to match.
+    /// </remarks>
+    public static ContentId? NextTower(
+        BotProfileDefinition profile,
+        int ownedTowerCount,
+        ContentCatalog content,
+        int lineIndex)
     {
         var buildOrder = profile.BuildOrder;
         if (buildOrder.Count == 0)
@@ -44,7 +71,20 @@ public static class BotBuildPlanner
             return null;
         }
 
-        return buildOrder[ownedTowerCount % buildOrder.Count];
+        var wanted = buildOrder[ownedTowerCount % buildOrder.Count];
+        var inLine = content.Towers
+            .Where(tower => lineIndex == PlayerEconomyState.UnchosenTowerLine || tower.CategoryIndex == lineIndex)
+            .ToList();
+        if (inLine.Count == 0)
+        {
+            return null;
+        }
+
+        var match = inLine.Where(tower => tower.Role == wanted).OrderBy(tower => tower.Cost.Amount).FirstOrDefault()
+            ?? inLine.Where(tower => tower.Role == TowerRole.Dps).OrderBy(tower => tower.Cost.Amount).FirstOrDefault()
+            ?? inLine.OrderBy(tower => tower.Cost.Amount).First();
+
+        return match.Id;
     }
 
     /// <summary>
