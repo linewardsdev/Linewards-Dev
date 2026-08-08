@@ -2,6 +2,12 @@
 
 This is the current code-derived gameplay roster for the local vertical-slice build.
 
+Since 2026-08-08 the game also carries this roster **in the app**: the CODEX screen on the title
+menu shows one ward or creep at a time with its model and its stat sheet. That screen derives every
+number from the same source files listed below rather than from this document, so the two cannot
+disagree — but this document is still the one with the design reasoning, and the codex's per-unit
+blurbs in `TowerCatalog`/`CreepCatalog` are written from it.
+
 Source of truth:
 
 - `src/LTW.Simulation/Bridge/SampleVerticalSliceContent.cs`

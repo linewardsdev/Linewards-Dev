@@ -47,7 +47,8 @@ namespace LTW.UnityClient.Simulation
         {
             Title,
             Ready,
-            HowTo
+            HowTo,
+            Codex
         }
 
         public void Initialize(UnitySimulationDriver driver, LocalPlaytestRecorder recorder, ShellScreenView? shellScreenView = null)
@@ -129,7 +130,12 @@ namespace LTW.UnityClient.Simulation
 
                 if (!simulationDriver.HasStarted)
                 {
-                    return preMatchScreen == PreMatchScreen.Title ? ShellScreen.Title : ShellScreen.None;
+                    return preMatchScreen switch
+                    {
+                        PreMatchScreen.Title => ShellScreen.Title,
+                        PreMatchScreen.Codex => ShellScreen.Codex,
+                        _ => ShellScreen.None
+                    };
                 }
 
                 return simulationDriver.IsPaused ? ShellScreen.Pause : ShellScreen.None;
@@ -195,8 +201,8 @@ namespace LTW.UnityClient.Simulation
                 return;
             }
 
-            // Results, title and pause are full-screen UI Toolkit compositions now. They paint
-            // their own field, so there is no scrim to draw and nothing for IMGUI to add here.
+            // Results, title, codex and pause are full-screen UI Toolkit compositions now. They
+            // paint their own field, so there is no scrim to draw and nothing for IMGUI to add here.
             if (simulationDriver.LatestMatchSummary is not null)
             {
                 return;
@@ -204,7 +210,11 @@ namespace LTW.UnityClient.Simulation
 
             if (!simulationDriver.HasStarted)
             {
-                if (preMatchScreen == PreMatchScreen.Title)
+                // Both of the pre-match states that ARE UI Toolkit screens bail here. Testing only
+                // for Title would leave the codex falling through to DrawReadyPanel below, which
+                // would draw the IMGUI READY card straight over the top of it — the failure is not
+                // a missing screen but two screens at once, so it does not look like a wiring bug.
+                if (preMatchScreen is PreMatchScreen.Title or PreMatchScreen.Codex)
                 {
                     return;
                 }
@@ -478,6 +488,24 @@ namespace LTW.UnityClient.Simulation
         public void ShowHowToPlay()
         {
             preMatchScreen = PreMatchScreen.HowTo;
+        }
+
+        /// <summary>Title: CODEX.</summary>
+        /// <remarks>
+        /// Nothing but a screen change, which is the point. The codex reads the authored content
+        /// catalog directly and never touches the driver, so opening it cannot disturb a session —
+        /// principle 3 of docs/GAME_MENU_AND_RUNTIME_FLOW.md, kept by there being nothing here to
+        /// get wrong rather than by remembering not to.
+        /// </remarks>
+        public void ShowCodex()
+        {
+            preMatchScreen = PreMatchScreen.Codex;
+        }
+
+        /// <summary>Codex: BACK. Returns to the title, the same way the how-to panel's BACK does.</summary>
+        public void CloseCodex()
+        {
+            preMatchScreen = PreMatchScreen.Title;
         }
 
         /// <summary>Title, pause and results: SETTINGS. Still an IMGUI panel.</summary>

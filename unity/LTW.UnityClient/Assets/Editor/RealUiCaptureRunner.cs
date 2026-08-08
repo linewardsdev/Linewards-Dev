@@ -8,6 +8,7 @@ using LTW.UnityClient.Simulation;
 using LTW.UnityClient.UI;
 using UnityEditor;
 using UnityEngine;
+using UnityEngine.UIElements;
 
 namespace LTW.UnityClient.Editor
 {
@@ -98,6 +99,15 @@ namespace LTW.UnityClient.Editor
             // the shot that says whether an IMGUI panel lands over or under a runtime UI Toolkit
             // panel. If it lands under, the shell has to stand down while settings is open.
             ("real-17-settings-over-title", ShowSettingsOverTitle),
+            // The codex, whose preview card is a live camera rendering into the panel. Worth a shot
+            // for the composition, but note what it CANNOT settle: whether the stage drew anything
+            // is a question about pixels inside that one element, and a page that renders an empty
+            // frame photographs as a deliberately empty panel. CodexScreenCheck is what answers it.
+            ("real-18-shell-codex", ShowCodex),
+            // The creeps half, captured separately because it is the harder of the two to frame:
+            // the authored model scales run 0.208 to 1.36 across it, against 0.59 to 1.05 on the
+            // towers. If the stage's auto-fit is going to crop or strand anything, it is here.
+            ("real-19-shell-codex-creeps", ShowCodexCreeps),
         };
 
         /// <summary>The portrait surface the HUD is authored against, matching MotionCaptureRunner.</summary>
@@ -753,6 +763,74 @@ namespace LTW.UnityClient.Editor
             }
 
             overlay.ReturnToTitle();
+        }
+
+        private static void ShowCodex()
+        {
+            var overlay = Overlay();
+            if (overlay == null)
+            {
+                Debug.LogWarning("REALUI no LocalSessionFlowOverlay found for the codex shot");
+                return;
+            }
+
+            // Back to the title first, because the shot before this one leaves the IMGUI settings
+            // panel open and nothing about opening the codex closes it — in the real UI that state
+            // is unreachable, since the settings panel covers the button. Returning to the title is
+            // what clears it.
+            overlay.ReturnToTitle();
+            overlay.ShowCodex();
+        }
+
+        /// <summary>
+        /// The codex, switched to its creeps half.
+        /// </summary>
+        /// <remarks>
+        /// Presses the real tab button rather than reaching for the presenter's state. Which half
+        /// is shown belongs to <c>CodexScreenView</c> and is deliberately not public — exposing a
+        /// setter so a capture could pose the screen would make the capture the reason a private
+        /// thing became public, and a captured state that no button can reach is not evidence about
+        /// the shipped screen anyway.
+        /// </remarks>
+        private static void ShowCodexCreeps()
+        {
+            ShowCodex();
+
+            var document = Object.FindAnyObjectByType<UIDocument>();
+            var tab = document != null && document.rootVisualElement != null
+                ? document.rootVisualElement.Q<Button>("codex-tab-creeps")
+                : null;
+
+            if (tab == null)
+            {
+                Debug.LogWarning("REALUI could not find codex-tab-creeps for the creeps shot");
+                return;
+            }
+
+            // A press and a release, not a synthesized ClickEvent. Button answers through its
+            // Clickable manipulator, which tracks the pointer down and only then raises the click —
+            // so a bare ClickEvent is received and does nothing, which is exactly what the first
+            // version of this shot captured: the wards half, labelled as the creeps one.
+            var centre = tab.worldBound.center;
+            var local = tab.WorldToLocal(centre);
+            SendPointer<PointerDownEvent>(tab, centre, local);
+            SendPointer<PointerUpEvent>(tab, centre, local);
+        }
+
+        private static void SendPointer<T>(VisualElement element, Vector2 world, Vector2 local)
+            where T : EventBase<T>, new()
+        {
+            using var evt = EventBase<T>.GetPooled();
+            evt.target = element;
+
+            const BindingFlags Flags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
+            var type = evt.GetType();
+            type.GetProperty("position", Flags)?.SetValue(evt, (Vector3)world);
+            type.GetProperty("localPosition", Flags)?.SetValue(evt, (Vector3)local);
+            type.GetProperty("button", Flags)?.SetValue(evt, 0);
+            type.GetProperty("pointerId", Flags)?.SetValue(evt, PointerId.mousePointerId);
+
+            element.SendEvent(evt);
         }
 
         private static void ShowSettingsOverTitle()

@@ -24,9 +24,10 @@ The current local Unity prototype still starts directly in `Assets/Scenes/LocalV
 
 Since 2026-08-03 the shell is built in **two** technologies, and which one a screen uses is a deliberate line rather than an accident of history:
 
-**Full-screen shell screens — UI Toolkit (UXML + USS).** Title, Pause and Results are full-screen compositions in `Assets/Scripts/UI/ShellScreenView.cs`, rendered through a runtime `UIDocument` the launcher creates. They own the display: the title paints an opaque field so no board reads through it, and pause and results dim the board behind a translucent one. Each has a single dominant mark, one obviously primary action, and subordinate actions distinguished by size and frame as well as colour.
+**Full-screen shell screens — UI Toolkit (UXML + USS).** Title, Codex, Pause and Results are full-screen compositions in `Assets/Scripts/UI/ShellScreenView.cs`, rendered through a runtime `UIDocument` the launcher creates. They own the display: the title and codex paint an opaque field so no board reads through them, and pause and results dim the board behind a translucent one. Each has a single dominant mark, one obviously primary action, and subordinate actions distinguished by size and frame as well as colour.
 
-- Title: LINE WARDS wordmark, START GAME, HOW TO PLAY, SETTINGS, QUIT.
+- Title: LINE WARDS wordmark, START GAME, HOW TO PLAY, CODEX, SETTINGS, QUIT.
+- Codex: one ward or creep at a time — its real prefab turning on an off-board stage rendered into the card, a six-tile stat sheet, a trait line, and an icon rail of the whole half. Added 2026-08-08. Every number on it is read from `SampleVerticalSliceContent` at display time rather than written down, so a rebalance cannot leave the codex confidently wrong.
 - Pause: PAUSED, live lives/gold/income, RESUME, SETTINGS, RESET MATCH (with its consequence spelled out), EXIT TO TITLE.
 - Results: VICTORY or DEFEAT, the full eight-seat scoreboard, REMATCH, SETTINGS, EXIT TO TITLE.
 
@@ -79,7 +80,8 @@ The app should eventually use these top-level states:
 
 | State | Purpose | Gameplay ticking? | Expected UI |
 | --- | --- | --- | --- |
-| Title | First app entry | No | Game logo, Start Game, How To Play, Settings |
+| Title | First app entry | No | Game logo, Start Game, How To Play, Codex, Settings |
+| Codex | Roster reference | No | One ward or creep at a time: turning model, stat sheet, icon rail |
 | Pre-Match | Local setup | No | Bot count/difficulty later, seed/replay later, Start |
 | Ready | Match scene loaded but not started | No | Board, HUD, PLAY, no bot activity |
 | Build Countdown | Opening build window | No | Board, minimum 30-second countdown, build drawer, SEND blocked |
@@ -99,6 +101,7 @@ Open LocalVerticalSlice scene
 TITLE
     - Start Game
     - How To Play
+    - Codex        --> CODEX (roster reference, BACK returns here)
     - Settings
     - Quit
     |
@@ -181,20 +184,26 @@ Current implementation references:
 
 ## Shell Screens (UI Toolkit)
 
-The title, pause and results screens and everything they need:
+The title, codex, pause and results screens and everything they need:
 
 - `Assets/Scripts/UI/ShellScreenView.cs` — the view, the `IShellScreenActions` contract, safe-area padding, and the two generated backdrop textures.
-- `Assets/Resources/UI/ShellScreens.uxml` — all three screens in one document, switched by `display`.
+- `Assets/Scripts/UI/CodexScreenView.cs` — what the codex screen contains: roster navigation, the icon rail, and a stat sheet read live from the simulation's content catalog.
+- `Assets/Scripts/UI/UnitPreviewStage.cs` — the off-board stage that turns one unit in front of a camera and renders it into the codex card.
+- `Assets/Resources/UI/ShellScreens.uxml` — all four screens in one document, switched by `display`.
 - `Assets/Resources/UI/ShellScreens.uss` — the palette, the three action weights, and the enter transitions.
 - `Assets/Resources/UI/LineWardsRuntimeTheme.tss` — imports Unity's default runtime theme.
 - `Assets/Resources/UI/LineWardsShellPanelSettings.asset` — 1080x1920 reference surface, `ScaleWithScreenSize`, match width.
 - `Assets/Editor/ShellPanelSettingsGenerator.cs` — authors that asset, so its settings live next to the reasoning for them.
 - `Assets/Editor/ShellInputCheck.cs` — drives a pointer press on START GAME in Play Mode and asserts the build countdown began.
+- `Assets/Editor/CodexRosterCheck.cs` — asserts every simulation unit has exactly one client catalog entry, a prefab, an icon and a blurb. No Play Mode.
+- `Assets/Editor/CodexScreenCheck.cs` — opens the codex, walks all thirty units, and reads the render texture back to prove the stage is drawing.
 
-Two things about this surface are worth knowing before extending it:
+Four things about this surface are worth knowing before extending it:
 
 - **No EventSystem is needed.** With none in the scene, UI Toolkit falls back to its own runtime event system, which reads legacy `Input` — which is what this project is set to (`activeInputHandler: 0`). `ShellInputCheck` confirms both halves: that the fallback is the live route, and that a press on a button reaches the simulation.
 - **Alpha composites in linear.** The project renders in Linear colour space, so a translucent USS colour arrives roughly twice as strong as the sRGB numbers suggest. Opaque colours are exact. See the header comment in `ShellScreens.uss` for the measured figures.
+- **A new pre-match screen needs two edits, not one.** `LocalSessionFlowOverlay.ActiveShellScreen` decides which composition is up, and its `OnGUI` decides which IMGUI panel is. A screen added to the first but not the second falls through to `DrawReadyPanel`, which draws the READY card straight over it — the symptom is two screens at once, which does not look like a wiring bug.
+- **The codex reads pixels, not just wiring.** Its stage is a camera rendering to a texture, and a camera that draws nothing produces a uniform texture with no error anywhere. `CodexScreenCheck` is the only thing that can tell a blank stage from a deliberately quiet panel; a screenshot cannot.
 
 ## Build Drawer
 
@@ -347,6 +356,7 @@ Title
   Continue later
   New Local Match / Start Game
   How To Play
+  Codex
   Settings
   Credits / Legal later
 

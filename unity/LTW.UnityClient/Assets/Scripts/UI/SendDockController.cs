@@ -39,16 +39,9 @@ namespace LTW.UnityClient.UI
         [SerializeField]
         private bool showRuntimeDock = true;
 
-        // Names each category by what it actually does, replacing the "CATEGORY 1/2" placeholders
-        // that were waiting on this content:
-        //   CORE  — the founding five, all send-cooldown gated.
-        //   SUPPORT — force multipliers rather than bodies. Four buff the creeps around them or
-        //           slow the towers shooting at them; the fifth walks over the maze entirely. The
-        //           category was called RAPID for an exemption from a send cooldown that has been
-        //           set to 0 for a long time, so the name described nothing a player could observe.
-        //   ELITE — the Meshy-rigged bipeds: costlier, heavier, and back on the normal cooldown,
-        //           because price is what paces them.
-        private static readonly string[] CategoryLabels = { "CORE", "SUPPORT", "ELITE" };
+        // Category names live on CreepCatalog now, beside the roster they label, so the dock and
+        // the codex cannot end up calling the same category two different things.
+        private static string[] CategoryLabels => CreepCatalog.CategoryLabels;
 
         /// <summary>
         /// Whether a category's grid contains any card the send cooldown actually gates.
@@ -412,10 +405,11 @@ namespace LTW.UnityClient.UI
         /// </remarks>
         private readonly struct SendCard
         {
-            public SendCard(string label, CreepIconKind icon, Color accent, ContentId creepId, int role, System.Action send, bool ignoresCooldown = false)
+            public SendCard(string label, CreepIconKind icon, string iconResource, Color accent, ContentId creepId, int role, System.Action send, bool ignoresCooldown = false)
             {
                 Label = label;
                 Icon = icon;
+                IconResource = iconResource;
                 Accent = accent;
                 CreepId = creepId;
                 Role = role;
@@ -424,7 +418,13 @@ namespace LTW.UnityClient.UI
             }
 
             public string Label { get; }
+
+            /// <summary>Shape drawn if <see cref="IconResource"/> cannot be loaded.</summary>
             public CreepIconKind Icon { get; }
+
+            /// <summary>Name of the icon PNG under Resources/Art/UI/Icons.</summary>
+            public string IconResource { get; }
+
             public Color Accent { get; }
             public ContentId CreepId { get; }
 
@@ -435,34 +435,54 @@ namespace LTW.UnityClient.UI
             public bool IgnoresCooldown { get; }
         }
 
+        /// <summary>
+        /// Builds one card from the catalog entry for <paramref name="creepId"/> plus the dock's own
+        /// send action.
+        /// </summary>
+        /// <remarks>
+        /// Label, icon, accent, role index and the cooldown exemption all used to be written out
+        /// here, three near-identical times. They are presentation data about a creep, which is
+        /// what <see cref="CreepCatalog"/> is for; the send action is the one thing that genuinely
+        /// belongs to the dock, because it is bound to the dock's own method. Only that stays.
+        ///
+        /// The role index still comes from the entry rather than the array position, for the same
+        /// reason it always travelled with the card: DrawSendCards sorts by price, and a position-
+        /// derived role would renumber the selection identity on every rebalance.
+        /// </remarks>
+        private SendCard Card(ContentId creepId, System.Action send)
+        {
+            var entry = CreepCatalog.ForContentId(creepId.Value);
+            return new SendCard(entry.ShortLabel, entry.Icon, entry.IconResource, entry.Accent, creepId, entry.Role, send, entry.IgnoresCooldown);
+        }
+
         private SendCard[] CategoryOneCards() => new[]
         {
-            new SendCard("RUNNER", CreepIconKind.Runner, ArcaneBlue, SampleVerticalSliceContent.CreepId, 0, SendRunner),
-            new SendCard("BRUTE", CreepIconKind.Brute, WardViolet, SampleVerticalSliceContent.BruteCreepId, 1, SendBrute),
-            new SendCard("SWARM", CreepIconKind.Swarm, SignalGold, SampleVerticalSliceContent.SwarmCreepId, 2, SendSwarm),
-            new SendCard("SHADE", CreepIconKind.Shade, MintSignal, SampleVerticalSliceContent.ShadeCreepId, 3, SendShade),
-            new SendCard("SIEGE", CreepIconKind.Siege, new Color(1f, 0.62f, 0.26f), SampleVerticalSliceContent.SiegeCreepId, 4, SendSiege)
+            Card(SampleVerticalSliceContent.CreepId, SendRunner),
+            Card(SampleVerticalSliceContent.BruteCreepId, SendBrute),
+            Card(SampleVerticalSliceContent.SwarmCreepId, SendSwarm),
+            Card(SampleVerticalSliceContent.ShadeCreepId, SendShade),
+            Card(SampleVerticalSliceContent.SiegeCreepId, SendSiege)
         };
 
-        // Every Category 2 card still sets ignoresCooldown. It is inert while the send cooldown is 0
-        // and is no longer what names the category, but it is kept so the exemption is already right
-        // if a cooldown ever returns.
+        // Every Category 2 card still sets ignoresCooldown, now via the catalog entry. It is inert
+        // while the send cooldown is 0 and is no longer what names the category, but it is kept so
+        // the exemption is already right if a cooldown ever returns.
         private SendCard[] CategoryTwoCards() => new[]
         {
-            new SendCard("WISP", CreepIconKind.Wisp, ArcaneBlue, SampleVerticalSliceContent.WispCreepId, 5, SendWisp, ignoresCooldown: true),
-            new SendCard("REVENANT", CreepIconKind.Revenant, WardViolet, SampleVerticalSliceContent.RevenantCreepId, 6, SendRevenant, ignoresCooldown: true),
-            new SendCard("OBSIDIAN", CreepIconKind.ObsidianBrute, new Color(0.92f, 0.32f, 0.28f), SampleVerticalSliceContent.ObsidianBruteCreepId, 7, SendObsidianBrute, ignoresCooldown: true),
-            new SendCard("SERPENT", CreepIconKind.Serpent, MintSignal, SampleVerticalSliceContent.SerpentCreepId, 8, SendSerpent, ignoresCooldown: true),
-            new SendCard("WALKER", CreepIconKind.TurretWalker, new Color(0.42f, 0.82f, 0.86f), SampleVerticalSliceContent.TurretWalkerCreepId, 9, SendTurretWalker, ignoresCooldown: true)
+            Card(SampleVerticalSliceContent.WispCreepId, SendWisp),
+            Card(SampleVerticalSliceContent.RevenantCreepId, SendRevenant),
+            Card(SampleVerticalSliceContent.ObsidianBruteCreepId, SendObsidianBrute),
+            Card(SampleVerticalSliceContent.SerpentCreepId, SendSerpent),
+            Card(SampleVerticalSliceContent.TurretWalkerCreepId, SendTurretWalker)
         };
 
         private SendCard[] CategoryThreeCards() => new[]
         {
-            new SendCard("WRAITH", CreepIconKind.Zephyr, ArcaneBlue, SampleVerticalSliceContent.ZephyrCreepId, 10, SendZephyr),
-            new SendCard("BURROW", CreepIconKind.Burrower, new Color(0.85f, 0.55f, 0.25f), SampleVerticalSliceContent.BurrowerCreepId, 11, SendBurrower),
-            new SendCard("STALKER", CreepIconKind.Stalker, WardViolet, SampleVerticalSliceContent.StalkerCreepId, 12, SendStalker),
-            new SendCard("WARDEN", CreepIconKind.Warden, MintSignal, SampleVerticalSliceContent.WardenCreepId, 13, SendWarden),
-            new SendCard("COLOSSUS", CreepIconKind.Colossus, new Color(1f, 0.45f, 0.30f), SampleVerticalSliceContent.ColossusCreepId, 14, SendColossus)
+            Card(SampleVerticalSliceContent.ZephyrCreepId, SendZephyr),
+            Card(SampleVerticalSliceContent.BurrowerCreepId, SendBurrower),
+            Card(SampleVerticalSliceContent.StalkerCreepId, SendStalker),
+            Card(SampleVerticalSliceContent.WardenCreepId, SendWarden),
+            Card(SampleVerticalSliceContent.ColossusCreepId, SendColossus)
         };
 
         private void DrawCategoryOneCreeps(Rect rect, float buttonY, float buttonHeight, float gap, int gold, float scale) =>
@@ -545,7 +565,7 @@ namespace LTW.UnityClient.UI
                 // Without it a queued tap and a tap that did nothing look identical, which is the
                 // one thing that would make queueing feel broken rather than helpful.
                 var meta = queued > 0 ? $"{cost}G  +{income}   x{queued}" : $"{cost}G  +{income}";
-                if (DrawSendButton(new Rect(x, y, width, buttonHeight), card.Label, meta, card.Icon, card.Accent, hasQueueSpace, highlightedCreepRole == card.Role, scale, card.IgnoresCooldown))
+                if (DrawSendButton(new Rect(x, y, width, buttonHeight), card.Label, meta, card.IconResource, card.Icon, card.Accent, hasQueueSpace, highlightedCreepRole == card.Role, scale, card.IgnoresCooldown))
                 {
                     card.Send();
                 }
@@ -586,7 +606,7 @@ namespace LTW.UnityClient.UI
             }
         }
 
-        private static bool DrawSendButton(Rect rect, string label, string meta, CreepIconKind iconKind, Color accent, bool isAffordable, bool isSelected, float scale, bool ignoresCooldown = false)
+        private static bool DrawSendButton(Rect rect, string label, string meta, string iconResource, CreepIconKind iconKind, Color accent, bool isAffordable, bool isSelected, float scale, bool ignoresCooldown = false)
         {
             // Cooling down reads as unaffordable, because for the player it is the same thing:
             // the card cannot be sent right now. Without this a card you could clearly afford
@@ -601,7 +621,7 @@ namespace LTW.UnityClient.UI
             var pressed = RuntimeUiChrome.DrawCommandCard(rect, accent, state, scale);
 
             var iconRect = RuntimeUiChrome.CommandCardIconRect(rect, scale);
-            if (!RuntimeUiIconLibrary.DrawIcon(iconRect, CreepIconResourceName(iconKind), isAffordable))
+            if (!RuntimeUiIconLibrary.DrawIcon(iconRect, iconResource, isAffordable))
             {
                 DrawCreepIcon(iconRect, iconKind, displayAccent, scale);
             }
@@ -629,32 +649,6 @@ namespace LTW.UnityClient.UI
         }
 
 
-
-        private static string CreepIconResourceName(CreepIconKind iconKind)
-        {
-            return iconKind switch
-            {
-                CreepIconKind.Brute => "ui_icon_send_brute_v01",
-                CreepIconKind.Swarm => "ui_icon_send_swarm_v01",
-                CreepIconKind.Shade => "ui_icon_send_shade_v01",
-                CreepIconKind.Siege => "ui_icon_send_siege_v01",
-                // RuntimeUiIconLibrary.DrawIcon falls back to the procedural DrawCreepIcon
-                // shapes below whenever a resource is missing, so a name here is safe to add
-                // before its PNG exists. Category 2's PNGs do now exist; Category 3's may not
-                // yet, and will simply draw their procedural shape until rendered.
-                CreepIconKind.Wisp => "ui_icon_send_wisp_v01",
-                CreepIconKind.Revenant => "ui_icon_send_revenant_v01",
-                CreepIconKind.ObsidianBrute => "ui_icon_send_obsidian_brute_v01",
-                CreepIconKind.Serpent => "ui_icon_send_serpent_v01",
-                CreepIconKind.TurretWalker => "ui_icon_send_turret_walker_v01",
-                CreepIconKind.Zephyr => "ui_icon_send_zephyr_v01",
-                CreepIconKind.Burrower => "ui_icon_send_burrower_v01",
-                CreepIconKind.Stalker => "ui_icon_send_stalker_v01",
-                CreepIconKind.Warden => "ui_icon_send_warden_v01",
-                CreepIconKind.Colossus => "ui_icon_send_colossus_v01",
-                _ => "ui_icon_send_runner_v01"
-            };
-        }
 
         private static void DrawCreepIcon(Rect rect, CreepIconKind iconKind, Color accent, float scale)
         {
@@ -923,23 +917,5 @@ namespace LTW.UnityClient.UI
 
         private static RectOffset ZeroOffset() => new RectOffset(0, 0, 0, 0);
 
-        private enum CreepIconKind
-        {
-            Runner,
-            Brute,
-            Swarm,
-            Shade,
-            Siege,
-            Wisp,
-            Revenant,
-            ObsidianBrute,
-            Serpent,
-            TurretWalker,
-            Zephyr,
-            Burrower,
-            Stalker,
-            Warden,
-            Colossus
-        }
     }
 }
