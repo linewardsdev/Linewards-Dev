@@ -84,14 +84,17 @@ launch.
 Monetization (shipping free first, per decision), multiplayer, the match server, accounts
 and entitlements, Waves 2–3 of the graphics uplift beyond what tier B needs.
 
-**The roster expansion is also out of scope, and is being worked anyway.**
-`ROSTER_EXPANSION_PLAN.md` adds 18 units to reach 8 per category; its first, Twin Crescent
-Ward, landed 2026-08-08, with eleven more kitbash meshes staged behind it. It appears in no
-P0 or P1 row and no week below, which is correct — none of it gates soft launch — but it is
-real work drawing on the same four weeks, so read the estimates here as assuming it yields
-when the launch path needs the time. Two things it has already changed for launch: the tower
+**The roster expansion was never planned and is not committed.** It began as a spur-of-the-
+moment idea rather than a roadmap item, which is why it appears in no P0 or P1 row and no
+week below. `ROSTER_EXPANSION_PLAN.md` sketches 18 units to reach 8 per category; one of
+them, Twin Crescent Ward, was built end to end on 2026-08-08 and eleven more kitbash meshes
+are staged and idle. Nothing obliges the rest to happen, and the launch path does not wait
+on any of it.
+
+It is noted here only because it left two marks on work that *is* on this roadmap: the tower
 count is 16 rather than 15, and the Wave A line-skin SKUs in `MONETIZATION_EARLY_SKUS.md`
-now cover a number of towers that is still moving.
+are priced per line, so Arcane's skins now cover six towers instead of five. Continuing or
+parking the remaining units is an open call — the staged meshes cost nothing while they sit.
 
 ---
 

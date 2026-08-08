@@ -5,6 +5,15 @@ for the owner and the balance record to work over, not commitments. What this do
 firm about is the *routes*: which slots can be built from parts already owned, which need a
 generation pass, and what each mechanic sketch costs in simulation work.
 
+**Status: unplanned, and parked after one unit.** This came out of a spur-of-the-moment idea
+rather than the launch roadmap, and it sits on no roadmap week and no P0/P1 row. One unit —
+A6 Twin Crescent Ward — was taken end to end on 2026-08-08 to find out what a new unit
+actually costs; eleven more kitbash meshes are staged and idle, costing nothing while they
+sit. Nothing here is owed, and picking it back up is a fresh decision rather than a
+continuation. The part worth keeping either way is the section at the end on what running
+that one unit exposed in the integration checklist — those breaks applied to the existing
+roster too, and are fixed.
+
 ## Goal and shape
 
 Expand both rosters from 5 per category to **8 per category**: +9 towers, +9 creeps, 48

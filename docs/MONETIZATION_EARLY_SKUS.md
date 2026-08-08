@@ -95,13 +95,17 @@ spore_cloud).
 Note on 7: a launch-window bundle priced deliberately low. Its job is to convert first-time
 buyers and establish that purchases are cheap and fair, not to maximise revenue.
 
-**These counts move, and the SKUs are priced against them.** Twin Crescent Ward took Arcane
-from five towers to six on 2026-08-08, and `ROSTER_EXPANSION_PLAN.md` has eleven more units
-queued — enough to take each line to eight and the Founder's Set to twenty-four. A line skin
-is authored per tower, so every unit added after a skin ships is either unskinned in that
-bundle or unpaid authoring work. The names above deliberately no longer carry a number;
-the decision that still needs an owner is whether Wave A ships *before* the expansion (cheap
-now, growing debt) or *after* it (more authoring up front, stable scope).
+**These counts can move, and the SKUs are priced against them.** Twin Crescent Ward took
+Arcane from five towers to six on 2026-08-08. It came out of an unplanned roster-expansion
+detour that is not committed to (`ROSTER_EXPANSION_PLAN.md`), so six may simply be where
+Arcane stays — but if that sketch were ever carried out it would take each line to eight and
+the Founder's Set to twenty-four.
+
+It matters here because a line skin is authored per tower: any unit added after a skin ships
+is either unskinned in that bundle or unpaid authoring work. The names above therefore no
+longer carry a number. If the expansion stays parked, nothing further is owed; if it is ever
+picked back up, decide first whether Wave A ships before it (cheap now, growing debt) or
+after (more authoring up front, stable scope).
 
 ## Wave B — Projectile and mechanic effects (self-facing, highest frequency)
 
