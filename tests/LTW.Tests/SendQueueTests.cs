@@ -159,4 +159,75 @@ public sealed class SendQueueTests
         Assert.False(result.Accepted);
         Assert.Equal(CommandRejectionReason.PlayerEliminated, result.RejectionReason);
     }
+
+    /// <summary>One seat's queue is its own.</summary>
+    /// <remarks>
+    /// The property an authoritative server depends on. A queue is per-seat private intent, so
+    /// filling one seat's must not consume another's capacity or reorder what it asked for.
+    /// </remarks>
+    [Fact]
+    public void Queues_are_per_seat()
+    {
+        var slice = Slice(0);
+        var other = new PlayerId(2);
+        var creep = SampleVerticalSliceContent.CreepId;
+
+        for (var i = 0; i < LocalVerticalSlice.MaxQueuedSendsPerCreep; i++)
+        {
+            Assert.True(slice.EnqueueSend(Seat, creep).Accepted);
+        }
+
+        Assert.Equal(CommandRejectionReason.SendQueueFull, slice.EnqueueSend(Seat, creep).RejectionReason);
+
+        // Seat 1 being full says nothing about seat 2.
+        Assert.True(slice.EnqueueSend(other, creep).Accepted);
+        Assert.Equal(10, slice.QueuedSendCountFor(Seat, creep));
+        Assert.Equal(1, slice.QueuedSendCountFor(other, creep));
+    }
+
+    /// <summary>An unknown creep is refused by the shared content validator, not by the bridge.</summary>
+    /// <remarks>
+    /// Matters because a server has to refuse a malformed enqueue with the same reason code it uses
+    /// for a malformed send. A bridge-local check would be a second opinion about what a valid creep
+    /// is, free to drift from the one every other command is held to.
+    /// </remarks>
+    [Fact]
+    public void An_unknown_creep_is_refused()
+    {
+        var slice = Slice(0);
+        var result = slice.EnqueueSend(Seat, new LTW.Simulation.Content.ContentId("creep.does_not_exist"));
+
+        Assert.False(result.Accepted);
+        Assert.Equal(CommandRejectionReason.UnknownCreep, result.RejectionReason);
+        Assert.Empty(slice.SendQueueFor(Seat));
+    }
+
+    /// <summary>
+    /// The replay stream records the send the queue produced, once, at the tick it happened.
+    /// </summary>
+    /// <remarks>
+    /// This is the claim the design rests on: the queue is intent and the send is the fact, so only
+    /// the send is recorded. If enqueues were recorded too, a replay would apply the intent AND its
+    /// effect and double every queued send. Asserted rather than assumed, because nothing else in
+    /// the suite would notice.
+    /// </remarks>
+    [Fact]
+    public void A_queued_send_is_recorded_once_when_it_is_paid_for()
+    {
+        var slice = Slice(0);
+        var creep = SampleVerticalSliceContent.CreepId;
+
+        Assert.True(slice.EnqueueSend(Seat, creep).Accepted);
+        var beforeDrain = slice.GetReplayRecord().AcceptedCommands.Count(c => c.PlayerId.Equals(Seat));
+
+        slice.AdvanceOneTick();
+
+        var afterDrain = slice.GetReplayRecord().AcceptedCommands.Count(c => c.PlayerId.Equals(Seat));
+        output.WriteLine($"  accepted commands for the seat: {beforeDrain} before the drain, {afterDrain} after");
+
+        // Exactly one new record: the send. The enqueue itself left no trace, which is what stops a
+        // replay double-sending.
+        Assert.Equal(beforeDrain + 1, afterDrain);
+        Assert.Empty(slice.SendQueueFor(Seat));
+    }
 }

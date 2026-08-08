@@ -68,6 +68,40 @@ public sealed class QueueSendCommand : ISimulationCommand
 }
 
 /// <summary>
+/// Asks for one creep to be added to this seat's send queue, to be paid for when it can be.
+/// </summary>
+/// <remarks>
+/// A command rather than a method call on the bridge, because a queued send has to survive the
+/// trip to an authoritative server. `ARCHITECTURE.md` puts rate limits and cooldowns server-side,
+/// and anything a client can ask for has to arrive as something the server validates, accepts or
+/// refuses, and can throttle — a bridge method reachable only in-process cannot be any of those.
+///
+/// Carries one creep, not a quantity. A batch would let a single message enqueue ten entries and
+/// make the per-creep cap a function of message count rather than of queue depth; one command per
+/// entry keeps the cap meaning the same thing however the client batches its taps.
+///
+/// Deliberately NOT recorded in the accepted-command stream, and that is worth stating because it
+/// looks like an omission. The queue is per-seat private intent; what the match is made of is the
+/// SEND that results, which <c>QueueSend</c> already records at the tick gold actually reached it.
+/// Recording both would replay the intent and its effect and double every queued send.
+/// </remarks>
+public sealed class EnqueueSendCommand : ISimulationCommand
+{
+    public EnqueueSendCommand(PlayerId playerId, SimulationTick requestedTick, ContentId creepId)
+    {
+        PlayerId = playerId;
+        RequestedTick = requestedTick;
+        CreepId = creepId;
+    }
+
+    public PlayerId PlayerId { get; }
+
+    public SimulationTick RequestedTick { get; }
+
+    public ContentId CreepId { get; }
+}
+
+/// <summary>
 /// Which side of the roster a category tier applies to.
 /// </summary>
 public enum CategoryKind

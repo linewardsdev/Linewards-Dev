@@ -437,6 +437,16 @@ public sealed class LocalVerticalSlice
     /// </remarks>
     public VerticalSliceCommandResult EnqueueSend(PlayerId playerId, ContentId creepId)
     {
+        // Through the validator, like every other command. This is what lets an authoritative
+        // server accept or refuse an enqueue with the same reason codes it uses for a send, rather
+        // than the bridge having a second private opinion about what a valid creep id is.
+        var command = new EnqueueSendCommand(playerId, tick, creepId);
+        var contentResult = commandValidator.Validate(command, content);
+        if (!contentResult.Accepted)
+        {
+            return VerticalSliceCommandResult.Reject(contentResult.RejectionReason);
+        }
+
         if (!topology.HasPlayer(playerId))
         {
             return VerticalSliceCommandResult.Reject(CommandRejectionReason.InvalidPlayer);
@@ -445,11 +455,6 @@ public sealed class LocalVerticalSlice
         if (players.Get(playerId).IsEliminated)
         {
             return VerticalSliceCommandResult.Reject(CommandRejectionReason.PlayerEliminated);
-        }
-
-        if (content.Creeps.All(creep => !creep.Id.Equals(creepId)))
-        {
-            return VerticalSliceCommandResult.Reject(CommandRejectionReason.UnknownCreep);
         }
 
         if (!sendQueues.TryGetValue(playerId, out var queue))

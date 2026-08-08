@@ -31,6 +31,22 @@ public sealed class CommandContentValidator
             }
         }
 
+        // Same content checks as a direct send, minus quantity, which an enqueue does not carry.
+        // Routed through the validator rather than checked at the bridge so a server rejects a bad
+        // enqueue exactly as it rejects a bad send, with the same reason codes.
+        if (command is EnqueueSendCommand enqueue)
+        {
+            if (!enqueue.CreepId.IsValid)
+            {
+                return CommandResult.Reject(CommandRejectionReason.InvalidContentId);
+            }
+
+            if (!content.Creeps.Any(creep => creep.Id.Equals(enqueue.CreepId)))
+            {
+                return CommandResult.Reject(CommandRejectionReason.UnknownCreep);
+            }
+        }
+
         if (command is QueueSendCommand queueSend)
         {
             if (!queueSend.CreepId.IsValid)

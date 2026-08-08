@@ -326,6 +326,43 @@ just be a bug.
 ---
 
 
+## 47. The send queue is server-shaped but not yet server-safe
+
+The send queue (2026-08-08) was built to work under an authoritative server rather than as a client
+convenience: it lives in the simulation, `EnqueueSendCommand` is a real `ISimulationCommand` routed
+through `CommandContentValidator`, and it is refused with the same reason codes a direct send uses.
+Three things still stand between that and actually shipping it to a server.
+
+**1. The command carries its own seat, and a server must not believe it.**
+`EnqueueSendCommand.PlayerId` is a field on the message. In-process that is fine — the only caller
+is the local adapter passing `simulation.LocalPlayerId`. Over a wire it is a seat-spoofing hole: a
+client can enqueue into another player's queue by changing one number. The server has to bind the
+command to the authenticated connection's seat and ignore the field, exactly as
+`SECURITY_CONSIDERATIONS.md` requires for every other command. This is the one that must be fixed
+before any networked build, not after.
+
+**2. Nothing rate-limits enqueueing.**
+The per-creep cap of ten bounds how *deep* a queue can get; it does not bound how *often* a client
+may ask. A client can spam enqueue-and-be-refused indefinitely, and each attempt runs content
+validation. `ARCHITECTURE.md` puts rate limits server-side and the direct send path already has
+`SendCooldownTicks`; the enqueue path has no equivalent. Note a cooldown here is a different thing
+from the send cooldown — queueing is not sending, and making a player wait to *queue* would undo
+most of why the queue exists. A request-rate limit rather than a game-rule cooldown is what fits.
+
+**3. The client reads the queue straight out of the simulation.**
+`QueuedSendCount` and `SendQueueFor` go directly to the local slice. Under a server the queue is
+authoritative state that has to come back over the wire like gold and lives do, or the card's `x3`
+badge is a local guess that drifts the moment a message is dropped or reordered.
+
+**What is already right, so it is not re-litigated:** the queue is per-seat and isolated (tested);
+draining is deterministic — seats in id order, strictly first-in-first-out — so every client
+replaying the same command stream reaches the same board; and only the resulting SEND is recorded
+in the accepted-command stream, never the enqueue, so a replay cannot double-apply intent and
+effect. That last one is asserted by
+`A_queued_send_is_recorded_once_when_it_is_paid_for` rather than left as a comment.
+
+---
+
 ## 1. `_EMISSION` keyword loss on tower body materials — self-healing, root cause still unknown
 
 The tower body materials repeatedly lost their `_EMISSION` shader keyword and went
