@@ -452,7 +452,10 @@ public sealed class VerticalSliceBridgeTests
         Assert.Contains(content.Creeps, creep => creep.Id.Equals(SampleVerticalSliceContent.StalkerCreepId));
         Assert.Contains(content.Creeps, creep => creep.Id.Equals(SampleVerticalSliceContent.WardenCreepId));
         Assert.Contains(content.Creeps, creep => creep.Id.Equals(SampleVerticalSliceContent.ColossusCreepId));
-        Assert.Equal(15, content.Towers.Count);
+        // 16 towers: the roster expansion's first unit landed (ROSTER_EXPANSION_PLAN.md A6).
+        // This number is deliberately asserted rather than derived — it is the tripwire that
+        // makes adding a tower a decision someone has to confirm, not a side effect.
+        Assert.Equal(16, content.Towers.Count);
         Assert.Equal(15, content.Creeps.Count);
     }
 

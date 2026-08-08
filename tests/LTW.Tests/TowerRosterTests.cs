@@ -22,7 +22,9 @@ public class TowerRosterTests
     {
         "tower.arrow", "tower.control", "tower.relay", "tower.pulse", "tower.prism",
         "tower.gatling", "tower.tesla", "tower.foundry", "tower.barricade", "tower.repair_drone",
-        "tower.elder_canopy", "tower.sapling", "tower.bloomheart", "tower.thorn_snare", "tower.spore_cloud"
+        "tower.elder_canopy", "tower.sapling", "tower.bloomheart", "tower.thorn_snare", "tower.spore_cloud",
+        // Roster expansion, ARCANE 6 of 8 (ROSTER_EXPANSION_PLAN.md A6).
+        "tower.twin_crescent"
     };
 
     [Fact]
@@ -88,11 +90,23 @@ public class TowerRosterTests
     {
         var catalog = SampleVerticalSliceContent.Create();
 
-        // The Relay Ward is exempt. Its stats are deliberately weak because it earns gold on every
-        // hit — authored as TowerDefinition.SignalGoldPerHit and paid by
-        // LocalVerticalSlice.ApplySignalGold — a payoff these four numbers cannot express. Every
-        // other tower has to justify itself on stats alone.
-        var exempt = new[] { "tower.relay" };
+        // Two exemptions, both for the same reason: a payoff these four numbers cannot express.
+        //
+        // Relay Ward's stats are deliberately weak because it earns gold on every hit — authored
+        // as TowerDefinition.SignalGoldPerHit, paid by LocalVerticalSlice.ApplySignalGold.
+        //
+        // Twin Crescent Ward IS dominated by Arrow on these axes, and that is the design rather
+        // than an oversight: same range and damage, slower and dearer, because it fires TWICE per
+        // cooldown at two different creeps (CombatService.TwinVolley). Against one creep Arrow
+        // genuinely beats it — the intended trade — and against two it is 2.0 damage/tick to
+        // Arrow's 1.5. The rule here exists to catch "a palette slot nobody would ever press",
+        // and this is a slot pressed whenever chaff appears; only the four-axis proxy cannot see
+        // it. Twin_crescent_beats_arrow_only_when_a_second_target_exists pins both directions.
+        //
+        // Worth watching: at two entries this list is still the exception. If it reaches four or
+        // five, the check is measuring the wrong thing and should compare effective output rather
+        // than authored stats.
+        var exempt = new[] { "tower.relay", "tower.twin_crescent" };
 
         foreach (var tower in catalog.Towers)
         {

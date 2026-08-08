@@ -70,6 +70,8 @@ namespace LTW.UnityClient.Simulation
             new(2, "tower.relay", "RELAY", "Relay ward", CategoryArcane, TowerRolePalette.Relay),
             new(3, "tower.pulse", "PULSE", "Pulse ward", CategoryArcane, TowerRolePalette.Pulse),
             new(4, "tower.prism", "PRISM", "Prism ward", CategoryArcane, TowerRolePalette.Prism),
+            // Roster expansion A6; colour lives in TowerRolePalette with the rest of the line.
+            new(15, "tower.twin_crescent", "TWIN", "Twin crescent ward", CategoryArcane, TowerRolePalette.TwinCrescent),
 
             new(5, "tower.gatling", "GATLING", "Gatling turret", CategoryFoundry, new Color(0.87f, 0.62f, 0.28f)),
             new(6, "tower.tesla", "TESLA", "Tesla coil spire", CategoryFoundry, new Color(0.42f, 0.78f, 1f)),

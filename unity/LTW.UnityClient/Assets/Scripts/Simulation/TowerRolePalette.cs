@@ -28,5 +28,12 @@ namespace LTW.UnityClient.Simulation
         public static readonly Color Relay = new Color(1f, 0.784f, 0.29f);
         public static readonly Color Pulse = new Color(0.349f, 0.882f, 0.714f);
         public static readonly Color Prism = new Color(1f, 0.45f, 0.3f);
+
+        /// <summary>
+        /// Roster expansion A6. Sits between Arrow's blue and Control's violet deliberately —
+        /// Twin Crescent is Arrow's sibling and should read as one on the palette, not as a
+        /// sixth unrelated arcane colour.
+        /// </summary>
+        public static readonly Color TwinCrescent = new Color(0.45f, 0.53f, 1f);
     }
 }

@@ -699,10 +699,75 @@ public sealed class CombatService
                 }
             }
 
+            if (IsTwinCrescentTower(tower.TowerId))
+            {
+                TwinVolley(buffer, content, routes, tower, towerDefinition, target, availableTargets,
+                           baseDamage, tick, events, auras);
+            }
+
             buffer.ReplaceTower(tower.WithNextAttackTick(
                 new SimulationTick(tick.Value + EffectiveCooldown(buffer.Towers, tower, towerDefinition.AttackCooldownTicks, auras))));
         }
     }
+
+    /// <summary>
+    /// Twin Crescent's second barrel: one more shot, at a DIFFERENT creep, or nothing.
+    /// </summary>
+    /// <remarks>
+    /// The exclusion is the entire mechanic. Firing both barrels into one creep would make this a
+    /// plain damage upgrade over Arrow and nothing else; refusing to do so is what makes it the
+    /// arcane line's anti-chaff answer — double output into a crowd, strictly worse than two Arrows
+    /// into a lone fat creep. A wasted second barrel is the intended cost, not a gap to close.
+    ///
+    /// Selection runs through <see cref="SelectTarget"/> on the same candidate list the primary shot
+    /// drew from, so the second barrel obeys every rule the first does — range, arc, lead filtering —
+    /// rather than growing a private notion of a valid target. The only difference is one creep
+    /// removed from the list.
+    ///
+    /// Damage is baseDamage, matching the primary shot before any per-tower mechanic. Twin Crescent
+    /// has no damage mechanic of its own; its mechanic IS the second shot, and stacking a multiplier
+    /// on top of doubled output would price it out of a line it is meant to sit inside.
+    ///
+    /// Emits its own TowerFiredEvent so the client draws two beams from one tower on one tick, which
+    /// is the read the whole unit exists to sell.
+    /// </remarks>
+    private static void TwinVolley(
+        CombatDamageBuffer buffer,
+        CombatContent content,
+        LaneRouteSet routes,
+        TowerCombatState tower,
+        TowerDefinition towerDefinition,
+        CreepCombatState firstTarget,
+        IReadOnlyList<CreepCombatState> candidates,
+        int baseDamage,
+        SimulationTick tick,
+        List<ISimulationEvent> events,
+        SupportAuraField auras)
+    {
+        var remaining = candidates
+            .Where(creep => !creep.EntityId.Equals(firstTarget.EntityId))
+            .ToArray();
+
+        // Re-read from the buffer: the primary shot may have killed its target, and a creep that
+        // died this tick must not be shot again by the same tower's second barrel.
+        var live = remaining
+            .Where(creep => buffer.Creeps.Any(current => current.EntityId.Equals(creep.EntityId)
+                                                         && !current.IsDead && !current.HasLeaked))
+            .ToArray();
+
+        var second = SelectTarget(tower, towerDefinition, live, routes);
+        if (second is null)
+        {
+            return;
+        }
+
+        events.Add(new TowerFiredEvent(tick, tower.LaneId, tower.EntityId, tower.Position,
+                                       second.EntityId, ResolvePosition(second, routes), tick,
+                                       ResolvePosition(second, routes)));
+        DamageCreep(buffer, content, tower, second, baseDamage, tick, events, auras);
+    }
+
+    private static bool IsTwinCrescentTower(ContentId towerId) => ContainsRole(towerId, "twin_crescent");
 
     private const int FoundryShellFlightTicks = 2;
 
