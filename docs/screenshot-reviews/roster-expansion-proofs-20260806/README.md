@@ -35,6 +35,28 @@ visual-taste work, and blind headless iteration converges too slowly to be the p
    (head/base, body/plates, coil/dish) would move several cross-mesh units back into the
    cheap headless column.
 
+## Sibling wave, same day
+
+The four same-mesh units the proof cleared, built by `tools/art/kitbash_sibling_wave.py`
+and judged in `sibling_wave_pairs.png` (parent left of each sibling):
+
+- **Flak Battery (gatling ×2, toed in): PASS.** Reads as a twin emplacement, not a copy.
+- **Bulk Brute (brute 128%, leaning): PASS**, with a note — differentiation currently rests
+  on size and posture alone; give it a darker body tint at material time.
+- **Forge Tick (walker 55%, squashed): PASS.** Reads as the chunky little cousin.
+- **Twin Zephyr (echelon pair): WEAK.** The wraith is so tendril-busy that a second body
+  barely reads at lane distance. Keep the export, but the differentiation should probably
+  come from a tint shift rather than the pair — decide at material time.
+
+Two importer lessons are now encoded in the script: rigged-only exports (zephyr) skip prep
+normalization and import at raw scale, and their FBX references fbm-embedded texture names
+that never existed as files — relinking must map semantically (basecolor → Baked_BaseColor)
+rather than by basename. Both fixes are general and will apply to any future rigged donor.
+
+All four exported as prepared-convention FBX beside their donors in AIStaging. Five of the
+plan's twelve kitbash units now exist as staged meshes (with Twin Crescent); the remaining
+seven are the interactive-session set.
+
 ## Files
 
 | File | Shows |
@@ -42,6 +64,8 @@ visual-taste work, and blind headless iteration converges too slowly to be the p
 | `lineup_parents_vs_kitbash.png` | Parents (left) vs kitbashes (right), one frame |
 | `kitbash_pair_close.png` | The two units close up — the pass and the instructive fail |
 | `lineup_game_size.png` | The same line-up at ~game scale |
+| `sibling_wave_pairs.png` | The four sibling-wave pairs, parent beside kitbash |
+| `sibling_wave_game_size.png` | The sibling wave at ~game scale |
 
 Exported prepared-convention FBX (staged, not yet promoted): Twin Crescent under
 `AIStaging/Models/Towers/Arrow/AIDrop/`, Shard Runner under `Creeps/Runner/AIDrop/` —
