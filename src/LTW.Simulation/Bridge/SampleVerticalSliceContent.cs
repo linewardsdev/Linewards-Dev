@@ -181,7 +181,12 @@ public static class SampleVerticalSliceContent
                 // output: Gatling fires every tick for less damage per shot than Arrow but far
                 // more over time, Foundry trades Prism's reach for a much harder single hit,
                 // and Barricade is the cheapest way to hold a cell at all.
-                new TowerDefinition(GatlingTowerId, "Gatling Turret", new Gold(30), rangeCells: 2, damage: 4, attackCooldownTicks: 2, categoryIndex: 1, role: TowerRole.Dps),
+                // 30 before the category lock, when no seat had to live inside one line and every
+                // bot's opener resolved to Arcane's 14g Arrow regardless. As Foundry's entry Dps it
+                // was the worst value in the game: 26 points of damage-per-tick x cells-covered
+                // against Arrow's 19.5, at more than twice the price. Priced here at Arrow's own
+                // value-per-gold, which is what makes choosing Foundry a choice rather than a tax.
+                new TowerDefinition(GatlingTowerId, "Gatling Turret", new Gold(19), rangeCells: 2, damage: 4, attackCooldownTicks: 2, categoryIndex: 1, role: TowerRole.Dps),
                 // 38 to 44. Chain Arc turned out to be the strongest mechanic on the roster relative to
                 // its own baseline (+60% against a stack, +49% in a trickle), and at 38 the
                 // opportunity-cost test failed: a Tesla returned 1.37 damage per gold against 1.24 for
@@ -194,7 +199,10 @@ public static class SampleVerticalSliceContent
                 // which no range-2 tower reaches the lane from anyway. Damage 5 also crosses the
                 // renderer's damage >= 5 threshold, so the shot changes colour and starts printing
                 // numbers — the bonus is literally visible.
-                new TowerDefinition(BarricadeTowerId, "Barricade Bastion", new Gold(18), rangeCells: 2, damage: 10, attackCooldownTicks: 8, categoryIndex: 1, role: TowerRole.Wall),
+                // 18 before the category lock, for the same reason as the Gatling above. Priced
+                // against Grove's Sapling, the other line's wall: 16.25 value to the Sapling's 13,
+                // so 13g to the Sapling's 10 puts the two walls on the same terms.
+                new TowerDefinition(BarricadeTowerId, "Barricade Bastion", new Gold(13), rangeCells: 2, damage: 10, attackCooldownTicks: 8, categoryIndex: 1, role: TowerRole.Wall),
                 // 34 to 40. At 34 the mandatory-buy test failed outright: a drone bundle returned
                 // 3.00 damage per gold against 2.86 for the best plain-damage bundle at comparable
                 // gold, so taking one was strictly correct and the choice was fake. 40 brings both

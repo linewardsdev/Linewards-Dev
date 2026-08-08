@@ -396,18 +396,22 @@ namespace LTW.UnityClient.UI
         {
             var labels = LTW.UnityClient.Simulation.TowerCatalog.CategoryLabels;
             var gold = CurrentPlayerGold();
+            // -1 until the first tower goes down, after which every other line is locked out for the
+            // rest of the match. Read once per frame rather than per card so all three agree.
+            var chosenLine = CurrentPlayerTowerLine();
 
             for (var category = 0; category < labels.Length; category++)
             {
+                var locked = chosenLine >= 0 && category != chosenLine;
                 var accent = CategoryAccent(category);
                 var cardRect = RuntimeUiChrome.CategoryCardRect(rect, buttonY, gap, category, labels.Length, scale);
                 // Hit region excludes BOTH action rows, or the card's own button eats their clicks
                 // before either is ever delivered.
                 var pressed = RuntimeUiChrome.DrawCommandCard(
-                    cardRect, accent, CommandCardState.Normal, scale, RuntimeUiChrome.CategoryCardSelectRect(cardRect, scale));
+                    cardRect, accent, locked ? CommandCardState.Disabled : CommandCardState.Normal, scale, RuntimeUiChrome.CategoryCardSelectRect(cardRect, scale));
 
                 buttonStyle!.fontSize = Mathf.RoundToInt(13f * scale);
-                buttonStyle.normal.textColor = Cloud;
+                buttonStyle.normal.textColor = locked ? DisabledText : Cloud;
                 // Label and meta are positioned proportionally here, matching the send dock's
                 // category card. They previously used CommandCardLabelRect/CommandCardMetaRect,
                 // which anchor a fixed distance off the card's BOTTOM edge — on a card grown for a
@@ -415,14 +419,25 @@ namespace LTW.UnityClient.UI
                 GUI.Label(new Rect(cardRect.x, cardRect.y + cardRect.height * 0.20f, cardRect.width, 22f * scale), labels[category], buttonStyle);
 
                 metaStyle!.fontSize = Mathf.RoundToInt(9f * scale);
-                metaStyle.normal.textColor = accent;
+                metaStyle.normal.textColor = locked ? DisabledText : accent;
                 metaStyle.alignment = TextAnchor.MiddleCenter;
-                GUI.Label(new Rect(cardRect.x, cardRect.y + cardRect.height * 0.44f, cardRect.width, 18f * scale), "5 TOWERS", metaStyle);
+                // "LOCKED" rather than the tower count, because the count is an invitation and this
+                // card is not one. The chosen line's own card keeps saying what it holds.
+                GUI.Label(new Rect(cardRect.x, cardRect.y + cardRect.height * 0.44f, cardRect.width, 18f * scale), locked ? "LOCKED" : "5 TOWERS", metaStyle);
 
-                DrawTowerCategoryBatch(cardRect, category, accent, scale);
-                DrawTowerCategoryTier(cardRect, category, accent, gold, scale);
+                // Both rows act on the line they sit under — a batch upgrade of towers this seat can
+                // never own, and a tier for a line it can never build. Drawn only for a line still
+                // in play, so a locked card is a flat statement rather than three dead buttons.
+                if (!locked)
+                {
+                    DrawTowerCategoryBatch(cardRect, category, accent, scale);
+                    DrawTowerCategoryTier(cardRect, category, accent, gold, scale);
+                }
 
-                if (pressed)
+                // DrawCommandCard already refuses the press through GUI.enabled for a Disabled card;
+                // this is the second lock, so a future change to that state handling cannot quietly
+                // reopen a line the simulation would then reject.
+                if (pressed && !locked)
                 {
                     selectedTowerCategory = category;
                 }

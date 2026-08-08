@@ -169,14 +169,20 @@ public sealed class EightLaneCarouselTests
         var defenders = new HashSet<int>();
         var pairs = new HashSet<(int From, int To)>();
 
-        // 1200, not 900. P2 is reachable ONLY once P1 is out: the carousel is N -> N+1, so P2's
-        // only attacker is the local player, who never acts headlessly, and P8's sends skip onto it
-        // the moment P1 is eliminated. That makes this budget a bet on when an undefended seat dies,
-        // and teaching the bots to escort their walls (BotController.EscortFollowWindowTicks) pushed
-        // it out: measured on this seed, P1 is eliminated at tick 932 and P2 takes its first send at
-        // 950, both just past the old 900. Bots now spend some sends on escorts, which are cheap and
-        // weak, so the undefended seat bleeds a little slower.
-        for (var tick = 0; tick < 1200 && slice.MatchSummary is null; tick++)
+        // 1800, not 1200, not 900. P2 is reachable ONLY once P1 is out: the carousel is N -> N+1,
+        // so P2's only attacker is the local player, who never acts headlessly, and P8's sends skip
+        // onto it the moment P1 is eliminated. That makes this budget a bet on when an undefended
+        // seat dies, and it has now been repaid twice. Teaching the bots to escort their walls
+        // (BotController.EscortFollowWindowTicks) took P1's elimination to tick 932 and P2's first
+        // send to 950, past the old 900. Repricing Foundry's entry tier for the category lock
+        // (2026-08-08) took them to 1667 and 1700.
+        //
+        // Worth stating why that second move is a reshuffle and not a defensive buff, because
+        // widening a window is exactly how a balance regression gets hidden: across seeds 1-6 mean
+        // match length went 5664 -> 5684, 0.4%, against this project's 20% bar for meaningful. The
+        // repricing moved value between the lines rather than adding it, and what changed here is
+        // which seats drew the line that got cheaper on THIS seed.
+        for (var tick = 0; tick < 1800 && slice.MatchSummary is null; tick++)
         {
             slice.AdvanceOneTick();
             foreach (var queued in slice.DrainEvents().OfType<CreepQueuedEvent>())
