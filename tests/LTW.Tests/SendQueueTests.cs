@@ -230,4 +230,86 @@ public sealed class SendQueueTests
         Assert.Equal(beforeDrain + 1, afterDrain);
         Assert.Empty(slice.SendQueueFor(Seat));
     }
+
+    /// <summary>A seat that is not in this match cannot queue into it.</summary>
+    /// <remarks>
+    /// The seat-spoofing guard, exercised through the only door a client has. In-process the
+    /// claimed id is always the local seat, so this is the test that keeps
+    /// <see cref="LTW.Simulation.Authority.ISeatAuthority"/> honest before a server exists to
+    /// exercise it properly — without it the boundary is a comment.
+    /// </remarks>
+    [Fact]
+    public void A_seat_outside_the_match_is_refused()
+    {
+        var slice = Slice(0);
+        var notInThisMatch = new PlayerId(99);
+
+        var result = slice.EnqueueSend(notInThisMatch, SampleVerticalSliceContent.CreepId);
+
+        Assert.False(result.Accepted);
+        Assert.Equal(CommandRejectionReason.InvalidPlayer, result.RejectionReason);
+        Assert.Empty(slice.SendQueueFor(notInThisMatch));
+    }
+
+    /// <summary>Asking faster than the limiter allows is refused, without consuming queue depth.</summary>
+    /// <remarks>
+    /// Request rate, not game rule: the refusals here are for ASKING too often, and they land while
+    /// the queue still has room. A limiter that only bit once the queue was full would be the cap
+    /// wearing a different hat.
+    /// </remarks>
+    [Fact]
+    public void Asking_far_faster_than_a_human_is_throttled()
+    {
+        var slice = Slice(0);
+        var creep = SampleVerticalSliceContent.CreepId;
+        var accepted = 0;
+        var throttled = 0;
+
+        // Far past the largest honest burst the game can produce. A player filling every card
+        // queues about 150 entries across the roster, so the limiter has to sit well above that
+        // and still stop this.
+        for (var i = 0; i < 2_000; i++)
+        {
+            var result = slice.EnqueueSend(Seat, creep);
+            if (result.Accepted)
+            {
+                accepted++;
+            }
+            else if (result.RejectionReason == CommandRejectionReason.CooldownActive)
+            {
+                throttled++;
+            }
+        }
+
+        output.WriteLine($"  2000 requests on one tick: {accepted} accepted, {throttled} throttled");
+        Assert.True(throttled > 0, "the limiter never bit across 2000 requests on a single tick");
+
+        // The queue cap, not the limiter, is what stopped the accepted ones: a seat may hold ten of
+        // this creep and did. If the limiter were doing the stopping it would bite below that, and
+        // a real player filling a card would feel it.
+        Assert.Equal(LocalVerticalSlice.MaxQueuedSendsPerCreep, accepted);
+    }
+
+    /// <summary>The client-facing queue comes off the snapshot, not out of the simulation.</summary>
+    /// <remarks>
+    /// Under a server the snapshot is what arrives over the wire, so anything the UI shows has to
+    /// be reachable from it. This asserts the two views agree, which is what makes reading the
+    /// snapshot a safe substitute rather than a second source of truth.
+    /// </remarks>
+    [Fact]
+    public void The_snapshot_carries_the_queue()
+    {
+        var slice = Slice(0);
+        var creep = SampleVerticalSliceContent.BruteCreepId;
+
+        for (var i = 0; i < 3; i++)
+        {
+            Assert.True(slice.EnqueueSend(Seat, creep).Accepted);
+        }
+
+        var snapshot = slice.GetSnapshot();
+        Assert.Equal(slice.SendQueueFor(Seat).Count, snapshot.SendQueueFor(Seat).Count);
+        Assert.Equal(slice.QueuedSendCountFor(Seat, creep), snapshot.QueuedSendCountFor(Seat, creep));
+        Assert.Equal(3, snapshot.QueuedSendCountFor(Seat, creep));
+    }
 }
