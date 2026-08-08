@@ -33,10 +33,59 @@
 
                     <ui:Button name="title-start" text="START GAME" class="ltw-action ltw-action--primary" />
                     <ui:Button name="title-howto" text="HOW TO PLAY" class="ltw-action ltw-action--secondary" />
+                    <ui:Button name="title-codex" text="CODEX" class="ltw-action ltw-action--secondary" />
                     <ui:Button name="title-settings" text="SETTINGS" class="ltw-action ltw-action--secondary" />
                     <ui:Button name="title-quit" text="QUIT" class="ltw-action ltw-action--tertiary" />
 
                     <ui:Label name="title-footer" text="Prototype local vertical slice" class="ltw-footer" picking-mode="Ignore" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+        </ui:VisualElement>
+
+        <!-- ============================================================ CODEX -->
+        <!--
+            One unit at a time: its model turning on a stage rendered into codex-preview, its stat
+            tiles built in code into codex-stats, and an icon rail of the whole half underneath.
+
+            codex-preview deliberately DOES take picks even though it is not a button — it is the
+            element the render texture is bound to, and leaving it ignorable made no difference
+            except to make a future drag-to-turn gesture impossible to add.
+        -->
+        <ui:VisualElement name="screen-codex" class="ltw-screen" picking-mode="Ignore">
+            <ui:VisualElement name="codex-field" class="ltw-field ltw-field--solid" picking-mode="Ignore" />
+            <ui:VisualElement name="codex-glow" class="ltw-glow" picking-mode="Ignore" />
+            <ui:VisualElement name="codex-safe" class="ltw-safe" picking-mode="Ignore">
+                <!--
+                    No leading spacer, unlike every other screen. The spacers exist to compose
+                    sparse screens against the slack; this one has a 560px stage, six stat tiles and
+                    a fifteen-icon rail, so its problem is the opposite one and the slack it has
+                    left is better spent on breathing room between those than on a void above them.
+                -->
+                <ui:VisualElement class="ltw-column" picking-mode="Ignore">
+                    <ui:VisualElement name="codex-tabs" class="ltw-tabs">
+                        <ui:Button name="codex-tab-wards" text="WARDS" class="ltw-tab ltw-tab--current" />
+                        <ui:Button name="codex-tab-creeps" text="CREEPS" class="ltw-tab" />
+                    </ui:VisualElement>
+
+                    <ui:VisualElement name="codex-preview" class="ltw-codex-preview" />
+
+                    <ui:Label name="codex-eyebrow" text="WARD · ARCANE" class="ltw-eyebrow" picking-mode="Ignore" />
+                    <ui:Label name="codex-name" text="ARROW TOWER" class="ltw-codex-name" picking-mode="Ignore" />
+                    <ui:Label name="codex-blurb" text="-" class="ltw-note" picking-mode="Ignore" />
+
+                    <ui:VisualElement name="codex-stats" picking-mode="Ignore" />
+
+                    <ui:Label name="codex-traits" text="-" class="ltw-codex-traits" picking-mode="Ignore" />
+
+                    <ui:VisualElement name="codex-rail" class="ltw-codex-rail" />
+
+                    <ui:VisualElement name="codex-nav" class="ltw-codex-nav">
+                        <ui:Button name="codex-prev" text="◀ PREV" class="ltw-action ltw-action--secondary ltw-codex-step" />
+                        <ui:Label name="codex-position" text="1 / 15" class="ltw-codex-position" picking-mode="Ignore" />
+                        <ui:Button name="codex-next" text="NEXT ▶" class="ltw-action ltw-action--secondary ltw-codex-step" />
+                    </ui:VisualElement>
+
+                    <ui:Button name="codex-back" text="BACK" class="ltw-action ltw-action--tertiary" />
                 </ui:VisualElement>
             </ui:VisualElement>
         </ui:VisualElement>

@@ -34,7 +34,7 @@ namespace LTW.UnityClient.Simulation
 
         public sealed class Entry
         {
-            public Entry(int role, string contentId, string shortLabel, string displayName, int category, Color accent)
+            public Entry(int role, string contentId, string shortLabel, string displayName, int category, Color accent, string blurb = "")
             {
                 Role = role;
                 ContentId = contentId;
@@ -42,6 +42,7 @@ namespace LTW.UnityClient.Simulation
                 DisplayName = displayName;
                 Category = category;
                 Accent = accent;
+                Blurb = blurb;
             }
 
             /// <summary>Palette identity, and the value carried in selectedTowerRole.</summary>
@@ -59,29 +60,61 @@ namespace LTW.UnityClient.Simulation
 
             public Color Accent { get; }
 
+            /// <summary>One line of codex copy: what this tower is for, in a player's terms.</summary>
+            /// <remarks>
+            /// Here rather than on <c>TowerDefinition</c> deliberately. The simulation has no
+            /// opinion about prose, and adding a description field to shared content would put copy
+            /// edits through the assembly the balance tests run against. This class is already the
+            /// place where presentation-only facts about a tower live.
+            ///
+            /// It states what the numbers cannot: the stat block shows a Barricade's 10 damage, not
+            /// that its job is to occupy a cell. Where a number IS the point, the codex reads it
+            /// from the simulation instead of repeating it here — a blurb that quotes a stat is a
+            /// copy that goes stale at the next rebalance.
+            /// </remarks>
+            public string Blurb { get; }
+
             /// <summary>Trailing segment of the content id, e.g. "arrow" — used by visual lookups.</summary>
             public string RoleId => ContentId.StartsWith("tower.") ? ContentId.Substring(6) : ContentId;
+
+            /// <summary>Name of this tower's icon PNG under Resources/Art/UI/Icons.</summary>
+            public string IconResource => $"ui_icon_tower_{RoleId}_v01";
         }
 
         public static readonly Entry[] Entries =
         {
-            new(0, "tower.arrow", "ARROW", "Arrow ward", CategoryArcane, TowerRolePalette.Arrow),
-            new(1, "tower.control", "CTRL", "Control ward", CategoryArcane, TowerRolePalette.Control),
-            new(2, "tower.relay", "RELAY", "Relay ward", CategoryArcane, TowerRolePalette.Relay),
-            new(3, "tower.pulse", "PULSE", "Pulse ward", CategoryArcane, TowerRolePalette.Pulse),
-            new(4, "tower.prism", "PRISM", "Prism ward", CategoryArcane, TowerRolePalette.Prism),
+            new(0, "tower.arrow", "ARROW", "Arrow ward", CategoryArcane, TowerRolePalette.Arrow,
+                "The opening tower. Cheap, quick to reload, and the only thing most lanes can afford on the first build."),
+            new(1, "tower.control", "CTRL", "Control ward", CategoryArcane, TowerRolePalette.Control,
+                "An Arrow that reaches a cell further for a slower reload. Bought for coverage, not for damage."),
+            new(2, "tower.relay", "RELAY", "Relay ward", CategoryArcane, TowerRolePalette.Relay,
+                "Pays its owner every time it lands a hit. It attacks poorly on purpose — the gold is the point, and it needs a lane busy enough to keep firing."),
+            new(3, "tower.pulse", "PULSE", "Pulse ward", CategoryArcane, TowerRolePalette.Pulse,
+                "Hits everything packed around its target. One cell of range, so it has to be built where the maze turns."),
+            new(4, "tower.prism", "PRISM", "Prism ward", CategoryArcane, TowerRolePalette.Prism,
+                "The longest reach in Arcane and the hardest single hit. Slow enough that it wants a brake in front of it."),
 
-            new(5, "tower.gatling", "GATLING", "Gatling turret", CategoryFoundry, new Color(0.87f, 0.62f, 0.28f)),
-            new(6, "tower.tesla", "TESLA", "Tesla coil spire", CategoryFoundry, new Color(0.42f, 0.78f, 1f)),
-            new(7, "tower.foundry", "FOUNDRY", "Foundry core", CategoryFoundry, new Color(1f, 0.48f, 0.24f)),
-            new(8, "tower.barricade", "BULWARK", "Barricade bastion", CategoryFoundry, new Color(0.72f, 0.68f, 0.58f)),
-            new(9, "tower.repair_drone", "DRONE", "Repair drone spire", CategoryFoundry, new Color(0.95f, 0.82f, 0.45f)),
+            new(5, "tower.gatling", "GATLING", "Gatling turret", CategoryFoundry, new Color(0.87f, 0.62f, 0.28f),
+                "The fastest reload on the roster. Shreds anything cheap and does very little to anything armoured."),
+            new(6, "tower.tesla", "TESLA", "Tesla coil spire", CategoryFoundry, new Color(0.42f, 0.78f, 1f),
+                "Foundry's answer to a crowd — real reach and a hit that carries past its target."),
+            new(7, "tower.foundry", "FOUNDRY", "Foundry core", CategoryFoundry, new Color(1f, 0.48f, 0.24f),
+                "The heaviest shell in the game, and it brakes what it hits. Twelve ticks between shots, so every one has to land."),
+            new(8, "tower.barricade", "BULWARK", "Barricade bastion", CategoryFoundry, new Color(0.72f, 0.68f, 0.58f),
+                "Cheap enough that its job is occupying a cell. It shoots because it may as well; the maze is what you bought."),
+            new(9, "tower.repair_drone", "DRONE", "Repair drone spire", CategoryFoundry, new Color(0.95f, 0.82f, 0.45f),
+                "Shortens the reload of the Foundry towers around it. Mediocre alone, and the reason a Foundry cluster outperforms its stat lines."),
 
-            new(10, "tower.elder_canopy", "CANOPY", "Elder canopy", CategoryGrove, new Color(0.45f, 0.78f, 0.36f)),
-            new(11, "tower.sapling", "SAPLING", "Sapling sentinel", CategoryGrove, new Color(0.62f, 0.85f, 0.42f)),
-            new(12, "tower.bloomheart", "BLOOM", "Bloomheart totem", CategoryGrove, new Color(0.96f, 0.78f, 0.36f)),
-            new(13, "tower.thorn_snare", "THORN", "Thorn snare totem", CategoryGrove, new Color(0.58f, 0.42f, 0.78f)),
-            new(14, "tower.spore_cloud", "SPORE", "Spore cloud bloom", CategoryGrove, new Color(0.66f, 0.36f, 0.82f))
+            new(10, "tower.elder_canopy", "CANOPY", "Elder canopy", CategoryGrove, new Color(0.45f, 0.78f, 0.36f),
+                "Sees five cells — further than anything else on the board. Built at the back to cover the whole approach."),
+            new(11, "tower.sapling", "SAPLING", "Sapling sentinel", CategoryGrove, new Color(0.62f, 0.85f, 0.42f),
+                "The cheapest tower in the game. Grove's maze block, bought by the handful."),
+            new(12, "tower.bloomheart", "BLOOM", "Bloomheart totem", CategoryGrove, new Color(0.96f, 0.78f, 0.36f),
+                "Strengthens the Grove towers beside it. The tower that makes a grove worth planting in one place."),
+            new(13, "tower.thorn_snare", "THORN", "Thorn snare totem", CategoryGrove, new Color(0.58f, 0.42f, 0.78f),
+                "Lays bramble across the cells in its reach and crawls anything walking them. A slow is worth shots, so build it where towers can see."),
+            new(14, "tower.spore_cloud", "SPORE", "Spore cloud bloom", CategoryGrove, new Color(0.66f, 0.36f, 0.82f),
+                "Drifts a cloud over a wide patch of lane and damages everything under it. Slow, and indifferent to how many creeps arrive.")
         };
 
         private static readonly Dictionary<int, Entry> ByRole = BuildByRole();

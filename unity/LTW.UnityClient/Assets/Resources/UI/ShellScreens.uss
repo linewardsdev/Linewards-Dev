@@ -524,3 +524,153 @@
 .ltw-cell--out {
     color: rgb(104, 122, 158);
 }
+
+/* ---------------------------------------------------------------- codex */
+
+/*
+ * The codex is the one shell screen whose content does not fit the column's usual rhythm: it has a
+ * fixed-size image, six stat tiles and a fifteen-icon rail all competing for the same height. The
+ * column keeps its width and its enter transition; everything below tightens the vertical spacing
+ * that the title and pause screens can afford to be generous with.
+ */
+
+.ltw-tabs {
+    flex-direction: row;
+    justify-content: center;
+    margin-bottom: 18px;
+}
+
+.ltw-tab {
+    font-size: 22px;
+    letter-spacing: 4px;
+    -unity-font-style: bold;
+    color: rgb(104, 122, 158);
+    background-color: rgba(0, 0, 0, 0);
+    border-width: 0;
+    border-bottom-width: 3px;
+    border-bottom-color: rgba(0, 0, 0, 0);
+    padding-left: 26px;
+    padding-right: 26px;
+    padding-top: 10px;
+    padding-bottom: 8px;
+    margin-left: 6px;
+    margin-right: 6px;
+    transition-property: color, border-bottom-color;
+    transition-duration: 140ms;
+}
+
+.ltw-tab--current {
+    color: rgb(244, 247, 255);
+    border-bottom-color: rgb(255, 200, 74);
+}
+
+/*
+ * The stage. A fixed square because the render texture is square and a non-uniform element would
+ * stretch the model rather than letterbox it — scale-to-fit is not available for a background
+ * image bound from a RenderTexture the way it is for a sprite. It matches the render target's 4:3
+ * exactly, so the pixel ratio is 1:1 at the column's full width.
+ *
+ * The camera clears to alpha zero, so this element's own background is what shows around the
+ * silhouette. That is deliberate: it means the unit sits in the screen's field rather than in a
+ * black box nothing else on the composition has.
+ */
+.ltw-codex-preview {
+    width: 640px;
+    height: 480px;
+    align-self: center;
+    background-color: rgba(77, 163, 255, 0.05);
+    border-width: 2px;
+    border-color: rgba(77, 163, 255, 0.24);
+    margin-bottom: 20px;
+}
+
+.ltw-codex-name {
+    font-size: 54px;
+    letter-spacing: 2px;
+    color: rgb(244, 247, 255);
+    -unity-font-style: bold;
+    -unity-text-align: middle-center;
+    margin-top: 2px;
+    margin-bottom: 6px;
+    white-space: normal;
+    text-shadow: 0 4px 18px rgba(4, 7, 16, 0.95);
+}
+
+/* The behaviour line. Quieter than the blurb because it is a list of facts, not a sentence. */
+.ltw-codex-traits {
+    font-size: 20px;
+    color: rgb(150, 168, 205);
+    -unity-text-align: middle-center;
+    white-space: normal;
+    margin-top: 16px;
+    margin-bottom: 4px;
+}
+
+/* The stat tiles are tighter here than on the pause screen, which shows three rather than six. */
+.ltw-stat__value--codex {
+    font-size: 34px;
+}
+
+/*
+ * Fifteen icons, five to a row. The wrap lands exactly on the category boundaries — CORE, SUPPORT
+ * and ELITE are five apiece, as are ARCANE, FOUNDRY and GROVE — so the grouping reads off the
+ * layout without needing three headings.
+ */
+.ltw-codex-rail {
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin-top: 18px;
+    margin-bottom: 14px;
+}
+
+.ltw-codex-chip {
+    width: 108px;
+    height: 108px;
+    margin: 5px;
+    padding: 0;
+    background-color: rgba(77, 163, 255, 0.05);
+    background-size: 74% 74%;
+    background-position: center;
+    background-repeat: no-repeat;
+    border-width: 2px;
+    border-color: rgba(150, 168, 205, 0.2);
+    transition-property: border-color, background-color, scale;
+    transition-duration: 140ms;
+}
+
+.ltw-codex-chip:hover {
+    border-color: rgba(77, 163, 255, 0.6);
+}
+
+.ltw-codex-chip--current {
+    border-color: rgb(255, 200, 74);
+    background-color: rgba(255, 200, 74, 0.1);
+    scale: 1.06 1.06;
+}
+
+.ltw-codex-nav {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 6px;
+}
+
+/* Overrides .ltw-action's full-width block, so PREV and NEXT sit either side of the counter. */
+.ltw-codex-step {
+    flex-grow: 1;
+    flex-basis: 0;
+    margin-top: 0;
+    margin-bottom: 0;
+}
+
+.ltw-codex-position {
+    font-size: 24px;
+    letter-spacing: 3px;
+    color: rgb(150, 168, 205);
+    -unity-font-style: bold;
+    -unity-text-align: middle-center;
+    width: 160px;
+    margin-top: 0;
+    margin-bottom: 0;
+}

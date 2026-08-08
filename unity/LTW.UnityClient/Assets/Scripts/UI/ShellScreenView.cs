@@ -13,6 +13,7 @@ namespace LTW.UnityClient.UI
     {
         None,
         Title,
+        Codex,
         Pause,
         Results
     }
@@ -32,6 +33,10 @@ namespace LTW.UnityClient.UI
         void StartGame();
 
         void ShowHowToPlay();
+
+        void ShowCodex();
+
+        void CloseCodex();
 
         void OpenSettings();
 
@@ -77,8 +82,10 @@ namespace LTW.UnityClient.UI
         private UIDocument? document;
         private VisualElement? shellRoot;
         private VisualElement? titleScreen;
+        private VisualElement? codexScreen;
         private VisualElement? pauseScreen;
         private VisualElement? resultsScreen;
+        private CodexScreenView? codex;
         private VisualElement? resultsTable;
         private Label? pauseLives;
         private Label? pauseGold;
@@ -133,7 +140,18 @@ namespace LTW.UnityClient.UI
 
             if (screen != currentScreen)
             {
+                // Leaving the codex stops its stage. It owns a camera pointed at a render texture,
+                // and a camera with a target renders every frame whether or not anything reads it —
+                // so a player who opens the codex once and then plays a match would otherwise pay a
+                // full extra render pass for the rest of the session with nothing on screen to show
+                // for it.
+                if (currentScreen == ShellScreen.Codex)
+                {
+                    codex?.Close();
+                }
+
                 Hide(titleScreen);
+                Hide(codexScreen);
                 Hide(pauseScreen);
                 Hide(resultsScreen);
                 currentScreen = screen;
@@ -148,7 +166,9 @@ namespace LTW.UnityClient.UI
         {
             // Leaves the panel empty rather than frozen on whatever screen was last up.
             currentScreen = ShellScreen.None;
+            codex?.Close();
             Hide(titleScreen);
+            Hide(codexScreen);
             Hide(pauseScreen);
             Hide(resultsScreen);
         }
@@ -169,6 +189,7 @@ namespace LTW.UnityClient.UI
         private VisualElement? ScreenElement(ShellScreen screen) => screen switch
         {
             ShellScreen.Title => titleScreen,
+            ShellScreen.Codex => codexScreen,
             ShellScreen.Pause => pauseScreen,
             ShellScreen.Results => resultsScreen,
             _ => null
@@ -272,6 +293,7 @@ namespace LTW.UnityClient.UI
 
             shellRoot = root.Q<VisualElement>("shell-root");
             titleScreen = root.Q<VisualElement>("screen-title");
+            codexScreen = root.Q<VisualElement>("screen-codex");
             pauseScreen = root.Q<VisualElement>("screen-pause");
             resultsScreen = root.Q<VisualElement>("screen-results");
             resultsTable = root.Q<VisualElement>("results-table");
@@ -281,7 +303,7 @@ namespace LTW.UnityClient.UI
             resultsHeadline = root.Q<Label>("results-headline");
             resultsNote = root.Q<Label>("results-note");
 
-            if (shellRoot is null || titleScreen is null || pauseScreen is null || resultsScreen is null)
+            if (shellRoot is null || titleScreen is null || codexScreen is null || pauseScreen is null || resultsScreen is null)
             {
                 Debug.LogError("SHELL UXML did not contain the expected screen elements.");
                 return;
@@ -289,6 +311,11 @@ namespace LTW.UnityClient.UI
 
             PaintBackdrops(root);
             WireActions(root);
+
+            // Built here rather than lazily on first open, so a missing element in the codex block
+            // is reported at launch alongside every other shell wiring error instead of on the tap
+            // that first needs it.
+            codex = new CodexScreenView(codexScreen, transform, simulationDriver);
 
             // Neither inset can be resolved until the panel has a size, and the panel is resized
             // whenever the surface changes, so these recompute rather than reading once.
@@ -307,8 +334,14 @@ namespace LTW.UnityClient.UI
         {
             Wire(root, "title-start", () => actions.StartGame());
             Wire(root, "title-howto", () => actions.ShowHowToPlay());
+            Wire(root, "title-codex", () => actions.ShowCodex());
             Wire(root, "title-settings", () => actions.OpenSettings());
             Wire(root, "title-quit", () => actions.QuitGame());
+
+            // The codex's own PREV/NEXT/tab/chip buttons are wired by CodexScreenView, because they
+            // change what that screen shows rather than where the session is. Only BACK is a
+            // session action, and so only BACK is wired here.
+            Wire(root, "codex-back", () => actions.CloseCodex());
 
             Wire(root, "pause-resume", () => actions.ResumeMatch());
             Wire(root, "pause-settings", () => actions.OpenSettings());
@@ -470,6 +503,10 @@ namespace LTW.UnityClient.UI
         {
             switch (screen)
             {
+                case ShellScreen.Codex:
+                    codex?.Refresh();
+                    break;
+
                 case ShellScreen.Pause:
                     RefreshPauseStats();
                     break;
