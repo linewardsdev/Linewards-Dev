@@ -223,7 +223,10 @@ namespace LTW.UnityClient.Editor
             if (renderer == null || snapshot == null) return false;
 
             var field = typeof(UnityVerticalSliceRenderer).GetField("activeTowers", BindingFlags.Instance | BindingFlags.NonPublic);
-            if (field?.GetValue(renderer) is not Dictionary<string, GameObject> activeTowers)
+            // Keyed by entity id as a long. It was a string when this probe was written, and the
+            // change silently disarmed the whole thing: the cast failed, BindTracks bailed, and the
+            // probe reported "could not reflect activeTowers" rather than any measurement.
+            if (field?.GetValue(renderer) is not Dictionary<long, GameObject> activeTowers)
             {
                 Debug.LogError("MOTIONAMP could not reflect activeTowers");
                 return false;
@@ -240,7 +243,7 @@ namespace LTW.UnityClient.Editor
                     continue;
                 }
 
-                if (activeTowers.TryGetValue(tower.EntityId.Value.ToString(), out var instance) && instance != null)
+                if (activeTowers.TryGetValue(tower.EntityId.Value, out var instance) && instance != null)
                 {
                     Tracks.Add(new Track { Role = roles[index], Root = instance, RootScale = instance.transform.localScale.x });
                 }
