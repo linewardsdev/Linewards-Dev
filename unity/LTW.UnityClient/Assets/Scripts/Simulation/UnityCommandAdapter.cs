@@ -32,6 +32,22 @@ namespace LTW.UnityClient.Simulation
         }
 
         /// <summary>
+        /// The tower line the local player has committed to, or -1 while they are still free to pick.
+        /// </summary>
+        /// <remarks>
+        /// A seat commits to one line with its first tower and cannot build outside it afterwards.
+        /// The palette needs to know because the rule is otherwise invisible: every category card
+        /// looked buildable, and tapping one from a line the seat had locked out of produced a bare
+        /// rejection with nothing to explain it.
+        /// </remarks>
+        public int CurrentPlayerTowerLine()
+        {
+            return simulation is null
+                ? PlayerEconomyState.UnchosenTowerLine
+                : simulation.GetSnapshot().Players.Get(simulation.LocalPlayerId).ChosenTowerLine;
+        }
+
+        /// <summary>
         /// Ticks remaining before the local player may send again, or 0 if a send is available.
         /// </summary>
         /// <remarks>

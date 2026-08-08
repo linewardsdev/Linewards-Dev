@@ -2134,3 +2134,63 @@ reaching the gold path it existed to test. It now grants income first, so the as
 the assertion it means.
 
 284 tests passing, zero skipped.
+
+## 2026-08-08: The Category Lock Landed, And Foundry Turned Out To Be A Tax
+
+A seat now commits to one tower line with its first tower and builds only from that line for the
+rest of the match. That was the point: a player could previously assemble a blend of DPS, AoE and
+slow across all three lines that essentially could not lose, which is the "too easy to solve"
+report that started this.
+
+Enforcing it exposed a pricing problem rather than creating one. Nothing had ever required a seat
+to live inside one line, so the lines had drifted apart without anyone paying for it:
+
+| Line | Dps towers | Cheapest Dps | Cheapest anything |
+| --- | --- | --- | --- |
+| Arcane | 4 | 14g Arrow | 14g |
+| Foundry | 1 | 30g Gatling | 18g Barricade |
+| Grove | 1 | 46g ElderCanopy | 10g Sapling |
+
+Two separate faults came out of that, and they are worth keeping apart because only one of them
+was a balance question.
+
+**The bots were idling at full pockets.** `BotBuildPlanner.NextTower` resolved the build order's
+next role against the line and stopped there, so a bot whose turn called for a role its line priced
+dearly simply waited. Measured across seeds 1-6 at 600 ticks, mean towers per seat by line:
+Arcane 5.2, Foundry 3.1, Grove 5.6. The planner now takes the bot's spendable gold and resolves the
+role against what that buys before resolving it against the line, falling back to the cheapest
+affordable tower. Grove's 10g Sapling is a wall rather than a gun, but it mazes, and the placement
+search already scores route length above coverage. Grove went 5.6 -> 5.7 on that change alone,
+which is the tell that Grove was never short of money — it was being made to save for a 46g tower
+it did not need.
+
+**Foundry's entry tier was simply overpriced.** Valuing a tower at damage-per-tick times cells
+covered (Manhattan radius r covers 2r^2+2r+1), Foundry's two cheapest sat about 35% below every
+other line's equivalent:
+
+| Tower | Value | Was | Value/g | Priced against | Now |
+| --- | --- | --- | --- | --- | --- |
+| Gatling (Dps) | 26 | 30g | 0.87 | Arrow, 19.5 @ 14g = 1.39 | **19g** |
+| Barricade (Wall) | 16.25 | 18g | 0.90 | Sapling, 13 @ 10g = 1.30 | **13g** |
+
+Foundry went 3.1 -> 5.6 mean towers. The three lines now sit at 5.4 / 5.6 / 5.7, an 81% spread
+closed to 6%.
+
+The model is only honest for towers whose value IS damage, which is why nothing else moved. Pulse
+scores 0.23 by it and Utility 0.23, because one is AoE damage in a radius and the other pays gold
+per hit — the model cannot see either. Tesla and Foundry-the-tower are underscored for the same
+reason. Repricing those on this model would have been arithmetic dressed up as balance.
+
+**What did not change, which is the part that needed checking.** Cheaper towers are more defence,
+and this game's problem was never too little of it. Across seeds 1-6, mean match length went
+5664 -> 5684 ticks: 0.4%, against this log's 20% bar for meaningful. All six still finish. The
+repricing moved value between the lines rather than adding it.
+
+One test window moved as a consequence and is recorded here so it is not mistaken for tuning to fit
+a test. `EightLaneCarouselTests` can only see P2 pressured once P1 — the local seat, which never
+acts headlessly — is eliminated and P8's sends skip onto it. On seed 1 that moment went from tick
+932 to 1667, so the budget went 1200 -> 1800. The seed-1 shift is which seats drew the line that got
+cheaper; the population-level number is the 0.4% above.
+
+Still open: bots bank heavily and send rarely (a seat can sit on ~29k gold), which is why an
+undefended P1 survives 1667 ticks at all. That is its own item and is not what this entry changed.

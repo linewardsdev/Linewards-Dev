@@ -483,6 +483,12 @@ public sealed class LocalVerticalSlice
         // The owner's line tier is baked in HERE, at build time. A tier bought later raises what
         // new towers are built at and leaves this one where it is until it is paid for
         // individually — see UpgradeTower.
+        // Committed here, on the first tower that actually lands, so the choice is made by playing
+        // rather than by a modal before the match starts. WithChosenTowerLine ignores every call
+        // after the first, which is what makes it one-way — a seat that could re-pick mid-match
+        // would be the old build-everything with extra steps.
+        players = players.Replace(players.Get(playerId).WithChosenTowerLine(tower.CategoryIndex));
+
         var builtTier = player.TowerLineTier(tower.CategoryIndex);
         combatState = new CombatState(
             combatState.Creeps,
@@ -1423,6 +1429,19 @@ public sealed class LocalVerticalSlice
         if (players.Get(playerId).IsEliminated)
         {
             return TowerPlacementValidation.Reject(CommandRejectionReason.PlayerEliminated);
+        }
+
+        // The category lock. A seat commits to one tower line with its first tower and builds only
+        // from that line for the rest of the match. Reported from play 2026-08-07: with every line
+        // buildable, a scattered set of wards blends DPS, AOE and slow into a defence that cannot
+        // lose, so there is no decision to make.
+        //
+        // Checked in the validator rather than in PlaceTower so CanPlaceTower answers the same way
+        // and the palette can grey what it cannot build — a board that offers a build it will not
+        // honour is worse than one that offers nothing.
+        if (!players.Get(playerId).CanBuildFromLine(TowerFor(towerId).CategoryIndex))
+        {
+            return TowerPlacementValidation.Reject(CommandRejectionReason.InvalidContentId);
         }
 
         if (!grids.TryGetValue(laneId, out var grid))

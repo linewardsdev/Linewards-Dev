@@ -18,7 +18,7 @@ public sealed class TowerSelectionBatchTests
     private static readonly LaneId Lane = new(1);
     private static readonly GridPosition ArrowCell = new(2, 4);
     private static readonly GridPosition PrismCell = new(4, 6);
-    private static readonly GridPosition GatlingCell = new(2, 8);
+    private static readonly GridPosition ControlCell = new(2, 8);
 
     private static LocalVerticalSlice Slice()
     {
@@ -27,7 +27,7 @@ public sealed class TowerSelectionBatchTests
         slice.GrantLocalPlaytestIncome(Player, new Income(1000));
         Assert.True(slice.PlaceTower(Player, Lane, SampleVerticalSliceContent.TowerId, ArrowCell).Accepted);
         Assert.True(slice.PlaceTower(Player, Lane, SampleVerticalSliceContent.PrismTowerId, PrismCell).Accepted);
-        Assert.True(slice.PlaceTower(Player, Lane, SampleVerticalSliceContent.GatlingTowerId, GatlingCell).Accepted);
+        Assert.True(slice.PlaceTower(Player, Lane, SampleVerticalSliceContent.ControlTowerId, ControlCell).Accepted);
         return slice;
     }
 
@@ -50,29 +50,46 @@ public sealed class TowerSelectionBatchTests
     }
 
     /// <summary>
-    /// The case the whole-line version could never produce: one selection, two ceilings.
+    /// A selection cannot outrun its line's ceiling.
     /// </summary>
+    /// <remarks>
+    /// This used to span two lines — Arcane raised, Foundry not, so a Gatling in the selection had
+    /// nowhere to go. The category lock (2026-08-08) made that board impossible: a seat commits to
+    /// one line with its first tower, so no selection can ever contain two. The per-line ceiling
+    /// logic it was defending is unchanged and still worth pinning — what changed is that a blocked
+    /// tower can no longer be produced by mixing lines, so the ceiling is shown by running the batch
+    /// twice: the second pass is the one that must find nothing left to buy.
+    /// </remarks>
     [Fact]
-    public void A_selection_spanning_two_lines_obeys_each_lines_own_ceiling()
+    public void A_selection_obeys_its_own_lines_ceiling()
     {
         var slice = Slice();
-        // Arcane is raised, Foundry is not — so the Gatling has nowhere to go.
+        // Arcane raised to 2, so towers may reach tier 2 and no further.
         Assert.True(slice.BuyCategoryTier(Player, CategoryKind.TowerLine, Arcane, 2).Accepted);
+        var selection = new[] { ArrowCell, PrismCell, ControlCell };
 
-        var outcome = slice.UpgradeTowers(Player, Lane, new[] { ArrowCell, PrismCell, GatlingCell });
+        var first = slice.UpgradeTowers(Player, Lane, selection);
+        var goldAtCeiling = Gold(slice);
+        var second = slice.UpgradeTowers(Player, Lane, selection);
 
-        Assert.Equal(2, outcome.Upgraded);
-        Assert.Equal(2, outcome.Eligible);
+        Assert.Equal(3, first.Upgraded);
         Assert.Equal(2, TierOf(slice, ArrowCell));
         Assert.Equal(2, TierOf(slice, PrismCell));
-        Assert.Equal(1, TierOf(slice, GatlingCell));
+        Assert.Equal(2, TierOf(slice, ControlCell));
+
+        // The ceiling, which is the whole point: a second pass over a selection already sitting at
+        // the line's tier finds nothing eligible, charges nothing, and moves nothing.
+        Assert.Equal(0, second.Upgraded);
+        Assert.Equal(0, second.Eligible);
+        Assert.Equal(0, second.GoldSpent);
+        Assert.Equal(goldAtCeiling, Gold(slice));
     }
 
     [Fact]
     public void Selling_a_selection_removes_them_all_and_refunds_the_quoted_total()
     {
         var slice = Slice();
-        var selection = new[] { ArrowCell, GatlingCell };
+        var selection = new[] { ArrowCell, ControlCell };
         var quote = slice.QuoteTowerSales(Player, Lane, selection);
         var goldBefore = Gold(slice);
 
@@ -94,10 +111,10 @@ public sealed class TowerSelectionBatchTests
     {
         var slice = Slice();
 
-        slice.SellTowers(Player, Lane, new[] { ArrowCell, GatlingCell });
+        slice.SellTowers(Player, Lane, new[] { ArrowCell, ControlCell });
 
         Assert.True(slice.PlaceTower(Player, Lane, SampleVerticalSliceContent.TowerId, ArrowCell).Accepted);
-        Assert.True(slice.PlaceTower(Player, Lane, SampleVerticalSliceContent.TowerId, GatlingCell).Accepted);
+        Assert.True(slice.PlaceTower(Player, Lane, SampleVerticalSliceContent.TowerId, ControlCell).Accepted);
     }
 
     [Fact]
@@ -122,9 +139,9 @@ public sealed class TowerSelectionBatchTests
         var batched = Slice();
         var byHand = Slice();
 
-        batched.SellTowers(Player, Lane, new[] { ArrowCell, GatlingCell });
+        batched.SellTowers(Player, Lane, new[] { ArrowCell, ControlCell });
         Assert.True(byHand.SellTowerAt(Player, Lane, ArrowCell).Accepted);
-        Assert.True(byHand.SellTowerAt(Player, Lane, GatlingCell).Accepted);
+        Assert.True(byHand.SellTowerAt(Player, Lane, ControlCell).Accepted);
 
         Assert.Equal(Gold(byHand), Gold(batched));
         Assert.Equal(byHand.GetSnapshot().Towers.Count, batched.GetSnapshot().Towers.Count);

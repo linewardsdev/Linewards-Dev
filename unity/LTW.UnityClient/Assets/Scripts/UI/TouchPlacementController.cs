@@ -362,6 +362,22 @@ namespace LTW.UnityClient.UI
             return commandAdapter?.CurrentPlayerGold() ?? 0;
         }
 
+        /// <summary>The line this seat has committed to, or -1 while every line is still open.</summary>
+        /// <remarks>
+        /// Defaults to -1 rather than 0 when there is no adapter: with no simulation to ask, showing
+        /// every category as available is the honest answer, and it also keeps the palette usable in
+        /// the scene view where no match is running.
+        /// </remarks>
+        private int CurrentPlayerTowerLine()
+        {
+            if (commandAdapter == null)
+            {
+                commandAdapter = Object.FindAnyObjectByType<UnityCommandAdapter>();
+            }
+
+            return commandAdapter?.CurrentPlayerTowerLine() ?? -1;
+        }
+
         private bool IsSelectedCellInBounds() =>
             selectedCell.x >= 0 && selectedCell.x < LaneWidth && selectedCell.y >= 0 && selectedCell.y < LaneLength;
     }
