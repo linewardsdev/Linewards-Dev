@@ -57,6 +57,25 @@ All four exported as prepared-convention FBX beside their donors in AIStaging. F
 plan's twelve kitbash units now exist as staged meshes (with Twin Crescent); the remaining
 seven are the interactive-session set.
 
+## Interactive session, 2026-08-07 — Shard Runner converges
+
+The first MCP-driven kitbash session, using the connection recipe in
+`UNITY_MCP_CODEX_WORKFLOW.md`. **Shard Runner: PASS in two iterations**
+(`shard_runner_interactive_pair.png`), where two blind headless attempts had failed.
+
+What eyes changed, concretely: the viewport showed the runner is a flat blade-sled whose
+long axis is X — both blind attempts had marched shards across the transverse axis, off
+the body — and that its centre carries a teal orb, which became the socket for a single
+crystal sail (0.20 scale, donor orientation) with two small flankers on the aft prongs.
+The failed design was a row of spikes on a spine that does not exist; the design that
+works was only visible by looking.
+
+Loop that converged: place via `execute_blender_code` → frame → viewport screenshot →
+adjust. Two screenshots of judgement per iteration. The remaining six cross-mesh units
+(Lens Ward, Magnetron Spire, Mycelial Node, Gloom Chanter, Cracked Colossus, Bramble
+Wall) now have a proven procedure. Exported over the failed FBX as the real
+`shardrunner_kitbash_runner_swarm_v01_prepared.fbx` — six of twelve kitbash units staged.
+
 ## Files
 
 | File | Shows |
@@ -66,6 +85,7 @@ seven are the interactive-session set.
 | `lineup_game_size.png` | The same line-up at ~game scale |
 | `sibling_wave_pairs.png` | The four sibling-wave pairs, parent beside kitbash |
 | `sibling_wave_game_size.png` | The sibling wave at ~game scale |
+| `shard_runner_interactive_pair.png` | Shard Runner beside its parent — the interactive-session pass |
 
 Exported prepared-convention FBX (staged, not yet promoted): Twin Crescent under
 `AIStaging/Models/Towers/Arrow/AIDrop/`, Shard Runner under `Creeps/Runner/AIDrop/` —
