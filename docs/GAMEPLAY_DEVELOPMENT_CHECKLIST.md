@@ -410,3 +410,24 @@ eight, so the clips never fight the renderer's own transform writes.
 - [ ] A creep's weight class is legible from how it moves, before its health bar is read.
 - [ ] Firing, being hit, and dying are each distinguishable without colour cues.
 - [ ] Nothing in the roster falls back to another unit's motion when its own asset is missing.
+
+## Send queue (2026-08-08)
+
+Sending on a phone means opening the dock, finding a card and tapping it. Doing that at the moment
+income lands is not something a player can be asked to repeat, so a tap now states intent and the
+simulation pays for it when it can.
+
+- [x] Up to ten of one creep may wait per seat; the eleventh is refused with `SendQueueFull`.
+- [x] The queue pays oldest first and never looks past an entry it cannot afford.
+- [x] An entry with no gold behind it waits rather than failing, and is charged nothing while it waits.
+- [x] Gold arriving releases the queue without another tap.
+- [x] The send card is enabled on queue space rather than on gold — the affordability gate was the
+      exact tap the queue exists to accept, and leaving it would have hidden the feature behind a
+      button nobody could press when they needed it.
+- [x] The card shows a count, because a tap no longer produces a creep immediately and a queued tap
+      would otherwise look identical to one that did nothing.
+- [ ] **A queued send cannot be cancelled.** A mis-tap on a phone is likely and the only way out is
+      to let it drain. A long press on the card, or a tap on the count badge, would cover it. Not
+      built, and the most likely thing to annoy a real player.
+- [ ] **Not played by a human.** Everything above is asserted by tests; whether queueing *feels*
+      better than tapping at the right moment is unmeasured.

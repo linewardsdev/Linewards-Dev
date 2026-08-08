@@ -21,6 +21,14 @@ Because security in competitive mobile games rests on **strict server authority*
 * **Client Command Spoofing**: Sending invalid or out-of-turn commands to manipulate match state.
 
 ### Mitigation Strategy
+* **Seat Authority**: every command carries a `PlayerId`, and that field must never be believed
+  over a wire — it is the one value an attacker most wants to change, and trusting it lets a client
+  queue sends into another player's queue, build in their lane, or spend their gold.
+  `ISeatAuthority` (2026-08-08) exists to enforce **the seat comes from the connection, never from
+  the message**: `EnqueueSend` resolves the seat through it and overwrites the argument it was
+  given. In-process the two are the same value, which is exactly why the boundary was written
+  before the server — retrofitting it later means auditing every call site under time pressure.
+  Currently applied to the enqueue path only; every other command still reads its own `PlayerId`.
 * **Zero Client Authority**: `LTW.UnityClient` never publishes state assertions (e.g., "Player 1 gold is 500"). It accepts user input and transmits immutable requests (e.g., `PlaceTowerCommand`, `SendCreepCommand`).
 * **Authoritative Server Validation**: `LTW.MatchServer` executes `LTW.Simulation` independently. Every received command is validated before execution against:
   1. **Resource Availability**: Player gold and minimum income gates (`CategoryTierRules.MinimumIncomeFor`).
@@ -63,6 +71,15 @@ Because security in competitive mobile games rests on **strict server authority*
 ### Mitigation Strategy
 * **Transport Encryption**: All client-server traffic uses TLS / WSS / QUIC encryption.
 * **Input Rate Limiting**: The match host rate-limits input packets per seat per tick, silently dropping flood attempts before they touch `LTW.Simulation`.
+  *Status 2026-08-08:* partly built, and in a different place than this sentence describes.
+  `ICommandRateLimiter` and a per-seat token bucket exist **inside** `LTW.Simulation`
+  (`Authority/`), not in front of it, and are wired to **one** command — `EnqueueSend`. Every
+  other command (`PlaceTower`, `QueueSend`, `BuyCategoryTier`, the batch operations) is still
+  unthrottled. In-process that costs nothing; over a wire it is a flood surface. The in-simulation
+  limiter is the floor, not the transport-level defence this line promises.
+  The bucket is measured in simulation ticks rather than wall clock, deliberately: a wall-clock
+  limiter throttles the 300x batch harness while letting a real client through, which is the wrong
+  way round for a control whose job is to be tested.
 * **Information Filtering**: `LTW.MatchServer` only broadcasts state visibility data appropriate for a given player seat, preventing client hacks from inspecting unrevealed opponent build plans.
 
 ---

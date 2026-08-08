@@ -140,3 +140,42 @@ Collected here because they are easy to lose when the command source changes:
 - Unknown or out-of-match player ids are rejected, never thrown on.
 - Gold, income, lives, kill bounties, and leak results are server-owned; clients submit
   intent only.
+
+---
+
+## Command authority: the boundary is now a type (2026-08-08)
+
+The gap this document names — rules "designed and documented but never enforced" — has its first
+enforced piece.
+
+`ISeatAuthority` answers *which seat is this command allowed to act as*. `EnqueueSend` resolves the
+seat through it and **overwrites the `PlayerId` it was passed**. In a local match those are the same
+value and the call looks pointless; over a wire it is the difference between a queue and a
+seat-spoofing hole, because `PlayerId` is a field on the message and a client controls it.
+
+`LocalSeatAuthority` is the single-process implementation. It still checks that the claimed seat is
+in the match rather than accepting anything, so a client bug that acts as a bot's seat fails now
+instead of at integration.
+
+**What the server implementation must change, and it is not the interface.** `LocalSeatAuthority`
+answers "is this a seat in this match", which is the right question locally and the wrong one on a
+server. The server version answers "is this the seat on *this connection*" — same signature,
+different question, and that substitution is the entire point of the boundary existing early.
+
+### Still reading their own PlayerId
+
+Only the enqueue path goes through the authority. `PlaceTower`, `QueueSend`, `BuyCategoryTier`,
+`UpgradeTower`, `SellTowerAt` and the batch operations all still trust the id they are handed. That
+is safe in-process and is a hole the moment a socket is involved, so routing them through the same
+authority is prerequisite work for a networked build rather than a follow-up to it.
+
+### Per-seat state that now travels in the snapshot
+
+The send queue is per-seat private intent, and it is carried in `VerticalSliceSnapshot` rather than
+read off the simulation. That matters for the same reason gold does: under a server the snapshot is
+what arrived over the wire, and a client reaching into the simulation for the value is reading a
+local guess that drifts on the first dropped message — silently, and only for the player affected.
+
+Note what is *not* in the accepted-command stream: the enqueue. The queue is intent; the resulting
+send is the fact, and only the fact is recorded, at the tick gold actually reached it. Recording
+both would make a replay apply the intent and its effect and double every queued send.

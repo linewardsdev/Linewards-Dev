@@ -37,12 +37,12 @@ Repair Drone (whose contribution is other towers' reach).
 | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | --- |
 | Arrow Tower | `tower.arrow` | Arcane | 14 | 2 | 2 | 2 | 4.00 | 0.286 | Front-most target. Shade takes reduced damage. |
 | Control Ward | `tower.control` | Arcane | 24 | 3 | 2 | 3 | 2.67 | 0.111 | Front-most target, full damage to Shade. Range raised 2 to 3 because at 2 it was strictly dominated by Arrow. |
-| Relay Ward | `tower.relay` | Arcane | 28 | 2 | 2 | 4 | 2.00 | 0.071 | +1 gold to its owner on every hit. Deliberately weak on stats; exempt from the no-domination test for that reason. |
+| Relay Ward | `tower.relay` | Arcane | 28 | 2 | 2 | 4 | 2.00 | 0.071 | +3 gold to its owner on every hit (was +1, raised 2026-08-08). Deliberately weak on stats; exempt from the no-domination test for that reason. |
 | Pulse Ward | `tower.pulse` | Arcane | 32 | 1 | 6 | 4 | 6.00 | 0.188 | Half-damage splash to up to 2 creeps within 1 cell of the target - rewards a CLUMP. |
 | Prism Ward | `tower.prism` | Arcane | 42 | 4 | 9 | 6 | 6.00 | 0.143 | Prioritises Shade, then higher health, then farther forward. Full damage to Shade. |
 | Gatling Turret | `tower.gatling` | Foundry | 30 | 2 | 2 | 1 | 8.00 | 0.267 | None. Fires every tick - the fastest plain single-target tower. |
 | Tesla Coil Spire | `tower.tesla` | Foundry | 44 | 3 | 5 | 3 | 6.67 | 0.175 | **Chain Arc.** After the primary hit the bolt jumps to creeps AT OR BEHIND the last link, up to 2 more times, halving each hop, each within 2 cells. Rewards a LINE, where Pulse rewards a clump. Backward is load-bearing: selection picks the front-most creep, so a forward chain would find nothing ahead of it and never fire. |
-| Foundry Core | `tower.foundry` | Foundry | 52 | 2 | 14 | 6 | 9.33 | 0.179 | **Stack Mortar.** No damage when it fires. The shell lands 2 ticks later on a pre-computed cell, hitting every creep standing there. It only targets creeps it can actually lead, so a launched shell always lands on something. Cannot fire while a shell is in the air. |
+| Foundry Core | `tower.foundry` | Foundry | 52 | 2 | 14 | 6 | 9.33 | 0.179 | **Stack Mortar,** and Foundry's brake. No damage when it fires. The shell lands 2 ticks later on a pre-computed cell, hitting every creep standing there. It only targets creeps it can actually lead, so a launched shell always lands on something. Cannot fire while a shell is in the air. |
 | Barricade Bastion | `tower.barricade` | Foundry | 18 | 2 | 5 | 4 | 5.00 | 0.278 | **Fixed Emplacement.** Never turns; engages only creeps that have not passed its own row. Paid for with range 1-to-2 and damage 3-to-5. |
 | Repair Drone Spire | `tower.repair_drone` | Foundry | 40 | 3 | 3 | 2 | 6.00 | 0.176 | **Servicing.** Every orthogonally adjacent tower of the same owner fires one tick faster (floor 1). Does not stack, and does nothing for a tower already at cooldown 1 (Gatling). Replaced a +1 RANGE buff that measured as decoration - see GD_TUNING_LOG 2026-07-29. |
 | Elder Canopy | `tower.elder_canopy` | Grove | 46 | 5 | 8 | 6 | 5.33 | 0.116 | **Deep Roots.** Targets the creep furthest BACK in range rather than the leader. With the roster's longest reach (5) it engages arrivals at the mouth of the lane, softening a wave before anything else sees it. |
@@ -50,6 +50,32 @@ Repair Drone (whose contribution is other towers' reach).
 | Bloomheart Totem | `tower.bloomheart` | Grove | 22 | 2 | 4 | 3 | 5.33 | 0.242 | **Crowd Bloom.** +1 damage for every other creep sharing the target's cell, capped at +3. Answers a stacked send by punching through its leader, where Pulse answers the same board by thinning the whole group. Replaced "Reaping Bloom" after measurement showed that rule was inert in 0% of organic scenarios - see GD_TUNING_LOG 2026-07-29. |
 | Thorn Snare Totem | `tower.thorn_snare` | Grove | 34 | 2 | 5 | 3 | 6.67 | 0.196 | **Bramble Hold.** Creeps that start a tick in its zone move at exactly half speed. The zone is exactly 3 route cells - it used to widen to every cell the tower could see (5 at range 2), which made it an automatic purchase. Range 1-to-2 is required by the mechanic. |
 | Spore Cloud Bloom | `tower.spore_cloud` | Grove | 34 | 3 | 4 | 6 | 2.67 | 0.078 | **Rot.** Damage is max(authored, target max health / 6): inert against chaff, the hardest counter to anything fat. Reads AUTHORED max health. |
+
+## Line identity, and who answers speed
+
+Each tower line is meant to win differently, and as of 2026-08-08 that is stated in data rather
+than implied by names. Every tower carries a `TowerRole` — `Dps`, `Aoe`, `Brake`, `Economy`,
+`Support` or `Wall` — which is also what bot build orders ask for, so a profile says "brake, then
+damage" and each line fills that from its own roster.
+
+| Line | Wins by | Brake | Economy |
+|---|---|---|---|
+| Arcane | Out-earning | **none, deliberately** | Relay Ward, +3 gold a hit |
+| Foundry | Raw output | Foundry Core | — |
+| Grove | Holding the lane | Thorn Snare | — |
+
+**Arcane has no answer to speed, and that is the trade.** It is the only line that earns, and it
+pays for that by having nothing that slows. A brake was tried on Control Ward and withdrawn the
+same day: at 24 gold with range 3 it was simultaneously the cheapest brake and the longest-reaching,
+and the normal-pressure scenario went from a leak inside 120 ticks to **zero leaks in 960 with every
+creep killed**. The defence became lethal rather than slower. If Arcane needs one later it wants a
+weaker or costlier home than Control Ward.
+
+Before this, Bramble Hold was the ONLY slow on the roster and it belonged to Grove — which is why a
+forced category pick was unshippable: locking would have made Grove mandatory rather than making
+the choice interesting. The slow is now an authored property (`TowerDefinition.SlowsCreeps`) rather
+than a substring match on "thorn" in combat code, so giving a line a brake no longer means naming a
+tower after a plant.
 
 ## Tower Role Map
 
@@ -59,7 +85,7 @@ flowchart LR
 
     towers --> arrow["Arrow Tower<br/>Rapid low-cost single-target<br/>14G / 4 DPS"]
     towers --> control["Control Ward<br/>Anti-shade single-target<br/>24G / 2.67 DPS"]
-    towers --> relay["Relay Ward<br/>Signal economy support<br/>28G / 2 DPS / +1G on hit"]
+    towers --> relay["Relay Ward<br/>Signal economy support<br/>28G / 2 DPS / +3G on hit"]
     towers --> pulse["Pulse Ward<br/>Short-range splash<br/>32G / 6 DPS baseline"]
     towers --> prism["Prism Ward<br/>Long-range priority beam<br/>42G / 6 DPS"]
 
