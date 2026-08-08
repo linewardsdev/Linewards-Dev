@@ -135,6 +135,34 @@ Suggested art-production loop:
 5. Codex integrates the selected asset, updates import settings and references, and validates the result.
 6. Codex captures before/after evidence and commits only accepted assets.
 
+## Blender MCP
+
+Blender has its own MCP bridge (the `blender-mcp` addon + `uvx blender-mcp` server,
+configured in `.mcp.json`), used for kitbash art sessions and headless-adjacent work that
+needs eyes on a viewport.
+
+**Connecting — do not click the sidebar.** The addon's socket server does not persist
+across launches, and driving the N-panel by scripted keypresses is stateless toggling that
+fails as often as it works. Launch Blender with the autostart script instead:
+
+```bash
+open -a Blender --args --python tools/art/blender_mcp_autostart.py
+```
+
+Then verify with any `mcp__blender__*` call — `get_scene_info` is the cheapest. The server
+listens on `127.0.0.1:9876`. If the tools time out, the usual causes in order: Blender not
+running, launched without the script, or the addon missing from
+`~/Library/Application Support/Blender/<ver>/scripts/addons/blender_mcp_addon.py`.
+
+**Headless vs interactive.** Batch mesh work (`--background --python`) does NOT use the
+MCP and cannot — the addon refuses to serve in background mode. Use headless for
+deterministic pipelines (`tools/art/kitbash_sibling_wave.py`, LOD/AO bakes) and the MCP
+session for placement work that needs per-iteration viewport screenshots — the split the
+kitbash proofs measured: blind placement failed twice where same-mesh transforms passed.
+
+Set the viewport to Material Preview from code before judging anything by screenshot;
+the default Solid shading hides every texture.
+
 ## Performance Rules
 
 Frame-loop code should be boring in the best way.
