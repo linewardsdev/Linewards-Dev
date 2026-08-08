@@ -30,8 +30,10 @@ Source of truth:
 
 ## Tower Roster
 
-15 towers in three lines of five, surfaced through the build palette's ARCANE / FOUNDRY / GROVE
-category picker. The client reads every cost from `ContentCatalog` at display time
+16 towers — six Arcane, five Foundry, five Grove — surfaced through the build palette's
+ARCANE / FOUNDRY / GROVE category picker. It was three lines of five until Twin Crescent Ward,
+the roster expansion's first unit, landed 2026-08-08 (`ROSTER_EXPANSION_PLAN.md` row A6).
+The client reads every cost from `ContentCatalog` at display time
 (`UnityCommandAdapter.TowerCost`) - it keeps no copy, because it used to and the copies drifted three
 ways at once.
 
@@ -44,6 +46,7 @@ Repair Drone (whose contribution is other towers' reach).
 | Arrow Tower | `tower.arrow` | Arcane | 14 | 2 | 2 | 2 | 4.00 | 0.286 | Front-most target. Shade takes reduced damage. |
 | Control Ward | `tower.control` | Arcane | 24 | 3 | 2 | 3 | 2.67 | 0.111 | Front-most target, full damage to Shade. Range raised 2 to 3 because at 2 it was strictly dominated by Arrow. |
 | Relay Ward | `tower.relay` | Arcane | 28 | 2 | 2 | 4 | 2.00 | 0.071 | +3 gold to its owner on every hit (was +1, raised 2026-08-08). Deliberately weak on stats; exempt from the no-domination test for that reason. |
+| Twin Crescent Ward | `tower.twin_crescent` | Arcane | 30 | 2 | 6 | 6 | 4.00 | 0.133 | **Twin Volley.** Fires two shots per cooldown, each selecting its own target through the normal rules, and the second cannot re-hit the first. Against one creep that is 4.00 DPS; against two or more it is 8.00 spread across them, which is the point — it is the anti-chaff answer in a line otherwise built for single targets. Strictly dominated by Arrow on the four scalar axes and exempt from the no-domination test for that reason, like Relay: the whole value is in the second shot, which no scalar column can show. |
 | Pulse Ward | `tower.pulse` | Arcane | 32 | 1 | 6 | 4 | 6.00 | 0.188 | Half-damage splash to up to 2 creeps within 1 cell of the target - rewards a CLUMP. |
 | Prism Ward | `tower.prism` | Arcane | 42 | 4 | 9 | 6 | 6.00 | 0.143 | Prioritises Shade, then higher health, then farther forward. Full damage to Shade. |
 | Gatling Turret | `tower.gatling` | Foundry | 30 | 2 | 2 | 1 | 8.00 | 0.267 | None. Fires every tick - the fastest plain single-target tower. |
@@ -92,6 +95,7 @@ flowchart LR
     towers --> arrow["Arrow Tower<br/>Rapid low-cost single-target<br/>14G / 4 DPS"]
     towers --> control["Control Ward<br/>Anti-shade single-target<br/>24G / 2.67 DPS"]
     towers --> relay["Relay Ward<br/>Signal economy support<br/>28G / 2 DPS / +3G on hit"]
+    towers --> twin["Twin Crescent Ward<br/>Two shots, two targets<br/>30G / 4 DPS single, 8 spread"]
     towers --> pulse["Pulse Ward<br/>Short-range splash<br/>32G / 6 DPS baseline"]
     towers --> prism["Prism Ward<br/>Long-range priority beam<br/>42G / 6 DPS"]
 
@@ -99,7 +103,8 @@ flowchart LR
     shade --> full["Full damage from Control / Prism"]
     pulse --> splash["Splash: up to 2 nearby creeps<br/>half base damage"]
     prism --> priority["Priority: Shade, then high-health,<br/>then farther-forward target"]
-    relay --> signal["Signal gold: +1G<br/>for owner on hit"]
+    relay --> signal["Signal gold: +3G<br/>for owner on hit"]
+    twin --> second["Second shot excludes<br/>the first shot's target"]
 ```
 
 ## Creep Roster

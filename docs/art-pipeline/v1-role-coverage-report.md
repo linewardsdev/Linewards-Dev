@@ -29,6 +29,7 @@ written as full repo-relative paths rather than prose.
 | Tower | Bloomheart | `tower.bloomheart` | `unity/LTW.UnityClient/Assets/Prefabs/Towers/Tower_Bloomheart_3D.prefab` | **none** — see Target Reference Gap | Implemented, no target reference |
 | Tower | Thorn Snare | `tower.thorn_snare` | `unity/LTW.UnityClient/Assets/Prefabs/Towers/Tower_ThornSnare_3D.prefab` | **none** — see Target Reference Gap | Implemented, no target reference |
 | Tower | Spore Cloud | `tower.spore_cloud` | `unity/LTW.UnityClient/Assets/Prefabs/Towers/Tower_SporeCloud_3D.prefab` | **none** — see Target Reference Gap | Implemented, no target reference |
+| Tower | Twin Crescent | `tower.twin_crescent` | `unity/LTW.UnityClient/Assets/Prefabs/Towers/Tower_TwinCrescent_3D.prefab` | **none** — see Target Reference Gap | Implemented, no target reference |
 | Creep | Runner | `creep.runner` | `unity/LTW.UnityClient/Assets/Prefabs/Creeps/Creep_Runner_3D.prefab` | `unity/LTW.UnityClient/Assets/Art/Creeps/Production/Sprites/creep_runner_candidate_v07_trimmed.png` | Implemented |
 | Creep | Brute | `creep.brute` | `unity/LTW.UnityClient/Assets/Prefabs/Creeps/Creep_Brute_3D.prefab` | `unity/LTW.UnityClient/Assets/Art/Creeps/Production/Sprites/creep_brute_candidate_v02b_trimmed.png` | Implemented |
 | Creep | Swarm | `creep.swarm` | `unity/LTW.UnityClient/Assets/Prefabs/Creeps/Creep_Swarm_3D.prefab` | `unity/LTW.UnityClient/Assets/Art/Creeps/Production/Sprites/creep_swarm_candidate_v01_trimmed.png` | Implemented |

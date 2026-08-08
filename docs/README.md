@@ -21,7 +21,8 @@ This folder contains the durable project documentation for Line Wards, the mobil
 - [Gameplay review findings](GAMEPLAY_REVIEW_FINDINGS.md) — open defects found by capture review, with evidence
 - [GD tuning log](GD_TUNING_LOG.md) — the primary balance record: every measurement, fix and reversal, in order
 - [Audio direction](AUDIO_DIRECTION.md) — the sound of the game: cue palette, mix policy, the adaptive score, and the tuning table for after a listen
-- [Tower and creep roster](TOWER_AND_CREEP_ROSTER.md)
+- [Tower and creep roster](TOWER_AND_CREEP_ROSTER.md) — the current 16 towers and 15 creeps, with the balance maths each number comes from
+- [Roster expansion plan](ROSTER_EXPANSION_PLAN.md) — the route from 16+15 to 8 units per category: art route and cost tier per unit, and what running the first one end to end proved the integration checklist gets wrong
 - [Archived: the 5-role, pre-Meshy art era](archive/2026-07-art-pipeline/README.md) — five superseded art-pipeline docs, moved 2026-07-31
 - [Tower animation alignment](TOWER_ANIMATION_ALIGNMENT.md) — every tower reviewed on Type / Style / Intent / Name / Perceived Animation, with the benchmark each verdict was taken from
 - [Category upgrade tiers plan](CATEGORY_UPGRADE_TIERS_PLAN.md)
@@ -44,10 +45,10 @@ This folder contains the durable project documentation for Line Wards, the mobil
 
 - [Branding guide](BRANDING_GUIDE.md)
 - [Art theme and role guide](ART_THEME_AND_ROLE_GUIDE.md)
-- [Material language guide](MATERIAL_LANGUAGE_GUIDE.md) — includes the authoritative runtime surface values for all 30 body materials
+- [Material language guide](MATERIAL_LANGUAGE_GUIDE.md) — includes the authoritative runtime surface values for all 31 body materials
 - [VFX and animation targets](VFX_AND_ANIMATION_TARGETS.md) — the VFX system as built, and why it is code rather than the 14 prefabs originally specified
 - [Monetization and payments](MONETIZATION_AND_PAYMENTS.md) — the policy: cosmetic-only, store rails, explicit deferrals
-- [Early cosmetic SKUs](MONETIZATION_EARLY_SKUS.md) — proposal, 2026-07-31: 40 candidate $1–$2 items in six waves, with prerequisites
+- [Early cosmetic SKUs](MONETIZATION_EARLY_SKUS.md) — proposal, 2026-07-31: 40 candidate $1–$2 items in six waves, with prerequisites. The per-line skin counts move with the roster expansion
 
 ## Evidence And Archives
 

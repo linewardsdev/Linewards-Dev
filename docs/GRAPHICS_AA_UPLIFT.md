@@ -403,11 +403,16 @@ Wave 0 changes no art and should visibly change the game.
 
 ### Wave 4 — Performance and shipping
 
-Deliberately last, but do not let it fall off: `~15k tris × 30 units` with **no LODs**,
-CPU skinning (`gpuSkinning: 0`), non-SRP-batchable custom shaders, and six quality tiers
-that all resolve to one URP asset. A 40-creep swarm is ~600k triangles at LOD0. Bloom cost
-on a physical Android device has never been profiled — carried over from the retired
-`OPEN_ITEMS.md` item 2.
+Deliberately last, but do not let it fall off: `~15k tris × 31 units`, CPU skinning
+(`gpuSkinning: 0`), non-SRP-batchable custom shaders, and six quality tiers that all resolve
+to one URP asset. A 40-creep swarm is ~600k triangles at LOD0. Bloom cost on a physical
+Android device has never been profiled — carried over from the retired `OPEN_ITEMS.md` item 2.
+
+**LODs have left this wave** — *done 2026-08-06.* All 31 unit prefabs carry a LODGroup from
+`AuthorLodGroups`, over meshes decimated to 50%/25% by `tools/art/make_all_lods.py`, so the swarm
+figure above is now the LOD0 worst case rather than the steady state. New units get the same
+treatment as they land, and `tools/art/unit_roster.py` is what stops one being quietly
+skipped — twelve were, before it existed.
 
 ---
 

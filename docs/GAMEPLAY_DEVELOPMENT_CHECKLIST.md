@@ -10,7 +10,7 @@ Resume iOS TestFlight work only after this fork produces a local desktop/Unity s
 
 - The local Unity scene loads `Assets/Scenes/LocalVerticalSlice.unity` without current console errors.
 - The simulation supports eight side-by-side 7x16 long north-south lanes, an explicit local seat, bots on the remaining lanes, placement with lane-ownership authority, sends (cooldown-free — the send cooldown was deliberately removed), selling, replay export, carousel creep handoff, and match summaries.
-- Content roster: 15 towers in three build lines (ARCANE / FOUNDRY / GROVE) and 15 creeps in three send categories (CORE / RAPID / ELITE). Costs live only in `ContentCatalog`; the client reads them at display time.
+- Content roster: 16 towers in three build lines (ARCANE / FOUNDRY / GROVE — Arcane has six since Twin Crescent Ward landed 2026-08-08) and 15 creeps in three send categories (CORE / RAPID / ELITE). Costs live only in `ContentCatalog`; the client reads them at display time.
 - Automated .NET tests pass, including deterministic local-match coverage.
 - Presentation systems exist for lane cells, towers, creeps, events, pooled objects, audio cues, vibration hooks, and presentation modes.
 
@@ -28,7 +28,7 @@ Resume iOS TestFlight work only after this fork produces a local desktop/Unity s
 | GD-07 | Game feel and feedback | Presentation | GD-01, GD-04 | Builds, hits, kills, leaks, income ticks, and eliminations are satisfying and legible. |
 | GD-08 | Playtest evidence and tuning notes | Design QA | GD-01 through GD-07 | At least three local playtest runs produce notes, metrics, and prioritized fixes. |
 | GD-09 | Category upgrade tiers | Simulation | GD-03, GD-04 | Six categories upgrade independently and a tiered attacker can break a tiered defence. |
-| GD-10 | Unit animation across the full roster | Presentation | GD-03 | Every one of the 15 towers and 15 creeps reads as its own thing in motion, not just at rest. |
+| GD-10 | Unit animation across the full roster | Presentation | GD-03 | Every one of the 16 towers and 15 creeps reads as its own thing in motion, not just at rest. |
 
 ## GD-00: Playable-Loop Baseline
 
@@ -87,7 +87,7 @@ The first art-upgrade pass also aligns board material bands, endpoint halos, gat
 - [x] Add sell and upgrade hooks or disabled states with clear affordance.
 - [x] Make confirm/cancel, invalid feedback, and recovery fast enough for repeated play.
 
-The tower palette now exposes all 15 towers through a three-category picker (ARCANE/FOUNDRY/GROVE), plus selected-tower inspect and selected/last-tower selling for the local vertical slice. The screen-fit UI layout follows an arena-first frame: persistent match state hugs the top edge, primary actions stay in bottom corners, and secondary view controls sit on the right rail. The build palette and send dock now collapse into compact bottom-corner popout buttons with clearer costs, role labels, affordability/cooldown states, and mobile-safe spacing so the board stays visible during normal play. The tower UI now shares the upgraded role language with the board: role-shaped placement ghosts, stronger invalid-state tinting, selected-tower range rings, and a role-purpose inspect panel make the build/inspect flow easier to read. Upgrade remains intentionally out of scope until tower progression exists.
+The tower palette now exposes all 16 towers through a three-category picker (ARCANE/FOUNDRY/GROVE), plus selected-tower inspect and selected/last-tower selling for the local vertical slice. The screen-fit UI layout follows an arena-first frame: persistent match state hugs the top edge, primary actions stay in bottom corners, and secondary view controls sit on the right rail. The build palette and send dock now collapse into compact bottom-corner popout buttons with clearer costs, role labels, affordability/cooldown states, and mobile-safe spacing so the board stays visible during normal play. The tower UI now shares the upgraded role language with the board: role-shaped placement ghosts, stronger invalid-state tinting, selected-tower range rings, and a role-purpose inspect panel make the build/inspect flow easier to read. Upgrade remains intentionally out of scope until tower progression exists.
 
 ### Acceptance Checks
 

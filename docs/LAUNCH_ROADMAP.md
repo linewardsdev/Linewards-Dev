@@ -84,6 +84,15 @@ launch.
 Monetization (shipping free first, per decision), multiplayer, the match server, accounts
 and entitlements, Waves 2–3 of the graphics uplift beyond what tier B needs.
 
+**The roster expansion is also out of scope, and is being worked anyway.**
+`ROSTER_EXPANSION_PLAN.md` adds 18 units to reach 8 per category; its first, Twin Crescent
+Ward, landed 2026-08-08, with eleven more kitbash meshes staged behind it. It appears in no
+P0 or P1 row and no week below, which is correct — none of it gates soft launch — but it is
+real work drawing on the same four weeks, so read the estimates here as assuming it yields
+when the launch path needs the time. Two things it has already changed for launch: the tower
+count is 16 rather than 15, and the Wave A line-skin SKUs in `MONETIZATION_EARLY_SKUS.md`
+now cover a number of towers that is still moving.
+
 ---
 
 ## The four weeks

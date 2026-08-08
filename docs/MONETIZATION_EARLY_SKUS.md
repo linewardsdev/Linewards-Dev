@@ -84,16 +84,24 @@ spore_cloud).
 
 | # | Internal ID | Item | Price | Covers | Authoring |
 | --- | --- | --- | --- | --- | --- |
-| 1 | `cosmetic.tower.line.arcane.obsidian` | Obsidian Arcane | $1.99 | 5 Arcane towers | Material + emissive re-tint |
-| 2 | `cosmetic.tower.line.arcane.frostbound` | Frostbound Arcane | $1.99 | 5 Arcane towers | Material + emissive re-tint |
+| 1 | `cosmetic.tower.line.arcane.obsidian` | Obsidian Arcane | $1.99 | 6 Arcane towers | Material + emissive re-tint |
+| 2 | `cosmetic.tower.line.arcane.frostbound` | Frostbound Arcane | $1.99 | 6 Arcane towers | Material + emissive re-tint |
 | 3 | `cosmetic.tower.line.foundry.rustworks` | Rustworks Foundry | $1.99 | 5 Foundry towers | Material, roughness variant |
 | 4 | `cosmetic.tower.line.foundry.chrome` | Chrome Foundry | $1.99 | 5 Foundry towers | Material, roughness variant |
 | 5 | `cosmetic.tower.line.grove.autumn` | Autumn Grove | $1.99 | 5 Grove towers | Material re-tint |
 | 6 | `cosmetic.tower.line.grove.ashen` | Ashen Grove | $1.99 | 5 Grove towers | Material re-tint |
-| 7 | `cosmetic.tower.line.all.founders` | Founder's Set (all 15) | $1.99 | All 15 towers | Bundle of existing work |
+| 7 | `cosmetic.tower.line.all.founders` | Founder's Set (all towers) | $1.99 | All 16 towers | Bundle of existing work |
 
 Note on 7: a launch-window bundle priced deliberately low. Its job is to convert first-time
 buyers and establish that purchases are cheap and fair, not to maximise revenue.
+
+**These counts move, and the SKUs are priced against them.** Twin Crescent Ward took Arcane
+from five towers to six on 2026-08-08, and `ROSTER_EXPANSION_PLAN.md` has eleven more units
+queued — enough to take each line to eight and the Founder's Set to twenty-four. A line skin
+is authored per tower, so every unit added after a skin ships is either unskinned in that
+bundle or unpaid authoring work. The names above deliberately no longer carry a number;
+the decision that still needs an owner is whether Wave A ships *before* the expansion (cheap
+now, growing debt) or *after* it (more authoring up front, stable scope).
 
 ## Wave B — Projectile and mechanic effects (self-facing, highest frequency)
 

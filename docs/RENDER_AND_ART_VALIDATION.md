@@ -33,16 +33,17 @@ All run headless and exit non-zero on failure, so any of them can gate a build. 
 | --- | --- | --- |
 | `LTW.UnityClient.Editor.UrpPostProcessingSetup.ValidateProfile` | The volume profile has exactly 3 non-null overrides, and they are specifically Tonemapping, Bloom and ColorAdjustments | The profile shipping with three null sub-assets — no tonemapper, no bloom — which it did for the entire life of the URP migration |
 | `LTW.UnityClient.Editor.RenderSetupValidation.ValidateRenderSetup` | Soft shadows on, HDR colour grading, HDR colour buffer, MSAA ≥ 2, main light shadows, and LOD cross-fade consistent with whether any LODGroup exists | Settings that silently degrade the image; code requesting soft shadows while the pipeline strips the variant |
-| `LTW.UnityClient.Editor.TowerBodyMaterialTuning.ValidateTuning` | All 15 tower bodies at the shared smoothness, every emission above the bloom threshold, reflections enabled | Bodies drifting back to dead matte, or emission set below the threshold where it cannot bloom at all |
+| `LTW.UnityClient.Editor.TowerBodyMaterialTuning.ValidateTuning` | All 16 tower bodies at the shared smoothness, every emission above the bloom threshold, reflections enabled | Bodies drifting back to dead matte, or emission set below the threshold where it cannot bloom at all. **Red on 15 of 16 today** (open item 39): only Twin Crescent, tuned as it was added, passes — which is what identifies the other fifteen as stale rather than the constant as wrong |
 | `LTW.UnityClient.Editor.CreepBodyMaterialTuning.ValidateTuning` | All 15 creep bodies likewise; reports by name any creep with no emission map | The emission multiplier falling to 1.0, which makes blooming arithmetically impossible against an LDR map |
 | `LTW.UnityClient.Editor.QualityTierSetup.ValidateTierAssets` | Every quality level has a pipeline asset, **and** the tiers are not all the same asset | Six tiers that all resolve to one URP asset, so a budget phone renders what a flagship does |
 
-Two more run under plain Python, no Unity:
+Three more run under plain Python, no Unity:
 
 | Command | Asserts |
 | --- | --- |
 | `python3 tools/art_pipeline/audit_intake_scores.py [--strict]` | Reads every intake `score.json` back and reports the roster's state; flags scorecards written before the `has_normal_map` fix |
 | `python3 tools/art_pipeline/validate_role_coverage.py [--strict]` | Every asset path in the role coverage report resolves; `--strict` also fails on roles with no production reference |
+| `python3 tools/art/bake_all_ao.py --list` (or `make_all_lods.py --report`) | The staging tree is arranged so AO and LODs derive the geometry they claim to. Both call `tools/art/unit_roster.py`, which refuses to return a roster at all — exit 2 — when a mesh sits in the wrong role folder or is named `_prepared` without carrying the prepare stage's `LTW_Unity_ExportRoot`. Added 2026-08-08 after both failure modes shipped silently; see `ROSTER_EXPANSION_PLAN.md` |
 
 **Both are expected to fail under `--strict` today**, and that is deliberate rather than
 neglect — see "Gates that are off on purpose" below.
@@ -128,6 +129,27 @@ The mechanism ships now; the default flips when the assets can meet it.
 - **`EditorApplication.update` is not pumped in batchmode Play Mode.** Anything that has to
   observe a running match needs a MonoBehaviour tick instead — see the remarks on
   `LocalPlaytestBatchRunner.InstallPlayModePump`, which exists entirely because of this.
+- **Pass `-buildTarget iOS`.** The active target lives in `Library/`, so any run against a
+  fresh checkout — or after deleting `Library` — silently falls back to Standalone, and
+  textures then import DXT5 instead of ASTC. Nothing errors; the project is simply no longer
+  the one that ships.
+
+### Scoping a batch tool to one unit
+
+Adding a unit should not mean rewriting the whole roster's assets, so the tools that iterate
+a roster take a filter. Without one, the smallest possible change to a single new tower drags
+fifteen unrelated materials into the same commit:
+
+| Tool | Flag |
+| --- | --- |
+| `TowerBodyMaterialTuning.ApplyTuning` | `-ltwTowerRole twin_crescent` |
+| `StylizedUnitPreviewCapture.CaptureCurrent` / `CaptureGameSize` | `-ltwPreviewSubjects "<prefab>,<prefab>"`, `-ltwPreviewOutputDir <dir>` (absolute paths work; relative ones resolve against `Assets/`) |
+| `tools/art/bake_all_ao.py` | `--only TwinCrescent` |
+| `tools/art/make_all_lods.py` | `--only TwinCrescent` |
+
+`Tower3DProofSetGenerator` needs no filter because it now skips wrappers that already exist;
+rebuilding all of them is the separate `Regenerate ALL Tower 3D Proof Wrappers` menu item,
+which discards LOD groups and asks first.
 
 ## Capture conventions
 

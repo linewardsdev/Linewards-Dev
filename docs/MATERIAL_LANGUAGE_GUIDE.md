@@ -35,13 +35,13 @@ This guide is the baseline art-production rule set for moving Line Wards from pr
 ## Runtime Surface Values (authoritative)
 
 These are set by `TowerBodyMaterialTuning` and `CreepBodyMaterialTuning` in `Assets/Editor`,
-which are the single source of truth for the thirty body materials. Edit those, not the
+which are the single source of truth for the thirty-one body materials (16 towers, 15 creeps). Edit those, not the
 `.mat` files — hand edits get overwritten the next time the tools run, and the tools exist
 because the values want to be reviewable together.
 
 Both are asserted by validators; see [Render and art validation](RENDER_AND_ART_VALIDATION.md).
 
-### Smoothness is 0.45 on all thirty bodies
+### Smoothness is 0.45 on all thirty-one bodies
 
 Measured, not chosen by eye. The baked metallic-gloss maps average 0.579 in their smoothness
 channel on towers and 0.652 on creeps, so 0.45 lands **effective** smoothness near 0.26–0.29:
@@ -55,6 +55,11 @@ cluster" was the wrong instruction:
 | 1.0 | 0.579 | tight glossy highlight — wet plastic on cast stone |
 | **0.45** | **0.26–0.29** | broad soft gradient, no hotspot |
 | 0.12 | 0.070 | no specular response at all |
+
+**As of 2026-08-08 only one material actually carries 0.45.** The thirty that predate Twin
+Crescent sit at 0.42 and fail their validators; Twin Crescent was tuned as it was added and
+passes. The constant below is the intent, not the committed state — see open item 39, which
+holds the decision about whether to move thirty materials or the constant.
 
 The reference look carries richness through value gradients and rim light rather than
 hotspots, and a wide dim lobe is what produces that. Creeps deliberately share the tower
