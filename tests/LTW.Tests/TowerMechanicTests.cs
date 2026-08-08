@@ -285,6 +285,87 @@ public sealed class TowerMechanicTests
         Assert.Equal(8, primary.DamageDealt);
     }
 
+    // ---- Twin Crescent: the second barrel ----------------------------------------------------
+
+    /// <summary>Two creeps in range means two shots, at two different creeps.</summary>
+    [Fact]
+    public void Twin_crescent_fires_at_two_different_targets_in_one_tick()
+    {
+        var service = new CombatService();
+        var state = new CombatState(
+            new[]
+            {
+                // 7 and 8, not 8 and 9: MoveCreeps runs before AttackWithTowers, so these
+                // advance to 8 and 9 and are then at Manhattan 1 and 2 from the tower. Placed
+                // at 8 and 9 the trailing creep reaches 10, range 3, and the second barrel
+                // correctly finds nothing — which looked like a broken mechanic.
+                CreepAt(service, 1, "creep.runner", pathIndex: 7),
+                CreepAt(service, 2, "creep.runner", pathIndex: 8)
+            },
+            new[] { Tower("tower.twin_crescent", 10, x: 2, y: 8) });
+
+        var result = service.Advance(state, Content(), Routes(), new SimulationTick(0));
+        var shots = result.Events.OfType<TowerFiredEvent>().ToArray();
+
+        Assert.Equal(2, shots.Length);
+        Assert.Equal(2, shots.Select(shot => shot.TargetCreepEntityId).Distinct().Count());
+    }
+
+    /// <summary>
+    /// One creep in range means ONE shot — the second barrel is wasted, deliberately.
+    /// </summary>
+    /// <remarks>
+    /// This is the mechanic, not a limitation of it. Twin Crescent is priced as the arcane line's
+    /// anti-chaff option: double output into a crowd, and strictly worse than two Arrows into a
+    /// lone fat creep. If this test ever fails because the second barrel found the same creep, the
+    /// tower has quietly become a plain damage upgrade and its price is wrong.
+    /// </remarks>
+    [Fact]
+    public void Twin_crescent_does_not_double_up_on_a_lone_creep()
+    {
+        var service = new CombatService();
+        var state = new CombatState(
+            new[] { CreepAt(service, 1, "creep.brute", pathIndex: 8) },
+            new[] { Tower("tower.twin_crescent", 10, x: 2, y: 8) });
+
+        var result = service.Advance(state, Content(), Routes(), new SimulationTick(0));
+
+        Assert.Single(result.Events.OfType<TowerFiredEvent>());
+        Assert.Equal(6, result.Events.OfType<CreepDamagedEvent>().Sum(damaged => damaged.DamageDealt));
+    }
+
+    /// <summary>Against a crowd it out-damages Arrow per tick; against one creep it does not.</summary>
+    /// <remarks>
+    /// Measured as damage per VOLLEY against the authored cooldowns, not by running a window:
+    /// creeps walk out of a range-2 tower's reach within a few ticks, so a windowed comparison
+    /// silently measures how long a creep lingered rather than the towers' output.
+    /// </remarks>
+    [Fact]
+    public void Twin_crescent_beats_arrow_only_when_a_second_target_exists()
+    {
+        var service = new CombatService();
+
+        double DamagePerTick(string towerId, int creepCount)
+        {
+            var creeps = Enumerable.Range(0, creepCount)
+                .Select(index => CreepAt(service, index + 1, "creep.brute", pathIndex: 7))
+                .ToArray();
+            var state = new CombatState(creeps, new[] { Tower(towerId, 10, x: 2, y: 8) });
+            var result = service.Advance(state, Content(), Routes(), new SimulationTick(0));
+            var volley = result.Events.OfType<CreepDamagedEvent>().Sum(damaged => damaged.DamageDealt);
+            var cooldown = Catalog.Towers.First(tower => tower.Id.Value == towerId).AttackCooldownTicks;
+            return volley / (double)cooldown;
+        }
+
+        // One creep: Arrow's shorter cooldown wins outright. This trade IS the design.
+        Assert.True(DamagePerTick("tower.twin_crescent", 1) < DamagePerTick("tower.arrow", 1),
+            "twin crescent should lose to arrow on a single creep");
+
+        // Two creeps: the second barrel lands and it pulls ahead.
+        Assert.True(DamagePerTick("tower.twin_crescent", 2) > DamagePerTick("tower.arrow", 2),
+            "twin crescent should out-damage arrow once a second target exists");
+    }
+
     // ---- Thorn Snare: Bramble Hold -----------------------------------------------------------
 
     [Fact]
