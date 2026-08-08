@@ -22,10 +22,11 @@ inert bytes, which is exactly what they were between the proof run and this one.
 from __future__ import annotations
 
 import argparse
-import glob
 import os
 import subprocess
 import sys
+
+import unit_roster
 
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 MODELS = "unity/LTW.UnityClient/Assets/Art/AIStaging/Models"
@@ -41,23 +42,10 @@ RATIOS = ["0.5", "0.25"]
 def roster():
     """Every role, with the mesh to decimate and the directory its LODs belong in."""
     out = []
-    for folder, prefix in (("Towers", "tower"), ("Creeps", "creep")):
-        base = os.path.join(REPO_ROOT, MODELS, folder)
-        if not os.path.isdir(base):
-            continue
-        for role in sorted(os.listdir(base)):
-            if role.endswith(".meta") or not os.path.isdir(os.path.join(base, role)):
-                continue
-            sources = glob.glob(os.path.join(base, role, "AIDrop", "*.fbx"))
-            if not sources:
-                continue
-            # Prefer the unrigged mesh, and the shortest name among equals — the same rule
-            # bake_all_ao.py uses, so AO and LODs are always derived from the same file.
-            unrigged = [s for s in sources if "rigged" not in os.path.basename(s).lower()]
-            source = sorted(unrigged or sources, key=len)[0]
-            out_dir = os.path.join(
-                REPO_ROOT, f"unity/LTW.UnityClient/Assets/Art/{folder}/Production/LODs")
-            out.append((f"{prefix}_{role.lower()}_3d", source, out_dir))
+    for prefix, folder, role, source in unit_roster.roster():
+        out_dir = os.path.join(
+            REPO_ROOT, f"unity/LTW.UnityClient/Assets/Art/{folder}/Production/LODs")
+        out.append((f"{prefix}_{role.lower()}_3d", source, out_dir))
     return out
 
 
@@ -65,9 +53,18 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--force", action="store_true", help="regenerate roles that already have LODs")
     parser.add_argument("--report", action="store_true", help="list what exists and exit")
+    parser.add_argument("--only", help="one role by name, case-insensitive — same flag as bake_all_ao.py")
     args = parser.parse_args()
 
     entries = roster()
+    if args.only:
+        # Names here are the full "tower_arrow_3d" form; match on the role in the middle.
+        wanted = args.only.lower()
+        entries = [e for e in entries if e[0].split("_", 1)[1].rsplit("_3d", 1)[0] == wanted]
+        if not entries:
+            print(f"FAIL  no role named {args.only!r}")
+            return 1
+
     if args.report:
         have = sum(1 for name, _, out_dir in entries
                    if os.path.exists(os.path.join(out_dir, f"{name}_LOD1.fbx")))
@@ -107,4 +104,9 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    try:
+        sys.exit(main())
+    except unit_roster.RosterError as error:
+        # An arrangement problem in the staging tree, not a crash — say so plainly.
+        print(f"ERROR: {error}", file=sys.stderr)
+        sys.exit(2)

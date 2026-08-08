@@ -1109,9 +1109,19 @@ Same shape as item 39 — a tool and its data disagree, and the tool wins quietl
 
 ---
 
-## 39. Every creep body material is at smoothness 0.42 against a constant of 0.45, so the tuning validator fails roster-wide
+## 39. Every creep *and tower* body material is at smoothness 0.42 against a constant of 0.45, so the tuning validators fail roster-wide
 
 Found 2026-08-03 while validating the item 19 emissive work, and unrelated to it.
+
+**Confirmed on the tower side too, 2026-08-08.** `ValidateTuning` emits fifteen
+`TOWER TUNING FAIL: <role>: _Smoothness is 0.42, expected 0.45.` lines — the whole shipped
+roster, identical to the creep symptom and consistent with the same missed re-run. Twin
+Crescent, tuned when it was added, is the one tower that passes, which is what makes the
+other fifteen unambiguously stale rather than the constant being wrong.
+
+That integration is also why `ApplyTuning` now takes an optional `-ltwTowerRole <role>`:
+adding one unit should not require rewriting fifteen shipped materials as a side effect. The
+roster-wide fix below is still the open decision.
 
 `CreepBodyMaterialTuning.BodySmoothness` is `0.45f`, with a comment saying it matches
 `TowerBodyMaterialTuning.BodySmoothness` deliberately — and that one is `0.45f` too, so the

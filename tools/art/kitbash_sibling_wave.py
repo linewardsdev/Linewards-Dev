@@ -224,9 +224,34 @@ def render(path: Path, ortho: float, res):
 
 
 def export(obj, path: Path):
+    """Export under the Unity intake contract: an ExportRoot parent and applied unit scale.
+
+    Without both, the mesh imports a hundred times too small and every downstream stage still
+    reports success — see the note on `kitbash_proofs.export_prepared`.
+    """
+    path.parent.mkdir(parents=True, exist_ok=True)
+    root = bpy.data.objects.new("LTW_Unity_ExportRoot", None)
+    bpy.context.scene.collection.objects.link(root)
+    previous_parent = obj.parent
+    obj.parent = root
+    obj.matrix_parent_inverse.identity()
+
     bpy.ops.object.select_all(action="DESELECT")
     obj.select_set(True)
-    bpy.ops.export_scene.fbx(filepath=str(path), use_selection=True, path_mode="COPY", embed_textures=False)
+    root.select_set(True)
+    bpy.ops.export_scene.fbx(
+        filepath=str(path),
+        use_selection=True,
+        object_types={"MESH", "EMPTY"},
+        apply_unit_scale=True,
+        bake_space_transform=False,
+        add_leaf_bones=False,
+        path_mode="COPY",
+        embed_textures=False,
+    )
+
+    obj.parent = previous_parent
+    bpy.data.objects.remove(root, do_unlink=True)
     print(f"exported {path.name}")
 
 
@@ -252,11 +277,14 @@ def main():
     render(OUT_DIR / "sibling_wave_pairs.png", ortho=20.0, res=(1900, 800))
     render(OUT_DIR / "sibling_wave_game_size.png", ortho=34.0, res=(1300, 320))
 
+    # Own role folder per kitbash, never the donor's: bake_all_ao.py and make_all_lods.py
+    # derive the roster from folder names and take the shortest filename inside, so a child
+    # left beside its parent silently becomes the parent's AO and LOD source.
     exports = {
-        "LTW_FlakBattery_Kitbash": SOURCES["gatling"] / "flakbattery_kitbash_gatling_v01_prepared.fbx",
-        "LTW_BulkBrute_Kitbash": SOURCES["brute"] / "bulkbrute_kitbash_brute_v01_prepared.fbx",
-        "LTW_TwinZephyr_Kitbash": SOURCES["zephyr"] / "twinzephyr_kitbash_zephyr_v01_prepared.fbx",
-        "LTW_ForgeTick_Kitbash": SOURCES["turretwalker"] / "forgetick_kitbash_turretwalker_v01_prepared.fbx",
+        "LTW_FlakBattery_Kitbash": STAGING / "Towers/FlakBattery/AIDrop/flakbattery_kitbash_gatling_v01_prepared.fbx",
+        "LTW_BulkBrute_Kitbash": STAGING / "Creeps/BulkBrute/AIDrop/bulkbrute_kitbash_brute_v01_prepared.fbx",
+        "LTW_TwinZephyr_Kitbash": STAGING / "Creeps/TwinZephyr/AIDrop/twinzephyr_kitbash_zephyr_v01_prepared.fbx",
+        "LTW_ForgeTick_Kitbash": STAGING / "Creeps/ForgeTick/AIDrop/forgetick_kitbash_turretwalker_v01_prepared.fbx",
     }
     for name, path in exports.items():
         export(bpy.data.objects[name], path)

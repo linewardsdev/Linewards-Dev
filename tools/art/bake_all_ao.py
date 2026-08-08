@@ -26,10 +26,11 @@ and use it.
 """
 
 import argparse
-import glob
 import os
 import subprocess
 import sys
+
+import unit_roster
 
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 MODELS = "unity/LTW.UnityClient/Assets/Art/AIStaging/Models"
@@ -40,21 +41,12 @@ BLENDER = "/Applications/Blender.app/Contents/MacOS/Blender"
 def roster():
     """Every role, with the mesh to bake from and the texture to write."""
     out = []
-    for folder, tex_folder, prefix in (("Towers", "Towers", "tower"), ("Creeps", "Creeps", "creep")):
-        base = os.path.join(REPO_ROOT, MODELS, folder)
-        for role in sorted(os.listdir(base)):
-            if role.endswith(".meta") or not os.path.isdir(os.path.join(base, role)):
-                continue
-            sources = glob.glob(os.path.join(base, role, "AIDrop", "*.fbx"))
-            if not sources:
-                continue
-            unrigged = [s for s in sources if "rigged" not in os.path.basename(s).lower()]
-            source = sorted(unrigged or sources, key=len)[0]
-            texture = os.path.join(
-                REPO_ROOT,
-                f"unity/LTW.UnityClient/Assets/Art/{tex_folder}/Production/Textures",
-                f"{prefix}_{role.lower()}_3d_ao_v01.png")
-            out.append((prefix, role, source, texture))
+    for prefix, folder, role, source in unit_roster.roster():
+        texture = os.path.join(
+            REPO_ROOT,
+            f"unity/LTW.UnityClient/Assets/Art/{folder}/Production/Textures",
+            f"{prefix}_{role.lower()}_3d_ao_v01.png")
+        out.append((prefix, role, source, texture))
     return out
 
 
@@ -116,4 +108,9 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    try:
+        sys.exit(main())
+    except unit_roster.RosterError as error:
+        # An arrangement problem in the staging tree, not a crash — say so plainly.
+        print(f"ERROR: {error}", file=sys.stderr)
+        sys.exit(2)

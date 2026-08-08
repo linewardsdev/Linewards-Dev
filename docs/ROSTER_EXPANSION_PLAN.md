@@ -116,3 +116,38 @@ Definition row → catalog entry + role palette colour → icon → prep/normali
 stylized-shader materials via migration → AO bake+bind → LODs → rig script if legged →
 bot build-order content → tests → capture review. The only manual steps are the design
 decisions and looking at the captures.
+
+### What running the first unit through it actually found (Twin Crescent, 2026-08-08)
+
+Every step above was "automated or scripted", and three of them were quietly broken for
+kitbash units specifically. None of the three announced itself; each was found by looking
+at output rather than at a log.
+
+1. **The staging tree assumes one unit per folder.** AO and LOD both derive the roster from
+   folder names and take the shortest mesh inside. The kitbash wave exported each new unit
+   into its *donor's* folder, so the twelve new units were invisible to both tools — and six
+   parents silently had their AO and LOD source swapped for their child's mesh. A `--force`
+   re-bake would have written the wrong geometry into six shipped textures. Each unit now
+   gets its own role folder; `unit_roster.check_placement` fails the run if one is misplaced.
+2. **`_prepared` in a kitbash filename was a claim, not a fact.** The prep step above adds an
+   `LTW_Unity_ExportRoot` and applies unit scale; the kitbash scripts skipped it while taking
+   the name. The mesh imports about a hundred times too small, and AO, LODs and wrapper
+   generation all succeed on it regardless — Twin Crescent's first review render showed a
+   tower four pixels across. All twelve were affected. Note that the normal prep script is
+   the wrong repair here: it also normalizes to a target height, which is exactly the
+   property a kitbash sibling encodes (Bulk Brute *is* the Brute at 128%). Use
+   `tools/art/repair_export_root.py`, which fixes the export contract and leaves size alone.
+3. **Regenerating wrappers rebuilds them backwards.** `GenerateAvailableProofWrappers` builds
+   from the raw FBX alone and knows nothing of the later LOD pass, so a run over the whole
+   spec list took all fifteen shipped towers from 9 renderers plus an LODGroup down to 5 and
+   none, reporting success. It now skips existing wrappers; rebuilding all of them is a
+   separate, confirmed menu item.
+
+Two roster tables also had to be extended by hand, because neither is derived: the
+`BodyEmission` dictionary in `TowerBodyMaterialTuning` (a unit missing from it is silently
+never tuned and silently never validated) and the icon switch in
+`TouchPlacementController.Gui`.
+
+**Status:** A6 Twin Crescent Ward is integrated end to end — sim in `5ae99f9`, art and client
+in the follow-up. Captures in `screenshot-reviews/twin-crescent-integration-20260808/`. The
+other eleven kitbash meshes have had fixes 1 and 2 applied and are otherwise unstarted.

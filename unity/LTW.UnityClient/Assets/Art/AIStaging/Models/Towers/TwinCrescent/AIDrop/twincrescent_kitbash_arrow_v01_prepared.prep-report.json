@@ -1,0 +1,50 @@
+{
+  "role": "twincrescent",
+  "input": "/private/tmp/claude-501/-Users-admin-LTW/c0634db9-1548-42a4-ba91-118316769564/scratchpad/twincrescent_raw.fbx",
+  "output": "/Users/admin/LTW/unity/LTW.UnityClient/Assets/Art/AIStaging/Models/Towers/TwinCrescent/AIDrop/twincrescent_kitbash_arrow_v01_prepared.fbx",
+  "target_height": 1.25,
+  "max_footprint": 1.45,
+  "mesh_count": 1,
+  "exported_textures": [],
+  "normalization": {
+    "scale_factor": 0.9999999671146798,
+    "initial_bounds": {
+      "min": [
+        1.0750000476837158,
+        -0.4258982539176941,
+        -1.027032681122364e-09
+      ],
+      "max": [
+        2.5250000953674316,
+        0.4258982539176941,
+        1.0551916360855103
+      ],
+      "size": [
+        1.4500000476837158,
+        0.8517965078353882,
+        1.0551916360855103
+      ]
+    },
+    "final_bounds": {
+      "min": [
+        -0.7249999642372131,
+        -0.4258982241153717,
+        2.8775303917427664e-08
+      ],
+      "max": [
+        0.7249999046325684,
+        0.4258982241153717,
+        1.0551916360855103
+      ],
+      "size": [
+        1.4499998092651367,
+        0.8517964482307434,
+        1.0551916360855103
+      ]
+    }
+  },
+  "notes": [
+    "Prepared by Blender source cleanup script.",
+    "This is a source/staging export only; Unity promotion remains separate."
+  ]
+}
