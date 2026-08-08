@@ -598,13 +598,13 @@ namespace LTW.UnityClient.Simulation
                 // needs a faint idle presence — an alert, mostly-still gun emplacement.
                 // Rest heading measured in Unity: barrel tip at local (x=0.725, z=0.001) = +90.
                 case TowerVisualRole.Arrow:
-                    return new TowerMotionProfile(1.4f, 0.015f, restHeadingDegrees: 90f, recoilScale: 1.2f);
+                    return new TowerMotionProfile(1.4f, 0.048f, driftHz: 0.9f, driftAmp: 0.028f, restHeadingDegrees: 90f, recoilScale: 1.2f);
 
                 // The arms+core+ring assembly turns to aim and the ring spins independently, both
                 // real visible motion, so Body-level sway on top was pure excess. Reads as a
                 // mostly-still ancient structure with a faint pulse of life.
                 case TowerVisualRole.Control:
-                    return new TowerMotionProfile(1.6f, 0.01f, recoilScale: 0.5f);
+                    return new TowerMotionProfile(1.6f, 0.026f, driftHz: 0.7f, driftAmp: 0.028f, recoilScale: 0.5f);
 
                 // The split Dish spins continuously; Body adds a slow mast sway underneath rather
                 // than competing with the dish for attention.
@@ -643,7 +643,7 @@ namespace LTW.UnityClient.Simulation
                 // The kick is small AND short. Short is the load-bearing half: this fires every
                 // 0.25s, so anything at the 0.35s default never returns to rest between shots.
                 case TowerVisualRole.Gatling:
-                    return new TowerMotionProfile(2.4f, 0.012f, restHeadingDegrees: 98.7f, recoilScale: 0.3f, recoilDuration: 0.12f);
+                    return new TowerMotionProfile(2.4f, 0.036f, restHeadingDegrees: 98.7f, recoilScale: 0.3f, recoilDuration: 0.12f);
 
                 // A coil under load. Fast shallow pulse reads as electrical rather than breathing.
                 // The lightest kick of any tower that has one: an arc discharge has no projectile
@@ -674,7 +674,7 @@ namespace LTW.UnityClient.Simulation
                 // oversized to match: with the idle almost dead, firing is the only motion it has,
                 // so it has to carry the whole read on its own.
                 case TowerVisualRole.Barricade:
-                    return new TowerMotionProfile(0.7f, 0.006f, locksYaw: true, suppressRecoil: false, recoilScale: 1.5f);
+                    return new TowerMotionProfile(0.7f, 0.03f, locksYaw: true, suppressRecoil: false, recoilScale: 1.5f);
 
                 // A bolted-down spire, not an aircraft. It previously carried the widest drift in the
                 // roster (0.04) to read as "hovering rather than planted" — but the mesh is a pillar
@@ -685,7 +685,7 @@ namespace LTW.UnityClient.Simulation
                 // Yaw locked: a pillar bolted to a plinth cannot rotate, and what it actually projects is
                 // a servicing tether to a neighbour, not a shot at a creep.
                 case TowerVisualRole.RepairDrone:
-                    return new TowerMotionProfile(1.2f, 0.008f, locksYaw: true, suppressRecoil: false, recoilScale: 0.5f);
+                    return new TowerMotionProfile(1.2f, 0.026f, locksYaw: true, suppressRecoil: false, recoilScale: 0.5f);
 
                 // --- Grove line ---------------------------------------------------------------
                 // Living things: slower and larger than the machines, with real sway.
@@ -699,7 +699,7 @@ namespace LTW.UnityClient.Simulation
                 // Small and eager. Quicker and springier than its elders.
                 // Yaw locked, same reason as its elder. The quick springy sway is the whole read.
                 case TowerVisualRole.Sapling:
-                    return new TowerMotionProfile(2.0f, 0.028f, driftHz: 1.2f, driftAmp: 0.03f, locksYaw: true, suppressRecoil: false, recoilScale: 0.5f);
+                    return new TowerMotionProfile(2.0f, 0.045f, driftHz: 1.2f, driftAmp: 0.048f, locksYaw: true, suppressRecoil: false, recoilScale: 0.5f);
 
                 // A flower. Slow open-and-close bloom, peaked so it reads as breathing.
                 // Yaw locked: a flower on a stalk. The peaked open-and-close pulse already names the tower.
@@ -716,7 +716,7 @@ namespace LTW.UnityClient.Simulation
                 // suppressRecoil is explicitly false so locking yaw does not also remove the snap —
                 // stillness THEN a hard snap is the entire characterisation.
                 case TowerVisualRole.ThornSnare:
-                    return new TowerMotionProfile(0.5f, 0.008f, locksYaw: true, suppressRecoil: false, recoilScale: 1.4f);
+                    return new TowerMotionProfile(0.5f, 0.042f, driftHz: 0.45f, driftAmp: 0.035f, locksYaw: true, suppressRecoil: false, recoilScale: 1.4f);
 
                 // A fungal bloom venting spores. Slow swell with a lazy drift.
                 // Yaw locked: a cloud has no facing, which its own name says.
