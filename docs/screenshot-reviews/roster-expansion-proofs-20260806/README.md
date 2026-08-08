@@ -91,8 +91,15 @@ iteration (`crossmesh_wave_lineup.png`, left to right):
 - **Lens Ward** (control + prism spire): PASS, 2 iterations. The control ward's empty
   ring-gimbal was a ready socket; the split-parts prism file made the lens free — the
   Twin Crescent convention paying out again.
-- **Magnetron Spire** (tesla + relay): PASS, 1 iteration. The coil pagoda planted on the
-  relay's dish, floating panels ringing the mast.
+- **Magnetron Spire** (tesla + relay): PASS — after an owner-flagged rework. The
+  one-iteration first pass planted the coil on the relay's dish, and the owner correctly
+  read it as "the relay again": the dish stayed the dominant silhouette. Rebuilt with the
+  dominance inverted — tesla body full-size, the relay squashed to 28% height and used
+  twice as orbital rings (a wide collar at the neck, a small tilted crown halo at 90%
+  mast). Three more iterations, and the middle one carried the lesson: a ring narrower
+  than the body it circles is absorbed into it; a ring must OVERHANG the silhouette to
+  read as a ring at all. Also the counterexample to the session's "1 iteration" win —
+  the fastest unit was the one that came back.
 - **Gloom Chanter** (shade + wisp ×2): PASS, 2 iterations. Two amber lantern satellites at
   the wraith's shoulders — first attempt repeated the dominance trap (satellites at 0.42
   swallowed the host), fixed at 0.19/0.15.
