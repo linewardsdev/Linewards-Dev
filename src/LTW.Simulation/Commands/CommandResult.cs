@@ -41,7 +41,18 @@ public enum CommandRejectionReason
     ///
     /// Appended rather than inserted, for the reason given on InvalidTier above.
     /// </remarks>
-    InsufficientIncome
+    InsufficientIncome,
+
+    /// <summary>
+    /// This creep already has the most copies a seat may have waiting in its send queue.
+    /// </summary>
+    /// <remarks>
+    /// Appended, for the reason given on InvalidTier above: this project replays accepted commands
+    /// from a seed, so the numeric value of an existing member must not move. Inserting this next
+    /// to InvalidTier, where it reads better, would have shifted InsufficientIncome by one and
+    /// silently changed what older replays mean.
+    /// </remarks>
+    SendQueueFull
 }
 
 public sealed class CommandResult

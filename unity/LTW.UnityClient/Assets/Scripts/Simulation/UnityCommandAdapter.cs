@@ -559,8 +559,41 @@ namespace LTW.UnityClient.Simulation
                 return VerticalSliceCommandResult.Reject(CommandRejectionReason.MatchPaused);
             }
 
-            return RefreshAfterAccepted(simulation.QueueSend(simulation.LocalPlayerId, creepId, quantity));
+            // Queued, not sent. On a phone the player has to open the dock and find the card, and
+            // asking them to do that at the instant income lands is not reasonable — so a tap states
+            // intent and the simulation pays for it when it can. A send with no gold behind it now
+            // waits instead of being refused.
+            //
+            // One enqueue per creep, because the queue holds creeps rather than batches: a swarm
+            // send of six is six entries, which is also what makes the per-creep cap of ten mean
+            // the same thing for every card.
+            var result = VerticalSliceCommandResult.Accept();
+            for (var i = 0; i < quantity; i++)
+            {
+                result = simulation.EnqueueSend(simulation.LocalPlayerId, creepId);
+                if (!result.Accepted)
+                {
+                    // Stops at the first refusal rather than pressing on. The only refusal a player
+                    // will see here is a full queue, and queueing four of a requested six would be
+                    // a partial success reported as a failure.
+                    break;
+                }
+            }
+
+            return RefreshAfterAccepted(result);
         }
+
+        /// <summary>How many of this creep the local seat has waiting in its send queue.</summary>
+        /// <remarks>
+        /// The send card needs it: a tap no longer produces a creep straight away, so without a
+        /// count on the card the player has no way to tell a queued tap from one that did nothing.
+        /// </remarks>
+        public int QueuedSendCount(LTW.Simulation.Content.ContentId creepId) =>
+            simulation is null ? 0 : simulation.QueuedSendCountFor(simulation.LocalPlayerId, creepId);
+
+        /// <summary>Total creeps waiting in the local seat's send queue.</summary>
+        public int QueuedSendTotal() =>
+            simulation is null ? 0 : simulation.SendQueueFor(simulation.LocalPlayerId).Count;
 
         public VerticalSliceCommandResult SellLastSampleTower()
         {

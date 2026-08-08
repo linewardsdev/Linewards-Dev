@@ -396,6 +396,105 @@ public sealed class LocalVerticalSlice
 
     public VerticalSliceCommandResult QueueSend(PlayerId playerId, ContentId creepId) => QueueSend(playerId, creepId, 1);
 
+    /// <summary>Most copies of one creep a seat may have waiting in its queue at once.</summary>
+    public const int MaxQueuedSendsPerCreep = 10;
+
+    /// <summary>
+    /// Sends waiting to be paid for, per seat, oldest first.
+    /// </summary>
+    /// <remarks>
+    /// The queue exists because this is a phone. Sending means opening the dock, finding a card and
+    /// tapping it, and doing that at the exact moment gold arrives is not something a player can be
+    /// asked to do repeatedly. Queueing lets them say what they want once and have it happen as the
+    /// economy allows.
+    ///
+    /// Held on the bridge rather than on PlayerEconomyState because it is match state rather than
+    /// economy state, and because it rebuilds from the accepted-command log on replay exactly like
+    /// the board does — nothing here needs recording separately.
+    ///
+    /// One entry per creep, not a count, so the ORDER survives. A dictionary of quantities would
+    /// lose which of two different creeps was asked for first, and first-in-first-out is the whole
+    /// contract.
+    /// </remarks>
+    private readonly Dictionary<PlayerId, List<ContentId>> sendQueues = new Dictionary<PlayerId, List<ContentId>>();
+
+    /// <summary>What this seat has waiting, oldest first.</summary>
+    public IReadOnlyList<ContentId> SendQueueFor(PlayerId playerId) =>
+        sendQueues.TryGetValue(playerId, out var queue) ? queue : Array.Empty<ContentId>();
+
+    /// <summary>How many copies of one creep this seat has waiting.</summary>
+    /// <remarks>Exposed for the send card's badge: a player queueing needs to see what they queued.</remarks>
+    public int QueuedSendCountFor(PlayerId playerId, ContentId creepId) =>
+        sendQueues.TryGetValue(playerId, out var queue) ? queue.Count(queued => queued.Equals(creepId)) : 0;
+
+    /// <summary>
+    /// Adds one creep to this seat's send queue, to be paid for when it can be.
+    /// </summary>
+    /// <remarks>
+    /// Deliberately does NOT check gold. That is the point of the queue — a send with no gold behind
+    /// it waits rather than being refused, and the player does not have to come back and re-tap when
+    /// income lands.
+    /// </remarks>
+    public VerticalSliceCommandResult EnqueueSend(PlayerId playerId, ContentId creepId)
+    {
+        if (!topology.HasPlayer(playerId))
+        {
+            return VerticalSliceCommandResult.Reject(CommandRejectionReason.InvalidPlayer);
+        }
+
+        if (players.Get(playerId).IsEliminated)
+        {
+            return VerticalSliceCommandResult.Reject(CommandRejectionReason.PlayerEliminated);
+        }
+
+        if (content.Creeps.All(creep => !creep.Id.Equals(creepId)))
+        {
+            return VerticalSliceCommandResult.Reject(CommandRejectionReason.UnknownCreep);
+        }
+
+        if (!sendQueues.TryGetValue(playerId, out var queue))
+        {
+            queue = new List<ContentId>();
+            sendQueues[playerId] = queue;
+        }
+
+        if (queue.Count(queued => queued.Equals(creepId)) >= MaxQueuedSendsPerCreep)
+        {
+            return VerticalSliceCommandResult.Reject(CommandRejectionReason.SendQueueFull);
+        }
+
+        queue.Add(creepId);
+        return VerticalSliceCommandResult.Accept();
+    }
+
+    /// <summary>
+    /// Pays for as much of each seat's queue as it can afford this tick, oldest first.
+    /// </summary>
+    /// <remarks>
+    /// Strictly first-in-first-out: if the oldest entry cannot be paid for, the queue stops there
+    /// rather than looking past it for something cheaper. Skipping ahead would quietly reorder what
+    /// the player asked for, and a queue that reorders itself is worse than no queue — the player
+    /// would have no way to predict what their taps did.
+    ///
+    /// Drains in a loop rather than one per tick, because gold arrives in lumps at the income tick
+    /// and a queue that released one creep per tick would take a hundred ticks to spend a bank the
+    /// player already has.
+    ///
+    /// Seats in id order, for the same determinism reason the bot loop is ordered: this spends gold
+    /// and assigns entity ids.
+    /// </remarks>
+    private void DrainSendQueues()
+    {
+        foreach (var playerId in sendQueues.Keys.OrderBy(id => id.Value).ToArray())
+        {
+            var queue = sendQueues[playerId];
+            while (queue.Count > 0 && QueueSend(playerId, queue[0], 1).Accepted)
+            {
+                queue.RemoveAt(0);
+            }
+        }
+    }
+
     /// <summary>
     /// Local editor/playtest helper for stress and screenshot scenarios. This deliberately sits on the
     /// vertical-slice bridge rather than in EconomyService so production economy rules stay unchanged.
@@ -990,6 +1089,10 @@ public sealed class LocalVerticalSlice
         }
 
         StartMatch();
+
+        // Before the bots act, so a queued send lands on the tick the player's gold reaches it
+        // rather than a tick later.
+        DrainSendQueues();
 
         // What each bot does with its turn, and in what order, is BotController.TakeTurn's business
         // (OPEN_ITEMS.md item 26 — that used to be about 350 lines of this class). What stays here is

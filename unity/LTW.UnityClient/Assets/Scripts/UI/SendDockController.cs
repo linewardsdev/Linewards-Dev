@@ -118,23 +118,23 @@ namespace LTW.UnityClient.UI
             feedbackView = feedback;
         }
 
-        public void SendRunner() => Send(commandAdapter.SendSampleCreep(), "Runner sent", commandAdapter.SendCost(SampleVerticalSliceContent.CreepId), 0);
+        public void SendRunner() => Send(commandAdapter.SendSampleCreep(), "Runner queued", commandAdapter.SendCost(SampleVerticalSliceContent.CreepId), 0);
 
-        public void SendBrute() => Send(commandAdapter.SendBruteCreep(), "Brute sent", commandAdapter.SendCost(SampleVerticalSliceContent.BruteCreepId), 1);
+        public void SendBrute() => Send(commandAdapter.SendBruteCreep(), "Brute queued", commandAdapter.SendCost(SampleVerticalSliceContent.BruteCreepId), 1);
 
-        public void SendSwarm() => Send(commandAdapter.SendSwarmCreep(), "Swarm sent", commandAdapter.SendCost(SampleVerticalSliceContent.SwarmCreepId), 2);
+        public void SendSwarm() => Send(commandAdapter.SendSwarmCreep(), "Swarm queued", commandAdapter.SendCost(SampleVerticalSliceContent.SwarmCreepId), 2);
 
-        public void SendShade() => Send(commandAdapter.SendShadeCreep(), "Shade sent", commandAdapter.SendCost(SampleVerticalSliceContent.ShadeCreepId), 3);
+        public void SendShade() => Send(commandAdapter.SendShadeCreep(), "Shade queued", commandAdapter.SendCost(SampleVerticalSliceContent.ShadeCreepId), 3);
 
-        public void SendSiege() => Send(commandAdapter.SendSiegeCreep(), "Siege sent", commandAdapter.SendCost(SampleVerticalSliceContent.SiegeCreepId), 4);
+        public void SendSiege() => Send(commandAdapter.SendSiegeCreep(), "Siege queued", commandAdapter.SendCost(SampleVerticalSliceContent.SiegeCreepId), 4);
 
-        public void SendWisp() => Send(commandAdapter.SendWispCreep(), "Wisp sent", commandAdapter.SendCost(SampleVerticalSliceContent.WispCreepId), 5);
+        public void SendWisp() => Send(commandAdapter.SendWispCreep(), "Wisp queued", commandAdapter.SendCost(SampleVerticalSliceContent.WispCreepId), 5);
 
-        public void SendRevenant() => Send(commandAdapter.SendRevenantCreep(), "Revenant sent", commandAdapter.SendCost(SampleVerticalSliceContent.RevenantCreepId), 6);
+        public void SendRevenant() => Send(commandAdapter.SendRevenantCreep(), "Revenant queued", commandAdapter.SendCost(SampleVerticalSliceContent.RevenantCreepId), 6);
 
         public void SendObsidianBrute() => Send(commandAdapter.SendObsidianBruteCreep(), "Obsidian Brute sent", commandAdapter.SendCost(SampleVerticalSliceContent.ObsidianBruteCreepId), 7);
 
-        public void SendSerpent() => Send(commandAdapter.SendSerpentCreep(), "Serpent sent", commandAdapter.SendCost(SampleVerticalSliceContent.SerpentCreepId), 8);
+        public void SendSerpent() => Send(commandAdapter.SendSerpentCreep(), "Serpent queued", commandAdapter.SendCost(SampleVerticalSliceContent.SerpentCreepId), 8);
 
         public void SendTurretWalker() => Send(commandAdapter.SendTurretWalkerCreep(), "Turret Walker sent", commandAdapter.SendCost(SampleVerticalSliceContent.TurretWalkerCreepId), 9);
 
@@ -532,7 +532,20 @@ namespace LTW.UnityClient.UI
 
                 var width = inFirstRow ? firstRowWidth : secondRowWidth;
                 var y = inFirstRow ? buttonY : secondRowY;
-                if (DrawSendButton(new Rect(x, y, width, buttonHeight), card.Label, $"{cost}G  +{income}", card.Icon, card.Accent, gold >= cost, highlightedCreepRole == card.Role, scale, card.IgnoresCooldown))
+
+                // Enabled on queue space, NOT on gold, and that is the point of the send queue. The
+                // card used to grey out the moment a player could not afford it, which is exactly
+                // the tap the queue exists to accept: state the intent now, pay when income lands.
+                // Leaving the affordability gate here would have kept the old behaviour behind a
+                // queue nobody could reach.
+                var queued = commandAdapter != null ? commandAdapter.QueuedSendCount(card.CreepId) : 0;
+                var hasQueueSpace = queued < LTW.Simulation.Bridge.LocalVerticalSlice.MaxQueuedSendsPerCreep;
+
+                // The count is on the card because a tap no longer produces a creep immediately.
+                // Without it a queued tap and a tap that did nothing look identical, which is the
+                // one thing that would make queueing feel broken rather than helpful.
+                var meta = queued > 0 ? $"{cost}G  +{income}   x{queued}" : $"{cost}G  +{income}";
+                if (DrawSendButton(new Rect(x, y, width, buttonHeight), card.Label, meta, card.Icon, card.Accent, hasQueueSpace, highlightedCreepRole == card.Role, scale, card.IgnoresCooldown))
                 {
                     card.Send();
                 }
