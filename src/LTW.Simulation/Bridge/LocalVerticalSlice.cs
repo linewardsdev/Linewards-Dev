@@ -199,7 +199,33 @@ public sealed class LocalVerticalSlice
     /// Creeps that ignore the maze are skipped, and must be: they walk the direct route, which this
     /// never touches, so remapping them onto the mazed one would teleport the one unit that is
     /// supposed to be immune to mazing.
+    ///
+    /// "Nearest" is BOUNDED, and the bound is the whole difference between a nudge and a teleport.
+    /// Reported from an iPad: build across the lane until the corridor is walled off, and "the
+    /// creeps started going to the right" — they did not walk right, they arrived there in zero
+    /// ticks. While a reroute merely bulges around a tower the nearest cell is a step away and this
+    /// is invisible; wall the corridor off and the path moves to the far side of the board, so the
+    /// nearest cell to a creep standing in the old corridor is several cells away, laterally. Worse
+    /// than jarring: the measured case moved a creep from (1,14) onto the exit at (3,15), handing
+    /// the attacker a leak that the DEFENDER paid to cause.
+    ///
+    /// Past the bound the creep keeps its remaining STEPS instead. That still relocates it — the
+    /// corridor genuinely moved and a creep's position is only ever an index into the route, so
+    /// there is nowhere else for it to be — but it arrives with exactly as much lane left to walk
+    /// as it had, rather than being handed the end of it.
     /// </remarks>
+    /// <summary>
+    /// How far a creep may be snapped to the rebuilt route before the snap is judged a teleport.
+    /// </summary>
+    /// <remarks>
+    /// Two, because a reroute around a single tower puts the replacement cell one step to the side
+    /// and a reroute around two adjacent ones puts it two. Beyond that the path has not bulged, it
+    /// has moved, and snapping to it stops being the "keep the creep where it is" this method
+    /// promises. Deliberately not 1: at 1 an ordinary two-wide bulge would fall through to the
+    /// remaining-steps branch, which relocates far more creeps than it needs to.
+    /// </remarks>
+    private const int MaxSnapDistance = 2;
+
     private void RemapCreepsOntoNewRoute(LaneId laneId, IReadOnlyList<GridPosition>? previous, IReadOnlyList<GridPosition> route)
     {
         if (previous is null || previous.Count == 0 || route.Count == 0 || ReferenceEquals(previous, route))
@@ -216,10 +242,29 @@ public sealed class LocalVerticalSlice
             }
 
             var standingOn = previous[Math.Min(creep.PathIndex, previous.Count - 1)];
-            var nearest = 0;
+            var remaining = Math.Max(0, previous.Count - 1 - creep.PathIndex);
+
+            // Candidates are restricted to those that leave the creep at least as far from the exit
+            // as it already was. Distance alone is not a sufficient guard: the cell two steps to the
+            // side can be the LAST cell of the rebuilt route, so a short spatial hop hands over
+            // every step the creep still owed. That is exactly the measured failure — a creep at
+            // (1,15) snapped to the exit at (3,15), two cells away and zero steps from leaking.
+            //
+            // The allowance is what keeps SELLING honest. Removing a tower shortens the lane, and
+            // then every creep in it legitimately owes fewer steps than before — so a flat "never
+            // owe less" would have nothing to pick and would fall through to the branch below, which
+            // clamps to zero and fires the whole lane back to the spawn. A creep may give up exactly
+            // as many steps as the lane itself lost, and no more.
+            var allowance = Math.Max(0, previous.Count - route.Count);
+            var nearest = -1;
             var bestDistance = int.MaxValue;
             for (var index = 0; index < route.Count; index++)
             {
+                if (route.Count - 1 - index < remaining - allowance)
+                {
+                    continue;
+                }
+
                 var candidate = route[index];
                 var distance = Math.Abs(candidate.X - standingOn.X) + Math.Abs(candidate.Y - standingOn.Y);
                 if (distance < bestDistance)
@@ -227,6 +272,15 @@ public sealed class LocalVerticalSlice
                     bestDistance = distance;
                     nearest = index;
                 }
+            }
+
+            if (nearest < 0 || bestDistance > MaxSnapDistance)
+            {
+                // Either the corridor moved out from under this creep entirely — the nearest cell is
+                // somewhere across the board — or the rebuilt route is too short to preserve what it
+                // still owed. Keep the number of steps it has left to walk and let it land wherever
+                // that many steps from the end happens to be.
+                nearest = Math.Max(0, Math.Min(route.Count - 1, route.Count - 1 - remaining));
             }
 
             if (nearest != creep.PathIndex)
@@ -258,6 +312,41 @@ public sealed class LocalVerticalSlice
     /// creeps instead of accumulating a tombstone per lane hop — see OPEN_ITEMS.md's retired 2026-07-29 review, "every lane hop leaves a permanent spent entity".
     /// </summary>
     public int DiagnosticCombatEntityCount() => combatState.Creeps.Count;
+
+    /// <summary>
+    /// Steps each live creep in <paramref name="laneId"/> still owes before it leaks, by entity id.
+    /// </summary>
+    /// <remarks>
+    /// Exists because the property that matters when a lane is rebuilt cannot be observed from
+    /// outside. A creep's position is an index into the route, and a rebuilt route winds differently
+    /// — so a creep can end up spatially nearer the exit while owing exactly as many steps, and it
+    /// can end up spatially further while owing fewer. Grid distance is therefore not a usable proxy
+    /// for progress, and asserting on it produced a test that failed on correct behaviour and would
+    /// have passed on some incorrect behaviour.
+    ///
+    /// Same reasoning as <see cref="DiagnosticCombatEntityCount"/>: a diagnostic accessor rather
+    /// than widening the snapshot, because this is internal bookkeeping no presentation layer has
+    /// any business rendering.
+    /// </remarks>
+    public IReadOnlyDictionary<long, int> DiagnosticRemainingSteps(LaneId laneId)
+    {
+        var route = routes.TryGetValue(laneId, out var mazed) ? mazed : Array.Empty<GridPosition>();
+        var direct = directRoutes.TryGetValue(laneId, out var straight) ? straight : route;
+        var remaining = new Dictionary<long, int>();
+
+        foreach (var creep in combatState.Creeps)
+        {
+            if (creep.IsDead || creep.HasLeaked || !creep.LaneId.Equals(laneId))
+            {
+                continue;
+            }
+
+            var walking = creep.IgnoresMaze ? direct : route;
+            remaining[creep.EntityId.Value] = Math.Max(0, walking.Count - 1 - creep.PathIndex);
+        }
+
+        return remaining;
+    }
 
     public BotDiagnosticsSnapshot GetBotDiagnostics()
     {

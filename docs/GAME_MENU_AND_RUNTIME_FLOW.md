@@ -204,6 +204,7 @@ Four things about this surface are worth knowing before extending it:
 - **Alpha composites in linear.** The project renders in Linear colour space, so a translucent USS colour arrives roughly twice as strong as the sRGB numbers suggest. Opaque colours are exact. See the header comment in `ShellScreens.uss` for the measured figures.
 - **A new pre-match screen needs two edits, not one.** `LocalSessionFlowOverlay.ActiveShellScreen` decides which composition is up, and its `OnGUI` decides which IMGUI panel is. A screen added to the first but not the second falls through to `DrawReadyPanel`, which draws the READY card straight over it — the symptom is two screens at once, which does not look like a wiring bug.
 - **The codex reads pixels, not just wiring.** Its stage is a camera rendering to a texture, and a camera that draws nothing produces a uniform texture with no error anywhere. `CodexScreenCheck` is the only thing that can tell a blank stage from a deliberately quiet panel; a screenshot cannot.
+- **A unit with no art yet is a supported state, not an error.** Stats land before models on this roster — the Twin Crescent Ward shipped playable with no prefab, icon or visual profile — so the codex shows MODEL PENDING on the card and the unit's label in the icon rail. `CodexRosterCheck` still fails on it, and reports it under ART NOT YET DRAWN separately from wiring gaps, so a tracked art gap does not read as a broken screen.
 
 ## Build Drawer
 

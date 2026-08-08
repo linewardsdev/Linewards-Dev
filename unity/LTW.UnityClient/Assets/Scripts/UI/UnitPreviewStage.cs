@@ -100,42 +100,61 @@ namespace LTW.UnityClient.UI
         /// <summary>Content id of whatever is currently on the stage, empty when it is clear.</summary>
         public string CurrentUnitId => currentUnitId;
 
-        /// <summary>Puts a tower on the stage, by simulation content id (e.g. "tower.relay").</summary>
-        public void ShowTower(string contentId)
+        /// <summary>
+        /// Puts a tower on the stage, by simulation content id (e.g. "tower.relay"). False when the
+        /// roster carries this tower but its art does not exist yet.
+        /// </summary>
+        /// <remarks>
+        /// A missing model is a reportable state, not an exception. Stats land before art — the Twin
+        /// Crescent Ward shipped playable with no prefab, icon or visual profile at all — so the
+        /// codex has to have something to say about a unit it cannot draw. Warning rather than
+        /// error, because <c>CodexRosterCheck</c> is what fails a build over this and it names
+        /// every gap at once; a runtime error here would be a second, noisier report of a condition
+        /// that is already known and already tracked.
+        /// </remarks>
+        public bool ShowTower(string contentId)
         {
-            if (currentUnitId == contentId)
-            {
-                return;
-            }
-
             towerLibrary ??= Resources.Load<TowerVisualLibrary>("TowerVisualLibrary");
             var profile = towerLibrary != null ? towerLibrary.FindProfile(contentId) : null;
             if (profile == null || profile.Prefab == null)
             {
-                Debug.LogError($"CODEX no tower visual profile with a prefab for '{contentId}'.");
-                return;
+                Debug.LogWarning($"CODEX '{contentId}' has no tower visual profile with a prefab; showing the no-model state.");
+                Clear();
+                return false;
             }
 
-            Mount(contentId, profile.Prefab, profile.HasScale ? profile.Scale : Vector3.one);
+            if (currentUnitId == contentId)
+            {
+                return true;
+            }
+
+            Mount(
+                contentId,
+                profile.Prefab,
+                profile.HasScale ? profile.Scale : Vector3.one,
+                TowerVisualTuning.SpinPartRestTiltDegrees(profile.Role));
+            return true;
         }
 
         /// <summary>Puts a creep on the stage, by simulation content id (e.g. "creep.wisp").</summary>
-        public void ShowCreep(string contentId)
+        public bool ShowCreep(string contentId)
         {
-            if (currentUnitId == contentId)
-            {
-                return;
-            }
-
             creepLibrary ??= Resources.Load<CreepVisualLibrary>("CreepVisualLibrary");
             var profile = creepLibrary != null ? creepLibrary.FindProfile(contentId) : null;
             if (profile == null || profile.Prefab == null)
             {
-                Debug.LogError($"CODEX no creep visual profile with a prefab for '{contentId}'.");
-                return;
+                Debug.LogWarning($"CODEX '{contentId}' has no creep visual profile with a prefab; showing the no-model state.");
+                Clear();
+                return false;
             }
 
-            Mount(contentId, profile.Prefab, profile.HasScale ? profile.Scale : Vector3.one);
+            if (currentUnitId == contentId)
+            {
+                return true;
+            }
+
+            Mount(contentId, profile.Prefab, profile.HasScale ? profile.Scale : Vector3.one, spinPartRestTilt: 0f);
+            return true;
         }
 
         /// <summary>Empties the stage and stops the camera. Called when the codex closes.</summary>
@@ -160,9 +179,21 @@ namespace LTW.UnityClient.UI
             {
                 stageCamera.enabled = false;
             }
+
+            // Wipe the target too. A disabled camera stops writing but does not erase, so the
+            // texture keeps the last unit it drew — which is how a codex entry with no model of its
+            // own ends up displaying the previous tower's, and how reopening the screen flashes
+            // whatever was on it when it closed.
+            if (texture != null)
+            {
+                var previous = RenderTexture.active;
+                RenderTexture.active = texture;
+                GL.Clear(true, true, new Color(0f, 0f, 0f, 0f));
+                RenderTexture.active = previous;
+            }
         }
 
-        private void Mount(string contentId, GameObject prefab, Vector3 scale)
+        private void Mount(string contentId, GameObject prefab, Vector3 scale, float spinPartRestTilt)
         {
             EnsureStage();
 
@@ -187,16 +218,73 @@ namespace LTW.UnityClient.UI
                 animator.cullingMode = AnimatorCullingMode.AlwaysAnimate;
             }
 
+            ApplySpinPartRestTilt(spinPartRestTilt);
+
             currentUnitId = contentId;
             spin = HeroYaw;
             subjectRoot.transform.localRotation = Quaternion.Euler(0f, spin, 0f);
 
+            // After the tilt, never before: a tipped dish occupies a different bounding box than a
+            // flat one, and framing the flat pose would crop the tipped one.
             Frame();
 
             if (stageCamera != null)
             {
                 stageCamera.enabled = true;
             }
+        }
+
+        /// <summary>
+        /// Puts a tower's spinning sub-part into the same rest pose the board gives it.
+        /// </summary>
+        /// <remarks>
+        /// The board renderer tips the Relay's dish off horizontal before sweeping it
+        /// (<c>UnityVerticalSliceRenderer.SpinPartRestTiltDegrees</c>, which has the measurements).
+        /// Without this the codex would show that dish lying flat while the game shows it tipped —
+        /// on the one screen whose whole job is to show the player what a tower looks like.
+        ///
+        /// Rest pose only. The codex does not sweep the part: the whole subject is already turning
+        /// on the stage, and a second rotation on top of that reads as a wobble rather than as a
+        /// mechanism.
+        /// </remarks>
+        private void ApplySpinPartRestTilt(float tilt)
+        {
+            if (tilt == 0f || subject == null)
+            {
+                return;
+            }
+
+            foreach (var name in TowerVisualTuning.SpinPartNames)
+            {
+                var part = FindDeep(subject.transform, name);
+                if (part == null)
+                {
+                    continue;
+                }
+
+                var axis = part.parent.InverseTransformDirection(Vector3.forward).normalized;
+                part.localRotation = Quaternion.AngleAxis(tilt, axis) * part.localRotation;
+                return;
+            }
+        }
+
+        private static Transform? FindDeep(Transform parent, string name)
+        {
+            if (parent.name == name)
+            {
+                return parent;
+            }
+
+            for (var index = 0; index < parent.childCount; index++)
+            {
+                var found = FindDeep(parent.GetChild(index), name);
+                if (found != null)
+                {
+                    return found;
+                }
+            }
+
+            return null;
         }
 
         /// <summary>

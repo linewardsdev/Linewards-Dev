@@ -167,13 +167,63 @@ namespace LTW.UnityClient.Simulation
                     towerSpinPartState[key] = spinState;
                 }
 
-                spinPart.localRotation = Quaternion.AngleAxis(Time.time * TowerRingSpinDegreesPerSecond, spinState.LocalSpinAxis) * spinState.RestLocalRotation;
+                // Rest tilt is applied BETWEEN the rest pose and the sweep: tip the part off
+                // horizontal first, then sweep that tipped part about world-up. The other order
+                // would tilt the whole swept result and give a wobble rather than a radar sweep.
+                var restTilt = SpinPartRestTiltDegrees(visualProfile.Role);
+                var tilted = restTilt == 0f
+                    ? spinState.RestLocalRotation
+                    : Quaternion.AngleAxis(restTilt, spinPart.parent.InverseTransformDirection(Vector3.forward).normalized)
+                      * spinState.RestLocalRotation;
+
+                spinPart.localRotation = Quaternion.AngleAxis(Time.time * TowerRingSpinDegreesPerSecond, spinState.LocalSpinAxis) * tilted;
             }
         }
 
         private const float TowerRingSpinDegreesPerSecond = 32f;
 
-        private static readonly string[] TowerSpinPartNames = { "Ring", "Dish", "Spire" };
+        /// <summary>
+        /// How far off horizontal a tower's spin part rests, in degrees. Zero for everything the
+        /// board reads correctly.
+        /// </summary>
+        /// <remarks>
+        /// This exists for the Relay, reported from play as "tilting away from the POV, almost as
+        /// if it's not quite 3D" (docs/screenshot-reviews/tower-perspective-relay).
+        ///
+        /// MEASURED CAUSE. The board camera is orthographic and looks down 56.5 degrees from
+        /// horizontal, so its view axis is 33.5 degrees off vertical. The Relay's dish is the only
+        /// genuinely flat hero feature on the roster whose face points straight UP, which puts its
+        /// normal 33.5 degrees off the view axis — it renders at 0.83 of its true width, near enough
+        /// to a perfect circle to carry no foreshortening at all. Every other tower's hero feature
+        /// is oriented horizontally and renders at 0.55 or less: Prism's spire, Tesla's coil and
+        /// Gatling's head all measure 0.55, the Repair Drone's 0.00. A circle has no orientation
+        /// cue, so the tower's dominant element gives the eye nothing to read depth from, and the
+        /// whole tower reads as a sprite.
+        ///
+        /// It also made the Relay's only idle animation invisible. The dish already sweeps about
+        /// world-up at <see cref="TowerRingSpinDegreesPerSecond"/>, and world-up was exactly its own
+        /// axis of symmetry — rendered at four sweep phases 90 degrees apart, all four frames came
+        /// out identical. Tipping the dish is what turns that existing sweep into a radar sweep.
+        ///
+        /// INTENT IS RECORDED, NOT INFERRED, which is what the review doc said would unblock this.
+        /// The hand-authored Relay that predates the Meshy model — TowerShape.SignalMast in
+        /// TowerVisualPrefabGenerator — mounts its two dishes at Euler X of -58 and +68 degrees.
+        /// A steeply pitched dish is the design; the imported replacement lost it.
+        ///
+        /// 40 rather than the recorded 58, and the difference is the part count. The original splays
+        /// TWO dishes in opposite directions, so one always presents a face to the camera. There is
+        /// one dish here, and rendered across the sweep at 58 it spends roughly a quarter of every
+        /// revolution edge-on and effectively disappears. At 40 it is dimensional at every phase and
+        /// legible at all of them.
+        ///
+        /// The number itself lives on <see cref="TowerVisualTuning"/> because the codex's preview
+        /// stage has to apply the same one — a correction made here alone would leave the screen
+        /// that exists to showcase a tower disagreeing with the game about what it looks like.
+        /// </remarks>
+        private static float SpinPartRestTiltDegrees(TowerVisualRole role) =>
+            TowerVisualTuning.SpinPartRestTiltDegrees(role);
+
+        private static readonly string[] TowerSpinPartNames = TowerVisualTuning.SpinPartNames;
 
         /// <summary>
         /// The four transforms <see cref="UpdateTowerMotion"/> drives, found once per pooled tower
@@ -548,13 +598,13 @@ namespace LTW.UnityClient.Simulation
                 // needs a faint idle presence — an alert, mostly-still gun emplacement.
                 // Rest heading measured in Unity: barrel tip at local (x=0.725, z=0.001) = +90.
                 case TowerVisualRole.Arrow:
-                    return new TowerMotionProfile(1.4f, 0.015f, restHeadingDegrees: 90f, recoilScale: 1.2f);
+                    return new TowerMotionProfile(1.4f, 0.048f, driftHz: 0.9f, driftAmp: 0.028f, restHeadingDegrees: 90f, recoilScale: 1.2f);
 
                 // The arms+core+ring assembly turns to aim and the ring spins independently, both
                 // real visible motion, so Body-level sway on top was pure excess. Reads as a
                 // mostly-still ancient structure with a faint pulse of life.
                 case TowerVisualRole.Control:
-                    return new TowerMotionProfile(1.6f, 0.01f, recoilScale: 0.5f);
+                    return new TowerMotionProfile(1.6f, 0.026f, driftHz: 0.7f, driftAmp: 0.028f, recoilScale: 0.5f);
 
                 // The split Dish spins continuously; Body adds a slow mast sway underneath rather
                 // than competing with the dish for attention.
@@ -593,7 +643,7 @@ namespace LTW.UnityClient.Simulation
                 // The kick is small AND short. Short is the load-bearing half: this fires every
                 // 0.25s, so anything at the 0.35s default never returns to rest between shots.
                 case TowerVisualRole.Gatling:
-                    return new TowerMotionProfile(2.4f, 0.012f, restHeadingDegrees: 98.7f, recoilScale: 0.3f, recoilDuration: 0.12f);
+                    return new TowerMotionProfile(2.4f, 0.036f, restHeadingDegrees: 98.7f, recoilScale: 0.3f, recoilDuration: 0.12f);
 
                 // A coil under load. Fast shallow pulse reads as electrical rather than breathing.
                 // The lightest kick of any tower that has one: an arc discharge has no projectile
@@ -624,7 +674,7 @@ namespace LTW.UnityClient.Simulation
                 // oversized to match: with the idle almost dead, firing is the only motion it has,
                 // so it has to carry the whole read on its own.
                 case TowerVisualRole.Barricade:
-                    return new TowerMotionProfile(0.7f, 0.006f, locksYaw: true, suppressRecoil: false, recoilScale: 1.5f);
+                    return new TowerMotionProfile(0.7f, 0.03f, locksYaw: true, suppressRecoil: false, recoilScale: 1.5f);
 
                 // A bolted-down spire, not an aircraft. It previously carried the widest drift in the
                 // roster (0.04) to read as "hovering rather than planted" — but the mesh is a pillar
@@ -635,7 +685,7 @@ namespace LTW.UnityClient.Simulation
                 // Yaw locked: a pillar bolted to a plinth cannot rotate, and what it actually projects is
                 // a servicing tether to a neighbour, not a shot at a creep.
                 case TowerVisualRole.RepairDrone:
-                    return new TowerMotionProfile(1.2f, 0.008f, locksYaw: true, suppressRecoil: false, recoilScale: 0.5f);
+                    return new TowerMotionProfile(1.2f, 0.026f, locksYaw: true, suppressRecoil: false, recoilScale: 0.5f);
 
                 // --- Grove line ---------------------------------------------------------------
                 // Living things: slower and larger than the machines, with real sway.
@@ -649,7 +699,7 @@ namespace LTW.UnityClient.Simulation
                 // Small and eager. Quicker and springier than its elders.
                 // Yaw locked, same reason as its elder. The quick springy sway is the whole read.
                 case TowerVisualRole.Sapling:
-                    return new TowerMotionProfile(2.0f, 0.028f, driftHz: 1.2f, driftAmp: 0.03f, locksYaw: true, suppressRecoil: false, recoilScale: 0.5f);
+                    return new TowerMotionProfile(2.0f, 0.045f, driftHz: 1.2f, driftAmp: 0.048f, locksYaw: true, suppressRecoil: false, recoilScale: 0.5f);
 
                 // A flower. Slow open-and-close bloom, peaked so it reads as breathing.
                 // Yaw locked: a flower on a stalk. The peaked open-and-close pulse already names the tower.
@@ -666,7 +716,7 @@ namespace LTW.UnityClient.Simulation
                 // suppressRecoil is explicitly false so locking yaw does not also remove the snap —
                 // stillness THEN a hard snap is the entire characterisation.
                 case TowerVisualRole.ThornSnare:
-                    return new TowerMotionProfile(0.5f, 0.008f, locksYaw: true, suppressRecoil: false, recoilScale: 1.4f);
+                    return new TowerMotionProfile(0.5f, 0.042f, driftHz: 0.45f, driftAmp: 0.035f, locksYaw: true, suppressRecoil: false, recoilScale: 1.4f);
 
                 // A fungal bloom venting spores. Slow swell with a lazy drift.
                 // Yaw locked: a cloud has no facing, which its own name says.

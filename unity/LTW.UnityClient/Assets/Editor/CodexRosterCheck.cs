@@ -132,7 +132,29 @@ namespace LTW.UnityClient.Editor
 
             if (failures.Count > 0)
             {
-                Debug.LogError($"CODEX ROSTER CHECK FAILED ({failures.Count}):\n  {string.Join("\n  ", failures)}");
+                // Split, because the two kinds want different people. A wiring gap is a bug in the
+                // client catalogs; a missing prefab or icon is a roster entry whose art has not been
+                // drawn yet, which is a normal stage of landing a unit — the Twin Crescent Ward
+                // shipped playable with neither. Reporting them in one undifferentiated list makes
+                // a known, tracked art gap read as "the codex is broken", which is how a check
+                // starts getting ignored.
+                var art = failures.Where(failure => failure.Contains("visual profile") || failure.Contains("icon at")).ToArray();
+                var wiring = failures.Except(art).ToArray();
+
+                var report = new List<string> { $"CODEX ROSTER CHECK FAILED ({failures.Count})" };
+                if (wiring.Length > 0)
+                {
+                    report.Add($"WIRING ({wiring.Length}) — the client catalogs disagree with the content catalog:");
+                    report.AddRange(wiring.Select(failure => "  " + failure));
+                }
+
+                if (art.Length > 0)
+                {
+                    report.Add($"ART NOT YET DRAWN ({art.Length}) — the codex shows its no-model state for these:");
+                    report.AddRange(art.Select(failure => "  " + failure));
+                }
+
+                Debug.LogError(string.Join("\n", report));
                 if (Application.isBatchMode)
                 {
                     EditorApplication.Exit(1);
