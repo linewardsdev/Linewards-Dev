@@ -7,6 +7,10 @@ or diagnosed yet; the pointers are starting places, not conclusions.
 
 Branch: `ipad-bugtest-2026-08-09`.
 
+**Status 2026-08-09:** items 4 and 6 done and compile-verified. Item 11 (tablet scaling) is being
+worked by another session. The remaining nine are untouched — item 1 is the one worth taking next,
+being the only one likely to be a logic bug rather than presentation.
+
 ---
 
 ## 1. Creeps pause for a second or two when they have to turn
@@ -51,7 +55,23 @@ of floating above it, or replace with actual geometry.
 Related: the contact-shadow system already exists (`UpdateContactShadow`) and is what grounds
 other board objects. The gates may simply not be using it.
 
-## 4. Weird blue squares at the four corners
+## 4. Weird blue squares at the four corners — DONE (`3824deb`)
+
+**Fixed 2026-08-09.** Four `CreateCornerPylon` cubes per lane, untextured and flat-shaded, at the
+plate corners. Compile-verified once the project lock freed up: Unity 6000.5.3f1 rebuilt
+Assembly-CSharp with zero errors.
+
+The find worth keeping: this was the **second** report of the same four objects. The method's own
+remarks recorded the first, when they stood 0.11 proud of the board and read as "a solid blue
+rectangle with no relationship to anything near it". That pass rescued them by flattening to a
+0.30 x 0.30 x 0.045 chip — still an untextured cube, now with a perfectly square footprint. Blue
+rectangle became blue square and came back.
+
+Removed rather than rescued a third time: they state nothing the plate, gutters and frame do not
+already say. `CreateLaneFlowTickMarks` below reached the same conclusion about its own "loose blue
+shards" and survived only by being gated to full detail.
+
+Original diagnosis, kept because it was right:
 
 **Likely an asset failure rather than a design element.** Blue is the colour the missing-material
 path produces, and "square at a corner" suggests either board corner plates or a debug overlay
@@ -73,7 +93,20 @@ button? On a phone-first portrait layout with a 9:19.5 board column, screen spac
 constraint — a panel is likely, and the results screen already has a seat-ranking layout that
 could be reused rather than designed again.
 
-## 6. Remove the MULTI button
+## 6. Remove the MULTI button — DONE (`14d1f4f`)
+
+**Fixed 2026-08-09**, compile-verified alongside item 4.
+
+The launcher is gone. **DONE is deliberately still drawn while the mode is on**, because the
+button was never the only way in: double-tapping a tower selects every tower of its type and turns
+multi-select on. Deleting the whole draw call would have left that gesture with no way out and no
+visible state — trading a button nobody wanted for a trap.
+
+The mode and its batch upgrade/sell paths are untouched, per the open question below, which is
+still open: if multi-select should be gone entirely rather than just its button, the double-tap
+gesture and `TowerSelectionBatchTests` go with it and that is a larger, separate change.
+
+Original notes:
 
 Straightforward. `TouchPlacementController` draws the launcher strip (BUILD / MULTI). Removing the
 launcher is the easy half; the multi-select machinery behind it (`PruneMultiSelection`,
