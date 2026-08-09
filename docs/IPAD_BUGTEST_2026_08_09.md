@@ -28,6 +28,27 @@ it read as a deliberate pause rather than a hitch:
 - `CreepFacingYaw` (`UnityVerticalSliceRenderer.cs`) returns the previous yaw, because
   `heading.sqrMagnitude` is zero.
 
+**CORRECTION, later the same day.** The paragraph below overstated the stale-index theory. A resync
+already exists (`LocalVerticalSlice.cs`, the route-rebuild loop): it finds the nearest valid index
+in the rebuilt route and calls `WithMovement(nearest, 0)`, which largely prevents
+`route[PathIndex + 1]` from landing on the creep's own cell by accident. Two better candidates,
+both in that resync:
+
+1. **Its fallback can pin a creep to the last cell.** When no candidate passes the guard, it does
+   `nearest = Math.Max(0, Math.Min(route.Count - 1, route.Count - 1 - remaining))`. With `remaining`
+   at 0 that is `route.Count - 1`, and `ResolveNextPosition` clamps to the same index — so
+   `NextPosition == Position` permanently and both presentation early-outs latch until the creep
+   leaks. A freeze that never recovers fits "pauses for a second or two" better than a transient
+   does. Check how often the fallback is actually reached.
+2. **Progress is reset on every rebuild.** `WithMovement(nearest, 0)` drops `MovementProgress`
+   deliberately (the comment explains why: it is a fraction of a step into a cell that has moved).
+   But at `BaseMovementCost` 3 a creep needs three ticks to earn its next step, so repeated tower
+   placements keep zeroing it and the creep can be kept from ever stepping.
+
+Both are testable without a device. Neither is confirmed. The original reasoning follows because
+the presentation half of it still holds — the two early-outs are real and are what turn any of
+these into a visible stall.
+
 Why the condition arises is the actual bug, and it is simulation-side.
 `CombatService.ResolveNextPosition` derives the next cell by INDEX into the live route:
 
