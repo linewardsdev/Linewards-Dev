@@ -342,11 +342,19 @@ namespace LTW.UnityClient.UI
                     OpenTowerPalette();
                 }
 
-                // Only offered with the palette closed: with it open the palette covers the board
-                // the taps would have to land on.
-                if (DrawLauncherButton(MultiSelectLauncherRect(scale, frame), isMultiSelectMode ? "DONE" : "MULTI", isMultiSelectMode ? SignalGold : MintSignal, scale))
+                // MULTI's launcher was removed 2026-08-09 ("the multi button can be removed"), but
+                // DONE is deliberately still drawn while the mode is on, because the button was
+                // never the only way in: double-tapping a tower selects every tower of its type and
+                // turns the mode on (see SelectEveryTowerOfType). Dropping this line entirely would
+                // leave that gesture with no way out.
+                //
+                // The mode itself and its batch upgrade/sell paths are untouched. They are reached
+                // from the category cards as well, and TowerSelectionBatchTests pins their
+                // behaviour — removing an entry point is not the same as removing the feature, and
+                // only the first was asked for.
+                if (isMultiSelectMode && DrawLauncherButton(MultiSelectLauncherRect(scale, frame), "DONE", SignalGold, scale))
                 {
-                    SetMultiSelectMode(!isMultiSelectMode);
+                    SetMultiSelectMode(false);
                 }
 
                 return;
