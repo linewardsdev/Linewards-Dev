@@ -309,36 +309,18 @@ namespace LTW.UnityClient.Simulation
             CreateSurfaceBand($"Lane{laneId}NorthAnchor", new Vector3(offset + BoardCenterX, -0.238f, LaneLength + 0.32f), new Vector3(LaneWidth * 0.62f, 0.055f, 0.24f), LaneAnchorColor(accent, laneId == 1));
             CreateSurfaceBand($"Lane{laneId}SouthAnchor", new Vector3(offset + BoardCenterX, -0.238f, -0.32f), new Vector3(LaneWidth * 0.62f, 0.055f, 0.24f), LaneAnchorColor(accent, laneId == 1));
 
-            CreateCornerPylon(laneId, "NorthWest", new Vector3(offset - 0.64f, -0.08f, LaneLength + 0.25f), accent, focusScale);
-            CreateCornerPylon(laneId, "NorthEast", new Vector3(offset + LaneWidth - 0.36f, -0.08f, LaneLength + 0.25f), accent, focusScale);
-            CreateCornerPylon(laneId, "SouthWest", new Vector3(offset - 0.64f, -0.08f, -0.25f), accent, focusScale);
-            CreateCornerPylon(laneId, "SouthEast", new Vector3(offset + LaneWidth - 0.36f, -0.08f, -0.25f), accent, focusScale);
-        }
-
-        /// <summary>Corner trim on a lane plate.</summary>
-        /// <remarks>
-        /// A flat chip, not a post. This was 0.22 x 0.38 x 0.22 sitting at y −0.08, so it stood
-        /// 0.11 proud of a board surface at y 0 — an untextured cube taller than it was wide,
-        /// flat-shaded, floating just off the plate edge. At the shipped camera it read as a solid
-        /// blue rectangle with no relationship to anything near it, and was reported as one.
-        ///
-        /// <see cref="CreateLaneFlowTickMarks"/> immediately below already carries this exact
-        /// finding about a different element — "tilted cubes sitting proud of the gutter ... read as
-        /// loose blue shards stuck to the board edge rather than as trim" — and was cut back to full
-        /// detail only because of it. The same reasoning was never applied here.
-        ///
-        /// Wider and much flatter, tucked to the plate, so it reads as a corner marking on the
-        /// board rather than an object resting on it. The dimensions now match the surface bands
-        /// this file uses everywhere else for trim.
-        /// </remarks>
-        private void CreateCornerPylon(int laneId, string name, Vector3 position, Color color, float focusScale)
-        {
-            CreateBoardPiece(
-                $"Lane{laneId}{name}Pylon",
-                PrimitiveType.Cube,
-                new Vector3(position.x, -0.012f, position.z),
-                new Vector3(0.30f * focusScale, 0.045f, 0.30f * focusScale),
-                color);
+            // Corner pylons removed 2026-08-09, reported from iPad play as "weird blue squares at
+            // the four corners that need to go away". This is the SECOND report of the same four
+            // objects: CreateCornerPylon's own remarks record the first, when they were tall enough
+            // to read as "a solid blue rectangle with no relationship to anything near it". That
+            // pass answered by flattening them to a 0.30 x 0.30 footprint, which kept an untextured
+            // flat-shaded cube on the board and made its outline squarer than before.
+            //
+            // Two reports on one element is the signal. These carry no information — the lane's
+            // extent is already given by the plate itself, its gutters and its frame — so there is
+            // nothing to preserve by rescuing them a second time. CreateLaneFlowTickMarks below
+            // reached the same conclusion about its own "loose blue shards" and survived only by
+            // being gated to full detail; these do not have even that much to say.
         }
 
         private void CreateLaneFlowTickMarks(int laneId)
