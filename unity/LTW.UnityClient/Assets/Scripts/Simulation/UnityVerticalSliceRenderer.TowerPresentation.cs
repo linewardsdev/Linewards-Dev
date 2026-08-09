@@ -724,11 +724,18 @@ namespace LTW.UnityClient.Simulation
                     return new TowerMotionProfile(0.7f, 0.032f, sharpness: 1.6f, driftHz: 0.35f, driftAmp: 0.035f, locksYaw: true, suppressRecoil: false, recoilScale: 0.4f);
 
                 // Arrow's twin-shot cousin, kitbashed from the same base with the same +90 barrel
-                // heading. Slightly slower and shallower than Arrow at idle so the pair read as
-                // kin rather than copies; recoil at 1.0 because Twin Volley emits two
-                // TowerFiredEvents per cooldown and the double kick is the mechanic's read.
+                // heading; recoil at 1.0 because Twin Volley emits two TowerFiredEvents per
+                // cooldown and the double kick is the mechanic's read. Amplitudes are far below
+                // Arrow's because px-per-amplitude is a property of the MESH — the upper crescent
+                // arm sits high and off the yaw axis (Pulse's flat-dome trap, inverted). Probed:
+                // Arrow-family values read 16.6/8.8px against Arrow's 2.65/3.64; these read
+                // 11.8/7.3, and the two runs bracket the split — idle now contributes only a
+                // couple of px, the rest is aim yaw and the double recoil swinging the arm's
+                // lever through the bounds centre. That share is the mechanic moving, not idle
+                // noise, and no idle knob here can lower it; judge it on a device before
+                // touching recoilScale.
                 case TowerVisualRole.TwinCrescent:
-                    return new TowerMotionProfile(1.2f, 0.044f, driftHz: 0.8f, driftAmp: 0.026f, restHeadingDegrees: 90f, recoilScale: 1.0f);
+                    return new TowerMotionProfile(1.2f, 0.018f, driftHz: 0.8f, driftAmp: 0.005f, restHeadingDegrees: 90f, recoilScale: 1.0f);
 
                 default:
                     return new TowerMotionProfile(1.3f, 0.02f);
