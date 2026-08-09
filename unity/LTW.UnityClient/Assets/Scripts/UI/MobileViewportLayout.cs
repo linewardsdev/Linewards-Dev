@@ -51,12 +51,83 @@ namespace LTW.UnityClient.UI
             captureViewportOverride = null;
         }
 
+        /// <summary>
+        /// Narrowest side rail worth placing UI in, as a fraction of screen width.
+        /// </summary>
+        /// <remarks>
+        /// Below this a rail is too thin to hold a readable seat row, so the margin is given back to
+        /// the board instead of left as dead space. 0.12 is chosen against the actual device range:
+        /// a 16:9 phone leaves 0.09 a side and absorbs it, while the narrowest tablet — iPad mini at
+        /// 0.657 — leaves 0.148, which is 221px of its 1488 and enough for a compact rail.
+        /// </remarks>
+        public const float MinSideRailFraction = 0.12f;
+
+        /// <summary>
+        /// The board column, and whether there is usable margin either side of it.
+        /// </summary>
+        /// <remarks>
+        /// The board is a 7x16 grid framed to fill the view vertically — orthographicSize is 8.45
+        /// against a 16-cell lane — so it CANNOT be scaled up to fill a wider screen. Zooming in to
+        /// fill an iPad's width crops the top or bottom of the player's own lane, which is
+        /// unplayable. Widening the camera does not magnify the board either; an orthographic
+        /// camera's size is vertical, so extra width only reveals more world sideways, and with
+        /// LaneSpacing 9 against LaneWidth 7 that is a 2-unit gutter and then a sliver of the
+        /// neighbours' lanes.
+        ///
+        /// So the margin is a fact of the board's shape, and the only question is what fills it.
+        /// Two answers, chosen by how much there is:
+        ///
+        /// - Not enough for a rail (phones): give it back to the board. The camera spans the full
+        ///   width and shows a little more gutter, which is empty board surround rather than dead
+        ///   screen. A 16:9 iPhone SE was losing 17.9% of its display to this.
+        /// - Enough for a rail (tablets): keep the board column and hand the margin to the HUD and
+        ///   the seat leaderboard, so the extra width does work instead of being padding.
+        ///
+        /// Only a 19.5:9 phone was ever clean. Everything else — 5" phones included — was
+        /// letterboxed, which is why this is not a tablet-only fix.
+        /// </remarks>
         public static Rect CameraRect()
+        {
+            var width = BoardColumnFraction();
+            return new Rect((1f - width) * 0.5f, 0f, width, 1f);
+        }
+
+        private static float BoardColumnFraction()
         {
             var height = ViewportHeight;
             var screenAspect = height <= 0 ? 16f / 9f : (float)ViewportWidth / height;
-            var width = Mathf.Clamp(PortraitAspect / screenAspect, 0.22f, 1f);
-            return new Rect((1f - width) * 0.5f, 0f, width, 1f);
+            var natural = Mathf.Clamp(PortraitAspect / screenAspect, 0.22f, 1f);
+
+            // Absorb a margin too thin to be useful rather than leaving it dark.
+            var railFraction = (1f - natural) * 0.5f;
+            return railFraction < MinSideRailFraction ? 1f : natural;
+        }
+
+        /// <summary>Whether this screen is wide enough to carry UI beside the board.</summary>
+        public static bool HasSideRails => BoardColumnFraction() < 1f;
+
+        /// <summary>
+        /// The usable margin on one side of the board, in GUI pixels. Zero-width when there is none.
+        /// </summary>
+        /// <remarks>
+        /// Intersected with the safe area on its own, not derived from <see cref="SafeScreenRect"/>,
+        /// because that one is clipped to the board column and a rail lies entirely outside it.
+        /// </remarks>
+        public static Rect SideRailRect(bool rightSide)
+        {
+            if (!HasSideRails)
+            {
+                return new Rect(0f, 0f, 0f, 0f);
+            }
+
+            var board = ScreenRect();
+            var rail = rightSide
+                ? new Rect(board.xMax, 0f, ViewportWidth - board.xMax, ViewportHeight)
+                : new Rect(0f, 0f, board.xMin, ViewportHeight);
+
+            var safeArea = SafeArea;
+            var guiSafeArea = new Rect(safeArea.x, ViewportHeight - safeArea.yMax, safeArea.width, safeArea.height);
+            return Intersect(rail, guiSafeArea);
         }
 
         public static Rect ScreenRect()
