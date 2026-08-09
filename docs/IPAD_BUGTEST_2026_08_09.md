@@ -127,7 +127,29 @@ grows. That fixed height is the likely reason the tower side is the more cramped
 
 Fixing legibility probably means growing the card rather than shrinking the text again.
 
+## 12. Name mismatch: the board calls it BULWARK, the codex calls it Barricade Bastion — DONE
+
+**Fixed 2026-08-09.** `TowerCatalog` entry 8 read
+`new(8, "tower.barricade", "BULWARK", "Barricade bastion", ...)` — a short label for the build
+button and a display name for the codex, and the two were different words.
+
+Audited all sixteen towers. Three others differ between label and name (`CTRL`/Control ward,
+`DRONE`/Repair drone spire, `CANOPY`/Elder canopy) but every one of those is a truncation of its
+own name and still reads as the same unit. Only Barricade's was a *different word*: "bulwark"
+appears nowhere in "Barricade bastion", and nowhere in the simulation either, where the content id
+is `tower.barricade` and the name is "Barricade Bastion".
+
+Changed the label to `BASTION`, taking a word from the unit's own name the way `CANOPY` and
+`DRONE` do, and matching BULWARK's seven-character width so no card layout moves. `BARRICADE` would
+also be defensible and matches the content id, but is two characters longer and risks the fit.
+
+This is why item 8 below was unfindable: grepping the project for "bulwark" returns only this
+label and an unrelated `CreepSupportRole.Bulwark` on the Obsidian Brute, so the reported unit
+looked like it might be a creep.
+
 ## 8. Bulwark looks rough — review art, lighting, animation, all of it
+
+**Resolved: this is the Barricade Bastion**, the Foundry wall — see item 12. Original note follows.
 
 **Needs a naming check before anyone starts.** Grep finds no prefab, mesh or texture named
 `bulwark` anywhere in `Assets`. What exists is `CreepSupportRole.Bulwark`, a support role carried
