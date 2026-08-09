@@ -201,6 +201,7 @@ namespace LTW.UnityClient.Simulation
             }
 
             EnsureLane();
+            RefreshCameraViewport();
             UpdateSpawnGatePulse();
             RenderSnapshot(snapshot);
             if (presentationDetail == PresentationDetail.Full)

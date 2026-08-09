@@ -89,7 +89,40 @@ namespace LTW.UnityClient.UI
         public static Rect CameraRect()
         {
             var width = BoardColumnFraction();
-            return new Rect((1f - width) * 0.5f, 0f, width, 1f);
+
+            // The board is lifted clear of whatever drawer is open, rather than drawn underneath it.
+            // Reported from an iPad: the build menu covers the last row of the lane, so those cells
+            // cannot be seen or built on. An orthographic camera maps its size to whatever viewport
+            // height it is given, so shortening the viewport draws the WHOLE lane smaller rather
+            // than cropping the bottom off it — every cell stays reachable, which a draggable panel
+            // would only have achieved while the player held it out of the way.
+            var height = Mathf.Clamp01(1f - DockInsetFraction());
+
+            // Width scales with height so the viewport keeps its ASPECT as it shortens. An
+            // orthographic camera's size is vertical, so a shorter-but-equally-wide viewport has a
+            // wider aspect and reveals more world sideways — which at LaneSpacing 9 means the
+            // neighbours' lanes sliding into view around the player's own. Scaling both together
+            // draws the same board smaller instead, which is the intent: nothing new appears, and
+            // nothing is hidden under the drawer.
+            var scaledWidth = width * height;
+            return new Rect((1f - scaledWidth) * 0.5f, 1f - height, scaledWidth, height);
+        }
+
+        /// <summary>The open drawer's height as a fraction of the screen, clamped to something sane.</summary>
+        /// <remarks>
+        /// Capped at 0.45 so a mis-set inset can never squeeze the board to nothing. The drawers
+        /// this reflects are 282 reference units against a 932 reference height, so a correct value
+        /// sits well under the cap and only a bug reaches it.
+        /// </remarks>
+        private static float DockInsetFraction()
+        {
+            var height = ViewportHeight;
+            if (height <= 0 || RuntimeUiChrome.BottomDockInset <= 0f)
+            {
+                return 0f;
+            }
+
+            return Mathf.Clamp(RuntimeUiChrome.BottomDockInset / height, 0f, 0.45f);
         }
 
         private static float BoardColumnFraction()
@@ -130,14 +163,29 @@ namespace LTW.UnityClient.UI
             return Intersect(rail, guiSafeArea);
         }
 
+        /// <summary>
+        /// The HUD frame: the board column at FULL height, whatever the camera is doing.
+        /// </summary>
+        /// <remarks>
+        /// Deliberately no longer derived from <see cref="CameraRect"/>, and the difference is a
+        /// feedback loop rather than a nicety. The drawers are positioned inside this frame, and
+        /// the camera is inset by however much of the bottom a drawer covers — so deriving this
+        /// from the camera means the drawer's own height moves the frame it is measured in, which
+        /// moves the drawer, which changes the inset. The first attempt did exactly that and left
+        /// the top HUD strip floating in the middle of the board.
+        ///
+        /// Only the CAMERA is lifted clear of a drawer. The HUD stays anchored to the screen, which
+        /// is also what a player expects: buttons that shuffle upward as another panel opens are
+        /// harder to hit than ones that stay put.
+        /// </remarks>
         public static Rect ScreenRect()
         {
-            var cameraRect = CameraRect();
+            var width = BoardColumnFraction();
             return new Rect(
-                cameraRect.x * ViewportWidth,
-                cameraRect.y * ViewportHeight,
-                cameraRect.width * ViewportWidth,
-                cameraRect.height * ViewportHeight);
+                (1f - width) * 0.5f * ViewportWidth,
+                0f,
+                width * ViewportWidth,
+                ViewportHeight);
         }
 
         public static Rect SafeScreenRect()

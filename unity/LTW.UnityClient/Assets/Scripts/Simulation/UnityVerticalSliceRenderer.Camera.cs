@@ -55,6 +55,35 @@ namespace LTW.UnityClient.Simulation
             ConfigureDefaultCamera();
         }
 
+        /// <summary>
+        /// Re-applies just the viewport rect, every frame.
+        /// </summary>
+        /// <remarks>
+        /// Separate from <see cref="ConfigureDefaultCamera"/>, which runs only when the framing or
+        /// lane changes and therefore cannot see a drawer opening. Only the rect is touched: the
+        /// position, tilt and orthographic size are unchanged by a drawer, and recomputing them
+        /// every frame would re-run a LookAt for nothing.
+        /// </remarks>
+        private void RefreshCameraViewport()
+        {
+            if (cameraFraming != LaneCameraFraming.ActiveLane)
+            {
+                return;
+            }
+
+            var camera = presentationCamera != null ? presentationCamera : Camera.main;
+            if (camera == null)
+            {
+                return;
+            }
+
+            var desired = MobileViewportLayout.CameraRect();
+            if (camera.rect != desired)
+            {
+                camera.rect = desired;
+            }
+        }
+
         private void ConfigureDefaultCamera()
         {
             var camera = presentationCamera != null ? presentationCamera : Camera.main;
