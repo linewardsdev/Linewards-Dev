@@ -18,14 +18,25 @@ namespace LTW.UnityClient.Editor
     /// so they were inert bytes in the repo rather than a performance win.
     ///
     /// The LOD0 renderers are the prefab's existing ones, untouched — this adds levels below
-    /// them rather than replacing what ships today, so the worst case if a threshold is wrong is
-    /// a unit that swaps too early, not a unit that disappears.
+    /// them rather than replacing what ships today.
     ///
-    /// Thresholds are screen-relative HEIGHT, which is what makes them safe to state as
-    /// constants: these units occupy a measured 46-105px on a 1206px-tall device screen, so
-    /// LOD0 covers everything from full-screen down to roughly a tenth of the height, and the
-    /// decimated levels take over below that. A tower inspected up close in a store screen still
-    /// gets LOD0.
+    /// THE LOWER LEVELS DO NOT ANIMATE, and that constraint owns the thresholds. LOD1/LOD2 are
+    /// Blender-decimated exports: one merged static MeshRenderer, no rig for a creep's Animator
+    /// to drive, no Base/Head split for tower aim and recoil to rotate. Swapping to one is not a
+    /// cheaper version of the unit, it is a frozen statue of it. The first authored thresholds
+    /// (0.10 / 0.045 / 0.012) missed this. Units occupy 16-105px on a 1206px screen — a raw
+    /// screen fraction of 0.013-0.087 — and the LODGroup multiplies that by the quality tier's
+    /// lodBias, so on the iOS/Android default tier (Medium, bias 0.7) every unit on the board
+    /// sat on a static mesh permanently, and a 16px creep (effective 0.009, under the 0.012
+    /// cull) vanished outright. The editor runs Ultra (bias 2.0), which kept most units on
+    /// animated LOD0 — which is why the freeze first surfaced on an iPad build.
+    ///
+    /// So LOD0 now holds down to 0.003 effective height — under ~4px of screen even before
+    /// bias, where legibility is already gone and a static swap is invisible. The decimated
+    /// levels are kept as sub-legibility fallbacks, not as the gameplay-size representation.
+    /// This honestly forfeits the original perf goal (266 creeps ~= 4M triangles at LOD0): that
+    /// goal cannot be met by static LODs at gameplay size, only by SKINNED ones, which is the
+    /// follow-up if device profiling shows the triangle load actually hurts.
     ///
     /// Cross-fade is deliberately NOT enabled here. `m_EnableLODCrossFade` is a per-quality-tier
     /// project setting, resolved item 15 already fixed it once, and turning it on from a prefab
@@ -40,10 +51,15 @@ namespace LTW.UnityClient.Editor
             ("Assets/Prefabs/Creeps", "Assets/Art/Creeps/Production/LODs", "creep")
         };
 
-        /// <summary>Screen-relative height below which each level takes over. See the remarks.</summary>
-        private const float Lod1Threshold = 0.10f;
-        private const float Lod2Threshold = 0.045f;
-        private const float CullThreshold = 0.012f;
+        /// <summary>
+        /// Screen-relative height below which each level takes over. All three sit below the
+        /// smallest gameplay unit on the lowest lodBias tier (16px x 0.3 bias = 0.004), because
+        /// the levels below LOD0 are static and must never own a unit the player can read.
+        /// See the remarks.
+        /// </summary>
+        private const float Lod1Threshold = 0.003f;
+        private const float Lod2Threshold = 0.0015f;
+        private const float CullThreshold = 0.0005f;
 
         [MenuItem("LTW/Art/Author LOD Groups")]
         public static void Author() => Run(apply: true);

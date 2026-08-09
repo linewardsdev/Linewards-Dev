@@ -295,6 +295,26 @@ defect is the labelling and the missing variance, not the determinism.
 
 ---
 
+## 44. Unit LODs are static, so the LOD perf win is parked until they are skinned
+
+Found 2026-08-08 from an iPad build: every creep and ward frozen mid-pose. The LOD1/LOD2
+meshes under all 31 unit prefabs are Blender-decimated *static* exports — no rig for a
+creep's Animator to drive, no Base/Head split for tower aim, recoil or spin to rotate. The
+first thresholds (0.1/0.045/0.012) put every gameplay-size unit on those meshes on the
+iOS/Android default tier (lodBias 0.7), and put a 16px creep below the cull entirely; the
+editor's Ultra tier (lodBias 2.0) kept LOD0 active, which is why it never showed there.
+
+Fixed for correctness by retuning thresholds to 0.003/0.0015/0.0005 (`AuthorLodGroups`,
+2026-08-08): animated LOD0 now holds down to sub-legible size on every tier. The open half
+is performance: the original motivation was 266 creeps ~= 4M triangles in frame, and that
+load is back to being carried at LOD0. Doing better requires *skinned* LODs — decimation
+that preserves the armature and weights (`make_lods.py`), exported as SkinnedMeshRenderers
+sharing the rig, plus a split-preserving story for towers. Do it as part of Week 3's device
+performance validation, where a measurement can say whether the triangle load hurts at all —
+if it doesn't, the static LODs stay as sub-legibility fallbacks and this item closes cheap.
+
+---
+
 ## 43. Two bot profiles hoard gold and die holding it
 
 Found 2026-08-07 in the same playthrough. Final state of the reference match:

@@ -17,7 +17,10 @@ This document defines stable child names for tower, creep, and UI prefabs. Rende
 Since 2026-08-06 each 3D prefab has an `LODGroup` on its root plus two extra children,
 `LOD_1` and `LOD_2`, holding the decimated meshes from `tools/art/make_all_lods.py`. The
 prefab's original renderers are LOD0 and are never touched. Thresholds are screen-relative
-height: 0.1 / 0.045 / 0.012.
+height: 0.003 / 0.0015 / 0.0005 — deliberately below the smallest unit on the lowest-lodBias
+quality tier, because the decimated levels are static (no rig, no Base/Head split) and must
+never own a unit the player can read. The first thresholds (0.1 / 0.045 / 0.012) put every
+unit on a frozen mesh on device while the editor's higher lodBias hid it.
 
 **These are added after generation, by `AuthorLodGroups`, and the generators know nothing
 about them.** `Tower3DProofSetGenerator` builds a wrapper from its source FBX alone, so

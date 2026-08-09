@@ -408,11 +408,16 @@ Deliberately last, but do not let it fall off: `~15k tris × 31 units`, CPU skin
 to one URP asset. A 40-creep swarm is ~600k triangles at LOD0. Bloom cost on a physical
 Android device has never been profiled — carried over from the retired `OPEN_ITEMS.md` item 2.
 
-**LODs have left this wave** — *done 2026-08-06.* All 31 unit prefabs carry a LODGroup from
-`AuthorLodGroups`, over meshes decimated to 50%/25% by `tools/art/make_all_lods.py`, so the swarm
-figure above is now the LOD0 worst case rather than the steady state. New units get the same
-treatment as they land, and `tools/art/unit_roster.py` is what stops one being quietly
-skipped — twelve were, before it existed.
+**LODs are wired but deliberately inert at gameplay size** — wired 2026-08-06, retuned
+2026-08-08. All 31 unit prefabs carry a LODGroup from `AuthorLodGroups`, over meshes decimated
+to 50%/25% by `tools/art/make_all_lods.py` — but those decimated levels are static (no rig, no
+Base/Head split), and at the first thresholds they owned every unit on device, freezing all
+creep and tower animation. Found on an iPad build; the editor's higher lodBias had hidden it.
+Thresholds now keep animated LOD0 down to sub-legible size, so the 4M-triangle swarm figure
+above IS the steady state again — the triangle win this wave wants requires SKINNED LODs,
+which is the real remaining work here. New units still get decimation and a LODGroup as they
+land, and `tools/art/unit_roster.py` is what stops one being quietly skipped — twelve were,
+before it existed.
 
 ---
 
