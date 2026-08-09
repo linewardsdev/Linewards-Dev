@@ -93,8 +93,8 @@ namespace LTW.UnityClient.UI
 
         private static Rect PanelRect(float scale, Rect frame)
         {
-            var width = Mathf.Min(frame.width - 16f * scale, 430f * scale);
-            var height = 282f * scale;
+            var width = Mathf.Min(frame.width - 16f * scale, 520f * scale);
+            var height = 330f * scale;
             var launcherClearance = 136f * scale;
             return new Rect(frame.xMax - width - 8f * scale, frame.yMax - height - MobileViewportLayout.BottomMargin(scale) - launcherClearance, width, height);
         }
@@ -228,6 +228,12 @@ namespace LTW.UnityClient.UI
             // inside the same 282 the creep grids use, so the dock no longer resizes under the
             // player as they step between the picker and a category.
             var rect = PanelRect(scale, frame);
+
+            // Same rule the build palette follows: tell the board camera how much of the bottom
+            // this drawer covers, so the lane is lifted above it instead of hidden under it. Added
+            // as the drawer grew from 282 to 330 units for the upgrade row's legibility — without
+            // it, making the panel taller would simply have hidden more of the board.
+            RuntimeUiChrome.BottomDockInset = MobileViewportLayout.ViewportHeight - rect.yMin;
 
             DrawPanel(rect, PanelInk);
             DrawAccent(new Rect(rect.x, rect.yMax - 4f * scale, rect.width, 4f * scale), SignalGold);

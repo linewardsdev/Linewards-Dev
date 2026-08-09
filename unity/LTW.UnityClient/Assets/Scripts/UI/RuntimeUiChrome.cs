@@ -297,13 +297,32 @@ namespace LTW.UnityClient.UI
         // and all three rects derive from these numbers. If they drift, the card's own button either
         // steals a button's clicks or leaves a dead strip that selects nothing.
         private const float CategoryTierRowBottomInset = 26f;
-        private const float CategoryTierRowHeight = 20f;
+
+        // 26 rather than 20, raised with the type inside them. Reported from iPad play as an
+        // upgrade control that is hard to read and too small, and the measurement bears it out:
+        // these rows carried 8pt and 9pt text, the smallest in the game, on the one control that
+        // answers "can I upgrade this, and what does it cost". Everything else a player reads at a
+        // glance — send card labels, the HUD readout — sits at 9 to 11.
+        //
+        // The row grows rather than the text shrinking to fit, which is the trap this has already
+        // fallen into once: 8pt exists only because "NEED +140" did not fit at 9.
+        private const float CategoryTierRowHeight = 26f;
         private const float CategoryBatchRowGap = 3f;
-        private const float CategoryBatchRowHeight = 20f;
+        private const float CategoryBatchRowHeight = 26f;
         private const float CategoryBatchRowBottomInset =
             CategoryTierRowBottomInset + CategoryTierRowHeight + CategoryBatchRowGap;
 
-        /// <summary>Where the tier row sits on a category card.</summary>
+        /// <summary>
+        /// Where the tier row sits on a category card.
+        /// </summary>
+        /// <remarks>
+        /// The row's two halves are sized against 11pt type, and the CARD was widened to hold them
+        /// — the drawers went from 430 to 520 units wide and 282 to 330 tall. Both halves at a
+        /// readable size genuinely did not fit the old card: raising the type clipped the button to
+        /// "IEED +7(", and widening the button then wrapped "TIER 1" onto two lines. That is the
+        /// card being too small, not the split being wrong, and shrinking the text is the move this
+        /// control has already made once — 8pt existed only because "NEED +140" would not fit at 9.
+        /// </remarks>
         public static Rect CategoryTierRowRect(Rect card, float scale) => new(
             card.x + 7f * scale,
             card.yMax - (CategoryTierRowBottomInset + CategoryTierRowHeight) * scale,
@@ -412,7 +431,7 @@ namespace LTW.UnityClient.UI
             // Letting an unaffordable press through is also the behaviour this panel already
             // settled on — the caller answers "not enough gold" out loud, which teaches more than a
             // dead control that silently swallows the tap.
-            buttonStyle.fontSize = Mathf.RoundToInt(9f * scale);
+            buttonStyle.fontSize = Mathf.RoundToInt(11f * scale);
             return DrawPanelButton(row, label, quote.Affordable > 0 ? accent : DisabledEdge, scale, buttonStyle);
         }
 
@@ -431,12 +450,16 @@ namespace LTW.UnityClient.UI
         {
             var row = CategoryTierRowRect(card, scale);
 
-            tierStyle.fontSize = Mathf.RoundToInt(9f * scale);
+            tierStyle.fontSize = Mathf.RoundToInt(11f * scale);
             tierStyle.alignment = TextAnchor.MiddleLeft;
             tierStyle.normal.textColor = accent;
-            GUI.Label(new Rect(row.x, row.y, row.width * 0.42f, row.height), $"TIER {tier}", tierStyle);
+            GUI.Label(new Rect(row.x, row.y, row.width * 0.40f, row.height), $"TIER {tier}", tierStyle);
 
-            var buttonRect = new Rect(row.x + row.width * 0.44f, row.y, row.width * 0.56f, row.height);
+            // The button takes two thirds of the row, not a little over half. At the old split the
+            // longer label clipped to "IEED +7(" as soon as the type was raised — the split was
+            // sized around 8pt text, so it had to move with it. "TIER 3" is six characters and
+            // fixed; the button carries up to "NEED +675", which is nine.
+            var buttonRect = new Rect(row.x + row.width * 0.42f, row.y, row.width * 0.58f, row.height);
             if (tier >= maxTier)
             {
                 tierStyle.alignment = TextAnchor.MiddleRight;
@@ -456,10 +479,13 @@ namespace LTW.UnityClient.UI
 
             var previousEnabled = GUI.enabled;
             GUI.enabled = enabled;
-            buttonStyle.fontSize = Mathf.RoundToInt((incomeShort ? 8f : 9f) * scale);
+            // Both states at the same size now. The income-short label was a point smaller purely
+            // because it is the longer string, which made the hardest-to-satisfy state the hardest
+            // to read — exactly backwards, since that is the one a player needs to act on.
+            buttonStyle.fontSize = Mathf.RoundToInt(11f * scale);
             var pressed = DrawPanelButton(buttonRect, label, enabled ? accent : DisabledEdge, scale, buttonStyle);
             GUI.enabled = previousEnabled;
-            buttonStyle.fontSize = Mathf.RoundToInt(9f * scale);
+            buttonStyle.fontSize = Mathf.RoundToInt(11f * scale);
             return pressed;
         }
 
