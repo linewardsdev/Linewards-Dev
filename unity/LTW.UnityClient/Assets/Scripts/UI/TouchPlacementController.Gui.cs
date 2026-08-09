@@ -322,9 +322,11 @@ namespace LTW.UnityClient.UI
                 return;
             }
 
+            // Deliberately does NOT clear the inset: the send dock is open and has published its
+            // own. Only the state where NEITHER drawer is showing zeroes it, which is what keeps
+            // two writers from fighting without depending on script execution order.
             if (!isPaletteExpanded && IsSendDockExpanded())
             {
-                RuntimeUiChrome.BottomDockInset = 0f;
                 return;
             }
 
@@ -939,12 +941,12 @@ namespace LTW.UnityClient.UI
 
         private Rect TowerPalettePanelRect(float scale, Rect frame)
         {
-            var width = Mathf.Min(frame.width - 16f * scale, 430f * scale);
+            var width = Mathf.Min(frame.width - 16f * scale, 520f * scale);
             // One height for both states. The picker used to need a taller panel because it stacked
             // three full-width cards; laid out as a row sized to the card art's own aspect it fits
             // inside the same 282 the tower grid uses, so the panel no longer grows and shrinks
             // under the player as they step through it.
-            var height = 282f * scale;
+            var height = 330f * scale;
             var launcherClearance = 136f * scale;
             return new Rect(frame.x + 8f * scale, frame.yMax - height - MobileViewportLayout.BottomMargin(scale) - launcherClearance, width, height);
         }

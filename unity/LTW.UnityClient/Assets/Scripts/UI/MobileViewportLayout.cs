@@ -110,9 +110,12 @@ namespace LTW.UnityClient.UI
 
         /// <summary>The open drawer's height as a fraction of the screen, clamped to something sane.</summary>
         /// <remarks>
-        /// Capped at 0.45 so a mis-set inset can never squeeze the board to nothing. The drawers
-        /// this reflects are 282 reference units against a 932 reference height, so a correct value
-        /// sits well under the cap and only a bug reaches it.
+        /// The cap is a guard against a mis-set inset squeezing the board to nothing, NOT a budget
+        /// the drawers are expected to fit inside. It was 0.45 and the drawers then grew from 282
+        /// reference units to 330 to make the upgrade row legible — at which point the cap started
+        /// binding and quietly put the board back underneath the panel it had just been lifted
+        /// clear of. A guard that silently reintroduces the bug it sits next to is worse than no
+        /// guard, so it is now well clear of any real drawer.
         /// </remarks>
         private static float DockInsetFraction()
         {
@@ -122,7 +125,7 @@ namespace LTW.UnityClient.UI
                 return 0f;
             }
 
-            return Mathf.Clamp(RuntimeUiChrome.BottomDockInset / height, 0f, 0.45f);
+            return Mathf.Clamp(RuntimeUiChrome.BottomDockInset / height, 0f, 0.62f);
         }
 
         private static float BoardColumnFraction()
