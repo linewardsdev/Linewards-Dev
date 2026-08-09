@@ -94,6 +94,70 @@ grows. That fixed height is the likely reason the tower side is the more cramped
 
 Fixing legibility probably means growing the card rather than shrinking the text again.
 
+## 8. Bulwark looks rough — review art, lighting, animation, all of it
+
+**Needs a naming check before anyone starts.** Grep finds no prefab, mesh or texture named
+`bulwark` anywhere in `Assets`. What exists is `CreepSupportRole.Bulwark`, a support role carried
+by the **Obsidian Brute creep**, and separately a tower called **Barricade Bastion** — which is a
+wall and the closest thing to a "bulwark tower" in the roster.
+
+So this is either the Obsidian Brute creep or the Barricade Bastion ward, and they live in
+completely different places. Confirm which before spending time.
+
+"Something happened and it looks really rough" implies a regression rather than a unit that was
+never finished, so worth bisecting: find the last build where it looked right and diff the mesh,
+material and prefab between then and now. The recent kitbash and re-bake work is the likely
+window — `33913f3` converged six cross-mesh kitbash units, and several units are on record as
+still needing their emissive re-baked (item 19 fixed TurretWalker and proved the other eight
+were not).
+
+Scope as asked is art + lighting + animation together, so treat it as one pass over that unit
+rather than three separate tickets.
+
+## 9. Build menu blocks the bottom row — make it moveable while open
+
+The build palette covers the last row of the lane, so you cannot see or place on the cells the
+menu sits over.
+
+Where to look: `TouchPlacementController.TowerPalettePanelRect`, currently pinned at
+`282f * scale` at the bottom of the frame. Note this is the same fixed height already implicated
+in item 7's cramped upgrade button — one change may serve both.
+
+"Moveable while open" is one answer; worth considering the alternatives before building a drag
+interaction on a touch surface, since a draggable panel competes with the board's own tap and
+drag handling. A collapse/peek toggle, or shifting the board column up while the palette is open,
+may get the same result with less to go wrong.
+
+## 10. The lives readout in the top right does nothing
+
+Reported as not responding. Two different bugs wear this shape and they need separating first:
+the readout is **not updating** (a data binding problem), or it is **not tappable** when it looks
+like it should be (an affordance problem — it may never have been a button).
+
+Check what the top-right element is bound to before assuming either. If it is meant to open
+something, that overlaps item 5's leaderboard — a lives readout that expands into the full seat
+list may be the natural home for that feature rather than a separate button.
+
+## 11. The game does not fill a 13" iPad Pro screen
+
+**This one is by design and the design is the problem.** `MobileViewportLayout.CameraRect()`
+computes `width = clamp(PortraitAspect / screenAspect, 0.22, 1)` against a `PortraitAspect` of
+`9/19.5` — a tall phone. The board is drawn as a centred, full-height column of that aspect and
+everything either side is empty.
+
+On a 9:19.5 phone the column is ~82% of the width and reads as full-screen. On a 13" iPad Pro it
+is far narrower, which is exactly the report. The `0.22` floor means it never collapses entirely,
+but it was never meant to fill a tablet.
+
+This is a layout decision rather than a bug fix, and it is the largest item on this list. The
+options differ a lot in cost: letterbox as now (status quo), widen the column on tablet aspects
+and accept a different board framing, or use the extra width for something — the leaderboard from
+item 5 is the obvious candidate, and a tablet layout that puts seat status beside the board rather
+than over it would turn this from a defect into the reason to own the bigger screen.
+
+Worth settling early, because items 5, 7, 9 and 10 all place UI, and doing them phone-only then
+re-doing them for tablet is the expensive order.
+
 ---
 
 ## Related open work, not on this list
