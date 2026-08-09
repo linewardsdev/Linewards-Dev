@@ -100,6 +100,21 @@ namespace LTW.UnityClient.UI
         public static bool ModalScreenActive { get; set; }
 
         /// <summary>
+        /// Height in GUI pixels of whichever bottom drawer is open, or 0 when none is.
+        /// </summary>
+        /// <remarks>
+        /// Published rather than queried for the same reason <see cref="ModalScreenActive"/> is: the
+        /// board camera has to know about a HUD panel it cannot see, and the alternative is the
+        /// renderer reaching into two UI controllers to ask.
+        ///
+        /// Set from OnGUI, so the camera acts on it one frame later. That lag is deliberate and
+        /// harmless — a drawer opens on a tap, and a single frame of delay is invisible, whereas
+        /// hoisting the panel's own expanded/collapsed state into Update to avoid it would put the
+        /// layout in two places.
+        /// </remarks>
+        public static float BottomDockInset { get; set; }
+
+        /// <summary>
         /// Dims everything behind a modal panel.
         /// </summary>
         /// <remarks>

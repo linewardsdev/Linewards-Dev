@@ -147,6 +147,19 @@ namespace LTW.UnityClient.UI
             }
 
             var scale = MobileViewportLayout.UiScale();
+
+            // A wide screen leaves a rail beside the board, and the readout belongs in it rather
+            // than across the top of the play area. Two reasons beyond filling the space: the strip
+            // is the one piece of HUD that overlaps the board on every frame, and stacking the same
+            // cells vertically gives each of them the full rail width instead of a quarter of a
+            // strip — the numbers get bigger on the device with the most room for them, which is
+            // the opposite of what the phone layout does when stretched.
+            if (MobileViewportLayout.HasSideRails)
+            {
+                DrawRailHud(MobileViewportLayout.SideRailRect(rightSide: false), scale);
+                return;
+            }
+
             var gap = 4f * scale;
             var headerHeight = 52f * scale;
             var drawerHeight = 78f * scale;
@@ -184,6 +197,87 @@ namespace LTW.UnityClient.UI
             DrawTimerPill(x, topY, cellWidth, rowHeight, scale);
             DrawSecondaryStats(new Rect(drawer.x + 6f * scale, topY + rowHeight + 4f * scale, drawer.width - 12f * scale, 20f * scale), scale);
         }
+
+        /// <summary>
+        /// The whole readout as a vertical stack, for screens wide enough to carry a side rail.
+        /// </summary>
+        /// <remarks>
+        /// The same cells the strip draws, laid down the rail instead of across the top: state,
+        /// then lives, gold, income and the income timer, then the secondary counters. Nothing is
+        /// dropped — a tablet has more room, not less, so hiding anything here would be arbitrary.
+        ///
+        /// The LINE/HIDE expander is deliberately absent. It exists on a phone because the strip
+        /// cannot show the stat drawer and the board at once; the rail shows everything at all
+        /// times, so a control whose only job is to reveal what is already visible would be a
+        /// button that does nothing.
+        /// </remarks>
+        private void DrawRailHud(Rect rail, float scale)
+        {
+            if (rail.width < 1f)
+            {
+                return;
+            }
+
+            var margin = MobileViewportLayout.EdgeMargin(scale);
+            var width = Mathf.Max(0f, rail.width - margin);
+            var x = rail.x + margin * 0.5f;
+            var y = rail.y + MobileViewportLayout.TopMargin(scale);
+            var gap = 4f * scale;
+            var cellHeight = 52f * scale;
+
+            var stateHeight = 30f * scale;
+            var state = new Rect(x, y, width, stateHeight);
+            DrawHudCell(state, StateAccent(), true, scale);
+            metaStyle!.fontSize = Mathf.RoundToInt(11f * scale);
+            metaStyle.normal.textColor = StateAccent();
+            GUI.Label(state, StateText(), metaStyle);
+            y += stateHeight + gap;
+
+            DrawStatPill(x, y, width, cellHeight, "LIVES", LivesText, Danger, scale);
+            y += cellHeight + gap;
+            DrawStatPill(x, y, width, cellHeight, "GOLD", GoldText, SignalGold, scale);
+            y += cellHeight + gap;
+            DrawStatPill(x, y, width, cellHeight, "INCOME", $"+{IncomeText}", MintSignal, scale);
+            y += cellHeight + gap;
+            DrawTimerPill(x, y, width, cellHeight, scale);
+            y += cellHeight + gap;
+
+            // Stacked one per line rather than the strip's single run-on row: a rail is narrow and
+            // tall, which is the opposite of what "KILLS 4   LEAKS 1   CREEPS 12   TIME 2:14" was
+            // shaped for.
+            metaStyle.fontSize = Mathf.RoundToInt(10f * scale);
+            metaStyle.normal.textColor = new Color(Cloud.r, Cloud.g, Cloud.b, 0.76f);
+            var lineHeight = 18f * scale;
+            foreach (var line in new[] { $"KILLS {KillsText}", $"LEAKS {LeaksText}", $"CREEPS {PressureText}", $"TIME {MatchTimeText}" })
+            {
+                GUI.Label(new Rect(x + 6f * scale, y, width - 12f * scale, lineHeight), line, metaStyle);
+                y += lineHeight;
+            }
+
+            if (IsLocalSeatEliminated)
+            {
+                y += gap;
+                var banner = new Rect(x, y, width, 24f * scale);
+                DrawHudCell(banner, Danger, true, scale);
+                metaStyle.fontSize = Mathf.RoundToInt(10f * scale);
+                metaStyle.normal.textColor = Danger;
+                GUI.Label(banner, "OUT • SPECTATING", metaStyle);
+            }
+        }
+
+        /// <summary>
+        /// The session state word, shared by both layouts.
+        /// </summary>
+        /// <remarks>
+        /// OUT outranks every other state. A defeated seat is still HasStarted and not paused, so
+        /// without this the cell reads LIVE for a player who has nothing left to do.
+        /// </remarks>
+        private string StateText() =>
+            IsLocalSeatEliminated
+                ? "OUT"
+                : simulationDriver != null && simulationDriver.IsOpeningBuildCountdown
+                    ? "BUILD"
+                    : simulationDriver != null && simulationDriver.HasStarted ? "LIVE" : "READY";
 
         private static void EnsureStyles()
         {
@@ -262,12 +356,7 @@ namespace LTW.UnityClient.UI
             metaStyle.normal.textColor = StateAccent();
             // OUT outranks every other state. A defeated seat is still HasStarted and not paused, so
             // without this the cell went on reading LIVE for a player who had nothing left to do.
-            var stateText = IsLocalSeatEliminated
-                ? "OUT"
-                : simulationDriver != null && simulationDriver.IsOpeningBuildCountdown
-                    ? "BUILD"
-                    : simulationDriver != null && simulationDriver.HasStarted ? "LIVE" : "READY";
-            GUI.Label(state, stateText, metaStyle);
+            GUI.Label(state, StateText(), metaStyle);
         }
 
         /// <summary>

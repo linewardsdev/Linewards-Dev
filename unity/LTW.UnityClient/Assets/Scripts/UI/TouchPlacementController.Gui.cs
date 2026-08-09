@@ -324,6 +324,7 @@ namespace LTW.UnityClient.UI
 
             if (!isPaletteExpanded && IsSendDockExpanded())
             {
+                RuntimeUiChrome.BottomDockInset = 0f;
                 return;
             }
 
@@ -331,6 +332,9 @@ namespace LTW.UnityClient.UI
             var launcherRect = TowerPaletteLauncherRect(scale, frame);
             if (!isPaletteExpanded)
             {
+                // Closed: the board owns its full height again.
+                RuntimeUiChrome.BottomDockInset = 0f;
+
                 // BUILD yields its slot to RAISE while multi-select is on. It is not lost: BUILD
                 // would only have exited the mode, which is what DONE directly above it does.
                 if (isMultiSelectMode)
@@ -361,6 +365,16 @@ namespace LTW.UnityClient.UI
             }
 
             var rect = TowerPalettePanelRect(scale, frame);
+
+            // Tell the board camera how much of the bottom this is taking, so the lane is lifted
+            // above it instead of hidden under it. Measured from the screen bottom rather than the
+            // frame's, because the camera viewport is in screen space.
+            //
+            // This panel is the single owner of the value, and sets it back to zero itself when it
+            // closes. Clearing it from another component's Update instead was the first attempt and
+            // is a race: Unity does not order Update between components, so the renderer could read
+            // the inset either side of the clear and the board lifted only on some frames.
+            RuntimeUiChrome.BottomDockInset = MobileViewportLayout.ViewportHeight - rect.yMin;
 
             DrawPanel(rect, PanelInk);
             DrawAccent(new Rect(rect.x, rect.yMax - 4f * scale, rect.width, 4f * scale), MintSignal);

@@ -81,6 +81,7 @@ namespace LTW.UnityClient.Simulation
         {
             RuntimeUiChrome.ModalScreenActive = simulationDriver is not null && OwnsDisplay;
 
+
             // Driven from the same Update that publishes modality, off the same state, so the
             // rendered screen and the input gate cannot disagree for a frame.
             var screen = ActiveShellScreen;
