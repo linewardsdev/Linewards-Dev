@@ -13,7 +13,45 @@ being the only one likely to be a logic bug rather than presentation.
 
 ---
 
-## 1. Creeps pause for a second or two when they have to turn
+## 1. Creeps pause for a second or two when they have to turn — DIAGNOSED, not fixed
+
+**Mechanism found 2026-08-09. No code changed yet.** Ruled out the turn rotation itself first:
+`CreepFacingYaw` turns at 540 deg/sec, so a 90-degree corner takes 0.17s and cannot be a
+two-second stall.
+
+The freeze is `NextPosition == Position`. Two presentation sites early-out on exactly that
+condition, so when it holds the creep stops moving AND stops turning together, which is what makes
+it read as a deliberate pause rather than a hitch:
+
+- `CreepTravelPosition` (`UnityVerticalSliceRenderer.CreepPresentation.cs`) returns `from`
+  unlerped.
+- `CreepFacingYaw` (`UnityVerticalSliceRenderer.cs`) returns the previous yaw, because
+  `heading.sqrMagnitude` is zero.
+
+Why the condition arises is the actual bug, and it is simulation-side.
+`CombatService.ResolveNextPosition` derives the next cell by INDEX into the live route:
+
+    var route = routes.For(creep.LaneId, creep.IgnoresMaze);
+    return route[Math.Min(creep.PathIndex + 1, route.Count - 1)];
+
+`creep.Position` is stored on the creep; `NextPosition` is looked up from the route array. Those
+are two different sources of truth for where a creep is. When a tower placement re-mazes a lane the
+route array is replaced while `PathIndex` carries over, so `route[PathIndex + 1]` can resolve to the
+creep's own current cell — and re-mazing is precisely what puts corners in a lane, which is why the
+report ties the stall to turning.
+
+The clamp at the end of the route produces the same condition legitimately (a creep at the gate has
+no next cell), so any fix has to keep that case and separate it from the stale-index case.
+
+**Next step, and it is cheap:** log `PathIndex`, `Position`, `NextPosition` and `route.Count` for one
+creep across a tower placement. If `NextPosition` equals `Position` while `PathIndex` is well short
+of `route.Count - 1`, the stale-index reading is confirmed. `RouteRebuildTests` already exists from
+`b882af3` and is the natural home for the regression test.
+
+Not attempted here: this is a simulation change, needs a plugin rebuild and a Release test run, and
+should not be started without the budget to finish and verify it.
+
+### Original notes
 
 **Severity: high.** A multi-second stall is the most visible item on this list and the one most
 likely to be a real logic bug rather than a presentation one.
