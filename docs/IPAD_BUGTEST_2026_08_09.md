@@ -7,9 +7,72 @@ or diagnosed yet; the pointers are starting places, not conclusions.
 
 Branch: `ipad-bugtest-2026-08-09`.
 
+**Status 2026-08-09:** items 4 and 6 done and compile-verified. Item 11 (tablet scaling) is being
+worked by another session. The remaining nine are untouched — item 1 is the one worth taking next,
+being the only one likely to be a logic bug rather than presentation.
+
 ---
 
-## 1. Creeps pause for a second or two when they have to turn
+## 1. Creeps pause for a second or two when they have to turn — DIAGNOSED, not fixed
+
+**Mechanism found 2026-08-09. No code changed yet.** Ruled out the turn rotation itself first:
+`CreepFacingYaw` turns at 540 deg/sec, so a 90-degree corner takes 0.17s and cannot be a
+two-second stall.
+
+The freeze is `NextPosition == Position`. Two presentation sites early-out on exactly that
+condition, so when it holds the creep stops moving AND stops turning together, which is what makes
+it read as a deliberate pause rather than a hitch:
+
+- `CreepTravelPosition` (`UnityVerticalSliceRenderer.CreepPresentation.cs`) returns `from`
+  unlerped.
+- `CreepFacingYaw` (`UnityVerticalSliceRenderer.cs`) returns the previous yaw, because
+  `heading.sqrMagnitude` is zero.
+
+**CORRECTION, later the same day.** The paragraph below overstated the stale-index theory. A resync
+already exists (`LocalVerticalSlice.cs`, the route-rebuild loop): it finds the nearest valid index
+in the rebuilt route and calls `WithMovement(nearest, 0)`, which largely prevents
+`route[PathIndex + 1]` from landing on the creep's own cell by accident. Two better candidates,
+both in that resync:
+
+1. **Its fallback can pin a creep to the last cell.** When no candidate passes the guard, it does
+   `nearest = Math.Max(0, Math.Min(route.Count - 1, route.Count - 1 - remaining))`. With `remaining`
+   at 0 that is `route.Count - 1`, and `ResolveNextPosition` clamps to the same index — so
+   `NextPosition == Position` permanently and both presentation early-outs latch until the creep
+   leaks. A freeze that never recovers fits "pauses for a second or two" better than a transient
+   does. Check how often the fallback is actually reached.
+2. **Progress is reset on every rebuild.** `WithMovement(nearest, 0)` drops `MovementProgress`
+   deliberately (the comment explains why: it is a fraction of a step into a cell that has moved).
+   But at `BaseMovementCost` 3 a creep needs three ticks to earn its next step, so repeated tower
+   placements keep zeroing it and the creep can be kept from ever stepping.
+
+Both are testable without a device. Neither is confirmed. The original reasoning follows because
+the presentation half of it still holds — the two early-outs are real and are what turn any of
+these into a visible stall.
+
+Why the condition arises is the actual bug, and it is simulation-side.
+`CombatService.ResolveNextPosition` derives the next cell by INDEX into the live route:
+
+    var route = routes.For(creep.LaneId, creep.IgnoresMaze);
+    return route[Math.Min(creep.PathIndex + 1, route.Count - 1)];
+
+`creep.Position` is stored on the creep; `NextPosition` is looked up from the route array. Those
+are two different sources of truth for where a creep is. When a tower placement re-mazes a lane the
+route array is replaced while `PathIndex` carries over, so `route[PathIndex + 1]` can resolve to the
+creep's own current cell — and re-mazing is precisely what puts corners in a lane, which is why the
+report ties the stall to turning.
+
+The clamp at the end of the route produces the same condition legitimately (a creep at the gate has
+no next cell), so any fix has to keep that case and separate it from the stale-index case.
+
+**Next step, and it is cheap:** log `PathIndex`, `Position`, `NextPosition` and `route.Count` for one
+creep across a tower placement. If `NextPosition` equals `Position` while `PathIndex` is well short
+of `route.Count - 1`, the stale-index reading is confirmed. `RouteRebuildTests` already exists from
+`b882af3` and is the natural home for the regression test.
+
+Not attempted here: this is a simulation change, needs a plugin rebuild and a Release test run, and
+should not be started without the budget to finish and verify it.
+
+### Original notes
 
 **Severity: high.** A multi-second stall is the most visible item on this list and the one most
 likely to be a real logic bug rather than a presentation one.
@@ -51,7 +114,23 @@ of floating above it, or replace with actual geometry.
 Related: the contact-shadow system already exists (`UpdateContactShadow`) and is what grounds
 other board objects. The gates may simply not be using it.
 
-## 4. Weird blue squares at the four corners
+## 4. Weird blue squares at the four corners — DONE (`3824deb`)
+
+**Fixed 2026-08-09.** Four `CreateCornerPylon` cubes per lane, untextured and flat-shaded, at the
+plate corners. Compile-verified once the project lock freed up: Unity 6000.5.3f1 rebuilt
+Assembly-CSharp with zero errors.
+
+The find worth keeping: this was the **second** report of the same four objects. The method's own
+remarks recorded the first, when they stood 0.11 proud of the board and read as "a solid blue
+rectangle with no relationship to anything near it". That pass rescued them by flattening to a
+0.30 x 0.30 x 0.045 chip — still an untextured cube, now with a perfectly square footprint. Blue
+rectangle became blue square and came back.
+
+Removed rather than rescued a third time: they state nothing the plate, gutters and frame do not
+already say. `CreateLaneFlowTickMarks` below reached the same conclusion about its own "loose blue
+shards" and survived only by being gated to full detail.
+
+Original diagnosis, kept because it was right:
 
 **Likely an asset failure rather than a design element.** Blue is the colour the missing-material
 path produces, and "square at a corner" suggests either board corner plates or a debug overlay
@@ -73,7 +152,20 @@ button? On a phone-first portrait layout with a 9:19.5 board column, screen spac
 constraint — a panel is likely, and the results screen already has a seat-ranking layout that
 could be reused rather than designed again.
 
-## 6. Remove the MULTI button
+## 6. Remove the MULTI button — DONE (`14d1f4f`)
+
+**Fixed 2026-08-09**, compile-verified alongside item 4.
+
+The launcher is gone. **DONE is deliberately still drawn while the mode is on**, because the
+button was never the only way in: double-tapping a tower selects every tower of its type and turns
+multi-select on. Deleting the whole draw call would have left that gesture with no way out and no
+visible state — trading a button nobody wanted for a trap.
+
+The mode and its batch upgrade/sell paths are untouched, per the open question below, which is
+still open: if multi-select should be gone entirely rather than just its button, the double-tap
+gesture and `TowerSelectionBatchTests` go with it and that is a larger, separate change.
+
+Original notes:
 
 Straightforward. `TouchPlacementController` draws the launcher strip (BUILD / MULTI). Removing the
 launcher is the easy half; the multi-select machinery behind it (`PruneMultiSelection`,
@@ -94,7 +186,29 @@ grows. That fixed height is the likely reason the tower side is the more cramped
 
 Fixing legibility probably means growing the card rather than shrinking the text again.
 
+## 12. Name mismatch: the board calls it BULWARK, the codex calls it Barricade Bastion — DONE
+
+**Fixed 2026-08-09.** `TowerCatalog` entry 8 read
+`new(8, "tower.barricade", "BULWARK", "Barricade bastion", ...)` — a short label for the build
+button and a display name for the codex, and the two were different words.
+
+Audited all sixteen towers. Three others differ between label and name (`CTRL`/Control ward,
+`DRONE`/Repair drone spire, `CANOPY`/Elder canopy) but every one of those is a truncation of its
+own name and still reads as the same unit. Only Barricade's was a *different word*: "bulwark"
+appears nowhere in "Barricade bastion", and nowhere in the simulation either, where the content id
+is `tower.barricade` and the name is "Barricade Bastion".
+
+Changed the label to `BASTION`, taking a word from the unit's own name the way `CANOPY` and
+`DRONE` do, and matching BULWARK's seven-character width so no card layout moves. `BARRICADE` would
+also be defensible and matches the content id, but is two characters longer and risks the fit.
+
+This is why item 8 below was unfindable: grepping the project for "bulwark" returns only this
+label and an unrelated `CreepSupportRole.Bulwark` on the Obsidian Brute, so the reported unit
+looked like it might be a creep.
+
 ## 8. Bulwark looks rough — review art, lighting, animation, all of it
+
+**Resolved: this is the Barricade Bastion**, the Foundry wall — see item 12. Original note follows.
 
 **Needs a naming check before anyone starts.** Grep finds no prefab, mesh or texture named
 `bulwark` anywhere in `Assets`. What exists is `CreepSupportRole.Bulwark`, a support role carried

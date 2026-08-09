@@ -103,7 +103,7 @@ namespace LTW.UnityClient.Simulation
                 "Foundry's answer to a crowd — real reach and a hit that carries past its target."),
             new(7, "tower.foundry", "FOUNDRY", "Foundry core", CategoryFoundry, new Color(1f, 0.48f, 0.24f),
                 "The heaviest shell in the game, and it brakes what it hits. Twelve ticks between shots, so every one has to land."),
-            new(8, "tower.barricade", "BULWARK", "Barricade bastion", CategoryFoundry, new Color(0.72f, 0.68f, 0.58f),
+            new(8, "tower.barricade", "BASTION", "Barricade bastion", CategoryFoundry, new Color(0.72f, 0.68f, 0.58f),
                 "Cheap enough that its job is occupying a cell. It shoots because it may as well; the maze is what you bought."),
             new(9, "tower.repair_drone", "DRONE", "Repair drone spire", CategoryFoundry, new Color(0.95f, 0.82f, 0.45f),
                 "Shortens the reload of the Foundry towers around it. Mediocre alone, and the reason a Foundry cluster outperforms its stat lines."),
