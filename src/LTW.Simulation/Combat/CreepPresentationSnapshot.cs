@@ -81,6 +81,22 @@ public sealed class CreepPresentationSnapshot
     /// </remarks>
     public int MovementCost { get; }
 
+    /// <summary>
+    /// The cost a renderer should divide <see cref="MovementProgress"/> by — the real one.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="MovementCost"/> is the creep's own cost and is NOT what a braked creep banks
+    /// against: <c>CombatService.StepCreep</c> adds
+    /// <see cref="CombatService.BrambleMovementPenalty"/> on top. Dividing by the smaller number
+    /// drives the interpolation fraction to 1 after a third of the cell and clamps it there, so the
+    /// creep crosses in a third of the time and then stands still for the remaining two thirds.
+    ///
+    /// Derived here rather than in the client so the rule lives once, beside the code that applies
+    /// it. A renderer cannot get this right on its own — it would have to know both constants and
+    /// that they are added rather than multiplied.
+    /// </remarks>
+    public int EffectiveMovementCost => MovementCost + (IsBraked ? CombatService.BrambleMovementPenalty : 0);
+
     /// <summary>True while a Thorn Snare's brambles are halving this creep's pace.</summary>
     /// <remarks>
     /// The creep-side half of making Bramble Hold visible. The ground decal says where the brake is;

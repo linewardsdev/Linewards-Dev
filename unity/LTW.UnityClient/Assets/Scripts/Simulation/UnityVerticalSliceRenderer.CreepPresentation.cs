@@ -158,8 +158,9 @@ namespace LTW.UnityClient.Simulation
         /// So the cell pair and the progress between them are read from the snapshot and resolved
         /// here, on the presentation side of the boundary — the simulation stays all-integer and the
         /// float division happens in the only layer that wants a float. Clamped because a braked
-        /// creep's real cost is double what MovementCost reports (see the snapshot's own remark), so
-        /// its progress legitimately runs past one cell's worth.
+        /// creep banks against a larger step than MovementCost reports, which is what
+        /// EffectiveMovementCost accounts for — dividing by MovementCost alone made a braked creep
+        /// cross its cell in a third of the time and then stand still for the other two thirds.
         /// </remarks>
         private static Vector3 CreepTravelPosition(CreepPresentationSnapshot creep)
         {
@@ -169,7 +170,7 @@ namespace LTW.UnityClient.Simulation
                 return from;
             }
 
-            var fraction = Mathf.Clamp01(creep.MovementProgress / (float)creep.MovementCost);
+            var fraction = Mathf.Clamp01(creep.MovementProgress / (float)creep.EffectiveMovementCost);
             return Vector3.Lerp(from, GridToWorld(creep.NextPosition, creep.LaneId), fraction);
         }
 

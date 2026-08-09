@@ -70,6 +70,159 @@ public sealed class RouteRebuildTests
     }
 
     /// <summary>
+    /// Every creep still walking keeps walking after a tower reshapes its lane.
+    /// </summary>
+    /// <remarks>
+    /// Reported from iPad play as "creeps pause for a second or two when they have to turn". The
+    /// turn itself was ruled out — the model rotates at 540 deg/sec, so a corner takes 0.17s — which
+    /// left the stall in movement, and re-mazing is what puts corners in a lane in the first place.
+    ///
+    /// The presentation makes any such stall unusually visible: CreepTravelPosition stops
+    /// interpolating and CreepFacingYaw holds its previous yaw, both on NextPosition == Position, so
+    /// a stalled creep is frozen AND not turning and reads as a deliberate pause rather than a hitch.
+    /// This asserts the simulation half, which is the half that can actually be wrong.
+    ///
+    /// A creep that leaks during the window leaves the snapshot and is not counted — the assertion is
+    /// about creeps that are still in the lane at the end and never moved while they were there.
+    /// </remarks>
+    [Fact]
+    public void Creeps_keep_walking_after_a_tower_reshapes_the_lane()
+    {
+        var slice = Slice();
+        var lane = slice.LocalPlayerLaneId;
+        SendIntoLocalLane(slice, waves: 6);
+
+        Assert.True(slice.PlaceTower(Player, lane, SampleVerticalSliceContent.TowerId, new GridPosition(3, 6)).Accepted);
+
+        var start = Positions(slice);
+        Assert.True(start.Count >= 4, $"only {start.Count} creeps in the lane; this proves little");
+
+        // 20 ticks. A creep banks MovementProgress each tick and steps a whole cell when it reaches
+        // MovementCost, which is 3 for an unbraked creep, so anything that is walking at all has had
+        // room for several steps. Long enough that a one-off hitch cannot pass and short enough that
+        // a healthy lane has not emptied itself into the gate.
+        for (var tick = 0; tick < 20; tick++)
+        {
+            slice.AdvanceOneTick();
+        }
+
+        var end = Positions(slice);
+        var stalled = start
+            .Where(entry => end.ContainsKey(entry.Key) && end[entry.Key].Equals(entry.Value))
+            .Select(entry => entry.Key)
+            .ToArray();
+
+        output.WriteLine($"{start.Count} creeps before, {end.Count} after, {stalled.Length} never moved");
+        foreach (var creep in slice.GetSnapshot().Creeps.Where(c => stalled.Contains(c.EntityId.Value)))
+        {
+            output.WriteLine($"  entity {creep.EntityId.Value}: at ({creep.Position.X},{creep.Position.Y}) next ({creep.NextPosition.X},{creep.NextPosition.Y}) progress {creep.MovementProgress}/{creep.MovementCost}");
+        }
+
+        Assert.Empty(stalled);
+    }
+
+    /// <summary>
+    /// Building steadily does not starve creeps of movement.
+    /// </summary>
+    /// <remarks>
+    /// The route rebuild deliberately drops MovementProgress — it is a fraction of a step into a cell
+    /// that has generally moved, so carrying it would advance a creep along a step it never started.
+    /// Correct in itself, but a creep needs MovementCost ticks of banked progress to step one cell,
+    /// and a player mid-build rebuilds the lane far more often than that. Each rebuild returns every
+    /// creep in the lane to zero, so the question is whether a normal building pace can hold a lane
+    /// at a standstill.
+    ///
+    /// One placement does not do it — Creeps_keep_walking_after_a_tower_reshapes_the_lane covers that
+    /// and passes. This places on a cadence instead.
+    /// </remarks>
+    [Fact]
+    public void Building_steadily_does_not_hold_creeps_still()
+    {
+        var slice = Slice();
+        var lane = slice.LocalPlayerLaneId;
+        SendIntoLocalLane(slice, waves: 6);
+
+        var start = Positions(slice);
+        Assert.True(start.Count >= 4, $"only {start.Count} creeps in the lane; this proves little");
+
+        // A tower every 2 ticks, which is faster than MovementCost (3) and is the pace a player
+        // taps at while laying out a maze.
+        var cells = new[]
+        {
+            new GridPosition(3, 6), new GridPosition(3, 8), new GridPosition(3, 10),
+            new GridPosition(1, 7), new GridPosition(5, 7), new GridPosition(1, 11),
+        };
+        foreach (var cell in cells)
+        {
+            slice.PlaceTower(Player, lane, SampleVerticalSliceContent.TowerId, cell);
+            slice.AdvanceOneTick();
+            slice.AdvanceOneTick();
+        }
+
+        var end = Positions(slice);
+        var stalled = start
+            .Where(entry => end.ContainsKey(entry.Key) && end[entry.Key].Equals(entry.Value))
+            .Select(entry => entry.Key)
+            .ToArray();
+
+        output.WriteLine($"{start.Count} creeps before, {end.Count} after, {stalled.Length} never moved across {cells.Length} placements");
+        foreach (var creep in slice.GetSnapshot().Creeps.Where(c => stalled.Contains(c.EntityId.Value)))
+        {
+            output.WriteLine($"  entity {creep.EntityId.Value}: at ({creep.Position.X},{creep.Position.Y}) next ({creep.NextPosition.X},{creep.NextPosition.Y}) progress {creep.MovementProgress}/{creep.MovementCost}");
+        }
+
+        Assert.Empty(stalled);
+    }
+
+    /// <summary>
+    /// A braked creep's reported cost matches the step it actually banks against.
+    /// </summary>
+    /// <remarks>
+    /// This is the bug behind "creeps pause for a second or two when they have to turn". Brakes sit
+    /// in the maze, which is where the corners are, so the pause and the turn arrive together and the
+    /// turn looked like the cause. It was not: the model rotates at 540 deg/sec.
+    ///
+    /// StepCreep makes a braked creep bank against MovementCost + BrambleMovementPenalty, but the
+    /// snapshot reported MovementCost alone. Presentation divides progress by what it is given, so
+    /// the fraction reached 1 after 3 of the 9 ticks and clamped there — the creep crossed its cell
+    /// in a third of the time and then stood perfectly still for the remaining 6 ticks. At 4 ticks a
+    /// second that is 1.5 seconds of a 2.25 second cell, motionless, which is the report almost
+    /// exactly.
+    ///
+    /// Asserted on the numbers rather than through the renderer, because the renderer is where the
+    /// symptom showed and the snapshot is where the fault was.
+    /// </remarks>
+    [Fact]
+    public void A_braked_creeps_effective_cost_covers_the_whole_cell()
+    {
+        var unbraked = new LTW.Simulation.Combat.CreepPresentationSnapshot(
+            new EntityId(1), SampleVerticalSliceContent.BruteCreepId, Player, new LaneId(1),
+            new GridPosition(3, 4), health: 10, maxHealth: 10, speedPerSecond: 1,
+            nextPosition: new GridPosition(3, 5), movementProgress: 0,
+            movementCost: LTW.Simulation.Combat.CombatService.BaseMovementCost, isBraked: false);
+
+        var braked = new LTW.Simulation.Combat.CreepPresentationSnapshot(
+            new EntityId(2), SampleVerticalSliceContent.BruteCreepId, Player, new LaneId(1),
+            new GridPosition(3, 4), health: 10, maxHealth: 10, speedPerSecond: 1,
+            nextPosition: new GridPosition(3, 5), movementProgress: 0,
+            movementCost: LTW.Simulation.Combat.CombatService.BaseMovementCost, isBraked: true);
+
+        // Unbraked: nothing added, so the two agree and the old renderer maths was already right.
+        Assert.Equal(unbraked.MovementCost, unbraked.EffectiveMovementCost);
+
+        // Braked: the extra ticks are included, so an interpolation over EffectiveMovementCost
+        // spans the whole crossing instead of saturating a third of the way through it.
+        Assert.Equal(
+            braked.MovementCost + LTW.Simulation.Combat.CombatService.BrambleMovementPenalty,
+            braked.EffectiveMovementCost);
+        Assert.True(
+            braked.EffectiveMovementCost > braked.MovementCost,
+            "a braked creep must report a larger cost than an unbraked one, or presentation clamps early");
+
+        output.WriteLine($"  unbraked {unbraked.MovementCost} -> {unbraked.EffectiveMovementCost}; braked {braked.MovementCost} -> {braked.EffectiveMovementCost}");
+    }
+
+    /// <summary>
     /// Placing a tower does not move the creeps already in the lane.
     /// </summary>
     /// <remarks>

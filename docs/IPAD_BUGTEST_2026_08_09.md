@@ -13,7 +13,31 @@ being the only one likely to be a logic bug rather than presentation.
 
 ---
 
-## 1. Creeps pause for a second or two when they have to turn — DIAGNOSED, not fixed
+## 1. Creeps pause for a second or two when they have to turn — FIXED
+
+**Fixed 2026-08-09.** It was the brake, presented wrongly.
+
+`StepCreep` makes a braked creep bank against `MovementCost + BrambleMovementPenalty` — 3 + 6 = 9
+ticks — but `CreepPresentationSnapshot` reported `MovementCost` alone. The renderer divides progress
+by what it is given, so the interpolation fraction hit 1 after 3 of those 9 ticks and clamped there.
+The creep crossed its cell in a third of the time and then stood **perfectly still for the remaining
+6 ticks**. At 4 ticks/second that is 1.5 seconds motionless out of a 2.25 second cell.
+
+Why it looked like turning: brake zones sit in the maze, and the maze is where the corners are, so
+the pause and the turn always arrived together. The turn was never the cause — the model rotates at
+540 deg/sec, so a corner takes 0.17s.
+
+Fix is `EffectiveMovementCost` on the snapshot, derived beside the code that applies the penalty
+rather than in the client — a renderer cannot get this right on its own, since it would need both
+constants and to know they are added rather than multiplied.
+
+**Two theories this replaced, both wrong, both tested before being dropped:** the stale-`PathIndex`
+reading and the progress-reset-starvation reading. `Creeps_keep_walking_after_a_tower_reshapes_the_lane`
+and `Building_steadily_does_not_hold_creeps_still` were written to catch them, both pass on
+unmodified code, and both are kept — they pin real properties and they are the reason the search
+moved on to the brake.
+
+### Original notes and the correction that preceded the fix
 
 **Mechanism found 2026-08-09. No code changed yet.** Ruled out the turn rotation itself first:
 `CreepFacingYaw` turns at 540 deg/sec, so a 90-degree corner takes 0.17s and cannot be a

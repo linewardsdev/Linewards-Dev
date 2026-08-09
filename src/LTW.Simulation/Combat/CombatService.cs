@@ -417,6 +417,18 @@ public sealed class CombatService
     private const int BrambleMovementCost = BaseMovementCost * 3;
 
     /// <summary>
+    /// Extra ticks a braked creep must bank to cross one cell, on top of its own movement cost.
+    /// </summary>
+    /// <remarks>
+    /// Public because presentation needs the same number. A braked creep banks against this larger
+    /// step, so a renderer dividing progress by MovementCost alone saturates its interpolation a
+    /// third of the way through the cell and then holds the creep perfectly still for the rest —
+    /// reported from play as creeps pausing for a second or two when they turn, since brake zones
+    /// sit in the maze where the corners are.
+    /// </remarks>
+    public const int BrambleMovementPenalty = BrambleMovementCost - BaseMovementCost;
+
+    /// <summary>
     /// Advances one creep by one tick, returning its new path index and leftover movement.
     /// </summary>
     /// <remarks>
@@ -441,7 +453,7 @@ public sealed class CombatService
         // Bramble adds the SAME absolute brake to every creep rather than doubling whatever the
         // creep's own cost happens to be. Doubling would make Thorn Snare worth more against the
         // slow support creeps than against the heavies it exists to stop, which is backwards.
-        var step = braked ? movementCost + (BrambleMovementCost - BaseMovementCost) : movementCost;
+        var step = braked ? movementCost + BrambleMovementPenalty : movementCost;
         var movement = movementProgress + speedPerSecond;
         while (movement >= step && pathIndex < routeCount - 1)
         {
