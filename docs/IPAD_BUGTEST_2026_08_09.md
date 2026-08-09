@@ -98,11 +98,20 @@ Fixing legibility probably means growing the card rather than shrinking the text
 
 ## Related open work, not on this list
 
-- **Twin Crescent has no visual profile.** It renders a primitive fallback that nothing animates
-  and measures 0.00/0.00 on the motion probe. It will look wrong regardless of anything above.
+- **Twin Crescent has no visual profile.** ~~It renders a primitive fallback that nothing
+  animates and measures 0.00/0.00 on the motion probe.~~ **Fixed 2026-08-09:** the claim was
+  correct — the wrapper prefab existed but `TowerVisualLibrary.asset` was never given a role-15
+  entry (the promote step was skipped during integration), and the motion switch had no
+  TwinCrescent case. Both are in now. Not yet sighted on a device, and the motion probe still
+  needs a run once the editor releases the project lock.
 - **Four creeps are unrigged** — Revenant, Shade, Swarm, Wisp (item 11 wave 2.4). They have no
   Animator at all and will not animate whatever else is fixed.
-- **`m_CullingMode` on the rigged creeps** was set to `AlwaysAnimate` in `1145a0d` chasing a
-  device-only freeze that turned out to be the LOD bug (`8457192`). That change is now
-  unmotivated. It is harmless but costs a little CPU, and should either be justified by
-  measurement or reverted.
+- **`m_CullingMode` on the rigged creeps** was set to `AlwaysAnimate` in `1145a0d` during the
+  device freeze. Do not read the LOD fix (`8457192`) as proving that change unmotivated: the
+  LOD bug fully explains the original report — including the tell that the builder kept
+  animating, since the builder is the one animated unit with no LODGroup — but it does not
+  prove `CullUpdateTransforms` was innocent. The bounds-don't-follow-the-rig mechanism 1145a0d
+  describes is real and device-only, and every working device build since has had
+  `AlwaysAnimate` in place, so its necessity has never been tested. Revert it only with a
+  device build showing clips still play under `CullUpdateTransforms`; until then it is a small
+  CPU cost buying known-correct behaviour.

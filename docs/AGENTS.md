@@ -124,6 +124,33 @@ exists because of a defect that produced no error and no warning.
 - **Quit the interactive editor from its menu, not with a kill** — a force-kill is what
   leaves those backups.
 
+### When a device build shows no animation
+
+Three sessions in a row diagnosed the 2026-08-08 iPad freeze as "animations not set up
+right." The setup was fine the whole time. The animated renderers simply were not the ones
+on screen, and every fix aimed at the animation stack — a measured amplitude raise, then a
+3x multiplier on top of it — was tuning something the device could not display. The 3x had
+to be reverted the day after it landed, once a working build finally rendered it.
+
+Check in this order, and do not touch rigs, Animators, or tuning numbers until 1 and 2 pass:
+
+1. **Which renderer is actually on screen?** Every `*_3D` prefab carries static LOD1/LOD2
+   meshes that cannot animate. LOD selection multiplies screen height by the quality tier's
+   `lodBias`, and the editor's tier (Ultra, 2.0) selects differently from the device tier
+   (Medium, 0.7) — the editor can sit on animated LOD0 while the device sits on a statue.
+   No amplitude is visible on a statue.
+2. **Is the Animator being culled?** `CullUpdateTransforms` skips clips when the renderer's
+   bounds are judged offscreen, imported rigs routinely have bounds that do not follow the
+   animation, and an open Scene view counts as visibility — so this failure mode is
+   structurally invisible in the editor (`1145a0d`).
+3. **Use the differential.** The builder kept animating while every creep froze. The
+   question that solves the bug is "what is structurally different about the unit that
+   works?" — the builder has no LODGroup — not "what is wrong with the animation setup of
+   the thirty that don't?"
+
+"It doesn't read as animated" from a device is a fact about what that build rendered, not
+about the animation code. Establish what was rendered before amending what animates.
+
 ## Device Validation
 
 - Treat the available iOS devices as the first test matrix.

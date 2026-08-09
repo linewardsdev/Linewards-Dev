@@ -148,3 +148,12 @@ MonoBehaviour:
     roleMarkerRendererPath: RoleMarker
     ownerTrimRendererPath: OwnerTrim
     rangeHaloRendererPath: RangeHalo
+  - towerId: tower.twin_crescent
+    role: 15
+    prefab: {fileID: 5049204297924939224, guid: 900ea07c98cb140c2967b2bdd661a7b3, type: 3}
+    scale: {x: 0.78, y: 0.78, z: 0.78}
+    lift: 0
+    bodyRendererPath: BodyTintAnchor
+    roleMarkerRendererPath: RoleMarker
+    ownerTrimRendererPath: OwnerTrim
+    rangeHaloRendererPath: RangeHalo
