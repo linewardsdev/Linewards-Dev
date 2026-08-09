@@ -115,6 +115,33 @@ namespace LTW.UnityClient.Simulation
             return BoardSurface(isPlayerLane ? new Color(0.12f, 0.045f, 0.04f) : new Color(0.062f, 0.022f, 0.02f));
         }
 
+        /// <summary>
+        /// Exposure for the gate sprite plates, so they sit in the board's value range.
+        /// </summary>
+        /// <remarks>
+        /// Reported from iPad play: the spawn and leak gates "kind of look like 2D sprites in a 3D
+        /// world". They are exactly that — a SpriteRenderer on a flat plate — and the giveaway was
+        /// brightness rather than geometry. A SpriteRenderer uses Unity's default UNLIT sprite
+        /// material, so it takes none of the scene's lighting, and it was drawn at Color.white:
+        /// full brightness against a board surface authored at 0.075-0.13
+        /// (<see cref="EndpointApproachPlateColor"/>). Roughly eight times the value of everything
+        /// touching it, and lit surfaces darken toward their edges while this stayed flat, which is
+        /// what reads as a decal laid on top rather than a thing on the board.
+        ///
+        /// A neutral grey rather than a hue, deliberately: the artwork carries its own colour and a
+        /// tinted multiply would shift it. This only lowers exposure, so the gate keeps its palette
+        /// and stops out-shining the board.
+        ///
+        /// Non-player lanes take the same relative drop every other element on a non-player lane
+        /// takes, so the gates recede with the lane they belong to instead of staying the brightest
+        /// thing on a lane the player is not looking at.
+        /// </remarks>
+        private static Color EndpointSpriteTint(bool isPlayerLane)
+        {
+            var exposure = isPlayerLane ? 0.62f : 0.4f;
+            return new Color(exposure, exposure, exposure, 1f);
+        }
+
         private static Color EndpointWashColor(Color color, bool isPlayerLane)
         {
             var strength = isPlayerLane ? 0.42f : 0.25f;

@@ -46,6 +46,19 @@ namespace LTW.UnityClient.Simulation
         /// </summary>
         private readonly List<SpriteRenderer> spawnGateSpriteRenderers = new List<SpriteRenderer>();
 
+        /// <summary>
+        /// Each spawn gate sprite's un-pulsed tint, index-aligned with
+        /// <see cref="spawnGateSpriteRenderers"/>.
+        /// </summary>
+        /// <remarks>
+        /// The pulse rewrites the renderer's colour every frame, so the base tint cannot be read
+        /// back off the renderer — it would read whatever the last pulse wrote and drift. Kept here
+        /// so the pulse can MULTIPLY the tint instead of replacing it, which is what it was doing:
+        /// EndpointSpriteTint's exposure was applied at creation and then overwritten on the very
+        /// next frame, leaving spawn gates at full brightness while leak gates took the fix.
+        /// </remarks>
+        private readonly List<Color> spawnGateSpriteBaseColors = new List<Color>();
+
         private Sprite spawnGateSprite;
         private Sprite leakGateSprite;
         private Texture2D boardDeepFieldTexture;
@@ -667,7 +680,14 @@ namespace LTW.UnityClient.Simulation
             }
 
             var plate = new GameObject($"Lane{laneId}{label}ReferenceSpritePlate");
-            plate.transform.position = center + new Vector3(0f, isSpawn ? 0.06f : 0.18f, isSpawn ? 0.02f : -0.1f);
+            // Both gates now sit at the same 0.06. The leak gate was at 0.18, which is higher than
+            // anything in the disc stack this plate REPLACES — that stack spans -0.055 to +0.106 —
+            // so it hovered above its own board furniture and parallaxed against the surface as the
+            // camera moved, which is the half of "looks like a 2D sprite" that tinting cannot reach.
+            // The comment above this call already records that lifted geometry at the far end of the
+            // lane projects past the board's top edge under the tilted camera, and two builders were
+            // deleted for exactly that; 0.18 was the same mistake left standing on the plate itself.
+            plate.transform.position = center + new Vector3(0f, 0.06f, isSpawn ? 0.02f : -0.1f);
             plate.transform.rotation = Quaternion.Euler(90f, 0f, 0f);
             var scale = isPlayerLane
                 ? (isSpawn ? 0.54f : 0.5f)
@@ -676,13 +696,20 @@ namespace LTW.UnityClient.Simulation
 
             var renderer = plate.AddComponent<SpriteRenderer>();
             renderer.sprite = sprite;
+            // Orders this against other TRANSPARENT renderers only. It is not a depth bypass: the
+            // default sprite material is ZWrite Off / ZTest LEqual, so the plate is still occluded
+            // by opaque board geometry in front of it. Recorded because this was briefly suspected
+            // of drawing the gates over the board regardless of depth, and it does not.
             renderer.sortingOrder = 3;
-            renderer.color = Color.white;
+            // Not white — see EndpointSpriteTint. An unlit sprite at full value against a board
+            // surface authored near 0.1 is what made these read as stickers.
+            renderer.color = EndpointSpriteTint(isPlayerLane);
             laneDecorations.Add(plate);
 
             if (isSpawn)
             {
                 spawnGateSpriteRenderers.Add(renderer);
+                spawnGateSpriteBaseColors.Add(renderer.color);
             }
         }
 
@@ -698,8 +725,15 @@ namespace LTW.UnityClient.Simulation
                     continue;
                 }
 
+                // Multiplies the gate's base exposure rather than replacing it. Assigning a flat
+                // grey here is what kept the spawn gates blazing at ~0.95 against a board authored
+                // near 0.1 — see EndpointSpriteTint. The pulse depth is unchanged; it now breathes
+                // around the tint instead of around white.
                 var glow = 0.9f + (Mathf.Sin(Time.time * 1.8f) + 1f) * 0.5f * 0.1f;
-                spriteRenderer.color = new Color(glow, glow, glow, 1f);
+                var baseColor = index < spawnGateSpriteBaseColors.Count
+                    ? spawnGateSpriteBaseColors[index]
+                    : Color.white;
+                spriteRenderer.color = new Color(baseColor.r * glow, baseColor.g * glow, baseColor.b * glow, baseColor.a);
             }
 
             if (spawnGatePulseElements.Count == 0)
