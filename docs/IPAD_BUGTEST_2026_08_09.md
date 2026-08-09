@@ -125,7 +125,33 @@ cue once.
 Needs a screenshot or a description of what "broken" looks like — flicker, wrong colour,
 geometry, or a missing sprite. That distinction picks the search path.
 
-## 3. Lift gate and spawn gate read as 2D sprites in a 3D world
+## 3. Lift gate and spawn gate read as 2D sprites in a 3D world — PARTLY FIXED, needs your eye
+
+**Changed 2026-08-09, compile-verified, NOT seen on a device.** They are literally 2D sprites — a
+`SpriteRenderer` on a flat plate — so the question was only why that read as one.
+
+It was brightness, not geometry. A `SpriteRenderer` uses Unity's default UNLIT sprite material and
+these were drawn at `Color.white`, against a board surface authored at 0.075-0.13. Roughly eight
+times the value of everything touching it, and flat where lit surfaces fall off toward their edges.
+Now tinted via `EndpointSpriteTint` — a neutral exposure drop rather than a hue, so the artwork
+keeps its own colour — and non-player lanes take the same relative drop every other element on a
+non-player lane takes.
+
+A second fault sat behind the first: `UpdateSpawnGatePulse` assigned a flat grey to
+`renderer.color` every frame, so the tint applied at creation was overwritten on the next frame and
+**spawn gates would have kept blazing while only leak gates took the fix**. The pulse now multiplies
+the base tint instead of replacing it, at the same depth.
+
+**Still open, deliberately untouched:** `sortingOrder = 3` makes the plates draw over the board
+regardless of depth, and they float 0.06-0.18 above the surface rather than sitting flush. Either
+could still read as "on top of" rather than "in" the board, but both risk z-fighting against the
+plates beneath and neither can be judged without seeing it. Exposure was the fault worth fixing
+blind; these are not.
+
+Noted in passing, not fixed: `spawnGateSpriteRenderers` is never cleared, so it grows on every
+board rebuild and the update loop walks a lengthening list of nulls.
+
+### Original notes
 
 They need to sit in the board rather than on top of it.
 
