@@ -89,78 +89,193 @@ namespace LTW.UnityClient.UI
             var rect = PlacementPanelRect(scale, frame);
             var accent = SelectedTowerAccent();
 
+            if (MobileViewportLayout.HasSideRails)
+            {
+                // No inset from the rail variant. It sits beside the board, not over it, so asking
+                // the camera to lift for it squeezed the board to a fraction of its height for a
+                // panel that was covering nothing — the inset is measured from the screen bottom,
+                // and a rail block starts a long way up it.
+                DrawPlacementStack(rect, accent, scale);
+                return;
+            }
+
+            // The bar DOES sit over the board, so it contributes the same inset the build drawer
+            // does, and can share that field because the two are mutually exclusive — the palette
+            // closes the moment placement begins. The board lifts clear rather than hiding the very
+            // cells the player is aiming at.
+            RuntimeUiChrome.BuildDockInset = MobileViewportLayout.ViewportHeight - rect.yMin;
+            DrawPlacementBar(rect, accent, scale);
+        }
+
+        /// <summary>
+        /// Placement controls as a single slim bar, for a screen with no rail to put them in.
+        /// </summary>
+        /// <remarks>
+        /// This was a 160-unit panel carrying five stacked things — name and cost, a placement
+        /// status line, a recovery hint, the quick-switch strip and three buttons — anchored to the
+        /// bottom of the board. It covered roughly four rows of the lane at the exact moment the
+        /// player is aiming at a cell, which is the worst possible time to hide them.
+        ///
+        /// Everything survives; only the stacking goes. The hint line is the one casualty and it is
+        /// folded into the status text rather than dropped, because "BUILDER ONLINE • TAP BUILD"
+        /// restates what a lit BUILD button already says, while a REJECTION reason does not and is
+        /// kept.
+        /// </remarks>
+        private void DrawPlacementBar(Rect rect, Color accent, float scale)
+        {
             DrawPanel(rect, PanelInk);
-            DrawAccent(new Rect(rect.x, rect.yMax - 4f * scale, rect.width, 4f * scale), accent);
+            DrawAccent(new Rect(rect.x, rect.yMax - 3f * scale, rect.width, 3f * scale), accent);
 
-            titleStyle!.fontSize = Mathf.RoundToInt(17f * scale);
-            titleStyle.normal.textColor = accent;
-            bodyStyle!.fontSize = Mathf.RoundToInt(12f * scale);
-            bodyStyle.normal.textColor = Cloud;
+            var pad = 7f * scale;
+            var gap = 5f * scale;
+            var rowHeight = (rect.height - pad * 3f) * 0.5f;
 
-            GUI.Label(new Rect(rect.x + 12f * scale, rect.y + 9f * scale, rect.width - 24f * scale, 24f * scale), $"{SelectedTowerName().ToUpperInvariant()}  {SelectedTowerCost()}G", titleStyle);
-
-            var placementLine = placementPreview.Accepted ? $"CELL {selectedCell.x}, {selectedCell.y} READY" : PlacementPreviewText();
-            GUI.Label(new Rect(rect.x + 12f * scale, rect.y + 35f * scale, rect.width - 24f * scale, 20f * scale), placementLine, bodyStyle);
-            var actionHint = placementPreview.Accepted ? "BUILDER ONLINE  •  TAP BUILD" : PlacementRecoveryText();
-            GUI.Label(new Rect(rect.x + 12f * scale, rect.y + 57f * scale, rect.width - 24f * scale, 20f * scale), actionHint, bodyStyle);
-
-            // The quick-switch strip shows the category the SELECTED tower belongs to, not a fixed
-            // list. It used to hardcode the five arcane roles, so choosing a Foundry or Grove tower
-            // left the strip offering Arrow/Control/Relay/Pulse/Prism — reported from play as
-            // "when you choose a cat 3 or cat 2 tower, the quick switch buttons are still cat 1".
-            // Switching to a neighbour within the line you are already building is the point of the
-            // strip; jumping you back to arcane was the opposite.
-            var switchY = rect.y + 82f * scale;
-            var switchHeight = 24f * scale;
-            var switchGap = 4f * scale;
+            // Row one: the quick-switch strip, full width. Tried as one row with everything on it
+            // and it does not fit — six labels, a name, a status and three buttons crammed into 412
+            // units clipped the labels to "RROW"/"ULSE" and pushed BUILD underneath the SEND
+            // launcher. Two rows is still less than half the 160-unit panel this replaces, and the
+            // point was never to be one row; it was to stop covering the board.
             var switchEntries = CategoryEntriesByCost(LTW.UnityClient.Simulation.TowerCatalog.ForRole(selectedTowerRole).Category);
             if (switchEntries.Count > 0)
             {
-                var switchWidth = (rect.width - 24f * scale - switchGap * (switchEntries.Count - 1)) / switchEntries.Count;
-                var switchX = rect.x + 12f * scale;
+                var switchWidth = (rect.width - pad * 2f - gap * (switchEntries.Count - 1)) / switchEntries.Count;
+                var switchX = rect.x + pad;
                 for (var index = 0; index < switchEntries.Count; index++)
                 {
                     var entry = switchEntries[index];
-                    if (DrawPlacementSwitchButton(new Rect(switchX, switchY, switchWidth, switchHeight), entry.ShortLabel, entry.Role, entry.Accent, scale))
+                    if (DrawPlacementSwitchButton(new Rect(switchX, rect.y + pad, switchWidth, rowHeight), entry.ShortLabel, entry.Role, entry.Accent, scale))
                     {
                         BeginTowerPlacement(entry.Role);
                         return;
                     }
 
-                    switchX += switchWidth + switchGap;
+                    switchX += switchWidth + gap;
                 }
             }
 
-            var buttonHeight = 30f * scale;
-            var gap = 6f * scale;
-            var allWidth = 64f * scale;
-            var buildWidth = 104f * scale;
-            var cancelWidth = 86f * scale;
-            var totalWidth = allWidth + buildWidth + cancelWidth + gap * 2f;
-            var buttonY = rect.yMax - 38f * scale;
-            var buttonX = rect.center.x - totalWidth * 0.5f;
+            // Row two: what is being placed, where, and the three actions.
+            var y = rect.y + pad * 2f + rowHeight;
+            var allWidth = 52f * scale;
+            var cancelWidth = 46f * scale;
+            var buildWidth = 92f * scale;
 
-            if (DrawLauncherButton(new Rect(buttonX, buttonY, allWidth, buttonHeight), "ALL", SignalGold, scale))
+            var x = rect.x + pad;
+            if (DrawLauncherButton(new Rect(x, y, allWidth, rowHeight), "ALL", SignalGold, scale))
             {
                 CancelPlacement(false);
                 OpenTowerPalette();
                 return;
             }
 
-            buttonX += allWidth + gap;
-            if (DrawLauncherButton(new Rect(buttonX, buttonY, buildWidth, buttonHeight), "BUILD", placementPreview.Accepted ? MintSignal : Danger, scale))
-            {
-                ConfirmPlacement();
-                return;
-            }
+            x += allWidth + gap;
 
-            buttonX += buildWidth + gap;
-            if (DrawLauncherButton(new Rect(buttonX, buttonY, cancelWidth, buttonHeight), "CANCEL", Danger, scale))
+            // The selected tower is already named by the highlighted button in the strip above, so
+            // this carries cost and cell rather than repeating it — which is what let the row fit.
+            bodyStyle!.fontSize = Mathf.RoundToInt(12f * scale);
+            bodyStyle.normal.textColor = placementPreview.Accepted ? Cloud : Danger;
+            var textRight = rect.xMax - pad - buildWidth - gap - cancelWidth - gap;
+            GUI.Label(new Rect(x, y, Mathf.Max(0f, textRight - x), rowHeight), $"{SelectedTowerCost()}G   {PlacementStatusShort()}", bodyStyle);
+
+            if (DrawLauncherButton(new Rect(textRight + gap, y, cancelWidth, rowHeight), "\u2715", Danger, scale))
             {
                 CancelPlacement();
                 return;
             }
+
+            if (DrawLauncherButton(new Rect(rect.xMax - pad - buildWidth, y, buildWidth, rowHeight), "BUILD", placementPreview.Accepted ? MintSignal : Danger, scale))
+            {
+                ConfirmPlacement();
+            }
         }
+
+        /// <summary>
+        /// The same controls stacked in the side rail, where a wide screen has room and the board
+        /// keeps every row.
+        /// </summary>
+        private void DrawPlacementStack(Rect rect, Color accent, float scale)
+        {
+            DrawPanel(rect, PanelInk);
+            DrawAccent(new Rect(rect.x, rect.yMax - 3f * scale, rect.width, 3f * scale), accent);
+
+            var pad = 8f * scale;
+            var y = rect.y + pad;
+            var innerWidth = rect.width - pad * 2f;
+
+            titleStyle!.fontSize = Mathf.RoundToInt(13f * scale);
+            titleStyle.normal.textColor = accent;
+            GUI.Label(new Rect(rect.x + pad, y, innerWidth, 20f * scale), $"{SelectedTowerName().ToUpperInvariant()}", titleStyle);
+            y += 20f * scale;
+
+            bodyStyle!.fontSize = Mathf.RoundToInt(11f * scale);
+            bodyStyle.normal.textColor = Cloud;
+            GUI.Label(new Rect(rect.x + pad, y, innerWidth, 18f * scale), $"{SelectedTowerCost()}G", bodyStyle);
+            y += 18f * scale;
+
+            bodyStyle.normal.textColor = placementPreview.Accepted ? Cloud : Danger;
+            GUI.Label(new Rect(rect.x + pad, y, innerWidth, 18f * scale), PlacementStatusShort(), bodyStyle);
+            y += 24f * scale;
+
+            var switchEntries = CategoryEntriesByCost(LTW.UnityClient.Simulation.TowerCatalog.ForRole(selectedTowerRole).Category);
+            var perRow = Mathf.Max(1, Mathf.FloorToInt(innerWidth / (46f * scale)));
+            var switchWidth = (innerWidth - 4f * scale * (perRow - 1)) / perRow;
+            var switchHeight = 24f * scale;
+            for (var index = 0; index < switchEntries.Count; index++)
+            {
+                var entry = switchEntries[index];
+                var column = index % perRow;
+                var cell = new Rect(rect.x + pad + column * (switchWidth + 4f * scale), y, switchWidth, switchHeight);
+                if (DrawPlacementSwitchButton(cell, entry.ShortLabel, entry.Role, entry.Accent, scale))
+                {
+                    BeginTowerPlacement(entry.Role);
+                    return;
+                }
+
+                if (column == perRow - 1)
+                {
+                    y += switchHeight + 4f * scale;
+                }
+            }
+
+            if (switchEntries.Count % perRow != 0)
+            {
+                y += switchHeight + 4f * scale;
+            }
+
+            y += 4f * scale;
+            var buttonHeight = 28f * scale;
+            var half = (innerWidth - 5f * scale) * 0.5f;
+            if (DrawLauncherButton(new Rect(rect.x + pad, y, half, buttonHeight), "ALL", SignalGold, scale))
+            {
+                CancelPlacement(false);
+                OpenTowerPalette();
+                return;
+            }
+
+            if (DrawLauncherButton(new Rect(rect.x + pad + half + 5f * scale, y, half, buttonHeight), "\u2715", Danger, scale))
+            {
+                CancelPlacement();
+                return;
+            }
+
+            y += buttonHeight + 5f * scale;
+            if (DrawLauncherButton(new Rect(rect.x + pad, y, innerWidth, buttonHeight), "BUILD", placementPreview.Accepted ? MintSignal : Danger, scale))
+            {
+                ConfirmPlacement();
+            }
+        }
+
+        /// <summary>
+        /// The placement state in as few words as a slim bar can carry.
+        /// </summary>
+        /// <remarks>
+        /// A rejection reason is kept in full because it is the only thing on screen that explains a
+        /// refusal. The accepted case loses its "BUILDER ONLINE • TAP BUILD" hint, which restated
+        /// what a lit BUILD button already communicates.
+        /// </remarks>
+        private string PlacementStatusShort() =>
+            placementPreview.Accepted
+                ? $"CELL {selectedCell.x}, {selectedCell.y}"
+                : PlacementPreviewText();
 
         private bool DrawPlacementSwitchButton(Rect rect, string label, int towerRole, Color accent, float scale)
         {
@@ -953,12 +1068,47 @@ namespace LTW.UnityClient.UI
             return new Rect(frame.x + 8f * scale, frame.yMax - height - MobileViewportLayout.BottomMargin(scale) - launcherClearance, width, height);
         }
 
+        /// <summary>
+        /// Where the placement controls live: a slim bar on a phone, a rail block on a tablet.
+        /// </summary>
+        /// <remarks>
+        /// Was a fixed 360x160 panel at the bottom of the board on every screen, which covered about
+        /// four rows of the lane while the player was aiming at a cell. The bar is 46 units tall
+        /// instead of 160, and on a screen wide enough for a rail the controls leave the board
+        /// entirely.
+        ///
+        /// The rail block starts below the HUD stack rather than at the rail's top. That stack is
+        /// the state cell, four stat cells and four counter lines — about 330 units — and the two
+        /// would otherwise draw over each other.
+        /// </remarks>
         private static Rect PlacementPanelRect(float scale, Rect frame)
         {
-            var width = Mathf.Min(frame.width - 16f * scale, 360f * scale);
-            var height = 160f * scale;
-            return new Rect(frame.x + 8f * scale, frame.yMax - height - MobileViewportLayout.BottomMargin(scale), width, height);
+            var margin = MobileViewportLayout.EdgeMargin(scale);
+
+            if (MobileViewportLayout.HasSideRails)
+            {
+                var rail = MobileViewportLayout.SideRailRect(rightSide: false);
+                var top = rail.y + PlacementRailTopInset * scale;
+                return new Rect(
+                    rail.x + margin * 0.5f,
+                    top,
+                    Mathf.Max(1f, rail.width - margin),
+                    Mathf.Max(1f, Mathf.Min(250f * scale, rail.yMax - top - margin)));
+            }
+
+            // Stops short of the SEND launcher rather than running under it. The launcher is
+            // 76 units wide against the frame's right edge, and a bar centred on the frame put
+            // BUILD directly beneath it — a button drawn first and then covered, which IMGUI
+            // resolves by giving the click to whichever drew last.
+            var launcherClearance = 96f * scale;
+            var height = 76f * scale;
+            var left = frame.x + 8f * scale;
+            var width = Mathf.Max(1f, frame.width - 8f * scale - launcherClearance - (left - frame.x));
+            return new Rect(left, frame.yMax - height - MobileViewportLayout.BottomMargin(scale), width, height);
         }
+
+        /// <summary>Clearance for the HUD readout that occupies the top of the left rail.</summary>
+        private const float PlacementRailTopInset = 360f;
 
         /// <summary>RAISE, in the slot BUILD occupies when multi-select is off.</summary>
         private static Rect MultiSelectRaiseRect(float scale, Rect frame)
