@@ -142,11 +142,22 @@ A second fault sat behind the first: `UpdateSpawnGatePulse` assigned a flat grey
 **spawn gates would have kept blazing while only leak gates took the fix**. The pulse now multiplies
 the base tint instead of replacing it, at the same depth.
 
-**Still open, deliberately untouched:** `sortingOrder = 3` makes the plates draw over the board
-regardless of depth, and they float 0.06-0.18 above the surface rather than sitting flush. Either
-could still read as "on top of" rather than "in" the board, but both risk z-fighting against the
-plates beneath and neither can be judged without seeing it. Exposure was the fault worth fixing
-blind; these are not.
+**The two follow-ups, now resolved — and one of them was my own bad call.**
+
+`sortingOrder = 3` is **not** a defect and was left as it was. The claim that it draws the plates
+over the board regardless of depth was wrong: the default sprite material is `ZWrite Off` /
+`ZTest LEqual`, so these still depth-test against opaque board geometry. It orders them against
+other transparents only, and the only other one in the renderer is floating text. Documented in
+place so the suspicion is not raised a third time.
+
+Height was half right. The sprite plate path is an early `return` that REPLACES the whole procedural
+endpoint, and the disc stack it stands in for spans -0.055 to +0.106 — so the spawn gate's +0.06 was
+already inside the range its own furniture uses and did not need moving. The **leak** gate at +0.18
+sat above everything, hovering over its own board furniture and parallaxing against the surface as
+the camera moves, which is the part of "looks like a 2D sprite" that tinting cannot reach. Both gates
+are now at 0.06. The comment above that call already recorded that lifted geometry at the far end of
+the lane projects past the board's top edge under the tilted camera, and two builders had been
+deleted for it; 0.18 was the same mistake left standing on the plate itself.
 
 Noted in passing, not fixed: `spawnGateSpriteRenderers` is never cleared, so it grows on every
 board rebuild and the update loop walks a lengthening list of nulls.

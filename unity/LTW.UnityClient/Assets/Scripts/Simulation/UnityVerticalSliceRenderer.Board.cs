@@ -680,7 +680,14 @@ namespace LTW.UnityClient.Simulation
             }
 
             var plate = new GameObject($"Lane{laneId}{label}ReferenceSpritePlate");
-            plate.transform.position = center + new Vector3(0f, isSpawn ? 0.06f : 0.18f, isSpawn ? 0.02f : -0.1f);
+            // Both gates now sit at the same 0.06. The leak gate was at 0.18, which is higher than
+            // anything in the disc stack this plate REPLACES — that stack spans -0.055 to +0.106 —
+            // so it hovered above its own board furniture and parallaxed against the surface as the
+            // camera moved, which is the half of "looks like a 2D sprite" that tinting cannot reach.
+            // The comment above this call already records that lifted geometry at the far end of the
+            // lane projects past the board's top edge under the tilted camera, and two builders were
+            // deleted for exactly that; 0.18 was the same mistake left standing on the plate itself.
+            plate.transform.position = center + new Vector3(0f, 0.06f, isSpawn ? 0.02f : -0.1f);
             plate.transform.rotation = Quaternion.Euler(90f, 0f, 0f);
             var scale = isPlayerLane
                 ? (isSpawn ? 0.54f : 0.5f)
@@ -689,6 +696,10 @@ namespace LTW.UnityClient.Simulation
 
             var renderer = plate.AddComponent<SpriteRenderer>();
             renderer.sprite = sprite;
+            // Orders this against other TRANSPARENT renderers only. It is not a depth bypass: the
+            // default sprite material is ZWrite Off / ZTest LEqual, so the plate is still occluded
+            // by opaque board geometry in front of it. Recorded because this was briefly suspected
+            // of drawing the gates over the board regardless of depth, and it does not.
             renderer.sortingOrder = 3;
             // Not white — see EndpointSpriteTint. An unlit sprite at full value against a board
             // surface authored near 0.1 is what made these read as stickers.
