@@ -17,11 +17,15 @@ namespace LTW.UnityClient.UI
     /// leaves a margin of 221 to 396 device pixels that has to become something or stay padding.
     /// This is what it becomes.
     ///
-    /// It draws ONLY when <see cref="MobileViewportLayout.HasSideRails"/> is true, and that is the
-    /// whole of its responsive behaviour. On a phone the margin is given back to the board and there
-    /// is no rail to draw in, so this stands down completely rather than trying to squeeze an
-    /// eight-row table into a strip too narrow to read — a phone still reaches the same data through
-    /// the results screen.
+    /// It has two homes, chosen by whether the screen has room for a rail. On a tablet the seat
+    /// list is permanently up beside the board. On a phone the margin was given back to the board
+    /// and there is no rail, so it is a panel the lives readout opens — which is item 10's answer as
+    /// well as item 5's, and the reason both are one component: a lives readout that expands into
+    /// the full seat list is what that report asked for.
+    ///
+    /// The phone half matters more than it looks. Until it existed this component stood down
+    /// completely without a rail, so item 5 was quietly tablet-only and a phone player could not see
+    /// another seat's lives at all except by finishing the match.
     ///
     /// No new simulation data was needed: every seat's Lives, Gold, Income and IsEliminated are
     /// already on the snapshot, because an eight-seat match is the default and the results screen
@@ -36,6 +40,19 @@ namespace LTW.UnityClient.UI
         private static readonly Color MintSignal = new(0.349f, 0.882f, 0.714f, 1f);
         private static readonly Color SignalGold = new(1f, 0.784f, 0.29f, 1f);
         private static readonly Color WarningRose = new(1f, 0.384f, 0.455f, 1f);
+
+        /// <summary>
+        /// Whether the phone's tap-to-open seat panel is showing.
+        /// </summary>
+        /// <remarks>
+        /// Static because the control that toggles it lives in <see cref="HudView"/> — the lives
+        /// readout — and the two components have no reference to each other. Same shape as
+        /// <c>RuntimeUiChrome.ModalScreenActive</c>, which exists for the same reason.
+        ///
+        /// Only consulted where there is no side rail. On a tablet the seat list is permanently in
+        /// the rail, so a toggle would be a control that hides information the screen has room for.
+        /// </remarks>
+        public static bool PanelOpen { get; set; }
 
         private UnitySimulationDriver simulationDriver = null!;
         private GUIStyle? titleStyle;
@@ -57,18 +74,25 @@ namespace LTW.UnityClient.UI
                 return;
             }
 
-            if (!MobileViewportLayout.HasSideRails)
-            {
-                return;
-            }
-
             var snapshot = simulationDriver.LatestSnapshot;
             if (snapshot is null)
             {
                 return;
             }
 
-            var rail = MobileViewportLayout.SideRailRect(rightSide: true);
+            // Two homes, chosen by whether the screen has room for a rail. On a tablet the seat
+            // list is always up beside the board; on a phone it is a panel the lives readout opens,
+            // because there is nowhere to put it permanently and a phone player had no way to see
+            // the other seats at all before this.
+            var hasRail = MobileViewportLayout.HasSideRails;
+            if (!hasRail && !PanelOpen)
+            {
+                return;
+            }
+
+            var rail = hasRail
+                ? MobileViewportLayout.SideRailRect(rightSide: true)
+                : PhonePanelRect();
             if (rail.width < 1f)
             {
                 return;
@@ -92,6 +116,16 @@ namespace LTW.UnityClient.UI
                 Mathf.Max(0f, rail.width - margin),
                 Mathf.Min(panelHeight, rail.height - MobileViewportLayout.TopMargin(scale) - margin));
 
+            // An opaque backing under the panel when it floats over the board. The rail version
+            // sits on empty margin and can afford to be translucent; this one lands on a live lane,
+            // and at PanelInk's alpha the creeps and flow arrows read straight through the seat
+            // rows. Alpha composites in LINEAR here, so a value that looks opaque in sRGB terms
+            // arrives noticeably lighter — the same trap the shell stylesheet documents.
+            if (!hasRail)
+            {
+                Fill(panel, new Color(0.016f, 0.027f, 0.047f, 1f));
+            }
+
             RuntimeUiChrome.DrawPanel(panel, PanelInk, scale);
 
             titleStyle!.fontSize = Mathf.RoundToInt(11f * scale);
@@ -114,6 +148,25 @@ namespace LTW.UnityClient.UI
 
                 DrawSeatRow(row, seat, seat.PlayerId.Equals(localId), scale);
             }
+        }
+
+        /// <summary>
+        /// Where the seat panel sits on a screen with no rail.
+        /// </summary>
+        /// <remarks>
+        /// Anchored under the HUD strip rather than centred, so it hangs from the control that
+        /// opened it and leaves the bottom of the board — and the build and send launchers — clear.
+        /// </remarks>
+        private static Rect PhonePanelRect()
+        {
+            var frame = MobileViewportLayout.SafeScreenRect();
+            var scale = MobileViewportLayout.UiScale();
+            var width = Mathf.Min(frame.width - 24f * scale, 300f * scale);
+            return new Rect(
+                frame.center.x - width * 0.5f,
+                frame.y + 76f * scale,
+                width,
+                Mathf.Min(frame.height * 0.62f, 460f * scale));
         }
 
         /// <summary>
