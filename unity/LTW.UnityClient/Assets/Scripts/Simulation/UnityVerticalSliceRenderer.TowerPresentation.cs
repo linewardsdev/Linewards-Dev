@@ -723,6 +723,13 @@ namespace LTW.UnityClient.Simulation
                 case TowerVisualRole.SporeCloud:
                     return new TowerMotionProfile(0.7f, 0.032f, sharpness: 1.6f, driftHz: 0.35f, driftAmp: 0.035f, locksYaw: true, suppressRecoil: false, recoilScale: 0.4f);
 
+                // Arrow's twin-shot cousin, kitbashed from the same base with the same +90 barrel
+                // heading. Slightly slower and shallower than Arrow at idle so the pair read as
+                // kin rather than copies; recoil at 1.0 because Twin Volley emits two
+                // TowerFiredEvents per cooldown and the double kick is the mechanic's read.
+                case TowerVisualRole.TwinCrescent:
+                    return new TowerMotionProfile(1.2f, 0.044f, driftHz: 0.8f, driftAmp: 0.026f, restHeadingDegrees: 90f, recoilScale: 1.0f);
+
                 default:
                     return new TowerMotionProfile(1.3f, 0.02f);
             }
