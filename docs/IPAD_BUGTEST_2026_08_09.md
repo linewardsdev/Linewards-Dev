@@ -221,7 +221,19 @@ Where to look: `BoardMeshBuilder` and `UnityVerticalSliceRenderer.Board`'s plate
 returns an unmaterialed object in some paths and needed a guaranteed material. Check whether the
 corner plates go through it.
 
-## 5. Add a leaderboard button — other players' lives and income
+## 5. Add a leaderboard button — other players' lives and income — DONE (`5270592`, `c7af8cb`)
+
+**Built as `SeatLeaderboardView`, with two homes rather than one.** The scope question below —
+persistent strip or panel behind a button — turned out to have different answers by screen, and
+answering it per screen is what let this close item 11 as well.
+
+On a tablet the seat list is permanently up in the side rail, beside the board, using the margin
+item 11 was complaining about. On a phone there is no rail (the margin was given back to the
+board), so it is a panel the lives readout opens — which is item 10's answer as well as item 5's,
+and the reason both are one component. That phone half matters more than it looks: until it
+existed the component stood down completely without a rail, so this feature was quietly
+tablet-only and a phone player could not see another seat's lives at all except by finishing the
+match.
 
 **New feature, not a bug.** All the data already exists: `snapshot.Players.Players` carries every
 seat's `Lives`, `Gold`, `Income`, `IsEliminated` and `Placement`, and eight-seat matches are the
@@ -310,9 +322,17 @@ were not).
 Scope as asked is art + lighting + animation together, so treat it as one pass over that unit
 rather than three separate tickets.
 
-## 9. Build menu blocks the bottom row — DONE elsewhere (`2a744b6`)
+## 9. Build menu blocks the bottom row — DONE (`2a744b6`, `de2f269`)
 
 **Fixed by the parallel session**, and not by making the panel draggable: the board is lifted clear of the drawer instead. That is the alternative the note below argued for, on the grounds that a draggable panel competes with the board's own tap and drag handling.
+
+**`de2f269` then did the same for the panel that appears *after* a tower is selected**, which was
+the half of this the first fix left standing: a fixed 360x160 card over roughly four rows of lane,
+at the moment the player is choosing a cell. It is now a two-row bar on a phone (76 units, board
+lifts clear of it, and it stops short of the SEND launcher rather than running under it) and a
+block in the side rail on a tablet, where it costs the board nothing. The rail variant publishes
+no camera inset — the inset is measured from the screen bottom, so a rail block reported a huge
+one and collapsed the board; only the bar is over the board, so only the bar contributes.
 
 The build palette covers the last row of the lane, so you cannot see or place on the cells the
 menu sits over.
@@ -326,9 +346,18 @@ interaction on a touch surface, since a draggable panel competes with the board'
 drag handling. A collapse/peek toggle, or shifting the board column up while the palette is open,
 may get the same result with less to go wrong.
 
-## 10. The lives readout in the top right does nothing — LIKELY DONE elsewhere (`ecd3ba2`), verify
+## 10. The lives readout in the top right does nothing — DONE (`ecd3ba2`, `c7af8cb`), unverified on device
 
-**`ecd3ba2` stood the readout up in the left rail and off the board.** Whether that resolves the reported "does nothing" depends on which of the two faults below it actually was, so confirm on a device before closing.
+**It was the affordance fault, not the binding one.** The readout updated correctly all along; it
+was never a button. `ecd3ba2` stood it up in the left rail and off the board, and `c7af8cb` made
+it do something: on a phone it now opens item 5's seat list, and the dead LIVE state cell next to
+it — which showed a label with no value — is gone. On a tablet there is no toggle, because the
+seat list is permanently in the rail and a control that hides information the screen has room for
+is not worth the tap.
+
+Still worth a device tap before closing: the button is wired the way `DrawCommandCard` is
+(`GUI.Button` over the strip centre with `GUIStyle.none`) and there is no automated assertion that
+the hit rect lands where the numbers are.
 
 Reported as not responding. Two different bugs wear this shape and they need separating first:
 the readout is **not updating** (a data binding problem), or it is **not tappable** when it looks
@@ -338,7 +367,20 @@ Check what the top-right element is bound to before assuming either. If it is me
 something, that overlaps item 5's leaderboard — a lives readout that expands into the full seat
 list may be the natural home for that feature rather than a separate button.
 
-## 11. The game does not fill a 13" iPad Pro screen
+## 11. The game does not fill a 13" iPad Pro screen — DONE (`5270592`, `ecd3ba2`, `fa97a05`)
+
+**Closed by the third option below: the extra width became the leaderboard.** The board itself
+could not grow to fill it — `orthographicSize` is vertical and the lane already fills the view at
+16.9 world units against 16 cells, so widening the column only crops the player's own lane. What
+changed instead is that the margin stopped being padding: `BoardColumnFraction()` adapts to the
+screen, `HasSideRails` turns on where there is room for at least 12% a side, and the rails carry
+the seat list on the right and the HUD, and now the placement controls, on the left.
+
+The scope note at the bottom of this section was right and worth recording: items 5, 7, 9 and 10
+all place UI, and settling the tablet question first is what let each of them land in one shape
+per screen rather than being built phone-only and redone.
+
+### Original diagnosis
 
 **This one is by design and the design is the problem.** `MobileViewportLayout.CameraRect()`
 computes `width = clamp(PortraitAspect / screenAspect, 0.22, 1)` against a `PortraitAspect` of
