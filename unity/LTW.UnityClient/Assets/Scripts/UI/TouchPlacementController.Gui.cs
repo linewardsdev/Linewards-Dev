@@ -39,6 +39,13 @@ namespace LTW.UnityClient.UI
 
         private void OnGUI()
         {
+            // Cleared FIRST, above every early return, and set again below only if the panel is
+            // actually drawn. Four returns sit between here and that draw — no readout, a modal
+            // screen, an eliminated seat, and placing a tower — and the last of those is reached by
+            // opening BUILD and picking anything, which stranded a non-zero inset and left the board
+            // short for the rest of the match.
+            RuntimeUiChrome.BuildDockInset = 0f;
+
             if (!showPlacementReadout)
             {
                 return;
@@ -322,9 +329,6 @@ namespace LTW.UnityClient.UI
                 return;
             }
 
-            // Deliberately does NOT clear the inset: the send dock is open and has published its
-            // own. Only the state where NEITHER drawer is showing zeroes it, which is what keeps
-            // two writers from fighting without depending on script execution order.
             if (!isPaletteExpanded && IsSendDockExpanded())
             {
                 return;
@@ -334,8 +338,6 @@ namespace LTW.UnityClient.UI
             var launcherRect = TowerPaletteLauncherRect(scale, frame);
             if (!isPaletteExpanded)
             {
-                // Closed: the board owns its full height again.
-                RuntimeUiChrome.BottomDockInset = 0f;
 
                 // BUILD yields its slot to RAISE while multi-select is on. It is not lost: BUILD
                 // would only have exited the mode, which is what DONE directly above it does.
@@ -376,7 +378,7 @@ namespace LTW.UnityClient.UI
             // closes. Clearing it from another component's Update instead was the first attempt and
             // is a race: Unity does not order Update between components, so the renderer could read
             // the inset either side of the clear and the board lifted only on some frames.
-            RuntimeUiChrome.BottomDockInset = MobileViewportLayout.ViewportHeight - rect.yMin;
+            RuntimeUiChrome.BuildDockInset = MobileViewportLayout.ViewportHeight - rect.yMin;
 
             DrawPanel(rect, PanelInk);
             DrawAccent(new Rect(rect.x, rect.yMax - 4f * scale, rect.width, 4f * scale), MintSignal);

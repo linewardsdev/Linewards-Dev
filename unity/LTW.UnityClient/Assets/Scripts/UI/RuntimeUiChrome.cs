@@ -100,7 +100,7 @@ namespace LTW.UnityClient.UI
         public static bool ModalScreenActive { get; set; }
 
         /// <summary>
-        /// Height in GUI pixels of whichever bottom drawer is open, or 0 when none is.
+        /// The build drawer's contribution in GUI pixels, owned by TouchPlacementController.
         /// </summary>
         /// <remarks>
         /// Published rather than queried for the same reason <see cref="ModalScreenActive"/> is: the
@@ -112,7 +112,20 @@ namespace LTW.UnityClient.UI
         /// hoisting the panel's own expanded/collapsed state into Update to avoid it would put the
         /// layout in two places.
         /// </remarks>
-        public static float BottomDockInset { get; set; }
+        public static float BuildDockInset { get; set; }
+
+        /// <summary>The send drawer's contribution, owned by SendDockController.</summary>
+        public static float SendDockInset { get; set; }
+
+        /// <summary>Whichever open drawer covers the most, or 0 when none is.</summary>
+        /// <remarks>
+        /// A field per drawer rather than one shared number. Sharing it meant whichever drew last
+        /// won, so the two had to know about each other to avoid clobbering — and each had to
+        /// remember to clear it, from inside an OnGUI with four early returns above the clearing
+        /// line. Picking a tower took one of those returns and stranded the inset, leaving the board
+        /// permanently short. Owning a field each removes the coordination entirely.
+        /// </remarks>
+        public static float BottomDockInset => Mathf.Max(BuildDockInset, SendDockInset);
 
         /// <summary>
         /// Dims everything behind a modal panel.
