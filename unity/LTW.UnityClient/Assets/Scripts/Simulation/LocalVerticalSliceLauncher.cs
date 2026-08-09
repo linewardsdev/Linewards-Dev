@@ -34,6 +34,7 @@ namespace LTW.UnityClient.Simulation
             var controls = matchObject.AddComponent<LocalVerticalSliceDevelopmentControls>();
             var feedback = matchObject.AddComponent<PlacementFeedbackView>();
             var hud = matchObject.AddComponent<HudView>();
+            var seatLeaderboard = matchObject.AddComponent<SeatLeaderboardView>();
             var sendDock = matchObject.AddComponent<SendDockController>();
             var placement = matchObject.AddComponent<TouchPlacementController>();
             var laneViewToggle = matchObject.AddComponent<LaneViewToggleController>();
@@ -46,6 +47,7 @@ namespace LTW.UnityClient.Simulation
             renderer.SetPresentationCamera(camera);
             laneViewToggle.Initialize(renderer, driver);
             hud.Initialize(driver);
+            seatLeaderboard.Initialize(driver);
             replayExporter.Initialize(driver);
             playtestRecorder.Initialize(driver, replayExporter);
             performanceSampler.Initialize(driver, renderer);

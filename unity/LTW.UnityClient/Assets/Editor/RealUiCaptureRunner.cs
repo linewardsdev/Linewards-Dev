@@ -44,6 +44,8 @@ namespace LTW.UnityClient.Editor
         private static int shot;
         private static double startedAt;
         private static double nextShotAt;
+        private static int captureWidth = CaptureWidth;
+        private static int captureHeight = CaptureHeight;
         private static bool setupDone;
         private static EditorWindow gameView;
         private static bool previousPlayModeOptionsEnabled;
@@ -125,6 +127,12 @@ namespace LTW.UnityClient.Editor
         public static void Run()
         {
             outputDirectory = ReadArg("-ltwCaptureOutputDir") ?? Path.Combine(Path.GetTempPath(), "ltw-real-ui");
+
+            // Surface size is overridable so a tablet aspect can be captured at all. Pinned to a
+            // 1080x1920 phone, this runner could not see anything that only happens on a wide
+            // screen — which is every side-rail layout decision.
+            captureWidth = int.TryParse(ReadArg("-ltwCaptureWidth"), out var overrideWidth) && overrideWidth > 0 ? overrideWidth : CaptureWidth;
+            captureHeight = int.TryParse(ReadArg("-ltwCaptureHeight"), out var overrideHeight) && overrideHeight > 0 ? overrideHeight : CaptureHeight;
             Directory.CreateDirectory(outputDirectory);
             shot = 0;
             seeded = false;
@@ -142,7 +150,7 @@ namespace LTW.UnityClient.Editor
             // layout bug, and it made the ONLY tool in the repo that can see IMGUI untrustworthy for
             // judging the thing it exists to judge.
             MobileViewportLayout.SetCaptureViewportOverride(
-                CaptureWidth, CaptureHeight, new Rect(0f, 0f, CaptureWidth, CaptureHeight));
+                captureWidth, captureHeight, new Rect(0f, 0f, captureWidth, captureHeight));
 
             // Saved and restored in Finish. These are persisted project settings, not per-run
             // state: leaving DisableDomainReload on changed how play mode behaves for everyone —
@@ -208,7 +216,7 @@ namespace LTW.UnityClient.Editor
                 var constructor = sizeType.GetConstructor(new[] { sizeKindType, typeof(int), typeof(int), typeof(string) });
                 var size = constructor?.Invoke(new[]
                 {
-                    System.Enum.Parse(sizeKindType, "FixedResolution"), CaptureWidth, CaptureHeight, (object)PortraitSizeName
+                    System.Enum.Parse(sizeKindType, "FixedResolution"), captureWidth, captureHeight, (object)PortraitSizeName
                 });
                 if (size == null)
                 {
@@ -246,7 +254,7 @@ namespace LTW.UnityClient.Editor
                 gameView.maximized = true;
                 gameView.Repaint();
 
-                Debug.Log($"REALUI pinned the Game view to {CaptureWidth}x{CaptureHeight} (size index {selected}).");
+                Debug.Log($"REALUI pinned the Game view to {captureWidth}x{captureHeight} (size index {selected}).");
             }
             catch (System.Exception exception)
             {
