@@ -7,9 +7,28 @@ or diagnosed yet; the pointers are starting places, not conclusions.
 
 Branch: `ipad-bugtest-2026-08-09`.
 
-**Status 2026-08-09:** items 4 and 6 done and compile-verified. Item 11 (tablet scaling) is being
-worked by another session. The remaining nine are untouched — item 1 is the one worth taking next,
-being the only one likely to be a logic bug rather than presentation.
+**Status 2026-08-09 (late).** Nine of twelve are addressed, across two sessions working in parallel.
+
+| Item | State |
+| --- | --- |
+| 1 creep turn stall | **fixed** — braked creeps were interpolated against the wrong cost |
+| 2 send-card click effect | **open, blocked** — needs a description of what "broken" looks like |
+| 3 gates read as 2D | **fixed, unseen** — judged by eye, wants a device build |
+| 4 blue corner squares | **fixed** |
+| 5 leaderboard | **landed elsewhere** — `SeatLeaderboardView`, put in the rail a tablet was wasting |
+| 6 MULTI button | **fixed** — button gone, feature deliberately kept |
+| 7 upgrade row unreadable | **fixed elsewhere** (`e75b08a`) — card grown rather than text shrunk |
+| 8 Bastion art | **open** — naming resolved, art regression not yet chased |
+| 9 build menu blocks bottom row | **fixed elsewhere** (`2a744b6`) — board lifted clear of the drawer |
+| 10 lives readout does nothing | **likely closed elsewhere** (`ecd3ba2`) — verify on device |
+| 11 13" iPad Pro scaling | **in flight elsewhere** — `fix/tablet-viewport` |
+| 12 BULWARK/Barricade name | **fixed** |
+
+Items 5, 9, 10 and 11 all moved because the tablet layout work opened up the rail, which is what
+this doc predicted would happen if 11 was settled before the UI items rather than after.
+
+Remaining to take: **item 8** (Bastion art, has a live lead — `5e81e50` decimated the roster and
+`8457192`'s LOD fix covered only animated units) and **item 2** (blocked on you).
 
 ---
 
@@ -125,7 +144,7 @@ cue once.
 Needs a screenshot or a description of what "broken" looks like — flicker, wrong colour,
 geometry, or a missing sprite. That distinction picks the search path.
 
-## 3. Lift gate and spawn gate read as 2D sprites in a 3D world — PARTLY FIXED, needs your eye
+## 3. Lift gate and spawn gate read as 2D sprites in a 3D world — FIXED, unseen on device
 
 **Changed 2026-08-09, compile-verified, NOT seen on a device.** They are literally 2D sprites — a
 `SpriteRenderer` on a flat plate — so the question was only why that read as one.
@@ -237,7 +256,9 @@ category cards.
 Confirm intent: hide the entry point, or delete multi-select entirely? The tests
 (`TowerSelectionBatchTests`) pin the batch behaviour and would need retiring for the latter.
 
-## 7. Upgrade button for creeps and wards is hard to read and too small
+## 7. Upgrade button for creeps and wards is hard to read and too small — DONE elsewhere (`e75b08a`)
+
+**Fixed by the parallel session**, by growing the card rather than shrinking the text — which is what the note below recommended.
 
 Where to look: the tier row on the category cards — `DrawTowerCategoryTier` in
 `TouchPlacementController.Gui` and its send-dock counterpart. The row was fitted into an already
@@ -289,7 +310,9 @@ were not).
 Scope as asked is art + lighting + animation together, so treat it as one pass over that unit
 rather than three separate tickets.
 
-## 9. Build menu blocks the bottom row — make it moveable while open
+## 9. Build menu blocks the bottom row — DONE elsewhere (`2a744b6`)
+
+**Fixed by the parallel session**, and not by making the panel draggable: the board is lifted clear of the drawer instead. That is the alternative the note below argued for, on the grounds that a draggable panel competes with the board's own tap and drag handling.
 
 The build palette covers the last row of the lane, so you cannot see or place on the cells the
 menu sits over.
@@ -303,7 +326,9 @@ interaction on a touch surface, since a draggable panel competes with the board'
 drag handling. A collapse/peek toggle, or shifting the board column up while the palette is open,
 may get the same result with less to go wrong.
 
-## 10. The lives readout in the top right does nothing
+## 10. The lives readout in the top right does nothing — LIKELY DONE elsewhere (`ecd3ba2`), verify
+
+**`ecd3ba2` stood the readout up in the left rail and off the board.** Whether that resolves the reported "does nothing" depends on which of the two faults below it actually was, so confirm on a device before closing.
 
 Reported as not responding. Two different bugs wear this shape and they need separating first:
 the readout is **not updating** (a data binding problem), or it is **not tappable** when it looks
