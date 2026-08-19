@@ -30,6 +30,21 @@ this doc predicted would happen if 11 was settled before the UI items rather tha
 Remaining to take: **item 8** (Bastion art, has a live lead — `5e81e50` decimated the roster and
 `8457192`'s LOD fix covered only animated units) and **item 2** (blocked on you).
 
+### Beyond this list, same session
+
+- **Item 43 (bots hoard gold) closed by measurement, not by a fix.** Re-measured at 79-126 gold held
+  and 94-152 sends per bot, against the ~29,000 it was filed on. Two earlier changes had already
+  closed it. See `OPEN_ITEMS.md` 43 — the lesson recorded there is to re-measure a balance finding
+  before building on it.
+- **The send queue can now be undone.** `CancelQueuedSend` and `ClearSendQueue`, with the same seat
+  authority and rate limiter as the enqueue. **The client adapter is wired but no button calls it
+  yet** — the send dock needs a cancel affordance, deliberately not placed while the tablet-layout
+  work is reshaping that surface. That is the one loose end from this pass.
+- **Not done, and not mine to do:** `OPEN_ITEMS.md` 45 (income pin) needs an owner decision between
+  two conflicting documented properties; Arcane's missing brake is a deliberate design choice, not a
+  gap; store enrolment needs an Apple account and a real reverse-domain. The four unrigged creeps
+  (Revenant, Shade, Swarm, Wisp) are real work nobody has started.
+
 ---
 
 ## 1. Creeps pause for a second or two when they have to turn — FIXED

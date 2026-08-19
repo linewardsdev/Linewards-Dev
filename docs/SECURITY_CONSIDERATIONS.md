@@ -73,9 +73,12 @@ Because security in competitive mobile games rests on **strict server authority*
 * **Input Rate Limiting**: The match host rate-limits input packets per seat per tick, silently dropping flood attempts before they touch `LTW.Simulation`.
   *Status 2026-08-08:* partly built, and in a different place than this sentence describes.
   `ICommandRateLimiter` and a per-seat token bucket exist **inside** `LTW.Simulation`
-  (`Authority/`), not in front of it, and are wired to **one** command — `EnqueueSend`. Every
-  other command (`PlaceTower`, `QueueSend`, `BuyCategoryTier`, the batch operations) is still
-  unthrottled. In-process that costs nothing; over a wire it is a flood surface. The in-simulation
+  (`Authority/`), not in front of it, and are wired to **three** commands as of 2026-08-09 —
+  `EnqueueSend`, `CancelQueuedSend` and `ClearSendQueue`. Cancel and clear take the same authority
+  and the same bucket as the enqueue they undo, deliberately: emptying another seat's queue is a
+  cheaper attack than filling one, and a cancel that trusted its argument would be the easier of the
+  two to reach. Every other command (`PlaceTower`, `QueueSend`, `BuyCategoryTier`, the batch
+  operations) is still unthrottled. In-process that costs nothing; over a wire it is a flood surface. The in-simulation
   limiter is the floor, not the transport-level defence this line promises.
   The bucket is measured in simulation ticks rather than wall clock, deliberately: a wall-clock
   limiter throttles the 300x batch harness while letting a real client through, which is the wrong

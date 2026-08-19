@@ -315,7 +315,29 @@ if it doesn't, the static LODs stay as sub-legibility fallbacks and this item cl
 
 ---
 
-## 43. Two bot profiles hoard gold and die holding it
+## 43. Two bot profiles hoard gold and die holding it — CLOSED 2026-08-09, by measurement
+
+**Re-measured before being worked on, and the premise no longer holds.** Three seeds, eight lanes,
+900 ticks each:
+
+| | when filed (2026-08-07) | measured 2026-08-09 |
+| --- | --- | --- |
+| gold held | ~29,000 | **79-126** |
+| sends per bot | rare (~2.5% of ticks) | **94-152 across three seeds** |
+
+Nothing was written to fix this. It was closed by the two changes that came between: the pressure
+threshold learning to scale with `MatchEscalationRules.CreepHealthPercentFor` (before which
+non-Greedy bots latched permanently "under pressure" and `TrySend` returned early forever), and
+role-based build orders, which stopped a bot stalling when the next tower its profile named was
+priced dearly in the line it had committed to.
+
+Recorded rather than deleted because the lesson is reusable: this was on the shortlist as "the
+biggest open design item" on the strength of a two-day-old number, and one diagnostic run retired it.
+Re-measure a balance finding before building on it. The diagnostic was deliberately NOT kept as a
+test — a permanent assertion around a problem that no longer exists is a maintenance cost with no
+signal behind it.
+
+### Original report
 
 Found 2026-08-07 in the same playthrough. Final state of the reference match:
 
