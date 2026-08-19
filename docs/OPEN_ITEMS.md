@@ -641,6 +641,12 @@ HUD migration will look worse than either endpoint until it finishes. Wave 3.1-3
 
 ## 11. Seven creeps have no animation, and the eight that do have one clip
 
+**Wave 2.4 (revenant, shade, swarm, wisp) has a plan: `docs/CREEP_RIG_WAVE_2_4_PLAN.md`.** It is
+deliberately not a plan to build four rigs — three of the four already carry deliberate procedural
+motion styles (`ClusterJitter`, `Shimmer`, `Hover`) and rigging suppresses most of that motion
+rather than adding to it, so the plan's first job is deciding per creep whether a skeleton is an
+improvement. Four answers, not four rigs.
+
 - **No Animator at all:** revenant, runner, serpent, shade, siege, swarm, wisp. Verified
   2026-07-31, the list is exactly right.
 - **The other eight have exactly one state, `Walk`.** No idle, attack, hit reaction, death
