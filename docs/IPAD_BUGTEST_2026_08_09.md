@@ -43,7 +43,8 @@ Remaining to take: **item 8** (Bastion art, has a live lead — `5e81e50` decima
 - **Not done, and not mine to do:** `OPEN_ITEMS.md` 45 (income pin) needs an owner decision between
   two conflicting documented properties; Arcane's missing brake is a deliberate design choice, not a
   gap; store enrolment needs an Apple account and a real reverse-domain. The four unrigged creeps
-  (Revenant, Shade, Swarm, Wisp) are real work nobody has started.
+  (Revenant, Shade, Swarm, Wisp) were **audited 2026-08-09 and need no rigs** — all four are
+  non-walkers. See `CREEP_RIG_WAVE_2_4_PLAN.md`.
 
 ---
 
@@ -425,8 +426,11 @@ re-doing them for tablet is the expensive order.
   entry (the promote step was skipped during integration), and the motion switch had no
   TwinCrescent case. Both are in now. Not yet sighted on a device, and the motion probe still
   needs a run once the editor releases the project lock.
-- **Four creeps are unrigged** — Revenant, Shade, Swarm, Wisp (item 11 wave 2.4). They have no
-  Animator at all and will not animate whatever else is fixed.
+- **Four creeps have no Animator** — Revenant, Shade, Swarm, Wisp (item 11 wave 2.4). **Audited
+  2026-08-09: none of them needs one.** All four are non-walkers — a stalk, a core with satellites,
+  a petal mass and a floating orb — and each already carries a procedural motion style, so they do
+  animate. The earlier wording here ("will not animate whatever else is fixed") was wrong: unrigged
+  has never meant unanimated. See `CREEP_RIG_WAVE_2_4_PLAN.md`.
 - **`m_CullingMode` on the rigged creeps** was set to `AlwaysAnimate` in `1145a0d` during the
   device freeze. Do not read the LOD fix (`8457192`) as proving that change unmotivated: the
   LOD bug fully explains the original report — including the tell that the builder kept
