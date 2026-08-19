@@ -47,6 +47,47 @@ the same kind of finding it recorded (four wheels at r=0.098, a closed coil, 52 
 **Exit criterion:** a one-line body-plan statement per creep, backed by numbers, of the kind wave
 2.3 produced. Not "it looks like a biped."
 
+### Step 1 results, 2026-08-09 — geometry half done, render half outstanding
+
+Measured on each prefab's LOD0 (the AIStaging `_prepared.fbx`; LOD1/2 live in `Production/LODs`).
+Ground band is the bottom 18% of height, the band wave 2.3 used. Columns are XY clusters at 22% of
+the footprint diagonal holding at least 8% of the band.
+
+| creep | band % of verts | columns (share of band) | band width / body width | band mass in outer half | sectors of 12 |
+| --- | --- | --- | --- | --- | --- |
+| revenant | 5.22 | 5 — 29.2 / 21.2 / 17.8 / 17.0 / 9.3 | **0.824** | 51.7% | 12 |
+| shade | **2.60** | **1 — 92.7** | **0.347** | 71.4% | **6** |
+| swarm | **8.14** | 5 — 42.9 / 18.5 / 14.9 / 12.7 / 11.0 | 0.767 | **24.4%** | 12 |
+| wisp | 7.33 | 4 — 28.6 / 25.7 / 24.6 / 21.0 | 0.633 | 58.6% | 12 |
+
+**Settled by geometry — two of four.**
+
+- **Shade: a single stalk, no legs.** One cluster holds 92.7% of a ground band that is itself the
+  smallest of the four and only a third as wide as the body, occupying half the sectors. This is
+  wave 2.3's runner finding restated — "one stalk, not four columns" — and it means a walk cycle has
+  nothing to walk on. **Recommend no rig; `Shimmer` is already the right read.**
+- **Swarm: a core with satellites, no gait.** It has the MOST ground-band mass of the four and the
+  LEAST of it at the periphery (24.4% against 51-71% for the others), so the mass is central with
+  smaller clusters around it. That is a cluster body, and `ConfigureSwarmCluster` already replaces
+  the single mesh with shards. **Recommend no rig.**
+
+**Not settled by geometry — the other two need the render check.**
+
+- **Wisp: four columns at 28.6 / 25.7 / 24.6 / 21.0.** Four near-equal columns is the one pattern
+  these numbers genuinely cannot read: it is what four legs look like AND what four-fold radial
+  symmetry looks like. Real legs usually weight front and back differently; this is almost uniform,
+  which leans radial — but leaning is not measuring. **Needs the game-camera render.**
+- **Revenant: the widest base of the four (0.824) with 51.7% peripheral mass across five columns.**
+  The most leg-like profile here, and the only genuine rig candidate — but five columns is not two,
+  so it may be a robe or ash skirt with tendrils rather than a biped. **Needs the game-camera
+  render**, and that render decides whether this wave produces any rig at all.
+
+**Method note for whoever runs the render half:** the first clustering pass used a 8% tolerance and
+returned 6-8 columns for every creep, which is fragmentation rather than structure — it could not
+tell a leg from a lump. The 22% tolerance above separates them, and `band_footprint_ratio` plus
+`band_mass_outer_half_pct` are what actually discriminate a stalk from legs. Numbers that agree with
+every hypothesis are not evidence; check the spread before trusting a column count.
+
 ## Step 2 — decide rig vs. keep procedural, per creep, in writing
 
 For each, answer: *what does a skeletal clip give a player that the current procedural style does
