@@ -52,7 +52,21 @@ public enum CommandRejectionReason
     /// to InvalidTier, where it reads better, would have shifted InsufficientIncome by one and
     /// silently changed what older replays mean.
     /// </remarks>
-    SendQueueFull
+    SendQueueFull,
+
+    /// <summary>
+    /// A cancel refused because the player has nothing of that creep queued to cancel.
+    /// </summary>
+    /// <remarks>
+    /// Appended, like every member since replay recording began: this enum is replayed from a seed,
+    /// so inserting anywhere but the end would renumber existing members and change what an
+    /// already-recorded replay means.
+    ///
+    /// Distinct from a silent success because a client needs to tell "your queue is now shorter"
+    /// from "there was nothing there" — the second is the one that should not animate a card.
+    /// </remarks>
+    NothingQueued,
+
 }
 
 public sealed class CommandResult

@@ -598,6 +598,91 @@ public sealed class LocalVerticalSlice
     }
 
     /// <summary>
+    /// Takes back the most recently queued send of one creep, before it has been paid for.
+    /// </summary>
+    /// <remarks>
+    /// Cancels the LAST matching entry rather than the first. The queue drains front-first, so the
+    /// front entry is the one about to be paid for and dispatched — cancelling that would take back
+    /// a different send than the one the player just added, which is the opposite of an undo. Last
+    /// matching is "un-tap", and on a touch screen a mis-tap is the mistake this exists for.
+    ///
+    /// Same seat authority and rate limiter as <see cref="EnqueueSend"/>, for the same reason: a
+    /// cancel that trusted its argument would let a client empty another player's queue, which is a
+    /// cheaper attack than filling one.
+    /// </remarks>
+    public VerticalSliceCommandResult CancelQueuedSend(PlayerId playerId, ContentId creepId)
+    {
+        var seat = seatAuthority.ResolveSeat(playerId);
+        if (seat is null)
+        {
+            return VerticalSliceCommandResult.Reject(CommandRejectionReason.InvalidPlayer);
+        }
+
+        playerId = seat.Value;
+
+        if (!enqueueRateLimiter.TryConsume(playerId, tick))
+        {
+            return VerticalSliceCommandResult.Reject(CommandRejectionReason.CooldownActive);
+        }
+
+        var command = new CancelQueuedSendCommand(playerId, tick, creepId);
+        var contentResult = commandValidator.Validate(command, content);
+        if (!contentResult.Accepted)
+        {
+            return VerticalSliceCommandResult.Reject(contentResult.RejectionReason);
+        }
+
+        if (!topology.HasPlayer(playerId))
+        {
+            return VerticalSliceCommandResult.Reject(CommandRejectionReason.InvalidPlayer);
+        }
+
+        // Deliberately NOT gated on elimination. An eliminated seat cannot enqueue, so anything left
+        // in its queue is stranded, and refusing to let it be cleared would be refusing to tidy up
+        // after a rule this class already enforces elsewhere.
+        if (!sendQueues.TryGetValue(playerId, out var queue))
+        {
+            return VerticalSliceCommandResult.Reject(CommandRejectionReason.NothingQueued);
+        }
+
+        var index = queue.FindLastIndex(queued => queued.Equals(creepId));
+        if (index < 0)
+        {
+            return VerticalSliceCommandResult.Reject(CommandRejectionReason.NothingQueued);
+        }
+
+        queue.RemoveAt(index);
+        return VerticalSliceCommandResult.Accept();
+    }
+
+    /// <summary>
+    /// Empties one seat's whole send queue.
+    /// </summary>
+    /// <remarks>
+    /// The bulk form of <see cref="CancelQueuedSend"/>, for "I queued the wrong thing ten times".
+    /// Reports how many entries went rather than a bare accept, because a UI that has just emptied
+    /// a queue needs to know whether to animate anything, and an empty queue is a legitimate state
+    /// rather than a failure — so this cannot reject the way the single cancel does.
+    /// </remarks>
+    public int ClearSendQueue(PlayerId playerId)
+    {
+        var seat = seatAuthority.ResolveSeat(playerId);
+        if (seat is null || !enqueueRateLimiter.TryConsume(seat.Value, tick))
+        {
+            return 0;
+        }
+
+        if (!sendQueues.TryGetValue(seat.Value, out var queue))
+        {
+            return 0;
+        }
+
+        var removed = queue.Count;
+        queue.Clear();
+        return removed;
+    }
+
+    /// <summary>
     /// Pays for as much of each seat's queue as it can afford this tick, oldest first.
     /// </summary>
     /// <remarks>

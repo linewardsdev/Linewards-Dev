@@ -615,6 +615,47 @@ namespace LTW.UnityClient.Simulation
                 ? 0
                 : simulation.GetSnapshot().QueuedSendCountFor(simulation.LocalPlayerId, creepId);
 
+        /// <summary>Takes back the local seat's most recent queued send of one creep.</summary>
+        /// <remarks>
+        /// The undo half of <c>SendCreep</c>. A queued tap is a statement of intent that has not
+        /// been paid for yet, so it can still be withdrawn — and on a touch screen the mis-tap is
+        /// the mistake worth being able to take back.
+        ///
+        /// Cancels the most recent rather than the next to go out; see
+        /// <c>LocalVerticalSlice.CancelQueuedSend</c> for why the other end would be the wrong one.
+        /// </remarks>
+        public VerticalSliceCommandResult CancelQueuedSend(LTW.Simulation.Content.ContentId creepId)
+        {
+            if (simulation is null)
+            {
+                return VerticalSliceCommandResult.Reject(CommandRejectionReason.MatchPaused);
+            }
+
+            return RefreshAfterAccepted(simulation.CancelQueuedSend(simulation.LocalPlayerId, creepId));
+        }
+
+        /// <summary>Empties the local seat's send queue, returning how many entries went.</summary>
+        /// <remarks>
+        /// For "I queued the wrong thing ten times". Returns a count rather than a result because an
+        /// already-empty queue is a normal state rather than a refusal — the caller uses the number
+        /// to decide whether anything is worth animating.
+        /// </remarks>
+        public int ClearSendQueue()
+        {
+            if (simulation is null)
+            {
+                return 0;
+            }
+
+            var removed = simulation.ClearSendQueue(simulation.LocalPlayerId);
+            if (removed > 0)
+            {
+                RefreshAfterAccepted(VerticalSliceCommandResult.Accept());
+            }
+
+            return removed;
+        }
+
         /// <summary>Total creeps waiting in the local seat's send queue.</summary>
         public int QueuedSendTotal() =>
             simulation is null ? 0 : simulation.GetSnapshot().SendQueueFor(simulation.LocalPlayerId).Count;

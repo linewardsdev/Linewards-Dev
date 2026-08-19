@@ -40,6 +40,73 @@ public sealed class SendQueueTests
 
     private static int Gold(LocalVerticalSlice slice) => slice.GetSnapshot().Players.Get(Seat).Gold.Amount;
 
+    /// <summary>
+    /// Cancelling takes back the send the player just added, not the one about to go out.
+    /// </summary>
+    /// <remarks>
+    /// The queue drains front-first, so the front entry is already paid for in intent — it is the
+    /// next thing to leave. Cancelling that would take back a DIFFERENT send than the one just
+    /// tapped, which is the opposite of an undo. Asserted through the surviving order rather than
+    /// through a count, because a count passes whichever end is removed.
+    /// </remarks>
+    [Fact]
+    public void Cancelling_removes_the_most_recent_of_that_creep()
+    {
+        var slice = Slice(0);
+        var brute = SampleVerticalSliceContent.BruteCreepId;
+        var runner = SampleVerticalSliceContent.SwarmCreepId;
+
+        Assert.True(slice.EnqueueSend(Seat, brute).Accepted);
+        Assert.True(slice.EnqueueSend(Seat, runner).Accepted);
+        Assert.True(slice.EnqueueSend(Seat, brute).Accepted);
+
+        Assert.True(slice.CancelQueuedSend(Seat, brute).Accepted);
+
+        // The FIRST brute must survive and keep its place ahead of the runner.
+        var queue = slice.SendQueueFor(Seat);
+        Assert.Equal(2, queue.Count);
+        Assert.Equal(brute, queue[0]);
+        Assert.Equal(runner, queue[1]);
+    }
+
+    [Fact]
+    public void Cancelling_something_that_is_not_queued_says_so()
+    {
+        var slice = Slice(0);
+        Assert.True(slice.EnqueueSend(Seat, SampleVerticalSliceContent.BruteCreepId).Accepted);
+
+        var result = slice.CancelQueuedSend(Seat, SampleVerticalSliceContent.SwarmCreepId);
+
+        Assert.False(result.Accepted);
+        Assert.Equal(CommandRejectionReason.NothingQueued, result.RejectionReason);
+        // And the queue it did not own is untouched.
+        Assert.Single(slice.SendQueueFor(Seat));
+    }
+
+    /// <summary>
+    /// A cancel cannot reach another seat's queue.
+    /// </summary>
+    /// <remarks>
+    /// The mirror of the enqueue authority test. Emptying someone else's queue is a cheaper attack
+    /// than filling it, so the seat has to come from the authority here too — in-process the
+    /// argument and the resolved seat are the same value, which is exactly why this must be pinned
+    /// now rather than when a client starts supplying the id over a wire.
+    /// </remarks>
+    [Fact]
+    public void Clearing_only_empties_the_callers_own_queue()
+    {
+        var slice = Slice(0);
+        var other = new PlayerId(2);
+        Assert.True(slice.EnqueueSend(Seat, SampleVerticalSliceContent.BruteCreepId).Accepted);
+        Assert.True(slice.EnqueueSend(other, SampleVerticalSliceContent.BruteCreepId).Accepted);
+
+        var removed = slice.ClearSendQueue(Seat);
+
+        Assert.Equal(1, removed);
+        Assert.Empty(slice.SendQueueFor(Seat));
+        Assert.Single(slice.SendQueueFor(other));
+    }
+
     [Fact]
     public void Ten_of_one_creep_may_wait_and_an_eleventh_is_refused()
     {
