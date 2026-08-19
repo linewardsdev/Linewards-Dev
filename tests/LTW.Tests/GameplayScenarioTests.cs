@@ -30,14 +30,15 @@ public sealed class GameplayScenarioTests
 
         output.WriteLine(evidence.ToString());
         Assert.True(evidence.AcceptedCommands >= 1);
-        // Rescaled with StartingLives 220 -> 100 (2026-08-09). These were never thresholds about
-        // lives in the abstract; they encode "this seat loses at most 2 lives in 80 ticks" and
-        // "these 3 seats lose at most 4 between them", which is what the scenario is actually
-        // about. Held at the same LOSS, restated against the new opening balance.
-        Assert.True(evidence.PlayerOneLives >= 98);
+        // Rescaled with StartingLives 220 -> 100 (2026-08-09), then 100 -> 40 (2026-08-19). These
+        // were never thresholds about lives in the abstract; they encode "this seat loses at most 2
+        // lives in 80 ticks" and "these 3 seats lose at most 4 between them", which is what the
+        // scenario is actually about. Held at the same LOSS both times, restated against the new
+        // opening balance.
+        Assert.True(evidence.PlayerOneLives >= 38);
         Assert.True(evidence.DamageEvents >= 1);
-        // 3 seats x 100 opening lives, less the same 4-life allowance as before.
-        Assert.True(evidence.TotalLives >= 296);
+        // 3 seats x 40 opening lives, less the same 4-life allowance as before.
+        Assert.True(evidence.TotalLives >= 116);
         Assert.Null(slice.MatchSummary);
     }
 
@@ -45,6 +46,11 @@ public sealed class GameplayScenarioTests
     public void Normal_pressure_scenario_records_income_and_active_combat()
     {
         var slice = new LocalVerticalSlice(SampleVerticalSliceContent.Create(), ThreeLaneOptions(), enableBots: false);
+        // The scenario is about a defence being overwhelmed, not about P3's budget. Runner, Brute and
+        // Siege total 136 gold on the 2x creep roster against a 100-gold opening, so the Siege send
+        // below started failing on price. Granted rather than dropped, because the Siege is what makes
+        // this "overwhelmed" rather than "held" — see the note on that send.
+        slice.GrantLocalPlaytestGold(new PlayerId(3), new Gold(200));
         Assert.True(slice.PlaceTower(new PlayerId(1), new LaneId(1), SampleVerticalSliceContent.TowerId, new GridPosition(2, 8)).Accepted);
         Assert.True(slice.PlaceTower(new PlayerId(1), new LaneId(1), SampleVerticalSliceContent.ControlTowerId, new GridPosition(4, 8)).Accepted);
         Assert.True(slice.QueueSend(new PlayerId(3), SampleVerticalSliceContent.CreepId).Accepted);
@@ -136,7 +142,12 @@ public sealed class GameplayScenarioTests
         var evidence = CaptureEvidence(slice);
 
         output.WriteLine(evidence.ToString());
-        Assert.True(evidence.AcceptedCommands >= 10);
+        // 10 to 5 with the 2x creep roster (2026-08-19). A command is a purchase, and every purchase
+        // in this scenario costs twice what it did, so the same gold committed over the same 360 ticks
+        // buys half as many of them — the bar is restated at the same SPEND, the way the lives bounds
+        // above are restated at the same loss. Measured at 7 here, and the exchange is emphatically
+        // real: 69 damage events and 25 leaks.
+        Assert.True(evidence.AcceptedCommands >= 5);
         Assert.True(evidence.MultiQuantityCommands >= 1);
         Assert.True(evidence.LeakEvents >= 1);
 

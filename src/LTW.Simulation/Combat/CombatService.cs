@@ -1314,11 +1314,18 @@ public sealed class CombatService
     /// Target max health that buys one full multiple of the Spore Cloud Bloom's base damage.
     /// </summary>
     /// <remarks>
-    /// 24 is not arbitrary: it is the old formula's divisor of 6 times the tower's authored damage of 4, so
-    /// this reproduces every value the previous version produced across the whole roster — 4 up to Brute at
+    /// 24 was not arbitrary: it was the old formula's divisor of 6 times the tower's authored damage of 4, so
+    /// it reproduced every value the previous version produced across the whole roster — 4 up to Brute at
     /// 24 health, then 5 / 5 / 6 / 7 / 8 / 10 / 15 for Serpent through Colossus.
+    ///
+    /// Doubled to 48 on 2026-08-19 alongside the 2x creep health roster, and it must keep tracking that
+    /// roster. This reads ABSOLUTE authored health, so a roster-wide health change silently rescales one
+    /// tower's damage against exactly the targets it exists to answer — doubling the divisor with the
+    /// health leaves every ratio in TowerMechanicTests unchanged, which is the property being defended.
+    /// A balance shift to Rot may well be wanted one day; it should be made deliberately and measured,
+    /// not arrive as a side effect of repricing creeps.
     /// </remarks>
-    private const int RotHealthPerDamageMultiple = 24;
+    private const int RotHealthPerDamageMultiple = 48;
 
     /// <summary>
     /// Spore Cloud Bloom's damage: a fraction of the target's AUTHORED max health, floored at the

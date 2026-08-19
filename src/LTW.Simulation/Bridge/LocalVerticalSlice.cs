@@ -32,7 +32,7 @@ public sealed class LocalVerticalSlice
     /// mechanism to another's timing. This changes how much damage a seat can take, and lets
     /// escalation keep doing what it does.
     /// </remarks>
-    private const int StartingLives = 100;
+    private const int StartingLives = 40;
 
     private readonly ContentCatalog content;
     private readonly EconomyService economy;

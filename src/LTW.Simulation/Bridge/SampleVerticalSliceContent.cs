@@ -229,11 +229,11 @@ public static class SampleVerticalSliceContent
             },
             new[]
             {
-                new CreepDefinition(CreepId, "Runner", new Gold(10), new Income(1), new Gold(1), new Gold(2), maxHealth: 13, speedPerSecond: 1, categoryIndex: 0),
-                new CreepDefinition(BruteCreepId, "Brute", new Gold(18), new Income(2), new Gold(2), new Gold(3), maxHealth: 24, speedPerSecond: 1, categoryIndex: 0),
-                new CreepDefinition(SwarmCreepId, "Swarm", new Gold(6), new Income(1), new Gold(1), new Gold(1), maxHealth: 5, speedPerSecond: 2, categoryIndex: 0),
-                new CreepDefinition(ShadeCreepId, "Shade", new Gold(24), new Income(3), new Gold(2), new Gold(4), maxHealth: 14, speedPerSecond: 2, categoryIndex: 0),
-                new CreepDefinition(SiegeCreepId, "Siege", new Gold(40), new Income(4), new Gold(4), new Gold(6), maxHealth: 48, speedPerSecond: 1, categoryIndex: 0),
+                new CreepDefinition(CreepId, "Runner", new Gold(20), new Income(1), new Gold(1), new Gold(2), maxHealth: 26, speedPerSecond: 1, categoryIndex: 0),
+                new CreepDefinition(BruteCreepId, "Brute", new Gold(36), new Income(2), new Gold(2), new Gold(3), maxHealth: 48, speedPerSecond: 1, categoryIndex: 0),
+                new CreepDefinition(SwarmCreepId, "Swarm", new Gold(12), new Income(1), new Gold(1), new Gold(1), maxHealth: 10, speedPerSecond: 2, categoryIndex: 0),
+                new CreepDefinition(ShadeCreepId, "Shade", new Gold(48), new Income(3), new Gold(2), new Gold(4), maxHealth: 28, speedPerSecond: 2, categoryIndex: 0),
+                new CreepDefinition(SiegeCreepId, "Siege", new Gold(80), new Income(4), new Gold(4), new Gold(6), maxHealth: 96, speedPerSecond: 1, categoryIndex: 0),
 
                 // Category 1, "SUPPORT". These five stopped being a stat tier and became a role.
                 //
@@ -265,10 +265,10 @@ public static class SampleVerticalSliceContent
                 // deliberately poor: none of these five is worth sending alone, and the roster
                 // domination check exempts them for the same reason it exempts Relay Ward — their
                 // value is not in their stat line.
-                new CreepDefinition(WispCreepId, "Crystal Wisp", new Gold(12), new Income(1), new Gold(1), new Gold(1), maxHealth: 6, speedPerSecond: 1, categoryIndex: 1, ignoresSendCooldown: true, movementCost: 4, support: CreepSupportRole.Pacesetter),
-                new CreepDefinition(RevenantCreepId, "Ash Revenant", new Gold(19), new Income(2), new Gold(1), new Gold(2), maxHealth: 14, speedPerSecond: 1, categoryIndex: 1, ignoresSendCooldown: true, movementCost: 4, support: CreepSupportRole.Mender),
-                new CreepDefinition(ObsidianBruteCreepId, "Obsidian Brute", new Gold(30), new Income(3), new Gold(3), new Gold(4), maxHealth: 40, speedPerSecond: 1, categoryIndex: 1, ignoresSendCooldown: true, movementCost: 4, support: CreepSupportRole.Bulwark),
-                new CreepDefinition(SerpentCreepId, "Serpent Coil", new Gold(27), new Income(2), new Gold(2), new Gold(3), maxHealth: 26, speedPerSecond: 1, categoryIndex: 1, ignoresSendCooldown: true, movementCost: 4, support: CreepSupportRole.Binder),
+                new CreepDefinition(WispCreepId, "Crystal Wisp", new Gold(24), new Income(1), new Gold(1), new Gold(1), maxHealth: 12, speedPerSecond: 1, categoryIndex: 1, ignoresSendCooldown: true, movementCost: 4, support: CreepSupportRole.Pacesetter),
+                new CreepDefinition(RevenantCreepId, "Ash Revenant", new Gold(38), new Income(2), new Gold(1), new Gold(2), maxHealth: 28, speedPerSecond: 1, categoryIndex: 1, ignoresSendCooldown: true, movementCost: 4, support: CreepSupportRole.Mender),
+                new CreepDefinition(ObsidianBruteCreepId, "Obsidian Brute", new Gold(60), new Income(3), new Gold(3), new Gold(4), maxHealth: 80, speedPerSecond: 1, categoryIndex: 1, ignoresSendCooldown: true, movementCost: 4, support: CreepSupportRole.Bulwark),
+                new CreepDefinition(SerpentCreepId, "Serpent Coil", new Gold(54), new Income(2), new Gold(2), new Gold(3), maxHealth: 52, speedPerSecond: 1, categoryIndex: 1, ignoresSendCooldown: true, movementCost: 4, support: CreepSupportRole.Binder),
 
                 // The exception, and the category's payoff. It walks the direct route straight over
                 // the maze — the most disruptive thing a creep can do, which is why it is costed to
@@ -279,20 +279,20 @@ public static class SampleVerticalSliceContent
                 // cooldown, so a defence busy with the wave cannot spare a shot for it. Sent alone it
                 // simply dies. It is the only unit on the roster whose value is entirely a function
                 // of what else was sent with it.
-                new CreepDefinition(TurretWalkerCreepId, "Spire Turret Walker", new Gold(23), new Income(2), new Gold(4), new Gold(5), maxHealth: 10, speedPerSecond: 2, categoryIndex: 1, ignoresSendCooldown: true, ignoresMaze: true),
+                new CreepDefinition(TurretWalkerCreepId, "Spire Turret Walker", new Gold(46), new Income(2), new Gold(4), new Gold(5), maxHealth: 20, speedPerSecond: 2, categoryIndex: 1, ignoresSendCooldown: true, ignoresMaze: true),
 
                 // Category 3 ("ELITE") — first pass, tunable. A deliberately later tier: costs
                 // and health run past the first ten, which is self-limiting because cost is the
                 // gate. Left on the normal send cooldown (no ignoresSendCooldown) unlike
                 // Category 2, since price already paces them.
-                new CreepDefinition(ZephyrCreepId, "Zephyr Wraith", new Gold(22), new Income(2), new Gold(2), new Gold(3), maxHealth: 12, speedPerSecond: 3, categoryIndex: 2),
-                new CreepDefinition(BurrowerCreepId, "Fracture Burrower", new Gold(26), new Income(2), new Gold(3), new Gold(4), maxHealth: 44, speedPerSecond: 1, categoryIndex: 2),
-                new CreepDefinition(StalkerCreepId, "Umbral Stalker", new Gold(28), new Income(3), new Gold(2), new Gold(4), maxHealth: 20, speedPerSecond: 2, categoryIndex: 2),
-                new CreepDefinition(WardenCreepId, "Aegis Warden", new Gold(34), new Income(3), new Gold(3), new Gold(4), maxHealth: 55, speedPerSecond: 1, categoryIndex: 2),
+                new CreepDefinition(ZephyrCreepId, "Zephyr Wraith", new Gold(44), new Income(2), new Gold(2), new Gold(3), maxHealth: 24, speedPerSecond: 3, categoryIndex: 2),
+                new CreepDefinition(BurrowerCreepId, "Fracture Burrower", new Gold(52), new Income(2), new Gold(3), new Gold(4), maxHealth: 88, speedPerSecond: 1, categoryIndex: 2),
+                new CreepDefinition(StalkerCreepId, "Umbral Stalker", new Gold(56), new Income(3), new Gold(2), new Gold(4), maxHealth: 40, speedPerSecond: 2, categoryIndex: 2),
+                new CreepDefinition(WardenCreepId, "Aegis Warden", new Gold(68), new Income(3), new Gold(3), new Gold(4), maxHealth: 110, speedPerSecond: 1, categoryIndex: 2),
                 // Named Colossus rather than Siege to keep it distinct from creep.siege, which it
-                // deliberately outclasses (90 health / 52 gold vs 48 / 40) rather than duplicates
+                // deliberately outclasses (156 health / 104 gold vs 96 / 80) rather than duplicates
                 // — same call made for Obsidian Brute against Brute.
-                new CreepDefinition(ColossusCreepId, "Siege Colossus", new Gold(52), new Income(5), new Gold(5), new Gold(8), maxHealth: 78, speedPerSecond: 1, categoryIndex: 2)
+                new CreepDefinition(ColossusCreepId, "Siege Colossus", new Gold(104), new Income(5), new Gold(5), new Gold(8), maxHealth: 156, speedPerSecond: 1, categoryIndex: 2)
             },
             Array.Empty<TechDefinition>(),
             new[] { new MapDefinition(new ContentId("map.vertical-slice"), "Vertical Slice", width: 7, height: 16, new GridPosition(3, 0), new GridPosition(3, 15), Array.Empty<GridPosition>()) },

@@ -129,7 +129,8 @@ public sealed class VerticalSliceBridgeTests
             tower.OwnerId.Equals(new PlayerId(1)) &&
             tower.LaneId.Equals(new LaneId(1)) &&
             tower.Position.Equals(new GridPosition(1, 1)));
-        Assert.Equal(76, snapshot.Players.Get(new PlayerId(1)).Gold.Amount);
+        // 100 starting - 14 tower - 20 runner. The runner doubled to 20 with the 2x creep roster.
+        Assert.Equal(66, snapshot.Players.Get(new PlayerId(1)).Gold.Amount);
         Assert.Equal(11, snapshot.Players.Get(new PlayerId(1)).Income.Amount);
         Assert.Contains(events, simulationEvent => simulationEvent is TowerPlacedEvent);
         Assert.Contains(events, simulationEvent => simulationEvent is CreepSpawnedEvent);
@@ -592,6 +593,12 @@ public sealed class VerticalSliceBridgeTests
     public void Expanded_roster_content_accepts_new_tower_and_creep_commands()
     {
         var simulation = new LocalVerticalSlice(SampleVerticalSliceContent.Create(), enableBots: false);
+        // This test is about the expanded roster's content being ACCEPTED, not about affording it.
+        // Shade at 48 and Siege at 80 no longer both fit inside the 100 opening gold since the 2x
+        // creep roster, so the sends started failing on price for a reason the test does not care
+        // about. Granting is the honest fix; stretching the tick loop until income covers it would
+        // hide an affordability assertion inside a content test.
+        simulation.GrantLocalPlaytestGold(new PlayerId(1), new Gold(200));
 
         var pulsePreview = simulation.PreviewPlaceTower(new PlayerId(1), new LaneId(1), SampleVerticalSliceContent.PulseTowerId, new GridPosition(1, 1));
         var prismPreview = simulation.PreviewPlaceTower(new PlayerId(1), new LaneId(1), SampleVerticalSliceContent.PrismTowerId, new GridPosition(5, 1));
@@ -1092,7 +1099,14 @@ public sealed class VerticalSliceBridgeTests
             .WithLane(8, enabled: false);
         var simulation = new LocalVerticalSlice(SampleVerticalSliceContent.Create(), options);
 
-        for (var tick = 0; tick < 150; tick++)
+        // 150 to 200 for the 2x creep roster (2026-08-19). TakeOpeningTurn sends one creep before
+        // the coverage gate applies, that send doubled from 10 to 20 gold, and with the profile's
+        // 20-gold reserve floor on top the bot can no longer afford its SECOND opening tower. It
+        // then builds one tower per income payout, so the 4th lands at tick 150 rather than 100 —
+        // the ramp is one payout slower, the shape is unchanged. Traced out to tick 400: it sits
+        // at exactly 4 while income climbs 11 -> 18, so the plateau is still the send choice this
+        // test exists to distinguish from a rebuilt hard cap.
+        for (var tick = 0; tick < 200; tick++)
         {
             simulation.AdvanceOneTick();
         }
@@ -1120,8 +1134,11 @@ public sealed class VerticalSliceBridgeTests
 
         // Now dump heavy pressure into P2's own lane directly from P1 (P1's next carousel
         // opponent is P2), and confirm P2 stops queuing new sends while towers keep being added,
-        // instead of sending regardless. Brute (18 gold, 24 health) at quantity 5 stays within
-        // P1's starting 100 gold while comfortably clearing the pressure threshold.
+        // instead of sending regardless. Brute at quantity 5 comfortably clears the pressure
+        // threshold; since the 2x creep roster that is 180 gold rather than 90, so it no longer
+        // fits inside P1's starting 100. Granted rather than reduced in quantity, because the
+        // amount of pressure is the thing this test is holding fixed.
+        simulation.GrantLocalPlaytestGold(new PlayerId(1), new Gold(200));
         Assert.True(simulation.QueueSend(new PlayerId(1), SampleVerticalSliceContent.BruteCreepId, quantity: 5).Accepted);
 
         // Assert on the tick of P2's decisions rather than how many appear in RecentDecisions.

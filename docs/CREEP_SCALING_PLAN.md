@@ -84,6 +84,64 @@ definitions), `StartingLives` to 40, `MatchEscalationRules` to StartTick 700 / P
 80, then work the 22 failures one at a time asking of each whether the assertion is about a number
 that moved or a property that broke.
 
+## Landed 2026-08-19 — 329 of 331 green
+
+The three edits above are in. Working the failures one at a time (23 on this branch, not 22 —
+category tiers had landed in between) turned up **two real defects and one open question**, which is
+the whole reason for doing them individually.
+
+### Defect 1: Rot silently doubled
+
+`CombatService.RotHealthPerDamageMultiple` reads ABSOLUTE authored max health, so doubling the
+roster doubled Spore Cloud's damage against exactly the fat targets it exists to answer — a buff
+nobody asked for, arriving as a side effect of repricing creeps. Doubled the divisor 24 -> 48 with
+the health. All six `TowerMechanicTests` Rot cases then passed **with no test edits at all**, because
+they assert RATIOS; that they went green untouched is the evidence the call was right.
+
+### Defect 2: bots stop attacking forever
+
+The serious one. `BotController.TakeTurn` gives sending first claim on a tick's gold, which is only
+enough while the send is affordable on the tick it is wanted. When a creep costs more than the
+surplus one income payout brings, `TryBuild` (which has no cap) spends the difference on another
+tower every tick and the balance never reaches the creep's price. Income only rises by sending, so
+the bot cannot grow out of it — a closed loop.
+
+Measured on the heavy scenario: two Greedy bots built **44 towers and sent nothing after tick 60**,
+zero creeps on the board from tick 240 out to tick 900, income frozen at 14 and 16, match never
+ending. The reprice exposed this rather than caused it — at the old prices the cheapest wall
+happened to sit under one payout's surplus.
+
+Fixed with `SendSavingsFor`: a bot that has gone `SendStarvationTicks` (50, one income payout)
+without sending holds back the price of its cheapest wall from tower spending. Deliberately inert
+otherwise — a first attempt that saved whenever a send was unaffordable made sends strictly dominate
+and produced 58 sends with **zero** towers, as broken as the starvation it replaced. The window was
+swept: by tick 900, 17 sends / 25 towers at 50, 11 / 35 at 100, 8 / 40 at 150.
+
+### Open question: category tiers are squeezed out
+
+**Not resolved, and deliberately not decided here.** Tier prices are absolute gold constants
+(`CategoryTierRules.TowerLineCost` 140/360, `SendCategoryCost` 120/300) calibrated against the 1x
+economy. The reprice deliberately leaves starting gold and income alone — that is the mechanism by
+which the same gold buys fewer bodies — so every fixed-price feature gets relatively dearer.
+
+Measured, three lanes, seed 1:
+
+| | first tier bought | first tower upgrade | peak tier | towers upgraded | match ends |
+| --- | --- | --- | --- | --- | --- |
+| tier costs as shipped | tick 3000 | never | 1 | 0 | 3167 |
+| tier costs halved | tick 2150 | tick 2500 | 3 | 56 | 4687 |
+
+At shipped prices the feature is effectively dead: the first tier is bought 167 ticks before the
+match ends and no tower is ever upgraded. Halving revives it fully but costs **+48% match length**,
+which is a direct hit to the thing this whole line of work exists to protect.
+
+`BotMazingTests.Bots_buy_category_tiers_on_the_side_their_profile_favours` and
+`Bots_upgrade_the_towers_they_have_already_built` are the two remaining red tests, and they are
+**correctly** red — they assert a property that is now false. They should not be restated to pass.
+The options are to reprice tiers and accept slower matches, to accept tiers as a late-game luxury
+and weaken those tests knowingly, or to change what bots prioritise. That is a balance decision on
+another session's feature and wants an owner.
+
 ## What to try next, in order
 
 1. ~~**Steepen escalation again on top of 2x creeps.**~~ **Done — see above.** The two levers were only ever measured
