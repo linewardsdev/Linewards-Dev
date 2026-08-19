@@ -641,7 +641,13 @@ HUD migration will look worse than either endpoint until it finishes. Wave 3.1-3
 
 ## 11. Seven creeps have no animation, and the eight that do have one clip
 
-**Wave 2.4 (revenant, shade, swarm, wisp) has a plan: `docs/CREEP_RIG_WAVE_2_4_PLAN.md`.** It is
+**Wave 2.4 audited 2026-08-09: all four are non-walkers and the wave produces NO rigs.** Shade is a
+single stalk, swarm a core with satellites, revenant a layered petal mass, wisp a floating orb in a
+gyroscopic ring — measured, then confirmed by match-camera render. See
+`docs/CREEP_RIG_WAVE_2_4_PLAN.md`. What remains is confirming each one's procedural motion style
+fits its body plan, not rigging.
+
+**Original plan note:** It is
 deliberately not a plan to build four rigs — three of the four already carry deliberate procedural
 motion styles (`ClusterJitter`, `Shimmer`, `Hover`) and rigging suppresses most of that motion
 rather than adding to it, so the plan's first job is deciding per creep whether a skeleton is an

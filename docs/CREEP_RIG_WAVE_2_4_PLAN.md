@@ -82,6 +82,34 @@ the footprint diagonal holding at least 8% of the band.
   so it may be a robe or ash skirt with tendrils rather than a biped. **Needs the game-camera
   render**, and that render decides whether this wave produces any rig at all.
 
+### Step 1 render half, 2026-08-09 — all four settled, and the answer is zero rigs
+
+Rendered from the ACTUAL match camera via `blender_game_camera.render_game_camera_frames`, not
+`blender_render_model_preview`, which builds its own camera — using that would repeat the exact
+mistake the shared camera module exists to prevent, and which item 4 was filed over. Images kept in
+`docs/art-pipeline/wave-2-4-body-plan/`.
+
+- **Revenant — a layered petal/shard mass, no legs.** A closed bundle of overlapping blades under a
+  pointed crown. The five columns and 51.7% peripheral mass are the fanned skirt reaching the
+  ground, not limbs. The only rig candidate in the wave, and it is not one.
+- **Wisp — a crystal orb inside a gyroscopic ring assembly, no legs.** Radially symmetric. The four
+  near-equal columns are ring segments, which is what the suspiciously uniform 28.6/25.7/24.6/21.0
+  weighting was pointing at. Its prefab also sits at `y: 0.5` — authored half a unit off the ground,
+  where Revenant sits at 0. It floats, and the geometry agrees.
+
+**Conclusion: wave 2.4 produces no rigs.** All four creeps are non-walkers — a stalk (shade), a core
+with satellites (swarm), a petal mass (revenant) and a floating orb (wisp). None has a limb to
+articulate, and rigging would REPLACE the procedural motion each already carries with a walk cycle
+for legs that do not exist. That is the Brute's invisible leg rig, four more times.
+
+This is item 11 closed by four answers, exactly as this plan was written to allow. What remains is
+not rigging but confirming each creep's motion style is the right one for its body plan — a much
+smaller job, and steps 3 and 4 below do not apply.
+
+Wave 2.3 found none of its three had legs. Wave 2.4 found none of its four had legs. Seven creeps
+across two waves, and the standing rule caught every one: **the roster is mostly not walkers, and
+"unrigged" has never been the same finding as "unanimated"**.
+
 **Method note for whoever runs the render half:** the first clustering pass used a 8% tolerance and
 returned 6-8 columns for every creep, which is fragmentation rather than structure — it could not
 tell a leg from a lump. The 22% tolerance above separates them, and `band_footprint_ratio` plus
