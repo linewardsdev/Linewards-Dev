@@ -1151,6 +1151,34 @@ Same shape as item 39 — a tool and its data disagree, and the tool wins quietl
 
 ---
 
+## 47. The send-queue cancel exists but nothing on screen reaches it
+
+Filed 2026-08-09, the same day the cancel was built.
+
+`CancelQueuedSend` and `ClearSendQueue` are done, tested and merged, and
+`UnityCommandAdapter` exposes both. **No control calls either**, so from a player's side the send
+queue is still one-way and the checklist item this closed — "a mis-tap on a phone is likely and the
+only way out is to let it drain" — is still true in the hands.
+
+This is worth a numbered item rather than a note because the shape is a known trap: the simulation
+is green, the tests pass, the docs describe a working feature, and none of that is visible to
+anyone playing. A future reader grepping for `CancelQueuedSend` finds a complete implementation and
+would reasonably conclude the work is finished.
+
+**Why it was left:** the send dock is being actively reshaped by the tablet-layout work
+(`fix/tablet-viewport`, and the rail/`HasSideRails` split in `TouchPlacementController.Gui`).
+Placing an affordance into a surface another session is rewriting invites a conflict that neither
+side would notice until it shipped. This is a sequencing decision, not a difficulty one.
+
+**What it needs:** one affordance on the send card. A long press, or a tap on the existing count
+badge — the badge is already drawn and already means "how many are queued", which makes it the
+cheapest place to hang "remove one". `ClearSendQueue` wants a separate home, since a full clear
+should not be reachable by the same gesture that removes one.
+
+**How to know it is done:** queue three of a creep, cancel once, and see the badge go to two without
+a creep having been sent. There is no test to write here that is not already written — the
+behaviour is pinned by `SendQueueTests`; what is missing is exclusively the control.
+
 ## 39. Every creep *and tower* body material is at smoothness 0.42 against a constant of 0.45, so the tuning validators fail roster-wide
 
 Found 2026-08-03 while validating the item 19 emissive work, and unrelated to it.

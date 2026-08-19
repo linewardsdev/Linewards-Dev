@@ -430,7 +430,7 @@ simulation pays for it when it can.
       that creep — the queue drains front-first, so taking the front entry would withdraw a different
       send than the one just tapped. `ClearSendQueue` empties the seat. Both carry the same seat
       authority and rate limiter as the enqueue.
-- [ ] **No button reaches the cancel yet.** The simulation and the client adapter are done; the send
+- [ ] **No button reaches the cancel yet** (`OPEN_ITEMS.md` 47). The simulation and the client adapter are done; the send
       dock still has no affordance, so a player cannot use it. A long press on the card, or a tap on
       the count badge, is still the suggestion. Deliberately not placed while the tablet-layout work
       is reshaping that surface — this is the remaining half.

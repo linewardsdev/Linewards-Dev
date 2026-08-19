@@ -97,7 +97,9 @@ states intent; the simulation pays for it when it can. Up to ten of any one cree
 A queued tap can be taken back. `CancelQueuedSend` removes the **last** matching entry rather than
 the first: the queue drains front-first, so the front entry is the next thing to leave, and
 cancelling it would withdraw a different send than the one just tapped — the opposite of an undo.
-`ClearSendQueue` is the bulk form and returns a count rather than a result, because an already-empty
+**No control on screen reaches either yet** — `OPEN_ITEMS.md` 47. The commands and the client
+adapter are done; the send dock has no affordance, so from a player's side the queue is still
+one-way. `ClearSendQueue` is the bulk form and returns a count rather than a result, because an already-empty
 queue is a normal state rather than a refusal. Neither is gated on elimination: an eliminated seat
 cannot enqueue, so whatever remains in its queue is stranded, and refusing to clear it would be
 refusing to tidy up after a rule enforced elsewhere.

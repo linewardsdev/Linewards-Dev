@@ -38,7 +38,7 @@ Remaining to take: **item 8** (Bastion art, has a live lead — `5e81e50` decima
   before building on it.
 - **The send queue can now be undone.** `CancelQueuedSend` and `ClearSendQueue`, with the same seat
   authority and rate limiter as the enqueue. **The client adapter is wired but no button calls it
-  yet** — the send dock needs a cancel affordance, deliberately not placed while the tablet-layout
+  yet — filed as `OPEN_ITEMS.md` 47** — the send dock needs a cancel affordance, deliberately not placed while the tablet-layout
   work is reshaping that surface. That is the one loose end from this pass.
 - **Not done, and not mine to do:** `OPEN_ITEMS.md` 45 (income pin) needs an owner decision between
   two conflicting documented properties; Arcane's missing brake is a deliberate design choice, not a
