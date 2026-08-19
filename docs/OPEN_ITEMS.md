@@ -1163,6 +1163,33 @@ Same shape as item 39 — a tool and its data disagree, and the tool wins quietl
 
 ---
 
+## 48. The send dock's category cards render their content over the card art
+
+Reported from a local play session 2026-08-09, with a screenshot. Distinct from item 47 and from
+the dock height fixed the same day — this is the CARDS, not the panel.
+
+Three faults visible on all three picker cards (CORE / SUPPORT / ELITE):
+
+1. **The label sits on the art's frame** rather than inside its inner panel. `DrawCategoryCard`
+   places the label at `rect.height * 0.20` and "5 SENDS" at `0.44`, both fractions of the WHOLE
+   card. The art is a bordered frame whose usable interior is inset from that rect, so a fraction of
+   the outer height lands on the border.
+2. **The tier button is clipped.** `NEED +60` is cut off at both ends, so the row is being drawn
+   into less width than it asks for.
+3. **A translucent square sits in each card's upper-left corner**, over the art. Unexplained; it
+   looks like a chrome or state overlay drawn at the wrong rect rather than anything deliberate.
+
+**Why fractions of the outer rect are the wrong basis:** the same reasoning
+`RuntimeUiChrome.CategoryCardRect` already applies to the card's outer size — derive from the art
+rather than assume — has never been applied to what goes INSIDE it. The card art has a known inner
+region, and every label should be laid out against that, not against the card's bounding box. Until
+it is, any change to the art's border thickness silently moves the text onto or off the frame.
+
+**Not attempted here** because it wants the art's inner-region inset measured from the source PNG
+rather than guessed, and a capture to confirm — the same discipline `TowerMotionAmplitudeProbe`
+exists to enforce for motion. Guessing an inset would land in exactly the same place by a different
+route.
+
 ## 47. The send-queue cancel exists but nothing on screen reaches it
 
 Filed 2026-08-09, the same day the cancel was built.

@@ -91,18 +91,60 @@ namespace LTW.UnityClient.UI
             return new Rect(frame.xMax - launcherWidth - 12f * scale, frame.yMax - launcherHeight - MobileViewportLayout.BottomMargin(scale), launcherWidth, launcherHeight);
         }
 
+        /// <summary>
+        /// Vertical offset of the card row inside the dock — below the title and gold readout.
+        /// </summary>
+        private const float DockContentTop = 84f;
+
+        /// <summary>Gap between cards, and the dock's own bottom margin under them.</summary>
+        private const float DockCardGap = 8f;
+
         private static Rect PanelRect(float scale, Rect frame)
         {
             var width = Mathf.Min(frame.width - 16f * scale, 520f * scale);
-            var height = 330f * scale;
+
+            // Derived from the card row rather than fixed at 330, which is what left the picker
+            // with a band of empty panel under its cards and pushed the board up to make room for
+            // nothing. A card's height follows the art's aspect and the panel's WIDTH, so it can be
+            // computed here without knowing the height — no circularity, and the clamp inside
+            // CategoryCardRect (which gives up width to preserve aspect when the panel is too
+            // short) can no longer fire in the picker, because the panel is now exactly tall enough.
+            //
+            // Only the picker is derived. A selected category draws a five-creep grid whose rows are
+            // a different shape, and sizing that from the picker's arithmetic would be a guess of
+            // the same kind this replaces.
+            var cardWidth = (width - 24f * scale - DockCardGap * scale * (CategoryLabels.Length - 1)) / CategoryLabels.Length;
+            var pickerHeight = (DockContentTop + DockCardGap) * scale + cardWidth / RuntimeUiChrome.CommandCardArtAspect;
+            var height = selectedCategoryForLayout < 0 ? pickerHeight : 330f * scale;
             var launcherClearance = 136f * scale;
             return new Rect(frame.xMax - width - 8f * scale, frame.yMax - height - MobileViewportLayout.BottomMargin(scale) - launcherClearance, width, height);
+        }
+
+        /// <summary>
+        /// Mirror of <c>selectedCategory</c> for <see cref="PanelRect"/>, which is static.
+        /// </summary>
+        /// <remarks>
+        /// PanelRect is static because the board camera asks for the dock's extent through
+        /// RuntimeUiChrome without holding an instance. The dock's height now depends on which
+        /// state it is in, so that state has to be reachable from a static context. Written in one
+        /// place — the SelectedCategory setter below — so the mirror cannot drift from the field.
+        /// </remarks>
+        private static int selectedCategoryForLayout = -1;
+
+        private int SelectedCategory
+        {
+            get => selectedCategory;
+            set
+            {
+                selectedCategory = value;
+                selectedCategoryForLayout = value;
+            }
         }
 
         public void CloseDock()
         {
             isExpanded = false;
-            selectedCategory = -1;
+            SelectedCategory = -1;
         }
 
         public void Initialize(UnityCommandAdapter adapter, PlacementFeedbackView feedback)
@@ -211,7 +253,7 @@ namespace LTW.UnityClient.UI
             if (touchPlacement?.IsTowerPaletteExpanded == true)
             {
                 isExpanded = false;
-                selectedCategory = -1;
+                SelectedCategory = -1;
                 return;
             }
 
@@ -337,7 +379,7 @@ namespace LTW.UnityClient.UI
                 var cardRect = RuntimeUiChrome.CategoryCardRect(rect, buttonY, gap, category, CategoryLabels.Length, scale);
                 if (DrawCategoryCard(cardRect, CategoryLabels[category], accents[category], scale))
                 {
-                    selectedCategory = category;
+                    SelectedCategory = category;
                 }
 
                 DrawCategoryTier(cardRect, category, accents[category], gold, scale);
