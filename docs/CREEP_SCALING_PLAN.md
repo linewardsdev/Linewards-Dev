@@ -47,9 +47,46 @@ rather than a safety net — its own comment says so, and says raising it instea
 "the wrong move" last time. Shipping red, or loosening the bound to fit, would both be worse than
 leaving the measurement written down.
 
+## The combination works — measured 2026-08-09, still not shipped
+
+Escalation on top of 2x creeps was the untried combination, and it resolves the tension. With 2x
+creeps and lives 40, sweeping the escalation curve:
+
+| escalation | mean ticks | max ticks | mean peak | max peak |
+| --- | --- | --- | --- | --- |
+| baseline (1x creeps, lives 100, 1000/40) | 3655 | 4705 | 382 | 899 |
+| 1000/60 | 4052 | 5025 | 238 | 724 |
+| 800/70 | 3859 | 5031 | 151 | 340 |
+| 700/90 | 3535 | 4753 | 193 | 553 |
+| 750/80 | 3966 | **4476** | 204 | 470 |
+| **700/80** | **3693** | 4814 | **212** | **430** |
+| 650/90 | 3440 | 4726 | 238 | 651 |
+
+**700/80 is the pick.** Match length is unchanged against baseline — 3693 against 3655, inside
+noise — while max peak concurrent creeps more than halves, 899 -> 430, and mean peak falls 45%.
+Both axes move the right way at once, which no single lever managed.
+
+Why it works: escalation buys duration by making creeps tougher, which costs entity count. With
+half as many creeps alive the entity price of a steeper curve is roughly halved, so the curve can
+be pushed much further before peak starts climbing again. 800/70 reaches peak 151/340 and misses
+the 5000-tick bound by 31 ticks; 650/90 is faster still but peak climbs back to 651, which is the
+curve overrunning its own budget.
+
+**What stopped it shipping: 22 failing tests.** Not a defect — a balance shift this size moves
+numbers pinned all over the suite (bot tier timings, all three GameplayScenario baselines, the
+eight-lane carousel, the escalation table itself). Each wants deciding on its merits, the way
+`GameplayScenarioTests` thresholds were restated at the same LOSS rather than relaxed when lives
+changed. That is a session's work and doing it badly would bury a real regression in a batch of
+"expected" updates.
+
+**To land it:** set creep cost and maxHealth to 2x in `SampleVerticalSliceContent` (15
+definitions), `StartingLives` to 40, `MatchEscalationRules` to StartTick 700 / PercentPerInterval
+80, then work the 22 failures one at a time asking of each whether the assertion is about a number
+that moved or a property that broke.
+
 ## What to try next, in order
 
-1. **Steepen escalation again on top of 2x creeps.** The two levers were only ever measured
+1. ~~**Steepen escalation again on top of 2x creeps.**~~ **Done — see above.** The two levers were only ever measured
    separately. Escalation raises health, but with half as many creeps alive the entity cost of a
    steeper curve is roughly half what it was — this is the one combination most likely to land
    under 5000 while keeping peak low, and it has not been tried.
