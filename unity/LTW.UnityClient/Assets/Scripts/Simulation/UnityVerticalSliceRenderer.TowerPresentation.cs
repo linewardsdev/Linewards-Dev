@@ -750,10 +750,27 @@ namespace LTW.UnityClient.Simulation
             var profile = TowerMotionProfileFor(role);
             var time = Time.time;
 
+            // Breathe is GROVE's alone (2026-08-09, reported as "the breathing effect on all the
+            // towers is still too much"). A scale pulse reads as something alive drawing breath,
+            // which is the Grove line's whole identity — saplings, canopies, blooms — and reads as
+            // wobble on a stone bastion or a machine that should sit dead still between shots.
+            // Every line having it is what made it look like an engine artefact rather than a
+            // characteristic: when everything breathes, nothing is breathing.
+            //
+            // Asked of the catalog rather than matched against a hardcoded list of roles, so a
+            // tower that changes line takes its breathe with it instead of keeping a property its
+            // new line does not have. ForRole falls back to Arrow, which is Arcane, so an unmapped
+            // role gets no breathe — the safe direction for a suppression.
+            //
+            // Amplitude only. BreatheHz, Sharpness and every other authored value is untouched, so
+            // restoring a line is one condition rather than a re-tuning pass, and Grove's own
+            // measured figures still hold.
+            var breathes = TowerCatalog.ForRole((int)role).Category == TowerCatalog.CategoryGrove;
+            var breatheAmp = breathes ? profile.BreatheAmp : 0f;
             var wave = Mathf.Sin(time * profile.BreatheHz);
             var breathe = profile.Sharpness > 1f
-                ? Mathf.Pow(Mathf.Abs(wave), profile.Sharpness) * profile.BreatheAmp
-                : wave * profile.BreatheAmp;
+                ? Mathf.Pow(Mathf.Abs(wave), profile.Sharpness) * breatheAmp
+                : wave * breatheAmp;
 
             var drift = Vector3.zero;
             if (profile.DriftAmp > 0f)
