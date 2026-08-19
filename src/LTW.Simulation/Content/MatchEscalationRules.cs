@@ -46,7 +46,7 @@ public static class MatchEscalationRules
     /// mobile performance problem this whole change exists to fix, so it is the wrong currency to
     /// pay in.
     /// </remarks>
-    public const int StartTick = 2_000;
+    public const int StartTick = 1_000;
 
     /// <summary>How often the bonus steps up once escalation has started.</summary>
     public const int IntervalTicks = 100;
@@ -67,7 +67,7 @@ public static class MatchEscalationRules
     ///     25        4626 / 1242                  4341 / 308
     /// </code>
     /// </remarks>
-    public const int PercentPerInterval = 20;
+    public const int PercentPerInterval = 40;
 
     /// <summary>
     /// Percent to apply to a newly sent creep's authored health at this tick.

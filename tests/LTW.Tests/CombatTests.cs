@@ -200,8 +200,15 @@ public sealed class CombatTests
         Assert.Contains(result.State.Creeps, creep => creep.EntityId.Equals(new EntityId(1)) && creep.Health == 11);
     }
 
+    /// <summary>Every creep costs the defender exactly one life, heavies included.</summary>
+    /// <remarks>
+    /// Was <c>Siege_creep_emits_extra_leak_loss</c>, asserting 2. Flattened to 1:1 on 2026-08-09 by
+    /// request. Kept rather than deleted, and inverted rather than weakened: the roster's heaviest
+    /// creeps are exactly where a life multiplier would creep back in, so the rule needs a test
+    /// naming them.
+    /// </remarks>
     [Fact]
-    public void Siege_creep_emits_extra_leak_loss()
+    public void Siege_creep_still_costs_exactly_one_life()
     {
         var service = new CombatService();
         var content = CreateContent();
@@ -213,17 +220,23 @@ public sealed class CombatTests
         var result = AdvanceUntilLeak(service, state, content, routes);
         var leak = Assert.Single(result.Events.OfType<LeakEvent>());
 
-        Assert.Equal(2, leak.LivesLost.Amount);
+        Assert.Equal(1, leak.LivesLost.Amount);
     }
 
-    /// <summary>
-    /// LeakLifeLossFor matches "siege" or "colossus" in the content id, not the creep's display
-    /// name or its actual max health. creep.colossus is "Siege Colossus" and, at 90 max health, the
-    /// highest-health creep in the roster (creep.siege is 48) — it must not fall through to the
-    /// same 1-life cost as the cheapest creep in the game (OPEN_ITEMS.md's retired 2026-07-29 review, grouped smaller items).
-    /// </summary>
+    /// <summary>The highest-health creep in the roster costs one life, same as the cheapest.</summary>
+    /// <remarks>
+    /// This test previously asserted the opposite, and the reversal is deliberate. The old rule read
+    /// "siege" or "colossus" out of the content id — a name heuristic standing in for a content
+    /// field, flagged as a design question when written and never resolved. 1:1 retires the
+    /// heuristic rather than promoting it.
+    ///
+    /// creep.colossus is "Siege Colossus" at 90 max health against creep.siege's 48, so it is the
+    /// creep most likely to have a multiplier reintroduced on the grounds that it "should" hurt
+    /// more. It buys durability and speed with its cost; it does not also buy a life multiplier the
+    /// defender cannot see coming.
+    /// </remarks>
     [Fact]
-    public void Colossus_creep_emits_extra_leak_loss()
+    public void Colossus_creep_still_costs_exactly_one_life()
     {
         var service = new CombatService();
         var content = CreateContent();
@@ -235,7 +248,7 @@ public sealed class CombatTests
         var result = AdvanceUntilLeak(service, state, content, routes);
         var leak = Assert.Single(result.Events.OfType<LeakEvent>());
 
-        Assert.Equal(2, leak.LivesLost.Amount);
+        Assert.Equal(1, leak.LivesLost.Amount);
     }
 
     /// <summary>

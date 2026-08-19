@@ -1391,8 +1391,17 @@ public sealed class CombatService
     // of what a "siege" classification is for. See OPEN_ITEMS.md's retired 2026-07-29 review, grouped smaller items; the broader question of
     // whether this substring approach should become a real per-creep content field instead of a
     // name heuristic is a design decision left open, not resolved here.
-    private static Lives LeakLifeLossFor(ContentId creepId) =>
-        ContainsRole(creepId, "siege") || ContainsRole(creepId, "colossus") ? new Lives(2) : new Lives(1);
+    /// <summary>One leak, one life, for every creep in the roster.</summary>
+    /// <remarks>
+    /// Flattened to 1:1 on 2026-08-09. Siege and colossus used to cost two, which made a leak's
+    /// price depend on a substring of the creep's id — a name heuristic standing in for a content
+    /// field, flagged as a design question when it was written and never resolved.
+    ///
+    /// 1:1 makes lives a straight count of leaks, which is what a player reads it as. It also makes
+    /// the number mean the same thing on both sides of a send: a seat spending on heavies is buying
+    /// durability and speed, not a life multiplier the defender cannot see coming.
+    /// </remarks>
+    private static Lives LeakLifeLossFor(ContentId creepId) => new Lives(1);
 
     private static bool ContainsRole(ContentId contentId, string role) => contentId.Value.IndexOf(role, StringComparison.OrdinalIgnoreCase) >= 0;
 }
