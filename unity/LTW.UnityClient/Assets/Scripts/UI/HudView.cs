@@ -329,14 +329,22 @@ namespace LTW.UnityClient.UI
             var header = new Rect(strip.x + 4f * scale, strip.y + 4f * scale, strip.width - 8f * scale, headerHeight - 8f * scale);
             DrawPanel(header, new Color(DeepInk.r, DeepInk.g, DeepInk.b, 0.62f));
 
+            // The match-state cell that used to sit at the far right is gone, and its width has
+            // gone to the readout. It said LIVE, one character off LIVES, immediately right of a
+            // lives value abbreviated to "L220" — which is why it was reported as "the lives
+            // readout in the top right does nothing". It was never a control and never showed
+            // lives; it was the state word, and a player reaching for lives found it first.
+            //
+            // Nothing is lost by removing it. LIVE and READY restate what the board already shows,
+            // BUILD is spelled out by the opening countdown panel that owns that phase, and OUT is
+            // carried by the spectator banner directly below this strip, which exists precisely
+            // because elimination has to be legible.
             var gap = 5f * scale;
             var leftWidth = Mathf.Min(76f * scale, header.width * 0.24f);
-            var stateWidth = Mathf.Min(60f * scale, header.width * 0.18f);
-            var centerWidth = Mathf.Max(92f * scale, header.width - leftWidth - stateWidth - gap * 2f - 6f * scale);
+            var centerWidth = Mathf.Max(92f * scale, header.width - leftWidth - gap - 6f * scale);
 
             var left = new Rect(header.x + 6f * scale, header.y + 4f * scale, leftWidth, header.height - 8f * scale);
             var center = new Rect(left.xMax + gap, left.y, centerWidth, left.height);
-            var state = new Rect(center.xMax + gap, left.y, stateWidth, left.height);
 
             DrawHudCell(left, ArcaneBlue, statsExpanded, scale);
             buttonStyle!.fontSize = Mathf.RoundToInt(10f * scale);
@@ -345,18 +353,23 @@ namespace LTW.UnityClient.UI
                 statsExpanded = !statsExpanded;
             }
 
-            DrawHudCell(center, SignalGold, true, scale);
+            // The readout is now a control, and says so by spelling LIVES out. On a phone there is
+            // no side rail to hold the seat leaderboard, so this is where a player reaches the rest
+            // of the table — the report's own suggestion, and the reason the leaderboard was
+            // tablet-only until now.
+            DrawHudCell(center, SignalGold, SeatLeaderboardView.PanelOpen, scale);
             valueStyle!.fontSize = Mathf.RoundToInt(11f * scale);
             valueStyle.normal.textColor = Cloud;
-            var summary = $"L{LivesText}  G{GoldText}  +{IncomeText}  P{PressureText}";
+            var summary = $"LIVES {LivesText}   G{GoldText}   +{IncomeText}   P{PressureText}";
             GUI.Label(new Rect(center.x + 8f * scale, center.y, center.width - 16f * scale, center.height), summary, valueStyle);
 
-            DrawHudCell(state, StateAccent(), true, scale);
-            metaStyle!.fontSize = Mathf.RoundToInt(9f * scale);
-            metaStyle.normal.textColor = StateAccent();
-            // OUT outranks every other state. A defeated seat is still HasStarted and not paused, so
-            // without this the cell went on reading LIVE for a player who had nothing left to do.
-            GUI.Label(state, StateText(), metaStyle);
+            // Drawn AFTER the label, with GUIStyle.none, so the text is visible through it. IMGUI
+            // dispatches in draw order, so a button drawn first would take the click and the label
+            // would then paint over its own hit area.
+            if (!MobileViewportLayout.HasSideRails && GUI.Button(center, GUIContent.none, GUIStyle.none))
+            {
+                SeatLeaderboardView.PanelOpen = !SeatLeaderboardView.PanelOpen;
+            }
         }
 
         /// <summary>

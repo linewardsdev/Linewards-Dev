@@ -177,6 +177,9 @@ namespace LTW.UnityClient.UI
 
         private void OnGUI()
         {
+            // Cleared first, above every early return — see TouchPlacementController for why.
+            RuntimeUiChrome.SendDockInset = 0f;
+
             if (!showRuntimeDock)
             {
                 return;
@@ -233,7 +236,7 @@ namespace LTW.UnityClient.UI
             // this drawer covers, so the lane is lifted above it instead of hidden under it. Added
             // as the drawer grew from 282 to 330 units for the upgrade row's legibility — without
             // it, making the panel taller would simply have hidden more of the board.
-            RuntimeUiChrome.BottomDockInset = MobileViewportLayout.ViewportHeight - rect.yMin;
+            RuntimeUiChrome.SendDockInset = MobileViewportLayout.ViewportHeight - rect.yMin;
 
             DrawPanel(rect, PanelInk);
             DrawAccent(new Rect(rect.x, rect.yMax - 4f * scale, rect.width, 4f * scale), SignalGold);

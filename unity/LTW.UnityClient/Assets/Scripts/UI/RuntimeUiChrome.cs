@@ -100,7 +100,7 @@ namespace LTW.UnityClient.UI
         public static bool ModalScreenActive { get; set; }
 
         /// <summary>
-        /// Height in GUI pixels of whichever bottom drawer is open, or 0 when none is.
+        /// The build drawer's contribution in GUI pixels, owned by TouchPlacementController.
         /// </summary>
         /// <remarks>
         /// Published rather than queried for the same reason <see cref="ModalScreenActive"/> is: the
@@ -112,7 +112,20 @@ namespace LTW.UnityClient.UI
         /// hoisting the panel's own expanded/collapsed state into Update to avoid it would put the
         /// layout in two places.
         /// </remarks>
-        public static float BottomDockInset { get; set; }
+        public static float BuildDockInset { get; set; }
+
+        /// <summary>The send drawer's contribution, owned by SendDockController.</summary>
+        public static float SendDockInset { get; set; }
+
+        /// <summary>Whichever open drawer covers the most, or 0 when none is.</summary>
+        /// <remarks>
+        /// A field per drawer rather than one shared number. Sharing it meant whichever drew last
+        /// won, so the two had to know about each other to avoid clobbering — and each had to
+        /// remember to clear it, from inside an OnGUI with four early returns above the clearing
+        /// line. Picking a tower took one of those returns and stranded the inset, leaving the board
+        /// permanently short. Owning a field each removes the coordination entirely.
+        /// </remarks>
+        public static float BottomDockInset => Mathf.Max(BuildDockInset, SendDockInset);
 
         /// <summary>
         /// Dims everything behind a modal panel.
@@ -893,16 +906,31 @@ namespace LTW.UnityClient.UI
             };
         }
 
-        private static string CommandCardTextureName(CommandCardState state)
-        {
-            return state switch
-            {
-                CommandCardState.Selected => "ui_command_card_selected_option_04",
-                CommandCardState.Disabled => "ui_command_card_disabled_option_04",
-                CommandCardState.Error => "ui_command_card_error_option_04",
-                _ => "ui_command_card_normal_option_04"
-            };
-        }
+        /// <summary>
+        /// The card chrome art. One texture for every state, deliberately.
+        /// </summary>
+        /// <remarks>
+        /// There ARE four state textures and they are not used, because they do not agree with each
+        /// other about where the card is. Measured on the 192x232 canvas they share, the frame's
+        /// left rail sits at x=49 on normal, 38 on selected, 14 on disabled and 15 on error, and the
+        /// top rail at y=13 on three of them and 7 on selected.
+        ///
+        /// Every state change therefore slid the artwork sideways by up to 35 pixels — 18% of the
+        /// card's width — while the icon, label and cost text stayed where the code puts them.
+        /// Reported from iPad play as the icons shifting and not aligning when a send card is
+        /// pressed, which is exactly what it is: the icon does not move, the card does.
+        ///
+        /// State is still fully legible, because it was never carried by the swap alone.
+        /// DrawCommandCardChrome already outlines a selected card in its accent and darkens a
+        /// disabled one, and DrawSendButton greys the icon and text besides. Those cues were
+        /// written to work on top of this art and are unchanged.
+        ///
+        /// This is the reversible half of the fix. Re-export the four textures on a common frame
+        /// origin and the swap can come straight back — the measurement above is the spec for it,
+        /// and a repeat of it is the check.
+        /// </remarks>
+        private static string CommandCardTextureName(CommandCardState state) =>
+            "ui_command_card_normal_option_04";
 
         private static Color Tint(Color baseColor, Color tint, float amount)
         {
