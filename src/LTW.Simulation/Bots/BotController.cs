@@ -172,8 +172,8 @@ public sealed class BotController
     public void TakeTurn(PlayerId playerId, IBotMatchContext match)
     {
         TrySend(playerId, match);
-        TryBuild(playerId, match);
         TryBuyCategoryTier(playerId, match);
+        TryBuild(playerId, match);
         TryUpgradeTower(playerId, match);
     }
 

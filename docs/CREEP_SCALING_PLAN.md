@@ -117,49 +117,41 @@ otherwise — a first attempt that saved whenever a send was unaffordable made s
 and produced 58 sends with **zero** towers, as broken as the starvation it replaced. The window was
 swept: by tick 900, 17 sends / 25 towers at 50, 11 / 35 at 100, 8 / 40 at 150.
 
-### Open question: category tiers are squeezed out
+### Defect 3: bots could never save for a category tier
 
-**Not resolved, and deliberately not decided here.** Tier prices are absolute gold constants
-(`CategoryTierRules.TowerLineCost` 140/360, `SendCategoryCost` 120/300) calibrated against the 1x
-economy. The reprice deliberately leaves starting gold and income alone — that is the mechanism by
-which the same gold buys fewer bodies — so every fixed-price feature gets relatively dearer.
+Found by sweeping tier prices, which is how it became clear price was not the problem. `TakeTurn`
+ran `TryBuild` before `TryBuyCategoryTier`, and `TryBuild` has no cap — it buys another tower every
+tick the gold allows, so a bot's balance never climbs to a tier's price. Exactly the same shape as
+defect 2, in a different place.
 
-Measured, three lanes, seed 1:
+The proof it was structural rather than economic: on three lanes, seed 1, P3 bought no tier for a
+whole match, yet probing `BuyCategoryTier` directly at any point showed it would have been
+**accepted** — the bot held 122 gold against a tier it could afford. Dropping tier prices as far as
+30% of list changed nothing at all, because the bot was never allowed to hold the money either way.
 
-| | first tier bought | first tower upgrade | peak tier | towers upgraded | match ends |
-| --- | --- | --- | --- | --- | --- |
-| tier costs as shipped | tick 3000 | never | 1 | 0 | 3167 |
-| tier costs halved | tick 2150 | tick 2500 | 3 | 56 | 4687 |
+Fixed by moving `TryBuyCategoryTier` ahead of `TryBuild`, the same precedence sends were given on
+2026-07-28 and for the same reason. Measured over six matches (3 and 8 lanes, seeds 1-3):
 
-At shipped prices the feature is effectively dead: the first tier is bought 167 ticks before the
-match ends and no tower is ever upgraded. Halving revives it fully but costs **+48% match length**,
-which is a direct hit to the thing this whole line of work exists to protect.
+| | mean ticks | max peak creeps | mean towers upgraded | 3-lane seed 1 |
+| --- | --- | --- | --- | --- |
+| before | 3711 | 396 | 23 | tier never bought, 0 upgraded |
+| after | 3776 | **348** | **32** | tier at 2900, 46 upgraded |
 
-`BotMazingTests.Bots_buy_category_tiers_on_the_side_their_profile_favours` and
-`Bots_upgrade_the_towers_they_have_already_built` are the two remaining red tests, and they are
-**correctly** red — they assert a property that is now false. They should not be restated to pass.
-The options are to reprice tiers and accept slower matches, to accept tiers as a late-game luxury
-and weaken those tests knowingly, or to change what bots prioritise. That is a balance decision on
-another session's feature and wants an owner.
+Match length moves 1.8%, against this project's 20% bar; peak creeps IMPROVES.
 
-## What to try next, in order
+### Tier prices: swept, and left alone
 
-1. ~~**Steepen escalation again on top of 2x creeps.**~~ **Done — see above.** The two levers were only ever measured
-   separately. Escalation raises health, but with half as many creeps alive the entity cost of a
-   steeper curve is roughly half what it was — this is the one combination most likely to land
-   under 5000 while keeping peak low, and it has not been tried.
-2. **A uniform 2x is a blunt instrument.** It was chosen to isolate the variable, not because every
-   creep should double. Swarm (cost 6, health 5) is the roster's chaff and is the single largest
-   contributor to entity count; a steeper multiplier on the cheap end and a shallower one on
-   Colossus (52/78) would cut peak harder for less length. Per-creep numbers want authoring, not
-   scaling.
-3. **The fourth tier** raised in the same conversation is untested and orthogonal — it changes what
-   a seat can reach late, where this changes what a send costs throughout.
+Prices were swept at 100 / 85 / 70 / 60 / 50 percent of list, before and after the fix above.
 
-## How to measure
+**Correcting an earlier reading in this document's history:** a first pass concluded from three
+lanes, seed 1 alone that the tier feature was "effectively dead" at these prices. That was too
+strong and drawn from one match. Across six, tiers are bought in **6 of 6 runs even at full price**
+(mean tick 2893, mean 23 towers upgraded). Seed 1 at three lanes was the outlier, and its cause was
+defect 3 rather than price.
 
-The harness is ~30 lines and was deleted with the experiment: run 3- and 8-lane matches on seeds
-1-3 to `MatchSummary`, sampling `GetSnapshot().Creeps.Count` every tick for the peak. **Report peak
-creeps alongside ticks — a change that shortens matches while raising peak is a regression for the
-device even though the duration number improves.** That is the trap this whole line of work exists
-to avoid.
+With defect 3 fixed, full list price is also the best of the five points measured: it produced the
+most towers upgraded (32) and the lowest peak creeps (348) of any price tried. Lowering prices moved
+the first purchase a few hundred ticks earlier while making peak creeps and match length worse and
+noisier — 60% reached 4010 mean ticks and 437 peak. **So tier prices are unchanged.** The right
+answer to "find the cheapest revival that keeps pacing" turned out to be that price was not the
+lever holding the feature down.

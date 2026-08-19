@@ -134,7 +134,16 @@ public sealed class BotMazingTests
         // window hiding a shift. If this fails again, check WHEN the first tier lands before
         // raising it further; a number that keeps climbing means bots are getting poorer, which is
         // a real finding and not a test problem.
-        for (var tick = 0; tick < 2200; tick++)
+        //
+        // 3100, not 2200, with the 2x creep roster (2026-08-19). The number climbed, so the check
+        // above was run rather than skipped, and bots ARE poorer: P3's income at tick 2400 fell from
+        // 363 to 98 because sends cost twice as much and income only rises by sending. That much is
+        // the intended consequence of the reprice. What it exposed was NOT: uncapped TryBuild spends
+        // every surplus coin on another tower each tick, so a bot could never accumulate a tier's
+        // price at all, and P3 bought nothing for a whole match while probing showed it would have
+        // been ACCEPTED at any moment it happened to hold the gold. Buying tiers before building
+        // (BotController.TakeTurn) fixes that; the first tier on this seed then lands at 2900.
+        for (var tick = 0; tick < 3100; tick++)
         {
             slice.AdvanceOneTick();
         }
@@ -187,7 +196,12 @@ public sealed class BotMazingTests
 
         var peakTier = 1;
         var peakUpgraded = 0;
-        for (var tick = 0; tick < 2400; tick++)
+        // 3200, not 2400, with the 2x creep roster (2026-08-19) — see the sibling test above for why
+        // bots reach a tier later now and what was structural rather than economic about it. Measured
+        // on this seed: the tower line tier is bought at 2900, the first upgrade lands at 3000, and
+        // 46 towers are eventually upgraded in a match that ends at 3281. The window sits between the
+        // upgrade and the end deliberately, since a defeated seat's lane is wiped.
+        for (var tick = 0; tick < 3200; tick++)
         {
             slice.AdvanceOneTick();
             if (tick % 25 != 0)
