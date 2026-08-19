@@ -30,12 +30,14 @@ public sealed class GameplayScenarioTests
 
         output.WriteLine(evidence.ToString());
         Assert.True(evidence.AcceptedCommands >= 1);
-        // Lowered from 219 alongside the tower cost/damage rebalance (cheaper, weaker towers):
-        // one extra Runner hit lands in this fixed 80-tick window before defense catches up.
-        Assert.True(evidence.PlayerOneLives >= 218);
+        // Rescaled with StartingLives 220 -> 100 (2026-08-09). These were never thresholds about
+        // lives in the abstract; they encode "this seat loses at most 2 lives in 80 ticks" and
+        // "these 3 seats lose at most 4 between them", which is what the scenario is actually
+        // about. Held at the same LOSS, restated against the new opening balance.
+        Assert.True(evidence.PlayerOneLives >= 98);
         Assert.True(evidence.DamageEvents >= 1);
-        // Lowered from 658 for the same reason as the PlayerOneLives threshold above.
-        Assert.True(evidence.TotalLives >= 656);
+        // 3 seats x 100 opening lives, less the same 4-life allowance as before.
+        Assert.True(evidence.TotalLives >= 296);
         Assert.Null(slice.MatchSummary);
     }
 

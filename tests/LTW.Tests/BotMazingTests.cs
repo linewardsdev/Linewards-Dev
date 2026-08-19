@@ -127,7 +127,14 @@ public sealed class BotMazingTests
     {
         var slice = new LocalVerticalSlice(SampleVerticalSliceContent.Create(), ThreeLanes());
 
-        for (var tick = 0; tick < 1600; tick++)
+        // 2200, not 1600. Measured after StartingLives dropped to 100: the first tier on this seed
+        // is bought at EXACTLY tick 1600, so the old loop stopped one tick short of the thing it
+        // asserts. That is a boundary, not a behaviour change -- the tiers are still bought, and by
+        // the end of a match 2 of 3 seats hold one -- so this is headroom rather than a widened
+        // window hiding a shift. If this fails again, check WHEN the first tier lands before
+        // raising it further; a number that keeps climbing means bots are getting poorer, which is
+        // a real finding and not a test problem.
+        for (var tick = 0; tick < 2200; tick++)
         {
             slice.AdvanceOneTick();
         }

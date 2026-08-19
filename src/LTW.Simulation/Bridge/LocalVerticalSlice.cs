@@ -16,7 +16,23 @@ namespace LTW.Simulation.Bridge;
 
 public sealed class LocalVerticalSlice
 {
-    private const int StartingLives = 220;
+    /// <summary>Lives every seat opens with.</summary>
+    /// <remarks>
+    /// 100 as of 2026-08-09, down from 220. Reported from an M4 iPad with 8 GB: matches run too long
+    /// and accumulate enough live creeps to slow the device down.
+    ///
+    /// Lives are the match clock here, not just a fail condition — a seat is eliminated when they
+    /// reach zero, so halving them halves how much leaking a match has to absorb before it resolves.
+    /// That shortens the tail where the board is busiest, which is the part that costs frames: creep
+    /// count grows with match length, and MatchEscalationRules raises sent-creep HEALTH over time,
+    /// so late creeps also survive longer and stack up.
+    ///
+    /// Halving rather than tuning to a target tick count: the escalation rules already close matches
+    /// on their own schedule, and picking a lives number to hit a duration would be fitting one
+    /// mechanism to another's timing. This changes how much damage a seat can take, and lets
+    /// escalation keep doing what it does.
+    /// </remarks>
+    private const int StartingLives = 100;
 
     private readonly ContentCatalog content;
     private readonly EconomyService economy;
