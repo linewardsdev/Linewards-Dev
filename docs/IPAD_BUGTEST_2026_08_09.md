@@ -484,6 +484,27 @@ simulation-side (see item 47's history) but nothing on screen even says how many
 count readout is the minimum; it is also the natural anchor for item 47's missing cancel control —
 whichever surface shows the count is where cancelling belongs.
 
+## 16. Creep health bars: blocky, hard to read, little value — DONE (pass on 2026-08-21)
+
+Reported 2026-08-21 in chat: clean them up properly (styling, lighting, readability) or remove
+them. Root cause of the blockiness: the bars were two LIT 3D cubes — scene lighting shaded them
+like crates, the tilted camera saw their side faces as a second tone, and the fill-cube stacked
+over the backing-cube seamed.
+
+Rebuilt as one unlit quad per creep through the same LTW/Fill Bar shader the lane pressure gauges
+use: lighting cannot touch it, fill is the shader's anti-aliased _Fill threshold rather than scaled
+geometry, the housing rides _BackgroundColor so nothing seams, and every bar shares the gauges' one
+instanced material — which also retires the CreatePrimitive path behind 2026-08-01's magenta bars.
+Kept: bars only appear once a creep is damaged, and the mint/gold/red state colours.
+
+Calibrated against captures, three rounds: a camera billboard was tried first and photographed
+WORSE — tilting a bar toward the camera leans it into the screen space of the creep marching
+behind, and in a packed train each bar vanished behind its neighbour — so the bar lies flat like
+the gauges, with height drawn 1.6x to buy back the tilt's foreshortening and width 1.35x because
+the authored constants were tuned against the old 2D plates and spanned about a third of the 3D
+bodies. Verified in capture at gameplay zoom; wants a device look for the removal question — if it
+still carries too little value on the iPad, the show/hide gate is one line.
+
 ## Related open work, not on this list
 
 - **Twin Crescent has no visual profile.** ~~It renders a primitive fallback that nothing
