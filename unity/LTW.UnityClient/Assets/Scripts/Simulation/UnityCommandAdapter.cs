@@ -615,6 +615,18 @@ namespace LTW.UnityClient.Simulation
                 ? 0
                 : simulation.GetSnapshot().QueuedSendCountFor(simulation.LocalPlayerId, creepId);
 
+        /// <summary>Everything the local seat has waiting, across all creeps.</summary>
+        /// <remarks>
+        /// For the queue readout (iPad round 2, item 15): per-creep counts live on the cards, but a
+        /// closed dock showed nothing at all, so a player with sends waiting had no way to know
+        /// without reopening it. Read off the snapshot for the same authority reason as
+        /// <see cref="QueuedSendCount"/> directly above.
+        /// </remarks>
+        public int TotalQueuedSends() =>
+            simulation is null
+                ? 0
+                : simulation.GetSnapshot().SendQueueFor(simulation.LocalPlayerId).Count;
+
         /// <summary>Takes back the local seat's most recent queued send of one creep.</summary>
         /// <remarks>
         /// The undo half of <c>SendCreep</c>. A queued tap is a statement of intent that has not

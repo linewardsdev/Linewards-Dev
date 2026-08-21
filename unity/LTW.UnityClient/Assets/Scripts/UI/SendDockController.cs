@@ -101,6 +101,24 @@ namespace LTW.UnityClient.UI
 
         private static Rect PanelRect(float scale, Rect frame)
         {
+            // On a tablet the dock lives in the right side rail, below the seats table — the same
+            // treatment the placement controls get in the left rail (item 14), and for the same
+            // reason: the rail sits beside the board, so the panel stops covering lane rows and
+            // stops asking the camera to lift. The bottom-drawer arithmetic below is the phone's.
+            if (MobileViewportLayout.HasSideRails)
+            {
+                var rail = MobileViewportLayout.SideRailRect(rightSide: true);
+                var railMargin = MobileViewportLayout.EdgeMargin(scale);
+                var top = SeatLeaderboardView.RailPanelBottom > 0f
+                    ? SeatLeaderboardView.RailPanelBottom + railMargin * 0.5f
+                    : rail.y + MobileViewportLayout.TopMargin(scale);
+                return new Rect(
+                    rail.x + railMargin * 0.5f,
+                    top,
+                    Mathf.Max(1f, rail.width - railMargin),
+                    Mathf.Max(1f, rail.yMax - top - railMargin));
+            }
+
             var width = Mathf.Min(frame.width - 16f * scale, 520f * scale);
 
             // Derived from the card row rather than fixed at 330, which is what left the picker
@@ -259,7 +277,10 @@ namespace LTW.UnityClient.UI
 
             if (!isExpanded)
             {
-                if (DrawLauncherButton(launcherRect, "SEND", SignalGold, scale))
+                // The queue total rides the launcher (item 15): a closed dock used to show nothing,
+                // so a player with sends waiting had no way to know short of reopening it.
+                var waiting = commandAdapter != null ? commandAdapter.TotalQueuedSends() : 0;
+                if (DrawLauncherButton(launcherRect, waiting > 0 ? $"SEND x{waiting}" : "SEND", SignalGold, scale))
                 {
                     touchPlacement?.CloseBottomPanelsForSend();
                     isExpanded = true;
@@ -273,12 +294,17 @@ namespace LTW.UnityClient.UI
             // inside the same 282 the creep grids use, so the dock no longer resizes under the
             // player as they step between the picker and a category.
             var rect = PanelRect(scale, frame);
+            var railMode = MobileViewportLayout.HasSideRails;
 
             // Same rule the build palette follows: tell the board camera how much of the bottom
             // this drawer covers, so the lane is lifted above it instead of hidden under it. Added
             // as the drawer grew from 282 to 330 units for the upgrade row's legibility — without
-            // it, making the panel taller would simply have hidden more of the board.
-            RuntimeUiChrome.SendDockInset = MobileViewportLayout.ViewportHeight - rect.yMin;
+            // it, making the panel taller would simply have hidden more of the board. In rail mode
+            // the panel covers no board at all, so the inset stays 0 and the camera holds still.
+            if (!railMode)
+            {
+                RuntimeUiChrome.SendDockInset = MobileViewportLayout.ViewportHeight - rect.yMin;
+            }
 
             DrawPanel(rect, PanelInk);
             DrawAccent(new Rect(rect.x, rect.yMax - 4f * scale, rect.width, 4f * scale), SignalGold);
@@ -313,7 +339,25 @@ namespace LTW.UnityClient.UI
 
             metaStyle!.fontSize = Mathf.RoundToInt(11f * scale);
             metaStyle.normal.textColor = MintSignal;
-            GUI.Label(new Rect(rect.xMax - 204f * scale, rect.y + 12f * scale, 58f * scale, 18f * scale), $"G{gold}", metaStyle);
+            // The wide drawer hangs gold at a fixed offset from the right edge; the rail is too
+            // narrow for that and puts it under the title instead.
+            var goldRect = railMode
+                ? new Rect(rect.x + 12f * scale, rect.y + 28f * scale, 100f * scale, 18f * scale)
+                : new Rect(rect.xMax - 204f * scale, rect.y + 12f * scale, 58f * scale, 18f * scale);
+            GUI.Label(goldRect, $"G{gold}", metaStyle);
+
+            // The queue readout (item 15): how much intent is waiting to be paid for. Per-creep
+            // counts sit on the cards, but only the open grid shows those — this is the total, on
+            // the panel, wherever the player is in it.
+            var totalQueued = commandAdapter != null ? commandAdapter.TotalQueuedSends() : 0;
+            if (totalQueued > 0)
+            {
+                metaStyle.normal.textColor = SignalGold;
+                var queueRect = railMode
+                    ? new Rect(rect.x + 12f * scale, rect.y + 46f * scale, 140f * scale, 18f * scale)
+                    : new Rect(rect.xMax - 140f * scale, rect.y + 12f * scale, 130f * scale, 18f * scale);
+                GUI.Label(queueRect, $"QUEUE {totalQueued}", metaStyle);
+            }
 
             // The shipped cooldown is 0 ticks (74b8519), so isSendCoolingDown is always false and
             // this whole block is currently inert — kept, not deleted, so the dock explains itself
@@ -337,6 +381,24 @@ namespace LTW.UnityClient.UI
             var buttonHeight = 84f * scale;
             var gap = 8f * scale;
 
+            if (railMode)
+            {
+                // The rail is tall and narrow where the drawer is short and wide, so the states
+                // stack their content instead of rowing it — the same shape shift the placement
+                // controls make between DrawPlacementBar and DrawPlacementStack.
+                var railTop = rect.y + (totalQueued > 0 ? 68f : 50f) * scale;
+                if (selectedCategory < 0)
+                {
+                    DrawCategoryPickerRail(rect, railTop, gold, scale);
+                }
+                else
+                {
+                    DrawSendCardsRail(CardsForCategory(selectedCategory), rect, railTop, gold, scale);
+                }
+
+                return;
+            }
+
             // Explicitly three-way. This was previously a bare `else` for Category 2, which would
             // have silently rendered Category 2's grid for any new category index.
             if (selectedCategory < 0)
@@ -356,6 +418,17 @@ namespace LTW.UnityClient.UI
                 DrawCategoryThreeCreeps(rect, buttonY, buttonHeight, gap, gold, scale);
             }
         }
+
+        /// <summary>
+        /// One category's cards by index — the same explicit three-way switch the drawer uses, so a
+        /// new category fails loudly here rather than silently drawing another category's grid.
+        /// </summary>
+        private SendCard[] CardsForCategory(int category) => category switch
+        {
+            0 => CategoryOneCards(),
+            1 => CategoryTwoCards(),
+            _ => CategoryThreeCards(),
+        };
 
         /// <summary>
         /// Category chooser shown before any 5-creep grid: a row of cards carrying a name, a
@@ -535,6 +608,122 @@ namespace LTW.UnityClient.UI
             Card(SampleVerticalSliceContent.WardenCreepId, SendWarden),
             Card(SampleVerticalSliceContent.ColossusCreepId, SendColossus)
         };
+
+        /// <summary>
+        /// The category picker as a rail stack: one compact row per category, each carrying its
+        /// tier readout and upgrade button.
+        /// </summary>
+        /// <remarks>
+        /// Compact rows rather than the drawer's art cards, deliberately. At rail width a card held
+        /// to <see cref="RuntimeUiChrome.CommandCardArtAspect"/> is taller than it is wide, and
+        /// three of them outrun the rail; held to a row height instead the art squashes, which is
+        /// the exact failure CategoryCardRect exists to prevent. The placement stack made the same
+        /// trade for the same reason — the rail buys board space with chrome, not art.
+        /// </remarks>
+        private void DrawCategoryPickerRail(Rect rect, float top, int gold, float scale)
+        {
+            var accents = new[] { ArcaneBlue, WardViolet, SignalGold };
+            var rowHeight = 64f * scale;
+            var rowGap = 8f * scale;
+            var y = top;
+
+            for (var category = 0; category < CategoryLabels.Length; category++)
+            {
+                var row = new Rect(rect.x + 8f * scale, y, rect.width - 16f * scale, rowHeight);
+                if (row.yMax > rect.yMax - 8f * scale)
+                {
+                    break;
+                }
+
+                // The select button is the row's top band; the tier row owns the bottom, exactly
+                // like the drawer's cards split card art from CategoryTierRowRect. That helper
+                // anchors the tier row 52 units above the rect's BOTTOM, expecting a card's 26-unit
+                // hint band underneath — the rail row has no hint band, so the host rect is grown
+                // by that inset to land the tier row flush with the row's own bottom edge.
+                var selectRect = new Rect(row.x, row.y, row.width, row.height - 26f * scale);
+                buttonStyle!.fontSize = Mathf.RoundToInt(12f * scale);
+                if (RuntimeUiChrome.DrawPanelButton(selectRect, CategoryLabels[category], accents[category], scale, buttonStyle))
+                {
+                    SelectedCategory = category;
+                }
+
+                DrawCategoryTier(new Rect(row.x, row.y, row.width, row.height + 26f * scale), category, accents[category], gold, scale);
+                y += rowHeight + rowGap;
+            }
+        }
+
+        /// <summary>
+        /// One category's creeps as a rail stack: a compact row per creep, cheapest first, with the
+        /// same meta line and queue badge the drawer's cards carry.
+        /// </summary>
+        private void DrawSendCardsRail(SendCard[] cards, Rect rect, float top, int gold, float scale)
+        {
+            var costs = new int[cards.Length];
+            var incomes = new int[cards.Length];
+            for (var index = 0; index < cards.Length; index++)
+            {
+                // SendCost and a live income read, for the same reasons DrawSendCards documents.
+                costs[index] = commandAdapter != null ? commandAdapter.SendCost(cards[index].CreepId) : 0;
+                incomes[index] = commandAdapter != null ? commandAdapter.SendIncomeGain(cards[index].CreepId) : 0;
+            }
+
+            var order = new int[cards.Length];
+            for (var index = 0; index < order.Length; index++)
+            {
+                order[index] = index;
+            }
+
+            System.Array.Sort(order, (left, right) =>
+            {
+                var byCost = costs[left].CompareTo(costs[right]);
+                return byCost != 0 ? byCost : cards[left].Role.CompareTo(cards[right].Role);
+            });
+
+            var rowHeight = 44f * scale;
+            var rowGap = 6f * scale;
+            var y = top;
+
+            for (var slot = 0; slot < cards.Length; slot++)
+            {
+                var row = new Rect(rect.x + 8f * scale, y, rect.width - 16f * scale, rowHeight);
+                if (row.yMax > rect.yMax - 8f * scale)
+                {
+                    break;
+                }
+
+                var card = cards[order[slot]];
+                var cost = costs[order[slot]];
+                var income = incomes[order[slot]];
+
+                // Enabled on queue space, not gold — the queue's whole point, per DrawSendCards.
+                var queued = commandAdapter != null ? commandAdapter.QueuedSendCount(card.CreepId) : 0;
+                var hasQueueSpace = queued < LTW.Simulation.Bridge.LocalVerticalSlice.MaxQueuedSendsPerCreep;
+
+                var previousEnabled = GUI.enabled;
+                GUI.enabled = hasQueueSpace;
+                buttonStyle!.fontSize = Mathf.RoundToInt(11f * scale);
+                buttonStyle.alignment = TextAnchor.MiddleLeft;
+                var pressed = RuntimeUiChrome.DrawPanelButton(row, "  " + card.Label, hasQueueSpace ? card.Accent : new Color(card.Accent.r, card.Accent.g, card.Accent.b, 0.4f), scale, buttonStyle);
+                buttonStyle.alignment = TextAnchor.MiddleCenter;
+                GUI.enabled = previousEnabled;
+
+                // Meta on the row's right half: cost, income, and the queue badge that makes a
+                // queued tap visibly different from one that did nothing.
+                metaStyle!.fontSize = Mathf.RoundToInt(10f * scale);
+                metaStyle.alignment = TextAnchor.MiddleRight;
+                metaStyle.normal.textColor = queued > 0 ? SignalGold : MintSignal;
+                var meta = queued > 0 ? $"{cost}G +{income} x{queued}" : $"{cost}G +{income}";
+                GUI.Label(new Rect(row.x, row.y, row.width - 10f * scale, row.height), meta, metaStyle);
+                metaStyle.alignment = TextAnchor.MiddleCenter;
+
+                if (pressed)
+                {
+                    card.Send();
+                }
+
+                y += rowHeight + rowGap;
+            }
+        }
 
         private void DrawCategoryOneCreeps(Rect rect, float buttonY, float buttonHeight, float gap, int gold, float scale) =>
             DrawSendCards(CategoryOneCards(), rect, buttonY, buttonHeight, gap, gold, scale);
