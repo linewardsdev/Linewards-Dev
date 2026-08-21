@@ -442,9 +442,13 @@ re-doing them for tablet is the expensive order.
 
 ---
 
-## 13. The seats table should be clickable and jump to that lane — replacing the lane-view button
+## 13. The seats table should be clickable and jump to that lane — replacing the lane-view button — DONE (`fc10745`)
 
-Reported 2026-08-21, second device round. Tapping a row in the SEATS table should move the board to
+Reported 2026-08-21, second device round. **Done the same day:** rows are buttons (invisible,
+drawn after the row content per HudView's draw-order rule), the viewed lane's row carries a mint
+rail on its right edge — left rail says who you are, right says where you are looking — and
+`LaneViewToggleController` is deleted. Desktop Tab cycles lanes through the renderer directly; the
+capture runner's lane-selector state now captures the resting HUD. Unverified on device. Tapping a row in the SEATS table should move the board to
 that seat's lane. That makes the standalone lane-view button (`LaneViewToggleController`'s L1-L8
 selector) redundant — two controls for the same navigation, and the seats table is the one that
 carries context (who you are looking at, how they are doing) rather than a bare lane number.
@@ -454,15 +458,23 @@ First read: `SeatLeaderboardView` draws the rows but holds no renderer reference
 to become a button, the view needs the renderer, and the current camera's row wants an indicator so
 the table also absorbs the button's second job — showing WHICH lane you are on.
 
-## 14. The send sub panel should be built out like the build sub panel on tablets
+## 14. The send sub panel should be built out like the build sub panel on tablets — DONE (`fc10745`)
 
-Reported 2026-08-21. The tablet layout work gave the build (tower) picker a fuller treatment; the
+Reported 2026-08-21. **Done the same day:** on a tablet the expanded dock now lives in the right
+rail below the seats table, exactly as the placement controls live in the left one — no board
+coverage, no camera lift (SendDockInset stays 0 in rail mode). States stack: compact category rows
+with tier/upgrade lines, compact creep rows with cost/income/queue meta. Compact rows rather than
+art cards is the placement stack's own trade — at rail width an aspect-held card outruns the rail.
+Phone drawer unchanged. Unverified on device — the rail row heights are the part most worth eyes. The tablet layout work gave the build (tower) picker a fuller treatment; the
 send dock's category/creep sub panel should match it — same structural pattern, not a phone panel
 scaled up.
 
-## 15. A data view for how many creeps you have in queue
+## 15. A data view for how many creeps you have in queue — DONE (`fc10745`)
 
-Reported 2026-08-21. Queued sends are invisible: `CancelQueuedSend`/`ClearSendQueue` landed
+Reported 2026-08-21. **Done the same day:** the closed SEND launcher shows the total (`SEND x3`),
+the open panel shows a QUEUE line in both layouts, per-creep counts stay on the cards. New
+`TotalQueuedSends()` on the adapter, read off the snapshot like `QueuedSendCount`. The QUEUE
+readout is the natural anchor for item 47's still-missing cancel control. Queued sends are invisible: `CancelQueuedSend`/`ClearSendQueue` landed
 simulation-side (see item 47's history) but nothing on screen even says how many are waiting. A
 count readout is the minimum; it is also the natural anchor for item 47's missing cancel control —
 whichever surface shows the count is where cancelling belongs.
