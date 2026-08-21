@@ -317,7 +317,10 @@ namespace LTW.UnityClient.UI
             var titleText = selectedCategory < 0 ? "SEND" : $"SEND › {CategoryLabels[selectedCategory]}";
             titleStyle!.fontSize = Mathf.RoundToInt(12f * scale);
             titleStyle.normal.textColor = SignalGold;
-            GUI.Label(new Rect(rect.x + 12f * scale, rect.y + 10f * scale, 220f * scale, 20f * scale), titleText, titleStyle);
+            // Clamped to the panel less BACK's corner, not a fixed 220 — the rail is narrower than
+            // the drawer and a fixed width ran the title under the button.
+            var titleWidth = Mathf.Min(220f * scale, rect.width - 96f * scale);
+            GUI.Label(new Rect(rect.x + 12f * scale, rect.y + 10f * scale, titleWidth, 20f * scale), titleText, titleStyle);
             // Only one CLOSE. The launcher slot above already turned into CLOSE when the dock
             // opened, and it has to stay something other than SEND while expanded, so a second
             // CLOSE in the header was pure duplication — two controls, same owner, same action,
@@ -346,11 +349,12 @@ namespace LTW.UnityClient.UI
                 : new Rect(rect.xMax - 204f * scale, rect.y + 12f * scale, 58f * scale, 18f * scale);
             GUI.Label(goldRect, $"G{gold}", metaStyle);
 
-            // The queue readout (item 15): how much intent is waiting to be paid for. Per-creep
-            // counts sit on the cards, but only the open grid shows those — this is the total, on
-            // the panel, wherever the player is in it.
+            // The queue readout (item 15): how much intent is waiting to be paid for. In the
+            // drawer it draws on the PICKER only — the grid state puts BACK in the same corner,
+            // and the per-creep counts on the cards already carry the answer there. The rail
+            // stacks its header, so it keeps the total in every state.
             var totalQueued = commandAdapter != null ? commandAdapter.TotalQueuedSends() : 0;
-            if (totalQueued > 0)
+            if (totalQueued > 0 && (railMode || selectedCategory < 0))
             {
                 metaStyle.normal.textColor = SignalGold;
                 var queueRect = railMode
@@ -701,19 +705,27 @@ namespace LTW.UnityClient.UI
 
                 var previousEnabled = GUI.enabled;
                 GUI.enabled = hasQueueSpace;
+                // The button carries no label of its own: the chrome's bevel is ~18 units deep on
+                // each side, and a MiddleLeft label handed to DrawPanelButton starts at the rect's
+                // very edge — captured with WISP's W half on the metal. Name and meta are drawn
+                // here instead, inset past the bevel on both sides.
                 buttonStyle!.fontSize = Mathf.RoundToInt(11f * scale);
-                buttonStyle.alignment = TextAnchor.MiddleLeft;
-                var pressed = RuntimeUiChrome.DrawPanelButton(row, "  " + card.Label, hasQueueSpace ? card.Accent : new Color(card.Accent.r, card.Accent.g, card.Accent.b, 0.4f), scale, buttonStyle);
-                buttonStyle.alignment = TextAnchor.MiddleCenter;
+                var pressed = RuntimeUiChrome.DrawPanelButton(row, "", hasQueueSpace ? card.Accent : new Color(card.Accent.r, card.Accent.g, card.Accent.b, 0.4f), scale, buttonStyle);
                 GUI.enabled = previousEnabled;
+
+                var accent = hasQueueSpace ? card.Accent : new Color(card.Accent.r, card.Accent.g, card.Accent.b, 0.4f);
+                metaStyle!.fontSize = Mathf.RoundToInt(11f * scale);
+                metaStyle.alignment = TextAnchor.MiddleLeft;
+                metaStyle.normal.textColor = new Color(accent.r, accent.g, accent.b, 0.96f);
+                GUI.Label(new Rect(row.x + 20f * scale, row.y, row.width * 0.55f, row.height), card.Label, metaStyle);
 
                 // Meta on the row's right half: cost, income, and the queue badge that makes a
                 // queued tap visibly different from one that did nothing.
-                metaStyle!.fontSize = Mathf.RoundToInt(10f * scale);
+                metaStyle.fontSize = Mathf.RoundToInt(10f * scale);
                 metaStyle.alignment = TextAnchor.MiddleRight;
                 metaStyle.normal.textColor = queued > 0 ? SignalGold : MintSignal;
                 var meta = queued > 0 ? $"{cost}G +{income} x{queued}" : $"{cost}G +{income}";
-                GUI.Label(new Rect(row.x, row.y, row.width - 10f * scale, row.height), meta, metaStyle);
+                GUI.Label(new Rect(row.x, row.y, row.width - 26f * scale, row.height), meta, metaStyle);
                 metaStyle.alignment = TextAnchor.MiddleCenter;
 
                 if (pressed)
