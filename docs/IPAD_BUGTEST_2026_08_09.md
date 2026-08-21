@@ -465,7 +465,12 @@ rail below the seats table, exactly as the placement controls live in the left o
 coverage, no camera lift (SendDockInset stays 0 in rail mode). States stack: compact category rows
 with tier/upgrade lines, compact creep rows with cost/income/queue meta. Compact rows rather than
 art cards is the placement stack's own trade — at rail width an aspect-held card outruns the rail.
-Phone drawer unchanged. Unverified on device — the rail row heights are the part most worth eyes. The tablet layout work gave the build (tower) picker a fuller treatment; the
+Phone drawer unchanged. **Verified by capture at both aspects 2026-08-21** (`a8dd17a`): the phone
+drawer photographs identically to its pre-rail behaviour, the tablet rail panel lands correctly
+below the seats table with the board at full height. Three header collisions found and fixed from
+the captures. Follow-up filed by the same captures: the BUILD palette on a tablet is still a bottom
+drawer that lifts the camera to half height — after this item the send side has the better tablet
+treatment, and the build palette wants the same rail move. The tablet layout work gave the build (tower) picker a fuller treatment; the
 send dock's category/creep sub panel should match it — same structural pattern, not a phone panel
 scaled up.
 
