@@ -27,6 +27,30 @@ Branch: `ipad-bugtest-2026-08-09`.
 Items 5, 9, 10 and 11 all moved because the tablet layout work opened up the rail, which is what
 this doc predicted would happen if 11 was settled before the UI items rather than after.
 
+**Status 2026-08-21 — second device round.** A fresh device export from `main` (`e8b2844`) was cut
+for another live session; the previous export dated 2026-08-09 and predated everything below.
+Changed since the last time this game was on the iPad, and worth checking with hands:
+
+- **Late-match slowness attacked directly** — the thing reported from this device ("too many creeps
+  causing slowness, even on an M4 iPad with 8 GB"). Creeps cost and take 2x, lives cut to 40,
+  escalation steepened to 700/80: max peak concurrent creeps 899 -> 430 in measurement, match
+  length unchanged. *Check: does the late game still stutter? Do matches feel the same length?*
+- **Match feel changes that ride along:** every leak costs 1 life (siege/colossus no longer take 2),
+  send prices doubled roster-wide, matches start at 40 lives. *Check: does the send dock economy
+  still feel readable at the new prices?*
+- **Bots attack and upgrade properly now** — two structural defects fixed (a bot could stop sending
+  forever once prices outran one payout's surplus; a bot could never save for a category tier).
+  *Check: do late-game opponents feel more alive? Towers visibly upgrade around tick ~2900.*
+- **Tower breathe gated to Grove** — Arcane and Foundry towers no longer breathe at idle.
+- **Send dock sized to its cards** — the picker no longer shrinks the board or leaves the gap above
+  the close button (the two-things-to-fix screenshot from 2026-08-09).
+- **Items 3 and 10 land on a device for the first time** — gate sprites tinted into the 3D scene,
+  and the lives readout opening the leaderboard. Both were "fixed, unseen" last round.
+
+Still open going into this round: **item 2** (send-card click effect — this session is the chance to
+describe what "broken" looks like), **item 8** (Bastion art), **item 47** (send-queue cancel has no
+button yet), **item 48** (send-dock card content drawn over the card frame, NEED +60 clipped).
+
 Remaining to take: **item 8** (Bastion art, has a live lead — `5e81e50` decimated the roster and
 `8457192`'s LOD fix covered only animated units) and **item 2** (blocked on you).
 
