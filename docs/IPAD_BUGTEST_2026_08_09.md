@@ -442,6 +442,31 @@ re-doing them for tablet is the expensive order.
 
 ---
 
+## 13. The seats table should be clickable and jump to that lane — replacing the lane-view button
+
+Reported 2026-08-21, second device round. Tapping a row in the SEATS table should move the board to
+that seat's lane. That makes the standalone lane-view button (`LaneViewToggleController`'s L1-L8
+selector) redundant — two controls for the same navigation, and the seats table is the one that
+carries context (who you are looking at, how they are doing) rather than a bare lane number.
+
+First read: `SeatLeaderboardView` draws the rows but holds no renderer reference; the jump is
+`UnityVerticalSliceRenderer.SetActiveLaneCameraId`, which the lane button already calls. A row needs
+to become a button, the view needs the renderer, and the current camera's row wants an indicator so
+the table also absorbs the button's second job — showing WHICH lane you are on.
+
+## 14. The send sub panel should be built out like the build sub panel on tablets
+
+Reported 2026-08-21. The tablet layout work gave the build (tower) picker a fuller treatment; the
+send dock's category/creep sub panel should match it — same structural pattern, not a phone panel
+scaled up.
+
+## 15. A data view for how many creeps you have in queue
+
+Reported 2026-08-21. Queued sends are invisible: `CancelQueuedSend`/`ClearSendQueue` landed
+simulation-side (see item 47's history) but nothing on screen even says how many are waiting. A
+count readout is the minimum; it is also the natural anchor for item 47's missing cancel control —
+whichever surface shows the count is where cancelling belongs.
+
 ## Related open work, not on this list
 
 - **Twin Crescent has no visual profile.** ~~It renders a primitive fallback that nothing
