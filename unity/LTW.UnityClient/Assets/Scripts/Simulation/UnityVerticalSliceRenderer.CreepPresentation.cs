@@ -288,6 +288,23 @@ namespace LTW.UnityClient.Simulation
         /// </remarks>
         private static void ConfigureCreepHealthBar(GameObject creepObject, string creepId, float healthFraction)
         {
+            // Retired shapes: pooled creeps can carry cubes over from a previous life, so they are
+            // explicitly switched off rather than merely no longer created.
+            DeactivateChild(creepObject, "HealthBarBack");
+            DeactivateChild(creepObject, "HealthBarFill");
+            DeactivateChild(creepObject, "HealthBarMidTick");
+            DeactivateChild(creepObject, "HealthWoundPip");
+
+            // The settings toggle. Checked before CreepBodyTop's renderer walk, not after, so
+            // turning bars off actually saves the per-creep measurement rather than just hiding
+            // its result — the point of a "clean it up or remove it" pass is a real off switch,
+            // not a bar that still costs a frame it never draws.
+            if (!PresentationPreferences.HealthBarsVisible)
+            {
+                DeactivateChild(creepObject, "HealthBarQuad");
+                return;
+            }
+
             var metrics = CreepHealthBarMetrics.For(creepId);
 
             // Measure before the bar parts exist, so they cannot inflate the body's top.
@@ -295,13 +312,6 @@ namespace LTW.UnityClient.Simulation
             var barY = bodyTop > 0f ? bodyTop + HealthBarGap : metrics.Y;
 
             var bar = EnsureFillBarChild(creepObject, "HealthBarQuad");
-
-            // Retired shapes: pooled creeps can carry cubes over from a previous life, so they are
-            // explicitly switched off rather than merely no longer created.
-            DeactivateChild(creepObject, "HealthBarBack");
-            DeactivateChild(creepObject, "HealthBarFill");
-            DeactivateChild(creepObject, "HealthBarMidTick");
-            DeactivateChild(creepObject, "HealthWoundPip");
 
             var damaged = healthFraction < 0.999f;
             bar.SetActive(damaged);

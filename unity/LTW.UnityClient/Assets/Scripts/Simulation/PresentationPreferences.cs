@@ -10,6 +10,7 @@ namespace LTW.UnityClient.Simulation
         private const string AudioMutedKey = "ltw.presentation.audio-muted";
         private const string FeedbackVolumeKey = "ltw.presentation.feedback-volume";
         private const string MusicVolumeKey = "ltw.presentation.music-volume";
+        private const string HealthBarsVisibleKey = "ltw.presentation.health-bars-visible";
 
         public static bool ReducedEffects
         {
@@ -62,6 +63,23 @@ namespace LTW.UnityClient.Simulation
             set
             {
                 PlayerPrefs.SetFloat(MusicVolumeKey, Mathf.Clamp01(value));
+                PlayerPrefs.Save();
+            }
+        }
+
+        /// <summary>
+        /// Whether a damaged creep's fill-bar quad is drawn at all. Defaults on — the redesign
+        /// (flat unlit fill-bar quads through the shared LTW/Fill Bar shader, replacing the old lit
+        /// cube pair) is meant to answer the "little value" half of the iPad round 2 report; this
+        /// toggle exists for whichever players still want the board bare, without deciding that
+        /// question for everyone by removing the feature outright.
+        /// </summary>
+        public static bool HealthBarsVisible
+        {
+            get => PlayerPrefs.GetInt(HealthBarsVisibleKey, 1) == 1;
+            set
+            {
+                PlayerPrefs.SetInt(HealthBarsVisibleKey, value ? 1 : 0);
                 PlayerPrefs.Save();
             }
         }
