@@ -416,9 +416,13 @@ namespace LTW.UnityClient.Simulation
             {
                 if (creep.Id.Equals(creepId))
                 {
-                    // At the local seat's send-category tier, matching EconomyService.SendCostFor.
+                    // At the local seat's send-category tier and the current tick's opening
+                    // discount, matching EconomyService.SendCostFor exactly — a card quoting a
+                    // different number than what QueueSend actually charges is a button that lies.
                     var tier = LocalSeat().SendCategoryTier(creep.CategoryIndex);
-                    return creep.Cost.Amount * LTW.Simulation.Content.CategoryTierRules.SendCostPercentFor(tier) / 100;
+                    var tick = simulation.GetSnapshot().Tick.Value;
+                    return creep.Cost.Amount * LTW.Simulation.Content.CategoryTierRules.SendCostPercentFor(tier) / 100
+                        * LTW.Simulation.Content.OpeningEconomyRules.CreepCostPercentFor(tick) / 100;
                 }
             }
 

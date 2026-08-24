@@ -768,7 +768,7 @@ public sealed class LocalVerticalSlice
     /// </remarks>
     private int AffordableRunQuantity(PlayerId playerId, ContentId creepId, int runLength)
     {
-        var unitCost = economy.SendCostFor(players.Get(playerId), CreepFor(creepId), 1);
+        var unitCost = economy.SendCostFor(players.Get(playerId), CreepFor(creepId), 1, tick.Value);
         return unitCost <= 0 ? runLength : Math.Min(runLength, players.Get(playerId).Gold.Amount / unitCost);
     }
 

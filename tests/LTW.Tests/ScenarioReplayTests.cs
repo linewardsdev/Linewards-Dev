@@ -46,6 +46,14 @@ public sealed class ScenarioReplayTests
         // record below names Brute (cost 30). TryApplySend used to charge every replayed send
         // against the runner's own configured creep regardless of what the record said, so this
         // would have deducted 10 gold instead of 30.
+        //
+        // Stays at tick 1 rather than moving past OpeningEconomyRules.RampEndTick the way the
+        // EconomyTests fixes did: Replay's own loop runs ApplyScenarioLeakPressure for every tick
+        // up to completedAtTick, and with only two players a completedAtTick of 1000 eliminates one
+        // of them before this single scripted command is even reached. 85, not 70, is Brute's price
+        // at tick 1's discount (50% of 30, rounded down) — the discount is a real, expected part of
+        // the number here, and the property this test actually pins (charged against the RECORD's
+        // creep, not the runner's configured default) holds at any consistent price.
         var runner = CreateRunner();
         var players = new[] { new PlayerId(1), new PlayerId(2) };
         var replay = new ReplayRecord(
@@ -58,7 +66,7 @@ public sealed class ScenarioReplayTests
 
         var result = runner.Replay(replay);
 
-        Assert.Equal(70, result.Players.Get(new PlayerId(1)).Gold.Amount);
+        Assert.Equal(85, result.Players.Get(new PlayerId(1)).Gold.Amount);
     }
 
     [Fact]

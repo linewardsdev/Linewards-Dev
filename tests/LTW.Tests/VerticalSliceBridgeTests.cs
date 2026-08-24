@@ -129,8 +129,10 @@ public sealed class VerticalSliceBridgeTests
             tower.OwnerId.Equals(new PlayerId(1)) &&
             tower.LaneId.Equals(new LaneId(1)) &&
             tower.Position.Equals(new GridPosition(1, 1)));
-        // 100 starting - 14 tower - 20 runner. The runner doubled to 20 with the 2x creep roster.
-        Assert.Equal(66, snapshot.Players.Get(new PlayerId(1)).Gold.Amount);
+        // 100 starting - 14 tower - 10 runner. The runner doubled to 20 with the 2x creep roster,
+        // then this send (queued at tick 0, deep in OpeningEconomyRules' opening discount) charges
+        // half that: 50% of 20, rounded down.
+        Assert.Equal(76, snapshot.Players.Get(new PlayerId(1)).Gold.Amount);
         Assert.Equal(11, snapshot.Players.Get(new PlayerId(1)).Income.Amount);
         Assert.Contains(events, simulationEvent => simulationEvent is TowerPlacedEvent);
         Assert.Contains(events, simulationEvent => simulationEvent is CreepSpawnedEvent);

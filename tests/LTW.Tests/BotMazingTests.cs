@@ -78,7 +78,13 @@ public sealed class BotMazingTests
     {
         var slice = new LocalVerticalSlice(SampleVerticalSliceContent.Create(), ThreeLanes());
 
-        for (var tick = 0; tick < 1200; tick++)
+        // 1500, not 1200. OpeningEconomyRules' opening discount (2026-08-24) makes sends cheaper
+        // for the first 300 ticks, and TakeTurn already gives sending first claim on a tick's gold
+        // (see BotController's own doc on that ordering) — so a bot spends more on creeps during
+        // the discount window and has less left for towers, delaying when the busiest one clears
+        // nine. Traced: best tower count is 8 at 1200, 10 by 1400. Still comfortably past the old
+        // ceiling, just later.
+        for (var tick = 0; tick < 1500; tick++)
         {
             slice.AdvanceOneTick();
         }
