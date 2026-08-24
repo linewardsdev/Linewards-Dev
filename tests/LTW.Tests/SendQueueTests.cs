@@ -379,4 +379,48 @@ public sealed class SendQueueTests
         Assert.Equal(slice.QueuedSendCountFor(Seat, creep), snapshot.QueuedSendCountFor(Seat, creep));
         Assert.Equal(3, snapshot.QueuedSendCountFor(Seat, creep));
     }
+
+    /// <summary>
+    /// A run of the same creep draining from the queue grants exactly the income one direct send
+    /// of that quantity would — not more.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="EconomyService.IncomeGainFor"/> floors at +1 above the taper's knee, so a single
+    /// gain-1 creep is never zeroed out. Evaluated once per QUEUED UNIT rather than once per RUN,
+    /// that floor stops being a floor and starts being a per-unit bonus — found from a report that
+    /// queued sends were "not counting income correctly," and reproduced here with the report's own
+    /// shape: ten Runners (gain 1 each) queued at income deep in the taper band used to grant +10
+    /// through the drain loop against the +5 the same ten grant sent as one direct
+    /// <c>QueueSend(quantity: 10)</c> call.
+    ///
+    /// Asserted by comparing two independent slices rather than a hand-computed income constant, so
+    /// the assertion tracks the taper formula itself and cannot drift the moment either side of it
+    /// is rebalanced. Gold is granted far past what ten Runners cost, so affordability is not what
+    /// this test is about — <see cref="A_queue_longer_than_the_bank_stops_where_the_gold_runs_out"/>
+    /// already owns that question.
+    /// </remarks>
+    [Fact]
+    public void A_queued_run_of_one_creep_grants_the_same_income_as_one_direct_send_of_the_same_quantity()
+    {
+        const int quantity = 10;
+        var creep = SampleVerticalSliceContent.CreepId;
+
+        var queued = Slice(1_000_000);
+        queued.GrantLocalPlaytestIncome(Seat, new Income(590)); // 10 -> 600, mid-band (300-900)
+        for (var i = 0; i < quantity; i++)
+        {
+            Assert.True(queued.EnqueueSend(Seat, creep).Accepted);
+        }
+        queued.AdvanceOneTick();
+        Assert.Empty(queued.SendQueueFor(Seat));
+        var queuedIncome = queued.GetSnapshot().Players.Get(Seat).Income.Amount;
+
+        var direct = Slice(1_000_000);
+        direct.GrantLocalPlaytestIncome(Seat, new Income(590));
+        Assert.True(direct.QueueSend(Seat, creep, quantity).Accepted);
+        var directIncome = direct.GetSnapshot().Players.Get(Seat).Income.Amount;
+
+        output.WriteLine($"  queued drain -> income {queuedIncome}; one direct send of {quantity} -> income {directIncome}");
+        Assert.Equal(directIncome, queuedIncome);
+    }
 }

@@ -711,6 +711,19 @@ public sealed class LocalVerticalSlice
     /// and a queue that released one creep per tick would take a hundred ticks to spend a bank the
     /// player already has.
     ///
+    /// A CONSECUTIVE run of the same creep drains as one QueueSend call at that quantity, not one
+    /// call per unit. Cost is linear in quantity (SendCostFor's own doc: "a bulk send is priced
+    /// exactly as the same number of single sends"), so this changes nothing about what a run costs
+    /// — but IncomeGainFor is not linear above the taper's knee, and it floors at a minimum of +1 so
+    /// a single gain-1 creep is never zeroed out. Evaluated once per unit instead of once per run,
+    /// that floor stops being a floor and starts being a per-unit bonus: ten queued Runners at
+    /// income 600 (taper band 300-900) granted +10 through this loop against +5 for the SAME ten
+    /// sent as one batch — a real income-accounting bug this reordering closes, found from a report
+    /// that queued sends were "not counting income correctly." This is also most of what read as
+    /// "sending multiples at a time": several ticks' worth of taps, all affordable at once, used to
+    /// spawn as a visible burst of individual accept/spawn events; now it is one event at the true
+    /// quantity, matching what a direct multi-send already looked like.
+    ///
     /// Seats in id order, for the same determinism reason the bot loop is ordered: this spends gold
     /// and assigns entity ids.
     /// </remarks>
@@ -719,11 +732,44 @@ public sealed class LocalVerticalSlice
         foreach (var playerId in sendQueues.Keys.OrderBy(id => id.Value).ToArray())
         {
             var queue = sendQueues[playerId];
-            while (queue.Count > 0 && QueueSend(playerId, queue[0], 1).Accepted)
+            while (queue.Count > 0)
             {
-                queue.RemoveAt(0);
+                var creepId = queue[0];
+                var runLength = 1;
+                while (runLength < queue.Count && queue[runLength].Equals(creepId))
+                {
+                    runLength++;
+                }
+
+                // Capped at what gold actually covers, computed BEFORE the call. Asking QueueSend
+                // for the full run and letting it reject would turn a queue that can afford HALF a
+                // run into one that drains none of it — the exact partial-fill behaviour the
+                // original per-unit loop had for free, which batching must not give up to fix the
+                // income accounting below.
+                var affordable = AffordableRunQuantity(playerId, creepId, runLength);
+                if (affordable <= 0 || !QueueSend(playerId, creepId, affordable).Accepted)
+                {
+                    break;
+                }
+
+                queue.RemoveRange(0, affordable);
             }
         }
+    }
+
+    /// <summary>
+    /// How many of a consecutive same-creep run this seat can pay for right now, capped at the
+    /// run's own length.
+    /// </summary>
+    /// <remarks>
+    /// Cost is linear in quantity (unit price times count, computed once — see
+    /// <see cref="EconomyService.SendCostFor"/>), so this is arithmetic rather than a search, and
+    /// the unit price it reads is the exact one <c>QueueSend</c> will charge for each of them.
+    /// </remarks>
+    private int AffordableRunQuantity(PlayerId playerId, ContentId creepId, int runLength)
+    {
+        var unitCost = economy.SendCostFor(players.Get(playerId), CreepFor(creepId), 1);
+        return unitCost <= 0 ? runLength : Math.Min(runLength, players.Get(playerId).Gold.Amount / unitCost);
     }
 
     /// <summary>
@@ -1450,6 +1496,22 @@ public sealed class LocalVerticalSlice
         MatchSummary = null;
         acceptedCommands.Clear();
         botDecisionRecords.Clear();
+
+        // Two more per-match dictionaries this used to leave standing, both found from a "reset
+        // doesn't reset correctly" report. Neither is emptied by resetting `players` above, because
+        // both key off PlayerId rather than living inside the player set.
+        //
+        // sendQueues: an unpaid send queued right before Reset survived it and drained on the FIRST
+        // tick of the new match against the fresh starting gold — a creep the player never asked
+        // for in this match, spawned as if they had.
+        //
+        // eliminatedAtTick: RecordElimination writes each seat once and never again ("a seat cannot
+        // come back" — true within a match, false across a Reset). A seat eliminated in the
+        // previous match kept that tick; if the same seat was eliminated again in the new match,
+        // ContainsKey was already true, so the new tick was silently dropped and the results screen
+        // ranked that seat using an elimination time from a match that no longer exists.
+        sendQueues.Clear();
+        eliminatedAtTick.Clear();
     }
 
     public void StartMatch()
