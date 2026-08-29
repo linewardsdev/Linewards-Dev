@@ -439,7 +439,9 @@ namespace LTW.UnityClient.UI
             // have silently rendered Category 2's grid for any new category index.
             if (selectedCategory < 0)
             {
-                DrawCategoryPicker(rect, buttonY, buttonHeight, gap, scale);
+                // 2 columns in rail mode, not 3 — see DrawCategoryPicker's own doc for why.
+                var pickerColumns = railMode ? 2 : CategoryLabels.Length;
+                DrawCategoryPicker(rect, buttonY, buttonHeight, gap, scale, pickerColumns);
             }
             else if (selectedCategory == 0)
             {
@@ -466,15 +468,33 @@ namespace LTW.UnityClient.UI
         /// fixing a height, and then, once the height was derived, spent three full-width rows
         /// stretching portrait art across them. The shared helper is the only place either can
         /// happen now.
+        ///
+        /// <paramref name="columns"/> wraps into more than one row when it is fewer than the
+        /// category count, every card sized as if every row were full — a trailing partial row
+        /// (three categories, two columns: ELITE alone) sits in the first slot rather than
+        /// stretching to fill the row. Rail mode passes 2, not 3: a rail card at three columns is
+        /// 264 units wide against the drawer's own 321 at a comparable scale (the drawer
+        /// temporarily claims nearly the whole screen, where the rail is a permanent, narrower
+        /// column), and at 264 the tier row's "NEED +70" button clipped to "EED +7" (reported from
+        /// play 2026-08-29). Two columns clears 404, comfortably past what the button needs.
         /// </remarks>
-        private void DrawCategoryPicker(Rect rect, float buttonY, float buttonHeight, float gap, float scale)
+        private void DrawCategoryPicker(Rect rect, float buttonY, float buttonHeight, float gap, float scale, int columns)
         {
             var accents = new[] { ArcaneBlue, WardViolet, SignalGold };
             var gold = CurrentPlayerGold();
+            var rowHeight = 0f;
 
             for (var category = 0; category < CategoryLabels.Length; category++)
             {
-                var cardRect = RuntimeUiChrome.CategoryCardRect(rect, buttonY, gap, category, CategoryLabels.Length, scale);
+                var row = category / columns;
+                var column = category % columns;
+                var top = buttonY + row * (rowHeight + gap);
+                var cardRect = RuntimeUiChrome.CategoryCardRect(rect, top, gap, column, columns, scale);
+                if (row == 0 && column == 0)
+                {
+                    rowHeight = cardRect.height;
+                }
+
                 if (DrawCategoryCard(cardRect, CategoryLabels[category], accents[category], scale))
                 {
                     SelectedCategory = category;

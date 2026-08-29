@@ -504,8 +504,32 @@ already had, sharing the left rail with the placement quick-switch stack (`DrawP
 which the two never conflict over since `DrawTowerPalette` returns immediately while a tower is
 actively being placed.
 
-Unverified on device — Unity was open for live testing when this landed, so the batchmode compile
-check and a capture pass are still owed before this can be marked verified rather than done.
+**Verified by capture at tablet aspect 2026-08-29**, and the first capture pass caught three real
+defects the code-only reasoning above missed:
+
+- `TouchPlacementController.DrawTowerPalette` set `RuntimeUiChrome.BuildDockInset` unconditionally,
+  where `SendDockController`'s equivalent already skipped it in rail mode. The board camera
+  collapsed to a sliver for a panel that, being in the rail, was covering none of it — the exact bug
+  `DrawPlacementStack`'s own comment already named ("squeezed the board to a fraction of its height
+  for a panel that was covering nothing"), reintroduced in a sibling method that missed the guard.
+- The build category card overlapped its own "5 TOWERS"/"ALL AT TIER" text, because that card
+  carries an extra bottom-anchored row (the whole-line batch upgrade) the send card does not, and a
+  rail card at three columns (264 units) is narrower than either card needs at three — narrower, in
+  fact, than the DRAWER's own card at a comparable scale (321 units), because the drawer temporarily
+  claims nearly the whole screen where the rail is a fixed, narrower column. Fixed by wrapping both
+  the send and build category pickers into 2 columns in rail mode rather than 3 (`DrawCategoryPicker`
+  and `DrawTowerCategoryPicker` both gained a `columns` parameter), which also gave both pickers
+  404-unit cards instead of 264.
+- The tier row's "NEED +70" button clipped to "EED +7" on both pickers at the narrower 264-unit rail
+  card — the same clipping bug `DrawCategoryTierRow`'s own comment already recorded fixing once
+  before, resurfacing at a width smaller than that fix was tuned against. Moving both pickers to 2
+  columns fixed this as a side effect of the width increase, so the original 0.40/0.58 split stays
+  unchanged rather than chasing two different card widths with one shared fraction.
+
+All three fixed and reverified by a second and third capture pass: board at full height, both
+pickers' hint text and tier buttons render cleanly at three tested states (unlocked, locked, and a
+line with batch upgrades ready), the creep/tower grids unaffected. 335/335 tests green throughout
+(none of this touches the simulation).
 
 ## 15. A data view for how many creeps you have in queue — DONE (`fc10745`)
 

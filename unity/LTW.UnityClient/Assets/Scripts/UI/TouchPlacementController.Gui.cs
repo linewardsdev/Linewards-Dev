@@ -493,7 +493,16 @@ namespace LTW.UnityClient.UI
             // closes. Clearing it from another component's Update instead was the first attempt and
             // is a race: Unity does not order Update between components, so the renderer could read
             // the inset either side of the clear and the board lifted only on some frames.
-            RuntimeUiChrome.BuildDockInset = MobileViewportLayout.ViewportHeight - rect.yMin;
+            //
+            // Rail mode is excluded, the same way DrawPlacementStack's rail branch already was: the
+            // rail sits beside the board, not over it, so asking the camera to lift for it squeezed
+            // the board to a sliver for a panel covering nothing. Missing this guard when the rail
+            // branch was added is exactly the bug that comment already describes — confirmed by
+            // capture, where the board collapsed to a strip in the middle of a mostly-black screen.
+            if (!MobileViewportLayout.HasSideRails)
+            {
+                RuntimeUiChrome.BuildDockInset = MobileViewportLayout.ViewportHeight - rect.yMin;
+            }
 
             DrawPanel(rect, PanelInk);
             DrawAccent(new Rect(rect.x, rect.yMax - 4f * scale, rect.width, 4f * scale), MintSignal);
@@ -540,7 +549,12 @@ namespace LTW.UnityClient.UI
 
             if (selectedTowerCategory < 0)
             {
-                DrawTowerCategoryPicker(rect, buttonY, buttonHeight, gap, scale);
+                // 2 columns in rail mode, not 3 — this card carries an extra bottom-anchored row
+                // (the whole-line batch upgrade) the tower GRID below does not, so it needs more
+                // width than the grid's 3-across estimate gives it. See DrawTowerCategoryPicker's
+                // own doc for the measurement.
+                var pickerColumns = MobileViewportLayout.HasSideRails ? 2 : LTW.UnityClient.Simulation.TowerCatalog.CategoryLabels.Length;
+                DrawTowerCategoryPicker(rect, buttonY, buttonHeight, gap, scale, pickerColumns);
                 return;
             }
 
@@ -557,19 +571,46 @@ namespace LTW.UnityClient.UI
         /// Category chooser, mirroring the send dock. Card height is divided out of the panel's
         /// actual height so adding a category cannot push the last card off the panel.
         /// </summary>
-        private void DrawTowerCategoryPicker(Rect rect, float buttonY, float buttonHeight, float gap, float scale)
+        /// <remarks>
+        /// <paramref name="columns"/> wraps into more than one row when it is fewer than the
+        /// category count, all cards sized as if every row were full — the trailing partial row
+        /// (three categories, two columns: GROVE alone) sits in the first slot rather than
+        /// stretching to fill the row, so it stays the same size as the pair above it.
+        ///
+        /// Rail mode passes 2, not 3, because this card carries TWO bottom-anchored rows (a
+        /// whole-line batch upgrade above the tier row) that the send dock's equivalent does not —
+        /// at the width three columns leaves in a rail, the "5 TOWERS" hint slid down far enough to
+        /// print through both of them (reported from play 2026-08-29, alongside "NEED +70" clipping
+        /// to "EED +7" from the same undersized card). Measured, not guessed: a rail's card at three
+        /// columns is 264 units wide against phone drawer's own 321 at a comparable scale, because
+        /// the drawer temporarily claims nearly the whole screen width where the rail is a
+        /// permanent, narrower column — two columns clears 404 units, comfortably past what both
+        /// rows need.
+        /// </remarks>
+        private void DrawTowerCategoryPicker(Rect rect, float buttonY, float buttonHeight, float gap, float scale, int columns)
         {
             var labels = LTW.UnityClient.Simulation.TowerCatalog.CategoryLabels;
             var gold = CurrentPlayerGold();
             // -1 until the first tower goes down, after which every other line is locked out for the
             // rest of the match. Read once per frame rather than per card so all three agree.
             var chosenLine = CurrentPlayerTowerLine();
+            var rowHeight = 0f;
 
             for (var category = 0; category < labels.Length; category++)
             {
+                var row = category / columns;
+                var column = category % columns;
+                var top = buttonY + row * (rowHeight + gap);
                 var locked = chosenLine >= 0 && category != chosenLine;
                 var accent = CategoryAccent(category);
-                var cardRect = RuntimeUiChrome.CategoryCardRect(rect, buttonY, gap, category, labels.Length, scale);
+                var cardRect = RuntimeUiChrome.CategoryCardRect(rect, top, gap, column, columns, scale);
+                if (row == 0 && column == 0)
+                {
+                    // Captured from the first card so row 1's Y offset (above) has something to
+                    // add — every card is the same size (fixed columns, not the row's own item
+                    // count), so the first card's height speaks for all of them.
+                    rowHeight = cardRect.height;
+                }
                 // Hit region excludes BOTH action rows, or the card's own button eats their clicks
                 // before either is ever delivered.
                 var pressed = RuntimeUiChrome.DrawCommandCard(
