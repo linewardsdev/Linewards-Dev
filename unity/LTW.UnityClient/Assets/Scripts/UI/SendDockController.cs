@@ -347,6 +347,13 @@ namespace LTW.UnityClient.UI
             var goldRect = railMode
                 ? new Rect(rect.x + 12f * scale, rect.y + 28f * scale, 100f * scale, 18f * scale)
                 : new Rect(rect.xMax - 204f * scale, rect.y + 12f * scale, 58f * scale, 18f * scale);
+            // Explicit, not inherited: metaStyle is shared with DrawCategoryTierRow and
+            // DrawSendCardsRail below, both of which leave its alignment wherever their OWN last
+            // label needed it. Without setting it here, this label's alignment silently depended on
+            // whichever of those last ran — MiddleLeft after the picker, MiddleCenter after a creep
+            // grid — so it visibly jumped between the two depending on navigation history (reported
+            // from play on tablet 2026-08-29).
+            metaStyle.alignment = TextAnchor.MiddleLeft;
             GUI.Label(goldRect, $"G{gold}", metaStyle);
 
             // The queue readout (item 15): how much intent is waiting to be paid for. In the
@@ -357,6 +364,9 @@ namespace LTW.UnityClient.UI
             if (totalQueued > 0 && (railMode || selectedCategory < 0))
             {
                 metaStyle.normal.textColor = SignalGold;
+                // Explicit for the same reason the gold label above sets it: metaStyle is shared,
+                // and its alignment otherwise depends on whatever last drew with it.
+                metaStyle.alignment = TextAnchor.MiddleLeft;
                 var queueRect = railMode
                     ? new Rect(rect.x + 12f * scale, rect.y + 46f * scale, 140f * scale, 18f * scale)
                     : new Rect(rect.xMax - 140f * scale, rect.y + 12f * scale, 130f * scale, 18f * scale);
@@ -375,6 +385,8 @@ namespace LTW.UnityClient.UI
             if (isSendCoolingDown && (selectedCategory < 0 || CategoryHasCooldownGatedCards(selectedCategory)))
             {
                 metaStyle.normal.textColor = SignalGold;
+                // Explicit for the same reason the two labels above set it: metaStyle is shared.
+                metaStyle.alignment = TextAnchor.MiddleLeft;
                 GUI.Label(
                     new Rect(rect.x + 12f * scale, rect.y + 28f * scale, 200f * scale, 18f * scale),
                     $"READY IN {cooldownSeconds:0.0}s",
@@ -905,6 +917,10 @@ namespace LTW.UnityClient.UI
                     Mathf.Lerp(displayAccent.b, 1f, 0.55f),
                     1f)
                 : displayAccent;
+            // Explicit, matching the name label above it (buttonStyle, never mutated away from its
+            // MiddleCenter default): metaStyle IS mutated elsewhere (the rail rows set it left- and
+            // right-aligned), so this card's meta line must not inherit whatever state that left.
+            metaStyle.alignment = TextAnchor.MiddleCenter;
             GUI.Label(RuntimeUiChrome.CommandCardMetaRect(rect, scale), meta, metaStyle);
             return pressed;
         }
