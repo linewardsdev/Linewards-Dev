@@ -351,14 +351,18 @@ namespace LTW.UnityClient.UI
             bodyStyle.normal.textColor = Cloud;
 
             GUI.Label(new Rect(rect.x + 12f * scale, rect.y + 8f * scale, rect.width - 156f * scale, 22f * scale), TowerRoleName(selectedTower.TowerId.Value).ToUpperInvariant(), titleStyle);
-            if (DrawLauncherButton(new Rect(rect.xMax - 142f * scale, rect.y + 7f * scale, 78f * scale, 30f * scale), "BUILD", SignalGold, scale))
+            // BUILD/upgrade share a left column and X/SELL share a right column, both columns the
+            // same width and x-offset top-to-bottom. Found by capture comparison (2026-08-29): X used
+            // to be 40 wide against SELL's 70 directly below it, and BUILD's left edge sat 28 units
+            // right of the upgrade button's — same-looking pills that didn't actually line up.
+            if (DrawLauncherButton(new Rect(rect.xMax - 172f * scale, rect.y + 7f * scale, 78f * scale, 30f * scale), "BUILD", SignalGold, scale))
             {
                 selectedTower = null;
                 HideSelectionRing();
                 OpenTowerPalette();
                 return;
             }
-            if (RuntimeUiChrome.DrawPanelButton(new Rect(rect.xMax - 56f * scale, rect.y + 7f * scale, 40f * scale, 30f * scale), "X", accent, scale, buttonStyle ?? GUI.skin.button))
+            if (RuntimeUiChrome.DrawPanelButton(new Rect(rect.xMax - 86f * scale, rect.y + 7f * scale, 70f * scale, 30f * scale), "X", accent, scale, buttonStyle ?? GUI.skin.button))
             {
                 selectedTower = null;
                 HideSelectionRing();
@@ -386,7 +390,7 @@ namespace LTW.UnityClient.UI
             // match, so the whole feature looked like it did not exist, and the label named no way
             // out of it. A disabled control that says NEED ARCANE 2 is discoverable; an absent one
             // teaches nothing.
-            var upgradeRect = new Rect(rect.x + rect.width - 170f * scale, rect.y + 36f * scale, 78f * scale, 42f * scale);
+            var upgradeRect = new Rect(rect.x + rect.width - 172f * scale, rect.y + 36f * scale, 78f * scale, 42f * scale);
             var atMaxTier = selectedTower.Tier >= commandAdapter!.MaxCategoryTier;
             var lineIndex = commandAdapter.TowerLineIndexAt(selectedTower.Position.X, selectedTower.Position.Y);
             var lineLabel = lineIndex >= 0 && lineIndex < LTW.UnityClient.Simulation.TowerCatalog.CategoryLabels.Length
