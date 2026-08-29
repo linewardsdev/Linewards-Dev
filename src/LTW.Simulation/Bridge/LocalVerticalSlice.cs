@@ -1731,7 +1731,8 @@ public sealed class LocalVerticalSlice
     }
 
     /// <summary>
-    /// Clears a defeated seat's lane so the match can carry on around it.
+    /// Clears a defeated seat's lane so the match can carry on around it — and every creep it
+    /// SENT, wherever else on the board it currently is.
     /// </summary>
     /// <remarks>
     /// Elimination was only ever an ECONOMY fact: an eliminated player earns no income, cannot
@@ -1740,21 +1741,21 @@ public sealed class LocalVerticalSlice
     /// walking a lane whose owner had already lost — still leaking, still deducting lives from
     /// somebody on zero.
     ///
-    /// Three things have to happen together, and the third is the one that is easy to miss:
+    /// Four things have to happen together, and the fourth is the one that is easy to miss:
     ///
     /// 1. The towers go. They belong to a player who is out.
     /// 2. The creeps in the lane go. They were attacking a seat that no longer exists.
     /// 3. The lane's GRID and ROUTE are rebuilt empty. Towers occupy cells and are what lengthens
     ///    the route, so removing them without rebuilding leaves the maze standing as an invisible
     ///    wall — creeps would keep walking the long way round obstacles that are no longer there.
-    ///
-    /// Creeps the eliminated player SENT are deliberately left alone. They are in other people's
-    /// lanes, they were paid for, and they are somebody else's problem now.
-    ///
-    /// The in-flight creeps are removed rather than pushed on to the next lane. Both readings are
-    /// defensible — the carousel exists precisely to move creeps onward — but "wiped" is the
-    /// literal ask, and forwarding them would hand the attacker free continued pressure as a reward
-    /// for the kill. Worth revisiting once it can be seen in play.
+    /// 4. Every creep this player SENT dies too, wherever it currently is. Reported from play
+    ///    2026-08-29: leaving them standing ("they were paid for and are somebody else's problem
+    ///    now" — the reasoning this used to ship with) meant a dead seat's creeps kept marching and
+    ///    kept leaking, and a leak from a sender who no longer exists cannot be credited to anyone
+    ///    — the life is simply destroyed, breaking the conservation the steal mechanic depends on
+    ///    and permanently draining an active player for no one's benefit. See
+    ///    <see cref="CombatState.WipeLane"/> for the removal itself; this method only owns
+    ///    reporting each one killed with the right lane's actual defender on the event.
     /// </remarks>
     private void WipeEliminatedLane(PlayerId playerId)
     {
@@ -1769,9 +1770,17 @@ public sealed class LocalVerticalSlice
             pendingEvents.Add(new TowerSoldEvent(tick, playerId, laneId, tower.EntityId, new Gold(0)));
         }
 
+        // Own lane: attacking a seat that no longer exists, reported against THIS player.
         foreach (var creep in combatState.Creeps.Where(creep => creep.LaneId.Equals(laneId)).ToArray())
         {
             pendingEvents.Add(new CreepKilledEvent(tick, creep.EntityId, playerId, new Gold(0)));
+        }
+
+        // Sent elsewhere: still walking a lane that belongs to whoever is actually defending it,
+        // so the event reports THAT lane's real defender, not the sender who just died.
+        foreach (var creep in combatState.Creeps.Where(creep => creep.SenderId.Equals(playerId) && !creep.LaneId.Equals(laneId)).ToArray())
+        {
+            pendingEvents.Add(new CreepKilledEvent(tick, creep.EntityId, combatContent.GetLaneOwner(creep.LaneId), new Gold(0)));
         }
 
         combatState = combatState.WipeLane(laneId, playerId);
