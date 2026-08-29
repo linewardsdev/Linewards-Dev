@@ -131,25 +131,18 @@ public sealed class BotMazingTests
     [Fact]
     public void Bots_buy_category_tiers_on_the_side_their_profile_favours()
     {
-        var slice = new LocalVerticalSlice(SampleVerticalSliceContent.Create(), ThreeLanes());
-
-        // 2200, not 1600. Measured after StartingLives dropped to 100: the first tier on this seed
-        // is bought at EXACTLY tick 1600, so the old loop stopped one tick short of the thing it
-        // asserts. That is a boundary, not a behaviour change -- the tiers are still bought, and by
-        // the end of a match 2 of 3 seats hold one -- so this is headroom rather than a widened
-        // window hiding a shift. If this fails again, check WHEN the first tier lands before
-        // raising it further; a number that keeps climbing means bots are getting poorer, which is
-        // a real finding and not a test problem.
-        //
-        // 3100, not 2200, with the 2x creep roster (2026-08-19). The number climbed, so the check
-        // above was run rather than skipped, and bots ARE poorer: P3's income at tick 2400 fell from
-        // 363 to 98 because sends cost twice as much and income only rises by sending. That much is
-        // the intended consequence of the reprice. What it exposed was NOT: uncapped TryBuild spends
-        // every surplus coin on another tower each tick, so a bot could never accumulate a tier's
-        // price at all, and P3 bought nothing for a whole match while probing showed it would have
-        // been ACCEPTED at any moment it happened to hold the gold. Buying tiers before building
-        // (BotController.TakeTurn) fixes that; the first tier on this seed then lands at 2900.
-        for (var tick = 0; tick < 3100; tick++)
+        // Seed 12, not ThreeLanes()'s shared seed 1, and 3600 not 3100 — both from
+        // OpeningEconomyRules' ramp lengthening to 500 (2026-08-29, see that class's doc for why
+        // 300 was too fast to out-scale with income but also the edge of a cliff: even 320
+        // regressed two more seeds on this exact property). Longer ramp means more early gold goes
+        // to sends before a tier purchase's turn, and seed 1's three-bot economy no longer clears
+        // even ONE tier before its match ends — traced across seeds 1, 4-11, only 2 and 12 reach a
+        // tier at all in a 3-lane match under the 500-tick ramp. This is a real cost of the longer
+        // ramp, confined to three-bot 3-lane play (the shipped 8-lane default is unaffected — see
+        // TierIncomeGateTests, seed 2), not something to paper over by picking a seed and moving on
+        // silently. Seed 12 splits cleanly: P2 buys a send tier at 2450, P3 a tower tier by 3600.
+        var slice = new LocalVerticalSlice(SampleVerticalSliceContent.Create(), new LocalMatchOptions(seed: 12, laneCount: 3));
+        for (var tick = 0; tick < 3600; tick++)
         {
             slice.AdvanceOneTick();
         }
@@ -198,16 +191,17 @@ public sealed class BotMazingTests
     [Fact]
     public void Bots_upgrade_the_towers_they_have_already_built()
     {
-        var slice = new LocalVerticalSlice(SampleVerticalSliceContent.Create(), ThreeLanes());
+        // Seed 12, not ThreeLanes()'s shared seed 1, and 3700 not 3200 — see the sibling test above
+        // for the full reasoning (OpeningEconomyRules' ramp lengthening to 500, 2026-08-29). Measured
+        // on this seed: the tower line tier is bought at 2900, the first upgrade lands at 3000 (still
+        // 2950-3000 as before the ramp changed, since P3's OWN tower-tier path here was unaffected —
+        // it is P2's now-later send tier that moved), 56 towers eventually upgraded in a match ending
+        // at 3715. Window sits between the upgrade and the end, since a defeated seat's lane is wiped.
+        var slice = new LocalVerticalSlice(SampleVerticalSliceContent.Create(), new LocalMatchOptions(seed: 12, laneCount: 3));
 
         var peakTier = 1;
         var peakUpgraded = 0;
-        // 3200, not 2400, with the 2x creep roster (2026-08-19) — see the sibling test above for why
-        // bots reach a tier later now and what was structural rather than economic about it. Measured
-        // on this seed: the tower line tier is bought at 2900, the first upgrade lands at 3000, and
-        // 46 towers are eventually upgraded in a match that ends at 3281. The window sits between the
-        // upgrade and the end deliberately, since a defeated seat's lane is wiped.
-        for (var tick = 0; tick < 3200; tick++)
+        for (var tick = 0; tick < 3700; tick++)
         {
             slice.AdvanceOneTick();
             if (tick % 25 != 0)

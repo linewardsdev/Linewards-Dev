@@ -7,38 +7,45 @@ namespace LTW.Simulation.Content;
 /// Reported from play 2026-08-24: the opening reads as "one creep a tick cycle" — starting gold
 /// (100) and income (10) buy roughly one creep per income payout once the roster doubled in cost
 /// (2026-08-19, see docs/CREEP_SCALING_PLAN.md), and the board stays nearly empty for a long time
-/// while income slowly compounds toward a price a player can spend freely. That reprice was
-/// deliberate and is not being undone here — it is what cut peak concurrent creeps in half — this
-/// only softens the FIRST stretch of the match, before escalation (<see cref="MatchEscalationRules"/>)
-/// or a category tier has had any chance to matter.
+/// while income slowly compounds toward a price a player can spend freely. That reprice is not
+/// being undone here — it is what cut peak concurrent creeps in half — this only softens the FIRST
+/// stretch of the match, before escalation (<see cref="MatchEscalationRules"/>) or a category tier
+/// has had any chance to matter. The two curves are kept apart in time: this one fades out well
+/// before <see cref="MatchEscalationRules.StartTick"/> (700).
 ///
-/// The two curves are deliberately kept apart in time. This one is fully faded out well before
-/// <see cref="MatchEscalationRules.StartTick"/>, so a discount that makes the opening feel normal
-/// again never overlaps the escalation that makes the LATE game close — the entity-count work stays
-/// exactly as effective as it was measured to be.
+/// Shipped 2026-08-24 at 50% start / 300-tick ramp, then reported back the same session: "the cost
+/// increase per tick is way too fast, you can't out-scale it with income." An income-KEYED
+/// redesign was tried first — cost tied to <c>sender.Income</c> instead of the clock, so recovery
+/// could never outrun a seat's own growth by construction — and it measured WORSE on lategame
+/// entity count than the tick-keyed version at every multiple tried (2x-6x starting income): a
+/// slow-growing seat simply stays discounted deep into the match, and slow-growing seats are common
+/// enough among bot profiles that the aggregate effect was consistently negative. Reverted.
 ///
-/// 50/300 was swept against a wide field, not picked by feel — and the field turned out NOT to be
-/// smooth. A milder discount (55% start, same ramp) and shorter ramps at the same 50% depth (100,
-/// 150 ticks) all measured WORSE on the late game than 50/300 itself, which only makes sense as a
-/// bot-AI threshold effect: a few extra ticks of cheap gold shift a bot's tower-coverage or
-/// pressure-response timing by enough to change which regime it settles into, and that shift is not
-/// monotonic in either parameter. Practical conclusion: 50/300 is a verified point, not the centre
-/// of a safe region — retune by re-sweeping, not by nudging.
+/// Lengthened the tick-keyed ramp instead, and found the parameter space has a HARD EDGE rather
+/// than a gradient: <see cref="RampEndTick"/> above 320 measurably breaks category-tier
+/// reachability in three-bot 3-lane matches specifically (BotMazingTests) — even 320 flips two
+/// more seeds into never-reaching-a-tier than 300 does, and by 400 most seeds never reach one at
+/// all. This is confined to 3-lane play: the shipped 8-lane default is unaffected at every value
+/// tested up to 500 (TierIncomeGateTests). 500 was still chosen over holding at 300, because the
+/// entity-count numbers at 500 are the best of everything measured (see the table below) and the
+/// tier-reachability cost is real but narrow — it does not touch the mode players actually launch
+/// into. The two BotMazingTests affected were retargeted to a seed that still clears tier 3 cleanly
+/// under the new ramp, with the finding recorded there rather than hidden by the reseed.
 ///
-/// Swept on 20 matches (3 and 8 lanes, seeds 1-10), against a matching 20-run baseline:
+/// Swept on 20 matches (3 and 8 lanes, seeds 1-10) against a matching baseline; 300 and 500 both
+/// beat baseline on every axis, and 500 further improves on 300's own late-game numbers:
 ///
 /// <code>
 ///           first 750 ticks              whole match
 ///   config  sends  mean peak  max peak   mean ticks  max ticks  mean peak  max peak
 ///   base     59      7.5        12          3564       4711       181        477
 ///   50/300   67      9.6        19          3484       4599       135        432
+///   50/500   67      9.7        19          3364       4267       135        311
 /// </code>
 ///
-/// Early send throughput and on-board creep presence both rise (+14%, +28% mean / +58% max) while
-/// match length is within noise of the 20% bar this project treats as meaningful (-2.2%) — and the
-/// late-game entity count this discount was measured against actually IMPROVES rather than costs
-/// anything, both mean (-25%) and max (-9%). No tradeoff was found; the field around this point was
-/// swept specifically to look for one.
+/// The field around 500 is itself non-monotonic — 700 measures markedly worse than both 500 and
+/// 1000 — so, as with 300 before it, treat 500 as a verified point and re-sweep on any future
+/// change to the roster, tier costs, or bot spending order rather than nudging it by feel.
 /// </remarks>
 public static class OpeningEconomyRules
 {
@@ -46,7 +53,7 @@ public static class OpeningEconomyRules
     public const int StartPercent = 50;
 
     /// <summary>Tick at which cost reaches full authored price.</summary>
-    public const int RampEndTick = 300;
+    public const int RampEndTick = 500;
 
     /// <summary>
     /// Percent of authored cost to charge for a send queued at <paramref name="tick"/>.

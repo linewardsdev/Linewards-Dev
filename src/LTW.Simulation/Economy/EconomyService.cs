@@ -132,7 +132,10 @@ public sealed class EconomyService
     ///
     /// <see cref="OpeningEconomyRules"/> applies the same way: once per unit, before quantity
     /// multiplies, so a batched queue drain (<see cref="LocalVerticalSlice.AffordableRunQuantity"/>)
-    /// prices identically to the same quantity sent one at a time.
+    /// prices identically to the same quantity sent one at a time. Keyed on TICK rather than the
+    /// sender's own income deliberately — an income-keyed version was tried and measured worse on
+    /// lategame entity count (see OpeningEconomyRules' doc), because a seat whose income grows
+    /// slowly simply stays discounted deep into the match.
     /// </remarks>
     public int SendCostFor(PlayerEconomyState sender, CreepDefinition creep, int quantity, long tick)
     {

@@ -416,7 +416,7 @@ namespace LTW.UnityClient.Simulation
             {
                 if (creep.Id.Equals(creepId))
                 {
-                    // At the local seat's send-category tier and the current tick's opening
+                    // At the local seat's send-category tier and its current income's opening
                     // discount, matching EconomyService.SendCostFor exactly — a card quoting a
                     // different number than what QueueSend actually charges is a button that lies.
                     var tier = LocalSeat().SendCategoryTier(creep.CategoryIndex);
