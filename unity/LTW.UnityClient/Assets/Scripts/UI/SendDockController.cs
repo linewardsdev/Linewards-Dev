@@ -390,7 +390,16 @@ namespace LTW.UnityClient.UI
                 // The rail is tall and narrow where the drawer is short and wide, so the states
                 // stack their content instead of rowing it — the same shape shift the placement
                 // controls make between DrawPlacementBar and DrawPlacementStack.
-                var railTop = rect.y + (totalQueued > 0 ? 68f : 50f) * scale;
+                //
+                // Fixed at 68, not conditional on totalQueued. It used to drop to 50 when the queue
+                // was empty, to reclaim the QUEUE line's blank space — but that meant every category
+                // row and creep row shifted by 18 units the instant the queue crossed zero in either
+                // direction, which reads as the whole panel jumping while a player is actively
+                // tapping (reported from play 2026-08-29). Reserving the space unconditionally and
+                // simply not drawing the label when empty keeps the layout still; the cost is 18
+                // units of blank header on an empty queue, which is cheaper than a panel that jitters
+                // under a live hand.
+                var railTop = rect.y + 68f * scale;
                 if (selectedCategory < 0)
                 {
                     DrawCategoryPickerRail(rect, railTop, gold, scale);
