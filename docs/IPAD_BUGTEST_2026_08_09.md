@@ -474,6 +474,39 @@ treatment, and the build palette wants the same rail move. The tablet layout wor
 send dock's category/creep sub panel should match it — same structural pattern, not a phone panel
 scaled up.
 
+## 17. Tablet rail panels removed the icons and ran very long — DONE
+
+Reported from play 2026-08-29: "The send and build menus on tablet removed the icons and are very
+long. We have more realestate with tablets, we should utilize it."
+
+Item 14's rail treatment for the send dock, and the build palette's own tablet rail follow-up filed
+in that same item, both used a CUSTOM compact layout: one text-only row per category or creep,
+stacked vertically, with no icon — built on the assumption that a rail is narrow, so a card held to
+the art's own aspect would outrun it. That assumption was wrong, measurably: the board column
+narrows to the game's fixed portrait aspect regardless of the device's own aspect
+(`MobileViewportLayout.BoardColumnFraction`), so on a real tablet the two side rails together
+commonly hold more than half the screen width — plenty of room for the drawer's actual icon cards,
+not a reason to abandon them.
+
+Fixed by deleting the custom rail layouts (`SendDockController.DrawCategoryPickerRail`/
+`DrawSendCardsRail`) entirely and reusing the drawer's own proven, icon-carrying methods
+(`DrawCategoryPicker`, `DrawSendCards` for send; `DrawTowerCategoryPicker`, `DrawTowerCategoryGrid`
+for build) with the rail's actual rect. Both were already width-driven — card size comes from the
+rect's width via `CategoryCardRect`'s aspect math — so handing them a wider rect was the entire
+fix: icons come back for free, and the creep/tower grid's five items lay out as the drawer's own
+3-then-2 rows instead of five stacked single-item rows. Row height is derived from the first row's
+width through the card art's aspect rather than the drawer's flat 84, so cards scale up with the
+extra width instead of the art flattening at a fixed height.
+
+The build palette's tablet rail move — flagged as a follow-up in item 14 and never done — is
+included here: `TowerPalettePanelRect` gained the same rail branch `SendDockController.PanelRect`
+already had, sharing the left rail with the placement quick-switch stack (`DrawPlacementStack`),
+which the two never conflict over since `DrawTowerPalette` returns immediately while a tower is
+actively being placed.
+
+Unverified on device — Unity was open for live testing when this landed, so the batchmode compile
+check and a capture pass are still owed before this can be marked verified rather than done.
+
 ## 15. A data view for how many creeps you have in queue — DONE (`fc10745`)
 
 Reported 2026-08-21. **Done the same day:** the closed SEND launcher shows the total (`SEND x3`),

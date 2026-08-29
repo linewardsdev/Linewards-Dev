@@ -510,9 +510,33 @@ namespace LTW.UnityClient.UI
             // CLOSE duplicated it. See the matching note in SendDockController.
             buttonStyle!.fontSize = Mathf.RoundToInt(10f * scale);
 
-            var buttonY = rect.y + 84f * scale;
-            var buttonHeight = 84f * scale;
+            float buttonY;
+            float buttonHeight;
             var gap = 8f * scale;
+
+            if (MobileViewportLayout.HasSideRails)
+            {
+                // Reuses DrawTowerCategoryPicker/DrawTowerCategoryGrid as-is rather than a parallel
+                // compact layout — the same fix and for the same reason as SendDockController's rail
+                // branch (item 14 follow-up, reported from play 2026-08-29: "removed the icons and
+                // are very long... we have more real estate... we should utilize it"). Both methods
+                // already size their cards from the RECT's width, so handing them the rail's actual
+                // width restores the icons for free and turns the tower grid's rows into however
+                // many the rail's width naturally fits, without new drawing code.
+                //
+                // Height is derived from the first row's width through the card art's own aspect,
+                // not the drawer's fixed 84, for the same reason: 84 assumes the drawer's ~520-unit
+                // cap, and holding it fixed while width grows to fill the rail would flatten the
+                // card art rather than scale it up with the rest of the row.
+                var railCardWidth = (rect.width - 24f * scale - gap * 2f) / 3f;
+                buttonHeight = railCardWidth / RuntimeUiChrome.CommandCardArtAspect;
+                buttonY = rect.y + 40f * scale;
+            }
+            else
+            {
+                buttonY = rect.y + 84f * scale;
+                buttonHeight = 84f * scale;
+            }
 
             if (selectedTowerCategory < 0)
             {
@@ -1058,6 +1082,24 @@ namespace LTW.UnityClient.UI
 
         private Rect TowerPalettePanelRect(float scale, Rect frame)
         {
+            // On a tablet the palette lives in the left rail, below the HUD stack — the same
+            // treatment the send dock got in the right rail (item 14) and for the same reason: the
+            // rail sits beside the board, so the panel stops covering lane rows and stops asking the
+            // camera to lift. Shares PlacementRailTopInset with DrawPlacementStack's rail rect rather
+            // than defining its own, because the two are mutually exclusive in time (DrawTowerPalette
+            // returns immediately if isPlacing) and so can safely share the same region.
+            if (MobileViewportLayout.HasSideRails)
+            {
+                var rail = MobileViewportLayout.SideRailRect(rightSide: false);
+                var railMargin = MobileViewportLayout.EdgeMargin(scale);
+                var top = rail.y + PlacementRailTopInset * scale;
+                return new Rect(
+                    rail.x + railMargin * 0.5f,
+                    top,
+                    Mathf.Max(1f, rail.width - railMargin),
+                    Mathf.Max(1f, rail.yMax - top - railMargin));
+            }
+
             var width = Mathf.Min(frame.width - 16f * scale, 520f * scale);
             // One height for both states. The picker used to need a taller panel because it stacked
             // three full-width cards; laid out as a row sized to the card art's own aspect it fits
