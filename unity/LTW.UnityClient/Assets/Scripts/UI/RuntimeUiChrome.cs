@@ -403,6 +403,28 @@ namespace LTW.UnityClient.UI
             return new Rect(row.x + 8f * scale, row.y + (row.height - size) * 0.5f, size, size);
         }
 
+        /// <summary>
+        /// Backdrop socket behind <see cref="ListRowIconRect"/> — a dark well plus an
+        /// accent-coloured ring, drawn before the icon itself.
+        /// </summary>
+        /// <remarks>
+        /// The icon PNGs are properly anti-aliased where they are cut out (checked directly:
+        /// every corner is alpha 0, and the silhouette edge itself fades over 2-3 source pixels,
+        /// not a 1-pixel hard jump). Reported live as looking "placed" with "hard crop edges"
+        /// anyway, because the row it drops onto is one flat, unbroken fill — a card had its own
+        /// stone-and-metal texture and a well (DrawCommandCardUnitIconWell) behind the same icon
+        /// to sit inside; a list row had neither, so even a correctly anti-aliased sprite reads as
+        /// a sticker with nothing tying its edge to what is behind it. The ring is what a hard-cut
+        /// sprite actually needs here: it gives the edge a deliberate boundary to end AT, in the
+        /// row's own accent, rather than leaving it to end nowhere in particular.
+        /// </remarks>
+        public static void DrawListRowIconWell(Rect iconRect, Color accent, float scale)
+        {
+            var well = Shrink(iconRect, -6f * scale);
+            Fill(well, new Color(0.006f, 0.01f, 0.016f, 0.55f));
+            DrawOutline(well, new Color(accent.r, accent.g, accent.b, 0.5f), Mathf.Max(1f, scale));
+        }
+
         // Action-row geometry, in unscaled units, measured up from the card's bottom edge. The card
         // now carries TWO buttons stacked above its bottom margin — the batch row above the tier row —
         // and all three rects derive from these numbers. If they drift, the card's own button either

@@ -864,6 +864,7 @@ namespace LTW.UnityClient.UI
             var pressed = RuntimeUiChrome.DrawListRow(row, entry.Accent, state, scale);
 
             var iconRect = RuntimeUiChrome.ListRowIconRect(row, scale);
+            RuntimeUiChrome.DrawListRowIconWell(iconRect, displayAccent, scale);
             if (!RuntimeUiIconLibrary.DrawIcon(iconRect, $"ui_icon_tower_{entry.RoleId}_v01", isAffordable))
             {
                 DrawTowerIcon(iconRect, TowerIconForRole(entry.Role), displayAccent, scale);

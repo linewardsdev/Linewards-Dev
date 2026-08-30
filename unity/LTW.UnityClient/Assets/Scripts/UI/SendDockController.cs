@@ -803,6 +803,7 @@ namespace LTW.UnityClient.UI
             var pressed = RuntimeUiChrome.DrawListRow(row, accent, state, scale);
 
             var iconRect = RuntimeUiChrome.ListRowIconRect(row, scale);
+            RuntimeUiChrome.DrawListRowIconWell(iconRect, displayAccent, scale);
             if (!RuntimeUiIconLibrary.DrawIcon(iconRect, iconResource, isAffordable))
             {
                 DrawCreepIcon(iconRect, iconKind, displayAccent, scale);
