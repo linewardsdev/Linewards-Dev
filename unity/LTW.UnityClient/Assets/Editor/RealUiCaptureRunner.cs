@@ -117,6 +117,26 @@ namespace LTW.UnityClient.Editor
             // the authored model scales run 0.208 to 1.36 across it, against 0.59 to 1.05 on the
             // towers. If the stage's auto-fit is going to crop or strand anything, it is here.
             ("real-19-shell-codex-creeps", ShowCodexCreeps),
+            // Reported from a real device (13" M4 iPad Pro, 2026-08-30): every category card
+            // showed overlapping, crushed text. Seed() calls StartMatch() directly, which sets
+            // IsOpeningBuildCountdown = false, so none of the shots above have ever opened the
+            // BUILD rail during the 30-second opening countdown — the exact window the countdown's
+            // own on-screen text ("Place opening towers") tells a player to use it for. This shot
+            // reproduces that specific combination instead of assuming real-20 already covers it.
+            // Placed last, not alongside real-20: BeginOpeningBuildCountdown() sets HasStarted
+            // false and IsPaused true, which every earlier shot in the live-match group above
+            // assumes is NOT the case, and there is no per-shot teardown to undo it afterward.
+            ("real-21-build-during-opening-countdown", OpenBuildCategoryOneDuringOpeningCountdown),
+            // Both rails open at once — a tablet-only combination that was structurally impossible
+            // to reach before 2026-08-30: SendDockController closed itself the instant BUILD's
+            // palette expanded, and DrawTowerPalette refused to draw BUILD's own launcher while
+            // SEND was expanded, both unconditionally rather than only on a phone's single bottom
+            // drawer. On a rail the two occupy separate, non-overlapping columns, so there was
+            // never a layout reason for either exclusion — only a phone-mode assumption that
+            // leaked in. Reported live as "the buttons have no function... tapping them does
+            // nothing," which matches exactly: whichever launcher opened second was never drawn,
+            // so there was nothing there to tap. This shot is the regression test for the fix.
+            ("real-22-both-rails-open", OpenBothRailsAtOnce),
         };
 
         /// <summary>The portrait surface the HUD is authored against, matching MotionCaptureRunner.</summary>
@@ -943,6 +963,45 @@ namespace LTW.UnityClient.Editor
                 SetPrivate(dock, "isExpanded", false);
             }
 
+            SetPrivate(touch, "isPaletteExpanded", true);
+            SetPrivate(touch, "selectedTowerCategory", 0);
+        }
+
+        private static void OpenBuildCategoryOneDuringOpeningCountdown()
+        {
+            var driver = Object.FindAnyObjectByType<UnitySimulationDriver>();
+            if (driver == null)
+            {
+                Debug.LogWarning("REALUI no UnitySimulationDriver found");
+                return;
+            }
+
+            // Puts the driver back into the state a fresh match actually starts in — HasStarted
+            // false, IsOpeningBuildCountdown true — which every earlier shot skips past by calling
+            // StartMatch() once in Seed() and never revisiting it.
+            driver.BeginOpeningBuildCountdown();
+
+            // The CATEGORY PICKER (ARCANE/FOUNDRY/GROVE), not a category's tower grid — that is
+            // what the device screenshot showed overlapping, and OpenBuildCategoryOne opens the
+            // grid one level past it.
+            OpenBuildPalette();
+        }
+
+        private static void OpenBothRailsAtOnce()
+        {
+            var touch = Object.FindAnyObjectByType<TouchPlacementController>();
+            var dock = Dock();
+            if (touch == null || dock == null)
+            {
+                Debug.LogWarning("REALUI no TouchPlacementController or SendDockController found");
+                return;
+            }
+
+            // Deliberately NOT via OpenSendDock()/OpenBuildPalette() — both of those force the
+            // OTHER dock closed as part of their own setup, which is exactly the phone-only
+            // assumption this shot exists to prove is gone. Set both open directly instead.
+            SetPrivate(dock, "isExpanded", true);
+            SetSelectedCategory(dock, 0);
             SetPrivate(touch, "isPaletteExpanded", true);
             SetPrivate(touch, "selectedTowerCategory", 0);
         }

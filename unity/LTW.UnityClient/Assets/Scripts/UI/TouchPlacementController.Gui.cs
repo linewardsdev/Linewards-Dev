@@ -36,6 +36,7 @@ namespace LTW.UnityClient.UI
         private static GUIStyle? bodyStyle;
         private static GUIStyle? buttonStyle;
         private static GUIStyle? metaStyle;
+        private static GUIStyle? rowNameStyle;
 
         private int highlightedTowerRole = -1;
         private int selectedTowerCategory = -1;
@@ -451,7 +452,13 @@ namespace LTW.UnityClient.UI
                 return;
             }
 
-            if (!isPaletteExpanded && IsSendDockExpanded())
+            // Phone-only: a bottom drawer is one physical slot, so SEND being expanded there
+            // really does cover BUILD's launcher underneath it. On a tablet rail the two live in
+            // separate, non-overlapping columns (left/right), so this used to make BUILD's
+            // launcher un-drawn and un-tappable — not just hidden, ABSENT from OnGUI entirely —
+            // for the entire time SEND was open on the other side of the screen. Reported live
+            // 2026-08-30 as "the buttons have no function... tapping them does nothing."
+            if (!MobileViewportLayout.HasSideRails && !isPaletteExpanded && IsSendDockExpanded())
             {
                 return;
             }
@@ -526,48 +533,48 @@ namespace LTW.UnityClient.UI
             // CLOSE duplicated it. See the matching note in SendDockController.
             buttonStyle!.fontSize = Mathf.RoundToInt(10f * scale);
 
-            float buttonY;
-            float buttonHeight;
+            // Hoisted above the rail/drawer split, not drawn once per branch: this used to sit
+            // after that split reached a shared fall-through, which the rail branch's early
+            // return (below) would otherwise skip entirely — a category selected on a rail had no
+            // way back to the picker at all. Matches where SendDockController already draws BACK,
+            // for the same reason.
+            if (selectedTowerCategory >= 0
+                && RuntimeUiChrome.DrawPanelButton(new Rect(rect.xMax - 72f * scale, rect.y + 8f * scale, 58f * scale, 32f * scale), "BACK", MintSignal, scale, buttonStyle))
+            {
+                selectedTowerCategory = -1;
+                return;
+            }
+
             var gap = 8f * scale;
 
             if (MobileViewportLayout.HasSideRails)
             {
-                // Reuses DrawTowerCategoryPicker/DrawTowerCategoryGrid as-is rather than a parallel
-                // compact layout — the same fix and for the same reason as SendDockController's rail
-                // branch (item 14 follow-up, reported from play 2026-08-29: "removed the icons and
-                // are very long... we have more real estate... we should utilize it"). Both methods
-                // already size their cards from the RECT's width, so handing them the rail's actual
-                // width restores the icons for free and turns the tower grid's rows into however
-                // many the rail's width naturally fits, without new drawing code.
-                //
-                // Height is derived from the first row's width through the card art's own aspect,
-                // not the drawer's fixed 84, for the same reason: 84 assumes the drawer's ~520-unit
-                // cap, and holding it fixed while width grows to fill the rail would flatten the
-                // card art rather than scale it up with the rest of the row.
-                var railCardWidth = (rect.width - 24f * scale - gap * 2f) / 3f;
-                buttonHeight = railCardWidth / RuntimeUiChrome.CommandCardArtAspect;
-                buttonY = rect.y + 40f * scale;
-            }
-            else
-            {
-                buttonY = rect.y + 84f * scale;
-                buttonHeight = 84f * scale;
-            }
+                // A full-width LIST, not the drawer's grid of narrow cards — mirrors
+                // SendDockController's identical redesign (owner's call, 2026-08-30) for the same
+                // reason: a rail card only ever got a third or half of the rail's width shared
+                // with siblings, and every round of "make more fit in the same card" (icons,
+                // specialty text, row height) just found a new way to overflow that fixed
+                // portrait shape. See RuntimeUiChrome.DrawListRow for why this cannot reuse the
+                // card art itself.
+                var contentTop = rect.y + 40f * scale;
+                if (selectedTowerCategory < 0)
+                {
+                    DrawTowerCategoryPickerRail(rect, contentTop, scale);
+                }
+                else
+                {
+                    DrawTowerGridRail(CategoryEntriesByCost(selectedTowerCategory), rect, contentTop, scale);
+                }
 
-            if (selectedTowerCategory < 0)
-            {
-                // 2 columns in rail mode, not 3 — this card carries an extra bottom-anchored row
-                // (the whole-line batch upgrade) the tower GRID below does not, so it needs more
-                // width than the grid's 3-across estimate gives it. See DrawTowerCategoryPicker's
-                // own doc for the measurement.
-                var pickerColumns = MobileViewportLayout.HasSideRails ? 2 : LTW.UnityClient.Simulation.TowerCatalog.CategoryLabels.Length;
-                DrawTowerCategoryPicker(rect, buttonY, buttonHeight, gap, scale, pickerColumns);
                 return;
             }
 
-            if (RuntimeUiChrome.DrawPanelButton(new Rect(rect.xMax - 72f * scale, rect.y + 8f * scale, 58f * scale, 32f * scale), "BACK", MintSignal, scale, buttonStyle))
+            var buttonY = rect.y + 84f * scale;
+            var buttonHeight = 84f * scale;
+
+            if (selectedTowerCategory < 0)
             {
-                selectedTowerCategory = -1;
+                DrawTowerCategoryPicker(rect, buttonY, buttonHeight, gap, scale, LTW.UnityClient.Simulation.TowerCatalog.CategoryLabels.Length);
                 return;
             }
 
@@ -739,6 +746,165 @@ namespace LTW.UnityClient.UI
                     feedbackView.ShowRejected(result.RejectionReason, cost, gold);
                 }
             }
+        }
+
+        /// <summary>
+        /// Rail-only category list: one full-width row per tower line, replacing the grid of
+        /// narrow cards. Taller than SendDockController's equivalent rows — a tower line carries
+        /// both the whole-line batch upgrade and its own tier row stacked at the card's bottom,
+        /// where a send category only has the tier row — so this reserves the same
+        /// CategoryCardSelectRect footprint (batch + tier) the drawer's cards already did rather
+        /// than the tier-row-only boundary SendDockController computes for itself.
+        /// </summary>
+        private void DrawTowerCategoryPickerRail(Rect rect, float contentTop, float scale)
+        {
+            var labels = LTW.UnityClient.Simulation.TowerCatalog.CategoryLabels;
+            var gold = CurrentPlayerGold();
+            var chosenLine = CurrentPlayerTowerLine();
+            const float rowHeight = 148f;
+            const float gap = 10f;
+
+            for (var category = 0; category < labels.Length; category++)
+            {
+                var row = RuntimeUiChrome.ListRowRect(rect, contentTop, rowHeight * scale, gap * scale, category);
+                if (row.yMax > rect.yMax + 1f)
+                {
+                    break;
+                }
+
+                var locked = chosenLine >= 0 && category != chosenLine;
+                var accent = CategoryAccent(category);
+
+                // Excludes both action rows (batch + tier), same reasoning as
+                // RuntimeUiChrome.CategoryCardSelectRect's own remark: the row's GUI.Button
+                // consumes the click for its whole hit area, so either button drawn afterward
+                // inside it would never see a press.
+                var selectRect = RuntimeUiChrome.CategoryCardSelectRect(row, scale);
+                var pressed = RuntimeUiChrome.DrawListRow(row, accent, locked ? CommandCardState.Disabled : CommandCardState.Normal, scale, selectRect);
+
+                var textX = row.x + 14f * scale;
+                var textWidth = row.width - 28f * scale;
+
+                rowNameStyle!.fontSize = Mathf.RoundToInt(16f * scale);
+                rowNameStyle.normal.textColor = locked ? DisabledText : Cloud;
+                GUI.Label(new Rect(textX, row.y + 8f * scale, textWidth, 24f * scale), labels[category], rowNameStyle);
+
+                metaStyle!.fontSize = Mathf.RoundToInt(10f * scale);
+                metaStyle.alignment = TextAnchor.MiddleLeft;
+                metaStyle.wordWrap = false;
+                metaStyle.clipping = TextClipping.Overflow;
+                metaStyle.normal.textColor = locked ? DisabledText : accent;
+                // "LOCKED" rather than the tower count, because the count is an invitation and
+                // this row is not one. The chosen line's own row keeps saying what it holds.
+                GUI.Label(new Rect(textX, row.y + 34f * scale, textWidth, 18f * scale), locked ? "LOCKED" : "5 TOWERS", metaStyle);
+
+                if (!locked)
+                {
+                    DrawTowerCategoryBatch(row, category, accent, scale);
+                    DrawTowerCategoryTier(row, category, accent, gold, scale);
+                }
+
+                if (pressed && !locked)
+                {
+                    selectedTowerCategory = category;
+                }
+            }
+        }
+
+        /// <summary>Scroll offset for the rail's tower list, one per controller instance.</summary>
+        private Vector2 towerListScroll;
+
+        /// <summary>
+        /// Rail-only tower list: one full-width row per tower, scrolling rather than the grid's
+        /// silent clip. See SendDockController.DrawSendCardsRail's own remark — the same
+        /// measured 2026-08-30 shortfall applies here (ARCANE alone already has six towers
+        /// against five per send category).
+        /// </summary>
+        private void DrawTowerGridRail(System.Collections.Generic.List<LTW.UnityClient.Simulation.TowerCatalog.Entry> entries, Rect rect, float contentTop, float scale)
+        {
+            if (entries.Count == 0)
+            {
+                return;
+            }
+
+            var gold = CurrentPlayerGold();
+            const float rowHeight = 88f;
+            const float gap = 8f;
+
+            var viewRect = new Rect(rect.x, contentTop, rect.width, Mathf.Max(1f, rect.yMax - contentTop));
+            var rowStride = rowHeight * scale + gap * scale;
+            var contentHeight = Mathf.Max(viewRect.height, entries.Count * rowStride - gap * scale);
+            var scrollbarAllowance = contentHeight > viewRect.height ? 18f * scale : 0f;
+            var contentRect = new Rect(0f, 0f, viewRect.width - scrollbarAllowance, contentHeight);
+            var listPanel = new Rect(0f, 0f, contentRect.width, contentRect.height);
+
+            towerListScroll = GUI.BeginScrollView(viewRect, towerListScroll, contentRect);
+
+            for (var slot = 0; slot < entries.Count; slot++)
+            {
+                var entry = entries[slot];
+                var row = RuntimeUiChrome.ListRowRect(listPanel, 0f, rowHeight * scale, gap * scale, slot);
+                var cost = TowerCostFor(entry);
+
+                if (DrawTowerRow(row, entry, cost, gold >= cost, highlightedTowerRole == entry.Role, scale))
+                {
+                    selectedTower = null;
+                    BeginTowerPlacement(entry.Role);
+                }
+            }
+
+            GUI.EndScrollView();
+        }
+
+        /// <summary>One tower, as a full-width rail row rather than a card.</summary>
+        private bool DrawTowerRow(Rect row, LTW.UnityClient.Simulation.TowerCatalog.Entry entry, int cost, bool isAffordable, bool isSelected, float scale)
+        {
+            var displayAccent = isAffordable ? entry.Accent : DisabledText;
+            var state = isSelected ? CommandCardState.Selected : CommandCardState.Normal;
+            var pressed = RuntimeUiChrome.DrawListRow(row, entry.Accent, state, scale);
+
+            var iconRect = RuntimeUiChrome.ListRowIconRect(row, scale);
+            if (!RuntimeUiIconLibrary.DrawIcon(iconRect, $"ui_icon_tower_{entry.RoleId}_v01", isAffordable))
+            {
+                DrawTowerIcon(iconRect, TowerIconForRole(entry.Role), displayAccent, scale);
+            }
+
+            var costColumnWidth = 96f * scale;
+            var textX = iconRect.xMax + 12f * scale;
+            var textWidth = Mathf.Max(1f, row.xMax - costColumnWidth - textX);
+
+            rowNameStyle!.fontSize = Mathf.RoundToInt(14f * scale);
+            rowNameStyle.normal.textColor = isAffordable ? Cloud : DisabledText;
+            GUI.Label(new Rect(textX, row.y + 8f * scale, textWidth, 22f * scale), entry.ShortLabel, rowNameStyle);
+
+            if (CodexScreenView.FindTower(entry.ContentId) is { } towerDefinition)
+            {
+                metaStyle!.fontSize = Mathf.RoundToInt(10f * scale);
+                metaStyle.alignment = TextAnchor.MiddleLeft;
+                metaStyle.wordWrap = false;
+                metaStyle.clipping = TextClipping.Overflow;
+                var fitted = RuntimeUiChrome.FitSpecialtyText(CodexScreenView.TowerTraits(towerDefinition), metaStyle, textWidth);
+                if (fitted != null)
+                {
+                    metaStyle.normal.textColor = isAffordable ? MutedTraitText : DisabledText;
+                    GUI.Label(new Rect(textX, row.yMax - 26f * scale, textWidth, 18f * scale), fitted, metaStyle);
+                }
+            }
+
+            metaStyle!.fontSize = Mathf.RoundToInt(12f * scale);
+            metaStyle.alignment = TextAnchor.MiddleRight;
+            metaStyle.wordWrap = false;
+            metaStyle.clipping = TextClipping.Overflow;
+            metaStyle.normal.textColor = isAffordable
+                ? new Color(
+                    Mathf.Lerp(displayAccent.r, 1f, 0.55f),
+                    Mathf.Lerp(displayAccent.g, 1f, 0.55f),
+                    Mathf.Lerp(displayAccent.b, 1f, 0.55f),
+                    1f)
+                : displayAccent;
+            GUI.Label(new Rect(row.xMax - costColumnWidth - 8f * scale, row.y, costColumnWidth, row.height), $"{cost}G", metaStyle);
+
+            return pressed;
         }
 
         /// <summary>
@@ -1015,6 +1181,7 @@ namespace LTW.UnityClient.UI
 
             panelStyle = new GUIStyle(GUI.skin.box)
             {
+                font = RuntimeUiChrome.SharedFont,
                 border = new RectOffset(6, 6, 6, 6),
                 margin = ZeroOffset(),
                 padding = ZeroOffset()
@@ -1022,6 +1189,7 @@ namespace LTW.UnityClient.UI
 
             titleStyle = new GUIStyle(GUI.skin.label)
             {
+                font = RuntimeUiChrome.SharedFont,
                 alignment = TextAnchor.MiddleLeft,
                 fontStyle = FontStyle.Bold,
                 normal = { textColor = MintSignal }
@@ -1029,24 +1197,42 @@ namespace LTW.UnityClient.UI
 
             bodyStyle = new GUIStyle(GUI.skin.label)
             {
+                font = RuntimeUiChrome.SharedFont,
                 alignment = TextAnchor.MiddleLeft,
                 normal = { textColor = Cloud }
             };
 
             buttonStyle = new GUIStyle(GUI.skin.button)
             {
+                font = RuntimeUiChrome.SharedFont,
                 alignment = TextAnchor.MiddleCenter,
                 fontStyle = FontStyle.Bold,
                 margin = ZeroOffset(),
                 padding = ZeroOffset(),
-                normal = { textColor = Cloud },
-                hover = { textColor = Cloud },
-                active = { textColor = Cloud }
+                // Background cleared on all three: this style is used via GUI.Label for plain
+                // bold text over hand-drawn chrome, and GUI.skin.button's own gray box was
+                // rendering behind it — invisible against the old card art's similarly gray
+                // nameplate, stark against a flat row background.
+                normal = { textColor = Cloud, background = null },
+                hover = { textColor = Cloud, background = null },
+                active = { textColor = Cloud, background = null }
             };
 
             metaStyle = new GUIStyle(GUI.skin.label)
             {
+                font = RuntimeUiChrome.SharedFont,
                 alignment = TextAnchor.MiddleCenter,
+                fontStyle = FontStyle.Bold,
+                normal = { textColor = Cloud }
+            };
+
+            // Rail list rows' name text (category/tower name). Deliberately GUI.skin.label, not
+            // GUI.skin.button like buttonStyle — see SendDockController's identical field for why
+            // a GUI.skin.button copy's background does not actually clear.
+            rowNameStyle = new GUIStyle(GUI.skin.label)
+            {
+                font = RuntimeUiChrome.SharedFont,
+                alignment = TextAnchor.MiddleLeft,
                 fontStyle = FontStyle.Bold,
                 normal = { textColor = Cloud }
             };

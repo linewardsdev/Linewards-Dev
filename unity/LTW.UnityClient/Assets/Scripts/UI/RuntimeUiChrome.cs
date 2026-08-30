@@ -27,6 +27,49 @@ namespace LTW.UnityClient.UI
         private static Texture2D? generatedPanelShadow;
         private static GUIStyle? panelStyle;
         private static GUIStyle? panelShadowStyle;
+        private static Font? sharedFont;
+        private static bool sharedFontLoadAttempted;
+
+        /// <summary>
+        /// The one font every hand-rolled IMGUI style in the HUD should set explicitly.
+        /// </summary>
+        /// <remarks>
+        /// Every GUIStyle across this HUD (SendDockController, TouchPlacementController,
+        /// LocalSessionFlowOverlay, HudView, SeatLeaderboardView, PlacementFeedbackView,
+        /// DiagnosticsOverlay) was built as <c>new GUIStyle(GUI.skin.label)</c> with no
+        /// <c>font</c> set, which leaves it on whatever GUI.skin resolves its default to —
+        /// and that default is not guaranteed to be the same asset in the Editor as in an
+        /// IL2CPP player. Reported live 2026-08-30: the BUILD category picker's text overlapped
+        /// on a real 13" M4 iPad Pro but was unreproducible in the Editor across every
+        /// resolution and match-state combination that could be constructed to match the
+        /// device — the one remaining variable neither of those tests could hold constant is
+        /// which font actually rendered the glyphs.
+        ///
+        /// Loaded from Resources rather than referenced as a serialized field because none of
+        /// these callers are MonoBehaviours with an inspector to drag an asset onto — they are
+        /// static helpers and plain classes. LiberationSans is TextMeshPro's own bundled
+        /// default (metrically compatible with Arial, open licensed), copied into
+        /// Resources/Art/UI/Fonts so it is loadable outside the Editor; the original under
+        /// Assets/TextMesh Pro is left untouched since TMP's own default font asset still
+        /// points at it.
+        /// </remarks>
+        public static Font? SharedFont
+        {
+            get
+            {
+                if (!sharedFontLoadAttempted)
+                {
+                    sharedFontLoadAttempted = true;
+                    sharedFont = Resources.Load<Font>("Art/UI/Fonts/LTWUiFont");
+                    if (sharedFont == null)
+                    {
+                        Debug.LogWarning("RuntimeUiChrome could not load Art/UI/Fonts/LTWUiFont; HUD text stays on GUI.skin's default font.");
+                    }
+                }
+
+                return sharedFont;
+            }
+        }
 
         /// <summary>Corner chamfer of the shared panel, in texture pixels.</summary>
         /// <remarks>
@@ -303,6 +346,61 @@ namespace LTW.UnityClient.UI
             var pressed = GUI.Button(hitRect ?? rect, GUIContent.none, GUIStyle.none);
             GUI.enabled = previousEnabled;
             return pressed;
+        }
+
+        /// <summary>
+        /// Rect for one row in a tablet rail's LIST layout — full panel width, fixed height,
+        /// stacked top to bottom. The list alternative to <see cref="CategoryCardRect"/>'s grid,
+        /// used only on a rail (see <see cref="DrawListRow"/> for why the grid's card art cannot
+        /// serve double duty here).
+        /// </summary>
+        public static Rect ListRowRect(Rect panel, float contentTop, float rowHeight, float gap, int index) =>
+            new(panel.x, contentTop + index * (rowHeight + gap), panel.width, rowHeight);
+
+        /// <summary>
+        /// Draws one list row's background — a flat fill, a coloured left edge, and a hairline
+        /// border — and returns whether it was pressed.
+        /// </summary>
+        /// <remarks>
+        /// Deliberately not <see cref="DrawCommandCardChrome"/>'s card art. That texture is
+        /// authored at <see cref="CommandCardArtAspect"/>, a portrait aspect, and is drawn with
+        /// <c>ScaleMode.StretchToFill</c> — this project already measured what happens when that
+        /// art is stretched into a wide, short rect instead: "it stretched portrait art across a
+        /// 7.7 aspect" (see <see cref="CategoryCardRect"/>'s own remarks on the exact same failure
+        /// from the grid's early history). A flat rectangle has no aspect to violate.
+        ///
+        /// Replaces the grid-of-narrow-cards rail layout entirely (owner's call, 2026-08-30, after
+        /// repeated rounds of "make more fit in the same card" — icon size, specialty text, row
+        /// height — kept finding a new way to overflow the same fixed portrait shape). A full-width
+        /// row gets the rail's ENTIRE width instead of a third or half of it shared with siblings,
+        /// which is what actually answers "too small and hard to read" rather than narrowing the
+        /// margin on the same failure.
+        /// </remarks>
+        public static bool DrawListRow(Rect rect, Color accent, CommandCardState state, float scale, Rect? hitRect = null)
+        {
+            var stateAccent = StateAccent(accent, state);
+            Fill(rect, new Color(0.055f, 0.075f, 0.105f, 0.92f));
+            if (state == CommandCardState.Disabled)
+            {
+                Fill(rect, new Color(0f, 0f, 0f, 0.34f));
+            }
+
+            Fill(new Rect(rect.x, rect.y, 3f * scale, rect.height), stateAccent);
+            var borderAlpha = state == CommandCardState.Selected ? 0.75f : 0.22f;
+            DrawOutline(rect, new Color(stateAccent.r, stateAccent.g, stateAccent.b, borderAlpha), Mathf.Max(1f, (state == CommandCardState.Selected ? 2f : 1f) * scale));
+
+            var previousEnabled = GUI.enabled;
+            GUI.enabled = state is not CommandCardState.Disabled and not CommandCardState.Error;
+            var pressed = GUI.Button(hitRect ?? rect, GUIContent.none, GUIStyle.none);
+            GUI.enabled = previousEnabled;
+            return pressed;
+        }
+
+        /// <summary>A row's unit icon: square, left-anchored, sized off the row's own height.</summary>
+        public static Rect ListRowIconRect(Rect row, float scale)
+        {
+            var size = Mathf.Max(1f, row.height - 16f * scale);
+            return new Rect(row.x + 8f * scale, row.y + (row.height - size) * 0.5f, size, size);
         }
 
         // Action-row geometry, in unscaled units, measured up from the card's bottom edge. The card
@@ -602,6 +700,11 @@ namespace LTW.UnityClient.UI
             // because it is the longer string, which made the hardest-to-satisfy state the hardest
             // to read — exactly backwards, since that is the one a player needs to act on.
             buttonStyle.fontSize = Mathf.RoundToInt(11f * scale);
+            // Explicit rather than assumed: buttonStyle is the caller's shared style, not this
+            // method's own, and a rail list row now sets it to MiddleLeft for its own name label
+            // just before reaching here — without this, "NEED +60" measured live rendering
+            // left-aligned and overlapping the button's own chrome instead of centred in it.
+            buttonStyle.alignment = TextAnchor.MiddleCenter;
             var pressed = DrawPanelButton(buttonRect, label, enabled ? accent : DisabledEdge, scale, buttonStyle);
             GUI.enabled = previousEnabled;
             buttonStyle.fontSize = Mathf.RoundToInt(11f * scale);

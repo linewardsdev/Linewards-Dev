@@ -26,6 +26,7 @@ namespace LTW.UnityClient.UI
         private static GUIStyle? titleStyle;
         private static GUIStyle? buttonStyle;
         private static GUIStyle? metaStyle;
+        private static GUIStyle? rowNameStyle;
 
         [SerializeField]
         private UnityCommandAdapter commandAdapter = null!;
@@ -271,7 +272,13 @@ namespace LTW.UnityClient.UI
             var frame = MobileViewportLayout.ScreenRect();
             var launcherRect = LauncherRect(scale, frame);
             var touchPlacement = TouchPlacement;
-            if (touchPlacement?.IsTowerPaletteExpanded == true)
+            // Phone-only, for the same reason as the symmetric check in
+            // TouchPlacementController.Gui.cs's DrawTowerPalette: a bottom drawer is one physical
+            // slot BUILD's palette genuinely covers, but a tablet rail gives SEND its own column
+            // that BUILD's rail never overlaps — closing SEND and refusing to draw its launcher
+            // just because BUILD opened on the other side of the screen left it permanently
+            // untappable there. That was this bug for SEND's half of it.
+            if (!MobileViewportLayout.HasSideRails && touchPlacement?.IsTowerPaletteExpanded == true)
             {
                 isExpanded = false;
                 SelectedCategory = -1;
@@ -395,56 +402,40 @@ namespace LTW.UnityClient.UI
                     metaStyle);
             }
 
-            float buttonY;
-            float buttonHeight;
             var gap = 8f * scale;
 
             if (railMode)
             {
-                // Reuses the drawer's own card-drawing methods (DrawCategoryPicker, DrawSendCards)
-                // rather than a parallel compact layout. A custom text-row rail layout was tried
-                // first and measured wrong against its own goal: it dropped icons entirely and
-                // stacked one item per row, both regressions once it became clear how much width a
-                // real tablet's rail actually carries — the board column narrows to the game's own
-                // portrait aspect regardless of the device's, so the two side rails together
-                // commonly hold more than half the screen (MobileViewportLayout.BoardColumnFraction).
-                // Reported from play 2026-08-29: "removed the icons and are very long... we have
-                // more real estate... we should utilize it." Reusing the drawer methods restores the
-                // icons for free and turns the creep grid's five stacked rows into the drawer's own
-                // 3-then-2 layout, because both are driven by the SAME width-based card sizing the
-                // drawer already had tuned — the rail did not need new layout code, it needed the
-                // width it already had handed to the layout code that already existed.
-                //
-                // Height is derived from the first row's width through the card art's own aspect,
-                // not the drawer's fixed 84 — that constant assumes the drawer's ~500-unit cap, and
-                // holding it fixed while width grows to fill a much wider rail would flatten the
-                // card art rather than scale it up with the rest of the row.
-                var railCardWidth = (rect.width - 24f * scale - gap * 2f) / 3f;
-                buttonHeight = railCardWidth / RuntimeUiChrome.CommandCardArtAspect;
+                // A full-width LIST, not the drawer's grid of narrow cards (owner's call,
+                // 2026-08-30). The grid was tried here first, twice — once with icons dropped
+                // entirely, then again by reusing the drawer's card-drawing methods outright — and
+                // both rounds kept finding a new way to overflow the same fixed portrait card
+                // shape as more was asked of it (icon size, then specialty text, then row height).
+                // A rail card only ever gets a third or half of the rail's width, shared with
+                // siblings; a full-width row gets all of it, which is what actually answers "too
+                // small and hard to read" instead of narrowing the margin on the same failure. See
+                // RuntimeUiChrome.DrawListRow for why this cannot reuse the card art itself.
+                var contentTop = rect.y + 68f * scale;
+                if (selectedCategory < 0)
+                {
+                    DrawCategoryPickerRail(rect, contentTop, scale);
+                }
+                else
+                {
+                    DrawSendCardsRail(CardsForSelectedCategory(), rect, contentTop, scale, gold);
+                }
 
-                // Fixed at 68, not conditional on totalQueued. It used to drop to 50 when the queue
-                // was empty, to reclaim the QUEUE line's blank space — but that meant every category
-                // row and creep row shifted by 18 units the instant the queue crossed zero in either
-                // direction, which reads as the whole panel jumping while a player is actively
-                // tapping (reported from play 2026-08-29). Reserving the space unconditionally and
-                // simply not drawing the label when empty keeps the layout still; the cost is 18
-                // units of blank header on an empty queue, which is cheaper than a panel that jitters
-                // under a live hand.
-                buttonY = rect.y + 68f * scale;
+                return;
             }
-            else
-            {
-                buttonY = rect.y + 84f * scale;
-                buttonHeight = 84f * scale;
-            }
+
+            var buttonY = rect.y + 84f * scale;
+            var buttonHeight = 84f * scale;
 
             // Explicitly three-way. This was previously a bare `else` for Category 2, which would
             // have silently rendered Category 2's grid for any new category index.
             if (selectedCategory < 0)
             {
-                // 2 columns in rail mode, not 3 — see DrawCategoryPicker's own doc for why.
-                var pickerColumns = railMode ? 2 : CategoryLabels.Length;
-                DrawCategoryPicker(rect, buttonY, buttonHeight, gap, scale, pickerColumns);
+                DrawCategoryPicker(rect, buttonY, buttonHeight, gap, scale, CategoryLabels.Length);
             }
             else if (selectedCategory == 0)
             {
@@ -667,6 +658,193 @@ namespace LTW.UnityClient.UI
 
         private void DrawCategoryThreeCreeps(Rect rect, float buttonY, float buttonHeight, float gap, int gold, float scale) =>
             DrawSendCards(CategoryThreeCards(), rect, buttonY, buttonHeight, gap, gold, scale);
+
+        /// <summary>The rail list's equivalent of DrawCategoryOne/Two/ThreeCreeps — one lookup, not three.</summary>
+        private SendCard[] CardsForSelectedCategory() => selectedCategory switch
+        {
+            0 => CategoryOneCards(),
+            1 => CategoryTwoCards(),
+            _ => CategoryThreeCards()
+        };
+
+        /// <summary>
+        /// Rail-only category list: one full-width row per category, replacing the grid of narrow
+        /// cards. See RuntimeUiChrome.DrawListRow for why this is a flat row rather than the card
+        /// art the drawer's DrawCategoryPicker still uses.
+        /// </summary>
+        private void DrawCategoryPickerRail(Rect rect, float contentTop, float scale)
+        {
+            var accents = new[] { ArcaneBlue, WardViolet, SignalGold };
+            var gold = CurrentPlayerGold();
+            const float rowHeight = 98f;
+            const float gap = 10f;
+
+            for (var category = 0; category < CategoryLabels.Length; category++)
+            {
+                var row = RuntimeUiChrome.ListRowRect(rect, contentTop, rowHeight * scale, gap * scale, category);
+                if (row.yMax > rect.yMax + 1f)
+                {
+                    break;
+                }
+
+                var accent = accents[category];
+
+                // Excludes the tier row at the bottom, or the row's own GUI.Button consumes the
+                // upgrade button's click before DrawCategoryTier ever draws it — the same
+                // Event.Use() hazard RuntimeUiChrome.CategoryCardSelectRect exists to avoid on the
+                // drawer's cards.
+                var tierTop = RuntimeUiChrome.CategoryTierRowRect(row, scale).y;
+                var selectRect = new Rect(row.x, row.y, row.width, Mathf.Max(1f, tierTop - row.y));
+                if (RuntimeUiChrome.DrawListRow(row, accent, CommandCardState.Normal, scale, selectRect))
+                {
+                    SelectedCategory = category;
+                }
+
+                var textX = row.x + 14f * scale;
+                var textWidth = row.width - 28f * scale;
+
+                rowNameStyle!.fontSize = Mathf.RoundToInt(16f * scale);
+                rowNameStyle.normal.textColor = Cloud;
+                GUI.Label(new Rect(textX, row.y + 8f * scale, textWidth, 24f * scale), CategoryLabels[category], rowNameStyle);
+
+                metaStyle!.fontSize = Mathf.RoundToInt(10f * scale);
+                metaStyle.alignment = TextAnchor.MiddleLeft;
+                metaStyle.wordWrap = false;
+                metaStyle.clipping = TextClipping.Overflow;
+                metaStyle.normal.textColor = accent;
+                GUI.Label(new Rect(textX, row.y + 34f * scale, textWidth, 18f * scale), "5 SENDS  ·  ALL AT TIER", metaStyle);
+
+                // Same data and the same drawing method the drawer's grid card uses — only the
+                // outer row shape changed, not the tier/upgrade business logic.
+                DrawCategoryTier(row, category, accent, gold, scale);
+            }
+        }
+
+        /// <summary>
+        /// Rail-only creep list: one full-width row per creep, replacing the grid of narrow cards.
+        /// </summary>
+        /// <summary>Scroll offset for the rail's creep list, one per dock instance.</summary>
+        private Vector2 sendListScroll;
+
+        /// <summary>
+        /// Rail-only creep list: one full-width row per creep, scrolling rather than the grid's
+        /// silent clip.
+        /// </summary>
+        /// <remarks>
+        /// Measured live 2026-08-30: at a comfortable row height, SUPPORT's five rows do not all
+        /// fit under SEND's rail (it starts below the seats table, which SEND does not get back).
+        /// The grid's old per-row "stop drawing past the panel" guard would have silently dropped
+        /// the fifth creep off the bottom — reachable in the simulation, invisible and unsendable
+        /// from this rail. A scroll view is strictly better than either shrinking every row to
+        /// force a fit or losing one row outright: the content stays the size that makes it
+        /// readable, and touch-scrolling a short list is completely ordinary on a tablet.
+        /// </remarks>
+        private void DrawSendCardsRail(SendCard[] cards, Rect rect, float contentTop, float scale, int gold)
+        {
+            const float rowHeight = 88f;
+            const float gap = 8f;
+
+            var order = new int[cards.Length];
+            for (var index = 0; index < order.Length; index++)
+            {
+                order[index] = index;
+            }
+
+            System.Array.Sort(order, (left, right) =>
+            {
+                var byCost = commandAdapter != null
+                    ? commandAdapter.SendCost(cards[left].CreepId).CompareTo(commandAdapter.SendCost(cards[right].CreepId))
+                    : 0;
+                return byCost != 0 ? byCost : cards[left].Role.CompareTo(cards[right].Role);
+            });
+
+            var viewRect = new Rect(rect.x, contentTop, rect.width, Mathf.Max(1f, rect.yMax - contentTop));
+            var rowStride = rowHeight * scale + gap * scale;
+            var contentHeight = Mathf.Max(viewRect.height, cards.Length * rowStride - gap * scale);
+            // Reserves room for Unity's own vertical scrollbar so it does not sit on top of the
+            // tier/cost column every row already draws at its own right edge.
+            var scrollbarAllowance = contentHeight > viewRect.height ? 18f * scale : 0f;
+            var contentRect = new Rect(0f, 0f, viewRect.width - scrollbarAllowance, contentHeight);
+            var listPanel = new Rect(0f, 0f, contentRect.width, contentRect.height);
+
+            sendListScroll = GUI.BeginScrollView(viewRect, sendListScroll, contentRect);
+
+            for (var slot = 0; slot < cards.Length; slot++)
+            {
+                var card = cards[order[slot]];
+                var row = RuntimeUiChrome.ListRowRect(listPanel, 0f, rowHeight * scale, gap * scale, slot);
+
+                var cost = commandAdapter != null ? commandAdapter.SendCost(card.CreepId) : 0;
+                var income = commandAdapter != null ? commandAdapter.SendIncomeGain(card.CreepId) : 0;
+                var queued = commandAdapter != null ? commandAdapter.QueuedSendCount(card.CreepId) : 0;
+                var hasQueueSpace = queued < LTW.Simulation.Bridge.LocalVerticalSlice.MaxQueuedSendsPerCreep;
+                var meta = queued > 0 ? $"{cost}G  +{income}   x{queued}" : $"{cost}G  +{income}";
+                var trait = CodexScreenView.FindCreep(card.CreepId.Value) is { } creepDefinition
+                    ? CodexScreenView.CreepTraits(creepDefinition)
+                    : string.Empty;
+
+                if (DrawSendRow(row, card.Label, meta, trait, card.IconResource, card.Icon, card.Accent, hasQueueSpace, highlightedCreepRole == card.Role, scale, card.IgnoresCooldown))
+                {
+                    card.Send();
+                }
+            }
+
+            GUI.EndScrollView();
+        }
+
+        /// <summary>One creep, as a full-width rail row rather than a card.</summary>
+        private static bool DrawSendRow(Rect row, string label, string meta, string trait, string iconResource, CreepIconKind iconKind, Color accent, bool isAffordable, bool isSelected, float scale, bool ignoresCooldown)
+        {
+            isAffordable = isAffordable && (ignoresCooldown || !isSendCoolingDown);
+            var displayAccent = isAffordable ? accent : DisabledText;
+            var state = isAffordable
+                ? isSelected ? CommandCardState.Selected : CommandCardState.Normal
+                : CommandCardState.Disabled;
+            var pressed = RuntimeUiChrome.DrawListRow(row, accent, state, scale);
+
+            var iconRect = RuntimeUiChrome.ListRowIconRect(row, scale);
+            if (!RuntimeUiIconLibrary.DrawIcon(iconRect, iconResource, isAffordable))
+            {
+                DrawCreepIcon(iconRect, iconKind, displayAccent, scale);
+            }
+
+            var costColumnWidth = 108f * scale;
+            var textX = iconRect.xMax + 12f * scale;
+            var textWidth = Mathf.Max(1f, row.xMax - costColumnWidth - textX);
+
+            rowNameStyle!.fontSize = Mathf.RoundToInt(14f * scale);
+            rowNameStyle.normal.textColor = isAffordable ? Cloud : DisabledText;
+            GUI.Label(new Rect(textX, row.y + 8f * scale, textWidth, 22f * scale), label, rowNameStyle);
+
+            if (!string.IsNullOrEmpty(trait))
+            {
+                metaStyle!.fontSize = Mathf.RoundToInt(10f * scale);
+                metaStyle.alignment = TextAnchor.MiddleLeft;
+                metaStyle.wordWrap = false;
+                metaStyle.clipping = TextClipping.Overflow;
+                var fitted = RuntimeUiChrome.FitSpecialtyText(trait, metaStyle, textWidth);
+                if (fitted != null)
+                {
+                    metaStyle.normal.textColor = isAffordable ? MutedTraitText : DisabledText;
+                    GUI.Label(new Rect(textX, row.yMax - 26f * scale, textWidth, 18f * scale), fitted, metaStyle);
+                }
+            }
+
+            metaStyle!.fontSize = Mathf.RoundToInt(12f * scale);
+            metaStyle.alignment = TextAnchor.MiddleRight;
+            metaStyle.wordWrap = false;
+            metaStyle.clipping = TextClipping.Overflow;
+            metaStyle.normal.textColor = isAffordable
+                ? new Color(
+                    Mathf.Lerp(displayAccent.r, 1f, 0.55f),
+                    Mathf.Lerp(displayAccent.g, 1f, 0.55f),
+                    Mathf.Lerp(displayAccent.b, 1f, 0.55f),
+                    1f)
+                : displayAccent;
+            GUI.Label(new Rect(row.xMax - costColumnWidth - 8f * scale, row.y, costColumnWidth, row.height), meta, metaStyle);
+
+            return pressed;
+        }
 
         /// <summary>
         /// Draws one category's cards cheapest first, left to right, three across then two.
@@ -1005,6 +1183,7 @@ namespace LTW.UnityClient.UI
 
             panelStyle = new GUIStyle(GUI.skin.box)
             {
+                font = RuntimeUiChrome.SharedFont,
                 border = new RectOffset(6, 6, 6, 6),
                 margin = ZeroOffset(),
                 padding = ZeroOffset()
@@ -1012,6 +1191,7 @@ namespace LTW.UnityClient.UI
 
             titleStyle = new GUIStyle(GUI.skin.label)
             {
+                font = RuntimeUiChrome.SharedFont,
                 alignment = TextAnchor.MiddleLeft,
                 fontStyle = FontStyle.Bold,
                 normal = { textColor = SignalGold }
@@ -1019,18 +1199,37 @@ namespace LTW.UnityClient.UI
 
             buttonStyle = new GUIStyle(GUI.skin.button)
             {
+                font = RuntimeUiChrome.SharedFont,
                 alignment = TextAnchor.MiddleCenter,
                 fontStyle = FontStyle.Bold,
                 margin = ZeroOffset(),
                 padding = ZeroOffset(),
-                normal = { textColor = Cloud },
-                hover = { textColor = Cloud },
-                active = { textColor = Cloud }
+                // Background cleared on all three: this style is used via GUI.Label for plain
+                // bold text over hand-drawn chrome, and GUI.skin.button's own gray box was
+                // rendering behind it — invisible against the old card art's similarly gray
+                // nameplate, stark against a flat row background.
+                normal = { textColor = Cloud, background = null },
+                hover = { textColor = Cloud, background = null },
+                active = { textColor = Cloud, background = null }
             };
 
             metaStyle = new GUIStyle(GUI.skin.label)
             {
+                font = RuntimeUiChrome.SharedFont,
                 alignment = TextAnchor.MiddleCenter,
+                fontStyle = FontStyle.Bold,
+                normal = { textColor = Cloud }
+            };
+
+            // Rail list rows' name text (category/creep name). Deliberately GUI.skin.label, not
+            // GUI.skin.button like buttonStyle: a GUI.skin.button copy's `.normal.background = null`
+            // measured live as NOT actually suppressing the button skin's default gray box behind
+            // the text — invisible on the old card art's own similarly gray nameplate, stark on this
+            // row's flat background. A label style never carried that chrome to begin with.
+            rowNameStyle = new GUIStyle(GUI.skin.label)
+            {
+                font = RuntimeUiChrome.SharedFont,
+                alignment = TextAnchor.MiddleLeft,
                 fontStyle = FontStyle.Bold,
                 normal = { textColor = Cloud }
             };
