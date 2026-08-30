@@ -288,6 +288,7 @@ namespace LTW.UnityClient.UI
 
             pillStyle = new GUIStyle(GUI.skin.box)
             {
+                font = RuntimeUiChrome.SharedFont,
                 border = new RectOffset(6, 6, 6, 6),
                 margin = ZeroOffset(),
                 padding = ZeroOffset()
@@ -295,6 +296,7 @@ namespace LTW.UnityClient.UI
 
             labelStyle = new GUIStyle(GUI.skin.label)
             {
+                font = RuntimeUiChrome.SharedFont,
                 alignment = TextAnchor.UpperCenter,
                 fontStyle = FontStyle.Bold,
                 normal = { textColor = new Color(Cloud.r, Cloud.g, Cloud.b, 0.68f) }
@@ -302,6 +304,7 @@ namespace LTW.UnityClient.UI
 
             valueStyle = new GUIStyle(GUI.skin.label)
             {
+                font = RuntimeUiChrome.SharedFont,
                 alignment = TextAnchor.MiddleCenter,
                 fontStyle = FontStyle.Bold,
                 normal = { textColor = Cloud }
@@ -309,15 +312,21 @@ namespace LTW.UnityClient.UI
 
             buttonStyle = new GUIStyle(GUI.skin.button)
             {
+                font = RuntimeUiChrome.SharedFont,
                 alignment = TextAnchor.MiddleCenter,
                 fontStyle = FontStyle.Bold,
                 margin = ZeroOffset(),
                 padding = ZeroOffset(),
-                normal = { textColor = Cloud }
+                // Background cleared: this style is used via GUI.Label for plain bold text over
+                // hand-drawn chrome, and GUI.skin.button's own gray box was rendering behind it —
+                // invisible against the old card art's similarly gray nameplate, stark against a
+                // flat row background.
+                normal = { textColor = Cloud, background = null }
             };
 
             metaStyle = new GUIStyle(GUI.skin.label)
             {
+                font = RuntimeUiChrome.SharedFont,
                 alignment = TextAnchor.MiddleCenter,
                 fontStyle = FontStyle.Bold,
                 normal = { textColor = new Color(Cloud.r, Cloud.g, Cloud.b, 0.74f) }

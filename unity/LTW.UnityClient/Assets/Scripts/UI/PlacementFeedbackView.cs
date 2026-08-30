@@ -135,6 +135,7 @@ namespace LTW.UnityClient.UI
 
             panelStyle = new GUIStyle(GUI.skin.box)
             {
+                font = RuntimeUiChrome.SharedFont,
                 border = new RectOffset(6, 6, 6, 6),
                 margin = ZeroOffset(),
                 padding = ZeroOffset()
@@ -142,6 +143,7 @@ namespace LTW.UnityClient.UI
 
             messageStyle = new GUIStyle(GUI.skin.label)
             {
+                font = RuntimeUiChrome.SharedFont,
                 alignment = TextAnchor.MiddleCenter,
                 fontStyle = FontStyle.Bold,
                 normal = { textColor = Cloud }

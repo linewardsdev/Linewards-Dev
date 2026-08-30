@@ -3,6 +3,7 @@
 using System.Linq;
 using System.Text;
 using LTW.Simulation.Primitives;
+using LTW.UnityClient.UI;
 using UnityEngine;
 
 namespace LTW.UnityClient.Simulation
@@ -174,6 +175,7 @@ namespace LTW.UnityClient.Simulation
 
             overlayStyle ??= new GUIStyle(GUI.skin.label)
             {
+                font = RuntimeUiChrome.SharedFont,
                 fontSize = 14,
                 normal = { textColor = Color.white },
                 wordWrap = false

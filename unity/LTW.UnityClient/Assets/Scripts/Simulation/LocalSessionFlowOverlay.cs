@@ -606,6 +606,7 @@ namespace LTW.UnityClient.Simulation
         {
             buttonStyle ??= new GUIStyle(GUI.skin.label)
             {
+                font = RuntimeUiChrome.SharedFont,
                 alignment = TextAnchor.MiddleCenter,
                 fontStyle = FontStyle.Bold,
                 normal = { textColor = Cloud }
@@ -613,6 +614,7 @@ namespace LTW.UnityClient.Simulation
 
             titleStyle ??= new GUIStyle(GUI.skin.label)
             {
+                font = RuntimeUiChrome.SharedFont,
                 alignment = TextAnchor.MiddleCenter,
                 fontStyle = FontStyle.Bold,
                 normal = { textColor = Cloud }
@@ -620,6 +622,7 @@ namespace LTW.UnityClient.Simulation
 
             subtitleStyle ??= new GUIStyle(GUI.skin.label)
             {
+                font = RuntimeUiChrome.SharedFont,
                 alignment = TextAnchor.MiddleCenter,
                 fontStyle = FontStyle.Bold,
                 normal = { textColor = MintSignal }
@@ -627,6 +630,7 @@ namespace LTW.UnityClient.Simulation
 
             bodyStyle ??= new GUIStyle(GUI.skin.label)
             {
+                font = RuntimeUiChrome.SharedFont,
                 alignment = TextAnchor.MiddleCenter,
                 wordWrap = true,
                 normal = { textColor = MutedCloud }
@@ -634,6 +638,7 @@ namespace LTW.UnityClient.Simulation
 
             smallStyle ??= new GUIStyle(GUI.skin.label)
             {
+                font = RuntimeUiChrome.SharedFont,
                 alignment = TextAnchor.MiddleLeft,
                 fontStyle = FontStyle.Bold,
                 normal = { textColor = Cloud }
