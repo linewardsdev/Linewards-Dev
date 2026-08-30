@@ -26,7 +26,7 @@ namespace LTW.UnityClient.Simulation
     {
         private static readonly Color Cloud = new Color(0.957f, 0.969f, 1f, 1f);
         private static readonly Color MutedCloud = new Color(0.62f, 0.72f, 0.88f, 1f);
-        private static readonly Color PanelInk = new Color(0.027f, 0.047f, 0.082f, 0.94f);
+        private static readonly Color PanelInk = new Color(0.027f, 0.047f, 0.082f, 1f);
         private static readonly Color MintSignal = new Color(0.349f, 0.882f, 0.714f, 1f);
         private static readonly Color SignalGold = new Color(1f, 0.784f, 0.29f, 1f);
         private static readonly Color ArcaneBlue = new Color(0.247f, 0.557f, 0.957f, 1f);
@@ -85,7 +85,20 @@ namespace LTW.UnityClient.Simulation
             // Driven from the same Update that publishes modality, off the same state, so the
             // rendered screen and the input gate cannot disagree for a frame.
             var screen = ActiveShellScreen;
-            shellScreens?.Show(screen);
+
+            // TITLE is a UI Toolkit composition, and UI Toolkit's runtime panel paints after IMGUI
+            // regardless of which one issued its draw calls first — so the 0.94-alpha settings box
+            // (and the modal scrim behind it) do nothing to it; the logo and menu text render straight
+            // through, fully bright. Captured 2026-08-29 ("settings-over-title"): "LINE WARDS" and the
+            // button list plainly legible on top of the SETTINGS panel.
+            //
+            // Scoped to TITLE only, not PAUSE or RESULTS: those two sit in front of the live/final
+            // board, and hiding the shell there would reveal it dimmed only by the IMGUI scrim — the
+            // exact "dropping them onto a dimmed board" regression the remark below already fixed
+            // once. TITLE has no board behind it, so hiding it costs nothing and there is no bleed
+            // fix possible on the IMGUI side alone.
+            var visibleScreen = showSettings && screen == ShellScreen.Title ? ShellScreen.None : screen;
+            shellScreens?.Show(visibleScreen);
 
             // The music is told a menu is up, from the same state and the same frame. Title,
             // pause and results are all "no board to answer", so all three score the same way.
@@ -365,7 +378,6 @@ namespace LTW.UnityClient.Simulation
             var rowY = panel.y + 86f * scale;
             var rowHeight = 28f * scale;
             var buttonHeight = 24f * scale;
-            var tinyWidth = 42f * scale;
             var wideWidth = 112f * scale;
             var gap = 6f * scale;
 
@@ -382,26 +394,39 @@ namespace LTW.UnityClient.Simulation
                 PresentationPreferences.ReducedEffects = !PresentationPreferences.ReducedEffects;
             }
 
+            // Unified with the toggle rows above (owner's call, 2026-08-30, chosen from a rendered
+            // comparison against the original bare +/- pair with the value in the row label): every
+            // row's right-hand control now occupies the same wideWidth footprint a toggle pill
+            // does, range rows split into minus / value / plus so the value moves off the row label
+            // and into a chip that looks like the toggle rows' pill.
+            var stepperMinusWidth = 28f * scale;
+            var stepperPlusWidth = 28f * scale;
+            var stepperValueWidth = wideWidth - stepperMinusWidth - stepperPlusWidth - gap * 2f;
+
             rowY += rowHeight + gap;
-            DrawLabel(labelX, rowY, 110f * scale, rowHeight, $"Text {PresentationPreferences.TextScale:0.0}x", smallStyle!, TextAnchor.MiddleLeft);
-            if (DrawButton(new Rect(rowX, rowY + 2f * scale, tinyWidth, buttonHeight), "-", Cloud, scale, 12f))
+            DrawLabel(labelX, rowY, 110f * scale, rowHeight, "Text", smallStyle!, TextAnchor.MiddleLeft);
+            if (DrawButton(new Rect(rowX, rowY + 2f * scale, stepperMinusWidth, buttonHeight), "-", Cloud, scale, 12f))
             {
                 PresentationPreferences.TextScale = Mathf.Clamp(PresentationPreferences.TextScale - 0.1f, 0.8f, 1.5f);
             }
 
-            if (DrawButton(new Rect(rowX + tinyWidth + gap, rowY + 2f * scale, tinyWidth, buttonHeight), "+", Cloud, scale, 12f))
+            DrawButton(new Rect(rowX + stepperMinusWidth + gap, rowY + 2f * scale, stepperValueWidth, buttonHeight), $"{PresentationPreferences.TextScale:0.0}x", Cloud, scale, 10f);
+
+            if (DrawButton(new Rect(rowX + stepperMinusWidth + gap + stepperValueWidth + gap, rowY + 2f * scale, stepperPlusWidth, buttonHeight), "+", Cloud, scale, 12f))
             {
                 PresentationPreferences.TextScale = Mathf.Clamp(PresentationPreferences.TextScale + 0.1f, 0.8f, 1.5f);
             }
 
             rowY += rowHeight + gap;
-            DrawLabel(labelX, rowY, 110f * scale, rowHeight, $"Volume {Mathf.RoundToInt(PresentationPreferences.FeedbackVolume * 100f)}%", smallStyle!, TextAnchor.MiddleLeft);
-            if (DrawButton(new Rect(rowX, rowY + 2f * scale, tinyWidth, buttonHeight), "-", Cloud, scale, 12f))
+            DrawLabel(labelX, rowY, 110f * scale, rowHeight, "Volume", smallStyle!, TextAnchor.MiddleLeft);
+            if (DrawButton(new Rect(rowX, rowY + 2f * scale, stepperMinusWidth, buttonHeight), "-", Cloud, scale, 12f))
             {
                 PresentationPreferences.AdjustFeedbackVolume(-0.1f);
             }
 
-            if (DrawButton(new Rect(rowX + tinyWidth + gap, rowY + 2f * scale, tinyWidth, buttonHeight), "+", Cloud, scale, 12f))
+            DrawButton(new Rect(rowX + stepperMinusWidth + gap, rowY + 2f * scale, stepperValueWidth, buttonHeight), $"{Mathf.RoundToInt(PresentationPreferences.FeedbackVolume * 100f)}%", Cloud, scale, 10f);
+
+            if (DrawButton(new Rect(rowX + stepperMinusWidth + gap + stepperValueWidth + gap, rowY + 2f * scale, stepperPlusWidth, buttonHeight), "+", Cloud, scale, 12f))
             {
                 PresentationPreferences.AdjustFeedbackVolume(0.1f);
             }
