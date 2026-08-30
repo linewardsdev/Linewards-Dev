@@ -840,20 +840,28 @@ namespace LTW.UnityClient.UI
 
             towerListScroll = GUI.BeginScrollView(viewRect, towerListScroll, contentRect);
 
-            for (var slot = 0; slot < entries.Count; slot++)
+            // try/finally, not just tidiness — see SendDockController.DrawSendCardsRail's own
+            // remark: BeginScrollView/EndScrollView must always pair, or anything thrown between
+            // them leaves IMGUI's clip/group stack unbalanced for every draw call afterward.
+            try
             {
-                var entry = entries[slot];
-                var row = RuntimeUiChrome.ListRowRect(listPanel, 0f, rowHeight * scale, gap * scale, slot);
-                var cost = TowerCostFor(entry);
-
-                if (DrawTowerRow(row, entry, cost, gold >= cost, highlightedTowerRole == entry.Role, scale))
+                for (var slot = 0; slot < entries.Count; slot++)
                 {
-                    selectedTower = null;
-                    BeginTowerPlacement(entry.Role);
+                    var entry = entries[slot];
+                    var row = RuntimeUiChrome.ListRowRect(listPanel, 0f, rowHeight * scale, gap * scale, slot);
+                    var cost = TowerCostFor(entry);
+
+                    if (DrawTowerRow(row, entry, cost, gold >= cost, highlightedTowerRole == entry.Role, scale))
+                    {
+                        selectedTower = null;
+                        BeginTowerPlacement(entry.Role);
+                    }
                 }
             }
-
-            GUI.EndScrollView();
+            finally
+            {
+                GUI.EndScrollView();
+            }
         }
 
         /// <summary>One tower, as a full-width rail row rather than a card.</summary>

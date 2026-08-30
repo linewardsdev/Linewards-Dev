@@ -769,27 +769,39 @@ namespace LTW.UnityClient.UI
 
             sendListScroll = GUI.BeginScrollView(viewRect, sendListScroll, contentRect);
 
-            for (var slot = 0; slot < cards.Length; slot++)
+            // try/finally around the whole loop, not just tidiness: GUI.BeginScrollView and
+            // GUI.EndScrollView must always pair. Anything thrown between them (a bad icon
+            // lookup, a text measurement, any of it) would otherwise skip EndScrollView and leave
+            // IMGUI's internal clip/group stack unbalanced for every draw call after this one —
+            // not just this component, and not just this frame. That is corruption a Unity Editor
+            // session tends to survive by luck; an IL2CPP device build reported crashing outright
+            // right after switching panels, which is exactly the shape of damage this would do.
+            try
             {
-                var card = cards[order[slot]];
-                var row = RuntimeUiChrome.ListRowRect(listPanel, 0f, rowHeight * scale, gap * scale, slot);
-
-                var cost = commandAdapter != null ? commandAdapter.SendCost(card.CreepId) : 0;
-                var income = commandAdapter != null ? commandAdapter.SendIncomeGain(card.CreepId) : 0;
-                var queued = commandAdapter != null ? commandAdapter.QueuedSendCount(card.CreepId) : 0;
-                var hasQueueSpace = queued < LTW.Simulation.Bridge.LocalVerticalSlice.MaxQueuedSendsPerCreep;
-                var meta = queued > 0 ? $"{cost}G  +{income}   x{queued}" : $"{cost}G  +{income}";
-                var trait = CodexScreenView.FindCreep(card.CreepId.Value) is { } creepDefinition
-                    ? CodexScreenView.CreepTraits(creepDefinition)
-                    : string.Empty;
-
-                if (DrawSendRow(row, card.Label, meta, trait, card.IconResource, card.Icon, card.Accent, hasQueueSpace, highlightedCreepRole == card.Role, scale, card.IgnoresCooldown))
+                for (var slot = 0; slot < cards.Length; slot++)
                 {
-                    card.Send();
+                    var card = cards[order[slot]];
+                    var row = RuntimeUiChrome.ListRowRect(listPanel, 0f, rowHeight * scale, gap * scale, slot);
+
+                    var cost = commandAdapter != null ? commandAdapter.SendCost(card.CreepId) : 0;
+                    var income = commandAdapter != null ? commandAdapter.SendIncomeGain(card.CreepId) : 0;
+                    var queued = commandAdapter != null ? commandAdapter.QueuedSendCount(card.CreepId) : 0;
+                    var hasQueueSpace = queued < LTW.Simulation.Bridge.LocalVerticalSlice.MaxQueuedSendsPerCreep;
+                    var meta = queued > 0 ? $"{cost}G  +{income}   x{queued}" : $"{cost}G  +{income}";
+                    var trait = CodexScreenView.FindCreep(card.CreepId.Value) is { } creepDefinition
+                        ? CodexScreenView.CreepTraits(creepDefinition)
+                        : string.Empty;
+
+                    if (DrawSendRow(row, card.Label, meta, trait, card.IconResource, card.Icon, card.Accent, hasQueueSpace, highlightedCreepRole == card.Role, scale, card.IgnoresCooldown))
+                    {
+                        card.Send();
+                    }
                 }
             }
-
-            GUI.EndScrollView();
+            finally
+            {
+                GUI.EndScrollView();
+            }
         }
 
         /// <summary>One creep, as a full-width rail row rather than a card.</summary>
