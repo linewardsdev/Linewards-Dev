@@ -599,6 +599,8 @@ namespace LTW.UnityClient.UI
             // rest of the match. Read once per frame rather than per card so all three agree.
             var chosenLine = CurrentPlayerTowerLine();
             var rowHeight = 0f;
+            var rowCount = Mathf.CeilToInt((float)labels.Length / columns);
+            var maxCardHeight = RuntimeUiChrome.CategoryPickerRowMaxHeight(rect, buttonY, gap, rowCount, scale);
 
             for (var category = 0; category < labels.Length; category++)
             {
@@ -607,7 +609,7 @@ namespace LTW.UnityClient.UI
                 var top = buttonY + row * (rowHeight + gap);
                 var locked = chosenLine >= 0 && category != chosenLine;
                 var accent = CategoryAccent(category);
-                var cardRect = RuntimeUiChrome.CategoryCardRect(rect, top, gap, column, columns, scale);
+                var cardRect = RuntimeUiChrome.CategoryCardRect(rect, top, gap, column, columns, scale, maxCardHeight);
                 if (row == 0 && column == 0)
                 {
                     // Captured from the first card so row 1's Y offset (above) has something to

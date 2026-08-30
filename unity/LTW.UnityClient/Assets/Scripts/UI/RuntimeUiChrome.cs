@@ -528,6 +528,14 @@ namespace LTW.UnityClient.UI
         /// aspect of its own. Deriving BOTH dimensions from the art removes that whole class: adding a
         /// category narrows the row, and a panel too short to hold it narrows the cards further, but
         /// nothing here can produce a distorted card or one that escapes its panel.
+        ///
+        /// <paramref name="maxHeight"/> is the caller's job to compute, not this method's: a
+        /// multi-row wrap (see <see cref="CategoryPickerRowMaxHeight"/>) must split the panel's
+        /// height EVENLY across every row before drawing any card, or row 0 sizes itself as if it
+        /// owned the whole panel and row 1 is left with whatever is left over — reported live
+        /// 2026-08-29 as a GROVE/ELITE card in the trailing row rendering tiny with its text lines
+        /// overlapping, because that row's own leftover budget was a fraction of a real card's
+        /// height while its label/meta text still drew at the normal, unscaled font size.
         /// </remarks>
         public static Rect CategoryCardRect(
             Rect panel,
@@ -535,7 +543,8 @@ namespace LTW.UnityClient.UI
             float gap,
             int index,
             int cardCount,
-            float scale)
+            float scale,
+            float maxHeight)
         {
             if (cardCount <= 0)
             {
@@ -550,7 +559,6 @@ namespace LTW.UnityClient.UI
             // If the panel is too short for that, the card gives up WIDTH to keep its aspect rather
             // than being squashed. A squashed card is the exact failure this exists to prevent, and
             // silently flattening one to fit would reintroduce it by a different route.
-            var maxHeight = panel.yMax - 12f * scale - contentTop;
             if (height > maxHeight)
             {
                 height = Mathf.Max(1f, maxHeight);
@@ -562,6 +570,23 @@ namespace LTW.UnityClient.UI
             var rowWidth = width * cardCount + gap * (cardCount - 1);
             var x = panel.x + (panel.width - rowWidth) * 0.5f + index * (width + gap);
             return new Rect(x, contentTop, width, height);
+        }
+
+        /// <summary>
+        /// The height budget every row in a wrapped category picker must share, so
+        /// <see cref="CategoryCardRect"/> clamps every row to the same value rather than letting an
+        /// early row spend space a later one needs. Callers compute this once before their loop and
+        /// pass the result into every <see cref="CategoryCardRect"/> call for that grid.
+        /// </summary>
+        public static float CategoryPickerRowMaxHeight(Rect panel, float contentTop, float gap, int rowCount, float scale)
+        {
+            if (rowCount <= 0)
+            {
+                return 1f;
+            }
+
+            var totalAvailable = panel.yMax - 12f * scale - contentTop - gap * (rowCount - 1);
+            return Mathf.Max(1f, totalAvailable / rowCount);
         }
 
         public static Rect CommandCardMetaRect(Rect rect, float scale)

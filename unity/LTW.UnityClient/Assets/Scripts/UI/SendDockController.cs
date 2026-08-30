@@ -483,13 +483,15 @@ namespace LTW.UnityClient.UI
             var accents = new[] { ArcaneBlue, WardViolet, SignalGold };
             var gold = CurrentPlayerGold();
             var rowHeight = 0f;
+            var rowCount = Mathf.CeilToInt((float)CategoryLabels.Length / columns);
+            var maxCardHeight = RuntimeUiChrome.CategoryPickerRowMaxHeight(rect, buttonY, gap, rowCount, scale);
 
             for (var category = 0; category < CategoryLabels.Length; category++)
             {
                 var row = category / columns;
                 var column = category % columns;
                 var top = buttonY + row * (rowHeight + gap);
-                var cardRect = RuntimeUiChrome.CategoryCardRect(rect, top, gap, column, columns, scale);
+                var cardRect = RuntimeUiChrome.CategoryCardRect(rect, top, gap, column, columns, scale, maxCardHeight);
                 if (row == 0 && column == 0)
                 {
                     rowHeight = cardRect.height;
