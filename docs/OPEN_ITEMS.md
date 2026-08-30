@@ -1190,6 +1190,29 @@ rather than guessed, and a capture to confirm — the same discipline `TowerMoti
 exists to enforce for motion. Guessing an inset would land in exactly the same place by a different
 route.
 
+## 49. TWIN (tower.twin_crescent) has no icon — codex falls back to a text chip
+
+Found during a UI audit 2026-08-29/30, confirmed by diffing catalogs against disk: every other
+tower and creep has a matching PNG under `Resources/Art/UI/Icons`, but `tower.twin_crescent`
+(`TowerCatalog.cs` entry 15, roster expansion A6) does not — `ui_icon_tower_twin_crescent_v01.png`
+was never made. 16 tower entries, 15 icon files; TWIN is the one gap.
+
+Not silent: `CodexScreenView.BuildChip` already has a documented fallback for exactly this case —
+it shows the tower's short label ("TWIN") as plain text instead of an icon, adds
+`ltw-codex-chip--textual`, and logs a warning (`CODEX no icon at Resources/Art/UI/Icons/{iconName}`).
+So today TWIN is reachable and identifiable in the codex rail, just visually inconsistent with
+every other chip around it — a text tile in a row of art.
+
+**Why it wasn't fixed as part of the audit:** there is no icon-baking tool in this project
+(confirmed by search — no `IconBake`/`IconCapture`/`IconGenerat*` script anywhere), so every
+existing icon was produced outside the repo. Manufacturing a substitute here would mean guessing at
+a pose/crop/lighting that matches the other 30 icons, which is an art decision, not a code fix.
+
+**What it needs:** a real `ui_icon_tower_twin_crescent_v01.png` (128x128, matching the other tower
+icons' framing) dropped into `Resources/Art/UI/Icons/`, generated the same way the rest of the
+roster's icons were. Confirm the warning stops logging and the codex chip stops carrying
+`ltw-codex-chip--textual` once it's in.
+
 ## 47. The send-queue cancel exists but nothing on screen reaches it
 
 Filed 2026-08-09, the same day the cancel was built.

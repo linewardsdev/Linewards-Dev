@@ -61,6 +61,13 @@ namespace LTW.UnityClient.Editor
             // panel height while the send dock's grew — worth a shot of its own so the two can be
             // compared rather than assumed to match.
             ("real-04-build-palette-open", OpenBuildPalette),
+            // The build palette's actual tower grid, not just its category picker above — the one
+            // state that would have caught the tablet unit-icon enlargement and specialty-line work
+            // (2026-08-30) not being mirrored onto the tower side the way it was on the send dock's
+            // real-03. Placed here, in the live-match group, rather than appended at the end: every
+            // shot after real-12 resets or ends the match (see the shell-screens group below), so a
+            // shot needing a live TouchPlacementController cannot run after that point.
+            ("real-20-build-category-one", OpenBuildCategoryOne),
             // The selected-tower panel, which is where a placed tower is upgraded.
             ("real-05-selected-tower", SelectAnUpgradeableTower),
             // A freshly built tower with NO line tier bought - the state every match starts in,
@@ -919,6 +926,25 @@ namespace LTW.UnityClient.Editor
 
             SetPrivate(dock, "isExpanded", true);
             SetSelectedCategory(dock, 1);
+        }
+
+        private static void OpenBuildCategoryOne()
+        {
+            var touch = Object.FindAnyObjectByType<TouchPlacementController>();
+            if (touch == null)
+            {
+                Debug.LogWarning("REALUI no TouchPlacementController found");
+                return;
+            }
+
+            var dock = Dock();
+            if (dock != null)
+            {
+                SetPrivate(dock, "isExpanded", false);
+            }
+
+            SetPrivate(touch, "isPaletteExpanded", true);
+            SetPrivate(touch, "selectedTowerCategory", 0);
         }
 
         private static void Finish(string error)

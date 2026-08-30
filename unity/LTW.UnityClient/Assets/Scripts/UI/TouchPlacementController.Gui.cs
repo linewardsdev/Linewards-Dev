@@ -28,6 +28,9 @@ namespace LTW.UnityClient.UI
         private static readonly Color DisabledInk = new(0.22f, 0.25f, 0.32f, 0.88f);
         private static readonly Color DisabledText = new(0.55f, 0.59f, 0.68f, 1f);
 
+        // Dimmer than the meta row: context, not a number the player is pricing a decision against.
+        private static readonly Color MutedTraitText = new(0.62f, 0.68f, 0.78f, 0.85f);
+
         private static GUIStyle? panelStyle;
         private static GUIStyle? titleStyle;
         private static GUIStyle? bodyStyle;
@@ -842,7 +845,8 @@ namespace LTW.UnityClient.UI
             var state = isSelected ? CommandCardState.Selected : CommandCardState.Normal;
             var pressed = RuntimeUiChrome.DrawCommandCard(rect, entry.Accent, state, scale);
 
-            var iconRect = RuntimeUiChrome.CommandCardIconRect(rect, scale);
+            RuntimeUiChrome.DrawCommandCardUnitIconWell(rect, scale);
+            var iconRect = RuntimeUiChrome.CommandCardUnitIconRect(rect, scale);
             if (!RuntimeUiIconLibrary.DrawIcon(iconRect, $"ui_icon_tower_{entry.RoleId}_v01", isAffordable))
             {
                 DrawTowerIcon(iconRect, TowerIconForRole(entry.Role), displayAccent, scale);
@@ -854,6 +858,26 @@ namespace LTW.UnityClient.UI
             buttonStyle.active.textColor = buttonStyle.normal.textColor;
             GUI.Label(RuntimeUiChrome.CommandCardLabelRect(rect, scale), entry.ShortLabel, buttonStyle);
 
+            // "If there is space left, add details or stats" (2026-08-30), same rule and same
+            // shared rect helper as SendDockController.DrawSendButton's creep cards — one line of
+            // the codex's own trait text, skipped rather than wrapped when the rect comes back too
+            // short to hold it.
+            var specialtyRect = RuntimeUiChrome.CommandCardSpecialtyRect(rect, scale);
+            if (specialtyRect.height >= 14f * scale
+                && CodexScreenView.FindTower(entry.ContentId) is { } towerDefinition)
+            {
+                metaStyle!.fontSize = Mathf.RoundToInt(8f * scale);
+                metaStyle.alignment = TextAnchor.MiddleCenter;
+                metaStyle.wordWrap = false;
+                metaStyle.clipping = TextClipping.Clip;
+                var fitted = RuntimeUiChrome.FitSpecialtyText(CodexScreenView.TowerTraits(towerDefinition), metaStyle, specialtyRect.width);
+                if (fitted != null)
+                {
+                    metaStyle.normal.textColor = isAffordable ? MutedTraitText : DisabledText;
+                    GUI.Label(specialtyRect, fitted, metaStyle);
+                }
+            }
+
             metaStyle!.fontSize = Mathf.RoundToInt(9f * scale);
             metaStyle.normal.textColor = isAffordable
                 ? new Color(
@@ -862,6 +886,11 @@ namespace LTW.UnityClient.UI
                     Mathf.Lerp(displayAccent.b, 1f, 0.55f),
                     1f)
                 : displayAccent;
+            // Explicit rather than assumed: the specialty line above (when drawn) and the rail
+            // category rows elsewhere both mutate this shared style's alignment/wrap/clipping.
+            metaStyle.alignment = TextAnchor.MiddleCenter;
+            metaStyle.wordWrap = false;
+            metaStyle.clipping = TextClipping.Overflow;
             GUI.Label(RuntimeUiChrome.CommandCardMetaRect(rect, scale), $"{cost}G", metaStyle);
 
             return pressed;

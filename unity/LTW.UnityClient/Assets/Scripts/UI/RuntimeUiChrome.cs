@@ -377,6 +377,102 @@ namespace LTW.UnityClient.UI
         }
 
         /// <summary>
+        /// Where a send/build GRID card's unit icon draws — deliberately NOT the same rect as
+        /// <see cref="CommandCardIconRect"/>, which the category PICKER's cards also use for their
+        /// icon-well backdrop despite never drawing an icon into it (see OPEN_ITEMS.md item 48's
+        /// "unexplained translucent square"). Enlarging that shared rect would have enlarged the
+        /// picker's own unexplained square right along with the grid's icon.
+        /// </summary>
+        /// <remarks>
+        /// Two sizes, not one. The drawer's cards are already tight — three across at a phone's own
+        /// width — so this is identical to <see cref="CommandCardIconRect"/> there. A rail card is
+        /// wider AND has vertical room the drawer never had, and reported live 2026-08-29/30 as
+        /// "icons too small and not centered": a 52-unit icon in a 260+ unit tall card reads as a
+        /// stamp in the corner, not a portrait. On a rail this is instead the larger of what the
+        /// card's own width and height can carry, leaving <see cref="CommandCardSpecialtyRect"/>
+        /// whatever is left between it and the label.
+        /// </remarks>
+        public static Rect CommandCardUnitIconRect(Rect rect, float scale)
+        {
+            if (!MobileViewportLayout.HasSideRails)
+            {
+                return CommandCardIconRect(rect, scale);
+            }
+
+            var size = Mathf.Max(1f, Mathf.Min(rect.width * 0.58f, rect.height * 0.42f));
+            return new Rect(rect.x + (rect.width - size) * 0.5f, rect.y + 10f * scale, size, size);
+        }
+
+        /// <summary>
+        /// Backdrop plate behind <see cref="CommandCardUnitIconRect"/>, matching
+        /// <see cref="DrawCommandCardChrome"/>'s own well fill. Only the grid card callers need
+        /// this: on a phone drawer the two icon rects are identical and <c>DrawCommandCardChrome</c>
+        /// already painted the well, and the category picker never calls this at all because it has
+        /// no unit icon to back.
+        /// </summary>
+        public static void DrawCommandCardUnitIconWell(Rect rect, float scale)
+        {
+            if (!MobileViewportLayout.HasSideRails)
+            {
+                return;
+            }
+
+            Fill(Shrink(CommandCardUnitIconRect(rect, scale), -4f * scale), new Color(0.006f, 0.01f, 0.016f, 0.42f));
+        }
+
+        /// <summary>
+        /// Tablet-only band between the unit icon and the name for one line of the same trait text
+        /// the codex shows (<c>CodexScreenView.CreepTraits</c>/<c>TowerTraits</c>) — "if there is
+        /// space left, add details or stats" (2026-08-30). Zero height on a phone drawer card, where
+        /// the icon rect already runs close to the label and there is nothing left to give it; the
+        /// caller is expected to skip drawing anything when this comes back too short for one line
+        /// rather than force a wrap onto a card not sized for it.
+        /// </summary>
+        public static Rect CommandCardSpecialtyRect(Rect rect, float scale)
+        {
+            if (!MobileViewportLayout.HasSideRails)
+            {
+                return new Rect(rect.x, rect.y, rect.width, 0f);
+            }
+
+            var icon = CommandCardUnitIconRect(rect, scale);
+            var labelTop = CommandCardLabelRect(rect, scale).y;
+            var top = icon.yMax + 4f * scale;
+            var height = Mathf.Max(0f, labelTop - top - 4f * scale);
+            return new Rect(rect.x + 8f * scale, top, rect.width - 16f * scale, height);
+        }
+
+        /// <summary>
+        /// Picks a single-line rendering of a " · "-joined trait string that actually fits
+        /// <paramref name="maxWidth"/> in <paramref name="style"/>, or null if none does.
+        /// </summary>
+        /// <remarks>
+        /// <see cref="TextClipping.Clip"/> was tried first and does not do this: a
+        /// <c>GUI.Label</c> wider than its rect at <c>wordWrap = false</c> measured live on a rail
+        /// card 2026-08-30 spilling text across the two cards on either side rather than clipping to
+        /// its own bounds. Measuring with <see cref="GUIStyle.CalcSize"/> before drawing sidesteps
+        /// that IMGUI behaviour entirely instead of depending on it. Only the first clause is tried
+        /// as a fallback, not a character-count truncation with an ellipsis, because a trait cut
+        /// mid-word ("Trails behind the pack it fo…") reads as broken UI, while dropping straight to
+        /// "Trails behind the pack it follows" or nothing at all always reads as a complete thought.
+        /// </remarks>
+        public static string? FitSpecialtyText(string fullTrait, GUIStyle style, float maxWidth)
+        {
+            if (string.IsNullOrEmpty(fullTrait) || maxWidth <= 0f)
+            {
+                return null;
+            }
+
+            if (style.CalcSize(new GUIContent(fullTrait)).x <= maxWidth)
+            {
+                return fullTrait;
+            }
+
+            var firstClause = fullTrait.Split(new[] { "  ·  " }, System.StringSplitOptions.None)[0];
+            return style.CalcSize(new GUIContent(firstClause)).x <= maxWidth ? firstClause : null;
+        }
+
+        /// <summary>
         /// The aspect (width / height) the command card art is authored at.
         /// </summary>
         /// <remarks>

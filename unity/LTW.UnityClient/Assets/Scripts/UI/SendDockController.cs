@@ -19,6 +19,9 @@ namespace LTW.UnityClient.UI
         private static readonly Color DisabledInk = new(0.22f, 0.25f, 0.32f, 0.88f);
         private static readonly Color DisabledText = new(0.55f, 0.59f, 0.68f, 1f);
 
+        // Dimmer than the meta row: context, not a number the player is pricing a decision against.
+        private static readonly Color MutedTraitText = new(0.62f, 0.68f, 0.78f, 0.85f);
+
         private static GUIStyle? panelStyle;
         private static GUIStyle? titleStyle;
         private static GUIStyle? buttonStyle;
@@ -736,7 +739,13 @@ namespace LTW.UnityClient.UI
                 // Without it a queued tap and a tap that did nothing look identical, which is the
                 // one thing that would make queueing feel broken rather than helpful.
                 var meta = queued > 0 ? $"{cost}G  +{income}   x{queued}" : $"{cost}G  +{income}";
-                if (DrawSendButton(new Rect(x, y, width, buttonHeight), card.Label, meta, card.IconResource, card.Icon, card.Accent, hasQueueSpace, highlightedCreepRole == card.Role, scale, card.IgnoresCooldown))
+                // Only looked up on a rail: CommandCardSpecialtyRect is zero-height on a phone
+                // drawer card, so a definition lookup and a trait string nobody draws would be
+                // pure waste on the tighter layout.
+                var trait = MobileViewportLayout.HasSideRails
+                    ? CodexScreenView.FindCreep(card.CreepId.Value) is { } creepDefinition ? CodexScreenView.CreepTraits(creepDefinition) : string.Empty
+                    : string.Empty;
+                if (DrawSendButton(new Rect(x, y, width, buttonHeight), card.Label, meta, trait, card.IconResource, card.Icon, card.Accent, hasQueueSpace, highlightedCreepRole == card.Role, scale, card.IgnoresCooldown))
                 {
                     card.Send();
                 }
@@ -777,7 +786,7 @@ namespace LTW.UnityClient.UI
             }
         }
 
-        private static bool DrawSendButton(Rect rect, string label, string meta, string iconResource, CreepIconKind iconKind, Color accent, bool isAffordable, bool isSelected, float scale, bool ignoresCooldown = false)
+        private static bool DrawSendButton(Rect rect, string label, string meta, string trait, string iconResource, CreepIconKind iconKind, Color accent, bool isAffordable, bool isSelected, float scale, bool ignoresCooldown = false)
         {
             // Cooling down reads as unaffordable, because for the player it is the same thing:
             // the card cannot be sent right now. Without this a card you could clearly afford
@@ -791,7 +800,8 @@ namespace LTW.UnityClient.UI
                 : CommandCardState.Disabled;
             var pressed = RuntimeUiChrome.DrawCommandCard(rect, accent, state, scale);
 
-            var iconRect = RuntimeUiChrome.CommandCardIconRect(rect, scale);
+            RuntimeUiChrome.DrawCommandCardUnitIconWell(rect, scale);
+            var iconRect = RuntimeUiChrome.CommandCardUnitIconRect(rect, scale);
             if (!RuntimeUiIconLibrary.DrawIcon(iconRect, iconResource, isAffordable))
             {
                 DrawCreepIcon(iconRect, iconKind, displayAccent, scale);
@@ -802,6 +812,25 @@ namespace LTW.UnityClient.UI
             buttonStyle.hover.textColor = buttonStyle.normal.textColor;
             buttonStyle.active.textColor = buttonStyle.normal.textColor;
             GUI.Label(RuntimeUiChrome.CommandCardLabelRect(rect, scale), label, buttonStyle);
+
+            // "If there is space left, add details or stats" (2026-08-30) — space is judged per
+            // card, not assumed from being on a rail: CommandCardSpecialtyRect comes back too
+            // short to hold one legible line on a narrower rail card, and this skips it rather
+            // than wrapping a sentence onto a card not tall enough for a second line of it.
+            var specialtyRect = RuntimeUiChrome.CommandCardSpecialtyRect(rect, scale);
+            if (specialtyRect.height >= 14f * scale)
+            {
+                metaStyle!.fontSize = Mathf.RoundToInt(8f * scale);
+                metaStyle.alignment = TextAnchor.MiddleCenter;
+                metaStyle.wordWrap = false;
+                metaStyle.clipping = TextClipping.Clip;
+                var fitted = RuntimeUiChrome.FitSpecialtyText(trait, metaStyle, specialtyRect.width);
+                if (fitted != null)
+                {
+                    metaStyle.normal.textColor = isAffordable ? MutedTraitText : DisabledText;
+                    GUI.Label(specialtyRect, fitted, metaStyle);
+                }
+            }
 
             // Raw accent at this size washed out over the pale stone areas of the card art — the
             // cost digits faded while the "+income" beside them stayed readable. Lifting the
@@ -817,8 +846,11 @@ namespace LTW.UnityClient.UI
                 : displayAccent;
             // Explicit, matching the name label above it (buttonStyle, never mutated away from its
             // MiddleCenter default): metaStyle IS mutated elsewhere (the rail rows set it left- and
-            // right-aligned), so this card's meta line must not inherit whatever state that left.
+            // right-aligned, and the specialty trait line above sets it to clip, single-line), so
+            // this card's meta line must not inherit whatever state that left.
             metaStyle.alignment = TextAnchor.MiddleCenter;
+            metaStyle.wordWrap = false;
+            metaStyle.clipping = TextClipping.Overflow;
             GUI.Label(RuntimeUiChrome.CommandCardMetaRect(rect, scale), meta, metaStyle);
             return pressed;
         }
