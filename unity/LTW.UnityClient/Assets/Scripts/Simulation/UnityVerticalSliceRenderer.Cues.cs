@@ -23,6 +23,46 @@ namespace LTW.UnityClient.Simulation
         /// <summary>World units a board label rises over its life.</summary>
         private const float FloatingTextRise = 0.5f;
 
+        /// <summary>World units a board label starts above the event it marks.</summary>
+        private const float FloatingTextLift = 0.55f;
+
+        /// <summary>
+        /// TMP point size every board label draws at, before <see cref="PresentationPreferences.TextScale"/>.
+        /// One number for every kind: "+441 income" is a longer string than "+4", not a bigger one.
+        /// </summary>
+        private const float BoardLabelFontSize = 3.4f;
+
+        /// <summary>
+        /// Horizontal distance, in world units, within which two labels count as being in the same
+        /// place — the reach of both stacking and merging.
+        /// </summary>
+        /// <remarks>
+        /// 0.6 is a little over half a cell. A leak puts its "-1 LIFE" and its "+N" bounty at the
+        /// same creep, and a kill puts its bounty at the creep while the relay tower that got the
+        /// last hit puts its "+1" a cell away; the first pair should share a column, the second
+        /// should not.
+        /// </remarks>
+        private const float FloatingTextNeighbourRadius = 0.6f;
+
+        /// <summary>Vertical step between labels stacked over one spot.</summary>
+        private const float FloatingTextStackStep = 0.35f;
+
+        /// <summary>Most steps a stacked label can be lifted by. Beyond four it is off the cell.</summary>
+        private const int FloatingTextStackCap = 4;
+
+        /// <summary>
+        /// Seconds after a label spawns during which an identical-kind label at the same spot is
+        /// folded into it rather than drawn beside it.
+        /// </summary>
+        /// <remarks>
+        /// Short on purpose: it is for events the simulation raised on the same tick — two creeps
+        /// leaking together, a bounty and a refund landing at once — not for aggregating a stream.
+        /// At 4 ticks a second, 0.2s is less than one tick, so two labels from consecutive ticks
+        /// still draw as two. <see cref="BoardLabelKind.Income"/> is the exception and merges for
+        /// as long as the earlier label is alive, which is what keeps it to one per lane.
+        /// </remarks>
+        private const float FloatingTextMergeWindow = 0.2f;
+
         /// <summary>
         /// Most board labels alive at once. Beyond this, new ones are dropped.
         /// </summary>
@@ -43,10 +83,66 @@ namespace LTW.UnityClient.Simulation
         /// </remarks>
         private const int MaxLiveFloatingLabels = 24;
 
-        /// <summary>Board labels currently animating. See SpawnFloatingText and UpdateFloatingLabels.</summary>
+        /// <summary>Board labels currently animating. See SpawnBoardLabel and UpdateFloatingLabels.</summary>
         private readonly List<FloatingLabel> floatingLabels = new List<FloatingLabel>();
 
-        private void SpawnFloatingText(Vector3 position, string text, Color color) => SpawnFloatingText(position, text, color, 0.7f);
+        /// <summary>
+        /// What a board label is about. Decides whether two labels landing on the same spot fold
+        /// into one, and how the folded amount is written.
+        /// </summary>
+        /// <remarks>
+        /// Passed by the caller, never recovered from the text: "+4" is a bounty and "+4 LIFE" is a
+        /// stolen life, and the only thing that knows which is the event that raised it. Parsing
+        /// the string back would work until the next wording change, silently.
+        /// </remarks>
+        private enum BoardLabelKind
+        {
+            /// <summary>Free text that never merges: the elimination and victory banners, and the reduced-effects cue words.</summary>
+            Text,
+
+            /// <summary>"+N" gold — kill bounty, leak bounty, sell refund, relay earnings.</summary>
+            Gold,
+
+            /// <summary>"+N income" at the lane's income point. At most one alive per lane.</summary>
+            Income,
+
+            /// <summary>"-N LIFE" / "-N LIVES" at the leak.</summary>
+            LifeLost,
+
+            /// <summary>"+N LIFE" / "+N LIVES" on the lane of the seat that gained them.</summary>
+            LifeStolen,
+
+            /// <summary>"SEND" at the local player's own gate. Merges to keep one banner under a burst of taps.</summary>
+            Send,
+        }
+
+        /// <summary>A free-text board label: banners, cue words, SEND.</summary>
+        private void SpawnFloatingText(Vector3 position, BoardLabelKind kind, string text, Color color, float duration) =>
+            SpawnBoardLabel(position, kind, 0, text, color, duration);
+
+        /// <summary>A board label for a number: gold, income, lives. The kind decides the wording.</summary>
+        private void SpawnFloatingAmount(Vector3 position, BoardLabelKind kind, int amount, Color color, float duration) =>
+            SpawnBoardLabel(position, kind, amount, null, color, duration);
+
+        /// <summary>Wording for an amount label, including the aggregate after a merge.</summary>
+        private static string BoardLabelText(BoardLabelKind kind, int amount, string text) => kind switch
+        {
+            BoardLabelKind.Gold => $"+{amount}",
+            BoardLabelKind.Income => $"+{amount} income",
+            BoardLabelKind.LifeLost => amount == 1 ? "-1 LIFE" : $"-{amount} LIVES",
+            BoardLabelKind.LifeStolen => amount == 1 ? "+1 LIFE" : $"+{amount} LIVES",
+            _ => text,
+        };
+
+        /// <summary>
+        /// Whether two labels of this kind at one spot fold into one. Free text never does: "PLAYER
+        /// 3 OUT" and "PLAYER 5 OUT" are two facts, and a cue word repeated is still one word.
+        /// </summary>
+        private static bool BoardLabelMerges(BoardLabelKind kind) => kind != BoardLabelKind.Text;
+
+        /// <summary>How long after spawning a label of this kind still accepts a merge.</summary>
+        private static float BoardLabelMergeWindow(BoardLabelKind kind) =>
+            kind == BoardLabelKind.Income ? float.PositiveInfinity : FloatingTextMergeWindow;
 
         /// <summary>
         /// Orientation that presents flat world-space text square-on to the gameplay camera.
@@ -56,6 +152,19 @@ namespace LTW.UnityClient.Simulation
         {
             var camera = presentationCamera != null ? presentationCamera : Camera.main;
             return camera != null ? camera.transform.rotation : Quaternion.Euler(90f, 0f, 0f);
+        }
+
+        /// <summary>Distance across the board between two points, ignoring how high each sits.</summary>
+        /// <remarks>
+        /// Height is ignored because stacking puts height in: a third label over a cell has to be
+        /// measured against the anchors of the two already lifted there, not against where they
+        /// have risen to.
+        /// </remarks>
+        private static float PlanarDistance(Vector3 a, Vector3 b)
+        {
+            var dx = a.x - b.x;
+            var dz = a.z - b.z;
+            return Mathf.Sqrt(dx * dx + dz * dz);
         }
 
         /// <summary>
@@ -72,12 +181,50 @@ namespace LTW.UnityClient.Simulation
         /// Motion carries the rest. Text used to appear, hold and vanish, which reads as a label
         /// switching on. It now rises, fades out, and punches up in scale over its first frames, so
         /// it reads as an event that happened.
+        ///
+        /// Layout is the other half, added 2026-09-01 after the live render review found labels
+        /// colliding: a leak drew "-1 LIFE", "+4" and a cue word in one cell on top of each other,
+        /// and two creeps leaking on the same tick drew two "-1 LIFE" through each other. Two rules,
+        /// both scoped to <see cref="FloatingTextNeighbourRadius"/> of a label that is still alive:
+        ///
+        /// Merge first. Same kind, same spot, within <see cref="BoardLabelMergeWindow"/> of the
+        /// earlier label's spawn — the earlier label's amount absorbs the new one, its text is
+        /// rewritten as the aggregate ("-2 LIVES", "+7"), and its clock restarts so the scale punch
+        /// replays as the number ticks up. Nothing new is spawned, so this also does not count
+        /// against <see cref="MaxLiveFloatingLabels"/>.
+        ///
+        /// Otherwise stack. Every live label within reach lifts the new one by
+        /// <see cref="FloatingTextStackStep"/>, capped at <see cref="FloatingTextStackCap"/> steps,
+        /// so simultaneous labels at one cell read as a column rather than a pile. Stacking has no
+        /// kind test — a cue word and a bounty at the same creep still want separate lines.
         /// </remarks>
-        private void SpawnFloatingText(Vector3 position, string text, Color color, float duration)
+        private void SpawnBoardLabel(Vector3 position, BoardLabelKind kind, int amount, string text, Color color, float duration)
         {
             if (!IsOnActiveLane(position))
             {
                 return;
+            }
+
+            if (BoardLabelMerges(kind))
+            {
+                var window = BoardLabelMergeWindow(kind);
+                for (var index = 0; index < floatingLabels.Count; index++)
+                {
+                    var existing = floatingLabels[index];
+                    if (existing.Kind != kind || existing.Label == null || existing.Object == null)
+                    {
+                        continue;
+                    }
+
+                    if (Time.time - existing.SpawnedAt > window || PlanarDistance(existing.Anchor, position) > FloatingTextNeighbourRadius)
+                    {
+                        continue;
+                    }
+
+                    existing.Absorb(amount, BoardLabelText(kind, existing.Amount + amount, text), Time.time, duration);
+                    ExtendTimedPresentation(existing.Object, existing.SpawnedAt + existing.Duration);
+                    return;
+                }
             }
 
             // Dropped rather than queued: a label that cannot be shown now is worthless a second
@@ -87,8 +234,19 @@ namespace LTW.UnityClient.Simulation
                 return;
             }
 
+            var neighbours = 0;
+            for (var index = 0; index < floatingLabels.Count; index++)
+            {
+                if (PlanarDistance(floatingLabels[index].Anchor, position) <= FloatingTextNeighbourRadius)
+                {
+                    neighbours++;
+                }
+            }
+
+            var stackLift = Mathf.Min(neighbours, FloatingTextStackCap) * FloatingTextStackStep;
+
             var textObject = GetTextObject();
-            textObject.transform.position = position + Vector3.up * 0.55f;
+            textObject.transform.position = position + Vector3.up * (FloatingTextLift + stackLift);
             // Face the camera rather than lying flat on the board. The old fixed Euler(90,0,0) was
             // only legible because the camera was nearly straight down; at any real tilt the text
             // slants away and loses readability. Billboarding keeps it face-on at any camera angle.
@@ -101,24 +259,25 @@ namespace LTW.UnityClient.Simulation
                 label = textObject.AddComponent<TMPro.TextMeshPro>();
                 label.alignment = TMPro.TextAlignmentOptions.Center;
                 label.textWrappingMode = TMPro.TextWrappingModes.NoWrap;
-                label.fontSize = 3.4f;
                 label.raycastTarget = false;
-                // The outline is the whole point of moving to SDF: board text sits over lane
-                // plating, range halos and creep bodies, and an unoutlined glyph at this size loses
-                // its edges against all three.
-                //
-                // ONE shared outlined material for every label, built once (BoardTextMaterial).
-                // Two other routes were tried and neither produced an outline: setting _OutlineWidth
-                // and the OUTLINE_ON keyword on fontMaterial, and TMP's per-component outlineWidth
-                // and outlineColor. Both compiled, ran, and rendered flat glyphs. Enabling the
-                // keyword on a real material and handing it to the component is what TMP actually
-                // honours, and it batches rather than instancing a material per label.
-                label.fontSharedMaterial = BoardTextMaterial(label.font);
+                // One typeface and one outlined material for every label, resolved in one place
+                // (RuntimeUiChrome, beside the HUD's SharedFont — same LiberationSans family, so
+                // board and HUD text agree). Font first, then material: assigning `font` resets
+                // the component's material to the font's plain default, so the outlined one has
+                // to land after it or the outline silently disappears. See
+                // RuntimeUiChrome.SharedBoardTextMaterial for why it is a shared material and not
+                // a per-label property.
+                label.font = RuntimeUiChrome.SharedBoardFont;
+                var material = RuntimeUiChrome.SharedBoardTextMaterial;
+                if (material != null)
+                {
+                    label.fontSharedMaterial = material;
+                }
             }
 
-            label.text = text;
+            label.text = BoardLabelText(kind, amount, text);
             label.color = color;
-            label.fontSize = 3.4f * PresentationPreferences.TextScale;
+            label.fontSize = BoardLabelFontSize * PresentationPreferences.TextScale;
 
             // Board furniture such as the endpoint gate plates draws through SpriteRenderers with
             // sorting orders up to 3, so board text sorts above all board decoration.
@@ -128,8 +287,35 @@ namespace LTW.UnityClient.Simulation
                 textRenderer.sortingOrder = FloatingTextSortingOrder;
             }
 
-            floatingLabels.Add(new FloatingLabel(textObject, label, Time.time, duration));
+            floatingLabels.Add(new FloatingLabel(textObject, label, kind, amount, position, Time.time, duration));
             timedPresentations.Add(new TimedPresentation(textObject, Time.time + duration, textPool));
+        }
+
+        /// <summary>Pushes back the pool release of an object already in <see cref="timedPresentations"/>.</summary>
+        /// <remarks>
+        /// A merged label restarts its clock, and its pooled text object has to outlive the new
+        /// clock or the pool hands it to the next label while this one is still writing to it.
+        /// A linear scan: the list also holds every live beam, but a merge only happens when two
+        /// events land on one spot in a fifth of a second, which is rare enough that indexing the
+        /// list for it would cost more than it saves.
+        /// </remarks>
+        private void ExtendTimedPresentation(GameObject target, float releaseAt)
+        {
+            for (var index = 0; index < timedPresentations.Count; index++)
+            {
+                var presentation = timedPresentations[index];
+                if (!ReferenceEquals(presentation.Object, target))
+                {
+                    continue;
+                }
+
+                if (releaseAt > presentation.ReleaseAt)
+                {
+                    timedPresentations[index] = new TimedPresentation(target, releaseAt, presentation.Pool);
+                }
+
+                return;
+            }
         }
 
         /// <summary>
@@ -167,31 +353,7 @@ namespace LTW.UnityClient.Simulation
         private bool IsLocalSeat(PlayerId playerId) =>
             simulationDriver != null && playerId.Equals(simulationDriver.LocalPlayerId);
 
-        private Material boardTextMaterial;
-
-        /// <summary>
-        /// The shared outlined material every board label draws with.
-        /// </summary>
-        /// <remarks>
-        /// A dark outline is what keeps small text legible over lane plating, range halos and creep
-        /// bodies. It is a material variant rather than a per-label property because that is the
-        /// form TMP honours, and because one shared material lets all board text batch.
-        /// </remarks>
-        private Material BoardTextMaterial(TMPro.TMP_FontAsset font)
-        {
-            if (boardTextMaterial != null)
-            {
-                return boardTextMaterial;
-            }
-
-            boardTextMaterial = new Material(font.material) { name = "LTW Board Text" };
-            boardTextMaterial.EnableKeyword("OUTLINE_ON");
-            boardTextMaterial.SetFloat("_OutlineWidth", 0.25f);
-            boardTextMaterial.SetColor("_OutlineColor", new Color(0.02f, 0.03f, 0.05f, 1f));
-            return boardTextMaterial;
-        }
-
-        /// <summary>Rises, fades and punches in scale over its life. See SpawnFloatingText.</summary>
+        /// <summary>Rises, fades and punches in scale over its life. See SpawnBoardLabel.</summary>
         private void UpdateFloatingLabels()
         {
             for (var index = floatingLabels.Count - 1; index >= 0; index--)
@@ -516,36 +678,68 @@ namespace LTW.UnityClient.Simulation
             }
         }
 
+        /// <summary>
+        /// The flash half of a creep's death: a beam accent, and for the two "broke apart" styles
+        /// a genuine particle burst instead of more crossing lines.
+        /// </summary>
+        /// <remarks>
+        /// Finding #8 (2026-09-01 render review), read again in full against the live code before
+        /// touching anything. Two things in it held up and are addressed here and in
+        /// <see cref="BeginCreepDying"/>/<see cref="UpdateDyingCreeps"/> (Pooling.cs); the rest of
+        /// the finding — "one-frame straight beams" against SpawnTowerAttackCue's per-role
+        /// choreography — did not, and that method and everything it calls (SpawnForkedArc,
+        /// SpawnTracerShot, SpawnSlugShot, SpawnVineLash, all the per-role branches) is
+        /// deliberately untouched this pass: it is already bespoke and already tuned, and a
+        /// single freeze-frame of any 0.08-0.24s beam looks exactly like this regardless.
+        ///
+        /// What was accurate: every style here used to be 2-4 straight SpawnBeam lines meeting
+        /// near the creep's position, and varying their angles does not change that a top-down
+        /// camera reads any such arrangement as an X or asterisk — the "this asset failed to
+        /// load" glyph, same complaint <see cref="SpawnCreepArrivalCue"/>'s own remark already
+        /// records for the same shape. HeavyShatter and ShardScatter now lean on
+        /// <see cref="BurstShape.Impact"/> — the existing omnidirectional spark burst, the same
+        /// one <see cref="SpawnTowerAttackCue"/>'s Grove/Spore branches already use for "this got
+        /// hit hard" — to carry the "broke apart" read, with one beam left as a directional shard
+        /// accent rather than three. SoftDissolve drops its hard beams entirely for a short soft
+        /// glow, since a creep that dissolves should not also snap into two crossing lines; the
+        /// real "dissolving" read now comes from <see cref="BeginCreepDying"/>'s smooth shrink.
+        /// SparkBurst — the fallback most ordinary creeps resolve to in
+        /// <see cref="CreepDeathCueStyleFor"/>, so the common case rather than a leftover branch —
+        /// gets the same burst treatment its own name asks for.
+        /// </remarks>
         private void SpawnCreepDeathCue(Vector3 position, Color color, string creepId, CreepVisualProfile visualProfile)
         {
             var deathCueStyle = CreepDeathCueStyleFor(creepId, visualProfile);
+
+            // The model-level half of the send-off — shrinking and sinking this creep's own
+            // instance instead of letting it vanish the instant the tick drops it — is started in
+            // ReleaseMissingCreeps (Pooling.cs), not here: by the time this method runs, that
+            // sweep has already run for the same frame (see BeginCreepDying's remark for why a
+            // hook here would be one release too late).
             if (deathCueStyle == CreepDeathCueStyle.HeavyShatter)
             {
-                SpawnBeam(position + new Vector3(-0.48f, 0.14f, -0.12f), position + new Vector3(0.48f, 0.14f, 0.12f), color, 0.18f);
-                SpawnBeam(position + new Vector3(-0.2f, 0.3f, -0.44f), position + new Vector3(0.2f, 0.3f, 0.44f), color, 0.18f);
-                SpawnBeam(position + new Vector3(-0.34f, 0.34f, 0.34f), position + new Vector3(0.34f, 0.08f, -0.34f), color, 0.18f);
+                SpawnBeam(position + new Vector3(-0.48f, 0.14f, -0.12f), position + new Vector3(0.48f, 0.14f, 0.12f), color, 0.16f);
+                SpawnEffect(position + Vector3.up * 0.2f, color, 0.64f, 0.32f, BurstShape.Impact);
                 return;
             }
 
             if (deathCueStyle == CreepDeathCueStyle.ShardScatter)
             {
                 SpawnBeam(position + new Vector3(-0.46f, 0.12f, 0f), position + new Vector3(-0.12f, 0.24f, 0.36f), color, 0.12f);
-                SpawnBeam(position + new Vector3(0.42f, 0.12f, 0.04f), position + new Vector3(0.1f, 0.24f, -0.38f), color, 0.12f);
-                SpawnBeam(position + new Vector3(0f, 0.12f, -0.48f), position + new Vector3(0.34f, 0.24f, -0.12f), color, 0.12f);
-                SpawnBeam(position + new Vector3(0f, 0.12f, 0.48f), position + new Vector3(-0.34f, 0.24f, 0.12f), color, 0.12f);
+                SpawnEffect(position + Vector3.up * 0.16f, color, 0.5f, 0.26f, BurstShape.Impact);
                 return;
             }
 
             if (deathCueStyle == CreepDeathCueStyle.SoftDissolve)
             {
-                SpawnBeam(position + new Vector3(-0.3f, 0.2f, -0.3f), position + new Vector3(0.3f, 0.2f, 0.3f), color, 0.2f);
-                SpawnBeam(position + new Vector3(-0.3f, 0.2f, 0.3f), position + new Vector3(0.3f, 0.2f, -0.3f), color, 0.2f);
+                // No burst and no crossing beams — BeginCreepDying's smooth shrink carries this
+                // one, and a short soft glow is enough to mark the moment without snapping.
+                SpawnEffect(position + Vector3.up * 0.14f, color, 0.32f, 0.3f);
                 return;
             }
 
             SpawnBeam(position + new Vector3(-0.38f, 0.16f, 0f), position + new Vector3(0.38f, 0.16f, 0f), color, 0.14f);
-            SpawnBeam(position + new Vector3(0f, 0.16f, -0.38f), position + new Vector3(0f, 0.16f, 0.38f), color, 0.14f);
-            SpawnBeam(position + new Vector3(-0.24f, 0.22f, -0.24f), position + new Vector3(0.24f, 0.22f, 0.24f), color, 0.14f);
+            SpawnEffect(position + Vector3.up * 0.18f, color, 0.46f, 0.24f, BurstShape.Impact);
         }
 
         /// <summary>
@@ -674,6 +868,18 @@ namespace LTW.UnityClient.Simulation
         ///
         /// One burst and one line reads as a thing crossing a threshold. Two bursts and a line
         /// reads as a mess in the shape of a leak.
+        ///
+        /// Finding #8 (2026-09-01 render review) described this as "an orange square outline",
+        /// which does not match what this method draws (one line, not a square) — most likely the
+        /// capture it was written from also caught a nearby tower's SpawnCellFrameCue firing on
+        /// the same frame. Left as the bare line: a leaking creep is just another key that drops
+        /// out of the snapshot, so it now gets the same BeginCreepDying shrink/sink send-off a
+        /// kill gets (see ReleaseMissingCreeps, Pooling.cs) with no leak-specific wiring needed,
+        /// and RenderEvents already raises a 0.6-scale BurstShape.Sweep at the creep's own
+        /// position for every leak. Between those two, one thin gate line reading as "something
+        /// crossed here" is enough; a second burst or ring stacked on top of an
+        /// already-Sweep-bursting, now visibly-sinking creep would be the over-build this task
+        /// explicitly warned against, not an improvement.
         /// </remarks>
         private void SpawnLeakGateCue(int laneId)
         {
@@ -767,7 +973,7 @@ namespace LTW.UnityClient.Simulation
             // else's lane is 12% of all board text and nothing the player can act on.
             if (simulationDriver != null && queued.SenderId.Equals(simulationDriver.LocalPlayerId))
             {
-                SpawnFloatingText(senderPosition + Vector3.left * 0.42f, "SEND", color, 0.42f);
+                SpawnFloatingText(senderPosition + Vector3.left * 0.42f, BoardLabelKind.Send, "SEND", color, 0.42f);
             }
             // The large "{qty}x {NAME}" spawn banner over the defender's gate was removed: it
             // dominated the top of the board and duplicated information the send dock already
@@ -776,13 +982,20 @@ namespace LTW.UnityClient.Simulation
             audioDirector.Play(LTWAudioCue.CreepSent);
         }
 
-        /// <summary>One animating board label: where it started, when, and for how long.</summary>
-        private readonly struct FloatingLabel
+        /// <summary>One animating board label: what it is, where it started, when, and for how long.</summary>
+        /// <remarks>
+        /// A class rather than the struct it used to be because a merge rewrites it in place —
+        /// amount, text, clock — and the list would otherwise have to swap the whole entry out.
+        /// </remarks>
+        private sealed class FloatingLabel
         {
-            public FloatingLabel(GameObject @object, TMPro.TextMeshPro label, float spawnedAt, float duration)
+            public FloatingLabel(GameObject @object, TMPro.TextMeshPro label, BoardLabelKind kind, int amount, Vector3 anchor, float spawnedAt, float duration)
             {
                 Object = @object;
                 Label = label;
+                Kind = kind;
+                Amount = amount;
+                Anchor = anchor;
                 Origin = @object.transform.position;
                 SpawnedAt = spawnedAt;
                 Duration = duration;
@@ -790,9 +1003,37 @@ namespace LTW.UnityClient.Simulation
 
             public GameObject Object { get; }
             public TMPro.TextMeshPro Label { get; }
+            public BoardLabelKind Kind { get; }
+
+            /// <summary>Running total for an amount kind; meaningless for free text.</summary>
+            public int Amount { get; private set; }
+
+            /// <summary>The event position the label was asked for, before lift and stacking. What neighbour tests measure against.</summary>
+            public Vector3 Anchor { get; }
+
+            /// <summary>Where the rise starts: the anchor plus lift plus any stacking offset.</summary>
             public Vector3 Origin { get; }
-            public float SpawnedAt { get; }
-            public float Duration { get; }
+
+            public float SpawnedAt { get; private set; }
+            public float Duration { get; private set; }
+
+            /// <summary>Folds a same-kind label into this one: new total, new wording, clock restarted.</summary>
+            /// <remarks>
+            /// The clock restarts from now rather than extending, so the rise and the scale punch
+            /// replay from the origin — on a label at most 0.2s old that is a jump of under 0.15
+            /// units, and it reads as the number ticking up. The longer of the two durations is
+            /// kept so a merge never shortens a label.
+            /// </remarks>
+            public void Absorb(int amount, string text, float now, float duration)
+            {
+                Amount += amount;
+                SpawnedAt = now;
+                Duration = Mathf.Max(Duration, duration);
+                if (Label != null)
+                {
+                    Label.text = text;
+                }
+            }
         }
     }
 }

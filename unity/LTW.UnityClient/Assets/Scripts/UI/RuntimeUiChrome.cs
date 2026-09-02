@@ -1,6 +1,7 @@
 #nullable enable
 
 using LTW.Simulation.Bridge;
+using TMPro;
 using UnityEngine;
 
 namespace LTW.UnityClient.UI
@@ -29,6 +30,9 @@ namespace LTW.UnityClient.UI
         private static GUIStyle? panelShadowStyle;
         private static Font? sharedFont;
         private static bool sharedFontLoadAttempted;
+        private static TMP_FontAsset? sharedBoardFont;
+        private static bool sharedBoardFontLoadAttempted;
+        private static Material? sharedBoardTextMaterial;
 
         /// <summary>
         /// The one font every hand-rolled IMGUI style in the HUD should set explicitly.
@@ -68,6 +72,92 @@ namespace LTW.UnityClient.UI
                 }
 
                 return sharedFont;
+            }
+        }
+
+        /// <summary>
+        /// The one TextMeshPro font asset every world-space board label draws with — the SDF twin
+        /// of <see cref="SharedFont"/>.
+        /// </summary>
+        /// <remarks>
+        /// Same family as the HUD on purpose. <see cref="SharedFont"/> is LiberationSans as a
+        /// legacy Font for IMGUI; this is LiberationSans as TMP's SDF atlas, which is the copy the
+        /// TTF in Resources/Art/UI/Fonts was made from. Board and HUD text therefore agree, and the
+        /// board labels used to reach this same asset implicitly by never setting <c>font</c> and
+        /// inheriting <c>TMP_Settings.defaultFontAsset</c>. Resolved here explicitly, and in one
+        /// place, so that "which typeface is the board in" has one answer that is not "whatever
+        /// TMP Settings happens to say".
+        ///
+        /// TMP Settings first, because that is the asset TmpEssentialsImporter guarantees exists;
+        /// the Resources path is the fallback for a project where TMP's own resources were moved
+        /// or the settings asset was not generated. If neither resolves, every board label draws
+        /// nothing, silently — TMP's documented failure mode when its essentials were never
+        /// imported — so the warning below is the only tell.
+        /// </remarks>
+        public static TMP_FontAsset? SharedBoardFont
+        {
+            get
+            {
+                if (!sharedBoardFontLoadAttempted)
+                {
+                    sharedBoardFontLoadAttempted = true;
+                    sharedBoardFont = TMP_Settings.defaultFontAsset;
+                    if (sharedBoardFont == null)
+                    {
+                        sharedBoardFont = Resources.Load<TMP_FontAsset>("Fonts & Materials/LiberationSans SDF");
+                    }
+
+                    if (sharedBoardFont == null)
+                    {
+                        Debug.LogWarning("RuntimeUiChrome could not resolve a TMP font asset for board text; board labels will render nothing until TMP essentials are imported.");
+                    }
+                }
+
+                return sharedBoardFont;
+            }
+        }
+
+        /// <summary>
+        /// The shared outlined material every board label draws with, built once from
+        /// <see cref="SharedBoardFont"/>'s own material.
+        /// </summary>
+        /// <remarks>
+        /// A dark outline is what keeps small text legible over lane plating, range halos and creep
+        /// bodies. It is a material variant rather than a per-label property because that is the
+        /// form TMP honours, and because one shared material lets all board text batch.
+        ///
+        /// Getting the outline to render took three attempts, recorded because the first two look
+        /// correct and produce flat glyphs with no error: <c>fontMaterial.EnableKeyword("OUTLINE_ON")</c>
+        /// plus <c>SetFloat("_OutlineWidth", ...)</c> — no outline; TMP's per-component
+        /// <c>outlineWidth</c> / <c>outlineColor</c> — no outline; a shared Material built from the
+        /// font's own material with the keyword enabled, assigned through <c>fontSharedMaterial</c>
+        /// — works, and batches. Callers must assign it AFTER <c>font</c>, since setting the font
+        /// resets the component to the font's plain default material.
+        ///
+        /// Re-created if Unity has destroyed it (the <c>== null</c> below is the overloaded
+        /// lifetime check, not a reference test), so a scene reload cannot leave labels holding a
+        /// dead material.
+        /// </remarks>
+        public static Material? SharedBoardTextMaterial
+        {
+            get
+            {
+                if (sharedBoardTextMaterial != null)
+                {
+                    return sharedBoardTextMaterial;
+                }
+
+                var font = SharedBoardFont;
+                if (font == null || font.material == null)
+                {
+                    return null;
+                }
+
+                sharedBoardTextMaterial = new Material(font.material) { name = "LTW Board Text" };
+                sharedBoardTextMaterial.EnableKeyword("OUTLINE_ON");
+                sharedBoardTextMaterial.SetFloat("_OutlineWidth", 0.25f);
+                sharedBoardTextMaterial.SetColor("_OutlineColor", new Color(0.02f, 0.03f, 0.05f, 1f));
+                return sharedBoardTextMaterial;
             }
         }
 
@@ -357,6 +447,123 @@ namespace LTW.UnityClient.UI
         public static Rect ListRowRect(Rect panel, float contentTop, float rowHeight, float gap, int index) =>
             new(panel.x, contentTop + index * (rowHeight + gap), panel.width, rowHeight);
 
+        /// <summary>Per-list drag state for <see cref="HandleListDragScroll"/>, one instance per scrolling list.</summary>
+        public sealed class DragScrollTracker
+        {
+            internal bool IsTrackingPress;
+            internal bool IsDragging;
+            internal Vector2 PointerDownPosition;
+            internal Vector2 PointerDownScroll;
+        }
+
+        /// <summary>How far a press has to move, in unscaled GUI pixels, before it counts as a drag rather than a tap.</summary>
+        private const float DragScrollThreshold = 6f;
+
+        /// <summary>
+        /// Drag-to-scroll for a list drawn inside a <c>GUI.BeginScrollView</c> block.
+        /// </summary>
+        /// <remarks>
+        /// Reported live 2026-08-31: "you have to use the scroll bar to scroll, you can't just drag
+        /// along the creeps." A Unity IMGUI scroll view's own built-in interaction only recognises a
+        /// drag on the SCROLLBAR THUMB — dragging a finger across the row content does nothing,
+        /// which is not how a touchscreen list is supposed to behave. This adds that gesture back.
+        ///
+        /// Call this BEFORE <c>GUI.BeginScrollView</c>, with <paramref name="touchRect"/> in the
+        /// same (outer) coordinate space <c>GUI.BeginScrollView</c>'s own view rect uses, and feed
+        /// its return value into that call as the scroll position. Calling it before entry avoids
+        /// any question of coordinate spaces inside the scroll view's clipped group, and lets the
+        /// updated scroll take effect the same frame it changes rather than one frame behind.
+        ///
+        /// <paramref name="touchRect"/> should exclude the scrollbar's own column (the view rect
+        /// minus its scrollbar allowance), not the full view rect — a press that starts on the
+        /// scrollbar thumb is left entirely to Unity's own handling, so the two mechanisms cannot
+        /// both react to the same drag and fight over the scroll position.
+        ///
+        /// Below <see cref="DragScrollThreshold"/> of movement a press is left alone completely — no
+        /// <c>GUIUtility.hotControl</c> is touched — so a plain tap on a row reaches that row's own
+        /// <c>GUI.Button</c> exactly as before. Only once a press moves far enough to be unambiguous
+        /// does this steal hotControl away from whatever row it started on, which is what stops that
+        /// row firing as a tap once the gesture is clearly a scroll instead — the same
+        /// tap-vs-drag split a native scroll view gives for free. Reads <c>Event.current.type</c>
+        /// directly rather than <c>GetTypeForControl</c> for exactly that reason: once a row has
+        /// claimed hotControl on the initial press, <c>GetTypeForControl</c> would report every
+        /// later drag event as <c>Ignore</c> for anyone else's control id, which is the one thing
+        /// this method has to see past to be able to steal it back.
+        /// </remarks>
+        public static Vector2 HandleListDragScroll(
+            DragScrollTracker tracker,
+            Rect touchRect,
+            Vector2 scroll,
+            float viewportHeight,
+            float contentHeight,
+            float scale)
+        {
+            var maxScroll = Mathf.Max(0f, contentHeight - viewportHeight);
+            if (maxScroll <= 0f)
+            {
+                return new Vector2(scroll.x, 0f);
+            }
+
+            var evt = Event.current;
+            var controlId = GUIUtility.GetControlID(FocusType.Passive);
+
+            switch (evt.type)
+            {
+                case EventType.MouseDown:
+                    if (evt.button == 0 && touchRect.Contains(evt.mousePosition))
+                    {
+                        tracker.IsTrackingPress = true;
+                        tracker.IsDragging = false;
+                        tracker.PointerDownPosition = evt.mousePosition;
+                        tracker.PointerDownScroll = scroll;
+                    }
+
+                    break;
+
+                case EventType.MouseDrag:
+                    if (!tracker.IsTrackingPress)
+                    {
+                        break;
+                    }
+
+                    if (!tracker.IsDragging)
+                    {
+                        var moved = evt.mousePosition - tracker.PointerDownPosition;
+                        if (moved.sqrMagnitude >= (DragScrollThreshold * scale) * (DragScrollThreshold * scale))
+                        {
+                            tracker.IsDragging = true;
+                        }
+                    }
+
+                    if (tracker.IsDragging)
+                    {
+                        GUIUtility.hotControl = controlId;
+                        var deltaY = evt.mousePosition.y - tracker.PointerDownPosition.y;
+                        scroll = new Vector2(scroll.x, Mathf.Clamp(tracker.PointerDownScroll.y - deltaY, 0f, maxScroll));
+                        evt.Use();
+                    }
+
+                    break;
+
+                case EventType.MouseUp:
+                    if (tracker.IsTrackingPress)
+                    {
+                        if (tracker.IsDragging && GUIUtility.hotControl == controlId)
+                        {
+                            GUIUtility.hotControl = 0;
+                            evt.Use();
+                        }
+
+                        tracker.IsTrackingPress = false;
+                        tracker.IsDragging = false;
+                    }
+
+                    break;
+            }
+
+            return scroll;
+        }
+
         /// <summary>
         /// Draws one list row's background — a flat fill, a coloured left edge, and a hairline
         /// border — and returns whether it was pressed.
@@ -530,14 +737,27 @@ namespace LTW.UnityClient.UI
         /// already painted the well, and the category picker never calls this at all because it has
         /// no unit icon to back.
         /// </summary>
-        public static void DrawCommandCardUnitIconWell(Rect rect, float scale)
+        /// <summary>
+        /// Backdrop socket behind a command card's unit icon — a dark well plus an accent-coloured
+        /// ring, matching <see cref="DrawListRowIconWell"/>'s reasoning exactly (see its own remarks
+        /// for why a hard-cut icon sprite needs a deliberate edge to end at).
+        /// </summary>
+        /// <remarks>
+        /// Used to skip drawing anything unless <see cref="MobileViewportLayout.HasSideRails"/>, and
+        /// unlike <see cref="DrawListRowIconWell"/> drew no ring even when it did draw — both wrong
+        /// in the same direction. The card layout this backs (<c>DrawSendButton</c>/
+        /// <c>DrawCatalogCard</c>) is reachable ONLY from the phone drawer today, since the tablet
+        /// rail moved to full-width list rows this session — so the old guard made this well
+        /// unconditionally dead code: a no-op on rail, where the card path never runs, and a no-op on
+        /// the one platform, phone, where it does. Reported live as "the icon was copy and pasted
+        /// onto the button" (2026-08-31), which is exactly what an icon with no backdrop at all reads
+        /// as. Fixed the same way the row version already was: draw always, and add the ring.
+        /// </remarks>
+        public static void DrawCommandCardUnitIconWell(Rect rect, Color accent, float scale)
         {
-            if (!MobileViewportLayout.HasSideRails)
-            {
-                return;
-            }
-
-            Fill(Shrink(CommandCardUnitIconRect(rect, scale), -4f * scale), new Color(0.006f, 0.01f, 0.016f, 0.42f));
+            var well = Shrink(CommandCardUnitIconRect(rect, scale), -4f * scale);
+            Fill(well, new Color(0.006f, 0.01f, 0.016f, 0.42f));
+            DrawOutline(well, new Color(accent.r, accent.g, accent.b, 0.5f), Mathf.Max(1f, scale));
         }
 
         /// <summary>

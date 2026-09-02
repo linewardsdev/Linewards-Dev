@@ -7,7 +7,20 @@ namespace LTW.UnityClient.Simulation
     [CreateAssetMenu(fileName = "TowerVisualLibrary", menuName = "Line Wards/Tower Visual Library")]
     public sealed class TowerVisualLibrary : ScriptableObject
     {
+        /// <summary>Resources path of the one library every tower view reads from.</summary>
+        public const string DefaultResourcePath = "TowerVisualLibrary";
+
         [SerializeField] private TowerVisualProfile[] profiles = Array.Empty<TowerVisualProfile>();
+
+        /// <summary>
+        /// The library at <see cref="DefaultResourcePath"/>, or null if it is missing.
+        /// </summary>
+        /// <remarks>
+        /// One loader rather than a string literal in each caller: the board renderer, the codex
+        /// stage and the placement ghost all have to draw a tower from the same profile, and a
+        /// path that is spelled three times is a path that can be spelled wrong once.
+        /// </remarks>
+        public static TowerVisualLibrary LoadDefault() => Resources.Load<TowerVisualLibrary>(DefaultResourcePath);
 
         public IReadOnlyList<TowerVisualProfile> Profiles => profiles ?? Array.Empty<TowerVisualProfile>();
 

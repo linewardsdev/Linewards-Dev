@@ -17,9 +17,16 @@ namespace LTW.UnityClient.UI
     /// </summary>
     public sealed partial class TouchPlacementController
     {
+        /// <summary>
+        /// One instantiated ghost per tower content id, or null once a role has been found to have
+        /// no drawable model — the null is cached so the error below is logged once, not on every
+        /// nudge of the cursor.
+        /// </summary>
         private readonly System.Collections.Generic.Dictionary<string, GameObject?> ghostModels = new();
         private TowerVisualLibrary? towerVisualLibrary;
         private Material? ghostMaterial;
+
+        private const string GhostMaterialResourcePath = "Art/UI/Materials/PlacementGhost";
 
         private readonly List<GameObject> selectionRings = new();
 
@@ -32,21 +39,36 @@ namespace LTW.UnityClient.UI
             // setting the tower down rather than a preview floating in ahead of them.
             UpdateBuilderAvatar();
             ghost.SetActive(false);
-            ghost.transform.position = GridToWorld(selectedCell, 0.6f);
+            ghost.transform.position = GhostWorldPosition();
             ConfigurePlacementGhostVisual();
-            // A resolved model already carries its profile's own scale, so the root has to stay at
-            // one or the two multiply and the preview comes out larger than the placed tower.
-            ghost.transform.localScale = HasGhostModel() ? Vector3.one : SelectedTowerGhostScale();
             RefreshPlacementPreview();
         }
 
+        /// <summary>
+        /// Where the ghost root stands: the floor anchor the renderer gives a placed prefab, so the
+        /// preview is at the height the tower will actually land at rather than hovering above it.
+        /// The profile's own lift is applied to the model underneath, exactly as the renderer does.
+        /// </summary>
+        private Vector3 GhostWorldPosition() => GridToWorld(selectedCell, UnityVerticalSliceRenderer.PlacedTowerBaseY);
+
+        /// <summary>
+        /// Tints the one material every ghost renderer shares: the role's accent while the cell
+        /// would be accepted, the danger red while it would be rejected.
+        /// </summary>
+        /// <remarks>
+        /// Written through <see cref="RenderCompat.SetAlbedo"/> rather than <c>Material.color</c>
+        /// so the tint lands on URP's <c>_BaseColor</c>, which is the property the ghost material's
+        /// shader actually reads. Alpha is honoured because that material is a transparent surface;
+        /// on the towers' own opaque stylized shader it was silently discarded.
+        /// </remarks>
         private void UpdateGhostColor()
         {
             var color = placementPreview.Accepted ? SelectedTowerAccent() : Danger;
             color.a = placementPreview.Accepted ? 0.74f : 0.86f;
-            foreach (var ghostRenderer in ghost.GetComponentsInChildren<Renderer>(true))
+            var material = GhostMaterial();
+            if (material != null)
             {
-                ghostRenderer.material.color = color;
+                RenderCompat.SetAlbedo(material, color);
             }
         }
 
@@ -59,49 +81,62 @@ namespace LTW.UnityClient.UI
         /// the towers themselves were primitives, but they are 3D models now, so the preview was
         /// showing a shape that no longer matched what you would get. Instantiating the real
         /// prefab means the silhouette under your finger is the silhouette you are about to place.
+        ///
+        /// There is no primitive fallback any more. The ghost root is an empty, so a role whose
+        /// model cannot be built draws nothing and logs an error naming the role — the 2026-09-01
+        /// render review found the old fallback disc reading as a finished feature, which is worse
+        /// than an absent preview because nobody reports it.
         /// </remarks>
         private void ConfigurePlacementGhostVisual()
         {
-            var roleId = SelectedTowerRoleId();
+            var entry = TowerCatalog.ForRole(selectedTowerRole);
             foreach (var cached in ghostModels)
             {
                 if (cached.Value != null)
                 {
-                    cached.Value.SetActive(cached.Key == roleId);
+                    cached.Value.SetActive(cached.Key == entry.ContentId);
                 }
             }
 
-            if (ghostModels.TryGetValue(roleId, out var existing) && existing != null)
+            if (ghostModels.ContainsKey(entry.ContentId))
             {
                 return;
             }
 
-            var model = BuildGhostModel(roleId);
-            ghostModels[roleId] = model;
-            if (model == null)
-            {
-                // No library or prefab: fall back to the plain ghost root so placement still has
-                // something to point at rather than nothing at all.
-                EnsureGhostFallback(true);
-                return;
-            }
-
-            EnsureGhostFallback(false);
+            ghostModels[entry.ContentId] = BuildGhostModel(entry);
         }
 
-        private GameObject? BuildGhostModel(string roleId)
+        /// <summary>
+        /// Instantiates the role's tower prefab under the ghost root, resolved the same way the
+        /// board renderer resolves a placed tower: the catalog's simulation content id looked up
+        /// in the shared <see cref="TowerVisualLibrary"/>.
+        /// </summary>
+        private GameObject? BuildGhostModel(TowerCatalog.Entry entry)
         {
-            var library = towerVisualLibrary != null
-                ? towerVisualLibrary
-                : towerVisualLibrary = Resources.Load<TowerVisualLibrary>("TowerVisualLibrary");
-            var profile = library != null ? library.FindProfile($"tower.{roleId}") : null;
+            if (towerVisualLibrary == null)
+            {
+                towerVisualLibrary = TowerVisualLibrary.LoadDefault();
+            }
+
+            var profile = towerVisualLibrary != null ? towerVisualLibrary.FindProfile(entry.ContentId) : null;
             if (profile == null || profile.Prefab == null)
             {
+                Debug.LogError(
+                    $"PLACEMENT GHOST '{entry.ContentId}' ({entry.DisplayName}) has no visual profile with a prefab " +
+                    $"in Resources/{TowerVisualLibrary.DefaultResourcePath}; the ghost stays hidden for this role.");
+                return null;
+            }
+
+            var material = GhostMaterial();
+            if (material == null)
+            {
+                // Logged by GhostMaterial. Hidden rather than drawn with the tower's own opaque
+                // materials, which would look like a tower already standing there.
                 return null;
             }
 
             var model = Instantiate(profile.Prefab, ghost.transform);
-            model.name = $"GhostModel_{roleId}";
+            model.name = $"GhostModel_{entry.RoleId}";
             model.transform.localPosition = Vector3.up * profile.Lift;
             model.transform.localRotation = Quaternion.identity;
             model.transform.localScale = profile.HasScale ? profile.Scale : Vector3.one;
@@ -111,12 +146,25 @@ namespace LTW.UnityClient.UI
                 Destroy(collider);
             }
 
-            // One shared unlit translucent material across the whole model. Keeping the tower's
-            // own materials would make the preview look like a finished tower already standing
-            // there, which is exactly the confusion a ghost has to avoid.
+            // The owner pool and range halo are board decals the renderer colours per owner and
+            // per range; re-tinted as ghost they are a flat plate under the model, not a tower.
+            HideGhostAccessory(model, profile.OwnerTrimRendererPath);
+            HideGhostAccessory(model, profile.RangeHaloRendererPath);
+
+            // One shared translucent material across the whole model, on EVERY material slot —
+            // assigning sharedMaterial alone leaves a multi-material renderer's other submeshes
+            // opaque. Keeping the tower's own materials would make the preview look like a
+            // finished tower already standing there, which is exactly the confusion a ghost has
+            // to avoid.
             foreach (var modelRenderer in model.GetComponentsInChildren<Renderer>(true))
             {
-                modelRenderer.sharedMaterial = GhostMaterial();
+                var slots = modelRenderer.sharedMaterials;
+                for (var index = 0; index < slots.Length; index++)
+                {
+                    slots[index] = material;
+                }
+
+                modelRenderer.sharedMaterials = slots;
                 modelRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
                 modelRenderer.receiveShadows = false;
             }
@@ -124,28 +172,49 @@ namespace LTW.UnityClient.UI
             return model;
         }
 
-        private bool HasGhostModel() =>
-            ghostModels.TryGetValue(SelectedTowerRoleId(), out var model) && model != null;
+        private static void HideGhostAccessory(GameObject model, string rendererPath)
+        {
+            if (string.IsNullOrWhiteSpace(rendererPath))
+            {
+                return;
+            }
 
-        private Material GhostMaterial()
+            var accessory = model.transform.Find(rendererPath);
+            if (accessory != null)
+            {
+                accessory.gameObject.SetActive(false);
+            }
+        }
+
+        /// <summary>
+        /// The ghost's material: a runtime copy of the PlacementGhost asset, shared by every
+        /// renderer of every cached ghost model so one tint write recolours the whole preview.
+        /// </summary>
+        /// <remarks>
+        /// An asset rather than <c>Shader.Find</c> at runtime, for two reasons. The previous
+        /// <c>Sprites/Default</c> pick was unlit with depth writes off, so a tower collapsed into
+        /// its flat silhouette and every overlapping part stacked toward opaque — the Control ward
+        /// read as two solid violet discs. And a material in Resources carries its shader into the
+        /// build, where a <c>Shader.Find</c> of something nothing else references returns null.
+        ///
+        /// Copied, not used directly: tinting the loaded asset would dirty it in the editor.
+        /// </remarks>
+        private Material? GhostMaterial()
         {
             if (ghostMaterial != null)
             {
                 return ghostMaterial;
             }
 
-            var shader = Shader.Find("Sprites/Default") ?? Shader.Find("Unlit/Transparent");
-            ghostMaterial = new Material(shader) { name = "PlacementGhost" };
-            return ghostMaterial;
-        }
-
-        /// <summary>Shows or hides the ghost root's own renderer, used only when no model resolves.</summary>
-        private void EnsureGhostFallback(bool visible)
-        {
-            if (ghost.TryGetComponent<Renderer>(out var rootRenderer))
+            var asset = Resources.Load<Material>(GhostMaterialResourcePath);
+            if (asset == null)
             {
-                rootRenderer.enabled = visible;
+                Debug.LogError($"PLACEMENT GHOST material is missing at Resources/{GhostMaterialResourcePath}; ghosts stay hidden.");
+                return null;
             }
+
+            ghostMaterial = new Material(asset) { name = "PlacementGhost (runtime)" };
+            return ghostMaterial;
         }
 
         private void UpdateSelectionRing(TowerCombatState tower) => ShowSelectionRings(new[] { tower });
@@ -192,23 +261,6 @@ namespace LTW.UnityClient.UI
                     selectionRings[index].SetActive(false);
                 }
             }
-        }
-
-        private Vector3 SelectedTowerGhostScale()
-        {
-            return SelectedTowerRoleId() switch
-            {
-                "control" => new Vector3(0.82f, 0.46f, 0.82f),
-                "relay" => new Vector3(0.52f, 0.52f, 0.52f),
-                "pulse" => new Vector3(0.86f, 0.44f, 0.86f),
-                "prism" => new Vector3(0.48f, 1.0f, 0.48f),
-                _ => new Vector3(0.62f, 0.78f, 0.62f)
-            };
-        }
-
-        private string SelectedTowerRoleId()
-        {
-            return LTW.UnityClient.Simulation.TowerCatalog.ForRole(selectedTowerRole).RoleId;
         }
 
         // Unlike name/colour below, ring scale has no per-tower value in TowerCatalog to fall back to

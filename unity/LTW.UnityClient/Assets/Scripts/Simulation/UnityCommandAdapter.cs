@@ -433,19 +433,15 @@ namespace LTW.UnityClient.Simulation
         /// How many creeps one press of a send button queues.
         /// </summary>
         /// <remarks>
-        /// Swarm is the only creep sent in a batch — it is a cheap, fast, low-health swarm and one
-        /// of them is not a threat. Every other creep sends singly.
-        ///
-        /// This exists so the batch size has ONE definition. It used to be a literal in
-        /// SendSwarmCreep and nowhere else, which meant the HUD could not know about it: the send
-        /// dock priced the card at the unit cost, enabled it whenever the player could afford one,
-        /// and then EconomyService charged `cost * quantity` and rejected. With 15 gold and Swarm
-        /// at 6, the card read "6G", looked affordable, failed, and reported "Need 6G (have 15G)" —
-        /// a message that is self-contradictory on its face because the 6 and the 15 came from
-        /// different calculations.
+        /// Always 1. Swarm used to be special-cased to 3 here, which meant one press of its card
+        /// could cost a defender up to 3 lives while every other creep's card cost at most 1 — the
+        /// "1 send, 1 creep, 1 life" rule held for 14 of 15 creeps and silently broke for the one
+        /// named "Swarm", which is also the name most likely to make a player assume the opposite
+        /// (reported live 2026-08-30). Kept as a method rather than inlined at each call site so the
+        /// send quantity still has ONE definition if a real batch-send feature is ever built
+        /// deliberately, with its own UI that says so.
         /// </remarks>
-        public int SendQuantity(LTW.Simulation.Content.ContentId creepId) =>
-            creepId.Equals(SampleVerticalSliceContent.SwarmCreepId) ? SwarmSendQuantity : 1;
+        public int SendQuantity(LTW.Simulation.Content.ContentId creepId) => 1;
 
         /// <summary>Gold one press of a send button actually costs, batch included.</summary>
         /// <remarks>
@@ -467,8 +463,6 @@ namespace LTW.UnityClient.Simulation
             simulation is null
                 ? 0
                 : simulation.IncomeGainForSend(simulation.LocalPlayerId, creepId, SendQuantity(creepId));
-
-        private const int SwarmSendQuantity = 3;
 
         public VerticalSliceCommandResult PlaceSampleTower(int x, int y) => PlaceTower(SampleVerticalSliceContent.TowerId, x, y);
 
@@ -504,8 +498,7 @@ namespace LTW.UnityClient.Simulation
 
         public VerticalSliceCommandResult SendBruteCreep() => SendCreep(SampleVerticalSliceContent.BruteCreepId, 1);
 
-        public VerticalSliceCommandResult SendSwarmCreep() =>
-            SendCreep(SampleVerticalSliceContent.SwarmCreepId, SendQuantity(SampleVerticalSliceContent.SwarmCreepId));
+        public VerticalSliceCommandResult SendSwarmCreep() => SendCreep(SampleVerticalSliceContent.SwarmCreepId, 1);
 
         public VerticalSliceCommandResult SendShadeCreep() => SendCreep(SampleVerticalSliceContent.ShadeCreepId, 1);
 

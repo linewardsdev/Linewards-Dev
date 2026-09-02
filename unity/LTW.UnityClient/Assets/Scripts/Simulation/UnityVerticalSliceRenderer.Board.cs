@@ -104,8 +104,17 @@ namespace LTW.UnityClient.Simulation
                     CreateLaneGate(lane, LaneLength - 1, LeakRed, "LEAK");
                 }
 
-                CreateLaneLabel(lane);
-                CreateLaneOwnershipBadge(lane);
+                // No lane text. CreateLaneLabel ("YOUR LINE - DEFEND" / "OPPONENT n - SEND
+                // TARGET"), CreateLaneOwnershipBadge ("YOUR LINE" / "TARGET n") and the never-called
+                // CreateLaneEndpointLabel (SPAWN / LEAK) were legacy TextMesh at 0.03-0.04 scale,
+                // which at the shipped camera is a 2-px smudge — reported from the 2026-09-01 live
+                // render review as an artefact floating above every board rather than as words.
+                // The HUD's seats table already names every lane and who owns it, so nothing the
+                // player could read was lost. The badge's underline band went with it: it sat at
+                // LaneOffset - 0.88, in the inter-lane margin, tinted with the same
+                // LaneAnchorColor(OwnerAccent) that put the NorthAnchor purple line into the
+                // neighbouring-lane sliver (see CreateLaneEnvironmentTrim), and the frame already
+                // carries the owner accent through its corner chips and gutter ticks.
                 BakeLaneBoardMesh(lane);
             }
 
@@ -313,15 +322,25 @@ namespace LTW.UnityClient.Simulation
         private void CreateLaneEnvironmentTrim(int laneId)
         {
             var offset = LaneOffset(laneId);
-            var accent = OwnerAccent(laneId);
             var gutterColor = LaneGutterColor(laneId);
             var focusScale = laneId == 1 ? 1.18f : 0.92f;
 
             CreateSurfaceBand($"Lane{laneId}WestGutter", new Vector3(offset - 0.62f, -0.245f, BoardCenterZ), new Vector3(0.34f, 0.05f, LaneLength + 0.9f), gutterColor);
             CreateSurfaceBand($"Lane{laneId}EastGutter", new Vector3(offset + LaneWidth - 0.38f, -0.245f, BoardCenterZ), new Vector3(0.34f, 0.05f, LaneLength + 0.9f), gutterColor);
-            CreateSurfaceBand($"Lane{laneId}NorthAnchor", new Vector3(offset + BoardCenterX, -0.238f, LaneLength + 0.32f), new Vector3(LaneWidth * 0.62f, 0.055f, 0.24f), LaneAnchorColor(accent, laneId == 1));
-            CreateSurfaceBand($"Lane{laneId}SouthAnchor", new Vector3(offset + BoardCenterX, -0.238f, -0.32f), new Vector3(LaneWidth * 0.62f, 0.055f, 0.24f), LaneAnchorColor(accent, laneId == 1));
 
+            // NorthAnchor/SouthAnchor removed 2026-08-31, reported from iPad play as "a weird purple
+            // line and artifact" in the blank margin above the board. Root cause: these were tinted
+            // with LaneAnchorColor(OwnerAccent(laneId), ...) — a real hue, just dimmed for a
+            // non-player lane, not neutralised — and MobileViewportLayout.BoardColumnFraction's own
+            // remarks already document that a screen without room for a full side rail widens the
+            // camera enough to show a SLIVER of the neighbouring lane. Lane 2's accent is WardViolet,
+            // so its NorthAnchor bleeding into that sliver is exactly a purple line with no relation
+            // to anything the local player placed — the same shape of bug CreateCornerPylon's own
+            // history already names below, just discovered a second element at a time instead of
+            // needing two reports on this one to reach the same conclusion. The ownership badge
+            // rail was the last piece tinted that way, in the same margin; it went on 2026-09-01
+            // with the lane text (see EnsureLane), and LaneAnchorColor went with it.
+            //
             // Corner pylons removed 2026-08-09, reported from iPad play as "weird blue squares at
             // the four corners that need to go away". This is the SECOND report of the same four
             // objects: CreateCornerPylon's own remarks record the first, when they were tall enough
@@ -694,6 +713,17 @@ namespace LTW.UnityClient.Simulation
                 : (isSpawn ? 0.46f : 0.42f);
             plate.transform.localScale = new Vector3(scale, scale, 1f);
 
+            // Finding #11 (2026-09-01 render review): the no-sprite disc-stack path below in
+            // CreateEndpointPlateDetails builds its FoundationShadow disc first, before any of the
+            // decorative rings — a soft AO-like grounding layer at center + Vector3.down * 0.055f.
+            // This sprite path skipped it entirely, which is why the sprite plate reads as flat /
+            // pasted on rather than grounded. Same disc, same tint, same Y convention; sized from
+            // the sprite's own footprint (sprite.bounds is already in world units at scale 1, so
+            // multiplying by this plate's own scale gives its actual on-board size with no pixel
+            // math hardcoded here) and inflated so it bleeds out from under the art instead of
+            // exactly tracing it.
+            CreateEndpointSpriteFoundationShadow(laneId, label, center, sprite, scale);
+
             var renderer = plate.AddComponent<SpriteRenderer>();
             renderer.sprite = sprite;
             // Orders this against other TRANSPARENT renderers only. It is not a depth bypass: the
@@ -711,6 +741,27 @@ namespace LTW.UnityClient.Simulation
                 spawnGateSpriteRenderers.Add(renderer);
                 spawnGateSpriteBaseColors.Add(renderer.color);
             }
+        }
+
+        /// <summary>
+        /// Grounding disc for the sprite gate plate — see the call site's remarks. Deliberately a
+        /// single subtle layer, not a rebuild of the no-sprite path's whole ring stack: this is AO
+        /// under existing 2D art, not new decoration.
+        /// </summary>
+        private void CreateEndpointSpriteFoundationShadow(int laneId, string label, Vector3 center, Sprite sprite, float plateScale)
+        {
+            // sprite.bounds is in local (scale-1) world units; the plate itself is a flat quad
+            // rotated 90 degrees about X, so the sprite's authored width/height (X/Y in the source
+            // image) become the on-board X/Z footprint once laid down.
+            var footprint = sprite.bounds.size * plateScale;
+            const float bleed = 1.25f;
+            var diameter = Mathf.Max(footprint.x, footprint.y) * bleed;
+            CreateEndpointDisc(
+                $"Lane{laneId}{label}SpriteFoundationShadow",
+                center + Vector3.down * 0.055f,
+                diameter,
+                0.032f,
+                BoardContactShadowColor(laneId));
         }
 
         private void UpdateSpawnGatePulse()
@@ -913,56 +964,6 @@ namespace LTW.UnityClient.Simulation
                 GridToWorld(new GridPosition(x, y), new LaneId(laneId)) + Vector3.down * 0.46f,
                 new Vector3(diameter, 0.13f, diameter),
                 EndpointBaseColor(color, laneId == 1, isSpawn));
-        }
-
-        private void CreateLaneEndpointLabel(int laneId, int x, int y, string labelText, Color color)
-        {
-            var labelObject = new GameObject($"Lane{laneId}{labelText}Label");
-            labelObject.transform.position = GridToWorld(new GridPosition(x, y), new LaneId(laneId)) + new Vector3(-1.15f, -0.17f, labelText == "SPAWN" ? 0.7f : -0.7f);
-            labelObject.transform.rotation = Quaternion.Euler(90f, 0f, 0f);
-            labelObject.transform.localScale = Vector3.one * 0.022f;
-            var label = labelObject.AddComponent<TextMesh>();
-            label.anchor = TextAnchor.MiddleCenter;
-            label.alignment = TextAlignment.Center;
-            label.fontSize = 42;
-            label.characterSize = 0.16f;
-            label.text = labelText;
-            label.color = color;
-            laneDecorations.Add(labelObject);
-        }
-
-        private void CreateLaneOwnershipBadge(int laneId)
-        {
-            var badgeObject = new GameObject($"Lane{laneId}OwnershipBadge");
-            badgeObject.transform.position = new Vector3(LaneOffset(laneId) - 0.85f, 0.08f, BoardCenterZ);
-            badgeObject.transform.rotation = Quaternion.Euler(90f, 0f, 90f);
-            badgeObject.transform.localScale = Vector3.one * (laneId == 1 ? 0.042f : 0.034f);
-            var badge = badgeObject.AddComponent<TextMesh>();
-            badge.anchor = TextAnchor.MiddleCenter;
-            badge.alignment = TextAlignment.Center;
-            badge.fontSize = 44;
-            badge.characterSize = 0.18f;
-            badge.text = laneId == 1 ? "YOUR LINE" : $"TARGET {laneId}";
-            badge.color = OwnerAccent(laneId);
-            laneDecorations.Add(badgeObject);
-
-            CreateSurfaceBand($"Lane{laneId}OwnershipBadgeRail", new Vector3(LaneOffset(laneId) - 0.88f, -0.18f, BoardCenterZ), new Vector3(0.1f, 0.08f, LaneLength * 0.45f), LaneAnchorColor(OwnerAccent(laneId), laneId == 1));
-        }
-
-        private void CreateLaneLabel(int laneId)
-        {
-            var labelObject = new GameObject($"Lane{laneId}Label");
-            labelObject.transform.position = new Vector3(LaneOffset(laneId) + 0.2f, 0.1f, LaneLength + 0.88f);
-            labelObject.transform.rotation = Quaternion.Euler(90f, 0f, 0f);
-            labelObject.transform.localScale = Vector3.one * (laneId == 1 ? 0.04f : 0.032f);
-            var label = labelObject.AddComponent<TextMesh>();
-            label.anchor = TextAnchor.MiddleLeft;
-            label.alignment = TextAlignment.Left;
-            label.fontSize = 44;
-            label.characterSize = 0.18f;
-            label.text = laneId == 1 ? "YOUR LINE - DEFEND" : $"OPPONENT {laneId} - SEND TARGET";
-            label.color = OwnerAccent(laneId);
-            laneDecorations.Add(labelObject);
         }
 
         /// <summary>

@@ -14,6 +14,8 @@ namespace LTW.UnityClient.Simulation
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void Launch()
         {
+            SelectDeviceQualityTierForCapableIOSDevices();
+
             if (Object.FindAnyObjectByType<UnitySimulationDriver>() != null)
             {
                 return;
@@ -40,6 +42,7 @@ namespace LTW.UnityClient.Simulation
             var camera = CreateCamera();
             CreateBackgroundCamera(camera);
             CreateLightRig(matchObject);
+            BoardBackdrop.Create(matchObject);
             CreatePostProcessing(matchObject, camera);
 
             renderer.Initialize(driver);
@@ -56,6 +59,63 @@ namespace LTW.UnityClient.Simulation
             bootstrapper.Initialize(driver, commands);
             renderer.SetCameraFraming(renderer.CameraFraming);
             CreateRuntimeHud(matchObject, camera, commands, feedback, sendDock, placement);
+        }
+
+        // "Very High" (index 4), not the level literally named "High" (index 3). Verified against
+        // ProjectSettings/QualitySettings.asset rather than guessed: index 3's own
+        // customRenderPipeline guid (08837ba8bc482419c805de05e16be928) is LTW_URP_Medium's,
+        // shared outright with index 2 ("Medium") — selecting by the tier's display name would
+        // have picked a level that renders identically to what iPhone already runs. Index 4's
+        // customRenderPipeline guid (0f617a8430b9947279e44fc2ab28e365) is the one that actually
+        // matches Assets/Settings/LTW_URP_High.asset's own guid (index 5, "Ultra", shares it too,
+        // but 4 is the first/lower tier that reaches it).
+        private const int HighTierQualityIndex = 4;
+
+        /// <summary>6+ GB, in MB — finding #19's device-capable memory threshold.</summary>
+        private const int DeviceCapableSystemMemoryMegabytes = 6144;
+
+        /// <summary>
+        /// Finding #19 (2026-09-01 render review): QualitySettings.asset pins every iPhone to
+        /// index 2 (Medium: MSAA 2x, 1024 shadow map) via m_PerPlatformDefaultQuality, and no
+        /// runtime code ever called QualitySettings.SetQualityLevel (confirmed by grep — zero
+        /// hits under Assets/Scripts before this change) — so an M4 iPad Pro ran the exact same
+        /// settings as an iPhone SE, and LTW_URP_High sat completely unused.
+        /// </summary>
+        /// <remarks>
+        /// This runs first thing in <see cref="Launch"/> rather than from
+        /// <see cref="UnityMatchBootstrapper"/>, which sounds earlier by name but is not: that
+        /// component's Awake() no-ops (simulationDriver/commandAdapter are still null), and its
+        /// real work only happens when THIS method later calls its Initialize() further down —
+        /// strictly later in the very same call. Launch() itself, a
+        /// RuntimeInitializeOnLoadMethod(AfterSceneLoad), is the earliest point any client code
+        /// in this project runs after a scene loads, so nothing that reads QualitySettings for
+        /// this match (camera, lighting, URP asset) can observe the pre-selection value.
+        ///
+        /// Heuristic is exactly the finding's: 6+ GB of system memory AND a Metal-capable GPU
+        /// (the only GPU family iOS actually ships, so this mainly guards against a future
+        /// non-Metal simulator/back end rather than distinguishing real devices from each other)
+        /// selects <see cref="HighTierQualityIndex"/>. Anything else leaves whatever
+        /// QualitySettings already resolved to (Medium, per m_PerPlatformDefaultQuality's
+        /// iPhone: 2) alone — Medium is the floor per the finding, not a value this method
+        /// forces, so an under-spec device is untouched rather than actively downgraded.
+        ///
+        /// Gated to RuntimePlatform.IPhonePlayer because that is what the finding asked for and
+        /// the project has no existing "iOS-only runtime behaviour" gate to match instead;
+        /// Editor and any other platform see zero behaviour change from this method.
+        /// </remarks>
+        private static void SelectDeviceQualityTierForCapableIOSDevices()
+        {
+            if (Application.platform != RuntimePlatform.IPhonePlayer)
+            {
+                return;
+            }
+
+            var hasEnoughMemory = SystemInfo.systemMemorySize >= DeviceCapableSystemMemoryMegabytes;
+            var hasCapableGpu = SystemInfo.graphicsDeviceType == GraphicsDeviceType.Metal;
+            if (hasEnoughMemory && hasCapableGpu)
+            {
+                QualitySettings.SetQualityLevel(HighTierQualityIndex, applyExpensiveChanges: true);
+            }
         }
 
         /// <summary>
@@ -85,6 +145,17 @@ namespace LTW.UnityClient.Simulation
             return shellObject.AddComponent<ShellScreenView>();
         }
 
+        /// <summary>
+        /// The presentation camera's clear colour — the "void" beyond anything rendered.
+        /// </summary>
+        /// <remarks>
+        /// Pulled out to a named constant (was inlined in <see cref="CreateCamera"/> alone) so
+        /// <see cref="BoardBackdrop"/> can match it exactly for its own vignette's outer edge: a
+        /// backdrop plate that fades to precisely this colour has no seam against the void behind
+        /// it no matter how the camera is framed, without the two needing any other coupling.
+        /// </remarks>
+        internal static readonly Color PresentationClearColor = new Color(0.06f, 0.08f, 0.12f);
+
         private static Camera CreateCamera()
         {
             var existingCameras = Camera.allCameras;
@@ -102,7 +173,7 @@ namespace LTW.UnityClient.Simulation
             camera.farClipPlane = 80f;
             camera.transform.position = new Vector3(12f, 28f, -10f);
             camera.transform.LookAt(new Vector3(12f, 0f, 8.5f));
-            camera.backgroundColor = new Color(0.06f, 0.08f, 0.12f);
+            camera.backgroundColor = PresentationClearColor;
             camera.clearFlags = CameraClearFlags.SolidColor;
             camera.enabled = true;
 
@@ -134,7 +205,25 @@ namespace LTW.UnityClient.Simulation
             // -Z normals. The key is yawed off-axis to keep tower faces from flattening out.
             var key = CreateDirectionalLight(rig, "Key", new Vector3(50f, -35f, 0f), new Color(1f, 0.957f, 0.878f), 1.2f);
             key.shadows = LightShadows.Soft;
-            key.shadowStrength = 0.55f;
+            // Halved from 0.55 (render review finding #5, 2026-09-01): towers now cast a shadow
+            // too (finding #11), so every unit on a busy board casts one — at the old strength
+            // that stacked into exactly the ground-level murk the review was complaining about.
+            // shadowStrength is the only continuous knob Unity's Light exposes here; there is no
+            // separate blur/softness float to halve instead.
+            key.shadowStrength = 0.28f;
+
+            // Finding #17 (2026-09-01 render review): a faint hatched moire along the upper edge
+            // of build pads nearest the spawn gate — shadow acne, the standard self-shadowing
+            // artifact where a surface's own soft-shadow-map sample lands slightly on the wrong
+            // side of itself. Depth/normal bias is the textbook, low-risk fix for acne
+            // specifically (it nudges only where a surface samples its own shadow); shadow
+            // distance mainly trades far-shadow precision for reach and affects the WHOLE
+            // scene's shadow rendering, so it stayed the fallback rather than the first move here
+            // (see LTW_URP_Medium.asset for that side of #17/#19's coordination). Applied as an
+            // increment over whatever Unity's own Light defaults land on rather than a hardcoded
+            // absolute, since AddComponent<Light> already set that baseline a few lines above.
+            key.shadowBias += 0.015f;
+            key.shadowNormalBias += 0.015f;
 
             CreateDirectionalLight(rig, "Fill", new Vector3(30f, 145f, 0f), new Color(0.722f, 0.804f, 1f), 0.35f);
 
@@ -162,9 +251,12 @@ namespace LTW.UnityClient.Simulation
         /// Replaces the flat ambient colour with a sky/equator/ground gradient. It approximates
         /// bounce grounding at no runtime cost and keeps undersides from going fully dead.
         /// </summary>
-        private static readonly Color AmbientSky = new Color(0.322f, 0.361f, 0.451f);
-        private static readonly Color AmbientEquator = new Color(0.212f, 0.227f, 0.259f);
-        private static readonly Color AmbientGround = new Color(0.114f, 0.125f, 0.157f);
+        // Internal rather than private: BoardBackdrop reuses these to keep its plate's colour on
+        // the same palette as the light rig's ambient gradient instead of authoring a second,
+        // independent set of "close enough" numbers that could drift out of sync with these.
+        internal static readonly Color AmbientSky = new Color(0.322f, 0.361f, 0.451f);
+        internal static readonly Color AmbientEquator = new Color(0.212f, 0.227f, 0.259f);
+        internal static readonly Color AmbientGround = new Color(0.114f, 0.125f, 0.157f);
 
         private static void ApplyGradientAmbient()
         {
@@ -382,10 +474,11 @@ namespace LTW.UnityClient.Simulation
             SendDockController sendDock,
             TouchPlacementController placement)
         {
-            var ghost = RenderCompat.CreatePrimitive(PrimitiveType.Cylinder);
-            ghost.name = "Placement Ghost";
+            // An empty root, deliberately: the ghost is the tower's own prefab hung under this,
+            // and a primitive here was what the preview degraded to when the model did not
+            // resolve — an opaque disc on the board instead of a visible, loggable failure.
+            var ghost = new GameObject("Placement Ghost");
             ghost.transform.SetParent(matchObject.transform, false);
-            ghost.transform.localScale = new Vector3(0.62f, 0.78f, 0.62f);
             ghost.SetActive(false);
 
             placement.Initialize(camera, commands, feedback, ghost);

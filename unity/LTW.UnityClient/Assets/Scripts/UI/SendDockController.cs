@@ -84,6 +84,15 @@ namespace LTW.UnityClient.UI
         {
             var scale = MobileViewportLayout.UiScale();
             var frame = MobileViewportLayout.ScreenRect();
+
+            // The launcher is a phone-only control (see OnGUI, 2026-08-30): on a rail the dock is
+            // always expanded and never draws it, so answering for its old screen position here
+            // would claim board taps that land on nothing drawn.
+            if (MobileViewportLayout.HasSideRails)
+            {
+                return PanelRect(scale, frame).Contains(guiPoint);
+            }
+
             return LauncherRect(scale, frame).Contains(guiPoint)
                 || (isExpanded && PanelRect(scale, frame).Contains(guiPoint));
         }
@@ -285,6 +294,14 @@ namespace LTW.UnityClient.UI
                 return;
             }
 
+            // No launcher, no collapse: on a tablet rail there is room for the dock to just stay
+            // open (owner's call, 2026-08-30). This alone makes the collapsed branch below dead
+            // code for rail, which is what removes the SEND launcher from it.
+            if (MobileViewportLayout.HasSideRails)
+            {
+                isExpanded = true;
+            }
+
             if (!isExpanded)
             {
                 // The queue total rides the launcher (item 15): a closed dock used to show nothing,
@@ -318,19 +335,25 @@ namespace LTW.UnityClient.UI
 
             DrawPanel(rect, PanelInk);
             DrawAccent(new Rect(rect.x, rect.yMax - 4f * scale, rect.width, 4f * scale), SignalGold);
-            if (DrawLauncherButton(launcherRect, "CLOSE", SignalGold, scale))
+
+            // No CLOSE on rail: the dock cannot collapse there, so a button that used to do it
+            // would either do nothing or reopen the launcher this branch no longer draws.
+            if (!railMode && DrawLauncherButton(launcherRect, "CLOSE", SignalGold, scale))
             {
                 CloseDock();
                 return;
             }
 
-            var titleText = selectedCategory < 0 ? "SEND" : $"SEND › {CategoryLabels[selectedCategory]}";
+            // Always just "SEND", matching the build palette's own header (TouchPlacementController.
+            // Gui.cs DrawTowerPalette, which never grows past the literal "BUILD" either). This used
+            // to append "› {category}" once one was selected, which wrapped onto two cramped lines
+            // in the portrait rail specifically — the drawer and the wider landscape rail both had
+            // room for it, so this went untested until reported live as "squashed" (2026-08-31). The
+            // category itself is not lost: BACK is already the tell that one is selected, the same
+            // way it is on the build side.
             titleStyle!.fontSize = Mathf.RoundToInt(12f * scale);
             titleStyle.normal.textColor = SignalGold;
-            // Clamped to the panel less BACK's corner, not a fixed 220 — the rail is narrower than
-            // the drawer and a fixed width ran the title under the button.
-            var titleWidth = Mathf.Min(220f * scale, rect.width - 96f * scale);
-            GUI.Label(new Rect(rect.x + 12f * scale, rect.y + 10f * scale, titleWidth, 20f * scale), titleText, titleStyle);
+            GUI.Label(new Rect(rect.x + 12f * scale, rect.y + 10f * scale, 120f * scale, 20f * scale), "SEND", titleStyle);
             // Only one CLOSE. The launcher slot above already turned into CLOSE when the dock
             // opened, and it has to stay something other than SEND while expanded, so a second
             // CLOSE in the header was pure duplication — two controls, same owner, same action,
@@ -726,6 +749,9 @@ namespace LTW.UnityClient.UI
         /// <summary>Scroll offset for the rail's creep list, one per dock instance.</summary>
         private Vector2 sendListScroll;
 
+        /// <summary>Drag-scroll state for <see cref="sendListScroll"/>. See HandleListDragScroll.</summary>
+        private readonly RuntimeUiChrome.DragScrollTracker sendListDragTracker = new();
+
         /// <summary>
         /// Rail-only creep list: one full-width row per creep, scrolling rather than the grid's
         /// silent clip.
@@ -766,6 +792,12 @@ namespace LTW.UnityClient.UI
             var scrollbarAllowance = contentHeight > viewRect.height ? 18f * scale : 0f;
             var contentRect = new Rect(0f, 0f, viewRect.width - scrollbarAllowance, contentHeight);
             var listPanel = new Rect(0f, 0f, contentRect.width, contentRect.height);
+
+            // The scrollbar column is excluded from the touch rect on purpose — see
+            // RuntimeUiChrome.HandleListDragScroll's remarks on why a press on the thumb itself is
+            // left to Unity's own scrollbar handling instead of also being read as a content drag.
+            var dragTouchRect = new Rect(viewRect.x, viewRect.y, viewRect.width - scrollbarAllowance, viewRect.height);
+            sendListScroll = RuntimeUiChrome.HandleListDragScroll(sendListDragTracker, dragTouchRect, sendListScroll, viewRect.height, contentHeight, scale);
 
             sendListScroll = GUI.BeginScrollView(viewRect, sendListScroll, contentRect);
 
@@ -991,7 +1023,7 @@ namespace LTW.UnityClient.UI
                 : CommandCardState.Disabled;
             var pressed = RuntimeUiChrome.DrawCommandCard(rect, accent, state, scale);
 
-            RuntimeUiChrome.DrawCommandCardUnitIconWell(rect, scale);
+            RuntimeUiChrome.DrawCommandCardUnitIconWell(rect, displayAccent, scale);
             var iconRect = RuntimeUiChrome.CommandCardUnitIconRect(rect, scale);
             if (!RuntimeUiIconLibrary.DrawIcon(iconRect, iconResource, isAffordable))
             {

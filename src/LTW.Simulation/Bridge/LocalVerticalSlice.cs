@@ -1424,22 +1424,34 @@ public sealed class LocalVerticalSlice
                 var creep = CreepFor(leakedCreep.CreepId);
                 var defenderLivesBefore = players.Get(leak.DefenderId).Lives.Amount;
                 players = economy.ApplyLeak(players, leak.SenderId, leak.DefenderId, creep, leak.LivesLost).Players;
+
+                // The spent entity is removed unconditionally, not just when it transfers, and BEFORE
+                // WipeEliminatedLane below rather than after. Reaching a lane end is not death (health
+                // carries forward per the design note in OPEN_ITEMS.md's retired 2026-07-29 review,
+                // "every lane hop leaves a permanent spent entity"), but the entity that just left this
+                // lane is done regardless of whether a next lane exists for it: on transfer its successor
+                // is the new entity below, and if every other seat is already eliminated (nextLaneId is
+                // null) it simply has nowhere left to go. Leaving it in CombatState either way makes it a
+                // tombstone: still HasLeaked, still holding the health it exited with, invisible to every
+                // filter except one (the bot pressure check, item 10) that forgot to exclude HasLeaked —
+                // which is what let these accumulate for a whole match.
+                //
+                // Ordering fix (found auditing a mass-send report, 2026-08-31): this creep's own leak can
+                // be what just zeroed the defender's lives, and WipeEliminatedLane matches "every creep
+                // still in that lane" by LaneId — which this entity still was, since it is only removed
+                // here. Wiping before removing double-processed it: WipeEliminatedLane reported it killed
+                // for 0 gold via the lane-owner filter, and then the transfer below ALSO spawned its
+                // successor into the next lane from the same leak — one creep both "killed" and
+                // "transferred" out of a single LeakEvent. Removing it first takes it out of
+                // WipeEliminatedLane's own creep scan entirely, leaving exactly one outcome per creep.
+                combatState = combatState.RemoveCreep(leak.CreepEntityId);
+
                 if (defenderLivesBefore > 0 && players.Get(leak.DefenderId).Lives.Amount == 0)
                 {
                     RecordElimination(leak.DefenderId);
                     pendingEvents.Add(new PlayerEliminatedEvent(tick, leak.DefenderId));
                     WipeEliminatedLane(leak.DefenderId);
                 }
-
-                // The spent entity is removed unconditionally, not just when it transfers. Reaching a lane
-                // end is not death (health carries forward per the design note in OPEN_ITEMS.md's retired 2026-07-29 review, "every lane hop leaves a permanent spent entity"),
-                // but the entity that just left this lane is done regardless of whether a next lane exists
-                // for it: on transfer its successor is the new entity below, and if every other seat is
-                // already eliminated (nextLaneId is null) it simply has nowhere left to go. Leaving it in
-                // CombatState either way makes it a tombstone: still HasLeaked, still holding the health it
-                // exited with, invisible to every filter except one (the bot pressure check, item 10) that
-                // forgot to exclude HasLeaked — which is what let these accumulate for a whole match.
-                combatState = combatState.RemoveCreep(leak.CreepEntityId);
 
                 var nextLaneId = NextActiveOpponentLaneId(leakedCreep.LaneId, leakedCreep.SenderId);
                 if (nextLaneId is not null)
@@ -1512,6 +1524,12 @@ public sealed class LocalVerticalSlice
         // ranked that seat using an elimination time from a match that no longer exists.
         sendQueues.Clear();
         eliminatedAtTick.Clear();
+
+        // A third instance of the same pattern, found from "send cooldown bug on replay": this one
+        // keys off absolute tick rather than PlayerId, so it needed its own Reset rather than a
+        // Clear() here — see ICommandRateLimiter.TokenBucketRateLimiter.Reset's remarks for why a
+        // stale LastTick from the previous match is actively harmful, not just leftover state.
+        enqueueRateLimiter.Reset();
     }
 
     public void StartMatch()

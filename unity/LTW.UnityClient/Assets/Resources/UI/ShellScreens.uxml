@@ -21,7 +21,7 @@
             <ui:VisualElement name="title-glow" class="ltw-glow" picking-mode="Ignore" />
             <ui:VisualElement name="title-safe" class="ltw-safe" picking-mode="Ignore">
                 <ui:VisualElement class="ltw-column" picking-mode="Ignore">
-                    <ui:VisualElement class="ltw-spacer" picking-mode="Ignore" />
+                    <ui:VisualElement class="ltw-spacer ltw-spacer--title-top" picking-mode="Ignore" />
 
                     <ui:VisualElement class="ltw-brand-mark" picking-mode="Ignore" />
                     <ui:Label text="COMPETITIVE TOWER WARS" class="ltw-eyebrow" picking-mode="Ignore" />
@@ -29,15 +29,13 @@
                     <ui:VisualElement class="ltw-rule" picking-mode="Ignore" />
                     <ui:Label text="Build. Send. Outlast." class="ltw-tagline" picking-mode="Ignore" />
 
-                    <ui:VisualElement class="ltw-spacer ltw-spacer--tight" picking-mode="Ignore" />
+                    <ui:VisualElement class="ltw-spacer ltw-spacer--title-actions" picking-mode="Ignore" />
 
                     <ui:Button name="title-start" text="START GAME" class="ltw-action ltw-action--primary" />
                     <ui:Button name="title-howto" text="HOW TO PLAY" class="ltw-action ltw-action--secondary" />
                     <ui:Button name="title-codex" text="CODEX" class="ltw-action ltw-action--secondary" />
                     <ui:Button name="title-settings" text="SETTINGS" class="ltw-action ltw-action--secondary" />
                     <ui:Button name="title-quit" text="QUIT" class="ltw-action ltw-action--tertiary" />
-
-                    <ui:Label name="title-footer" text="Prototype local vertical slice" class="ltw-footer" picking-mode="Ignore" />
                 </ui:VisualElement>
             </ui:VisualElement>
         </ui:VisualElement>

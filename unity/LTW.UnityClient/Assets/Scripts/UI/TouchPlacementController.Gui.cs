@@ -77,7 +77,13 @@ namespace LTW.UnityClient.UI
             var scale = MobileViewportLayout.UiScale();
             var frame = MobileViewportLayout.ScreenRect();
             DrawTowerPalette(scale);
-            if (IsSendDockExpanded())
+            // Phone-only: SEND and BUILD share one drawer slot there, so an expanded SEND really
+            // does cover this panel and the placement controls beneath it. On a tablet rail SEND
+            // is permanently expanded in its own column (see DrawTowerPalette and SendDockController
+            // OnGUI, 2026-08-30), so this used to make the selected-tower panel and the placement
+            // stack permanently undrawable the moment the rail existed — not just while SEND was
+            // in use, for the entire match.
+            if (!MobileViewportLayout.HasSideRails && IsSendDockExpanded())
             {
                 return;
             }
@@ -180,7 +186,7 @@ namespace LTW.UnityClient.UI
             var textRight = rect.xMax - pad - buildWidth - gap - cancelWidth - gap;
             GUI.Label(new Rect(x, y, Mathf.Max(0f, textRight - x), rowHeight), $"{SelectedTowerCost()}G   {PlacementStatusShort()}", bodyStyle);
 
-            if (DrawLauncherButton(new Rect(textRight + gap, y, cancelWidth, rowHeight), "\u2715", Danger, scale))
+            if (DrawLauncherButton(new Rect(textRight + gap, y, cancelWidth, rowHeight), "\u00d7", Danger, scale))
             {
                 CancelPlacement();
                 return;
@@ -255,7 +261,7 @@ namespace LTW.UnityClient.UI
                 return;
             }
 
-            if (DrawLauncherButton(new Rect(rect.x + pad + half + 5f * scale, y, half, buttonHeight), "\u2715", Danger, scale))
+            if (DrawLauncherButton(new Rect(rect.x + pad + half + 5f * scale, y, half, buttonHeight), "\u00d7", Danger, scale))
             {
                 CancelPlacement();
                 return;
@@ -325,6 +331,53 @@ namespace LTW.UnityClient.UI
 
             var sellLabel = sellArmed ? $"CONFIRM {sale.Towers}" : $"SELL {sale.Towers}  +{sale.Refund}G";
             if (DrawLauncherButton(MultiSelectSellRect(scale, frame), sellLabel, Danger, scale))
+            {
+                SellSelection(sale);
+            }
+        }
+
+        /// <summary>
+        /// Multi-select's RAISE/SELL/DONE, laid out inside the always-open BUILD panel instead of
+        /// the launcher strip <see cref="DrawMultiSelectActions"/> used when the panel could
+        /// collapse. Same quotes, same actions — just full-width rows instead of two pills sized to
+        /// fit next to a launcher button that no longer exists on rail.
+        /// </summary>
+        private void DrawMultiSelectPanelRail(Rect rect, float scale)
+        {
+            buttonStyle!.fontSize = Mathf.RoundToInt(10f * scale);
+            if (RuntimeUiChrome.DrawPanelButton(new Rect(rect.xMax - 72f * scale, rect.y + 8f * scale, 58f * scale, 32f * scale), "DONE", SignalGold, scale, buttonStyle))
+            {
+                SetMultiSelectMode(false);
+                return;
+            }
+
+            if (multiSelection.Count == 0 || commandAdapter == null)
+            {
+                return;
+            }
+
+            var positions = SelectedPositions();
+            var upgrade = commandAdapter.QuoteSelectionUpgrade(positions);
+            var sale = commandAdapter.QuoteSelectionSale(positions);
+
+            var pad = 12f * scale;
+            var actionWidth = rect.width - pad * 2f;
+            var actionHeight = 44f * scale;
+            var actionY = rect.y + 52f * scale;
+
+            var raiseLabel = !upgrade.HasWork
+                ? "RAISE 0"
+                : upgrade.IsGoldLimited
+                    ? $"RAISE {upgrade.Affordable}/{upgrade.Eligible}  {upgrade.AffordableCost}G"
+                    : $"RAISE {upgrade.Eligible}  {upgrade.TotalCost}G";
+            if (DrawLauncherButton(new Rect(rect.x + pad, actionY, actionWidth, actionHeight), raiseLabel, upgrade.HasWork ? MintSignal : DisabledInk, scale))
+            {
+                RaiseSelection(upgrade);
+            }
+
+            actionY += actionHeight + 8f * scale;
+            var sellLabel = sellArmed ? $"CONFIRM {sale.Towers}" : $"SELL {sale.Towers}  +{sale.Refund}G";
+            if (DrawLauncherButton(new Rect(rect.x + pad, actionY, actionWidth, actionHeight), sellLabel, Danger, scale))
             {
                 SellSelection(sale);
             }
@@ -463,6 +516,16 @@ namespace LTW.UnityClient.UI
                 return;
             }
 
+            // No launcher, no collapse: on a tablet rail there is room for the panel to just stay
+            // open (owner's call, 2026-08-30). This alone makes the collapsed branch below dead
+            // code for rail, which is what removes the BUILD launcher, the old DONE-in-launcher-
+            // strip and the RAISE/SELL launcher-strip buttons from it — see DrawMultiSelectPanelRail
+            // for where those three moved instead.
+            if (MobileViewportLayout.HasSideRails)
+            {
+                isPaletteExpanded = true;
+            }
+
             var frame = MobileViewportLayout.ScreenRect();
             var launcherRect = TowerPaletteLauncherRect(scale, frame);
             if (!isPaletteExpanded)
@@ -520,7 +583,10 @@ namespace LTW.UnityClient.UI
 
             DrawPanel(rect, PanelInk);
             DrawAccent(new Rect(rect.x, rect.yMax - 4f * scale, rect.width, 4f * scale), MintSignal);
-            if (DrawLauncherButton(launcherRect, "CLOSE", MintSignal, scale))
+
+            // No CLOSE on rail: the panel cannot collapse there, so a button that used to do it
+            // would either do nothing or reopen the launcher this branch no longer draws.
+            if (!MobileViewportLayout.HasSideRails && DrawLauncherButton(launcherRect, "CLOSE", MintSignal, scale))
             {
                 isPaletteExpanded = false;
                 return;
@@ -532,6 +598,16 @@ namespace LTW.UnityClient.UI
             // The launcher slot above is already CLOSE while the palette is expanded; a header
             // CLOSE duplicated it. See the matching note in SendDockController.
             buttonStyle!.fontSize = Mathf.RoundToInt(10f * scale);
+
+            // Multi-select took over the launcher strip's BUILD slot for RAISE/SELL/DONE while the
+            // panel was collapsible (see the removed launcher-strip branch above). With the panel
+            // always open on rail that strip no longer exists, so multi-select gets a page of the
+            // panel itself instead of fighting the category picker for the same space.
+            if (MobileViewportLayout.HasSideRails && isMultiSelectMode)
+            {
+                DrawMultiSelectPanelRail(rect, scale);
+                return;
+            }
 
             // Hoisted above the rail/drawer split, not drawn once per branch: this used to sit
             // after that split reached a shared fall-through, which the rail branch's early
@@ -814,6 +890,9 @@ namespace LTW.UnityClient.UI
         /// <summary>Scroll offset for the rail's tower list, one per controller instance.</summary>
         private Vector2 towerListScroll;
 
+        /// <summary>Drag-scroll state for <see cref="towerListScroll"/>. See HandleListDragScroll.</summary>
+        private readonly RuntimeUiChrome.DragScrollTracker towerListDragTracker = new();
+
         /// <summary>
         /// Rail-only tower list: one full-width row per tower, scrolling rather than the grid's
         /// silent clip. See SendDockController.DrawSendCardsRail's own remark — the same
@@ -837,6 +916,12 @@ namespace LTW.UnityClient.UI
             var scrollbarAllowance = contentHeight > viewRect.height ? 18f * scale : 0f;
             var contentRect = new Rect(0f, 0f, viewRect.width - scrollbarAllowance, contentHeight);
             var listPanel = new Rect(0f, 0f, contentRect.width, contentRect.height);
+
+            // The scrollbar column is excluded from the touch rect on purpose — see
+            // RuntimeUiChrome.HandleListDragScroll's remarks on why a press on the thumb itself is
+            // left to Unity's own scrollbar handling instead of also being read as a content drag.
+            var dragTouchRect = new Rect(viewRect.x, viewRect.y, viewRect.width - scrollbarAllowance, viewRect.height);
+            towerListScroll = RuntimeUiChrome.HandleListDragScroll(towerListDragTracker, dragTouchRect, towerListScroll, viewRect.height, contentHeight, scale);
 
             towerListScroll = GUI.BeginScrollView(viewRect, towerListScroll, contentRect);
 
@@ -1020,7 +1105,7 @@ namespace LTW.UnityClient.UI
             var state = isSelected ? CommandCardState.Selected : CommandCardState.Normal;
             var pressed = RuntimeUiChrome.DrawCommandCard(rect, entry.Accent, state, scale);
 
-            RuntimeUiChrome.DrawCommandCardUnitIconWell(rect, scale);
+            RuntimeUiChrome.DrawCommandCardUnitIconWell(rect, displayAccent, scale);
             var iconRect = RuntimeUiChrome.CommandCardUnitIconRect(rect, scale);
             if (!RuntimeUiIconLibrary.DrawIcon(iconRect, $"ui_icon_tower_{entry.RoleId}_v01", isAffordable))
             {
@@ -1300,20 +1385,27 @@ namespace LTW.UnityClient.UI
                 return true;
             }
 
-            if (isMultiSelectMode && multiSelection.Count > 0
-                && (MultiSelectRaiseRect(scale, frame).Contains(guiPoint) || MultiSelectSellRect(scale, frame).Contains(guiPoint)))
+            // These three all answer for the launcher strip, which only exists on a phone: on a
+            // rail the panel is always open and RAISE/SELL/DONE draw inside it instead (see
+            // DrawMultiSelectPanelRail), so the strip's old screen positions are empty on rail and
+            // must not swallow board taps that land on them.
+            if (!MobileViewportLayout.HasSideRails)
             {
-                return true;
-            }
+                if (isMultiSelectMode && multiSelection.Count > 0
+                    && (MultiSelectRaiseRect(scale, frame).Contains(guiPoint) || MultiSelectSellRect(scale, frame).Contains(guiPoint)))
+                {
+                    return true;
+                }
 
-            if (!isPaletteExpanded && MultiSelectLauncherRect(scale, frame).Contains(guiPoint))
-            {
-                return true;
-            }
+                if (!isPaletteExpanded && MultiSelectLauncherRect(scale, frame).Contains(guiPoint))
+                {
+                    return true;
+                }
 
-            if (!isMultiSelectMode && TowerPaletteLauncherRect(scale, frame).Contains(guiPoint))
-            {
-                return true;
+                if (!isMultiSelectMode && TowerPaletteLauncherRect(scale, frame).Contains(guiPoint))
+                {
+                    return true;
+                }
             }
 
             if (isPaletteExpanded && TowerPalettePanelRect(scale, frame).Contains(guiPoint))

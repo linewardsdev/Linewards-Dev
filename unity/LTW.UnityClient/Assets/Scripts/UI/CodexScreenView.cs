@@ -504,6 +504,11 @@ namespace LTW.UnityClient.UI
                 parts.Add("brakes creeps walking its range");
             }
 
+            if (definition.CountersFlyers)
+            {
+                parts.Add($"+{CombatService.AntiAirDamageBonusPercent}% damage against flying creeps");
+            }
+
             return string.Join("  ·  ", parts);
         }
 

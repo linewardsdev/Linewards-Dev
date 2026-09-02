@@ -23,6 +23,9 @@ public interface ICommandRateLimiter
     /// consuming budget if so.
     /// </summary>
     bool TryConsume(PlayerId playerId, SimulationTick tick);
+
+    /// <summary>Clears every seat's budget, for a rematch that reuses this instance.</summary>
+    void Reset();
 }
 
 /// <summary>
@@ -76,4 +79,22 @@ public sealed class TokenBucketRateLimiter : ICommandRateLimiter
         buckets[playerId.Value] = (tokens - 1d, tick.Value);
         return true;
     }
+
+    /// <summary>
+    /// Clears every seat's bucket.
+    /// </summary>
+    /// <remarks>
+    /// Found from the same "reset doesn't reset correctly" report class as
+    /// <c>LocalVerticalSlice.Reset</c>'s <c>sendQueues</c>/<c>eliminatedAtTick</c> comment, and for
+    /// the identical reason: this keys off <c>PlayerId</c> rather than living inside the player set,
+    /// so resetting <c>players</c> does nothing to it. Here the failure was worse than a stray
+    /// carry-over value — <c>LastTick</c> is an ABSOLUTE tick, and a rematch resets the tick counter
+    /// back to 0 without recreating this limiter (readonly field, same instance reused). The first
+    /// enqueue of the new match then computed <c>elapsed = 0 - <old LastTick></c>, a large negative
+    /// number, driving the refill calculation deeply negative and rejecting every send with
+    /// <c>CooldownActive</c> for thousands of ticks — reported live as "send cooldown bug on
+    /// replay," and indistinguishable in play from a stuck cooldown despite this limiter explicitly
+    /// not being one (see the class remarks above).
+    /// </remarks>
+    public void Reset() => buckets.Clear();
 }

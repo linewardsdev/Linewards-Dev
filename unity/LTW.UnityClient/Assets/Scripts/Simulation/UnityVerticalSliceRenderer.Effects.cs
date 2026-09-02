@@ -82,7 +82,9 @@ namespace LTW.UnityClient.Simulation
         {
             if (PresentationPreferences.ReducedEffects)
             {
-                SpawnFloatingText(position + Vector3.up * 0.18f, label, color, 0.5f);
+                // BoardLabelKind.Text: a cue word never merges, so this path only gains the
+                // stacking every label gets; two "LEAK"s in one tick are still two "LEAK"s.
+                SpawnFloatingText(position + Vector3.up * 0.18f, BoardLabelKind.Text, label, color, 0.5f);
             }
         }
 
@@ -410,7 +412,11 @@ namespace LTW.UnityClient.Simulation
 
             if (!towerMechanicMarkers.TryGetValue(key, out var marker) || marker == null)
             {
-                marker = GetPooledShockwaveRing();
+                // GetPooledMechanicDecal, not GetPooledShockwaveRing: this is a standing zone
+                // marker, not a transient burst, and finding #5 (2026-09-01 render review) asked
+                // for standing mechanic decals to read as a crisp inset ring rather than a soft
+                // glow. See MechanicDecalMaterial's remark for why that means a separate pool too.
+                marker = GetPooledMechanicDecal();
                 marker.name = $"TowerMechanicMarker_{key}";
                 towerMechanicMarkers[key] = marker;
             }
@@ -443,13 +449,19 @@ namespace LTW.UnityClient.Simulation
             // Width is what fixed that invisibility, not alpha, which is why the alpha floor could
             // come back down to 0.15 without reopening it: the ring is over twice as wide as the one
             // that vanished, and it now sits above the build plates rather than under them.
+            //
+            // Finding #5 (2026-09-01 render review): 0.15 read as part of the same soft-decal mush
+            // as every other ground mark, at exactly the bonus-of-1 case that comment calls the
+            // common one. Raised to 0.32 so a freshly-bonded sapling is legible without a capture to
+            // find it, still ramping up to the (now brighter) GrovebondMarkerColor ceiling as the
+            // bonus grows — the ramp itself is unchanged, only its ends moved.
             var scale = Mathf.Lerp(1.25f, 1.9f, (bonus - 1) / 2f);
             marker.transform.localScale = new Vector3(scale, 1f, scale);
             SetColor(marker, new Color(
                 GrovebondMarkerColor.r,
                 GrovebondMarkerColor.g,
                 GrovebondMarkerColor.b,
-                Mathf.Lerp(0.15f, GrovebondMarkerColor.a, (bonus - 1) / 2f)));
+                Mathf.Lerp(0.32f, GrovebondMarkerColor.a, (bonus - 1) / 2f)));
         }
 
         /// <summary>
@@ -684,7 +696,11 @@ namespace LTW.UnityClient.Simulation
 
                         if (!brambleCellDecals.TryGetValue(key, out var decal) || decal == null)
                         {
-                            decal = GetPooledShockwaveRing();
+                            // GetPooledMechanicDecal, not GetPooledShockwaveRing — see that pool's
+                            // remark: a standing braked-cell marker is meant to read as a crisp
+                            // hatched cell (finding #5, 2026-09-01), not the soft transient glow
+                            // shockwave bursts use.
+                            decal = GetPooledMechanicDecal();
                             decal.name = $"BrambleCell_{lane.Key.Value}_{cell.X}_{cell.Y}";
                             brambleCellDecals[key] = decal;
                         }
@@ -719,7 +735,7 @@ namespace LTW.UnityClient.Simulation
             {
                 if (brambleCellDecals.TryGetValue(key, out var stale) && stale != null)
                 {
-                    ReleaseToPool(stale, shockwaveRingPool);
+                    ReleaseToPool(stale, mechanicDecalPool);
                 }
 
                 brambleCellDecals.Remove(key);
@@ -739,7 +755,7 @@ namespace LTW.UnityClient.Simulation
 
             if (marker != null)
             {
-                ReleaseToPool(marker, shockwaveRingPool);
+                ReleaseToPool(marker, mechanicDecalPool);
             }
 
             towerMechanicMarkers.Remove(key);
@@ -747,6 +763,14 @@ namespace LTW.UnityClient.Simulation
 
         private void UpdateExpandingRings()
         {
+            // UpdateDyingCreeps (Pooling.cs) piggybacks on this method rather than getting its own
+            // Update() hook: Update() lives in UnityVerticalSliceRenderer.cs, out of scope for
+            // this pass, but it already calls UpdateExpandingRings every frame — before the
+            // presentationDetail early return — which is exactly the unconditional per-frame
+            // timing a dying creep's shrink/sink needs. See UpdateDyingCreeps' own remark
+            // (finding #8, 2026-09-01 render review).
+            UpdateDyingCreeps();
+
             for (var index = activeShockwaveRings.Count - 1; index >= 0; index--)
             {
                 var ring = activeShockwaveRings[index];
@@ -774,6 +798,71 @@ namespace LTW.UnityClient.Simulation
             }
 
             return shockwaveRingMaterial;
+        }
+
+        /// <summary>Sharp enough to read as a stencilled edge rather than a glow — the "2-px edge"
+        /// half of finding #5's "0.5+ alpha with a 2-px edge" ask for mechanic decals.</summary>
+        private const float MechanicDecalSoftness = 0.16f;
+
+        private Material mechanicDecalMaterial;
+        private readonly Queue<GameObject> mechanicDecalPool = new Queue<GameObject>();
+
+        /// <summary>
+        /// A sharper-edged sibling of <see cref="ShockwaveRingMaterial"/>, for the STANDING mechanic
+        /// markers — Thorn's braked cells, Grovebond's bond ring — rather than transient bursts.
+        /// </summary>
+        /// <remarks>
+        /// Finding #5 (2026-09-01 render review): every soft-edged decal on the board — cast shadow,
+        /// contact shadow, owner glow, mechanic marker — blurred into the same mush, and nothing read
+        /// as a zone a player could plan around. A transient burst (<see cref="SpawnExpandingRing"/>,
+        /// the mortar telegraph) is still meant to read as a flash of light dissipating, so those keep
+        /// <see cref="ShockwaveRingMaterial"/> unchanged at 0.55 softness; a standing zone marker is
+        /// meant to read as a stencilled ring or hatched cell, so this variant uses
+        /// <see cref="MechanicDecalSoftness"/> instead. <see cref="BoardRenderResources.CreateContactShadowMaterial"/>
+        /// already takes softness as a parameter — this is that same call with a different number,
+        /// not a new shader.
+        ///
+        /// A separate material AND a separate pool (<see cref="mechanicDecalPool"/> /
+        /// <see cref="GetPooledMechanicDecal"/>), not this material swapped onto shockwaveRingPool's
+        /// objects — the same reason towerSporeFog and towerServicingTethers each keep their own pool
+        /// rather than sharing shockwaveRingPool/beamPool (see those fields' own remarks): a pooled
+        /// object here is only ever given its material once, at creation, and colour changes after
+        /// that go through <see cref="SetColor"/> (which clones whatever material the object already
+        /// has, not the caller's). Recycling a mechanic decal through the shockwave-ring pool would
+        /// hand some future burst this shader's crisp edge, or hand a future mechanic marker a soft
+        /// one, the first time the two pools' objects changed hands.
+        /// </remarks>
+        private Material MechanicDecalMaterial()
+        {
+            if (mechanicDecalMaterial == null)
+            {
+                mechanicDecalMaterial = BoardRenderResources.CreateContactShadowMaterial(
+                    "LTW Mechanic Decal",
+                    Color.white,
+                    MechanicDecalSoftness);
+            }
+
+            return mechanicDecalMaterial;
+        }
+
+        private GameObject GetPooledMechanicDecal()
+        {
+            if (mechanicDecalPool.Count > 0)
+            {
+                var pooled = mechanicDecalPool.Dequeue();
+                pooled.SetActive(true);
+                return pooled;
+            }
+
+            var decal = new GameObject("MechanicDecal");
+            decal.AddComponent<MeshFilter>().sharedMesh = BoardRenderResources.ContactShadowMesh;
+            var renderer = decal.AddComponent<MeshRenderer>();
+            renderer.sharedMaterial = MechanicDecalMaterial();
+            renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            renderer.receiveShadows = false;
+            renderer.lightProbeUsage = UnityEngine.Rendering.LightProbeUsage.Off;
+            renderer.reflectionProbeUsage = UnityEngine.Rendering.ReflectionProbeUsage.Off;
+            return decal;
         }
 
         /// <summary>
@@ -859,13 +948,26 @@ namespace LTW.UnityClient.Simulation
             return range;
         }
 
+        /// <remarks>
+        /// Finding #5 (2026-09-01 render review) asked mechanic decals generally to move toward a
+        /// crisper, higher-alpha read, and named spore fog among the things stacking on the board.
+        /// Alpha alone moved here, 0.26 -> 0.36: softness stays at 0.95 deliberately, because both
+        /// this file's own remark on <see cref="UpdateSporeFog"/> and the shader's header
+        /// (LTWSporeFog.shader) document that a spread-across-the-whole-radius gradient with no
+        /// locatable edge IS the mechanic's read — sharpening it the way <see cref="MechanicDecalMaterial"/>
+        /// does for Bramble/Grovebond would turn the range indicator into something a player could
+        /// (wrongly) read as a precise diamond boundary, which those two remarks specifically call
+        /// out as a future-me trap. Raising alpha, which only affects how STRONG the same gradient
+        /// reads, was judged to satisfy the finding's "stacking is illegible" complaint without
+        /// fighting that design.
+        /// </remarks>
         private Material SporeFogMaterial()
         {
             if (sporeFogMaterial == null)
             {
                 sporeFogMaterial = BoardRenderResources.CreateSporeFogMaterial(
                     "LTW Spore Fog",
-                    new Color(0.42f, 0.86f, 0.34f, 0.26f),
+                    new Color(0.42f, 0.86f, 0.34f, 0.36f),
                     softness: 0.95f,
                     churn: 0.55f,
                     speed: 0.45f);
@@ -952,8 +1054,16 @@ namespace LTW.UnityClient.Simulation
         /// the opacity: a shape that covers cells the brake does not is bound to look wrong at any
         /// alpha loud enough to notice. Per-cell decals cover only braked ground, so they can be
         /// legible without lying — hence the higher alpha here.
+        ///
+        /// Raised again, 0.34 -> 0.52, for finding #5 (2026-09-01 render review): "Mechanic decals
+        /// become crisp inset rings or hatched cells at 0.5+ alpha with a 2-px edge." Paired with
+        /// MechanicDecalMaterial's sharper falloff (see GetPooledMechanicDecal, now used here instead
+        /// of GetPooledShockwaveRing) rather than fought against it — a soft edge at low alpha and a
+        /// hard edge at low alpha both under-read; this decal only needed one of the two fixed to look
+        /// "too much" again, so both moved together deliberately rather than the shape fix alone
+        /// being asked to also cover the brightness gap on its own.
         /// </remarks>
-        private static readonly Color BrambleMarkerColor = new Color(0.46f, 0.26f, 0.62f, 0.34f);
+        private static readonly Color BrambleMarkerColor = new Color(0.46f, 0.26f, 0.62f, 0.52f);
 
         /// <summary>A shade under a full cell, so adjacent braked cells read as a patch with texture
         /// rather than one flat rectangle.</summary>
@@ -973,8 +1083,15 @@ namespace LTW.UnityClient.Simulation
         /// ring visibly reaches the neighbours it is bonded to, which is the whole read of the
         /// mechanic, and it is also what made the ring legible when a narrower one was invisible
         /// under the tower mesh. Brightness is the dial that was wrong; width was not.
+        ///
+        /// Raised again, 0.30 -> 0.52, for finding #5 (2026-09-01 render review) alongside Bramble's
+        /// matching move above and the ring's move from GetPooledShockwaveRing to the sharper-edged
+        /// GetPooledMechanicDecal (see UpdateTowerMechanicMarker) — "0.5+ alpha with a 2-px edge".
+        /// UpdateTowerMechanicMarker's alpha floor for a fresh bond (bonus of 1) moved with it, 0.15
+        /// -> 0.32, so the common case this file's own comment flags is not left at the old faint
+        /// value while only the rare bonus-of-3 ceiling gets brighter.
         /// </remarks>
-        private static readonly Color GrovebondMarkerColor = new Color(0.55f, 0.95f, 0.38f, 0.30f);
+        private static readonly Color GrovebondMarkerColor = new Color(0.55f, 0.95f, 0.38f, 0.52f);
 
         // Repair Drone Spire's own catalog accent (TowerCatalog.cs, id 9, label "DRONE"), reused here
         // rather than an invented color so the tether reads as belonging to the drone at a glance.

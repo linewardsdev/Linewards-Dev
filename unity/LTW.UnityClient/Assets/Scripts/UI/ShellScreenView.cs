@@ -436,6 +436,23 @@ namespace LTW.UnityClient.UI
         /// the panel still resolves those against the full window, and the reference resolution's
         /// 9:19.5 aspect is what makes the design's width land on the column width. This only moves
         /// the column's edges into place.
+        ///
+        /// Mirroring <see cref="MobileViewportLayout.CameraRect"/> exactly was itself too strict,
+        /// per finding #14 of the 2026-09-01 render review: on a 2064x2752 iPad the board's own
+        /// on-screen column is only ~61% of the width, and mirroring it left the whole shell — the
+        /// wordmark, the backdrop art, everything — composed inside that same narrow strip with true
+        /// black either side, because nothing else draws out there. The board genuinely cannot use
+        /// that margin (its camera is locked to a fixed vertical framing, see
+        /// <see cref="MobileViewportLayout.CameraRect"/>'s own remarks), but the shell is flat UI
+        /// with no live footage behind it to stay aligned with, so it does not need to give up that
+        /// margin the same way. This claims back half of it — continuously, the same "give a wide
+        /// screen's margin real work instead of leaving it dark" spirit
+        /// <see cref="MobileViewportLayout.HasSideRails"/>'s own board-column math already applies to
+        /// the HUD's side rails, just expressed here as a plain fraction rather than a rail layout. A
+        /// portrait phone still gets exactly 0 (unaffected — this is additive), and the explicit 16%
+        /// ceiling below is what keeps an ultra-wide monitor from stretching the column out
+        /// unreasonably even though the underlying board math already floors it well short of that on
+        /// its own.
         /// </remarks>
         private void ApplyViewportColumn()
         {
@@ -449,7 +466,8 @@ namespace LTW.UnityClient.UI
             // not stretch to the panel by default, so its resolved width is not dependable. A
             // percentage is resolved against the containing block by the layout engine itself, which
             // needs no width read here and stays correct through a resize.
-            var inset = Mathf.Clamp01(MobileViewportLayout.CameraRect().xMin) * 100f;
+            var boardInset = Mathf.Clamp01(MobileViewportLayout.CameraRect().xMin);
+            var inset = Mathf.Min(boardInset * 0.5f, 0.16f) * 100f;
 
             // Writing a style that is already set still schedules another geometry pass, and this
             // runs from the geometry callback, so an unguarded assignment loops every frame.

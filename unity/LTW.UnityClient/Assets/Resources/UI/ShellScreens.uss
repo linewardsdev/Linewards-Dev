@@ -181,6 +181,28 @@
     min-height: 10px;
 }
 
+/*
+ * Title-only rebalance of the same two spacers, per finding #14 of the 2026-09-01 render review:
+ * "the button stack sits far below the wordmark with dead space between." At the old 1:0.5 split
+ * the gap right above the buttons was still roughly a third of ALL the screen's leftover height,
+ * because the reference canvas is tall relative to the fixed content on this screen and the split
+ * did nothing to change that — only where the leftover landed. 5:1 keeps the sum well above one
+ * (so this is a resize of the same two spacers, not a reach for the sum-below-one trick the
+ * comment above just finished warning off) and hands the wordmark block most of the leftover,
+ * which both reinforces its stated optical-centre placement and leaves a visibly tighter run
+ * from the tagline into START GAME. Title-specific rather than edited in place on the shared
+ * classes above, because pause and results deliberately use the opposite weighting for their own
+ * reasons and were not part of this finding.
+ */
+.ltw-spacer--title-top {
+    flex-grow: 1.25;
+}
+
+.ltw-spacer--title-actions {
+    flex-grow: 0.25;
+    min-height: 10px;
+}
+
 /* ---------------------------------------------------------------- typography */
 
 /*
@@ -278,16 +300,6 @@
     margin-bottom: 0;
     white-space: normal;
     text-shadow: 0 3px 12px rgba(4, 7, 16, 0.95);
-}
-
-.ltw-footer {
-    font-size: 19px;
-    letter-spacing: 2px;
-    color: rgb(104, 122, 158);
-    -unity-text-align: middle-center;
-    margin-top: 26px;
-    margin-bottom: 0;
-    white-space: normal;
 }
 
 /* ---------------------------------------------------------------- actions */

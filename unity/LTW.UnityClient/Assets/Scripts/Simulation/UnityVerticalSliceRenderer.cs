@@ -24,7 +24,6 @@ namespace LTW.UnityClient.Simulation
         private const float BoardCenterX = (LaneWidth - 1) * 0.5f;
         private const float BoardCenterZ = (LaneLength - 1) * 0.5f;
 
-        private const string DefaultTowerVisualLibraryResourcePath = "TowerVisualLibrary";
         private const string DefaultCreepVisualLibraryResourcePath = "CreepVisualLibrary";
 
         /// <summary>
@@ -146,7 +145,7 @@ namespace LTW.UnityClient.Simulation
         {
             if (towerVisualLibrary == null)
             {
-                towerVisualLibrary = Resources.Load<TowerVisualLibrary>(DefaultTowerVisualLibraryResourcePath);
+                towerVisualLibrary = TowerVisualLibrary.LoadDefault();
             }
 
             if (creepVisualLibrary == null)
@@ -576,7 +575,7 @@ namespace LTW.UnityClient.Simulation
                         var sellPosition = PositionFor(towerSold.TowerEntityId.Value);
                         SpawnCellFrameCue(sellPosition, SignalGold, 0.24f);
                         SpawnEffect(sellPosition, SignalGold, 0.42f, 0.24f);
-                        SpawnFloatingText(sellPosition, $"+{towerSold.Refund.Amount}", SignalGold, 0.58f);
+                        SpawnFloatingAmount(sellPosition, BoardLabelKind.Gold, towerSold.Refund.Amount, SignalGold, 0.58f);
                         SpawnReducedEffectCue(sellPosition, "SELL", SignalGold);
                         audioDirector.Play(LTWAudioCue.TowerSold);
                         break;
@@ -586,9 +585,10 @@ namespace LTW.UnityClient.Simulation
                         // receives income reads as nothing happening, which is why the tower that
                         // has it was reported as broken. Deliberately quiet — it fires on every hit,
                         // so a short small number that does not stack up the screen.
-                        SpawnFloatingText(
+                        SpawnFloatingAmount(
                             GridToWorld(earned.Position, earned.LaneId) + Vector3.up * 0.85f,
-                            $"+{earned.Amount.Amount}",
+                            BoardLabelKind.Gold,
+                            earned.Amount.Amount,
                             SignalGold,
                             0.42f);
                         break;
@@ -692,7 +692,7 @@ namespace LTW.UnityClient.Simulation
                         var deathProfile = creepVisualLibrary != null ? creepVisualLibrary.FindProfile(killedCreepId) : null;
                         SpawnCreepDeathCue(killPosition, SignalGold, killedCreepId, deathProfile);
                         SpawnEffect(killPosition, SignalGold, 0.42f, 0.2f);
-                        SpawnFloatingText(killPosition, $"+{creepKilled.BountyAwarded.Amount}", SignalGold, 0.56f);
+                        SpawnFloatingAmount(killPosition, BoardLabelKind.Gold, creepKilled.BountyAwarded.Amount, SignalGold, 0.56f);
                         SpawnReducedEffectCue(killPosition, "KILL", SignalGold);
                         audioDirector.Play(LTWAudioCue.CreepKilled);
                         break;
@@ -709,11 +709,14 @@ namespace LTW.UnityClient.Simulation
                         // match. It is now also the only burst at this position, since the gate cue
                         // no longer raises a second one on the same spot.
                         SpawnEffect(position, LeakRed, 0.6f, 0.42f, BurstShape.Sweep);
-                        SpawnFloatingText(position, $"-{leak.LivesLost.Amount} LIFE", LeakRed, 0.72f);
+                        SpawnFloatingAmount(position, BoardLabelKind.LifeLost, leak.LivesLost.Amount, LeakRed, 0.72f);
                         SpawnReducedEffectCue(position, "LEAK", LeakRed);
                         if (leak.BountyAwarded.Amount > 0)
                         {
-                            SpawnFloatingText(position + Vector3.right * 0.55f, $"+{leak.BountyAwarded.Amount}", SignalGold, 0.52f);
+                            // Same anchor as the "-N LIFE" above rather than the old half-cell
+                            // sideways nudge: SpawnBoardLabel stacks the two into a column, and a
+                            // sideways nudge on top of a vertical stack read as a diagonal.
+                            SpawnFloatingAmount(position, BoardLabelKind.Gold, leak.BountyAwarded.Amount, SignalGold, 0.52f);
                         }
 
                         // The other half of the transaction, on the sender's own lane. A life is
@@ -736,7 +739,7 @@ namespace LTW.UnityClient.Simulation
                         {
                             var stealPosition = IncomePosition(leak.SenderId.Value);
                             SpawnEffect(stealPosition, MintSignal, 0.5f, 0.3f, BurstShape.Rise);
-                            SpawnFloatingText(stealPosition, $"+{leak.LivesLost.Amount} LIFE", MintSignal, 0.66f);
+                            SpawnFloatingAmount(stealPosition, BoardLabelKind.LifeStolen, leak.LivesLost.Amount, MintSignal, 0.66f);
                             SpawnReducedEffectCue(stealPosition, "STOLE", MintSignal);
                         }
 
@@ -758,7 +761,7 @@ namespace LTW.UnityClient.Simulation
                         {
                             SpawnIncomeLaneCue(incomeTick.PlayerId.Value);
                             SpawnEffect(IncomePosition(incomeTick.PlayerId.Value), SignalGold, 0.46f, 0.22f, BurstShape.Rise);
-                            SpawnFloatingText(IncomePosition(incomeTick.PlayerId.Value), $"+{incomeTick.GoldAwarded.Amount} income", SignalGold, 0.58f);
+                            SpawnFloatingAmount(IncomePosition(incomeTick.PlayerId.Value), BoardLabelKind.Income, incomeTick.GoldAwarded.Amount, SignalGold, 0.58f);
                             SpawnReducedEffectCue(IncomePosition(incomeTick.PlayerId.Value), "INCOME", SignalGold);
                             audioDirector.Play(LTWAudioCue.IncomeTick);
                         }
@@ -767,13 +770,13 @@ namespace LTW.UnityClient.Simulation
                     case PlayerEliminatedEvent eliminated:
                         SpawnLaneShutdownCue(eliminated.PlayerId.Value);
                         SpawnEffect(LaneCenter(eliminated.PlayerId.Value) + Vector3.up * 0.2f, LeakRed, 1.15f, 0.55f, BurstShape.Sweep);
-                        SpawnFloatingText(LaneCenter(eliminated.PlayerId.Value) + Vector3.up * 1.2f, $"PLAYER {eliminated.PlayerId.Value} OUT", LeakRed, 0.8f);
+                        SpawnFloatingText(LaneCenter(eliminated.PlayerId.Value) + Vector3.up * 1.2f, BoardLabelKind.Text, $"PLAYER {eliminated.PlayerId.Value} OUT", LeakRed, 0.8f);
                         SpawnReducedEffectCue(LaneCenter(eliminated.PlayerId.Value), "OUT", LeakRed);
                         audioDirector.Play(LTWAudioCue.PlayerEliminated);
                         break;
                     case MatchEndedEvent ended:
                         SpawnVictoryLaneCue(ended.WinnerId.Value);
-                        SpawnFloatingText(LaneCenter(ended.WinnerId.Value) + Vector3.up * 1.85f, $"PLAYER {ended.WinnerId.Value} WINS", SignalGold, 1f);
+                        SpawnFloatingText(LaneCenter(ended.WinnerId.Value) + Vector3.up * 1.85f, BoardLabelKind.Text, $"PLAYER {ended.WinnerId.Value} WINS", SignalGold, 1f);
                         SpawnReducedEffectCue(LaneCenter(ended.WinnerId.Value), "WIN", SignalGold);
                         audioDirector.Play(
                             simulationDriver != null && ended.WinnerId.Equals(simulationDriver.LocalPlayerId)

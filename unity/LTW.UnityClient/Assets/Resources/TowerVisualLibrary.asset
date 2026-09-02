@@ -25,7 +25,7 @@ MonoBehaviour:
   - towerId: tower.control
     role: 1
     prefab: {fileID: 9202368460950008800, guid: 30374dc784fd34f66b3eeed0b2383b15, type: 3}
-    scale: {x: 0.74, y: 0.74, z: 0.74}
+    scale: {x: 0.75, y: 0.75, z: 0.75}
     lift: 0
     bodyRendererPath: BodyTintAnchor
     roleMarkerRendererPath: RoleMarker
@@ -34,7 +34,7 @@ MonoBehaviour:
   - towerId: tower.relay
     role: 2
     prefab: {fileID: 2164388632969021273, guid: 6685df9c0a2124b5e84dd655857a866c, type: 3}
-    scale: {x: 0.66, y: 0.66, z: 0.66}
+    scale: {x: 0.75, y: 0.75, z: 0.75}
     lift: 0
     bodyRendererPath: BodyTintAnchor
     roleMarkerRendererPath: RoleMarker
@@ -88,7 +88,7 @@ MonoBehaviour:
   - towerId: tower.barricade
     role: 8
     prefab: {fileID: 3647702054739979878, guid: ce65f00e31b584183b28557356e88f61, type: 3}
-    scale: {x: 0.71, y: 0.71, z: 0.71}
+    scale: {x: 0.55, y: 0.55, z: 0.55}
     lift: 0
     bodyRendererPath: BodyTintAnchor
     roleMarkerRendererPath: RoleMarker
@@ -97,7 +97,7 @@ MonoBehaviour:
   - towerId: tower.repair_drone
     role: 9
     prefab: {fileID: 1740272045062943185, guid: 0c518c48a68ef4b34b27c76f24c5fa89, type: 3}
-    scale: {x: 1.05, y: 1.05, z: 1.05}
+    scale: {x: 0.9, y: 0.9, z: 0.9}
     lift: 0
     bodyRendererPath: BodyTintAnchor
     roleMarkerRendererPath: RoleMarker

@@ -43,7 +43,7 @@ public sealed class ContentCatalog
 
 public sealed class TowerDefinition
 {
-    public TowerDefinition(ContentId id, string name, Gold cost, int rangeCells, int damage, int attackCooldownTicks, int categoryIndex, int signalGoldPerHit = 0, bool slowsCreeps = false, TowerRole role = TowerRole.Dps)
+    public TowerDefinition(ContentId id, string name, Gold cost, int rangeCells, int damage, int attackCooldownTicks, int categoryIndex, int signalGoldPerHit = 0, bool slowsCreeps = false, bool countersFlyers = false, TowerRole role = TowerRole.Dps)
     {
         Id = id;
         Name = RequiredName(name, nameof(name));
@@ -54,6 +54,7 @@ public sealed class TowerDefinition
         CategoryIndex = categoryIndex;
         SignalGoldPerHit = signalGoldPerHit;
         SlowsCreeps = slowsCreeps;
+        CountersFlyers = countersFlyers;
         Role = role;
     }
 
@@ -97,6 +98,22 @@ public sealed class TowerDefinition
     /// what made a forced category pick unshippable until now.
     /// </remarks>
     public bool SlowsCreeps { get; }
+
+    /// <summary>Whether this tower deals bonus damage to flying creeps (see <c>CreepDefinition.IgnoresMaze</c>).</summary>
+    /// <remarks>
+    /// Authored per-tower rather than inferred from name/id, for the exact reason
+    /// <see cref="SlowsCreeps"/> already documents above, and the same shape of bug this repeats:
+    /// the mechanic started as a substring match on "prism"/"gatling"/"elder_canopy" in
+    /// CombatService (a player-invisible one at that — nothing in the codex could say a tower had
+    /// it, since the check lived nowhere a codex lookup could reach). Caught in review, 2026-08-31,
+    /// before it shipped: giving the trait to one tower on one line would have repeated
+    /// <see cref="SlowsCreeps"/>'s own "Bramble Hold was Grove-only" mistake for anti-air instead of
+    /// learning from it — one tower per line has it (Prism Ward, Gatling Turret, Elder Canopy), same
+    /// as slow's fix. The bonus amount itself is <c>CombatService.AntiAirDamageBonusPercent</c>, a
+    /// single shared constant, matching how the brake amount for every <see cref="SlowsCreeps"/>
+    /// tower is one shared mechanic rather than a value re-authored per tower.
+    /// </remarks>
+    public bool CountersFlyers { get; }
 
     /// <summary>What job this tower is for. See <see cref="TowerRole"/>.</summary>
     public TowerRole Role { get; }
