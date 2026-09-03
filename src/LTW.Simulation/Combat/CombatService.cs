@@ -1314,11 +1314,18 @@ public sealed class CombatService
     /// Target max health that buys one full multiple of the Spore Cloud Bloom's base damage.
     /// </summary>
     /// <remarks>
-    /// 24 is not arbitrary: it is the old formula's divisor of 6 times the tower's authored damage of 4, so
-    /// this reproduces every value the previous version produced across the whole roster — 4 up to Brute at
+    /// 24 was not arbitrary: it was the old formula's divisor of 6 times the tower's authored damage of 4, so
+    /// it reproduced every value the previous version produced across the whole roster — 4 up to Brute at
     /// 24 health, then 5 / 5 / 6 / 7 / 8 / 10 / 15 for Serpent through Colossus.
+    ///
+    /// Doubled to 48 on 2026-08-19 alongside the 2x creep health roster, and it must keep tracking that
+    /// roster. This reads ABSOLUTE authored health, so a roster-wide health change silently rescales one
+    /// tower's damage against exactly the targets it exists to answer — doubling the divisor with the
+    /// health leaves every ratio in TowerMechanicTests unchanged, which is the property being defended.
+    /// A balance shift to Rot may well be wanted one day; it should be made deliberately and measured,
+    /// not arrive as a side effect of repricing creeps.
     /// </remarks>
-    private const int RotHealthPerDamageMultiple = 24;
+    private const int RotHealthPerDamageMultiple = 48;
 
     /// <summary>
     /// Spore Cloud Bloom's damage: a fraction of the target's AUTHORED max health, floored at the
@@ -1391,8 +1398,17 @@ public sealed class CombatService
     // of what a "siege" classification is for. See OPEN_ITEMS.md's retired 2026-07-29 review, grouped smaller items; the broader question of
     // whether this substring approach should become a real per-creep content field instead of a
     // name heuristic is a design decision left open, not resolved here.
-    private static Lives LeakLifeLossFor(ContentId creepId) =>
-        ContainsRole(creepId, "siege") || ContainsRole(creepId, "colossus") ? new Lives(2) : new Lives(1);
+    /// <summary>One leak, one life, for every creep in the roster.</summary>
+    /// <remarks>
+    /// Flattened to 1:1 on 2026-08-09. Siege and colossus used to cost two, which made a leak's
+    /// price depend on a substring of the creep's id — a name heuristic standing in for a content
+    /// field, flagged as a design question when it was written and never resolved.
+    ///
+    /// 1:1 makes lives a straight count of leaks, which is what a player reads it as. It also makes
+    /// the number mean the same thing on both sides of a send: a seat spending on heavies is buying
+    /// durability and speed, not a life multiplier the defender cannot see coming.
+    /// </remarks>
+    private static Lives LeakLifeLossFor(ContentId creepId) => new Lives(1);
 
     private static bool ContainsRole(ContentId contentId, string role) => contentId.Value.IndexOf(role, StringComparison.OrdinalIgnoreCase) >= 0;
 }

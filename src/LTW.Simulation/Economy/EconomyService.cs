@@ -93,7 +93,7 @@ public sealed class EconomyService
         // Priced at the sender's tier for this creep's category, not the authored cost. A tier
         // raises the health of everything in the category, and until now raised nothing about what
         // it charged — so the tier paid for itself once and every send after it was free power.
-        var cost = SendCostFor(sender, creep, quantity);
+        var cost = SendCostFor(sender, creep, quantity, requestedTick.Value);
         if (sender.Gold.Amount < cost)
         {
             return SendResult.Reject(players, CommandRejectionReason.InsufficientGold);
@@ -117,7 +117,8 @@ public sealed class EconomyService
     }
 
     /// <summary>
-    /// What <paramref name="quantity"/> of <paramref name="creep"/> costs this sender right now.
+    /// What <paramref name="quantity"/> of <paramref name="creep"/> costs this sender at
+    /// <paramref name="tick"/>.
     /// </summary>
     /// <remarks>
     /// Public because the send dock has to show it. A card quoting the authored cost while the
@@ -128,11 +129,19 @@ public sealed class EconomyService
     /// The multiplier applies to the unit price and the quantity multiplies the result, so a bulk
     /// send is priced exactly as the same number of single sends. Doing it the other way rounds
     /// once per batch instead of once per creep and makes quantity a cheap way to shave gold.
+    ///
+    /// <see cref="OpeningEconomyRules"/> applies the same way: once per unit, before quantity
+    /// multiplies, so a batched queue drain (<see cref="LocalVerticalSlice.AffordableRunQuantity"/>)
+    /// prices identically to the same quantity sent one at a time. Keyed on TICK rather than the
+    /// sender's own income deliberately — an income-keyed version was tried and measured worse on
+    /// lategame entity count (see OpeningEconomyRules' doc), because a seat whose income grows
+    /// slowly simply stays discounted deep into the match.
     /// </remarks>
-    public int SendCostFor(PlayerEconomyState sender, CreepDefinition creep, int quantity)
+    public int SendCostFor(PlayerEconomyState sender, CreepDefinition creep, int quantity, long tick)
     {
         var tier = sender.SendCategoryTier(creep.CategoryIndex);
-        var unitCost = creep.Cost.Amount * CategoryTierRules.SendCostPercentFor(tier) / 100;
+        var unitCost = creep.Cost.Amount * CategoryTierRules.SendCostPercentFor(tier) / 100
+            * OpeningEconomyRules.CreepCostPercentFor(tick) / 100;
         return unitCost * quantity;
     }
 

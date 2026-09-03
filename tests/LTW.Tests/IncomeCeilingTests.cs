@@ -147,11 +147,13 @@ public sealed class IncomeCeilingTests
     /// Escalation leaves a normal match alone and only ramps once one has overstayed.
     /// </summary>
     [Theory]
+    // Restated for StartTick 700 and 80% per 100 ticks (2026-08-19). Still the same three
+    // questions: inert before the start, one interval after it, and a long way in.
     [InlineData(0, 100)]
-    [InlineData(1_000, 100)]
-    [InlineData(2_000, 100)]
-    [InlineData(2_100, 120)]
-    [InlineData(3_000, 300)]
+    [InlineData(600, 100)]
+    [InlineData(700, 100)]
+    [InlineData(800, 180)]
+    [InlineData(3_000, 1_940)]
     public void Escalation_is_inert_until_its_start_tick(long tick, int expected)
     {
         Assert.Equal(expected, MatchEscalationRules.CreepHealthPercentFor(tick));

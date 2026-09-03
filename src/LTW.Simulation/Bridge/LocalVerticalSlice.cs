@@ -16,7 +16,23 @@ namespace LTW.Simulation.Bridge;
 
 public sealed class LocalVerticalSlice
 {
-    private const int StartingLives = 220;
+    /// <summary>Lives every seat opens with.</summary>
+    /// <remarks>
+    /// 100 as of 2026-08-09, down from 220. Reported from an M4 iPad with 8 GB: matches run too long
+    /// and accumulate enough live creeps to slow the device down.
+    ///
+    /// Lives are the match clock here, not just a fail condition — a seat is eliminated when they
+    /// reach zero, so halving them halves how much leaking a match has to absorb before it resolves.
+    /// That shortens the tail where the board is busiest, which is the part that costs frames: creep
+    /// count grows with match length, and MatchEscalationRules raises sent-creep HEALTH over time,
+    /// so late creeps also survive longer and stack up.
+    ///
+    /// Halving rather than tuning to a target tick count: the escalation rules already close matches
+    /// on their own schedule, and picking a lives number to hit a duration would be fitting one
+    /// mechanism to another's timing. This changes how much damage a seat can take, and lets
+    /// escalation keep doing what it does.
+    /// </remarks>
+    private const int StartingLives = 40;
 
     private readonly ContentCatalog content;
     private readonly EconomyService economy;
@@ -598,6 +614,91 @@ public sealed class LocalVerticalSlice
     }
 
     /// <summary>
+    /// Takes back the most recently queued send of one creep, before it has been paid for.
+    /// </summary>
+    /// <remarks>
+    /// Cancels the LAST matching entry rather than the first. The queue drains front-first, so the
+    /// front entry is the one about to be paid for and dispatched — cancelling that would take back
+    /// a different send than the one the player just added, which is the opposite of an undo. Last
+    /// matching is "un-tap", and on a touch screen a mis-tap is the mistake this exists for.
+    ///
+    /// Same seat authority and rate limiter as <see cref="EnqueueSend"/>, for the same reason: a
+    /// cancel that trusted its argument would let a client empty another player's queue, which is a
+    /// cheaper attack than filling one.
+    /// </remarks>
+    public VerticalSliceCommandResult CancelQueuedSend(PlayerId playerId, ContentId creepId)
+    {
+        var seat = seatAuthority.ResolveSeat(playerId);
+        if (seat is null)
+        {
+            return VerticalSliceCommandResult.Reject(CommandRejectionReason.InvalidPlayer);
+        }
+
+        playerId = seat.Value;
+
+        if (!enqueueRateLimiter.TryConsume(playerId, tick))
+        {
+            return VerticalSliceCommandResult.Reject(CommandRejectionReason.CooldownActive);
+        }
+
+        var command = new CancelQueuedSendCommand(playerId, tick, creepId);
+        var contentResult = commandValidator.Validate(command, content);
+        if (!contentResult.Accepted)
+        {
+            return VerticalSliceCommandResult.Reject(contentResult.RejectionReason);
+        }
+
+        if (!topology.HasPlayer(playerId))
+        {
+            return VerticalSliceCommandResult.Reject(CommandRejectionReason.InvalidPlayer);
+        }
+
+        // Deliberately NOT gated on elimination. An eliminated seat cannot enqueue, so anything left
+        // in its queue is stranded, and refusing to let it be cleared would be refusing to tidy up
+        // after a rule this class already enforces elsewhere.
+        if (!sendQueues.TryGetValue(playerId, out var queue))
+        {
+            return VerticalSliceCommandResult.Reject(CommandRejectionReason.NothingQueued);
+        }
+
+        var index = queue.FindLastIndex(queued => queued.Equals(creepId));
+        if (index < 0)
+        {
+            return VerticalSliceCommandResult.Reject(CommandRejectionReason.NothingQueued);
+        }
+
+        queue.RemoveAt(index);
+        return VerticalSliceCommandResult.Accept();
+    }
+
+    /// <summary>
+    /// Empties one seat's whole send queue.
+    /// </summary>
+    /// <remarks>
+    /// The bulk form of <see cref="CancelQueuedSend"/>, for "I queued the wrong thing ten times".
+    /// Reports how many entries went rather than a bare accept, because a UI that has just emptied
+    /// a queue needs to know whether to animate anything, and an empty queue is a legitimate state
+    /// rather than a failure — so this cannot reject the way the single cancel does.
+    /// </remarks>
+    public int ClearSendQueue(PlayerId playerId)
+    {
+        var seat = seatAuthority.ResolveSeat(playerId);
+        if (seat is null || !enqueueRateLimiter.TryConsume(seat.Value, tick))
+        {
+            return 0;
+        }
+
+        if (!sendQueues.TryGetValue(seat.Value, out var queue))
+        {
+            return 0;
+        }
+
+        var removed = queue.Count;
+        queue.Clear();
+        return removed;
+    }
+
+    /// <summary>
     /// Pays for as much of each seat's queue as it can afford this tick, oldest first.
     /// </summary>
     /// <remarks>
@@ -610,6 +711,19 @@ public sealed class LocalVerticalSlice
     /// and a queue that released one creep per tick would take a hundred ticks to spend a bank the
     /// player already has.
     ///
+    /// A CONSECUTIVE run of the same creep drains as one QueueSend call at that quantity, not one
+    /// call per unit. Cost is linear in quantity (SendCostFor's own doc: "a bulk send is priced
+    /// exactly as the same number of single sends"), so this changes nothing about what a run costs
+    /// — but IncomeGainFor is not linear above the taper's knee, and it floors at a minimum of +1 so
+    /// a single gain-1 creep is never zeroed out. Evaluated once per unit instead of once per run,
+    /// that floor stops being a floor and starts being a per-unit bonus: ten queued Runners at
+    /// income 600 (taper band 300-900) granted +10 through this loop against +5 for the SAME ten
+    /// sent as one batch — a real income-accounting bug this reordering closes, found from a report
+    /// that queued sends were "not counting income correctly." This is also most of what read as
+    /// "sending multiples at a time": several ticks' worth of taps, all affordable at once, used to
+    /// spawn as a visible burst of individual accept/spawn events; now it is one event at the true
+    /// quantity, matching what a direct multi-send already looked like.
+    ///
     /// Seats in id order, for the same determinism reason the bot loop is ordered: this spends gold
     /// and assigns entity ids.
     /// </remarks>
@@ -618,11 +732,44 @@ public sealed class LocalVerticalSlice
         foreach (var playerId in sendQueues.Keys.OrderBy(id => id.Value).ToArray())
         {
             var queue = sendQueues[playerId];
-            while (queue.Count > 0 && QueueSend(playerId, queue[0], 1).Accepted)
+            while (queue.Count > 0)
             {
-                queue.RemoveAt(0);
+                var creepId = queue[0];
+                var runLength = 1;
+                while (runLength < queue.Count && queue[runLength].Equals(creepId))
+                {
+                    runLength++;
+                }
+
+                // Capped at what gold actually covers, computed BEFORE the call. Asking QueueSend
+                // for the full run and letting it reject would turn a queue that can afford HALF a
+                // run into one that drains none of it — the exact partial-fill behaviour the
+                // original per-unit loop had for free, which batching must not give up to fix the
+                // income accounting below.
+                var affordable = AffordableRunQuantity(playerId, creepId, runLength);
+                if (affordable <= 0 || !QueueSend(playerId, creepId, affordable).Accepted)
+                {
+                    break;
+                }
+
+                queue.RemoveRange(0, affordable);
             }
         }
+    }
+
+    /// <summary>
+    /// How many of a consecutive same-creep run this seat can pay for right now, capped at the
+    /// run's own length.
+    /// </summary>
+    /// <remarks>
+    /// Cost is linear in quantity (unit price times count, computed once — see
+    /// <see cref="EconomyService.SendCostFor"/>), so this is arithmetic rather than a search, and
+    /// the unit price it reads is the exact one <c>QueueSend</c> will charge for each of them.
+    /// </remarks>
+    private int AffordableRunQuantity(PlayerId playerId, ContentId creepId, int runLength)
+    {
+        var unitCost = economy.SendCostFor(players.Get(playerId), CreepFor(creepId), 1, tick.Value);
+        return unitCost <= 0 ? runLength : Math.Min(runLength, players.Get(playerId).Gold.Amount / unitCost);
     }
 
     /// <summary>
@@ -1349,6 +1496,22 @@ public sealed class LocalVerticalSlice
         MatchSummary = null;
         acceptedCommands.Clear();
         botDecisionRecords.Clear();
+
+        // Two more per-match dictionaries this used to leave standing, both found from a "reset
+        // doesn't reset correctly" report. Neither is emptied by resetting `players` above, because
+        // both key off PlayerId rather than living inside the player set.
+        //
+        // sendQueues: an unpaid send queued right before Reset survived it and drained on the FIRST
+        // tick of the new match against the fresh starting gold — a creep the player never asked
+        // for in this match, spawned as if they had.
+        //
+        // eliminatedAtTick: RecordElimination writes each seat once and never again ("a seat cannot
+        // come back" — true within a match, false across a Reset). A seat eliminated in the
+        // previous match kept that tick; if the same seat was eliminated again in the new match,
+        // ContainsKey was already true, so the new tick was silently dropped and the results screen
+        // ranked that seat using an elimination time from a match that no longer exists.
+        sendQueues.Clear();
+        eliminatedAtTick.Clear();
     }
 
     public void StartMatch()
@@ -1568,7 +1731,8 @@ public sealed class LocalVerticalSlice
     }
 
     /// <summary>
-    /// Clears a defeated seat's lane so the match can carry on around it.
+    /// Clears a defeated seat's lane so the match can carry on around it — and every creep it
+    /// SENT, wherever else on the board it currently is.
     /// </summary>
     /// <remarks>
     /// Elimination was only ever an ECONOMY fact: an eliminated player earns no income, cannot
@@ -1577,21 +1741,21 @@ public sealed class LocalVerticalSlice
     /// walking a lane whose owner had already lost — still leaking, still deducting lives from
     /// somebody on zero.
     ///
-    /// Three things have to happen together, and the third is the one that is easy to miss:
+    /// Four things have to happen together, and the fourth is the one that is easy to miss:
     ///
     /// 1. The towers go. They belong to a player who is out.
     /// 2. The creeps in the lane go. They were attacking a seat that no longer exists.
     /// 3. The lane's GRID and ROUTE are rebuilt empty. Towers occupy cells and are what lengthens
     ///    the route, so removing them without rebuilding leaves the maze standing as an invisible
     ///    wall — creeps would keep walking the long way round obstacles that are no longer there.
-    ///
-    /// Creeps the eliminated player SENT are deliberately left alone. They are in other people's
-    /// lanes, they were paid for, and they are somebody else's problem now.
-    ///
-    /// The in-flight creeps are removed rather than pushed on to the next lane. Both readings are
-    /// defensible — the carousel exists precisely to move creeps onward — but "wiped" is the
-    /// literal ask, and forwarding them would hand the attacker free continued pressure as a reward
-    /// for the kill. Worth revisiting once it can be seen in play.
+    /// 4. Every creep this player SENT dies too, wherever it currently is. Reported from play
+    ///    2026-08-29: leaving them standing ("they were paid for and are somebody else's problem
+    ///    now" — the reasoning this used to ship with) meant a dead seat's creeps kept marching and
+    ///    kept leaking, and a leak from a sender who no longer exists cannot be credited to anyone
+    ///    — the life is simply destroyed, breaking the conservation the steal mechanic depends on
+    ///    and permanently draining an active player for no one's benefit. See
+    ///    <see cref="CombatState.WipeLane"/> for the removal itself; this method only owns
+    ///    reporting each one killed with the right lane's actual defender on the event.
     /// </remarks>
     private void WipeEliminatedLane(PlayerId playerId)
     {
@@ -1606,9 +1770,17 @@ public sealed class LocalVerticalSlice
             pendingEvents.Add(new TowerSoldEvent(tick, playerId, laneId, tower.EntityId, new Gold(0)));
         }
 
+        // Own lane: attacking a seat that no longer exists, reported against THIS player.
         foreach (var creep in combatState.Creeps.Where(creep => creep.LaneId.Equals(laneId)).ToArray())
         {
             pendingEvents.Add(new CreepKilledEvent(tick, creep.EntityId, playerId, new Gold(0)));
+        }
+
+        // Sent elsewhere: still walking a lane that belongs to whoever is actually defending it,
+        // so the event reports THAT lane's real defender, not the sender who just died.
+        foreach (var creep in combatState.Creeps.Where(creep => creep.SenderId.Equals(playerId) && !creep.LaneId.Equals(laneId)).ToArray())
+        {
+            pendingEvents.Add(new CreepKilledEvent(tick, creep.EntityId, combatContent.GetLaneOwner(creep.LaneId), new Gold(0)));
         }
 
         combatState = combatState.WipeLane(laneId, playerId);

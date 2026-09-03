@@ -350,7 +350,11 @@ namespace LTW.UnityClient.Simulation
 
         private void DrawSettingsPanel(float scale)
         {
-            var panel = CenteredPanel(scale, 336f, 244f);
+            // Grown for the health-bar toggle below: one row (34f) plus 12f of clearance. The
+            // extra 12f is new, not carried over — the four-row panel already ran the last row's
+            // bottom 8f past BACK's top, and a straight +34f would have reproduced that same
+            // overlap one row lower rather than fixing it.
+            var panel = CenteredPanel(scale, 336f, 290f);
             DrawPanel(panel, scale);
 
             DrawLabel(panel.x + 22f * scale, panel.y + 18f * scale, panel.width - 44f * scale, 28f * scale, "SETTINGS", titleStyle!, TextAnchor.MiddleCenter);
@@ -400,6 +404,13 @@ namespace LTW.UnityClient.Simulation
             if (DrawButton(new Rect(rowX + tinyWidth + gap, rowY + 2f * scale, tinyWidth, buttonHeight), "+", Cloud, scale, 12f))
             {
                 PresentationPreferences.AdjustFeedbackVolume(0.1f);
+            }
+
+            rowY += rowHeight + gap;
+            DrawLabel(labelX, rowY, 110f * scale, rowHeight, "Health Bars", smallStyle!, TextAnchor.MiddleLeft);
+            if (DrawButton(new Rect(rowX, rowY + 2f * scale, wideWidth, buttonHeight), PresentationPreferences.HealthBarsVisible ? "ON" : "OFF", PresentationPreferences.HealthBarsVisible ? MintSignal : Cloud, scale, 10f))
+            {
+                PresentationPreferences.HealthBarsVisible = !PresentationPreferences.HealthBarsVisible;
             }
 
             var backWidth = 96f * scale;

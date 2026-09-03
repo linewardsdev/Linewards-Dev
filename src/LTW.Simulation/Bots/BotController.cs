@@ -114,6 +114,21 @@ public sealed class BotController
     /// </remarks>
     public const int EscortFollowWindowTicks = 9;
 
+    /// <summary>
+    /// How long a bot may go without sending before it starts saving for one instead of building.
+    /// </summary>
+    /// <remarks>
+    /// One income payout (EconomyRules pays every 50 ticks). A bot that has banked a whole payout and
+    /// still sent nothing is not choosing to build, it is unable to reach a price — see
+    /// <see cref="SendSavingsFor"/>.
+    ///
+    /// Swept against the two-Greedy-bot heavy scenario at 50 / 100 / 150, which trades sends against
+    /// towers monotonically — by tick 900: 17 sends and 25 towers at 50, 11 and 35 at 100, 8 and 40 at
+    /// 150. 50 recovers the most attacking without starving the build, and the bots it governs still
+    /// build throughout. Raising it makes bots more passive, not more balanced.
+    /// </remarks>
+    public const int SendStarvationTicks = 50;
+
     /// <summary>Tick this bot last sent a wall, or null if it never has or has spent it.</summary>
     /// <remarks>
     /// The bot's whole notion of composition. It cannot see the lane — <see cref="Decide"/> receives
@@ -135,6 +150,9 @@ public sealed class BotController
     /// </remarks>
     private long? lastWallSendTick;
 
+    /// <summary>Tick of this bot's most recent send, used to detect that it has stopped attacking.</summary>
+    private long? lastSendTick;
+
     /// <summary>
     /// Everything this bot does in one tick, in the order it does it.
     /// </summary>
@@ -154,8 +172,8 @@ public sealed class BotController
     public void TakeTurn(PlayerId playerId, IBotMatchContext match)
     {
         TrySend(playerId, match);
-        TryBuild(playerId, match);
         TryBuyCategoryTier(playerId, match);
+        TryBuild(playerId, match);
         TryUpgradeTower(playerId, match);
     }
 
@@ -174,6 +192,7 @@ public sealed class BotController
     {
         TryBuild(playerId, match);
         match.TrySend(playerId, creepId, quantity: 1);
+        lastSendTick = match.Tick.Value;
     }
 
     public BotDecision Decide(PlayerEconomyState player, ContentCatalog content, SimulationTick tick)
@@ -289,6 +308,7 @@ public sealed class BotController
         if (Decide(match.PlayerState(playerId), match.Content, match.Tick).Command is QueueSendCommand send)
         {
             match.TrySend(send.PlayerId, send.CreepId, send.Quantity);
+            lastSendTick = match.Tick.Value;
         }
     }
 
@@ -305,6 +325,64 @@ public sealed class BotController
     {
         var coverage = ResolveProfile(match.Content).MinimumTowerCoverage;
         return coverage <= 0 || match.TowersOwnedBy(playerId).Count >= coverage;
+    }
+
+    /// <summary>
+    /// Gold this bot is holding back from towers because it is saving for a send it cannot yet afford.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="TakeTurn"/> gives sending FIRST claim on a tick's gold, which is enough only while
+    /// the send is affordable on the tick it is wanted. It is not enough when a creep costs more than
+    /// the surplus one income payout brings: <see cref="TryBuild"/> has no cap, so it spends the
+    /// difference on another tower every tick and the balance never reaches the creep's price. Income
+    /// only rises by sending, so the bot cannot grow its way out either — it is a closed loop, and the
+    /// bot stops attacking for the rest of the match.
+    ///
+    /// Found on 2026-08-19 when the creep roster doubled in price. Two Greedy bots built 44 towers
+    /// between them and sent nothing after tick 60: zero creeps on the board from tick 240 out to
+    /// tick 900, with income frozen at 14 and 16. The roster change exposed this rather than caused
+    /// it — at the old prices the cheapest wall happened to sit under one payout's surplus, so the
+    /// loop existed and was never entered.
+    ///
+    /// Deliberately inert unless the bot is actually starving: it returns 0 whenever the bot could
+    /// already afford its cheapest wall, and 0 whenever it should be building anyway (coverage not
+    /// met, or its own lane under pressure). That keeps every already-working case byte-identical
+    /// and confines the change to the case that was broken.
+    /// </remarks>
+    private int SendSavingsFor(PlayerId playerId, IBotMatchContext match, BotProfileDefinition profileDefinition)
+    {
+        if (!HasMinimumDefenseCoverage(playerId, match) || IsLaneUnderPressure(playerId, match))
+        {
+            return 0;
+        }
+
+        var player = match.PlayerState(playerId);
+        if (player.IsEliminated)
+        {
+            return 0;
+        }
+
+        // Only once the bot has actually stopped attacking. Saving whenever a send is unaffordable
+        // makes sends strictly dominate building — measured, and it took two Greedy bots to 58 sends
+        // and zero towers, which is as broken as the starvation it was fixing, just in the other
+        // direction. Gating on elapsed silence keeps the rule inert for a bot that is spending fine.
+        if (match.Tick.Value - (lastSendTick ?? 0L) <= SendStarvationTicks)
+        {
+            return 0;
+        }
+
+        // The cheapest WALL, matching SelectCreep's refusal to send an unescorted support. Saving for
+        // a support the bot would decline to buy would stall building for a purchase that never comes.
+        var cheapestWall = PreferredCreepIds(player.Income.Amount)
+            .Distinct()
+            .Select(id => match.Content.Creeps.FirstOrDefault(creep => creep.Id.Value == id))
+            .Where(creep => creep is not null && IsWall(creep!))
+            .Select(creep => creep!.Cost.Amount)
+            .DefaultIfEmpty(0)
+            .Min();
+
+        var available = player.Gold.Amount - profileDefinition.MinimumGoldReserve;
+        return cheapestWall > available ? cheapestWall : 0;
     }
 
     /// <summary>
@@ -343,6 +421,10 @@ public sealed class BotController
     private void TryBuild(PlayerId playerId, IBotMatchContext match)
     {
         var profileDefinition = ResolveProfile(match.Content);
+        // Gold earmarked for a send this bot is saving up for, on top of the profile's reserve floor.
+        // Without it a bot can never accumulate past one tick's surplus — see SendSavingsFor.
+        var sendSavings = SendSavingsFor(playerId, match, profileDefinition);
+        var buildableGold = match.PlayerState(playerId).Gold.Amount - profileDefinition.MinimumGoldReserve - sendSavings;
         // The seat's committed line, or Unchosen while it has not built yet — the planner treats
         // that as "every line is in scope", so this behaves exactly as before until the lock lands.
         var towerId = BotBuildPlanner.NextTower(
@@ -350,7 +432,7 @@ public sealed class BotController
             match.TowersOwnedBy(playerId).Count,
             match.Content,
             BuildLineFor(match.PlayerState(playerId)),
-            match.PlayerState(playerId).Gold.Amount - profileDefinition.MinimumGoldReserve);
+            buildableGold);
         if (towerId is null)
         {
             return;
@@ -362,8 +444,7 @@ public sealed class BotController
         var tower = match.FindTower(towerId.Value)
             ?? throw new InvalidOperationException($"Bot profile '{profileDefinition.Id.Value}' build order names tower '{towerId.Value}', which is not in this catalog.");
 
-        var player = match.PlayerState(playerId);
-        if (player.Gold.Amount - profileDefinition.MinimumGoldReserve < tower.Cost.Amount)
+        if (buildableGold < tower.Cost.Amount)
         {
             return;
         }
@@ -544,6 +625,31 @@ public sealed class BotController
         return best;
     }
 
+    /// <summary>
+    /// The creep ids this profile is willing to send at this income, before affordability.
+    /// </summary>
+    /// <remarks>
+    /// Lifted out of <see cref="SelectCreep"/> so <see cref="SendSavingsFor"/> can ask what this bot
+    /// is TRYING to buy, not just what it can already afford. SelectCreep filters this list by gold;
+    /// a bot saving up needs the unfiltered version, and the two must not drift apart.
+    /// </remarks>
+    private string[] PreferredCreepIds(int income) =>
+        profile switch
+        {
+            BotDecisionProfile.Greedy => income >= 45
+                ? new[] { "creep.colossus", "creep.siege", "creep.turret_walker", "creep.warden", "creep.stalker", "creep.shade", "creep.brute", "creep.revenant", creepId.Value }
+                : income >= 20
+                    ? new[] { "creep.stalker", "creep.shade", "creep.zephyr", "creep.brute", "creep.revenant", creepId.Value }
+                    : new[] { "creep.brute", creepId.Value, "creep.wisp" },
+            BotDecisionProfile.Balanced => income >= 35
+                ? new[] { "creep.warden", "creep.obsidian_brute", "creep.burrower", "creep.shade", "creep.brute", creepId.Value, "creep.swarm" }
+                : new[] { "creep.serpent", "creep.brute", creepId.Value, "creep.swarm" },
+            BotDecisionProfile.Defensive => income >= 30
+                ? new[] { "creep.warden", "creep.obsidian_brute", "creep.burrower", "creep.serpent", "creep.brute", "creep.runner", creepId.Value, "creep.swarm" }
+                : new[] { "creep.runner", creepId.Value, "creep.swarm", "creep.wisp" },
+            _ => new[] { creepId.Value }
+        };
+
     private CreepDefinition SelectCreep(PlayerEconomyState player, ContentCatalog content, SimulationTick tick)
     {
         var available = player.Gold.Amount - GoldReserveFloor(content);
@@ -580,21 +686,7 @@ public sealed class BotController
         // adds. Five of the ids these lists name — wisp, revenant, obsidian_brute, serpent and
         // turret_walker — stopped being bodies when category 1 became SUPPORT, and until the window
         // existed the bots kept buying them as though they still were.
-        var preferredIds = profile switch
-        {
-            BotDecisionProfile.Greedy => income >= 45
-                ? new[] { "creep.colossus", "creep.siege", "creep.turret_walker", "creep.warden", "creep.stalker", "creep.shade", "creep.brute", "creep.revenant", creepId.Value }
-                : income >= 20
-                    ? new[] { "creep.stalker", "creep.shade", "creep.zephyr", "creep.brute", "creep.revenant", creepId.Value }
-                    : new[] { "creep.brute", creepId.Value, "creep.wisp" },
-            BotDecisionProfile.Balanced => income >= 35
-                ? new[] { "creep.warden", "creep.obsidian_brute", "creep.burrower", "creep.shade", "creep.brute", creepId.Value, "creep.swarm" }
-                : new[] { "creep.serpent", "creep.brute", creepId.Value, "creep.swarm" },
-            BotDecisionProfile.Defensive => income >= 30
-                ? new[] { "creep.warden", "creep.obsidian_brute", "creep.burrower", "creep.serpent", "creep.brute", "creep.runner", creepId.Value, "creep.swarm" }
-                : new[] { "creep.runner", creepId.Value, "creep.swarm", "creep.wisp" },
-            _ => new[] { creepId.Value }
-        };
+        var preferredIds = PreferredCreepIds(income);
 
         var affordable = preferredIds
             .Distinct()

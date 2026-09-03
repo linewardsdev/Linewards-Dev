@@ -472,6 +472,16 @@ namespace LTW.UnityClient.UI
             // longer label clipped to "IEED +7(" as soon as the type was raised — the split was
             // sized around 8pt text, so it had to move with it. "TIER 3" is six characters and
             // fixed; the button carries up to "NEED +675", which is nine.
+            //
+            // This clipped again on a tablet rail (2026-08-29), at both the send and build category
+            // pickers — not from this split being wrong, but from both rail cards being narrower
+            // (264 units at three columns) than the width this split was tuned against (321-520,
+            // the drawer's own range at a comparable scale). Narrowing the tier LABEL further to
+            // buy the button more room wrapped "TIER 1" onto two lines at that same 264 instead —
+            // trading one clipped string for another. Fixed at the actual source in both callers
+            // (send and tower category pickers now use 2 rail columns, not 3, landing at 404 units)
+            // rather than here, so this split stays the one number both card widths already agree
+            // with.
             var buttonRect = new Rect(row.x + row.width * 0.42f, row.y, row.width * 0.58f, row.height);
             if (tier >= maxTier)
             {

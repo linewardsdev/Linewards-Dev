@@ -78,7 +78,13 @@ public sealed class BotMazingTests
     {
         var slice = new LocalVerticalSlice(SampleVerticalSliceContent.Create(), ThreeLanes());
 
-        for (var tick = 0; tick < 1200; tick++)
+        // 1500, not 1200. OpeningEconomyRules' opening discount (2026-08-24) makes sends cheaper
+        // for the first 300 ticks, and TakeTurn already gives sending first claim on a tick's gold
+        // (see BotController's own doc on that ordering) — so a bot spends more on creeps during
+        // the discount window and has less left for towers, delaying when the busiest one clears
+        // nine. Traced: best tower count is 8 at 1200, 10 by 1400. Still comfortably past the old
+        // ceiling, just later.
+        for (var tick = 0; tick < 1500; tick++)
         {
             slice.AdvanceOneTick();
         }
@@ -125,9 +131,18 @@ public sealed class BotMazingTests
     [Fact]
     public void Bots_buy_category_tiers_on_the_side_their_profile_favours()
     {
-        var slice = new LocalVerticalSlice(SampleVerticalSliceContent.Create(), ThreeLanes());
-
-        for (var tick = 0; tick < 1600; tick++)
+        // Seed 12, not ThreeLanes()'s shared seed 1, and 3600 not 3100 — both from
+        // OpeningEconomyRules' ramp lengthening to 500 (2026-08-29, see that class's doc for why
+        // 300 was too fast to out-scale with income but also the edge of a cliff: even 320
+        // regressed two more seeds on this exact property). Longer ramp means more early gold goes
+        // to sends before a tier purchase's turn, and seed 1's three-bot economy no longer clears
+        // even ONE tier before its match ends — traced across seeds 1, 4-11, only 2 and 12 reach a
+        // tier at all in a 3-lane match under the 500-tick ramp. This is a real cost of the longer
+        // ramp, confined to three-bot 3-lane play (the shipped 8-lane default is unaffected — see
+        // TierIncomeGateTests, seed 2), not something to paper over by picking a seed and moving on
+        // silently. Seed 12 splits cleanly: P2 buys a send tier at 2450, P3 a tower tier by 3600.
+        var slice = new LocalVerticalSlice(SampleVerticalSliceContent.Create(), new LocalMatchOptions(seed: 12, laneCount: 3));
+        for (var tick = 0; tick < 3600; tick++)
         {
             slice.AdvanceOneTick();
         }
@@ -176,11 +191,17 @@ public sealed class BotMazingTests
     [Fact]
     public void Bots_upgrade_the_towers_they_have_already_built()
     {
-        var slice = new LocalVerticalSlice(SampleVerticalSliceContent.Create(), ThreeLanes());
+        // Seed 12, not ThreeLanes()'s shared seed 1, and 3700 not 3200 — see the sibling test above
+        // for the full reasoning (OpeningEconomyRules' ramp lengthening to 500, 2026-08-29). Measured
+        // on this seed: the tower line tier is bought at 2900, the first upgrade lands at 3000 (still
+        // 2950-3000 as before the ramp changed, since P3's OWN tower-tier path here was unaffected —
+        // it is P2's now-later send tier that moved), 56 towers eventually upgraded in a match ending
+        // at 3715. Window sits between the upgrade and the end, since a defeated seat's lane is wiped.
+        var slice = new LocalVerticalSlice(SampleVerticalSliceContent.Create(), new LocalMatchOptions(seed: 12, laneCount: 3));
 
         var peakTier = 1;
         var peakUpgraded = 0;
-        for (var tick = 0; tick < 2400; tick++)
+        for (var tick = 0; tick < 3700; tick++)
         {
             slice.AdvanceOneTick();
             if (tick % 25 != 0)

@@ -416,9 +416,13 @@ namespace LTW.UnityClient.Simulation
             {
                 if (creep.Id.Equals(creepId))
                 {
-                    // At the local seat's send-category tier, matching EconomyService.SendCostFor.
+                    // At the local seat's send-category tier and its current income's opening
+                    // discount, matching EconomyService.SendCostFor exactly — a card quoting a
+                    // different number than what QueueSend actually charges is a button that lies.
                     var tier = LocalSeat().SendCategoryTier(creep.CategoryIndex);
-                    return creep.Cost.Amount * LTW.Simulation.Content.CategoryTierRules.SendCostPercentFor(tier) / 100;
+                    var tick = simulation.GetSnapshot().Tick.Value;
+                    return creep.Cost.Amount * LTW.Simulation.Content.CategoryTierRules.SendCostPercentFor(tier) / 100
+                        * LTW.Simulation.Content.OpeningEconomyRules.CreepCostPercentFor(tick) / 100;
                 }
             }
 
@@ -614,6 +618,59 @@ namespace LTW.UnityClient.Simulation
             simulation is null
                 ? 0
                 : simulation.GetSnapshot().QueuedSendCountFor(simulation.LocalPlayerId, creepId);
+
+        /// <summary>Everything the local seat has waiting, across all creeps.</summary>
+        /// <remarks>
+        /// For the queue readout (iPad round 2, item 15): per-creep counts live on the cards, but a
+        /// closed dock showed nothing at all, so a player with sends waiting had no way to know
+        /// without reopening it. Read off the snapshot for the same authority reason as
+        /// <see cref="QueuedSendCount"/> directly above.
+        /// </remarks>
+        public int TotalQueuedSends() =>
+            simulation is null
+                ? 0
+                : simulation.GetSnapshot().SendQueueFor(simulation.LocalPlayerId).Count;
+
+        /// <summary>Takes back the local seat's most recent queued send of one creep.</summary>
+        /// <remarks>
+        /// The undo half of <c>SendCreep</c>. A queued tap is a statement of intent that has not
+        /// been paid for yet, so it can still be withdrawn — and on a touch screen the mis-tap is
+        /// the mistake worth being able to take back.
+        ///
+        /// Cancels the most recent rather than the next to go out; see
+        /// <c>LocalVerticalSlice.CancelQueuedSend</c> for why the other end would be the wrong one.
+        /// </remarks>
+        public VerticalSliceCommandResult CancelQueuedSend(LTW.Simulation.Content.ContentId creepId)
+        {
+            if (simulation is null)
+            {
+                return VerticalSliceCommandResult.Reject(CommandRejectionReason.MatchPaused);
+            }
+
+            return RefreshAfterAccepted(simulation.CancelQueuedSend(simulation.LocalPlayerId, creepId));
+        }
+
+        /// <summary>Empties the local seat's send queue, returning how many entries went.</summary>
+        /// <remarks>
+        /// For "I queued the wrong thing ten times". Returns a count rather than a result because an
+        /// already-empty queue is a normal state rather than a refusal — the caller uses the number
+        /// to decide whether anything is worth animating.
+        /// </remarks>
+        public int ClearSendQueue()
+        {
+            if (simulation is null)
+            {
+                return 0;
+            }
+
+            var removed = simulation.ClearSendQueue(simulation.LocalPlayerId);
+            if (removed > 0)
+            {
+                RefreshAfterAccepted(VerticalSliceCommandResult.Accept());
+            }
+
+            return removed;
+        }
 
         /// <summary>Total creeps waiting in the local seat's send queue.</summary>
         public int QueuedSendTotal() =>

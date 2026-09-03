@@ -148,7 +148,10 @@ Collected here because they are easy to lose when the command source changes:
 The gap this document names — rules "designed and documented but never enforced" — has its first
 enforced piece.
 
-`ISeatAuthority` answers *which seat is this command allowed to act as*. `EnqueueSend` resolves the
+`ISeatAuthority` answers *which seat is this command allowed to act as*. `EnqueueSend`,
+`CancelQueuedSend` and `ClearSendQueue` all resolve through it — the two removals for the same
+reason as the addition, since emptying another seat's queue is cheaper to attempt than filling it.
+`EnqueueSend` resolves the
 seat through it and **overwrites the `PlayerId` it was passed**. In a local match those are the same
 value and the call looks pointless; over a wire it is the difference between a queue and a
 seat-spoofing hole, because `PlayerId` is a field on the message and a client controls it.

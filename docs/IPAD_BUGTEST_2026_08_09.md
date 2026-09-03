@@ -27,8 +27,48 @@ Branch: `ipad-bugtest-2026-08-09`.
 Items 5, 9, 10 and 11 all moved because the tablet layout work opened up the rail, which is what
 this doc predicted would happen if 11 was settled before the UI items rather than after.
 
+**Status 2026-08-21 — second device round.** A fresh device export from `main` (`e8b2844`) was cut
+for another live session; the previous export dated 2026-08-09 and predated everything below.
+Changed since the last time this game was on the iPad, and worth checking with hands:
+
+- **Late-match slowness attacked directly** — the thing reported from this device ("too many creeps
+  causing slowness, even on an M4 iPad with 8 GB"). Creeps cost and take 2x, lives cut to 40,
+  escalation steepened to 700/80: max peak concurrent creeps 899 -> 430 in measurement, match
+  length unchanged. *Check: does the late game still stutter? Do matches feel the same length?*
+- **Match feel changes that ride along:** every leak costs 1 life (siege/colossus no longer take 2),
+  send prices doubled roster-wide, matches start at 40 lives. *Check: does the send dock economy
+  still feel readable at the new prices?*
+- **Bots attack and upgrade properly now** — two structural defects fixed (a bot could stop sending
+  forever once prices outran one payout's surplus; a bot could never save for a category tier).
+  *Check: do late-game opponents feel more alive? Towers visibly upgrade around tick ~2900.*
+- **Tower breathe gated to Grove** — Arcane and Foundry towers no longer breathe at idle.
+- **Send dock sized to its cards** — the picker no longer shrinks the board or leaves the gap above
+  the close button (the two-things-to-fix screenshot from 2026-08-09).
+- **Items 3 and 10 land on a device for the first time** — gate sprites tinted into the 3D scene,
+  and the lives readout opening the leaderboard. Both were "fixed, unseen" last round.
+
+Still open going into this round: **item 2** (send-card click effect — this session is the chance to
+describe what "broken" looks like), **item 8** (Bastion art), **item 47** (send-queue cancel has no
+button yet), **item 48** (send-dock card content drawn over the card frame, NEED +60 clipped).
+
 Remaining to take: **item 8** (Bastion art, has a live lead — `5e81e50` decimated the roster and
 `8457192`'s LOD fix covered only animated units) and **item 2** (blocked on you).
+
+### Beyond this list, same session
+
+- **Item 43 (bots hoard gold) closed by measurement, not by a fix.** Re-measured at 79-126 gold held
+  and 94-152 sends per bot, against the ~29,000 it was filed on. Two earlier changes had already
+  closed it. See `OPEN_ITEMS.md` 43 — the lesson recorded there is to re-measure a balance finding
+  before building on it.
+- **The send queue can now be undone.** `CancelQueuedSend` and `ClearSendQueue`, with the same seat
+  authority and rate limiter as the enqueue. **The client adapter is wired but no button calls it
+  yet — filed as `OPEN_ITEMS.md` 47** — the send dock needs a cancel affordance, deliberately not placed while the tablet-layout
+  work is reshaping that surface. That is the one loose end from this pass.
+- **Not done, and not mine to do:** `OPEN_ITEMS.md` 45 (income pin) needs an owner decision between
+  two conflicting documented properties; Arcane's missing brake is a deliberate design choice, not a
+  gap; store enrolment needs an Apple account and a real reverse-domain. The four unrigged creeps
+  (Revenant, Shade, Swarm, Wisp) were **audited 2026-08-09 and need no rigs** — all four are
+  non-walkers. See `CREEP_RIG_WAVE_2_4_PLAN.md`.
 
 ---
 
@@ -402,6 +442,126 @@ re-doing them for tablet is the expensive order.
 
 ---
 
+## 13. The seats table should be clickable and jump to that lane — replacing the lane-view button — DONE (`fc10745`)
+
+Reported 2026-08-21, second device round. **Done the same day:** rows are buttons (invisible,
+drawn after the row content per HudView's draw-order rule), the viewed lane's row carries a mint
+rail on its right edge — left rail says who you are, right says where you are looking — and
+`LaneViewToggleController` is deleted. Desktop Tab cycles lanes through the renderer directly; the
+capture runner's lane-selector state now captures the resting HUD. Unverified on device. Tapping a row in the SEATS table should move the board to
+that seat's lane. That makes the standalone lane-view button (`LaneViewToggleController`'s L1-L8
+selector) redundant — two controls for the same navigation, and the seats table is the one that
+carries context (who you are looking at, how they are doing) rather than a bare lane number.
+
+First read: `SeatLeaderboardView` draws the rows but holds no renderer reference; the jump is
+`UnityVerticalSliceRenderer.SetActiveLaneCameraId`, which the lane button already calls. A row needs
+to become a button, the view needs the renderer, and the current camera's row wants an indicator so
+the table also absorbs the button's second job — showing WHICH lane you are on.
+
+## 14. The send sub panel should be built out like the build sub panel on tablets — DONE (`fc10745`)
+
+Reported 2026-08-21. **Done the same day:** on a tablet the expanded dock now lives in the right
+rail below the seats table, exactly as the placement controls live in the left one — no board
+coverage, no camera lift (SendDockInset stays 0 in rail mode). States stack: compact category rows
+with tier/upgrade lines, compact creep rows with cost/income/queue meta. Compact rows rather than
+art cards is the placement stack's own trade — at rail width an aspect-held card outruns the rail.
+Phone drawer unchanged. **Verified by capture at both aspects 2026-08-21** (`a8dd17a`): the phone
+drawer photographs identically to its pre-rail behaviour, the tablet rail panel lands correctly
+below the seats table with the board at full height. Three header collisions found and fixed from
+the captures. Follow-up filed by the same captures: the BUILD palette on a tablet is still a bottom
+drawer that lifts the camera to half height — after this item the send side has the better tablet
+treatment, and the build palette wants the same rail move. The tablet layout work gave the build (tower) picker a fuller treatment; the
+send dock's category/creep sub panel should match it — same structural pattern, not a phone panel
+scaled up.
+
+## 17. Tablet rail panels removed the icons and ran very long — DONE
+
+Reported from play 2026-08-29: "The send and build menus on tablet removed the icons and are very
+long. We have more realestate with tablets, we should utilize it."
+
+Item 14's rail treatment for the send dock, and the build palette's own tablet rail follow-up filed
+in that same item, both used a CUSTOM compact layout: one text-only row per category or creep,
+stacked vertically, with no icon — built on the assumption that a rail is narrow, so a card held to
+the art's own aspect would outrun it. That assumption was wrong, measurably: the board column
+narrows to the game's fixed portrait aspect regardless of the device's own aspect
+(`MobileViewportLayout.BoardColumnFraction`), so on a real tablet the two side rails together
+commonly hold more than half the screen width — plenty of room for the drawer's actual icon cards,
+not a reason to abandon them.
+
+Fixed by deleting the custom rail layouts (`SendDockController.DrawCategoryPickerRail`/
+`DrawSendCardsRail`) entirely and reusing the drawer's own proven, icon-carrying methods
+(`DrawCategoryPicker`, `DrawSendCards` for send; `DrawTowerCategoryPicker`, `DrawTowerCategoryGrid`
+for build) with the rail's actual rect. Both were already width-driven — card size comes from the
+rect's width via `CategoryCardRect`'s aspect math — so handing them a wider rect was the entire
+fix: icons come back for free, and the creep/tower grid's five items lay out as the drawer's own
+3-then-2 rows instead of five stacked single-item rows. Row height is derived from the first row's
+width through the card art's aspect rather than the drawer's flat 84, so cards scale up with the
+extra width instead of the art flattening at a fixed height.
+
+The build palette's tablet rail move — flagged as a follow-up in item 14 and never done — is
+included here: `TowerPalettePanelRect` gained the same rail branch `SendDockController.PanelRect`
+already had, sharing the left rail with the placement quick-switch stack (`DrawPlacementStack`),
+which the two never conflict over since `DrawTowerPalette` returns immediately while a tower is
+actively being placed.
+
+**Verified by capture at tablet aspect 2026-08-29**, and the first capture pass caught three real
+defects the code-only reasoning above missed:
+
+- `TouchPlacementController.DrawTowerPalette` set `RuntimeUiChrome.BuildDockInset` unconditionally,
+  where `SendDockController`'s equivalent already skipped it in rail mode. The board camera
+  collapsed to a sliver for a panel that, being in the rail, was covering none of it — the exact bug
+  `DrawPlacementStack`'s own comment already named ("squeezed the board to a fraction of its height
+  for a panel that was covering nothing"), reintroduced in a sibling method that missed the guard.
+- The build category card overlapped its own "5 TOWERS"/"ALL AT TIER" text, because that card
+  carries an extra bottom-anchored row (the whole-line batch upgrade) the send card does not, and a
+  rail card at three columns (264 units) is narrower than either card needs at three — narrower, in
+  fact, than the DRAWER's own card at a comparable scale (321 units), because the drawer temporarily
+  claims nearly the whole screen where the rail is a fixed, narrower column. Fixed by wrapping both
+  the send and build category pickers into 2 columns in rail mode rather than 3 (`DrawCategoryPicker`
+  and `DrawTowerCategoryPicker` both gained a `columns` parameter), which also gave both pickers
+  404-unit cards instead of 264.
+- The tier row's "NEED +70" button clipped to "EED +7" on both pickers at the narrower 264-unit rail
+  card — the same clipping bug `DrawCategoryTierRow`'s own comment already recorded fixing once
+  before, resurfacing at a width smaller than that fix was tuned against. Moving both pickers to 2
+  columns fixed this as a side effect of the width increase, so the original 0.40/0.58 split stays
+  unchanged rather than chasing two different card widths with one shared fraction.
+
+All three fixed and reverified by a second and third capture pass: board at full height, both
+pickers' hint text and tier buttons render cleanly at three tested states (unlocked, locked, and a
+line with batch upgrades ready), the creep/tower grids unaffected. 335/335 tests green throughout
+(none of this touches the simulation).
+
+## 15. A data view for how many creeps you have in queue — DONE (`fc10745`)
+
+Reported 2026-08-21. **Done the same day:** the closed SEND launcher shows the total (`SEND x3`),
+the open panel shows a QUEUE line in both layouts, per-creep counts stay on the cards. New
+`TotalQueuedSends()` on the adapter, read off the snapshot like `QueuedSendCount`. The QUEUE
+readout is the natural anchor for item 47's still-missing cancel control. Queued sends are invisible: `CancelQueuedSend`/`ClearSendQueue` landed
+simulation-side (see item 47's history) but nothing on screen even says how many are waiting. A
+count readout is the minimum; it is also the natural anchor for item 47's missing cancel control —
+whichever surface shows the count is where cancelling belongs.
+
+## 16. Creep health bars: blocky, hard to read, little value — DONE (pass on 2026-08-21)
+
+Reported 2026-08-21 in chat: clean them up properly (styling, lighting, readability) or remove
+them. Root cause of the blockiness: the bars were two LIT 3D cubes — scene lighting shaded them
+like crates, the tilted camera saw their side faces as a second tone, and the fill-cube stacked
+over the backing-cube seamed.
+
+Rebuilt as one unlit quad per creep through the same LTW/Fill Bar shader the lane pressure gauges
+use: lighting cannot touch it, fill is the shader's anti-aliased _Fill threshold rather than scaled
+geometry, the housing rides _BackgroundColor so nothing seams, and every bar shares the gauges' one
+instanced material — which also retires the CreatePrimitive path behind 2026-08-01's magenta bars.
+Kept: bars only appear once a creep is damaged, and the mint/gold/red state colours.
+
+Calibrated against captures, three rounds: a camera billboard was tried first and photographed
+WORSE — tilting a bar toward the camera leans it into the screen space of the creep marching
+behind, and in a packed train each bar vanished behind its neighbour — so the bar lies flat like
+the gauges, with height drawn 1.6x to buy back the tilt's foreshortening and width 1.35x because
+the authored constants were tuned against the old 2D plates and spanned about a third of the 3D
+bodies. Verified in capture at gameplay zoom; wants a device look for the removal question — if it
+still carries too little value on the iPad, the show/hide gate is one line.
+
 ## Related open work, not on this list
 
 - **Twin Crescent has no visual profile.** ~~It renders a primitive fallback that nothing
@@ -410,8 +570,11 @@ re-doing them for tablet is the expensive order.
   entry (the promote step was skipped during integration), and the motion switch had no
   TwinCrescent case. Both are in now. Not yet sighted on a device, and the motion probe still
   needs a run once the editor releases the project lock.
-- **Four creeps are unrigged** — Revenant, Shade, Swarm, Wisp (item 11 wave 2.4). They have no
-  Animator at all and will not animate whatever else is fixed.
+- **Four creeps have no Animator** — Revenant, Shade, Swarm, Wisp (item 11 wave 2.4). **Audited
+  2026-08-09: none of them needs one.** All four are non-walkers — a stalk, a core with satellites,
+  a petal mass and a floating orb — and each already carries a procedural motion style, so they do
+  animate. The earlier wording here ("will not animate whatever else is fixed") was wrong: unrigged
+  has never meant unanimated. See `CREEP_RIG_WAVE_2_4_PLAN.md`.
 - **`m_CullingMode` on the rigged creeps** was set to `AlwaysAnimate` in `1145a0d` during the
   device freeze. Do not read the LOD fix (`8457192`) as proving that change unmotivated: the
   LOD bug fully explains the original report — including the tell that the builder kept

@@ -40,6 +40,73 @@ public sealed class SendQueueTests
 
     private static int Gold(LocalVerticalSlice slice) => slice.GetSnapshot().Players.Get(Seat).Gold.Amount;
 
+    /// <summary>
+    /// Cancelling takes back the send the player just added, not the one about to go out.
+    /// </summary>
+    /// <remarks>
+    /// The queue drains front-first, so the front entry is already paid for in intent — it is the
+    /// next thing to leave. Cancelling that would take back a DIFFERENT send than the one just
+    /// tapped, which is the opposite of an undo. Asserted through the surviving order rather than
+    /// through a count, because a count passes whichever end is removed.
+    /// </remarks>
+    [Fact]
+    public void Cancelling_removes_the_most_recent_of_that_creep()
+    {
+        var slice = Slice(0);
+        var brute = SampleVerticalSliceContent.BruteCreepId;
+        var runner = SampleVerticalSliceContent.SwarmCreepId;
+
+        Assert.True(slice.EnqueueSend(Seat, brute).Accepted);
+        Assert.True(slice.EnqueueSend(Seat, runner).Accepted);
+        Assert.True(slice.EnqueueSend(Seat, brute).Accepted);
+
+        Assert.True(slice.CancelQueuedSend(Seat, brute).Accepted);
+
+        // The FIRST brute must survive and keep its place ahead of the runner.
+        var queue = slice.SendQueueFor(Seat);
+        Assert.Equal(2, queue.Count);
+        Assert.Equal(brute, queue[0]);
+        Assert.Equal(runner, queue[1]);
+    }
+
+    [Fact]
+    public void Cancelling_something_that_is_not_queued_says_so()
+    {
+        var slice = Slice(0);
+        Assert.True(slice.EnqueueSend(Seat, SampleVerticalSliceContent.BruteCreepId).Accepted);
+
+        var result = slice.CancelQueuedSend(Seat, SampleVerticalSliceContent.SwarmCreepId);
+
+        Assert.False(result.Accepted);
+        Assert.Equal(CommandRejectionReason.NothingQueued, result.RejectionReason);
+        // And the queue it did not own is untouched.
+        Assert.Single(slice.SendQueueFor(Seat));
+    }
+
+    /// <summary>
+    /// A cancel cannot reach another seat's queue.
+    /// </summary>
+    /// <remarks>
+    /// The mirror of the enqueue authority test. Emptying someone else's queue is a cheaper attack
+    /// than filling it, so the seat has to come from the authority here too — in-process the
+    /// argument and the resolved seat are the same value, which is exactly why this must be pinned
+    /// now rather than when a client starts supplying the id over a wire.
+    /// </remarks>
+    [Fact]
+    public void Clearing_only_empties_the_callers_own_queue()
+    {
+        var slice = Slice(0);
+        var other = new PlayerId(2);
+        Assert.True(slice.EnqueueSend(Seat, SampleVerticalSliceContent.BruteCreepId).Accepted);
+        Assert.True(slice.EnqueueSend(other, SampleVerticalSliceContent.BruteCreepId).Accepted);
+
+        var removed = slice.ClearSendQueue(Seat);
+
+        Assert.Equal(1, removed);
+        Assert.Empty(slice.SendQueueFor(Seat));
+        Assert.Single(slice.SendQueueFor(other));
+    }
+
     [Fact]
     public void Ten_of_one_creep_may_wait_and_an_eleventh_is_refused()
     {
@@ -311,5 +378,49 @@ public sealed class SendQueueTests
         Assert.Equal(slice.SendQueueFor(Seat).Count, snapshot.SendQueueFor(Seat).Count);
         Assert.Equal(slice.QueuedSendCountFor(Seat, creep), snapshot.QueuedSendCountFor(Seat, creep));
         Assert.Equal(3, snapshot.QueuedSendCountFor(Seat, creep));
+    }
+
+    /// <summary>
+    /// A run of the same creep draining from the queue grants exactly the income one direct send
+    /// of that quantity would — not more.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="EconomyService.IncomeGainFor"/> floors at +1 above the taper's knee, so a single
+    /// gain-1 creep is never zeroed out. Evaluated once per QUEUED UNIT rather than once per RUN,
+    /// that floor stops being a floor and starts being a per-unit bonus — found from a report that
+    /// queued sends were "not counting income correctly," and reproduced here with the report's own
+    /// shape: ten Runners (gain 1 each) queued at income deep in the taper band used to grant +10
+    /// through the drain loop against the +5 the same ten grant sent as one direct
+    /// <c>QueueSend(quantity: 10)</c> call.
+    ///
+    /// Asserted by comparing two independent slices rather than a hand-computed income constant, so
+    /// the assertion tracks the taper formula itself and cannot drift the moment either side of it
+    /// is rebalanced. Gold is granted far past what ten Runners cost, so affordability is not what
+    /// this test is about — <see cref="A_queue_longer_than_the_bank_stops_where_the_gold_runs_out"/>
+    /// already owns that question.
+    /// </remarks>
+    [Fact]
+    public void A_queued_run_of_one_creep_grants_the_same_income_as_one_direct_send_of_the_same_quantity()
+    {
+        const int quantity = 10;
+        var creep = SampleVerticalSliceContent.CreepId;
+
+        var queued = Slice(1_000_000);
+        queued.GrantLocalPlaytestIncome(Seat, new Income(590)); // 10 -> 600, mid-band (300-900)
+        for (var i = 0; i < quantity; i++)
+        {
+            Assert.True(queued.EnqueueSend(Seat, creep).Accepted);
+        }
+        queued.AdvanceOneTick();
+        Assert.Empty(queued.SendQueueFor(Seat));
+        var queuedIncome = queued.GetSnapshot().Players.Get(Seat).Income.Amount;
+
+        var direct = Slice(1_000_000);
+        direct.GrantLocalPlaytestIncome(Seat, new Income(590));
+        Assert.True(direct.QueueSend(Seat, creep, quantity).Accepted);
+        var directIncome = direct.GetSnapshot().Players.Get(Seat).Income.Amount;
+
+        output.WriteLine($"  queued drain -> income {queuedIncome}; one direct send of {quantity} -> income {directIncome}");
+        Assert.Equal(directIncome, queuedIncome);
     }
 }

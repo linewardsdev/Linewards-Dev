@@ -30,6 +30,13 @@ namespace LTW.UnityClient.UI
     /// No new simulation data was needed: every seat's Lives, Gold, Income and IsEliminated are
     /// already on the snapshot, because an eight-seat match is the default and the results screen
     /// already scores all of them.
+    ///
+    /// The table is also the lane navigation (iPad round 2, item 13): tapping a row moves the board
+    /// to that seat's lane, and the viewed lane's row carries a mint rail on its right edge. That
+    /// made the standalone L1-L8 selector redundant — two controls for the same navigation, and
+    /// this is the one that says who you are looking at rather than a bare lane number — so
+    /// LaneViewToggleController was deleted with it. A seat maps to its lane by id: home lanes are
+    /// LaneId(playerId) (LocalMatchTopology.HomeLaneFor), which is also the id the lane camera uses.
     /// </remarks>
     public sealed class SeatLeaderboardView : MonoBehaviour
     {
@@ -54,15 +61,28 @@ namespace LTW.UnityClient.UI
         /// </remarks>
         public static bool PanelOpen { get; set; }
 
+        /// <summary>
+        /// Bottom edge of the rail seat table, in GUI pixels — 0 while there is no rail.
+        /// </summary>
+        /// <remarks>
+        /// The send dock's rail panel starts below this table (item 14), and the two components
+        /// hold no reference to each other — the same reason <see cref="PanelOpen"/> is static.
+        /// Written every rail frame; a consumer drawing earlier in the same frame reads last
+        /// frame's value, which is the same number whenever the layout is not actively changing.
+        /// </remarks>
+        public static float RailPanelBottom { get; private set; }
+
         private UnitySimulationDriver simulationDriver = null!;
+        private UnityVerticalSliceRenderer? presentationRenderer;
         private GUIStyle? titleStyle;
         private GUIStyle? seatStyle;
         private GUIStyle? valueStyle;
         private GUIStyle? labelStyle;
 
-        public void Initialize(UnitySimulationDriver driver)
+        public void Initialize(UnitySimulationDriver driver, UnityVerticalSliceRenderer? renderer = null)
         {
             simulationDriver = driver;
+            presentationRenderer = renderer;
         }
 
         private void OnGUI()
@@ -85,6 +105,11 @@ namespace LTW.UnityClient.UI
             // because there is nowhere to put it permanently and a phone player had no way to see
             // the other seats at all before this.
             var hasRail = MobileViewportLayout.HasSideRails;
+            if (!hasRail)
+            {
+                RailPanelBottom = 0f;
+            }
+
             if (!hasRail && !PanelOpen)
             {
                 return;
@@ -126,6 +151,11 @@ namespace LTW.UnityClient.UI
                 Fill(panel, new Color(0.016f, 0.027f, 0.047f, 1f));
             }
 
+            if (hasRail)
+            {
+                RailPanelBottom = panel.yMax;
+            }
+
             RuntimeUiChrome.DrawPanel(panel, PanelInk, scale);
 
             titleStyle!.fontSize = Mathf.RoundToInt(11f * scale);
@@ -146,7 +176,24 @@ namespace LTW.UnityClient.UI
                     break;
                 }
 
-                DrawSeatRow(row, seat, seat.PlayerId.Equals(localId), scale);
+                var laneId = seat.PlayerId.Value;
+                var isViewed = presentationRenderer is not null && presentationRenderer.ActiveLaneCameraId == laneId;
+                DrawSeatRow(row, seat, seat.PlayerId.Equals(localId), isViewed, scale);
+
+                // Drawn AFTER the row content, with GUIStyle.none, so the labels stay visible
+                // through the hit area — the same draw-order rule HudView's lives cell documents.
+                if (presentationRenderer is not null && GUI.Button(row, GUIContent.none, GUIStyle.none))
+                {
+                    presentationRenderer.SetActiveLaneCameraId(laneId);
+
+                    // On a phone the table is a floating panel over the board; a tap that moves the
+                    // camera has answered the question the panel was opened for, so it closes and
+                    // shows the lane it just picked rather than covering it.
+                    if (!hasRail)
+                    {
+                        PanelOpen = false;
+                    }
+                }
             }
         }
 
@@ -170,7 +217,7 @@ namespace LTW.UnityClient.UI
         }
 
         /// <summary>
-        /// One seat: who, lives, income — and whether it is you.
+        /// One seat: who, lives, income — and whether it is you, and whether you are watching it.
         /// </summary>
         /// <remarks>
         /// The local seat carries a filled left rail rather than a tinted row. A tinted band is the
@@ -179,11 +226,19 @@ namespace LTW.UnityClient.UI
         /// unambiguous at any alpha and keeps every row on the same baseline. An eliminated seat
         /// also says OUT in words, so colour is never the only carrier.
         /// </remarks>
-        private void DrawSeatRow(Rect row, LTW.Simulation.Economy.PlayerEconomyState seat, bool isLocal, float scale)
+        private void DrawSeatRow(Rect row, LTW.Simulation.Economy.PlayerEconomyState seat, bool isLocal, bool isViewed, float scale)
         {
             if (isLocal)
             {
                 Fill(new Rect(row.x, row.y + 2f * scale, 3f * scale, row.height - 4f * scale), ArcaneBlue);
+            }
+
+            // The lane the camera is on. A right-edge rail for the same reason the local seat gets a
+            // left one: a solid rail is unambiguous at any alpha where a tinted band reads as either
+            // an opaque bar or nothing. Left says who you are, right says where you are looking.
+            if (isViewed)
+            {
+                Fill(new Rect(row.xMax - 3f * scale, row.y + 2f * scale, 3f * scale, row.height - 4f * scale), MintSignal);
             }
 
             var textX = row.x + 9f * scale;

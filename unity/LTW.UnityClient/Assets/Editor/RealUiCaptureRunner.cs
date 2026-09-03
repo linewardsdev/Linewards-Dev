@@ -358,6 +358,17 @@ namespace LTW.UnityClient.Editor
 
         private static SendDockController Dock() => Object.FindAnyObjectByType<SendDockController>();
 
+        /// <summary>
+        /// Through the property, not the field. SelectedCategory's setter keeps a static layout
+        /// mirror in step (selectedCategoryForLayout, which PanelRect reads from a static
+        /// context); writing the field directly left that mirror stale, so these shots measured
+        /// the panel for whichever state the PREVIOUS shot was in.
+        /// </summary>
+        private static void SetSelectedCategory(object dock, int category) =>
+            dock.GetType()
+                .GetProperty("SelectedCategory", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+                ?.SetValue(dock, category);
+
         private static void SetPrivate(object target, string field, object value)
         {
             var f = target.GetType().GetField(field, BindingFlags.Instance | BindingFlags.NonPublic);
@@ -373,9 +384,22 @@ namespace LTW.UnityClient.Editor
                 return;
             }
 
+            // Three queued sends, so the QUEUE readout and the launcher badge (item 15) are in
+            // frame carrying real numbers rather than photographed in their empty state. Colossus
+            // deliberately: at 208G against the 100G opening bank it cannot be paid for, so it
+            // STAYS queued — a cheap creep would be drained and spawned the next tick, and the
+            // queue would photograph empty.
+            var commands = Object.FindAnyObjectByType<UnityCommandAdapter>();
+            if (commands != null)
+            {
+                commands.SendColossusCreep();
+                commands.SendColossusCreep();
+                commands.SendColossusCreep();
+            }
+
             // Drive the same private state a tap would set, so the captured panel is the real one.
             SetPrivate(dock, "isExpanded", true);
-            SetPrivate(dock, "selectedCategory", -1);
+            SetSelectedCategory(dock, -1);
         }
 
         /// <summary>
@@ -894,7 +918,7 @@ namespace LTW.UnityClient.Editor
             }
 
             SetPrivate(dock, "isExpanded", true);
-            SetPrivate(dock, "selectedCategory", 1);
+            SetSelectedCategory(dock, 1);
         }
 
         private static void Finish(string error)

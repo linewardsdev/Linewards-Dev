@@ -78,7 +78,14 @@ namespace LTW.UnityClient.Simulation
         // rather than like a gauge sitting at zero.
         private static readonly Color LanePressureMeterBackground = new Color(0.22f, 0.25f, 0.28f, 0.92f);
 
-        private static void SetFillBarProperties(GameObject instance, Color fillColor, float fill)
+        private static void SetFillBarProperties(GameObject instance, Color fillColor, float fill) =>
+            SetFillBarProperties(instance, fillColor, fill, LanePressureMeterBackground);
+
+        /// <summary>
+        /// Shared with the creep health bars, which pass their own darker housing — every fill-bar
+        /// consumer writes the same three instanced properties through the same reused block.
+        /// </summary>
+        private static void SetFillBarProperties(GameObject instance, Color fillColor, float fill, Color background)
         {
             var renderer = instance.GetComponent<Renderer>();
             if (renderer == null)
@@ -89,7 +96,7 @@ namespace LTW.UnityClient.Simulation
             lanePressureMeterPropertyBlock ??= new MaterialPropertyBlock();
             renderer.GetPropertyBlock(lanePressureMeterPropertyBlock);
             lanePressureMeterPropertyBlock.SetColor(BaseColorPropertyId, fillColor);
-            lanePressureMeterPropertyBlock.SetColor(BackgroundColorPropertyId, LanePressureMeterBackground);
+            lanePressureMeterPropertyBlock.SetColor(BackgroundColorPropertyId, background);
             lanePressureMeterPropertyBlock.SetFloat(FillPropertyId, fill);
             renderer.SetPropertyBlock(lanePressureMeterPropertyBlock);
         }

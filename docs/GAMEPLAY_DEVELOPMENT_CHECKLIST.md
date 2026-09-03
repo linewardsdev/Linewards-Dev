@@ -426,8 +426,13 @@ simulation pays for it when it can.
       button nobody could press when they needed it.
 - [x] The card shows a count, because a tap no longer produces a creep immediately and a queued tap
       would otherwise look identical to one that did nothing.
-- [ ] **A queued send cannot be cancelled.** A mis-tap on a phone is likely and the only way out is
-      to let it drain. A long press on the card, or a tap on the count badge, would cover it. Not
-      built, and the most likely thing to annoy a real player.
+- [x] **A queued send can be cancelled** (2026-08-09). `CancelQueuedSend` removes the most recent of
+      that creep — the queue drains front-first, so taking the front entry would withdraw a different
+      send than the one just tapped. `ClearSendQueue` empties the seat. Both carry the same seat
+      authority and rate limiter as the enqueue.
+- [ ] **No button reaches the cancel yet** (`OPEN_ITEMS.md` 47). The simulation and the client adapter are done; the send
+      dock still has no affordance, so a player cannot use it. A long press on the card, or a tap on
+      the count badge, is still the suggestion. Deliberately not placed while the tablet-layout work
+      is reshaping that surface — this is the remaining half.
 - [ ] **Not played by a human.** Everything above is asserted by tests; whether queueing *feels*
       better than tapping at the right moment is unmeasured.

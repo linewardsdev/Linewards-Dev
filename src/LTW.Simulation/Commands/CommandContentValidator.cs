@@ -47,6 +47,22 @@ public sealed class CommandContentValidator
             }
         }
 
+        // A cancel names a creep, so it takes the same content checks as the enqueue it undoes.
+        // Whether anything of that creep is actually queued is a STATE question, not a content one,
+        // and belongs at the bridge where the queue lives — this only answers "is that a real creep".
+        if (command is CancelQueuedSendCommand cancel)
+        {
+            if (!cancel.CreepId.IsValid)
+            {
+                return CommandResult.Reject(CommandRejectionReason.InvalidContentId);
+            }
+
+            if (!content.Creeps.Any(creep => creep.Id.Equals(cancel.CreepId)))
+            {
+                return CommandResult.Reject(CommandRejectionReason.UnknownCreep);
+            }
+        }
+
         if (command is QueueSendCommand queueSend)
         {
             if (!queueSend.CreepId.IsValid)

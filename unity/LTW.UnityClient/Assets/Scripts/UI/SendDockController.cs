@@ -91,18 +91,78 @@ namespace LTW.UnityClient.UI
             return new Rect(frame.xMax - launcherWidth - 12f * scale, frame.yMax - launcherHeight - MobileViewportLayout.BottomMargin(scale), launcherWidth, launcherHeight);
         }
 
+        /// <summary>
+        /// Vertical offset of the card row inside the dock — below the title and gold readout.
+        /// </summary>
+        private const float DockContentTop = 84f;
+
+        /// <summary>Gap between cards, and the dock's own bottom margin under them.</summary>
+        private const float DockCardGap = 8f;
+
         private static Rect PanelRect(float scale, Rect frame)
         {
+            // On a tablet the dock lives in the right side rail, below the seats table — the same
+            // treatment the placement controls get in the left rail (item 14), and for the same
+            // reason: the rail sits beside the board, so the panel stops covering lane rows and
+            // stops asking the camera to lift. The bottom-drawer arithmetic below is the phone's.
+            if (MobileViewportLayout.HasSideRails)
+            {
+                var rail = MobileViewportLayout.SideRailRect(rightSide: true);
+                var railMargin = MobileViewportLayout.EdgeMargin(scale);
+                var top = SeatLeaderboardView.RailPanelBottom > 0f
+                    ? SeatLeaderboardView.RailPanelBottom + railMargin * 0.5f
+                    : rail.y + MobileViewportLayout.TopMargin(scale);
+                return new Rect(
+                    rail.x + railMargin * 0.5f,
+                    top,
+                    Mathf.Max(1f, rail.width - railMargin),
+                    Mathf.Max(1f, rail.yMax - top - railMargin));
+            }
+
             var width = Mathf.Min(frame.width - 16f * scale, 520f * scale);
-            var height = 330f * scale;
+
+            // Derived from the card row rather than fixed at 330, which is what left the picker
+            // with a band of empty panel under its cards and pushed the board up to make room for
+            // nothing. A card's height follows the art's aspect and the panel's WIDTH, so it can be
+            // computed here without knowing the height — no circularity, and the clamp inside
+            // CategoryCardRect (which gives up width to preserve aspect when the panel is too
+            // short) can no longer fire in the picker, because the panel is now exactly tall enough.
+            //
+            // Only the picker is derived. A selected category draws a five-creep grid whose rows are
+            // a different shape, and sizing that from the picker's arithmetic would be a guess of
+            // the same kind this replaces.
+            var cardWidth = (width - 24f * scale - DockCardGap * scale * (CategoryLabels.Length - 1)) / CategoryLabels.Length;
+            var pickerHeight = (DockContentTop + DockCardGap) * scale + cardWidth / RuntimeUiChrome.CommandCardArtAspect;
+            var height = selectedCategoryForLayout < 0 ? pickerHeight : 330f * scale;
             var launcherClearance = 136f * scale;
             return new Rect(frame.xMax - width - 8f * scale, frame.yMax - height - MobileViewportLayout.BottomMargin(scale) - launcherClearance, width, height);
+        }
+
+        /// <summary>
+        /// Mirror of <c>selectedCategory</c> for <see cref="PanelRect"/>, which is static.
+        /// </summary>
+        /// <remarks>
+        /// PanelRect is static because the board camera asks for the dock's extent through
+        /// RuntimeUiChrome without holding an instance. The dock's height now depends on which
+        /// state it is in, so that state has to be reachable from a static context. Written in one
+        /// place — the SelectedCategory setter below — so the mirror cannot drift from the field.
+        /// </remarks>
+        private static int selectedCategoryForLayout = -1;
+
+        private int SelectedCategory
+        {
+            get => selectedCategory;
+            set
+            {
+                selectedCategory = value;
+                selectedCategoryForLayout = value;
+            }
         }
 
         public void CloseDock()
         {
             isExpanded = false;
-            selectedCategory = -1;
+            SelectedCategory = -1;
         }
 
         public void Initialize(UnityCommandAdapter adapter, PlacementFeedbackView feedback)
@@ -211,13 +271,16 @@ namespace LTW.UnityClient.UI
             if (touchPlacement?.IsTowerPaletteExpanded == true)
             {
                 isExpanded = false;
-                selectedCategory = -1;
+                SelectedCategory = -1;
                 return;
             }
 
             if (!isExpanded)
             {
-                if (DrawLauncherButton(launcherRect, "SEND", SignalGold, scale))
+                // The queue total rides the launcher (item 15): a closed dock used to show nothing,
+                // so a player with sends waiting had no way to know short of reopening it.
+                var waiting = commandAdapter != null ? commandAdapter.TotalQueuedSends() : 0;
+                if (DrawLauncherButton(launcherRect, waiting > 0 ? $"SEND x{waiting}" : "SEND", SignalGold, scale))
                 {
                     touchPlacement?.CloseBottomPanelsForSend();
                     isExpanded = true;
@@ -231,12 +294,17 @@ namespace LTW.UnityClient.UI
             // inside the same 282 the creep grids use, so the dock no longer resizes under the
             // player as they step between the picker and a category.
             var rect = PanelRect(scale, frame);
+            var railMode = MobileViewportLayout.HasSideRails;
 
             // Same rule the build palette follows: tell the board camera how much of the bottom
             // this drawer covers, so the lane is lifted above it instead of hidden under it. Added
             // as the drawer grew from 282 to 330 units for the upgrade row's legibility — without
-            // it, making the panel taller would simply have hidden more of the board.
-            RuntimeUiChrome.SendDockInset = MobileViewportLayout.ViewportHeight - rect.yMin;
+            // it, making the panel taller would simply have hidden more of the board. In rail mode
+            // the panel covers no board at all, so the inset stays 0 and the camera holds still.
+            if (!railMode)
+            {
+                RuntimeUiChrome.SendDockInset = MobileViewportLayout.ViewportHeight - rect.yMin;
+            }
 
             DrawPanel(rect, PanelInk);
             DrawAccent(new Rect(rect.x, rect.yMax - 4f * scale, rect.width, 4f * scale), SignalGold);
@@ -249,7 +317,10 @@ namespace LTW.UnityClient.UI
             var titleText = selectedCategory < 0 ? "SEND" : $"SEND › {CategoryLabels[selectedCategory]}";
             titleStyle!.fontSize = Mathf.RoundToInt(12f * scale);
             titleStyle.normal.textColor = SignalGold;
-            GUI.Label(new Rect(rect.x + 12f * scale, rect.y + 10f * scale, 220f * scale, 20f * scale), titleText, titleStyle);
+            // Clamped to the panel less BACK's corner, not a fixed 220 — the rail is narrower than
+            // the drawer and a fixed width ran the title under the button.
+            var titleWidth = Mathf.Min(220f * scale, rect.width - 96f * scale);
+            GUI.Label(new Rect(rect.x + 12f * scale, rect.y + 10f * scale, titleWidth, 20f * scale), titleText, titleStyle);
             // Only one CLOSE. The launcher slot above already turned into CLOSE when the dock
             // opened, and it has to stay something other than SEND while expanded, so a second
             // CLOSE in the header was pure duplication — two controls, same owner, same action,
@@ -271,7 +342,35 @@ namespace LTW.UnityClient.UI
 
             metaStyle!.fontSize = Mathf.RoundToInt(11f * scale);
             metaStyle.normal.textColor = MintSignal;
-            GUI.Label(new Rect(rect.xMax - 204f * scale, rect.y + 12f * scale, 58f * scale, 18f * scale), $"G{gold}", metaStyle);
+            // The wide drawer hangs gold at a fixed offset from the right edge; the rail is too
+            // narrow for that and puts it under the title instead.
+            var goldRect = railMode
+                ? new Rect(rect.x + 12f * scale, rect.y + 28f * scale, 100f * scale, 18f * scale)
+                : new Rect(rect.xMax - 204f * scale, rect.y + 12f * scale, 58f * scale, 18f * scale);
+            // Explicit, not inherited: metaStyle is shared with DrawCategoryTierRow and
+            // DrawSendCards below, both of which leave its alignment wherever their OWN last label
+            // needed it. Without setting it here, this label's alignment silently depended on
+            // whichever of those last ran, so it visibly jumped depending on navigation history
+            // (reported from play on tablet 2026-08-29).
+            metaStyle.alignment = TextAnchor.MiddleLeft;
+            GUI.Label(goldRect, $"G{gold}", metaStyle);
+
+            // The queue readout (item 15): how much intent is waiting to be paid for. In the
+            // drawer it draws on the PICKER only — the grid state puts BACK in the same corner,
+            // and the per-creep counts on the cards already carry the answer there. The rail
+            // stacks its header, so it keeps the total in every state.
+            var totalQueued = commandAdapter != null ? commandAdapter.TotalQueuedSends() : 0;
+            if (totalQueued > 0 && (railMode || selectedCategory < 0))
+            {
+                metaStyle.normal.textColor = SignalGold;
+                // Explicit for the same reason the gold label above sets it: metaStyle is shared,
+                // and its alignment otherwise depends on whatever last drew with it.
+                metaStyle.alignment = TextAnchor.MiddleLeft;
+                var queueRect = railMode
+                    ? new Rect(rect.x + 12f * scale, rect.y + 46f * scale, 140f * scale, 18f * scale)
+                    : new Rect(rect.xMax - 140f * scale, rect.y + 12f * scale, 130f * scale, 18f * scale);
+                GUI.Label(queueRect, $"QUEUE {totalQueued}", metaStyle);
+            }
 
             // The shipped cooldown is 0 ticks (74b8519), so isSendCoolingDown is always false and
             // this whole block is currently inert — kept, not deleted, so the dock explains itself
@@ -285,21 +384,64 @@ namespace LTW.UnityClient.UI
             if (isSendCoolingDown && (selectedCategory < 0 || CategoryHasCooldownGatedCards(selectedCategory)))
             {
                 metaStyle.normal.textColor = SignalGold;
+                // Explicit for the same reason the two labels above set it: metaStyle is shared.
+                metaStyle.alignment = TextAnchor.MiddleLeft;
                 GUI.Label(
                     new Rect(rect.x + 12f * scale, rect.y + 28f * scale, 200f * scale, 18f * scale),
                     $"READY IN {cooldownSeconds:0.0}s",
                     metaStyle);
             }
 
-            var buttonY = rect.y + 84f * scale;
-            var buttonHeight = 84f * scale;
+            float buttonY;
+            float buttonHeight;
             var gap = 8f * scale;
+
+            if (railMode)
+            {
+                // Reuses the drawer's own card-drawing methods (DrawCategoryPicker, DrawSendCards)
+                // rather than a parallel compact layout. A custom text-row rail layout was tried
+                // first and measured wrong against its own goal: it dropped icons entirely and
+                // stacked one item per row, both regressions once it became clear how much width a
+                // real tablet's rail actually carries — the board column narrows to the game's own
+                // portrait aspect regardless of the device's, so the two side rails together
+                // commonly hold more than half the screen (MobileViewportLayout.BoardColumnFraction).
+                // Reported from play 2026-08-29: "removed the icons and are very long... we have
+                // more real estate... we should utilize it." Reusing the drawer methods restores the
+                // icons for free and turns the creep grid's five stacked rows into the drawer's own
+                // 3-then-2 layout, because both are driven by the SAME width-based card sizing the
+                // drawer already had tuned — the rail did not need new layout code, it needed the
+                // width it already had handed to the layout code that already existed.
+                //
+                // Height is derived from the first row's width through the card art's own aspect,
+                // not the drawer's fixed 84 — that constant assumes the drawer's ~500-unit cap, and
+                // holding it fixed while width grows to fill a much wider rail would flatten the
+                // card art rather than scale it up with the rest of the row.
+                var railCardWidth = (rect.width - 24f * scale - gap * 2f) / 3f;
+                buttonHeight = railCardWidth / RuntimeUiChrome.CommandCardArtAspect;
+
+                // Fixed at 68, not conditional on totalQueued. It used to drop to 50 when the queue
+                // was empty, to reclaim the QUEUE line's blank space — but that meant every category
+                // row and creep row shifted by 18 units the instant the queue crossed zero in either
+                // direction, which reads as the whole panel jumping while a player is actively
+                // tapping (reported from play 2026-08-29). Reserving the space unconditionally and
+                // simply not drawing the label when empty keeps the layout still; the cost is 18
+                // units of blank header on an empty queue, which is cheaper than a panel that jitters
+                // under a live hand.
+                buttonY = rect.y + 68f * scale;
+            }
+            else
+            {
+                buttonY = rect.y + 84f * scale;
+                buttonHeight = 84f * scale;
+            }
 
             // Explicitly three-way. This was previously a bare `else` for Category 2, which would
             // have silently rendered Category 2's grid for any new category index.
             if (selectedCategory < 0)
             {
-                DrawCategoryPicker(rect, buttonY, buttonHeight, gap, scale);
+                // 2 columns in rail mode, not 3 — see DrawCategoryPicker's own doc for why.
+                var pickerColumns = railMode ? 2 : CategoryLabels.Length;
+                DrawCategoryPicker(rect, buttonY, buttonHeight, gap, scale, pickerColumns);
             }
             else if (selectedCategory == 0)
             {
@@ -326,18 +468,36 @@ namespace LTW.UnityClient.UI
         /// fixing a height, and then, once the height was derived, spent three full-width rows
         /// stretching portrait art across them. The shared helper is the only place either can
         /// happen now.
+        ///
+        /// <paramref name="columns"/> wraps into more than one row when it is fewer than the
+        /// category count, every card sized as if every row were full — a trailing partial row
+        /// (three categories, two columns: ELITE alone) sits in the first slot rather than
+        /// stretching to fill the row. Rail mode passes 2, not 3: a rail card at three columns is
+        /// 264 units wide against the drawer's own 321 at a comparable scale (the drawer
+        /// temporarily claims nearly the whole screen, where the rail is a permanent, narrower
+        /// column), and at 264 the tier row's "NEED +70" button clipped to "EED +7" (reported from
+        /// play 2026-08-29). Two columns clears 404, comfortably past what the button needs.
         /// </remarks>
-        private void DrawCategoryPicker(Rect rect, float buttonY, float buttonHeight, float gap, float scale)
+        private void DrawCategoryPicker(Rect rect, float buttonY, float buttonHeight, float gap, float scale, int columns)
         {
             var accents = new[] { ArcaneBlue, WardViolet, SignalGold };
             var gold = CurrentPlayerGold();
+            var rowHeight = 0f;
 
             for (var category = 0; category < CategoryLabels.Length; category++)
             {
-                var cardRect = RuntimeUiChrome.CategoryCardRect(rect, buttonY, gap, category, CategoryLabels.Length, scale);
+                var row = category / columns;
+                var column = category % columns;
+                var top = buttonY + row * (rowHeight + gap);
+                var cardRect = RuntimeUiChrome.CategoryCardRect(rect, top, gap, column, columns, scale);
+                if (row == 0 && column == 0)
+                {
+                    rowHeight = cardRect.height;
+                }
+
                 if (DrawCategoryCard(cardRect, CategoryLabels[category], accents[category], scale))
                 {
-                    selectedCategory = category;
+                    SelectedCategory = category;
                 }
 
                 DrawCategoryTier(cardRect, category, accents[category], gold, scale);
@@ -653,6 +813,10 @@ namespace LTW.UnityClient.UI
                     Mathf.Lerp(displayAccent.b, 1f, 0.55f),
                     1f)
                 : displayAccent;
+            // Explicit, matching the name label above it (buttonStyle, never mutated away from its
+            // MiddleCenter default): metaStyle IS mutated elsewhere (the rail rows set it left- and
+            // right-aligned), so this card's meta line must not inherit whatever state that left.
+            metaStyle.alignment = TextAnchor.MiddleCenter;
             GUI.Label(RuntimeUiChrome.CommandCardMetaRect(rect, scale), meta, metaStyle);
             return pressed;
         }

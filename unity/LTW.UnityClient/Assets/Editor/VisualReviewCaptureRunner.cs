@@ -264,23 +264,23 @@ namespace LTW.UnityClient.Editor
             var commands = UnityEngine.Object.FindAnyObjectByType<UnityCommandAdapter>();
             var placement = UnityEngine.Object.FindAnyObjectByType<TouchPlacementController>();
             var sendDock = UnityEngine.Object.FindAnyObjectByType<SendDockController>();
-            var laneToggle = UnityEngine.Object.FindAnyObjectByType<LaneViewToggleController>();
+            var renderer = UnityEngine.Object.FindAnyObjectByType<UnityVerticalSliceRenderer>();
             var stress = UnityEngine.Object.FindAnyObjectByType<HeavySendStressHarness>();
 
-            if (driver == null || commands == null || placement == null || sendDock == null || laneToggle == null || stress == null)
+            if (driver == null || commands == null || placement == null || sendDock == null || renderer == null || stress == null)
             {
                 return;
             }
 
             if (captureMode == CaptureMode.RoleLineup)
             {
-                UpdateRoleLineup(driver, commands, placement, sendDock, laneToggle);
+                UpdateRoleLineup(driver, commands, placement, sendDock, renderer);
                 return;
             }
 
             if (captureMode == CaptureMode.ChecklistEvidence)
             {
-                UpdateChecklistEvidence(driver, commands, placement, sendDock, laneToggle);
+                UpdateChecklistEvidence(driver, commands, placement, sendDock, renderer);
                 return;
             }
 
@@ -328,20 +328,23 @@ namespace LTW.UnityClient.Editor
                     break;
 
                 case CaptureState.OpenLaneSelector:
+                    // The L1-L8 selector this state used to open was deleted when the seats table
+                    // became the lane navigation (iPad round 2, item 13). The table is permanently
+                    // up in the rail, so the same evidence — where lane navigation lives — is the
+                    // resting HUD with both docks closed.
                     SetPrivateField(sendDock, "reviewGoldOverride", -1);
                     SetPrivateBool(sendDock, "isExpanded", false);
-                    laneToggle.ToggleView();
-                    ScheduleCaptureThenAdvance("lane-selector-open");
+                    ScheduleCaptureThenAdvance("seat-table-lane-navigation");
                     break;
 
                 case CaptureState.ActiveCombat:
-                    laneToggle.ShowLaneView();
+                    renderer.SetActiveLaneCameraId(1);
                     StartCombat(driver, commands);
                     ScheduleCaptureThenAdvance("active-combat");
                     break;
 
                 case CaptureState.RunnerPressure:
-                    ResetChecklistScenario(commands, placement, sendDock, laneToggle, activeLaneId: 1);
+                    ResetChecklistScenario(commands, placement, sendDock, activeLaneId: 1);
                     driver.StartMatch();
                     GrantPlaytestGold(commands, 3, 5000);
                     PlaceReviewDefenceLine(commands);
@@ -350,7 +353,7 @@ namespace LTW.UnityClient.Editor
                     break;
 
                 case CaptureState.SwarmPressure:
-                    ResetChecklistScenario(commands, placement, sendDock, laneToggle, activeLaneId: 1);
+                    ResetChecklistScenario(commands, placement, sendDock, activeLaneId: 1);
                     driver.StartMatch();
                     GrantPlaytestGold(commands, 3, 5000);
                     PlaceReviewDefenceLine(commands);
@@ -371,7 +374,7 @@ namespace LTW.UnityClient.Editor
 
                 case CaptureState.BoardOverview:
                     SetPrivateBool(stress, "running", false);
-                    ResetChecklistScenario(commands, placement, sendDock, laneToggle, activeLaneId: 1);
+                    ResetChecklistScenario(commands, placement, sendDock, activeLaneId: 1);
                     HidePlacementReviewObjects(placement);
                     driver.RefreshSnapshot(drainEvents: true);
                     SetRendererFraming(LaneCameraFraming.BoardOverview);
@@ -411,14 +414,14 @@ namespace LTW.UnityClient.Editor
             UnityCommandAdapter commands,
             TouchPlacementController placement,
             SendDockController sendDock,
-            LaneViewToggleController laneToggle)
+            UnityVerticalSliceRenderer renderer)
         {
             switch (state)
             {
                 case CaptureState.WaitForPlayMode:
                     SetPrivateBool(placement, "isPaletteExpanded", false);
                     SetPrivateBool(sendDock, "isExpanded", false);
-                    laneToggle.ShowLaneView();
+                    renderer.SetActiveLaneCameraId(1);
                     PrepareRoleLineup(driver, commands);
                     ScheduleCaptureThenAdvance("role-lineup", 4.5d);
                     break;
@@ -444,12 +447,12 @@ namespace LTW.UnityClient.Editor
             UnityCommandAdapter commands,
             TouchPlacementController placement,
             SendDockController sendDock,
-            LaneViewToggleController laneToggle)
+            UnityVerticalSliceRenderer renderer)
         {
             switch (state)
             {
                 case CaptureState.WaitForPlayMode:
-                    ResetChecklistScenario(commands, placement, sendDock, laneToggle, activeLaneId: 1);
+                    ResetChecklistScenario(commands, placement, sendDock, activeLaneId: 1);
                     driver.StartMatch();
                     GrantPlaytestGold(commands, 3, 5000);
                     PlaceReviewDefenceLine(commands);
@@ -458,7 +461,7 @@ namespace LTW.UnityClient.Editor
                     break;
 
                 case CaptureState.OpenBuildMenu:
-                    ResetChecklistScenario(commands, placement, sendDock, laneToggle, activeLaneId: 1);
+                    ResetChecklistScenario(commands, placement, sendDock, activeLaneId: 1);
                     driver.StartMatch();
                     GrantPlaytestGold(commands, 3, 5000);
                     PlaceReviewDefenceLine(commands);
@@ -468,7 +471,7 @@ namespace LTW.UnityClient.Editor
                     break;
 
                 case CaptureState.OpenSendMenu:
-                    ResetChecklistScenario(commands, placement, sendDock, laneToggle, activeLaneId: 1);
+                    ResetChecklistScenario(commands, placement, sendDock, activeLaneId: 1);
                     driver.StartMatch();
                     GrantPlaytestGold(commands, 3, 5000);
                     PlaceReviewDefenceLine(commands);
@@ -478,7 +481,7 @@ namespace LTW.UnityClient.Editor
                     break;
 
                 case CaptureState.OpenLaneSelector:
-                    ResetChecklistScenario(commands, placement, sendDock, laneToggle, activeLaneId: 2);
+                    ResetChecklistScenario(commands, placement, sendDock, activeLaneId: 2);
                     driver.StartMatch();
                     LogCommandResult("checklist damaged transfer", commands.CreateDamagedTransferReviewCreep());
                     ScheduleCaptureThenAdvance("damaged-transfer-health", 0.2d);
@@ -486,7 +489,7 @@ namespace LTW.UnityClient.Editor
                     break;
 
                 case CaptureState.ActiveCombat:
-                    ResetChecklistScenario(commands, placement, sendDock, laneToggle, activeLaneId: 1);
+                    ResetChecklistScenario(commands, placement, sendDock, activeLaneId: 1);
                     PresentationPreferences.ReducedEffects = true;
                     StartCombat(driver, commands);
                     ScheduleCaptureThenAdvance("reduced-effects-critical-cues", 3d);
@@ -507,7 +510,6 @@ namespace LTW.UnityClient.Editor
             UnityCommandAdapter commands,
             TouchPlacementController placement,
             SendDockController sendDock,
-            LaneViewToggleController laneToggle,
             int activeLaneId)
         {
             commands.ResetMatch();
@@ -515,7 +517,6 @@ namespace LTW.UnityClient.Editor
             SetPrivateBool(placement, "isPaletteExpanded", false);
             SetPrivateBool(sendDock, "isExpanded", false);
             SetPrivateField(sendDock, "reviewGoldOverride", -1);
-            laneToggle.ShowLaneView();
             var renderer = UnityEngine.Object.FindAnyObjectByType<UnityVerticalSliceRenderer>();
             renderer?.SetActiveLaneCameraId(activeLaneId);
             ClearRendererPresentation(renderer);

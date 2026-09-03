@@ -37,7 +37,6 @@ namespace LTW.UnityClient.Simulation
             var seatLeaderboard = matchObject.AddComponent<SeatLeaderboardView>();
             var sendDock = matchObject.AddComponent<SendDockController>();
             var placement = matchObject.AddComponent<TouchPlacementController>();
-            var laneViewToggle = matchObject.AddComponent<LaneViewToggleController>();
             var camera = CreateCamera();
             CreateBackgroundCamera(camera);
             CreateLightRig(matchObject);
@@ -45,16 +44,15 @@ namespace LTW.UnityClient.Simulation
 
             renderer.Initialize(driver);
             renderer.SetPresentationCamera(camera);
-            laneViewToggle.Initialize(renderer, driver);
             hud.Initialize(driver);
-            seatLeaderboard.Initialize(driver);
+            seatLeaderboard.Initialize(driver, renderer);
             replayExporter.Initialize(driver);
             playtestRecorder.Initialize(driver, replayExporter);
             performanceSampler.Initialize(driver, renderer);
             stressHarness.Initialize(commands, performanceSampler);
             sessionOverlay.Initialize(driver, playtestRecorder, shellScreens);
             diagnosticsOverlay.Initialize(driver);
-            controls.Initialize(commands, driver, renderer, replayExporter, playtestRecorder, stressHarness, placement, laneViewToggle, feedback);
+            controls.Initialize(commands, driver, renderer, replayExporter, playtestRecorder, stressHarness, placement, feedback);
             bootstrapper.Initialize(driver, commands);
             renderer.SetCameraFraming(renderer.CameraFraming);
             CreateRuntimeHud(matchObject, camera, commands, feedback, sendDock, placement);
@@ -404,7 +402,6 @@ namespace LTW.UnityClient.Simulation
         private LocalPlaytestRecorder playtestRecorder = null!;
         private HeavySendStressHarness stressHarness = null!;
         private TouchPlacementController placement = null!;
-        private LaneViewToggleController laneViewToggle = null!;
         private PlacementFeedbackView feedback = null!;
 
         public void Initialize(
@@ -415,7 +412,6 @@ namespace LTW.UnityClient.Simulation
             LocalPlaytestRecorder recorder,
             HeavySendStressHarness harness,
             TouchPlacementController placementController,
-            LaneViewToggleController viewToggleController,
             PlacementFeedbackView feedbackView)
         {
             commands = commandAdapter;
@@ -425,7 +421,6 @@ namespace LTW.UnityClient.Simulation
             playtestRecorder = recorder;
             stressHarness = harness;
             placement = placementController;
-            laneViewToggle = viewToggleController;
             feedback = feedbackView;
         }
 
@@ -480,9 +475,13 @@ namespace LTW.UnityClient.Simulation
             if (Input.GetKeyDown(KeyCode.Minus) || Input.GetKeyDown(KeyCode.KeypadMinus)) PresentationPreferences.AdjustFeedbackVolume(-0.1f);
             if (Input.GetKeyDown(KeyCode.Equals) || Input.GetKeyDown(KeyCode.KeypadPlus)) PresentationPreferences.AdjustFeedbackVolume(0.1f);
             if (Input.GetKeyDown(KeyCode.F)) PresentationPreferences.ReducedEffects = !PresentationPreferences.ReducedEffects;
+            // Tab cycles the lane camera directly. It used to open LaneViewToggleController's
+            // L1-L8 selector; that control was deleted when the seats table became the lane
+            // navigation (iPad round 2, item 13), and a desktop dev session wants a cycle key more
+            // than a picker anyway.
             if (Input.GetKeyDown(KeyCode.Tab))
             {
-                laneViewToggle.ToggleView();
+                renderer.ToggleCameraFraming();
             }
             if (Input.GetKeyDown(KeyCode.Alpha1)) renderer.SetPresentationDetail(PresentationDetail.Full);
             if (Input.GetKeyDown(KeyCode.Alpha2)) renderer.SetPresentationDetail(PresentationDetail.Simplified);

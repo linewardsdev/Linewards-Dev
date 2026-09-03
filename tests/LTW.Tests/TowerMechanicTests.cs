@@ -185,9 +185,9 @@ public sealed class TowerMechanicTests
     // ---- Spore Cloud: Rot --------------------------------------------------------------------
 
     [Theory]
-    [InlineData("creep.runner", 8)]        // 13 max health, below the step: floors at authored 8
-    [InlineData("creep.serpent", 8)]       // 26 max health / 24 per step = 108% of base 8
-    [InlineData("creep.obsidian_brute", 13)] // 40 max health / 24 per step = 166% of base 8
+    [InlineData("creep.runner", 8)]        // 26 max health, below the step: floors at authored 8
+    [InlineData("creep.serpent", 8)]       // 52 max health / 48 per step = 108% of base 8
+    [InlineData("creep.obsidian_brute", 13)] // 80 max health / 48 per step = 166% of base 8
     public void Rot_scales_with_the_targets_authored_max_health(string creepId, int expected)
     {
         var service = new CombatService();
@@ -823,10 +823,10 @@ public sealed class TowerMechanicTests
     /// answer. Asserting the RATIO rather than absolute numbers is what makes this a scaling test.
     /// </remarks>
     [Theory]
-    [InlineData("creep.brute", 100)]          // 24 max health: exactly one multiple, so base
-    [InlineData("creep.siege", 200)]          // 48 max health: two multiples
-    [InlineData("creep.obsidian_brute", 166)] // 40 max health, cut from 48 when it became the Bulwark
-    [InlineData("creep.colossus", 325)]       // 78 max health
+    [InlineData("creep.brute", 100)]          // 48 max health: exactly one multiple, so base
+    [InlineData("creep.siege", 200)]          // 96 max health: two multiples
+    [InlineData("creep.obsidian_brute", 166)] // 80 max health, cut proportionally when it became the Bulwark
+    [InlineData("creep.colossus", 325)]       // 156 max health
     public void Rot_is_a_fixed_multiple_of_base_damage_per_target(string creepId, int expectedPercentOfBase)
     {
         var service = new CombatService();

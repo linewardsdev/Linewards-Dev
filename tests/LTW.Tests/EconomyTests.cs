@@ -13,7 +13,9 @@ public sealed class EconomyTests
         var service = CreateService();
         var players = CreatePlayers();
 
-        var result = service.QueueSend(players, new PlayerId(1), Runner(), quantity: 2, new SimulationTick(10));
+        // Tick 1000, not 10: past OpeningEconomyRules.RampEndTick, so this test's carousel and
+        // income assertions are not entangled with the separate opening-discount curve.
+        var result = service.QueueSend(players, new PlayerId(1), Runner(), quantity: 2, new SimulationTick(1000));
 
         Assert.True(result.Accepted);
         Assert.Equal(new PlayerId(2), result.TargetPlayerId);
@@ -29,7 +31,9 @@ public sealed class EconomyTests
         var service = CreateService();
         var players = CreatePlayers(gold: 5);
 
-        var result = service.QueueSend(players, new PlayerId(1), Runner(), quantity: 1, new SimulationTick(10));
+        // Tick 1000, not 10: past the opening discount's ramp, so 5 gold is short of Runner's
+        // full 10 rather than incidentally covering its discounted price.
+        var result = service.QueueSend(players, new PlayerId(1), Runner(), quantity: 1, new SimulationTick(1000));
 
         Assert.False(result.Accepted);
         Assert.Equal(CommandRejectionReason.InsufficientGold, result.RejectionReason);
@@ -50,10 +54,12 @@ public sealed class EconomyTests
     {
         var service = CreateService(sendCooldownTicks: 30);
         var players = CreatePlayers();
-        var first = service.QueueSend(players, new PlayerId(1), Runner(), quantity: 1, new SimulationTick(10));
+        // 1000/1010/1030, not 10/20/40: past the opening discount's ramp, so this test's gold
+        // pins stay about the cooldown alone rather than the separate discount curve.
+        var first = service.QueueSend(players, new PlayerId(1), Runner(), quantity: 1, new SimulationTick(1000));
         Assert.True(first.Accepted);
 
-        var insideWindow = service.QueueSend(first.Players, new PlayerId(1), Runner(), quantity: 1, new SimulationTick(20));
+        var insideWindow = service.QueueSend(first.Players, new PlayerId(1), Runner(), quantity: 1, new SimulationTick(1010));
 
         Assert.False(insideWindow.Accepted);
         Assert.Equal(CommandRejectionReason.CooldownActive, insideWindow.RejectionReason);
@@ -62,7 +68,7 @@ public sealed class EconomyTests
         Assert.Equal(11, insideWindow.Players.Get(new PlayerId(1)).Income.Amount);
 
         // Exactly at first send tick + cooldown the next send is allowed again.
-        var afterWindow = service.QueueSend(first.Players, new PlayerId(1), Runner(), quantity: 1, new SimulationTick(40));
+        var afterWindow = service.QueueSend(first.Players, new PlayerId(1), Runner(), quantity: 1, new SimulationTick(1030));
 
         Assert.True(afterWindow.Accepted);
         Assert.Equal(80, afterWindow.Players.Get(new PlayerId(1)).Gold.Amount);
@@ -338,7 +344,9 @@ public sealed class EconomyTests
         var service = CreateService(sendCooldownTicks: 30);
         var players = CreatePlayers(gold: 4);
 
-        var result = service.QueueSend(players, new PlayerId(1), ExemptCreep(), quantity: 1, new SimulationTick(10));
+        // Tick 1000, not 10: past the opening discount's ramp, so 4 gold is short of the exempt
+        // creep's full price rather than incidentally covering its discounted one.
+        var result = service.QueueSend(players, new PlayerId(1), ExemptCreep(), quantity: 1, new SimulationTick(1000));
 
         Assert.False(result.Accepted);
         Assert.Equal(CommandRejectionReason.InsufficientGold, result.RejectionReason);
@@ -364,11 +372,14 @@ public sealed class EconomyTests
         var service = CreateService();
         var swarm = Swarm();
 
-        var affordable = service.QueueSend(CreatePlayers(gold: 18), new PlayerId(1), swarm, quantity: 3, new SimulationTick(10));
+        // Tick 1000, not 10: past the opening discount's ramp, so 18 and 15 stay pinned against
+        // Swarm's full 6-each price the way the doc comment above describes, rather than a
+        // discounted one this test was not written to reason about.
+        var affordable = service.QueueSend(CreatePlayers(gold: 18), new PlayerId(1), swarm, quantity: 3, new SimulationTick(1000));
         Assert.True(affordable.Accepted);
         Assert.Equal(0, affordable.Players.Get(new PlayerId(1)).Gold.Amount);
 
-        var shortOfTheTotal = service.QueueSend(CreatePlayers(gold: 15), new PlayerId(1), swarm, quantity: 3, new SimulationTick(10));
+        var shortOfTheTotal = service.QueueSend(CreatePlayers(gold: 15), new PlayerId(1), swarm, quantity: 3, new SimulationTick(1000));
         Assert.False(shortOfTheTotal.Accepted);
         Assert.Equal(CommandRejectionReason.InsufficientGold, shortOfTheTotal.RejectionReason);
         Assert.Equal(15, shortOfTheTotal.Players.Get(new PlayerId(1)).Gold.Amount);

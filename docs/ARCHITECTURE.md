@@ -82,6 +82,8 @@ Initial command types:
 | `SellTower` | Remove an owned tower for the allowed refund. |
 | `QueueSend` | Spend gold to send a creep to the next carousel lane, now. |
 | `EnqueueSend` | Add one creep to this seat's send queue, to be paid for when gold allows. |
+| `CancelQueuedSend` | Take back this seat's most recent queued send of one creep, before it is paid for. |
+| `ClearSendQueue` | Empty this seat's whole send queue, returning how many entries went. |
 | `BuyTech` | Unlock a permitted tech tier or branch. |
 | `SetBlueprintStep` | Request the next legal placement from a saved template. |
 | `PauseSimulation` | Prototype-only local pause control. |
@@ -91,6 +93,16 @@ Initial command types:
 `EnqueueSend` exists because the game is played on a phone: sending means opening the dock, finding
 a card and tapping it, and a player cannot be asked to do that at the instant income lands. A tap
 states intent; the simulation pays for it when it can. Up to ten of any one creep may wait per seat.
+
+A queued tap can be taken back. `CancelQueuedSend` removes the **last** matching entry rather than
+the first: the queue drains front-first, so the front entry is the next thing to leave, and
+cancelling it would withdraw a different send than the one just tapped — the opposite of an undo.
+**No control on screen reaches either yet** — `OPEN_ITEMS.md` 47. The commands and the client
+adapter are done; the send dock has no affordance, so from a player's side the queue is still
+one-way. `ClearSendQueue` is the bulk form and returns a count rather than a result, because an already-empty
+queue is a normal state rather than a refusal. Neither is gated on elimination: an eliminated seat
+cannot enqueue, so whatever remains in its queue is stranded, and refusing to clear it would be
+refusing to tidy up after a rule enforced elsewhere.
 
 Three properties are load-bearing rather than incidental:
 

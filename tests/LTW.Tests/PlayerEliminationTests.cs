@@ -65,19 +65,61 @@ public sealed class PlayerEliminationTests
     }
 
     [Fact]
-    public void Wiping_a_lane_leaves_other_lanes_and_the_eliminated_players_own_creeps_alone()
+    public void Wiping_a_lane_leaves_other_lanes_playing_but_removes_none_of_the_eliminated_players_own_creeps_elsewhere()
     {
         var slice = RunUntilEliminated(out var victim, out _);
         var lane = new LaneId(victim.Value);
         var snapshot = slice.GetSnapshot();
 
-        // Only the defeated seat's lane is cleared; every other lane keeps playing.
+        // Only the defeated seat's lane is cleared as a LANE; every other lane keeps playing.
         Assert.All(snapshot.Creeps, creep => Assert.NotEqual(lane, creep.LaneId));
         Assert.Contains(snapshot.Players.Players, p => !p.IsEliminated);
 
-        // Creeps the eliminated player SENT are somebody else's problem now, not deleted with them.
-        var theirCreepsElsewhere = snapshot.Creeps.Count(c => c.SenderId.Equals(victim));
-        output.WriteLine($"creeps still in flight that P{victim.Value} sent: {theirCreepsElsewhere}");
+        // Creeps the eliminated player SENT die with them too, wherever they currently are — see
+        // Wiping_a_lane_also_kills_the_eliminated_players_creeps_walking_someone_elses_lane below
+        // for the deterministic version of this. Renamed from "...own_creeps_alone", which asserted
+        // the opposite of this on nothing but a name and an unused count: those creeps used to keep
+        // marching and leaking against a life that could never be credited to anyone (reported from
+        // play 2026-08-29), so this test's own name was the last place that claim survived.
+        Assert.DoesNotContain(snapshot.Creeps, creep => creep.SenderId.Equals(victim));
+    }
+
+    /// <summary>
+    /// A creep an eliminated seat SENT dies immediately too, even though it is walking a lane that
+    /// belongs to somebody else entirely.
+    /// </summary>
+    /// <remarks>
+    /// Deterministic companion to the test above, which only observes whatever an organic 40,000-tick
+    /// elimination happened to leave mid-flight. Built by hand instead: P1 sends into P2's lane, P1
+    /// is eliminated directly (not P2), and the creep P1 sent is still sitting in P2's lane at that
+    /// moment — the exact shape of the reported bug, with nothing left to chance.
+    ///
+    /// The reported defect was two-sided and this pins both: the creep must actually be gone (not
+    /// merely orphaned and still marching), and the CreepKilledEvent reporting it must name P2 — the
+    /// lane's real, living defender — as DefenderId, not P1, who has nothing left to be defended.
+    /// </remarks>
+    [Fact]
+    public void Wiping_a_lane_also_kills_the_eliminated_players_creeps_walking_someone_elses_lane()
+    {
+        var slice = new LocalVerticalSlice(SampleVerticalSliceContent.Create(), new LocalMatchOptions(seed: 1, laneCount: 3), enableBots: false);
+        var sender = new PlayerId(1);
+        var defenderLane = new LaneId(2);
+
+        Assert.True(slice.QueueSend(sender, SampleVerticalSliceContent.CreepId).Accepted);
+        slice.AdvanceOneTick();
+        slice.DrainEvents();
+
+        var inFlight = Assert.Single(slice.GetSnapshot().Creeps);
+        Assert.Equal(sender, inFlight.SenderId);
+        Assert.Equal(defenderLane, inFlight.LaneId);
+
+        slice.EliminateForLocalPlaytest(sender);
+
+        Assert.Empty(slice.GetSnapshot().Creeps);
+
+        var killed = Assert.Single(slice.DrainEvents().OfType<CreepKilledEvent>());
+        Assert.Equal(inFlight.EntityId, killed.CreepEntityId);
+        Assert.Equal(new PlayerId(2), killed.DefenderId);
     }
 
     /// <summary>

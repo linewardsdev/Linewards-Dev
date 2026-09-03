@@ -182,7 +182,15 @@ public sealed class EightLaneCarouselTests
         // match length went 5664 -> 5684, 0.4%, against this project's 20% bar for meaningful. The
         // repricing moved value between the lines rather than adding it, and what changed here is
         // which seats drew the line that got cheaper on THIS seed.
-        for (var tick = 0; tick < 1800 && slice.MatchSummary is null; tick++)
+        //
+        // 2100, not 1800, with the 2x creep roster (2026-08-19). Repaid a third time, and for the
+        // same reason: P1 is eliminated at 1944 and the eighth seat is pressured six ticks later, so
+        // the bet is still on when the undefended seat dies. Note the direction — P1 opens on 40
+        // lives now rather than 100, and STILL dies later, because sends cost twice as much and a
+        // seat that is leaked into half as often outlives a much larger life pool. Same check as
+        // before against hiding a buff: mean match length over seeds 1-3 at three and eight lanes
+        // went 3655 -> 3693, 1%, against the 20% bar (docs/CREEP_SCALING_PLAN.md).
+        for (var tick = 0; tick < 2100 && slice.MatchSummary is null; tick++)
         {
             slice.AdvanceOneTick();
             foreach (var queued in slice.DrainEvents().OfType<CreepQueuedEvent>())

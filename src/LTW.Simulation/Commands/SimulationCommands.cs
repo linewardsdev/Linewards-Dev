@@ -102,6 +102,32 @@ public sealed class EnqueueSendCommand : ISimulationCommand
 }
 
 /// <summary>
+/// Removes one queued send that has not yet been paid for and dispatched.
+/// </summary>
+/// <remarks>
+/// A command rather than a direct list edit for the same reason EnqueueSendCommand is one: the day
+/// this runs against an authoritative server, a cancel has to travel, be validated and be accepted
+/// or refused on the same terms as the enqueue it undoes. A client that could only add would leave
+/// players unable to take back a mis-tap, which on a touch screen is the more common mistake.
+/// </remarks>
+public sealed class CancelQueuedSendCommand : ISimulationCommand
+{
+    public CancelQueuedSendCommand(PlayerId playerId, SimulationTick requestedTick, ContentId creepId)
+    {
+        PlayerId = playerId;
+        RequestedTick = requestedTick;
+        CreepId = creepId;
+    }
+
+    public PlayerId PlayerId { get; }
+
+    public SimulationTick RequestedTick { get; }
+
+    public ContentId CreepId { get; }
+}
+
+
+/// <summary>
 /// Which side of the roster a category tier applies to.
 /// </summary>
 public enum CategoryKind

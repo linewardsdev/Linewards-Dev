@@ -315,7 +315,29 @@ if it doesn't, the static LODs stay as sub-legibility fallbacks and this item cl
 
 ---
 
-## 43. Two bot profiles hoard gold and die holding it
+## 43. Two bot profiles hoard gold and die holding it — CLOSED 2026-08-09, by measurement
+
+**Re-measured before being worked on, and the premise no longer holds.** Three seeds, eight lanes,
+900 ticks each:
+
+| | when filed (2026-08-07) | measured 2026-08-09 |
+| --- | --- | --- |
+| gold held | ~29,000 | **79-126** |
+| sends per bot | rare (~2.5% of ticks) | **94-152 across three seeds** |
+
+Nothing was written to fix this. It was closed by the two changes that came between: the pressure
+threshold learning to scale with `MatchEscalationRules.CreepHealthPercentFor` (before which
+non-Greedy bots latched permanently "under pressure" and `TrySend` returned early forever), and
+role-based build orders, which stopped a bot stalling when the next tower its profile named was
+priced dearly in the line it had committed to.
+
+Recorded rather than deleted because the lesson is reusable: this was on the shortlist as "the
+biggest open design item" on the strength of a two-day-old number, and one diagnostic run retired it.
+Re-measure a balance finding before building on it. The diagnostic was deliberately NOT kept as a
+test — a permanent assertion around a problem that no longer exists is a maintenance cost with no
+signal behind it.
+
+### Original report
 
 Found 2026-08-07 in the same playthrough. Final state of the reference match:
 
@@ -618,6 +640,18 @@ the new title screen is two different games in one frame (see the shell captures
 HUD migration will look worse than either endpoint until it finishes. Wave 3.1-3.2.
 
 ## 11. Seven creeps have no animation, and the eight that do have one clip
+
+**Wave 2.4 audited 2026-08-09: all four are non-walkers and the wave produces NO rigs.** Shade is a
+single stalk, swarm a core with satellites, revenant a layered petal mass, wisp a floating orb in a
+gyroscopic ring — measured, then confirmed by match-camera render. See
+`docs/CREEP_RIG_WAVE_2_4_PLAN.md`. What remains is confirming each one's procedural motion style
+fits its body plan, not rigging.
+
+**Original plan note:** It is
+deliberately not a plan to build four rigs — three of the four already carry deliberate procedural
+motion styles (`ClusterJitter`, `Shimmer`, `Hover`) and rigging suppresses most of that motion
+rather than adding to it, so the plan's first job is deciding per creep whether a skeleton is an
+improvement. Four answers, not four rigs.
 
 - **No Animator at all:** revenant, runner, serpent, shade, siege, swarm, wisp. Verified
   2026-07-31, the list is exactly right.
@@ -1128,6 +1162,61 @@ it should report the overwrite, and probably refuse it without an explicit flag.
 Same shape as item 39 — a tool and its data disagree, and the tool wins quietly.
 
 ---
+
+## 48. The send dock's category cards render their content over the card art
+
+Reported from a local play session 2026-08-09, with a screenshot. Distinct from item 47 and from
+the dock height fixed the same day — this is the CARDS, not the panel.
+
+Three faults visible on all three picker cards (CORE / SUPPORT / ELITE):
+
+1. **The label sits on the art's frame** rather than inside its inner panel. `DrawCategoryCard`
+   places the label at `rect.height * 0.20` and "5 SENDS" at `0.44`, both fractions of the WHOLE
+   card. The art is a bordered frame whose usable interior is inset from that rect, so a fraction of
+   the outer height lands on the border.
+2. **The tier button is clipped.** `NEED +60` is cut off at both ends, so the row is being drawn
+   into less width than it asks for.
+3. **A translucent square sits in each card's upper-left corner**, over the art. Unexplained; it
+   looks like a chrome or state overlay drawn at the wrong rect rather than anything deliberate.
+
+**Why fractions of the outer rect are the wrong basis:** the same reasoning
+`RuntimeUiChrome.CategoryCardRect` already applies to the card's outer size — derive from the art
+rather than assume — has never been applied to what goes INSIDE it. The card art has a known inner
+region, and every label should be laid out against that, not against the card's bounding box. Until
+it is, any change to the art's border thickness silently moves the text onto or off the frame.
+
+**Not attempted here** because it wants the art's inner-region inset measured from the source PNG
+rather than guessed, and a capture to confirm — the same discipline `TowerMotionAmplitudeProbe`
+exists to enforce for motion. Guessing an inset would land in exactly the same place by a different
+route.
+
+## 47. The send-queue cancel exists but nothing on screen reaches it
+
+Filed 2026-08-09, the same day the cancel was built.
+
+`CancelQueuedSend` and `ClearSendQueue` are done, tested and merged, and
+`UnityCommandAdapter` exposes both. **No control calls either**, so from a player's side the send
+queue is still one-way and the checklist item this closed — "a mis-tap on a phone is likely and the
+only way out is to let it drain" — is still true in the hands.
+
+This is worth a numbered item rather than a note because the shape is a known trap: the simulation
+is green, the tests pass, the docs describe a working feature, and none of that is visible to
+anyone playing. A future reader grepping for `CancelQueuedSend` finds a complete implementation and
+would reasonably conclude the work is finished.
+
+**Why it was left:** the send dock is being actively reshaped by the tablet-layout work
+(`fix/tablet-viewport`, and the rail/`HasSideRails` split in `TouchPlacementController.Gui`).
+Placing an affordance into a surface another session is rewriting invites a conflict that neither
+side would notice until it shipped. This is a sequencing decision, not a difficulty one.
+
+**What it needs:** one affordance on the send card. A long press, or a tap on the existing count
+badge — the badge is already drawn and already means "how many are queued", which makes it the
+cheapest place to hang "remove one". `ClearSendQueue` wants a separate home, since a full clear
+should not be reachable by the same gesture that removes one.
+
+**How to know it is done:** queue three of a creep, cancel once, and see the badge go to two without
+a creep having been sent. There is no test to write here that is not already written — the
+behaviour is pinned by `SendQueueTests`; what is missing is exclusively the control.
 
 ## 39. Every creep *and tower* body material is at smoothness 0.42 against a constant of 0.45, so the tuning validators fail roster-wide
 

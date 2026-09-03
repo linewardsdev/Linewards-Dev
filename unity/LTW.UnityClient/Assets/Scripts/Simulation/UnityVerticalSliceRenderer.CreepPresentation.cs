@@ -254,52 +254,110 @@ namespace LTW.UnityClient.Simulation
         }
 
         private static bool IsHealthBarPart(string name) =>
-            name == "HealthBarBack" || name == "HealthBarFill" || name == "HealthBarMidTick" || name == "HealthWoundPip";
+            name == "HealthBarQuad" || name == "HealthBarBack" || name == "HealthBarFill" || name == "HealthBarMidTick" || name == "HealthWoundPip";
+
+        /// <summary>Dark housing behind the fill — the same read as the lane gauges' housing.</summary>
+        private static readonly Color HealthBarHousing = new Color(0.015f, 0.022f, 0.035f, 0.94f);
 
         /// <summary>
-        /// Two-piece health bar: a dark backing and a coloured fill, shown only once a creep has
-        /// actually taken damage.
+        /// One unlit fill-bar quad per creep, shown only once a creep has actually taken damage.
         /// </summary>
         /// <remarks>
-        /// This used to stack four separate cubes per creep — backing, fill, a dark mid-tick
-        /// splitting the fill in half, and a red "wound pip" hanging off the end — and drew all of
-        /// them on every creep at all times, including at full health. On screen that read as a
-        /// cluster of unrelated coloured lines floating above each unit rather than as one bar, and
-        /// at the spawn gate it appeared as a stray green/red streak before its creep was even
-        /// visible. The mid-tick and wound pip carried no information the fill width did not
-        /// already convey, so both are gone; hiding the bar at full health removes it entirely for
-        /// most units most of the time.
+        /// This went through three shapes. Four cubes (backing, fill, mid-tick, wound pip) read as
+        /// a cluster of unrelated lines; two cubes read as one bar but a BLOCKY one — cubes are lit
+        /// scene geometry, so the bar picked up specular and shadow like a crate, the camera saw
+        /// its side faces as a second tone, and the fill-over-backing stack seamed where the two
+        /// boxes met (iPad round 2 feedback: "blocky, hard to read, very little value").
+        ///
+        /// Now it is the SAME instrument as the lane pressure gauges: one fixed quad through
+        /// LTW/Fill Bar, unlit so lighting cannot touch it, fill expressed as the shader's _Fill
+        /// threshold with an anti-aliased edge rather than by rescaling geometry, and the housing
+        /// carried by _BackgroundColor so bar and backing cannot seam. Every damaged creep's bar
+        /// shares the gauges' one mesh and one instanced material, differing only by property
+        /// block — which also retires the CreatePrimitive path that once handed these bars a null
+        /// material in a player build (the magenta bars of 2026-08-01).
+        ///
+        /// The quad lies FLAT, face-up, like the lane gauges — deliberately not billboarded.
+        /// Billboarding was tried first and photographed worse: tilting a bar toward the camera
+        /// leans it into the screen space of the creep marching behind it, and in a packed train
+        /// (the normal case for the cheap creeps that die slowly enough to show bars) each bar
+        /// vanished behind its neighbour's body. Flat, the bar stays inside its own creep's
+        /// footprint. The camera's tilt foreshortens a flat quad, so Depth is drawn scaled up to
+        /// compensate. Hiding at full health is kept — most units most of the time carry no bar
+        /// at all, which is most of the "very little value" complaint answered.
         /// </remarks>
         private static void ConfigureCreepHealthBar(GameObject creepObject, string creepId, float healthFraction)
         {
+            // Retired shapes: pooled creeps can carry cubes over from a previous life, so they are
+            // explicitly switched off rather than merely no longer created.
+            DeactivateChild(creepObject, "HealthBarBack");
+            DeactivateChild(creepObject, "HealthBarFill");
+            DeactivateChild(creepObject, "HealthBarMidTick");
+            DeactivateChild(creepObject, "HealthWoundPip");
+
+            // The settings toggle. Checked before CreepBodyTop's renderer walk, not after, so
+            // turning bars off actually saves the per-creep measurement rather than just hiding
+            // its result — the point of a "clean it up or remove it" pass is a real off switch,
+            // not a bar that still costs a frame it never draws.
+            if (!PresentationPreferences.HealthBarsVisible)
+            {
+                DeactivateChild(creepObject, "HealthBarQuad");
+                return;
+            }
+
             var metrics = CreepHealthBarMetrics.For(creepId);
 
             // Measure before the bar parts exist, so they cannot inflate the body's top.
             var bodyTop = CreepBodyTop(creepObject, creepId);
             var barY = bodyTop > 0f ? bodyTop + HealthBarGap : metrics.Y;
 
-            var back = EnsureChild(creepObject, "HealthBarBack", PrimitiveType.Cube);
-            var fill = EnsureChild(creepObject, "HealthBarFill", PrimitiveType.Cube);
+            var bar = EnsureFillBarChild(creepObject, "HealthBarQuad");
 
             var damaged = healthFraction < 0.999f;
-            back.SetActive(damaged);
-            fill.SetActive(damaged);
+            bar.SetActive(damaged);
             if (!damaged)
             {
-                DeactivateChild(creepObject, "HealthBarMidTick");
-                DeactivateChild(creepObject, "HealthWoundPip");
                 return;
             }
 
-            ConfigureHealthBarChild(back, new Vector3(0f, barY, metrics.Z), new Vector3(metrics.Width, metrics.Height, metrics.Depth), new Color(0.015f, 0.022f, 0.035f));
-            var fillWidth = Mathf.Max(metrics.MinFillWidth, metrics.Width * Mathf.Clamp01(healthFraction));
-            var fillX = (fillWidth - metrics.Width) * 0.5f;
-            ConfigureHealthBarChild(fill, new Vector3(fillX, barY + metrics.FillLift, metrics.Z), new Vector3(fillWidth, metrics.Height * 1.12f, metrics.Depth * 1.08f), CreepHealthColor(healthFraction));
+            bar.transform.localPosition = new Vector3(0f, barY, 0f);
+            // Width and Depth are LOCAL units under the creep's own uniform scale, so the bar
+            // tracks its unit's size the way the cubes did. Both are drawn scaled up from the
+            // authored constants: those were tuned against the flat 2D plates, and against the 3D
+            // bodies they photographed at about a third of the model's span — too small to carry
+            // information at gameplay zoom. Depth's 1.6x also buys back what the camera tilt
+            // foreshortens out of a flat quad.
+            bar.transform.localScale = new Vector3(metrics.Width * 1.35f, 1f, metrics.Depth * 1.6f);
+            // World identity, not local: the mesh faces +Y with U along X, and the creep root
+            // rotates to face its travel direction — without this override the bar would swing
+            // with every turn the way the old cubes were also pinned flat.
+            bar.transform.rotation = Quaternion.identity;
 
-            // Retired parts: pooled creeps can carry them over from a previous life, so they are
-            // explicitly switched off rather than merely no longer created.
-            DeactivateChild(creepObject, "HealthBarMidTick");
-            DeactivateChild(creepObject, "HealthWoundPip");
+            SetFillBarProperties(bar, CreepHealthColor(healthFraction), Mathf.Clamp01(healthFraction), HealthBarHousing);
+        }
+
+        /// <summary>
+        /// A pooled child rendering the shared fill-bar mesh and instanced material — the creep
+        /// bar's equivalent of <c>GetLanePressureMeter</c>, minus the per-lane dictionary because
+        /// the child lives on the creep it belongs to.
+        /// </summary>
+        private static GameObject EnsureFillBarChild(GameObject parent, string name)
+        {
+            var existing = parent.transform.Find(name);
+            if (existing != null)
+            {
+                return existing.gameObject;
+            }
+
+            var child = new GameObject(name);
+            child.transform.SetParent(parent.transform, false);
+            var meshFilter = child.AddComponent<MeshFilter>();
+            meshFilter.sharedMesh = BoardRenderResources.FillBarMesh;
+            var meshRenderer = child.AddComponent<MeshRenderer>();
+            meshRenderer.sharedMaterial = BoardRenderResources.FillBarMaterial;
+            meshRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            meshRenderer.receiveShadows = false;
+            return child;
         }
 
         private static void DeactivateChild(GameObject root, string childName)
@@ -309,12 +367,6 @@ namespace LTW.UnityClient.Simulation
             {
                 child.gameObject.SetActive(false);
             }
-        }
-
-        private static void ConfigureHealthBarChild(GameObject child, Vector3 localPosition, Vector3 localScale, Color color)
-        {
-            ConfigureChild(child, true, localPosition, localScale, color);
-            child.transform.rotation = Quaternion.identity;
         }
 
         private static Color CreepHealthColor(float healthFraction)
@@ -1268,6 +1320,7 @@ namespace LTW.UnityClient.Simulation
 
         private static readonly string[] CreepHealthOverlayNames =
         {
+            "HealthBarQuad",
             "HealthBarBack",
             "HealthBarFill",
             "HealthBarMidTick",
