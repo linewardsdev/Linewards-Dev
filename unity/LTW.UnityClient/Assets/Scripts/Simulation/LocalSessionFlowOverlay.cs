@@ -12,15 +12,23 @@ namespace LTW.UnityClient.Simulation
     /// Title, pause and results are no longer drawn here. They are full-screen UI Toolkit
     /// compositions in <see cref="UI.ShellScreenView"/>, and this component drives that view and
     /// receives its taps through <see cref="IShellScreenActions"/>. What stays in IMGUI is the
-    /// second rank of panels — READY, HOW TO PLAY, SETTINGS, the opening build countdown and the
-    /// live pause/reset rail — because those are not the screens this pass was asked to replace and
-    /// migrating them would have meant migrating the whole HUD with them.
+    /// second rank of panels — READY, SETTINGS, the opening build countdown and the live
+    /// pause/reset rail — because those are not the screens this pass was asked to replace and
+    /// migrating them would have meant migrating the whole HUD with them. HOW TO PLAY left that
+    /// rank with the practice pass: the shell view draws it itself now, and the coach strip the
+    /// view also owns is driven from here through <see cref="TutorialDirector"/>.
     ///
     /// The split does not move the decision anywhere. This component still computes the session
     /// state, still publishes <see cref="RuntimeUiChrome.ModalScreenActive"/> from it, and still
     /// performs every action; the view only renders and reports. Principle 3 of
     /// docs/GAME_MENU_AND_RUNTIME_FLOW.md — opening a menu must not mutate simulation state — is
     /// therefore still enforced in one place.
+    ///
+    /// Practice is a match, not a mode. It is the ordinary match with every bot on the passive
+    /// profile and the coach strip running, entered from the title at any time or offered once on
+    /// the first START GAME. It ends the way any match ends — reset, rematch or exit — and each of
+    /// those restores the normal options, so there is no state in which a "normal" match could
+    /// quietly start with passive bots.
     /// </remarks>
     public sealed class LocalSessionFlowOverlay : MonoBehaviour, IShellScreenActions
     {
@@ -42,13 +50,14 @@ namespace LTW.UnityClient.Simulation
         private GUIStyle? smallStyle;
         private bool showSettings;
         private PreMatchScreen preMatchScreen = PreMatchScreen.Title;
+        private TutorialDirector? tutorialDirector;
 
         private enum PreMatchScreen
         {
             Title,
             Ready,
-            HowTo,
-            Codex
+            Codex,
+            FirstRunOffer
         }
 
         public void Initialize(UnitySimulationDriver driver, LocalPlaytestRecorder recorder, ShellScreenView? shellScreenView = null)
@@ -103,6 +112,11 @@ namespace LTW.UnityClient.Simulation
             // The music is told a menu is up, from the same state and the same frame. Title,
             // pause and results are all "no board to answer", so all three score the same way.
             LTWAudioDirector.Instance?.SetMenuScored(screen != ShellScreen.None);
+
+            // Same frame, same state again: the coach strip hides under exactly the panels that
+            // own the display — pause, results, settings — and not under the build countdown,
+            // which is playable and is where its first two steps happen.
+            tutorialDirector?.Tick(suppressed: simulationDriver is not null && OwnsDisplay);
         }
 
         private void OnDisable()
@@ -113,15 +127,22 @@ namespace LTW.UnityClient.Simulation
             LTWAudioDirector.Instance?.SetMenuScored(false);
         }
 
+        private void OnDestroy()
+        {
+            // The director subscribed to the strip's events; the strip may outlive this component.
+            tutorialDirector?.Dispose();
+            tutorialDirector = null;
+        }
+
         /// <summary>
         /// Which full-screen shell composition should be up this frame, if any.
         /// </summary>
         /// <remarks>
         /// Deliberately a narrower question than <see cref="OwnsDisplay"/>, and the two are not
-        /// interchangeable. READY, HOW TO PLAY, SETTINGS and the opening build countdown are all
-        /// still IMGUI, so they own the display without a UI Toolkit screen behind them; the tests
-        /// below are ordered to match <see cref="OnGUI"/> exactly so the two can never disagree
-        /// about which state is active.
+        /// interchangeable. READY, SETTINGS and the opening build countdown are all still IMGUI,
+        /// so they own the display without a UI Toolkit screen behind them; the tests below are
+        /// ordered to match <see cref="OnGUI"/> exactly so the two can never disagree about which
+        /// state is active.
         ///
         /// SETTINGS is the one case where a shell screen stays up underneath: the IMGUI settings
         /// panel draws over the runtime panel, so leaving the title or pause composition behind it
@@ -148,6 +169,7 @@ namespace LTW.UnityClient.Simulation
                     {
                         PreMatchScreen.Title => ShellScreen.Title,
                         PreMatchScreen.Codex => ShellScreen.Codex,
+                        PreMatchScreen.FirstRunOffer => ShellScreen.FirstRunOffer,
                         _ => ShellScreen.None
                     };
                 }
@@ -224,23 +246,17 @@ namespace LTW.UnityClient.Simulation
 
             if (!simulationDriver.HasStarted)
             {
-                // Both of the pre-match states that ARE UI Toolkit screens bail here. Testing only
-                // for Title would leave the codex falling through to DrawReadyPanel below, which
-                // would draw the IMGUI READY card straight over the top of it — the failure is not
-                // a missing screen but two screens at once, so it does not look like a wiring bug.
-                if (preMatchScreen is PreMatchScreen.Title or PreMatchScreen.Codex)
+                // Every pre-match state that IS a UI Toolkit screen bails here. Testing only for
+                // Title would leave the codex (or the first-run offer) falling through to
+                // DrawReadyPanel below, which would draw the IMGUI READY card straight over the top
+                // of it — the failure is not a missing screen but two screens at once, so it does
+                // not look like a wiring bug.
+                if (preMatchScreen is PreMatchScreen.Title or PreMatchScreen.Codex or PreMatchScreen.FirstRunOffer)
                 {
                     return;
                 }
 
                 RuntimeUiChrome.DrawModalScrim();
-
-                if (preMatchScreen == PreMatchScreen.HowTo)
-                {
-                    DrawHowToPanel(scale);
-                    return;
-                }
-
                 DrawReadyPanel(scale);
                 return;
             }
@@ -253,41 +269,6 @@ namespace LTW.UnityClient.Simulation
             // The live rail is the one state that is NOT modal — it sits alongside the HUD during
             // play rather than taking the screen, so it gets no scrim and blocks nothing.
             DrawLiveRail(scale);
-        }
-
-        private void DrawHowToPanel(float scale)
-        {
-            var panel = CenteredPanel(scale, 348f, 292f);
-            DrawPanel(panel, scale);
-
-            DrawLabel(panel.x + 22f * scale, panel.y + 18f * scale, panel.width - 44f * scale, 28f * scale, "HOW TO PLAY", titleStyle!, TextAnchor.MiddleCenter);
-            DrawLabel(panel.x + 26f * scale, panel.y + 50f * scale, panel.width - 52f * scale, 24f * scale, "The current prototype is a fast eight-lane systems test.", bodyStyle!, TextAnchor.MiddleCenter);
-
-            var textX = panel.x + 30f * scale;
-            var textY = panel.y + 86f * scale;
-            var textWidth = panel.width - 60f * scale;
-            var lineHeight = 30f * scale;
-
-            DrawLabel(textX, textY, textWidth, lineHeight, "1. Build towers on your lane platforms.", smallStyle!, TextAnchor.MiddleLeft);
-            DrawLabel(textX, textY + lineHeight, textWidth, lineHeight, "2. Send creeps to pressure the next opponent.", smallStyle!, TextAnchor.MiddleLeft);
-            DrawLabel(textX, textY + lineHeight * 2f, textWidth, lineHeight, "3. Survive leaks as pressure rotates across enemy lanes.", smallStyle!, TextAnchor.MiddleLeft);
-            DrawLabel(textX, textY + lineHeight * 3f, textWidth, lineHeight, "4. Bots on lanes 2-8 should build and send from the start.", smallStyle!, TextAnchor.MiddleLeft);
-
-            var buttonWidth = 118f * scale;
-            var buttonHeight = 30f * scale;
-            var gap = 8f * scale;
-            var rowY = panel.yMax - 46f * scale;
-            var startX = panel.center.x - buttonWidth - gap * 0.5f;
-
-            if (DrawButton(new Rect(startX, rowY, buttonWidth, buttonHeight), "READY", MintSignal, scale))
-            {
-                ResetToReady();
-            }
-
-            if (DrawButton(new Rect(startX + buttonWidth + gap, rowY, buttonWidth, buttonHeight), "BACK", ArcaneBlue, scale))
-            {
-                preMatchScreen = PreMatchScreen.Title;
-            }
         }
 
         private void DrawReadyPanel(float scale)
@@ -330,13 +311,50 @@ namespace LTW.UnityClient.Simulation
             }
         }
 
+        /// <summary>
+        /// The coach strip's geometry in the shell panel's reference units, mirrored from
+        /// <c>.ltw-coach</c> in Assets/Resources/UI/ShellScreens.uss so the countdown panel can
+        /// stay out from under it.
+        /// </summary>
+        /// <remarks>
+        /// Reference units, NOT overlay <c>scale</c> units. The shell panel is
+        /// <c>ScaleWithScreenSize</c> at 1080x2340 with <c>match = 1</c>, so one of its units is
+        /// <c>ViewportHeight / 2340</c> device pixels; the overlay's <c>UiScale</c> is a different
+        /// ratio (min of width/430, height/932) and on the iPad frame is 2.5x larger. Converting
+        /// with the wrong one would have dropped the panel to 39% of the screen.
+        ///
+        /// The height is the two-line-body case (2 border + 14 pad + 44 head + 6 + 2x30 body + 10 +
+        /// 58 foot + 16 pad + 2 border), because MAZE's body wraps at the strip's 780-unit maximum
+        /// and MAZE is shown during the countdown. A one-line step leaves a slightly larger gap,
+        /// which is the safe direction: the failure being fixed is the panel covering the body.
+        /// </remarks>
+        private const float CoachStripTopReferenceUnits = 176f;
+        private const float CoachStripHeightReferenceUnits = 212f;
+        private const float ShellPanelReferenceHeight = 2340f;
+
         private void DrawBuildCountdownPanel(float scale)
         {
             var frame = MobileViewportLayout.ScreenRect();
             var margin = MobileViewportLayout.EdgeMargin(scale);
             var width = Mathf.Min(318f * scale, frame.width - margin * 2f);
             var height = 112f * scale;
-            var panel = new Rect(frame.center.x - width * 0.5f, frame.y + 132f * scale, width, height);
+            var top = frame.y + 132f * scale;
+
+            // Measured on the real-25 practice captures: at 2064x2752 this panel's default top
+            // (14% of screen height) sat inside the strip (11-17%), covering step 1's body line;
+            // at 1080x1920 the two were edge to edge. The strip is docked under the HUD header on
+            // purpose and does not move, so the panel yields: while the strip is up, its top is
+            // pushed to the strip's bottom edge plus a gap. Only ever pushed down, never up, so a
+            // frame where the strip is hidden draws exactly where it always did.
+            if (tutorialDirector is { StripVisible: true })
+            {
+                var referenceUnit = MobileViewportLayout.ViewportHeight / ShellPanelReferenceHeight;
+                var safeTopInset = MobileViewportLayout.ViewportHeight - MobileViewportLayout.SafeArea.yMax;
+                var stripBottom = safeTopInset + (CoachStripTopReferenceUnits + CoachStripHeightReferenceUnits) * referenceUnit;
+                top = Mathf.Max(top, stripBottom + 12f * scale);
+            }
+
+            var panel = new Rect(frame.center.x - width * 0.5f, top, width, height);
             DrawPanel(panel, scale);
 
             var seconds = Mathf.CeilToInt(simulationDriver.OpeningBuildCountdownRemaining);
@@ -514,17 +532,68 @@ namespace LTW.UnityClient.Simulation
         // START GAME still resets to READY and then opens the build countdown, REMATCH does the
         // same pair, RESET still resets, MENU still returns to the title.
 
-        /// <summary>Title: START GAME.</summary>
+        /// <summary>Title: START GAME. Offers practice once, then behaves as it always did.</summary>
+        /// <remarks>
+        /// The offer is a screen change and nothing else — no reset, no countdown — so declining
+        /// it later costs the player nothing they had not already agreed to (principle 3). The
+        /// real start lives in <see cref="StartGameNow"/>, which the offer's decline path and every
+        /// later START GAME both reach.
+        /// </remarks>
         public void StartGame()
         {
+            if (!PresentationPreferences.TutorialSeen)
+            {
+                preMatchScreen = PreMatchScreen.FirstRunOffer;
+                return;
+            }
+
+            StartGameNow();
+        }
+
+        /// <summary>First-run offer: START GAME (decline practice). Also what START GAME does once seen.</summary>
+        /// <remarks>
+        /// Declining counts as seen: a player who said "just let me play" should not be asked
+        /// again on every launch. PRACTICE on the title remains the way back in.
+        /// </remarks>
+        public void StartGameNow()
+        {
+            PresentationPreferences.TutorialSeen = true;
             ResetToReady();
             simulationDriver.BeginOpeningBuildCountdown();
         }
 
-        /// <summary>Title: HOW TO PLAY. Still an IMGUI panel — not in this pass's scope.</summary>
+        /// <summary>Title and first-run offer: PRACTICE.</summary>
+        /// <remarks>
+        /// Goes straight into the build countdown rather than through READY: the coach strip's
+        /// first step is "place three wards", and the countdown is the window in which that is
+        /// possible before anything is live. The rebuild is what makes the passive profile real —
+        /// see <see cref="UnitySimulationDriver.RebuildMatchFromPendingOptions"/> for why a reset
+        /// alone would have left the bots exactly as aggressive as before.
+        ///
+        /// Always a fresh board, even if practice was already pending: "PRACTICE brings you back
+        /// any time" promises the walkthrough from the top, not a resume.
+        /// </remarks>
+        public void StartPractice()
+        {
+            showSettings = false;
+            preMatchScreen = PreMatchScreen.Ready;
+            tutorialDirector?.Stop();
+            LocalMatchRuntimeOptions.EnterPractice();
+            simulationDriver.RebuildMatchFromPendingOptions();
+            playtestRecorder?.ResetRecorder();
+            simulationDriver.BeginOpeningBuildCountdown();
+            EnsureTutorialDirector()?.Begin();
+        }
+
+        /// <summary>Title: HOW TO PLAY.</summary>
+        /// <remarks>
+        /// Deliberately nothing. The shell view presents <c>ShellScreen.HowToPlay</c> itself and
+        /// returns to the title on its own; the IMGUI panel that used to live here is gone. The
+        /// method stays because it is part of <see cref="IShellScreenActions"/>, and an action the
+        /// overlay does not need to act on is still not an action it should mutate state for.
+        /// </remarks>
         public void ShowHowToPlay()
         {
-            preMatchScreen = PreMatchScreen.HowTo;
         }
 
         /// <summary>Title: CODEX.</summary>
@@ -557,7 +626,7 @@ namespace LTW.UnityClient.Simulation
             simulationDriver.TogglePause();
         }
 
-        /// <summary>Results: REMATCH. The same pair of calls as <see cref="StartGame"/>.</summary>
+        /// <summary>Results: REMATCH. The same pair of calls as <see cref="StartGameNow"/> — always a normal match, even after practice.</summary>
         public void Rematch()
         {
             ResetToReady();
@@ -581,7 +650,7 @@ namespace LTW.UnityClient.Simulation
         {
             showSettings = false;
             preMatchScreen = PreMatchScreen.Ready;
-            simulationDriver.ResetMatch();
+            ResetMatchLeavingPractice();
             playtestRecorder?.ResetRecorder();
         }
 
@@ -589,8 +658,57 @@ namespace LTW.UnityClient.Simulation
         {
             showSettings = false;
             preMatchScreen = PreMatchScreen.Title;
-            simulationDriver.ResetMatch();
+            ResetMatchLeavingPractice();
             playtestRecorder?.ResetRecorder();
+        }
+
+        /// <summary>
+        /// The one reset every exit from a match goes through, so practice cannot leak past it.
+        /// </summary>
+        /// <remarks>
+        /// Reset, rematch and exit-to-title all land here. If practice options are pending, the
+        /// normal ones are restored and the match is REBUILT rather than reset, because a reset
+        /// keeps the bots it was constructed with. When nothing is pending this is exactly the old
+        /// <c>ResetMatch()</c> call, so a normal session never pays for the rebuild.
+        ///
+        /// The director is stopped, not finished: leaving mid-way is not seeing the tutorial.
+        /// </remarks>
+        private void ResetMatchLeavingPractice()
+        {
+            tutorialDirector?.Stop();
+            if (LocalMatchRuntimeOptions.PracticePending)
+            {
+                LocalMatchRuntimeOptions.LeavePractice();
+                simulationDriver.RebuildMatchFromPendingOptions();
+                return;
+            }
+
+            simulationDriver.ResetMatch();
+        }
+
+        /// <summary>
+        /// The director, created on first use against the shell view's coach strip.
+        /// </summary>
+        /// <remarks>
+        /// Lazy because the strip belongs to the view, which is optional here (editor checks
+        /// initialise this overlay without one). Practice still runs without a director in that
+        /// case — passive bots and all — it just has nobody narrating it.
+        /// </remarks>
+        private TutorialDirector? EnsureTutorialDirector()
+        {
+            if (tutorialDirector is not null)
+            {
+                return tutorialDirector;
+            }
+
+            var strip = shellScreens?.CoachStrip;
+            if (strip is null)
+            {
+                return null;
+            }
+
+            tutorialDirector = new TutorialDirector(simulationDriver, strip);
+            return tutorialDirector;
         }
 
         private static void QuitApplication()

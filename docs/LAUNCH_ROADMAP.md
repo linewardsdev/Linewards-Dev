@@ -63,7 +63,7 @@ launch.
 | 7 | **No store listing assets** | No icon, screenshots, description, age rating, or privacy-policy URL | 2–3 d |
 | 8 | **~20 acceptance boxes need a human to play** | GD-01→10 unchecked; all balance is bot-vs-bot | 2–3 d |
 | 9 | **Graphics Wave 1 — AO done, LODs wired, normal maps deferred by decision** — *worked 2026-08-04/06* | **AO bound on all 30 roles** (was 2 of 119); evidence in `screenshot-reviews/stylized-shader-20260801/after_ao_bound_roster.png`. **LODs wired on all 30 prefabs** — every role decimated to 50%/25% (`tools/art/make_all_lods.py`) and given a LODGroup (`AuthorLodGroups`), closing open item 15's last sub-item; before this the two proof meshes were referenced by nothing. **Normal maps have a route and a verdict:** baking LOD0 onto LOD2 would work, but a high-to-low map is only correct on the low mesh and all three levels share one material per role, so it needs ~60 new materials and more SRP-batcher breaks to buy detail that is close to invisible at the 46–105px units occupy. **Owner decided 2026-08-06** to bank the LOD win and revisit only if LOD popping shows in play | ~~2–4 d~~ AO + LODs done · normals deferred |
-| 10 | **Onboarding is partial** | Some flow in `LocalSessionFlowOverlay`; no first-run teaching | 2–3 d |
+| 10 | **Onboarding built, device-unverified** — *worked 2026-09-02/03* | How to Play rewritten as a five-card shell screen; first-run offer; PRACTICE mode with passive bots and a five-step coach strip (skippable, re-enterable). Captured at phone and iPad widths; see OPEN_ITEMS item 54 | ~~2–3 d~~ done |
 
 ### P1 — should land before public launch (tier C), not blocking soft launch
 
@@ -127,7 +127,7 @@ ext | Google Play Console | $25 · identity verification | 0.5 | 14 | enrol → 
 2 | Title/menu scene | title, pause, results built · still a panel, not a scene | 25 | 12 | done:✓ done Aug 3 + 38 | 8 | scene?
 2 | App icon and splash | icon, splash and brand mark landed | 42 | 11 | done:✓ done Aug 4
 3 | Crash reporting and basic analytics | else feedback is anecdote | 50 | 9 | 1d
-3 | Onboarding / first-run teaching | teach mazing or players bounce | 53 | 14 | 2–3d
+3 | ~~Onboarding / first-run teaching~~ built 2026-09-03 (OPEN_ITEMS 54) | teach mazing or players bounce | 53 | 14 | ~~2–3d~~ done
 3 | Performance validation on device | frame rate + thermals, heavy send | 60 | 11 | 2d
 3 | Store listing assets | screenshots, rating, privacy URL | 63 | 12 | 2–3d
 3 | Bot roster fix | only if week 1 flagged opponent quality | 68 | 7 | if needed
@@ -173,7 +173,7 @@ pending or live, and there is a written human account of what it is like to play
 ### Week 3 (Aug 15–21) — Make it survivable
 
 - **Crash reporting and basic analytics.** Without this, soft-launch feedback is anecdote.
-- **Onboarding / first-run teaching.** Mazing is not obvious; a player who does not
+- **Onboarding / first-run teaching** (built 2026-09-03, OPEN_ITEMS item 54). Mazing is not obvious; a player who does not
   understand it will bounce and you will never know why.
 - **Performance validation on device** — frame rate and thermals under a heavy send. First
   real data on whether LODs are needed before launch.

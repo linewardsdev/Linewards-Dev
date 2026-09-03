@@ -117,6 +117,15 @@ namespace LTW.UnityClient.Editor
             // the authored model scales run 0.208 to 1.36 across it, against 0.59 to 1.05 on the
             // towers. If the stage's auto-fit is going to crop or strand anything, it is here.
             ("real-19-shell-codex-creeps", ShowCodexCreeps),
+            // The HOW TO PLAY panel as it ships — the only teaching surface the game has, and the
+            // starting point for the 2026-09-02 how-to-play / tutorial pass.
+            // Three shots, not one: the title must be laid out for a frame before its button can be
+            // pressed (Clickable rejects a press on an element with an empty rect, which is what
+            // a screen switched this same frame has), and BACK must be pressed afterwards because
+            // the view keeps the how-to open across the overlay's per-frame Show(Title).
+            ("real-23a-title-before-how-to", ShowTitle),
+            ("real-23-shell-how-to-play", () => PressShellButton("title-howto", "how-to-play")),
+            ("real-23b-how-to-back", () => PressShellButton("howto-back", "how-to-back")),
             // Reported from a real device (13" M4 iPad Pro, 2026-08-30): every category card
             // showed overlapping, crushed text. Seed() calls StartMatch() directly, which sets
             // IsOpeningBuildCountdown = false, so none of the shots above have ever opened the
@@ -137,6 +146,9 @@ namespace LTW.UnityClient.Editor
             // nothing," which matches exactly: whichever launcher opened second was never drawn,
             // so there was nothing there to tap. This shot is the regression test for the fix.
             ("real-22-both-rails-open", OpenBothRailsAtOnce),
+            // 2026-09-02 how-to-play / tutorial pass. Both reset the match, so they stay last.
+            ("real-24-first-run-offer", ShowFirstRunOffer),
+            ("real-25-practice-coach-strip", ShowPracticeCoachStrip),
         };
 
         /// <summary>The portrait surface the HUD is authored against, matching MotionCaptureRunner.</summary>
@@ -839,6 +851,63 @@ namespace LTW.UnityClient.Editor
             // what clears it.
             overlay.ReturnToTitle();
             overlay.ShowCodex();
+        }
+
+        /// <summary>
+        /// Presses a named UI Toolkit button on the shell document, or warns. The element must
+        /// already be laid out (on a screen shown in an earlier shot): a press on an empty rect
+        /// is rejected by Clickable, so a helper that switches screens and presses in the same
+        /// call photographs the screen it started on.
+        /// </summary>
+        private static void PressShellButton(string name, string shotLabel)
+        {
+            var document = Object.FindAnyObjectByType<UIDocument>();
+            var button = document != null && document.rootVisualElement != null
+                ? document.rootVisualElement.Q<Button>(name)
+                : null;
+            if (button == null)
+            {
+                Debug.LogWarning($"REALUI no '{name}' button found for the {shotLabel} shot");
+                return;
+            }
+
+            // Press and release through the Clickable manipulator, for the reason ShowCodexCreeps
+            // documents: a bare ClickEvent (or a submit event) is received and does nothing.
+            var centre = button.worldBound.center;
+            var local = button.WorldToLocal(centre);
+            SendPointer<PointerDownEvent>(button, centre, local);
+            SendPointer<PointerUpEvent>(button, centre, local);
+        }
+
+        /// <summary>The first-run offer: START GAME pressed with the tutorial never seen.</summary>
+        private static void ShowFirstRunOffer()
+        {
+            var overlay = Overlay();
+            if (overlay == null)
+            {
+                Debug.LogWarning("REALUI no LocalSessionFlowOverlay found for the first-run shot");
+                return;
+            }
+
+            // Cleared directly rather than through PresentationPreferences so this runner does
+            // not depend on the flag's accessor name — the key is the contract.
+            PlayerPrefs.DeleteKey("ltw.tutorial.seen");
+            overlay.ReturnToTitle();
+            overlay.StartGame();
+        }
+
+        /// <summary>Practice started from the title: the coach strip over the opening countdown.</summary>
+        private static void ShowPracticeCoachStrip()
+        {
+            var overlay = Overlay();
+            if (overlay == null)
+            {
+                Debug.LogWarning("REALUI no LocalSessionFlowOverlay found for the practice shot");
+                return;
+            }
+
+            overlay.ReturnToTitle();
+            overlay.StartPractice();
         }
 
         /// <summary>

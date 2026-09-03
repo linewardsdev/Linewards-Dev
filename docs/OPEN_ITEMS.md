@@ -157,7 +157,48 @@ from the Wave 5 frames:
   model's own geometry, not a decal. An asset note for when the Control ward is next touched:
   the dish wants ~half its current alpha or a smaller radius.
 
-## 52. `Tower3DImportPipeline.NormalizeRendererPolicy` turns shadows off for a tower's own body, not just its accessories
+## 54. How to Play rewrite and the Practice tutorial (2026-09-02/03)
+
+**What shipped.** The IMGUI HOW TO PLAY panel (prototype copy: "a fast eight-lane systems test",
+"bots on lanes 2-8 should build and send") is gone. In its place:
+
+- `screen-howto`, a UI Toolkit shell screen (`HowToPlayScreenView`): five cards, BUILD / MAZE /
+  SEND / GROW / SURVIVE, paged like the codex. BUILD and SEND carry a live `UnitPreviewStage`
+  render (Arrow ward, Runner); MAZE is a USS-drawn 5x7 grid with the path bending round two ward
+  cells; GROW an income bar whose caption reads `IncomeIntervalTicks / TicksPerSecond` from the
+  driver; SURVIVE the lives figure. Copy states the real rules: 40 lives, one life per leak, income
+  every 50 ticks, tiers gated on income.
+- A PRACTICE button on the title, and a first-run offer (`screen-firstrun`: PRACTICE FIRST / JUST
+  PLAY) shown by START GAME while `PresentationPreferences.TutorialSeen` (`ltw.tutorial.seen`) is
+  unset. Both paths set the flag; Practice is re-enterable from the title at any time.
+- Practice = a fresh match against passive bots plus a five-step coach strip (`CoachStripView`,
+  docked under the HUD header, SKIP always available, NEXT where a step can be passed). Steps and
+  their predicates (`TutorialDirector`): three local towers placed; `RouteLength > DirectRouteLength
+  + 2` on the local lane; a `CreepQueuedEvent` from the local seat or income above its start;
+  any line or send tier above base; a 6 s SURVIVE card. Skip or finish hides the strip and marks
+  the tutorial seen; the match keeps running as practice.
+- Simulation: `BotDecisionProfile.Passive` (builds and mazes at the normal cadence, never sends,
+  never buys send tiers) and `LocalMatchOptions.WithAllBotsPassive()`, with four tests.
+
+**Two findings worth keeping.** `LocalMatchRuntimeOptions.PendingOptions` was read once, at scene
+load, and never on reset — a reset alone would have kept practice bots fully aggressive; the driver
+now has `RebuildMatchFromPendingOptions()` and every reset path leaves practice cleanly. And the
+opening-countdown panel drew over the coach strip on iPad (caught by the new `real-25` capture,
+not by reading code): while a step is showing, the panel now drops below the strip, measured in
+the shell's reference units rather than the IMGUI scale.
+
+**Verified 2026-09-03.** Unity batchmode compile clean; `dotnet test` 340/340; `RealUiCaptureRunner`
+shots `real-23a/23/23b` (title, how-to card 1, BACK), `real-24` (offer) and `real-25` (coach strip
+over the countdown) at 1080x1920 and 2064x2752. Those shots are the regression test.
+
+**Residuals.**
+- The strip clears the HUD's compact header only; with the phone stats drawer expanded it would sit
+  under the drawer. Practice starts with the drawer collapsed, which is the shipped state.
+- Passive bots reuse Defensive's tuning numbers; there is no `bot.passive` catalog entry. Author one
+  in `SampleVerticalSliceContent` if the practice lane ever needs its own balance.
+- The SURVIVE card hard-codes 40 because `LocalVerticalSlice.StartingLives` is a private const.
+- Not yet run on a device: the strip margin and the countdown offset were measured on captures.
+- Roadmap item 10 ("Onboarding is partial") moves to built, device-unverified.
 
 ## 52. `Tower3DImportPipeline.NormalizeRendererPolicy` turns shadows off for a tower's own body, not just its accessories
 
