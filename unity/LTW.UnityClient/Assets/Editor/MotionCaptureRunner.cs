@@ -77,7 +77,7 @@ namespace LTW.UnityClient.Editor
         private static double deltaSum;
         private static int deltaSamples;
 
-        [MenuItem("Line Wards/Review/Capture Motion Sequence")]
+        [MenuItem("Line Wars/Review/Capture Motion Sequence")]
         public static void CaptureMotionSequence()
         {
             outputDirectory = ReadArgumentValue("-ltwCaptureOutputDir")

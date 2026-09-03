@@ -7,7 +7,7 @@ using UnityEngine;
 namespace LTW.UnityClient.Editor
 {
     /// <summary>
-    /// Puts the Line Wards brand on the application itself: icon, splash and company name.
+    /// Puts the Line Wars brand on the application itself: icon, splash and company name.
     /// </summary>
     /// <remarks>
     /// The brand existed only as concept art and a written guide. `art/branding/concepts` sits at the
@@ -37,23 +37,28 @@ namespace LTW.UnityClient.Editor
 
         /// <summary>Company name, which also decides the persistent data path.</summary>
         /// <remarks>
-        /// Replaces "LTWPlaceholder". Worth knowing before it changes: this is the folder name in
-        /// Application.persistentDataPath, so exported playtest reports move from
-        /// ~/Library/Application Support/LTWPlaceholder/Line Wards to .../Line Wards Games/Line Wards.
-        /// Nothing reads the old location back, so no data is lost — but old reports do not follow.
+        /// This is the second name this constant has carried. It started as "LTWPlaceholder"; the
+        /// first Apply moved the persistent data path to ".../Line Wards Games/Line Wards". This
+        /// rename moves it again, to ".../Line Wars Games/Line Wars" — the game was renamed from
+        /// "Line Wards" to "Line Wars" after the branding guide's own trademark-distancing
+        /// rationale was reconsidered (see BRANDING_GUIDE.md).
+        ///
+        /// Same caveat both times: nothing reads the old location back, so exported playtest
+        /// reports under either earlier folder do not follow automatically. No data is lost, but
+        /// anything expecting to find prior local reports needs the old path, not this one.
         /// </remarks>
-        private const string CompanyName = "Line Wards Games";
+        private const string CompanyName = "Line Wars Games";
 
         /// <summary>Night ink from BRANDING_GUIDE.md's colour table, #10182F.</summary>
         private static readonly Color NightInk = new Color(0x10 / 255f, 0x18 / 255f, 0x2F / 255f, 1f);
 
-        [MenuItem("Line Wards/Art/Apply Branding")]
+        [MenuItem("Line Wars/Art/Apply Branding")]
         public static void Apply()
         {
             var problems = new List<string>();
 
             PlayerSettings.companyName = CompanyName;
-            PlayerSettings.productName = "Line Wards";
+            PlayerSettings.productName = "Line Wars";
 
             PinShellMarkImport(problems);
             ApplyPlatformIcons(NamedBuildTarget.iOS, problems);

@@ -38,7 +38,7 @@ namespace LTW.UnityClient.Editor
         private const string CreepModelRoot = "Assets/Art/AIStaging/Models/Creeps";
         private const string MaterialFolder = "Assets/Art/Creeps/Production/Materials";
 
-        [MenuItem("Line Wards/Art/Backfill Creep Metallic Maps")]
+        [MenuItem("Line Wars/Art/Backfill Creep Metallic Maps")]
         public static void BackfillCreepMetallicMaps()
         {
             var maps = AssetDatabase.FindAssets("t:Texture2D", new[] { CreepModelRoot })

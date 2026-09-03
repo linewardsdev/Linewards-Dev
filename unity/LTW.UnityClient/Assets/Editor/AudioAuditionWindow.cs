@@ -41,7 +41,7 @@ namespace LTW.UnityClient.Editor
         private double sequenceNextAt;
         private string? reflectionFailure;
 
-        [MenuItem("Line Wards/Review/Audition Audio")]
+        [MenuItem("Line Wars/Review/Audition Audio")]
         public static void Open()
         {
             var window = GetWindow<AudioAuditionWindow>("Audition Audio");

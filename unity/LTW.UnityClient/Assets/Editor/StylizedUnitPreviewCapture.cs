@@ -85,7 +85,7 @@ namespace LTW.UnityClient.Editor
         /// shipped configuration and made the comparison worthless. Rendering what is actually on
         /// disk cannot lie in that way.
         /// </remarks>
-        [MenuItem("Line Wards/Review/Capture Units As Currently Authored")]
+        [MenuItem("Line Wars/Review/Capture Units As Currently Authored")]
         public static void CaptureCurrent() => Render("capture_current.png", 1400, 800);
 
         /// <summary>
@@ -100,10 +100,10 @@ namespace LTW.UnityClient.Editor
         /// inspection so what is written is genuinely that many pixels rather than a resample of a
         /// larger render.
         /// </remarks>
-        [MenuItem("Line Wards/Review/Capture Units At Game Size")]
+        [MenuItem("Line Wars/Review/Capture Units At Game Size")]
         public static void CaptureGameSize() => Render("capture_gamesize.png", 240, 137);
 
-        [MenuItem("Line Wards/Review/Capture Stylized Shader Comparison")]
+        [MenuItem("Line Wars/Review/Capture Stylized Shader Comparison")]
         public static void Capture()
         {
             var root = new GameObject("StylizedPreviewRoot");

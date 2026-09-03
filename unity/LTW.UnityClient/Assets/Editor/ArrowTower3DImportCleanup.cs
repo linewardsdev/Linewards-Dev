@@ -17,7 +17,7 @@ namespace LTW.UnityClient.Editor
         private const string MaterialPath =
             "Assets/Art/AIStaging/SourcePlates/ProductionCandidates/tower_arrow_3d_Assets/Materials/Color_c880fcfa-bfa6-467d-9d72-569a70753096.mat";
 
-        [MenuItem("Line Wards/Art/Clean Arrow 3D AI Import")]
+        [MenuItem("Line Wars/Art/Clean Arrow 3D AI Import")]
         public static void CleanImport()
         {
             ConfigureModelImporter();

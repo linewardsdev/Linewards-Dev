@@ -1,7 +1,7 @@
 /*
- * Line Wards shell screens: title, pause, results.
+ * Line Wars shell screens: title, pause, results.
  *
- * Authored against a 1080x1920 reference surface (see LineWardsShellPanelSettings), so every
+ * Authored against a 1080x1920 reference surface (see LineWarsShellPanelSettings), so every
  * length below is in reference units, not device pixels.
  *
  * Palette, from docs/BRANDING_GUIDE.md. Written as literals rather than as custom properties
@@ -186,7 +186,7 @@
 /*
  * The brand SYMBOL only, above the wordmark — which stays as live text.
  *
- * Baking "LINE WARDS" into the image was the obvious move and the wrong one. Text reflows and
+ * Baking "LINE WARS" into the image was the obvious move and the wrong one. Text reflows and
  * stays crisp at any density, and this is a phone-first game shipping to a wide range of screens;
  * a bitmap wordmark would have to be authored per size and could not be localised. The symbol has
  * no such problem, so the split is: distinctive mark as art, words as words.

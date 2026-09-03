@@ -1,12 +1,12 @@
-# Line Wards Material Language Guide
+# Line Wars Material Language Guide
 
-This guide is the baseline art-production rule set for moving Line Wards from primitive readability toward a more intentional early-2000s tactics style.
+This guide is the baseline art-production rule set for moving Line Wars from primitive readability toward a more intentional early-2000s tactics style.
 
 ## Goals
 
 - Keep the board quieter than decisions: towers, creeps, shots, health, send/leak cues, and HUD elements must always win the value hierarchy.
 - Use materials to explain gameplay: route, buildable cells, ownership, danger, health, and pressure should read before decorative detail.
-- Preserve originality: Line Wards should feel like a compact neon board defense game, not a direct clone of another mobile strategy interface.
+- Preserve originality: Line Wars should feel like a compact neon board defense game, not a direct clone of another mobile strategy interface.
 
 ## Material Families
 

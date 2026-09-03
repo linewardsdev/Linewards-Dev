@@ -4,13 +4,13 @@ Date: 2026-07-16
 
 ## Purpose
 
-This is the source-of-truth pipeline for moving the Line Wards UI and game board from prototype readability into a deliberate V1 art pass.
+This is the source-of-truth pipeline for moving the Line Wars UI and game board from prototype readability into a deliberate V1 art pass.
 
 The current V0.1 pass proves that runtime icons and procedural board cues can be wired safely, but it is not the final visual direction. The next pass should not be "make the current buttons prettier." It should produce selected UI chrome, command cards, board material, route, spawn, leak, and lane-frame art that can be tested at phone scale.
 
 ## North Star
 
-Line Wards should read like an original early-2000s strategy board game adapted for mobile:
+Line Wars should read like an original early-2000s strategy board game adapted for mobile:
 
 - strong silhouettes before texture detail;
 - readable gameplay states before decoration;

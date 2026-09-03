@@ -11,7 +11,7 @@ namespace LTW.UnityClient.Editor
     /// </summary>
     public static class UrpCaptureDiagnostic
     {
-        [MenuItem("Line Wards/Migration/Diagnose Capture Path")]
+        [MenuItem("Line Wars/Migration/Diagnose Capture Path")]
         public static void Diagnose()
         {
             var pipeline = GraphicsSettings.currentRenderPipeline;

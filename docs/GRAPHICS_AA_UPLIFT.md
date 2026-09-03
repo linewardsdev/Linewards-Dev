@@ -2,7 +2,7 @@
 
 **Status:** active. Opened 2026-07-31.
 **Supersedes the quality target** set in `archive/2026-07-planning/GRAPHICS_2000_BASELINE_ROADMAP.md`
-and restated in `ART_THEME_AND_ROLE_GUIDE.md` and `skill/line-wards-ltw-graphics-art-direction.md`.
+and restated in `ART_THEME_AND_ROLE_GUIDE.md` and `skill/line-wars-ltw-graphics-art-direction.md`.
 It does **not** supersede those documents' readability rules, palette, or silhouette grammar —
 all of that is kept and built on.
 
@@ -92,7 +92,7 @@ components:
 
 The tonemapper, bloom and colour-adjustment values exist only inside
 `Assets/Editor/UrpPostProcessingSetup.cs`, as an editor menu item
-(`Line Wards/Migration/Create Post Processing Profile`). It was run once in someone's
+(`Line Wars/Migration/Create Post Processing Profile`). It was run once in someone's
 editor; the resulting sub-assets never landed on disk. The only commit that ever touched
 the profile is `746403b "Phase 3b: add tonemapping and bloom"`.
 

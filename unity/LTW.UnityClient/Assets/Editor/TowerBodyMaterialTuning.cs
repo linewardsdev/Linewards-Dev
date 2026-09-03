@@ -113,7 +113,7 @@ namespace LTW.UnityClient.Editor
         /// so an unscoped apply is not a no-op for them — it is an unreviewed change to how the
         /// whole roster reflects light, arriving inside a commit about one new tower.
         /// </remarks>
-        [MenuItem("Line Wards/Art/Apply Tower Body Material Tuning")]
+        [MenuItem("Line Wars/Art/Apply Tower Body Material Tuning")]
         public static void ApplyTuning()
         {
             var changed = 0;
@@ -180,7 +180,7 @@ namespace LTW.UnityClient.Editor
         /// Runs headless and exits non-zero:
         ///   Unity -batchmode -quit -executeMethod LTW.UnityClient.Editor.TowerBodyMaterialTuning.ValidateTuning
         /// </remarks>
-        [MenuItem("Line Wards/Art/Validate Tower Body Material Tuning")]
+        [MenuItem("Line Wars/Art/Validate Tower Body Material Tuning")]
         public static void ValidateTuning()
         {
             var failures = new List<string>();

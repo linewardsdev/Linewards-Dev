@@ -297,7 +297,7 @@ namespace LTW.UnityClient.Simulation
             {
                 Debug.LogError(
                     $"LTW_PostProcessing has {(profile.components == null ? 0 : profile.components.Count)} override(s), expected {ExpectedPostProcessingOverrides}. " +
-                    "Re-run Line Wards/Migration/Create Post Processing Profile and commit the resulting sub-assets.");
+                    "Re-run Line Wars/Migration/Create Post Processing Profile and commit the resulting sub-assets.");
                 return false;
             }
 
@@ -307,7 +307,7 @@ namespace LTW.UnityClient.Simulation
                 {
                     Debug.LogError(
                         $"LTW_PostProcessing override {index} is null — the profile's sub-assets never reached disk. " +
-                        "Re-run Line Wards/Migration/Create Post Processing Profile and commit the resulting sub-assets.");
+                        "Re-run Line Wars/Migration/Create Post Processing Profile and commit the resulting sub-assets.");
                     return false;
                 }
             }

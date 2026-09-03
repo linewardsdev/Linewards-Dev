@@ -12,7 +12,7 @@ Status: runtime proof wrapper generated for review
 ## Integration Notes
 
 - The raw Unity AI prefab is preserved as staging evidence.
-- The runtime wrapper preserves Line Wards tower contract children: `Body`, `RoleMarker`, `OwnerTrim`, `RangeHalo`.
+- The runtime wrapper preserves Line Wars tower contract children: `Body`, `RoleMarker`, `OwnerTrim`, `RangeHalo`.
 - `RoleMarker`, `OwnerTrim`, and `RangeHalo` are non-rendering anchors because the generated Arrow model already contains its own readable glow and trim details.
 - Arrow-specific anchors are present for review: `Lens`, `Muzzle`, `BowLeft`, `BowRight`.
 - `TowerVisualLibrary.asset` points `tower.arrow` at `Tower_Arrow_3D.prefab`.

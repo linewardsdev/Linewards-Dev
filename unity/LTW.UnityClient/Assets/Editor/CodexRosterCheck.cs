@@ -34,7 +34,7 @@ namespace LTW.UnityClient.Editor
     {
         private const string IconRoot = "Art/UI/Icons/";
 
-        [MenuItem("Line Wards/Checks/Codex Roster")]
+        [MenuItem("Line Wars/Checks/Codex Roster")]
         public static void Run()
         {
             var failures = new List<string>();

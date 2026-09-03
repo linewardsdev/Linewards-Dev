@@ -57,7 +57,7 @@ namespace LTW.UnityClient.Editor
             "stalker", "turretwalker", "warden", "wisp", "zephyr",
         };
 
-        [MenuItem("Line Wards/Art/Apply Creep Body Material Tuning")]
+        [MenuItem("Line Wars/Art/Apply Creep Body Material Tuning")]
         public static void ApplyTuning()
         {
             var tuned = 0;
@@ -124,7 +124,7 @@ namespace LTW.UnityClient.Editor
         /// Runs headless and exits non-zero:
         ///   Unity -batchmode -quit -executeMethod LTW.UnityClient.Editor.CreepBodyMaterialTuning.ValidateTuning
         /// </remarks>
-        [MenuItem("Line Wards/Art/Validate Creep Body Material Tuning")]
+        [MenuItem("Line Wars/Art/Validate Creep Body Material Tuning")]
         public static void ValidateTuning()
         {
             var failures = new List<string>();

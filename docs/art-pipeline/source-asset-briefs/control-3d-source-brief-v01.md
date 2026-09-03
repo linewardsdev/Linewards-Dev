@@ -6,7 +6,7 @@ Status: ready for source generation/export
 
 ## Goal
 
-Create a real 3D source asset for the Line Wards Control tower that is clearly better in gameplay than the current `Tower_Control_AIPlate.prefab`.
+Create a real 3D source asset for the Line Wars Control tower that is clearly better in gameplay than the current `Tower_Control_AIPlate.prefab`.
 
 This is the first test of the corrected pipeline:
 
@@ -23,7 +23,7 @@ Do not use the rejected procedural or mesh-card Control proofs as final art.
 
 ## References
 
-Use these existing Line Wards assets as the visual target:
+Use these existing Line Wars assets as the visual target:
 
 | Purpose | Path |
 | --- | --- |
@@ -79,7 +79,7 @@ Avoid:
 Use this prompt with an image-to-3D or text-to-3D tool while attaching `tower_control_source_plate_v03.png` when possible:
 
 ```text
-Create a polished Unity-ready 3D model for an original mobile tower-wars game called Line Wards.
+Create a polished Unity-ready 3D model for an original mobile tower-wars game called Line Wars.
 
 Asset: Control tower, crowd-control containment ward.
 
@@ -128,7 +128,7 @@ Before staging the prefab:
 - [ ] Hidden junk geometry removed.
 - [ ] Tiny unreadable surface noise simplified.
 - [ ] Body, trim, and energy material regions are identifiable.
-- [ ] Texture names are Line Wards-specific, not generator garbage.
+- [ ] Texture names are Line Wars-specific, not generator garbage.
 - [ ] No colliders are required on the visual source.
 - [ ] Source notes include tool used, date, prompt, and edits.
 - [ ] The model still reads in grayscale.
@@ -137,8 +137,8 @@ Before staging the prefab:
 
 After the source prefab exists:
 
-- [ ] Run `Line Wards > Art > Generate Available Tower 3D Proof Wrappers`.
-- [ ] Run `Line Wards > Art > Validate Tower 3D Proof Wrappers`.
+- [ ] Run `Line Wars > Art > Generate Available Tower 3D Proof Wrappers`.
+- [ ] Run `Line Wars > Art > Validate Tower 3D Proof Wrappers`.
 - [ ] Confirm `Tower_Control_3D.prefab` keeps `Body`, `BodyTintAnchor`, `RoleMarker`, `OwnerTrim`, `RangeHalo`, `Muzzle`, `Lens`, `ControlCore`, `ControlRing`, and `PulseEmitter`.
 - [ ] Capture Control AIPlate versus Control 3D comparison.
 - [ ] Capture grayscale comparison.

@@ -6,7 +6,7 @@ Status: draft for review
 
 ## Purpose
 
-Use the successful Arrow tower 3D proof as the canonical example for a repeatable Line Wards tower 3D intake pipeline.
+Use the successful Arrow tower 3D proof as the canonical example for a repeatable Line Wars tower 3D intake pipeline.
 
 The goal is not to depend on Unity AI, procedural mesh scripts, or sprite-card extrusion as magic generators. Those attempts have now proven the same lesson: the repo pipeline can normalize and integrate a good 3D source asset, but it cannot invent polished 3D art from weak geometry.
 
@@ -21,7 +21,7 @@ approved 2D/2.5D design target
   -> mobile screenshot + animation certification
 ```
 
-This lets Meshy, Tripo, Blender, Asset Store kitbashing, Unity-side animation, or hand-authored meshes provide raw source assets while Line Wards owns the final runtime merge process.
+This lets Meshy, Tripo, Blender, Asset Store kitbashing, Unity-side animation, or hand-authored meshes provide raw source assets while Line Wars owns the final runtime merge process.
 
 ## Production Decision: Retire The Broken Shortcut
 
@@ -50,7 +50,7 @@ This is the pipeline we should use to reach the actual end goal: detailed, reada
 
 ```text
 1. Concept lock
-   - Choose the role silhouette and style target from existing Line Wards plates.
+   - Choose the role silhouette and style target from existing Line Wars plates.
    - Confirm it still reads at phone scale.
 
 2. External 3D creation
@@ -67,7 +67,7 @@ This is the pipeline we should use to reach the actual end goal: detailed, reada
    - Prepare animation bones or separated moving parts.
 
 4. Unity wrapper intake
-   - Generate the Line Wards runtime wrapper.
+   - Generate the Line Wars runtime wrapper.
    - Preserve required contract children and anchors.
    - Normalize scale, lift, material policy, shadows, bounds, and visual hooks.
 
@@ -129,7 +129,7 @@ The Arrow result gives us enough information to extract a reusable recipe.
 
 ### Runtime wrapper requirements
 
-Every tower 3D wrapper must preserve the Line Wards prefab contract:
+Every tower 3D wrapper must preserve the Line Wars prefab contract:
 
 - `Body`
 - `BodyTintAnchor`
@@ -160,7 +160,7 @@ The Arrow proof intentionally moved away from raw generator material behavior:
 - optional low emission for energy read;
 - material instancing enabled where useful.
 
-This is important. A generated model can look impressive in an isolated preview and still fail in the Line Wards board camera. Runtime material normalization is part of the pipeline, not a polish afterthought.
+This is important. A generated model can look impressive in an isolated preview and still fail in the Line Wars board camera. Runtime material normalization is part of the pipeline, not a polish afterthought.
 
 ## Viable Pipeline Options
 
@@ -281,11 +281,11 @@ Do not try to reverse-engineer Unity AI’s private generation internals. Revers
 
 ## Graphic Design Addendum
 
-This pipeline needs an art-direction gate before it becomes an asset factory. The script can make imported assets technically valid, but technical validity is not the same thing as a polished Line Wards visual.
+This pipeline needs an art-direction gate before it becomes an asset factory. The script can make imported assets technically valid, but technical validity is not the same thing as a polished Line Wars visual.
 
 The target is early-2000s polished strategy-board readability: chunky, iconic, slightly toy-like, with enough bevel/energy/material detail to feel upgraded from flat primitives without becoming noisy miniature sci-fi props.
 
-### Line Wards tower style bible
+### Line Wars tower style bible
 
 All tower 3D assets should share the same visual DNA:
 
@@ -354,7 +354,7 @@ Rules:
 
 ### Material recipes
 
-The runtime pipeline should normalize imported materials into a small set of Line Wards material buckets.
+The runtime pipeline should normalize imported materials into a small set of Line Wars material buckets.
 
 | Bucket | Purpose | Direction |
 | --- | --- | --- |

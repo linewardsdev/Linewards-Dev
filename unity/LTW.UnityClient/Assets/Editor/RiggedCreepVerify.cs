@@ -19,7 +19,7 @@ namespace LTW.UnityClient.Editor
             "Assets/Prefabs/Creeps/Creep_TurretWalker_3D.prefab",
         };
 
-        [MenuItem("Line Wards/Art/Verify Rigged Creep Animation")]
+        [MenuItem("Line Wars/Art/Verify Rigged Creep Animation")]
         public static void VerifyRiggedCreeps()
         {
             var allOk = true;

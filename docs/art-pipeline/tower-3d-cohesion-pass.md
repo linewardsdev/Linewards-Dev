@@ -45,7 +45,7 @@ First vertical-slice brief:
 - Blender cleanup utility: `tools/art_pipeline/blender_prepare_tower_source.py`
 
 ```text
-Create a Unity-ready 3D model for Line Wards, an original mobile tower-wars game.
+Create a Unity-ready 3D model for Line Wars, an original mobile tower-wars game.
 
 The model should be a readable ward-tech fantasy tower for a top-down three-quarter mobile board camera. It must feel like a real 3D board-game asset, not a flat sprite.
 
@@ -158,10 +158,10 @@ Assets/Art/AIStaging/Models/Towers/Prism/tower_prism_3d.prefab
 
 After an approved source creates the raw prefabs:
 
-1. Run `Line Wards > Art > Generate Available Tower 3D Proof Wrappers`.
+1. Run `Line Wars > Art > Generate Available Tower 3D Proof Wrappers`.
 2. Inspect `Assets/Prefabs/Towers/Tower_*_3D.prefab`.
-3. Run `Line Wards > Art > Validate Tower 3D Proof Wrappers`.
-4. If all five 3D tower wrappers exist, are marked promotable, and pass review, run `Line Wards > Art > Promote Complete Tower 3D Set`.
+3. Run `Line Wars > Art > Validate Tower 3D Proof Wrappers`.
+4. If all five 3D tower wrappers exist, are marked promotable, and pass review, run `Line Wars > Art > Promote Complete Tower 3D Set`.
 5. Capture role lineup and active-lane gameplay review.
 
 The promotion command intentionally fails if any 3D tower wrapper is missing or marked non-promotable. Do not promote one tower at a time.

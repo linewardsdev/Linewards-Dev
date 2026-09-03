@@ -22,7 +22,7 @@ namespace LTW.UnityClient.Editor
         private const string RendererPath = SettingsFolder + "/LTW_UniversalRenderer.asset";
         private const string PipelinePath = SettingsFolder + "/LTW_UniversalRenderPipeline.asset";
 
-        [MenuItem("Line Wards/Migration/Create And Assign URP Asset")]
+        [MenuItem("Line Wars/Migration/Create And Assign URP Asset")]
         public static void CreateAndAssign()
         {
             var exitCode = 0;
@@ -78,7 +78,7 @@ namespace LTW.UnityClient.Editor
         /// Reports what the project currently renders with, so migration state is checkable
         /// without opening the editor.
         /// </summary>
-        [MenuItem("Line Wards/Migration/Report Pipeline State")]
+        [MenuItem("Line Wars/Migration/Report Pipeline State")]
         public static void ReportPipelineState()
         {
             var active = GraphicsSettings.currentRenderPipeline;

@@ -81,7 +81,7 @@ through Build Settings. There is one now:
 ```bash
 /Applications/Unity/Hub/Editor/6000.5.3f1/Unity.app/Contents/MacOS/Unity   -batchmode -quit -nographics -projectPath unity/LTW.UnityClient   -executeMethod LTW.UnityClient.Editor.IosBuildRunner.Build   -ltwBuildPath build/ios   -ltwSdk device            # or: simulator
   # optional, and only if you have them:
-  # -ltwBundleId com.yourname.linewards
+  # -ltwBundleId com.yourname.linewars
   # -ltwTeamId   ABCDE12345
 ```
 
@@ -95,7 +95,7 @@ certificates. `build/` is gitignored.
 - **Orientation was unconstrained.** All four orientations were permitted while the game is
   portrait — a tall 7x16 lane board under a portrait camera. Rotating the phone would have
   produced the same broken landscape layout the UI captures show. Now portrait only.
-- **The home-screen name was `LTW.UnityClient`.** Now `Line Wards`.
+- **The home-screen name was `LTW.UnityClient`.** Now `Line Wars`.
 
 **Still placeholder, and deliberately not guessed at here:** the app icon is still Unity's
 default cube, `companyName` is still `LTWPlaceholder`, and the bundle identifier is still

@@ -1,6 +1,6 @@
 # Security Considerations
 
-This document outlines the security architecture, threat model, and defense strategies for Line Wards (LTW), covering the transition from the offline MVP to authoritative online play.
+This document outlines the security architecture, threat model, and defense strategies for Line Wars (LTW), covering the transition from the offline MVP to authoritative online play.
 
 ## Architectural Context
 

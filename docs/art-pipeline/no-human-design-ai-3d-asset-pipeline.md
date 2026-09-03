@@ -128,7 +128,7 @@ unity/LTW.UnityClient/Assets/Art/AIStaging/SourcePlates/tower_control_source_pla
 Prompt:
 
 ```text
-Create a polished Unity-ready 3D model for an original mobile tower-wars game called Line Wards.
+Create a polished Unity-ready 3D model for an original mobile tower-wars game called Line Wars.
 
 Asset: Control tower, crowd-control containment ward.
 

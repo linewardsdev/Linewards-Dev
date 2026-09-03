@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Audit an AI-generated Line Wards model and write objective intake metrics.
+"""Audit an AI-generated Line Wars model and write objective intake metrics.
 
 Run with Blender, not regular Python:
 

@@ -1,8 +1,8 @@
-# Line Wards Branding Guide
+# Line Wars Branding Guide
 
 ## Brand Name
 
-**Line Wards**
+**Line Wars**
 
 ## Descriptor
 
@@ -12,9 +12,19 @@ Use the descriptor to explain the game category and its lineage. It is supportin
 
 ## Brand Position
 
-Line Wards is a fast, readable, mobile-first competitive tower-defense game. Players build defenses, send pressure around a carousel of opponents, and balance immediate survival against long-term economy.
+Line Wars is a fast, readable, mobile-first competitive tower-defense game. Players build defenses, send pressure around a carousel of opponents, and balance immediate survival against long-term economy.
 
 The name is an independent homage to the Warcraft III custom-game tradition of Line Tower Wars. Do not imply affiliation with Blizzard Entertainment, Warcraft, or an official Line Tower Wars release.
+
+**Renamed from "Line Wards" to "Line Wars" (2026-08-09).** Worth stating plainly rather than
+quietly restating the disclaimer above as if nothing changed: "Line Wards" was chosen
+specifically because it read as *further* from "Line Tower Wars" than a name built on the same
+root words would. "Line Wars" drops that distance back to one missing word ("Tower"), which is
+closer to the genre name this disclaimer exists to distinguish from, not further from it. That
+does not mean the name is unsafe — it means the homage-not-affiliation framing above is now
+carrying more weight than it was, and this document cannot settle that on its own. Before this
+name reaches a store listing, get an actual trademark/naming-collision check from someone
+qualified to give one; a documentation disclaimer is not a substitute for that.
 
 ## Voice
 
@@ -25,7 +35,7 @@ The name is an independent homage to the Warcraft III custom-game tradition of L
 
 ## Logo Direction
 
-- Primary wordmark: `LINE WARDS` in a bold, compact, geometric display face.
+- Primary wordmark: `LINE WARS` in a bold, compact, geometric display face.
 - Supporting descriptor: `COMPETITIVE TOWER WARS` in a smaller, clean sans-serif.
 - Symbol motif: three linked lanes or ward-towers forming a subtle carousel/triangular loop.
 - Prioritize readability at app-icon, phone-header, and store-thumbnail sizes.

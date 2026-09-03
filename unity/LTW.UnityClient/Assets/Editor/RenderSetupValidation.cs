@@ -28,7 +28,7 @@ namespace LTW.UnityClient.Editor
     {
         private const string PipelineAssetPath = "Assets/Settings/LTW_UniversalRenderPipeline.asset";
 
-        [MenuItem("Line Wards/Migration/Validate Render Setup")]
+        [MenuItem("Line Wars/Migration/Validate Render Setup")]
         public static void ValidateRenderSetup()
         {
             var failures = new List<string>();

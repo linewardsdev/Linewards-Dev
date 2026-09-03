@@ -2,15 +2,15 @@
 
 ## Purpose
 
-This document defines the repeatable graphics and art-direction improvement cycle for Line Wards.
+This document defines the repeatable graphics and art-direction improvement cycle for Line Wars.
 
 It coordinates the existing art pipelines into one mobile-only process that an implementation agent can run repeatedly. It does not replace the specialized pipeline documents. It establishes how to audit them, choose the next coherent visual package, capture evidence, evaluate results, update the correct checklists, and hand work off for implementation testing.
 
-Line Wards is a portrait mobile game. Every capture, review, and acceptance decision in this cycle must use portrait phone framing. Desktop layouts and desktop visual targets are out of scope.
+Line Wars is a portrait mobile game. Every capture, review, and acceptance decision in this cycle must use portrait phone framing. Desktop layouts and desktop visual targets are out of scope.
 
 ## Visual North Star
 
-Preserve the competitive readability inherited from classic Line Tower Wars while using original Line Wards art:
+Preserve the competitive readability inherited from classic Line Tower Wars while using original Line Wars art:
 
 - Long, skinny north-south defensive lanes dominate the screen.
 - The arena reads before the interface.
@@ -28,7 +28,7 @@ Agents must review these sources before selecting work:
 
 | Source | Authority |
 | --- | --- |
-| `skill/line-wards-ltw-graphics-art-direction.md` | LTW lineage, mobile lane composition, visual priorities, legal boundary |
+| `skill/line-wars-ltw-graphics-art-direction.md` | LTW lineage, mobile lane composition, visual priorities, legal boundary |
 | `docs/ART_THEME_AND_ROLE_GUIDE.md` | Tower, creep, icon, accent, silhouette, and phone-size role language |
 | `docs/archive/2026-07-planning/GRAPHICS_2000_BASELINE_ROADMAP.md` | Archived graphics maturity stages and baseline definition of done |
 | `docs/archive/2026-07-art-pipeline/GRAPHICS_THEME_WORK_BREAKDOWN.md` | Parallel work packages and package-level screenshot requirements |
@@ -124,7 +124,7 @@ Do not combine unrelated packages merely to increase branch size.
 
 Run:
 
-`Line Wards/Review/Capture Visual Review Set`
+`Line Wars/Review/Capture Visual Review Set`
 
 Batch runs may call:
 
@@ -240,7 +240,7 @@ Score each category from 0 to 3:
 - Motion clarity.
 - Palette and material cohesion.
 - Icon-to-runtime silhouette match.
-- Original Line Wards identity.
+- Original Line Wars identity.
 - Fallback and missing-asset behavior.
 
 A score of 0 in arena fit, lane readability, touch clearance, heavy pressure, reduced effects, or originality blocks promotion.
@@ -299,7 +299,7 @@ Implementation rules:
 - Preserve long, skinny north-south lane dimensions and vertical travel.
 - Keep runtime fallbacks until the replacement passes review.
 - Preserve prefab contracts and required child names.
-- Keep third-party source assets isolated from Line Wards runtime wrappers.
+- Keep third-party source assets isolated from Line Wars runtime wrappers.
 - Keep generated source plates, trimmed production candidates, proof prefabs, and runtime promotion as separate stages.
 - Do not let proof generation silently change active runtime libraries.
 - Derive icons from the same role silhouette used in play.
@@ -444,7 +444,7 @@ A visual asset or UI treatment may become the locked runtime baseline only when:
 - Its icon matches its runtime silhouette where applicable.
 - Its source and license or generation record are documented.
 - Its fallback behavior is verified.
-- It preserves original Line Wards visual identity.
+- It preserves original Line Wars visual identity.
 - The owning checklist and screenshot review are updated.
 
 ## Near-Term Automated Queue

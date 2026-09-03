@@ -41,7 +41,7 @@ namespace LTW.UnityClient.Editor
         /// Runs headless and exits non-zero, so it can gate a build:
         ///   Unity -batchmode -quit -executeMethod LTW.UnityClient.Editor.UrpPostProcessingSetup.ValidateProfile
         /// </remarks>
-        [MenuItem("Line Wards/Migration/Validate Post Processing Profile")]
+        [MenuItem("Line Wars/Migration/Validate Post Processing Profile")]
         public static void ValidateProfile()
         {
             var failures = new System.Collections.Generic.List<string>();
@@ -89,7 +89,7 @@ namespace LTW.UnityClient.Editor
             }
         }
 
-        [MenuItem("Line Wards/Migration/Create Post Processing Profile")]
+        [MenuItem("Line Wars/Migration/Create Post Processing Profile")]
         public static void CreateProfile()
         {
             var exitCode = 0;

@@ -495,7 +495,7 @@ Both are fixed durably rather than by hand:
 
 - A `LinearMetallicMapPostprocessor` (`CreepMaterialMapBackfill.cs`) forces `sRGBTexture` off for
   any `Baked_MetallicSmoothness.png` at import, so this cannot be forgotten for a future creep.
-- A one-time `Line Wards/Art/Backfill Creep Metallic Maps` menu item binds the map into body
+- A one-time `Line Wars/Art/Backfill Creep Metallic Maps` menu item binds the map into body
   materials that predate it. This is needed because `Creep3DImportPipeline.CreateBodyMaterial`
   deliberately returns existing materials untouched so hand-tuning survives regeneration — which
   also means a map added later never gets picked up.

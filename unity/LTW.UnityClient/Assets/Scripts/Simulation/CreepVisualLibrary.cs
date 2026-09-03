@@ -4,7 +4,7 @@ using UnityEngine;
 
 namespace LTW.UnityClient.Simulation
 {
-    [CreateAssetMenu(fileName = "CreepVisualLibrary", menuName = "Line Wards/Creep Visual Library")]
+    [CreateAssetMenu(fileName = "CreepVisualLibrary", menuName = "Line Wars/Creep Visual Library")]
     public sealed class CreepVisualLibrary : ScriptableObject
     {
         [SerializeField] private CreepVisualProfile[] profiles = Array.Empty<CreepVisualProfile>();

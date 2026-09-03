@@ -2,7 +2,7 @@
 
 Date: 2026-07-16
 
-Use this brief to generate options for `ui-board-art-pass-v02`. The goal is not to copy a classic RTS interface. The goal is to build an original Line Wards visual language with the same level of role clarity, material confidence, and readable command structure.
+Use this brief to generate options for `ui-board-art-pass-v02`. The goal is not to copy a classic RTS interface. The goal is to build an original Line Wars visual language with the same level of role clarity, material confidence, and readable command structure.
 
 ## Shared Style Block
 

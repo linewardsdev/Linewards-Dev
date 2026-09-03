@@ -50,7 +50,7 @@ unity/LTW.UnityClient/Assets/Art/AIStaging/Models/Towers/Control/SourceDrop/towe
 - imports FBX, GLB/GLTF, OBJ, or BLEND source files;
 - removes camera/light/armature/empty junk for static tower source cleanup;
 - applies transforms on mesh objects;
-- assigns fallback Line Wards material names when imported objects have no material;
+- assigns fallback Line Wars material names when imported objects have no material;
 - normalizes height and footprint;
 - moves the bottom center to the origin;
 - adds anchor empties for Unity/source reference;
@@ -76,8 +76,8 @@ Assets/Art/AIStaging/Models/Towers/Control/SourceDrop/tower_control_prepared_v01
 Then run:
 
 ```text
-Line Wards > Art > Generate Available Tower 3D Proof Wrappers
-Line Wards > Art > Validate Tower 3D Proof Wrappers
+Line Wars > Art > Generate Available Tower 3D Proof Wrappers
+Line Wars > Art > Validate Tower 3D Proof Wrappers
 ```
 
 Control remains non-promotable until review confirms the new 3D asset beats `Tower_Control_AIPlate.prefab`.

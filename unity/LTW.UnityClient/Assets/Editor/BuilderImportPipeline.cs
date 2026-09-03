@@ -37,7 +37,7 @@ namespace LTW.UnityClient.Editor
         public const string ControllerFolder = "Assets/Animation/Builder";
         public const string ControllerPath = ControllerFolder + "/Builder_3D.controller";
 
-        [MenuItem("Line Wards/Art/Build Builder 3D")]
+        [MenuItem("Line Wars/Art/Build Builder 3D")]
         public static void BuildBuilder3D()
         {
             var ok = ConfigureModel(CharacterModelPath, renameClipTo: null)

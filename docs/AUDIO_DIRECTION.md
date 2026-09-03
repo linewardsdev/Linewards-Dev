@@ -94,7 +94,7 @@ second closed the distance between synthesized and produced, all generator-side:
   per-variant seeds; the director picks randomly but never repeats back to back.
 - **Width.** Shots and hits pan gently (±0.25 in-lane, ±0.35 in overview) relative to what
   the camera is framing — width, not localisation, and an off-screen lane stays centred.
-- **The audition window** (`Line Wards > Review > Audition Audio`) plays every file in
+- **The audition window** (`Line Wars > Review > Audition Audio`) plays every file in
   edit mode, singly or in sequence — the whole set reviewable in under a minute, including
   the cues a normal match rarely produces.
 

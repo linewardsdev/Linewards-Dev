@@ -24,7 +24,7 @@ SUPPORTED_EXTENSIONS = {".fbx", ".glb", ".gltf", ".obj", ".blend"}
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Audit, prepare, preview, and score an AI-generated model candidate.")
     parser.add_argument("--input", required=True, help="AI-generated model export: FBX, GLB/GLTF, OBJ, or BLEND.")
-    parser.add_argument("--asset-id", required=True, help="Line Wards asset id, e.g. tower.control.")
+    parser.add_argument("--asset-id", required=True, help="Line Wars asset id, e.g. tower.control.")
     parser.add_argument("--role", required=True, help="Pipeline role, e.g. control, arrow, runner.")
     parser.add_argument("--candidate", required=True, help="Candidate slug, e.g. meshy_batch01_c03.")
     parser.add_argument("--kind", choices=("tower", "creep", "builder"), default="tower")

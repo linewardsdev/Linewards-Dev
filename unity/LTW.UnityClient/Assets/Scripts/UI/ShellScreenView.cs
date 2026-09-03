@@ -72,7 +72,7 @@ namespace LTW.UnityClient.UI
     /// </remarks>
     public sealed class ShellScreenView : MonoBehaviour
     {
-        private const string PanelSettingsResource = "UI/LineWardsShellPanelSettings";
+        private const string PanelSettingsResource = "UI/LineWarsShellPanelSettings";
         private const string DocumentResource = "UI/ShellScreens";
         private const string StyleSheetResource = "UI/ShellScreens";
 
@@ -238,7 +238,7 @@ namespace LTW.UnityClient.UI
             {
                 Debug.LogError(
                     $"SHELL missing PanelSettings at Resources/{PanelSettingsResource}. " +
-                    "Run Line Wards/UI/Create Shell Panel Settings and commit the asset.");
+                    "Run Line Wars/UI/Create Shell Panel Settings and commit the asset.");
                 return;
             }
 

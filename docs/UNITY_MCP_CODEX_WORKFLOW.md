@@ -1,6 +1,6 @@
 # Unity MCP Codex Workflow
 
-This document defines the practical workflow for using Codex with Unity MCP on Line Wards. It is intentionally scoped to the tools, project shape, and mobile-first MVP constraints that exist in this repository.
+This document defines the practical workflow for using Codex with Unity MCP on Line Wars. It is intentionally scoped to the tools, project shape, and mobile-first MVP constraints that exist in this repository.
 
 Use this as the operating guide for Unity-facing work. It does not replace `AGENTS.md`, `ARCHITECTURE.md`, or the graphics art-direction skill.
 
@@ -9,7 +9,7 @@ Use this as the operating guide for Unity-facing work. It does not replace `AGEN
 - Keep `LTW.Simulation` deterministic, testable, and free of Unity dependencies.
 - Use Unity MCP for editor inspection and scene or component operations when it is connected.
 - Use file edits for C# source changes, followed by Unity assembly reload or build verification.
-- Improve mobile readability and original Line Wards art direction without copying Warcraft III assets, chrome, names, silhouettes, or screenshots.
+- Improve mobile readability and original Line Wars art direction without copying Warcraft III assets, chrome, names, silhouettes, or screenshots.
 - Preserve a fast local workflow: small scoped changes, targeted validation, and clear handoffs.
 
 ## Repository Boundaries
@@ -65,7 +65,7 @@ Use Ask mode for guidance and read-only inspection. Use Agent mode only when the
 
 Unity AI usage is token-limited. Spend it primarily on visual lift: art development, asset generation, animation, and material direction. Do not spend Unity AI budget on tasks Codex can handle well through repo inspection, C# edits, tests, documentation, Git, visual capture, or normal Unity MCP scene operations.
 
-Primary Unity AI priorities for Line Wards:
+Primary Unity AI priorities for Line Wars:
 
 1. Replace low-poly or primitive-looking gameplay visuals with original ward-tech assets.
 2. Improve tower, creep, projectile, board, and UI silhouette readability.
@@ -81,7 +81,7 @@ Avoid using Unity AI for:
 - Broad "make the game better" prompts without target assets, reference art, or a specific visual problem.
 - Large automated project changes without a checkpoint and a Git status review.
 
-Practical options for Line Wards:
+Practical options for Line Wars:
 
 | Option | Best LTW Use | Guardrail |
 | --- | --- | --- |
@@ -116,7 +116,7 @@ Good prompts to try in Unity Assistant:
 - "Agent mode: Generate sprite/texture variants for the selected tower so it reads as a polished ward-tech defense, not a primitive cylinder."
 - "Agent mode: Generate distinct creep body texture or sprite variants for runner, brute, swarm, and boss pressure, with strong silhouettes at phone scale."
 - "Agent mode: Generate attack, hit, leak, and send animation clips for the selected prefab, keeping motion short, readable, and loop-safe."
-- "Use UI Agent to prototype a portrait results screen for Line Wards using the existing gold, mint, arcane blue, and dark slate style."
+- "Use UI Agent to prototype a portrait results screen for Line Wars using the existing gold, mint, arcane blue, and dark slate style."
 
 When Unity Assistant produces assets:
 
@@ -187,7 +187,7 @@ These are guardrails, not blanket bans. A one-time lookup during setup is fine w
 
 ## UI And Mobile Readability
 
-Line Wards is mobile-first. UI work should prioritize touch clarity, information hierarchy, and pressure readability.
+Line Wars is mobile-first. UI work should prioritize touch clarity, information hierarchy, and pressure readability.
 
 Use the existing UI implementation unless the task is specifically to migrate UI systems. Current runtime UI may use IMGUI-style drawing where that is already the local pattern.
 
@@ -211,11 +211,11 @@ Visual direction:
 
 ## Art And Asset Workflow
 
-Use generated or procedural art only when it supports the Line Wards art direction and is saved with traceable source notes.
+Use generated or procedural art only when it supports the Line Wars art direction and is saved with traceable source notes.
 
 For art passes:
 
-1. Review `skill/line-wards-ltw-graphics-art-direction.md`.
+1. Review `skill/line-wars-ltw-graphics-art-direction.md`.
 2. Capture the before state when visual comparison matters.
 3. Make a narrow change to one visual problem.
 4. Capture representative mobile states after the change.

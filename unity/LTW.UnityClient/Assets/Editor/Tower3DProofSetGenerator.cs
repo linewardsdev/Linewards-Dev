@@ -6,11 +6,11 @@ namespace LTW.UnityClient.Editor
 {
     public static class Tower3DProofSetGenerator
     {
-        private const string GenerateMenuPath = "Line Wards/Art/Generate Available Tower 3D Proof Wrappers";
-        private const string RegenerateMenuPath = "Line Wards/Art/Regenerate ALL Tower 3D Proof Wrappers (discards LODs)";
-        private const string ValidateMenuPath = "Line Wards/Art/Validate Tower 3D Proof Wrappers";
-        private const string PromoteAvailableForReviewMenuPath = "Line Wards/Art/Promote Available Tower 3D Proofs For Review";
-        private const string PromoteMenuPath = "Line Wards/Art/Promote Complete Tower 3D Set";
+        private const string GenerateMenuPath = "Line Wars/Art/Generate Available Tower 3D Proof Wrappers";
+        private const string RegenerateMenuPath = "Line Wars/Art/Regenerate ALL Tower 3D Proof Wrappers (discards LODs)";
+        private const string ValidateMenuPath = "Line Wars/Art/Validate Tower 3D Proof Wrappers";
+        private const string PromoteAvailableForReviewMenuPath = "Line Wars/Art/Promote Available Tower 3D Proofs For Review";
+        private const string PromoteMenuPath = "Line Wars/Art/Promote Complete Tower 3D Set";
 
         private static readonly Tower3DImportSpec[] Specs =
         {

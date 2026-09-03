@@ -8,7 +8,7 @@ Status: ready for Unity AI generation experiment
 
 Convert the approved Arrow tower design drawing into a real Unity-ready 3D tower model, replacing the current flat `Tower_Arrow_AIPlate` proof sprite only if the generated model improves in-game readability.
 
-This is a targeted proof of whether Unity AI can turn the Line Wards source drawings into proper authored 3D assets without losing mobile clarity.
+This is a targeted proof of whether Unity AI can turn the Line Wars source drawings into proper authored 3D assets without losing mobile clarity.
 
 ## Source Drawing
 
@@ -74,7 +74,7 @@ Do not overwrite `Tower_Arrow_AIPlate.prefab` until the 3D version wins an in-ga
 Use Agent mode only after creating a Unity checkpoint or confirming Git status is clean enough to review. Attach `tower_arrow_source_plate_v03.png`.
 
 ```text
-Create a Unity-ready 3D model variant for the Line Wards Arrow tower using the attached source drawing as the visual reference.
+Create a Unity-ready 3D model variant for the Line Wars Arrow tower using the attached source drawing as the visual reference.
 
 Goal: a mobile-readable ward-tech fantasy arrow/rail tower for a tower-wars board. It should feel like a real 3D asset, not a flat sprite.
 
@@ -90,7 +90,7 @@ Core design features to preserve:
 - small mint gems only where they help readability
 
 Production constraints:
-- original Line Wards ward-tech fantasy style
+- original Line Wars ward-tech fantasy style
 - not Warcraft-like, not medieval faction architecture, no copied game silhouette
 - readable from a top-down three-quarter mobile camera
 - low-to-moderate polygon count suitable for mobile
