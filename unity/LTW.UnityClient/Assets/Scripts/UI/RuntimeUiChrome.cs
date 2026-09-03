@@ -157,6 +157,14 @@ namespace LTW.UnityClient.UI
                 sharedBoardTextMaterial.EnableKeyword("OUTLINE_ON");
                 sharedBoardTextMaterial.SetFloat("_OutlineWidth", 0.25f);
                 sharedBoardTextMaterial.SetColor("_OutlineColor", new Color(0.02f, 0.03f, 0.05f, 1f));
+                // R5 (2026-09-02 re-audit): labels were depth-tested against units — "-3 LIVES" cut
+                // in half by the Warden standing on the leak gate. Drawn as an overlay instead:
+                // ZTest Always through the `ZTest [unity_GUIZTestMode]` state both TMP SDF shaders
+                // declare (ZWrite is already Off there), and queue 3100 so the text lands after
+                // every Transparent-queue creep and decal (all at 3000). World position and the
+                // sortingOrder stacking in UnityVerticalSliceRenderer.Cues.cs are unchanged.
+                sharedBoardTextMaterial.SetInt("unity_GUIZTestMode", (int)UnityEngine.Rendering.CompareFunction.Always);
+                sharedBoardTextMaterial.renderQueue = 3100;
                 return sharedBoardTextMaterial;
             }
         }

@@ -118,6 +118,14 @@ namespace LTW.UnityClient.Editor
             // Wave 3 finding #16: Tesla's new steam bursts fire every 0.6s from foundryLane (4,13) —
             // sampled slower than the burst period so at least one frame should catch a puff mid-rise.
             new("35-tesla-steam-seq", () => Focus(foundryLane, 4f, 13f, 1.8f), 0.2d, 6, 0.3d),
+            // Re-audit #12: tier-3 Arrow at (2,14) next to a tier-1 Arrow at (4,14), same framing.
+            new("36-tier-pair-closeup", () => Focus(1, 3f, 14f, 2.0f), 0.4d),
+            // Wave 5 R5 proof: the whole roster sent at once so several creeps are on the leak row
+            // while "-N LIVES" labels are live — a label crossing a creep is what this step is for.
+            new("37-leak-row-labels-seq", () => { SendRoster(1, 0, 15); Framing(1, LaneCameraFraming.LeakGateFocus); }, 9.0d, 10, 0.15d),
+            // Wave 5 #8 death proof: a single Runner into the six-tower lane dies inside the
+            // towers' reach; sampled at 0.06 s so the 0.4 s death hold spans several frames.
+            new("38-kill-seq", () => { SendRoster(1, 0, 1); Focus(1, 3f, 11.5f, 4.6f); }, 5.5d, 30, 0.06d),
 
             // ---- live combat against each line ----
             new("40-combat-seq", () => { Deselect(); SendPressure(1); Focus(1, 3f, 11.5f, 4.6f); }, 3.4d, 12, 0.1d),
@@ -297,6 +305,9 @@ namespace LTW.UnityClient.Editor
             // Rows 9-14 only: the prism's range 4 then reaches no higher than row 6, which keeps
             // rows 1-5 clean for the creep roster sequences.
             Place(sim, 1, SampleVerticalSliceContent.TowerId, 2, 14);
+            // Re-audit #12: a second Arrow that stays at tier 1, beside the one upgraded to tier 3
+            // below, so tier silhouettes can be judged as a pair at one framing (36-tier-pair).
+            Place(sim, 1, SampleVerticalSliceContent.TowerId, 4, 14);
             Place(sim, 1, SampleVerticalSliceContent.ControlTowerId, 4, 13);
             Place(sim, 1, SampleVerticalSliceContent.UtilityTowerId, 2, 12);
             Place(sim, 1, SampleVerticalSliceContent.PulseTowerId, 4, 11);

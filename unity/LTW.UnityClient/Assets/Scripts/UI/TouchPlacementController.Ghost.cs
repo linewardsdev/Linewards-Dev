@@ -30,6 +30,31 @@ namespace LTW.UnityClient.UI
 
         private readonly List<GameObject> selectionRings = new();
 
+        /// <summary>
+        /// Rest diameter of the ring at the same index in <see cref="selectionRings"/>, before the
+        /// pulse; <see cref="PulseSelectionRings"/> writes the scaled value to the transform each
+        /// frame, so the transform itself cannot be the place the rest size is remembered.
+        /// </summary>
+        private readonly List<float> selectionRingDiameters = new();
+
+        // World Y of the selection ring: BoardTopY (-0.12, private to UnityVerticalSliceRenderer)
+        // plus 0.01 — above the board face so it never z-fights it, below the tower's own
+        // accessories (the range halo sits at PlacedTowerBaseY - 0.06 = -0.10). The old disc sat at
+        // 0.06, a full 0.18 above the board, which is part of why it floated like a marker.
+        private const float SelectionRingY = -0.11f;
+        private const float SelectionRingAlpha = 0.5f;
+
+        // The contact-shadow shader fades from (1 - softness) of the radius to the rim, squared.
+        // MechanicRingMesh's inner rim sits at 0.65 of the radius and must stay inside the full-
+        // strength plateau (softness < 0.35) to be a clean cut; 0.28 leaves the band full from
+        // 0.65 to 0.72 and soft over the outer 28%, so the ring reads thinner than the mesh's 35%.
+        private const float SelectionRingSoftness = 0.28f;
+
+        // Board units between the tower's footprint radius and the ring's outer radius.
+        private const float SelectionRingClearance = 0.15f;
+        private const float SelectionRingPulseAmplitude = 0.05f;
+        private const float SelectionRingPulsePeriod = 1.2f;
+
         private void MoveGhost()
         {
             // The builder now walks along with tower placement instead of vanishing for it, so
@@ -52,7 +77,7 @@ namespace LTW.UnityClient.UI
         private Vector3 GhostWorldPosition() => GridToWorld(selectedCell, UnityVerticalSliceRenderer.PlacedTowerBaseY);
 
         /// <summary>
-        /// Tints the one material every ghost renderer shares: the role's accent while the cell
+        /// Tints the one material every ghost renderer shares: the mint "ok" signal while the cell
         /// would be accepted, the danger red while it would be rejected.
         /// </summary>
         /// <remarks>
@@ -63,8 +88,12 @@ namespace LTW.UnityClient.UI
         /// </remarks>
         private void UpdateGhostColor()
         {
-            var color = placementPreview.Accepted ? SelectedTowerAccent() : Danger;
-            color.a = placementPreview.Accepted ? 0.74f : 0.86f;
+            // R6 (2026-09-02 re-audit): at 0.74 / 0.86 the ghost read as a solid violet tower at
+            // shipped distance, and the role accent said nothing about legality. Validity is the
+            // whole message now: MintSignal / Danger, the same pair the BUILD button uses, at one
+            // alpha low enough that the board shows through.
+            var color = placementPreview.Accepted ? MintSignal : Danger;
+            color.a = 0.45f;
             var material = GhostMaterial();
             if (material != null)
             {
@@ -139,7 +168,17 @@ namespace LTW.UnityClient.UI
             model.name = $"GhostModel_{entry.RoleId}";
             model.transform.localPosition = Vector3.up * profile.Lift;
             model.transform.localRotation = Quaternion.identity;
+            // Same root scale the renderer's SetTowerTransform gives a placed instance (the
+            // Control ward: 0.75 on the prefab root, Body left at 1 — Arcane has no breathe
+            // amplitude). The ghost root and the match root are both unit-scaled, so the chains
+            // are equal; the 2026-09-02 re-audit's "1.3x" is the close-up framing, not a scale.
+            // The no-scale fallback still diverges (renderer: TowerRoleScale; here: one), but
+            // every shipped profile authors a scale, so it is logged rather than mirrored.
             model.transform.localScale = profile.HasScale ? profile.Scale : Vector3.one;
+            if (!profile.HasScale)
+            {
+                Debug.LogWarning($"PLACEMENT GHOST '{entry.ContentId}' profile has no scale; the ghost draws at 1 while a placed tower uses the renderer's role fallback.");
+            }
 
             foreach (var collider in model.GetComponentsInChildren<Collider>(true))
             {
@@ -220,12 +259,22 @@ namespace LTW.UnityClient.UI
         private void UpdateSelectionRing(TowerCombatState tower) => ShowSelectionRings(new[] { tower });
 
         /// <summary>
-        /// Puts a range ring under every selected tower, growing the pool as the selection does.
+        /// Puts a selection ring under every selected tower, growing the pool as the selection does.
         /// </summary>
         /// <remarks>
         /// Was a single GameObject, which was right while exactly one tower could be selected. With
         /// a multi-selection the ring has to be per tower or the board shows one highlighted tower
         /// out of five and the player has no way to see what a batch is about to act on.
+        ///
+        /// A ring, not a disc. The 2026-09-02 re-audit (OPEN_ITEMS item 53, frames
+        /// 33-selected-tower-ring / 36-tier-pair-closeup) found the primitive cylinder here was an
+        /// opaque, hard-edged, light-blue plate about 1.6 cells across that hid the board under the
+        /// tower and read as a debug marker. It is now the renderer's own board-decal vocabulary:
+        /// <see cref="BoardRenderResources.MechanicRingMesh"/> (the braked-cell annulus, inner
+        /// radius 65% of outer, so the board shows through the middle) on a
+        /// <see cref="BoardRenderResources.CreateContactShadowMaterial"/> whose soft rim fades out
+        /// rather than cutting, tinted with the tower's accent at <see cref="SelectionRingAlpha"/>.
+        /// The transform holds only position; scale is written by <see cref="PulseSelectionRings"/>.
         /// </remarks>
         private void ShowSelectionRings(IReadOnlyList<TowerCombatState> towers)
         {
@@ -233,23 +282,49 @@ namespace LTW.UnityClient.UI
             {
                 if (index >= selectionRings.Count)
                 {
-                    var created = RenderCompat.CreatePrimitive(PrimitiveType.Cylinder);
-                    created.name = "SelectedTowerRangeRing";
-                    selectionRings.Add(created);
+                    selectionRings.Add(CreateSelectionRing());
+                    selectionRingDiameters.Add(0f);
                 }
 
                 var ring = selectionRings[index];
                 var tower = towers[index];
+                var accent = TowerAccent(tower.TowerId.Value);
+                accent.a = SelectionRingAlpha;
                 ring.SetActive(true);
-                ring.transform.position = GridToWorld(new Vector2Int(tower.Position.X, tower.Position.Y), 0.06f);
-                ring.transform.localScale = TowerSelectionRingScale(tower.TowerId.Value);
-                ring.GetComponent<Renderer>().material.color = TowerAccent(tower.TowerId.Value);
+                ring.transform.position = GridToWorld(new Vector2Int(tower.Position.X, tower.Position.Y), SelectionRingY);
+                selectionRingDiameters[index] = TowerSelectionRingDiameter(tower.TowerId.Value);
+                // sharedMaterial is this ring's own instance (see CreateSelectionRing), so the write
+                // recolours one ring and clones nothing.
+                ring.GetComponent<Renderer>().sharedMaterial.color = accent;
             }
 
             for (var index = towers.Count; index < selectionRings.Count; index++)
             {
                 selectionRings[index].SetActive(false);
             }
+
+            // Sized now rather than at the next LateUpdate, so a ring shown this frame never draws
+            // one frame at whatever scale its last owner left it.
+            PulseSelectionRings();
+        }
+
+        /// <summary>
+        /// One annulus with its own soft-edged decal material. Per ring, not shared across the
+        /// pool: every selected tower carries its own accent, and one material would recolour
+        /// every ring to the last tower's.
+        /// </summary>
+        private static GameObject CreateSelectionRing()
+        {
+            var ring = new GameObject("SelectedTowerRing");
+            ring.AddComponent<MeshFilter>().sharedMesh = BoardRenderResources.MechanicRingMesh;
+            var ringRenderer = ring.AddComponent<MeshRenderer>();
+            ringRenderer.sharedMaterial = BoardRenderResources.CreateContactShadowMaterial(
+                "SelectedTowerRing (runtime)",
+                Color.white,
+                SelectionRingSoftness);
+            ringRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            ringRenderer.receiveShadows = false;
+            return ring;
         }
 
         private void HideSelectionRing()
@@ -263,16 +338,51 @@ namespace LTW.UnityClient.UI
             }
         }
 
-        // Unlike name/colour below, ring scale has no per-tower value in TowerCatalog to fall back to
-        // — the fallback here is a deliberate shared default size for the 10 towers added since this
-        // was written, not a wrong answer borrowed from Arrow's branch.
-        private static Vector3 TowerSelectionRingScale(string towerId)
+        /// <remarks>
+        /// Here rather than a line in <c>Update</c> (TouchPlacementController.cs): that method
+        /// returns early on almost every frame — no tap, or an eliminated seat — and the ring has
+        /// to breathe on all of them. No other part of the class defines LateUpdate.
+        /// </remarks>
+        private void LateUpdate() => PulseSelectionRings();
+
+        /// <summary>
+        /// The rings' slow breathe: ±<see cref="SelectionRingPulseAmplitude"/> of radius over a
+        /// <see cref="SelectionRingPulsePeriod"/> cycle. Hidden rings are left alone; they are
+        /// resized the moment <see cref="ShowSelectionRings"/> brings them back.
+        /// </summary>
+        private void PulseSelectionRings()
         {
-            if (towerId.Contains("control")) return new Vector3(1.42f, 0.03f, 1.42f);
-            if (towerId.Contains("relay") || towerId.Contains("economy")) return new Vector3(1.18f, 0.03f, 1.18f);
-            if (towerId.Contains("pulse")) return new Vector3(1.62f, 0.03f, 1.62f);
-            if (towerId.Contains("prism")) return new Vector3(2.12f, 0.03f, 2.12f);
-            return new Vector3(1.28f, 0.03f, 1.28f);
+            var breathe = 1f + SelectionRingPulseAmplitude * Mathf.Sin(Time.time * (2f * Mathf.PI / SelectionRingPulsePeriod));
+            for (var index = 0; index < selectionRings.Count; index++)
+            {
+                var ring = selectionRings[index];
+                if (ring == null || !ring.activeSelf)
+                {
+                    continue;
+                }
+
+                // MechanicRingMesh is unit-diameter, so the XZ scale IS the world diameter.
+                var diameter = selectionRingDiameters[index] * breathe;
+                ring.transform.localScale = new Vector3(diameter, 1f, diameter);
+            }
+        }
+
+        private static float TowerSelectionRingDiameter(string towerId) =>
+            2f * (TowerFootprintRadius(towerId) + SelectionRingClearance);
+
+        // Footprint RADIUS in board units — a placed tower stands in one 1-unit cell, so these are
+        // fractions of half a cell. Estimates in the per-role ordering the old disc table used
+        // (Control's ward is the 0.75-scaled prefab; Prism the widest), not measurements: nothing
+        // reachable from here measures a placed prefab's bounds (the renderer's unitFootprints is
+        // private). As before, the fallback is a deliberate shared default for the roles without a
+        // branch, not a wrong answer borrowed from Arrow's.
+        private static float TowerFootprintRadius(string towerId)
+        {
+            if (towerId.Contains("control")) return 0.36f;
+            if (towerId.Contains("relay") || towerId.Contains("economy")) return 0.33f;
+            if (towerId.Contains("pulse")) return 0.44f;
+            if (towerId.Contains("prism")) return 0.50f;
+            return 0.40f;
         }
     }
 }

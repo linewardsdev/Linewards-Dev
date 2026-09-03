@@ -61,6 +61,16 @@ namespace LTW.UnityClient.Simulation
 
         private Sprite spawnGateSprite;
         private Sprite leakGateSprite;
+
+        /// <summary>
+        /// Height of the sprite gate's grounding disc above the baked floor. Just above the unit
+        /// contact shadows' 0.006 so a creep crossing the gate draws its own shadow over the
+        /// gate's, and far below the plate itself at +0.15.
+        /// </summary>
+        private const float GateFoundationShadowLift = 0.012f;
+
+        /// <summary>Alpha of the sprite gate's grounding disc — see CreateEndpointSpriteFoundationShadow.</summary>
+        private const float GateFoundationShadowAlpha = 0.35f;
         private Texture2D boardDeepFieldTexture;
         private Texture2D boardBuildBandTexture;
         private Texture2D boardRouteCoreTexture;
@@ -717,11 +727,11 @@ namespace LTW.UnityClient.Simulation
             // CreateEndpointPlateDetails builds its FoundationShadow disc first, before any of the
             // decorative rings — a soft AO-like grounding layer at center + Vector3.down * 0.055f.
             // This sprite path skipped it entirely, which is why the sprite plate reads as flat /
-            // pasted on rather than grounded. Same disc, same tint, same Y convention; sized from
-            // the sprite's own footprint (sprite.bounds is already in world units at scale 1, so
-            // multiplying by this plate's own scale gives its actual on-board size with no pixel
-            // math hardcoded here) and inflated so it bleeds out from under the art instead of
-            // exactly tracing it.
+            // pasted on rather than grounded. Same tint; sized from the sprite's own footprint
+            // (sprite.bounds is already in world units at scale 1, so multiplying by this plate's
+            // own scale gives its actual on-board size with no pixel math hardcoded here). No
+            // longer the same disc or the same Y — see CreateEndpointSpriteFoundationShadow's
+            // remark for what the re-audit found wrong with the baked cylinder.
             CreateEndpointSpriteFoundationShadow(laneId, label, center, sprite, scale);
 
             var renderer = plate.AddComponent<SpriteRenderer>();
@@ -748,20 +758,52 @@ namespace LTW.UnityClient.Simulation
         /// single subtle layer, not a rebuild of the no-sprite path's whole ring stack: this is AO
         /// under existing 2D art, not new decoration.
         /// </summary>
+        /// <remarks>
+        /// R3 (re-audit 2026-09-02, OPEN_ITEMS item 53): as shipped this was a CreateEndpointDisc
+        /// cylinder — opaque, baked into the lane mesh, and drawn by the board's vertex-colour
+        /// shader, whose cell-frequency noise and highlight flecks (R1) broke its edge up into an
+        /// irregular outline. At 1.25x the sprite's 1.8-unit bounds it came out ~2.3 cells across
+        /// under a painting that reads at ~1.3, and the whole thing read as a dirty smear on the
+        /// floor rather than a shadow under an object. Three things fixed together, because each
+        /// alone still smears:
+        ///   shape — a ContactShadowMesh quad on CreateContactShadowMaterial's soft radial
+        ///           falloff, the same recipe as the towers' own contact shadows, instead of a
+        ///           hard-edged cylinder cap put through the surface shader;
+        ///   size  — bleed 1.25 -> 0.66 of the sprite bounds, ~1.2 cells on the player lane (the
+        ///           bounds carry transparent margin around the painted gate, so this still
+        ///           bleeds a little past the visible art);
+        ///   alpha — 0.35 on the lane's contact-shadow tint, where the cylinder was opaque.
+        /// Softness 0.62 is TowerContactShadowMaterial's, so gate and tower shadows share one
+        /// edge. Lives as a real renderer (laneDecorations) rather than a baked piece because the
+        /// baked lane mesh has exactly one material and it is the opaque surface shader. The
+        /// no-sprite path's own FoundationShadow (CreateEndpointPlateDetails) is unchanged: there
+        /// it is the rim under an opaque 2.34-cell stone ring, a different construction the
+        /// re-audit frame did not show.
+        /// </remarks>
         private void CreateEndpointSpriteFoundationShadow(int laneId, string label, Vector3 center, Sprite sprite, float plateScale)
         {
             // sprite.bounds is in local (scale-1) world units; the plate itself is a flat quad
             // rotated 90 degrees about X, so the sprite's authored width/height (X/Y in the source
             // image) become the on-board X/Z footprint once laid down.
             var footprint = sprite.bounds.size * plateScale;
-            const float bleed = 1.25f;
+            const float bleed = 0.66f;
             var diameter = Mathf.Max(footprint.x, footprint.y) * bleed;
-            CreateEndpointDisc(
-                $"Lane{laneId}{label}SpriteFoundationShadow",
-                center + Vector3.down * 0.055f,
-                diameter,
-                0.032f,
-                BoardContactShadowColor(laneId));
+
+            var shadow = new GameObject($"Lane{laneId}{label}SpriteFoundationShadow");
+            shadow.transform.position = new Vector3(center.x, BoardTopY + GateFoundationShadowLift, center.z);
+            shadow.transform.localScale = new Vector3(diameter, 1f, diameter);
+            shadow.AddComponent<MeshFilter>().sharedMesh = BoardRenderResources.ContactShadowMesh;
+            var renderer = shadow.AddComponent<MeshRenderer>();
+            var tint = BoardContactShadowColor(laneId);
+            renderer.sharedMaterial = BoardRenderResources.CreateContactShadowMaterial(
+                $"LTW Gate Foundation Shadow Lane{laneId}{label}",
+                new Color(tint.r, tint.g, tint.b, GateFoundationShadowAlpha),
+                0.62f);
+            renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            renderer.receiveShadows = false;
+            renderer.lightProbeUsage = UnityEngine.Rendering.LightProbeUsage.Off;
+            renderer.reflectionProbeUsage = UnityEngine.Rendering.ReflectionProbeUsage.Off;
+            laneDecorations.Add(shadow);
         }
 
         private void UpdateSpawnGatePulse()

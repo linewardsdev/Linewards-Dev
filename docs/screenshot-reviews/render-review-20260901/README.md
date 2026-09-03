@@ -192,3 +192,80 @@ tree, duplicating an existing, more thorough open item; **#18** (bramble) found 
 the original review simply didn't know Foundry Core carries the same slow mechanic as Thorn
 Snare. Both are legitimate wave outcomes, not shortfalls: the point of dispatching investigation
 alongside fixes is to find out which findings were real.
+
+## Re-audit (2026-09-02, after Waves 1–3)
+
+Same runner, same frames, plus the two Wave 3 steps and the shell at both surfaces. Verdict
+per finding is in the review artifact (link above), with 1 Sep / 2 Sep pairs at the same step.
+
+**Score:** 9 closed (#1, 2, 6, 7, 10, 14, 15, 16, 18) · 5 improved-not-closed (#3, 5, 9, 11,
+13) · 2 still open (#4 board material, #8 combat VFX) · 3 not verifiable here (#12, 17, 19) ·
+1 not actionable (#20).
+
+**The pattern:** every fix that could be verified by geometry, a test or a compile came in
+clean. The two that needed an eye on the frame while tuning — the board material and the
+backdrop — shipped at their first parameters and are wrong in amount: the board is now
+high-frequency, high-contrast noise with white highlight flecks that out-contrasts the towers
+on it; the backdrop is a curved wireframe grid that reads as a debug floor in the all-lanes
+view.
+
+**New findings (R1–R8, tracked as OPEN_ITEMS item 53):** R1 board material amplitude /
+octave / highlight clamp / hue / seams · R2 pad texture phase and edge highlight · R3 gate AO
+disc 2.5 cells → 1.2 · R4 combat still in gizmo vocabulary (beam, X, bracket) — #8 rescoping in
+Wave 3 was too generous; the 5–7 day rebuild stands · R5 board labels depth-tested against
+units · R6 ghost 1.3× placed scale and near-opaque · R7 backdrop grid glow · R8 mechanic decals
+now the loudest shapes on the board.
+
+**Wave 4** is a tuning pass on what shipped (3–4 days, runner open on every change);
+**Wave 5** is the VFX rebuild. Nothing new should be built before Wave 4 is judged at
+`53-active-lane-shipped-framing`.
+
+## Wave 4 — tune what shipped (2026-09-02)
+
+The re-audit's lesson applied: two agents on disjoint files for the code items (gate AO,
+mechanic decals, halo; labels, ghost), the three shader items done by hand, and every item
+judged at `53-active-lane-shipped-framing` across two capture passes before it was kept.
+Compile clean, 336/336, device export fresh with the new symbols (`MechanicRingMesh`,
+`SporeFogMesh`, `GateFoundationShadowAlpha`, `RangeHaloAlpha`) in the IL2CPP output.
+
+| # | Item | Status | What the capture showed |
+| --- | --- | --- | --- |
+| R1 | Board material | done | The foil is gone. Smoothness 0.5→0.18 and bump 0.35→0.12 were the whole of the "white flecks" (specular off gradient-tilted normals); noise 0.12→0.065, a new macro octave (4.5-unit wavelength, 0.14), seams 0.3→0.1. At the shipped framing the board is a matte slate and the eye goes to the units. Second pass raised the macro from 0.09 after pass 1 read flat. |
+| R2 | Pad seams | done | The bright top edge and hard seam were the specular; with R1 the pads read as raised slabs of the same floor. No pad-specific change needed — the noise already sampled world XZ. |
+| R3 | Gate AO | done | The 2.3-cell smear was an opaque cylinder baked into the lane mesh, drawn by the board shader (so R1's flecks ate its edge). Now a contact-shadow quad, bleed 1.25→0.66 (~1.2 cells), α 0.35, soft edge. Reads as a contact, not dirt. |
+| R5 | Labels over units | landed, not frame-proven | ZTest Always + queue 3100 on the runtime TMP material (the TMP SDF-Mobile shader's `unity_GUIZTestMode`). Labels drew clean in every frame this run, but no frame caught a label crossing a creep, so the occlusion case is not yet shown fixed. |
+| R6 | Placement ghost | done | Mint (legal) / red (illegal) at α 0.45; the board shows through. Scale: the agent traced both chains to 0.75 world and the pass-1 frame agrees — the "1.3×" was the opaque violet fill reading larger, not a scale. |
+| R7 | Backdrop grid | done | Wobble 0.6→0 and glow 0.32→0.04. The all-lanes view is now boards on a dark plate with a soft vignette; no grid, no Tron. |
+| R8 | Mechanic decals | done | Bramble: a ring mesh (UV-remapped annulus, no shader change), α 0.52→0.30. Grovebond α →0.22 (second pass; 0.30 still read as discs on the darker board). Spore fog: a UV-remapped disc gives full density to one cell then 0.2 by the diagonals, α 0.36→0.24 (second pass). |
+| R8d | Control "halo" | not a decal | `RangeHalo` is disabled in all 16 wrappers; the α/clamp landed but are invisible. The violet pancake under the Control ward is the model's own translucent base dish — authored art, so it's an asset note, not a tuning item. |
+| #12 | Tier silhouettes | judged: open | New step `36-tier-pair-closeup` (tier-3 Arrow at (2,14) beside a tier-1 at (4,14)). They are indistinguishable. Wave 2's accessory scaling targets `OwnerTrim`/`RoleMarker`/`RangeHalo`, and on the shipped prefabs those are disabled or too small to read. Needs a real silhouette change per tier. |
+
+**Left for Wave 5:** #8/R4 combat VFX (unchanged, still beam + X + bracket), #12 tier
+silhouettes (now confirmed, not assumed), R5's occlusion proof (add a capture step that holds
+a creep on the leak row while a label is live). One new minor: the selection indicator is an
+opaque flat light-blue disc (`33-selected-tower-ring`, `36-tier-pair-closeup`); it should be
+a ring at ~0.5 alpha.
+
+## Wave 5 — the VFX rebuild, tier silhouettes, and the proofs (2026-09-02)
+
+Three agents on disjoint files (combat VFX: Cues/Effects/Pooling + a new `CombatVfxResources`
+and `LTW/Combat VFX` shader; tier crowns: TowerPresentation + BoardRenderResources; selection
+ring: Ghost.cs), two capture steps added to the runner for the two proofs the earlier waves
+could not give, three capture passes, compile clean, 336/336, device export fresh with
+`SpawnProjectile`, `ApplyTierCrown`, `CreateSelectionRing` and `CombatVfxResources` in the
+IL2CPP output. One compile fix on my side: the crown cache keyed on `GetInstanceID()`, which
+6000.5 treats as an obsolete-error — re-keyed on the pooled instance itself.
+
+| # | Item | Status | What the capture showed |
+| --- | --- | --- | --- |
+| 8 / R4 | Combat VFX rebuild | done | Shots are tapered darts with a fading trail (`43-combat-seq-late-03`: two Arrow lances converging on the Warden; `44-foundry-combat-seq-02`: the Gatling tracer). Kills and hits are a small ring plus 5–7 sparks; no crossed X exists in any frame. The green bracket is gone (`40-combat-seq-03`, the "+3" stands alone). Kept as they were: Tesla's forked arc, the vine lashes, the muzzle bursts. Death: `38-kill-seq-09..11` — full-size Runner under the lance, then ~40% scale, darkened and sinking with a mint burst, then gone. The runner's frame cadence is wall-clock-bound by the readback, so the hold's length is not measurable from captures; its visibility is. |
+| 12 | Tier silhouettes | done | `36-tier-pair-closeup`: the tier-3 Arrow wears 8 owner-accent studs around its footprint, the tier-1 beside it none, the tier-2 Control 4. First pass at 0.14/0.16 world units competed with the selection ring; 0.10/0.12 reads as a tier mark and still shows at `53-active-lane-shipped-framing`. Body emission also lifts +25%/+50% at tier 2/3 via property block. Crowns sit under the tower root (never spin), measured from the Body bounds per instance, pooled with the tower. |
+| R5 proof | Labels over units | done, proven | New step `37-leak-row-labels-seq`: "−5 LIVES" (`01`) and "−2 LIVES" (`08`) draw on top of the Warden standing on the gate. Wave 4's ZTest Always is confirmed. One residual: at `01` the "+25" and "−5 LIVES" labels overlap each other slightly — a stacking offset, not occlusion. |
+| Selection ring | Opaque disc → ring | done | `33-selected-tower-ring`: an owner-accent annulus at α 0.5 with a slow ±5% pulse, the board visible through it. Footprint radii are per-role estimates (control 0.36 … prism 0.50); they look right at both framings. |
+
+**Left after Wave 5:** the label-on-label stacking offset on a busy leak row (¼ day); core's
+immediate `SpawnEffect` flash at the hit position still fires at event time, 0.12 s before the
+dart lands — a hook in the core renderer file the VFX agent did not own (¼ day); the
+elimination and victory lane cues are still crossed beams (out of combat scope, cosmetic); and
+the Control ward's own translucent base dish (art). Everything the 1 September review opened
+that this environment can act on is now closed or reduced to those four small items.

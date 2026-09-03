@@ -42,9 +42,12 @@ Shader "LTW/Backdrop"
         _CircuitLineWidth ("Circuit Line Width (fraction of cell)", Range(0.001, 0.25)) = 0.022
         // A single sine perturbation on the X trace so the grid reads as a wandering circuit trace
         // rather than a rigid graph-paper grid, for one extra ALU op.
-        _CircuitWobble ("Circuit Wobble Amount (world units)", Float) = 0.6
+        // Re-audit 2026-09-02 (R7): the wobble curved the grid into a perspective-bent neon
+        // floor in the all-lanes view — the single most recognisable placeholder-environment
+        // image there is. Straight, and a tenth of the glow: a trace you notice second, not first.
+        _CircuitWobble ("Circuit Wobble Amount (world units)", Float) = 0.0
         _CircuitWobbleFreq ("Circuit Wobble Frequency", Float) = 0.18
-        _CircuitGlowStrength ("Circuit Glow Strength", Range(0, 4)) = 0.32
+        _CircuitGlowStrength ("Circuit Glow Strength", Range(0, 4)) = 0.04
         _CircuitPulseSpeed ("Circuit Pulse Speed", Float) = 0.6
         // Two lane-accent tones rather than eight: a single static plate cannot show all eight
         // lanes' colours at once anyway, so this mixes the player's own signal colour (accent A —

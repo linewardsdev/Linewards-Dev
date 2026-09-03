@@ -198,22 +198,32 @@ namespace LTW.UnityClient.Simulation
         }
 
         /// <summary>
-        /// How long a killed/leaked creep's own instance lingers — shrinking and sinking, see
-        /// <see cref="UpdateDyingCreeps"/> — before <see cref="ReleaseMissingCreeps"/> is allowed
-        /// to actually pool it.
+        /// How long a killed/leaked creep's own instance lingers — shrinking, sinking and
+        /// darkening, see <see cref="UpdateDyingCreeps"/> — before <see cref="ReleaseMissingCreeps"/>
+        /// is allowed to actually pool it.
         /// </summary>
         /// <remarks>
-        /// Finding #8 (2026-09-01 render review), the one part of it that held up on a full
-        /// re-read of this file: a creep's model used to be pooled the instant its key dropped
-        /// out of the snapshot's <see cref="visibleKeys"/> — often the very same frame the death
-        /// flash beams in SpawnCreepDeathCue were still drawing — so those beams were decorating
-        /// an already-empty cell. The per-tower attack choreography (SpawnTowerAttackCue and
-        /// everything it calls) was re-read in full at the same time and is untouched: it is
-        /// already bespoke per role and already reflects real tuning, and the "one-frame straight
-        /// beam" complaint in the same finding is just what any 0.08-0.24s beam looks like in a
-        /// single freeze-frame.
+        /// Finding #8 (2026-09-01 render review): a creep's model used to be pooled the instant
+        /// its key dropped out of the snapshot's <see cref="visibleKeys"/> — often the very same
+        /// frame the death cue was still drawing — so the cue was decorating an already-empty cell.
+        ///
+        /// Wave 5 (R4, re-judged 2026-09-02): Wave 3's 0.36s hold was not visible in any frame of
+        /// a 0.1s capture. Nothing in the release path cuts it short — the only early exits are a
+        /// match reset (HasStarted false) and a presentation Disabled reset, neither of which the
+        /// capture runner takes mid-combat — but the capture renders at whatever rate the batch
+        /// editor manages under a 1536x2048 ReadPixels per frame, so Update() and this hold may
+        /// see only one or two frames in 0.36s. Two changes for that: 0.4s, the top of the asked
+        /// range, and an ease-in curve that keeps the creep near full size for the first third
+        /// while the darkening says "dead", so any frame in the hold is recognisably a corpse
+        /// rather than a slightly smaller creep.
         /// </remarks>
-        private const float CreepDyingDuration = 0.36f;
+        private const float CreepDyingDuration = 0.4f;
+
+        /// <summary>Scale a dying creep collapses to: small enough to be gone, large enough that the last frame still has a shape.</summary>
+        private const float CreepDyingEndScale = 0.15f;
+
+        /// <summary>How far every dying creep sinks into the board by the end of the hold.</summary>
+        private const float CreepDyingSinkDepth = 0.3f;
 
         /// <summary>How high HeavyShatter/ShardScatter pop before they start sinking. See <see cref="UpdateDyingCreeps"/>.</summary>
         private const float CreepDyingPopHeight = 0.22f;
@@ -228,6 +238,23 @@ namespace LTW.UnityClient.Simulation
         private readonly Dictionary<long, Vector3> creepDyingBasePosition = new Dictionary<long, Vector3>();
         private readonly Dictionary<long, Vector3> creepDyingBaseScale = new Dictionary<long, Vector3>();
         private readonly Dictionary<long, CreepDeathCueStyle> creepDyingStyle = new Dictionary<long, CreepDeathCueStyle>();
+
+        /// <summary>
+        /// The renderers a dying creep darkens and the colours they had when it died — the same
+        /// set <c>ApplyCreepColor</c> tints for the body (the profile's BodyRendererPath, or the
+        /// root renderer for a primitive creep), so the darkening lands where the body colour does
+        /// and the next creep to take this instance from the pool restores exactly that set.
+        /// </summary>
+        /// <remarks>
+        /// The lists are recycled through <see cref="dyingRendererListPool"/> /
+        /// <see cref="dyingColorListPool"/> so a death costs no allocation once the pools have
+        /// warmed; the per-frame tint is a SetColor on a material that was already instanced by
+        /// the body-colour path.
+        /// </remarks>
+        private readonly Dictionary<long, List<Renderer>> creepDyingRenderers = new Dictionary<long, List<Renderer>>();
+        private readonly Dictionary<long, List<Color>> creepDyingBaseColors = new Dictionary<long, List<Color>>();
+        private readonly Stack<List<Renderer>> dyingRendererListPool = new Stack<List<Renderer>>();
+        private readonly Stack<List<Color>> dyingColorListPool = new Stack<List<Color>>();
 
         /// <summary>Scratch list for <see cref="UpdateDyingCreeps"/>, reused so a normal frame with no deaths allocates nothing.</summary>
         private readonly List<long> dyingCreepKeysScratch = new List<long>();
@@ -266,10 +293,82 @@ namespace LTW.UnityClient.Simulation
             // creepVisualLibrary.FindProfile), so the model treatment and the flash agree on
             // which style a given creep died with.
             creepDyingStyle[key] = CreepDeathCueStyleFor(creepId, visualProfile);
+
+            var renderers = dyingRendererListPool.Count > 0 ? dyingRendererListPool.Pop() : new List<Renderer>();
+            var colors = dyingColorListPool.Count > 0 ? dyingColorListPool.Pop() : new List<Color>();
+            renderers.Clear();
+            colors.Clear();
+            CollectDyingRenderers(creepObject, visualProfile, renderers, colors);
+            creepDyingRenderers[key] = renderers;
+            creepDyingBaseColors[key] = colors;
         }
 
         /// <summary>
-        /// Shrinks and sinks each dying creep's own instance toward the board, per
+        /// The body renderers a death darkens, mirroring the body half of <c>ApplyCreepColor</c>:
+        /// everything under the profile's BodyRendererPath, or only the root renderer for a
+        /// primitive creep. Renderers whose material has no main colour (TMP labels, fill bars)
+        /// are skipped rather than written to.
+        /// </summary>
+        private static void CollectDyingRenderers(GameObject creepObject, CreepVisualProfile visualProfile, List<Renderer> renderers, List<Color> colors)
+        {
+            if (visualProfile == null || visualProfile.Prefab == null)
+            {
+                if (creepObject.TryGetComponent<Renderer>(out var rootRenderer))
+                {
+                    renderers.Add(rootRenderer);
+                }
+            }
+            else
+            {
+                var target = string.IsNullOrWhiteSpace(visualProfile.BodyRendererPath)
+                    ? creepObject
+                    : creepObject.transform.Find(visualProfile.BodyRendererPath)?.gameObject;
+                if (target != null)
+                {
+                    target.GetComponentsInChildren(true, renderers);
+                }
+            }
+
+            for (var index = renderers.Count - 1; index >= 0; index--)
+            {
+                var material = renderers[index].sharedMaterial;
+                if (material == null || (!material.HasProperty("_Color") && !material.HasProperty("_BaseColor")))
+                {
+                    renderers.RemoveAt(index);
+                }
+            }
+
+            for (var index = 0; index < renderers.Count; index++)
+            {
+                colors.Add(renderers[index].material.color);
+            }
+        }
+
+        /// <summary>Drops every per-key dying entry and hands its lists back to the pools.</summary>
+        private void ClearCreepDyingState(long key)
+        {
+            creepDyingStartedAt.Remove(key);
+            creepDyingUntil.Remove(key);
+            creepDyingBasePosition.Remove(key);
+            creepDyingBaseScale.Remove(key);
+            creepDyingStyle.Remove(key);
+            if (creepDyingRenderers.TryGetValue(key, out var renderers))
+            {
+                renderers.Clear();
+                dyingRendererListPool.Push(renderers);
+                creepDyingRenderers.Remove(key);
+            }
+
+            if (creepDyingBaseColors.TryGetValue(key, out var colors))
+            {
+                colors.Clear();
+                dyingColorListPool.Push(colors);
+                creepDyingBaseColors.Remove(key);
+            }
+        }
+
+        /// <summary>
+        /// Shrinks, sinks and darkens each dying creep's own instance toward the board, per
         /// <see cref="CreepDeathCueStyle"/>, so a kill or leak reads as something happening to
         /// THIS creep rather than a flash decorating an already-empty cell.
         /// </summary>
@@ -280,6 +379,13 @@ namespace LTW.UnityClient.Simulation
         /// there — before the presentationDetail early return — which is exactly the timing this
         /// needs, and it is already the same kind of "decay a transient visual against Time.time"
         /// work.
+        ///
+        /// The base every style shares (Wave 5): scale 1 to <see cref="CreepDyingEndScale"/> on
+        /// an ease-in, a sink of <see cref="CreepDyingSinkDepth"/>, and a darken to a third of the
+        /// body colour. The styles only vary the opening: HeavyShatter and ShardScatter pop up
+        /// first, SoftDissolve sinks late. The pooled instance is restored by the next creep to
+        /// take it — SetCreepTransform resets scale and position and ApplyCreepColor the colours,
+        /// both on a new creep's first frame — so nothing here needs undoing at release.
         ///
         /// No per-frame allocations: <see cref="dyingCreepKeysScratch"/> is a reused field, same
         /// pattern as <see cref="keysToReleaseScratch"/>.
@@ -305,11 +411,7 @@ namespace LTW.UnityClient.Simulation
                     // ReleaseAllActiveObjects releases every active creep unconditionally and
                     // does not know about this map) — self-heal here rather than leaving orphaned
                     // entries, so a reset can never leave a dying creep "stuck".
-                    creepDyingStartedAt.Remove(key);
-                    creepDyingUntil.Remove(key);
-                    creepDyingBasePosition.Remove(key);
-                    creepDyingBaseScale.Remove(key);
-                    creepDyingStyle.Remove(key);
+                    ClearCreepDyingState(key);
                     continue;
                 }
 
@@ -318,35 +420,68 @@ namespace LTW.UnityClient.Simulation
                 var t = Mathf.Clamp01((Time.time - startedAt) / duration);
                 var baseScale = creepDyingBaseScale[key];
                 var basePosition = creepDyingBasePosition[key];
+                var easeIn = t * t;
 
                 float shrink;
                 float sink;
                 switch (creepDyingStyle[key])
                 {
                     case CreepDeathCueStyle.HeavyShatter:
-                        // A quick upward pop first — debris thrown clear — then a fast collapse.
-                        shrink = t < 0.22f ? Mathf.Lerp(1f, 1.08f, t / 0.22f) : Mathf.Lerp(1.08f, 0f, Mathf.InverseLerp(0.22f, 1f, t));
-                        sink = t < 0.22f ? Mathf.Lerp(0f, CreepDyingPopHeight, t / 0.22f) : Mathf.Lerp(CreepDyingPopHeight, -0.3f, Mathf.InverseLerp(0.22f, 1f, t));
+                    {
+                        // A quick upward pop first — debris thrown clear — then the collapse.
+                        const float Pop = 0.2f;
+                        var collapse = Mathf.InverseLerp(Pop, 1f, t);
+                        shrink = t < Pop ? Mathf.Lerp(1f, 1.08f, t / Pop) : Mathf.Lerp(1.08f, CreepDyingEndScale, collapse * collapse);
+                        sink = t < Pop ? Mathf.Lerp(0f, CreepDyingPopHeight, t / Pop) : Mathf.Lerp(CreepDyingPopHeight, -CreepDyingSinkDepth, collapse * collapse);
                         break;
+                    }
+
                     case CreepDeathCueStyle.ShardScatter:
+                    {
                         // A smaller, quicker pop than HeavyShatter — shards, not a boss carcass.
-                        shrink = t < 0.15f ? Mathf.Lerp(1f, 1.05f, t / 0.15f) : Mathf.Lerp(1.05f, 0f, Mathf.InverseLerp(0.15f, 1f, t));
-                        sink = Mathf.Lerp(0f, -0.22f, t);
+                        const float Pop = 0.12f;
+                        var collapse = Mathf.InverseLerp(Pop, 1f, t);
+                        shrink = t < Pop ? Mathf.Lerp(1f, 1.05f, t / Pop) : Mathf.Lerp(1.05f, CreepDyingEndScale, collapse * collapse);
+                        sink = Mathf.Lerp(0f, -CreepDyingSinkDepth, easeIn);
                         break;
+                    }
+
                     case CreepDeathCueStyle.SoftDissolve:
-                        // No pop at all: a smooth shrink that eases into the sink, so it reads as
-                        // fading rather than being hit.
-                        shrink = Mathf.Lerp(1f, 0f, t);
-                        sink = Mathf.Lerp(0f, -0.16f, t * t);
+                        // No pop at all, and the sink lags the shrink, so it reads as fading
+                        // rather than being hit.
+                        shrink = Mathf.Lerp(1f, CreepDyingEndScale, easeIn);
+                        sink = Mathf.Lerp(0f, -CreepDyingSinkDepth, easeIn * easeIn);
                         break;
                     default:
-                        shrink = Mathf.Lerp(1f, 0f, t);
-                        sink = Mathf.Lerp(0f, -0.2f, t);
+                        shrink = Mathf.Lerp(1f, CreepDyingEndScale, easeIn);
+                        sink = Mathf.Lerp(0f, -CreepDyingSinkDepth, easeIn);
                         break;
                 }
 
                 creepObject.transform.localScale = baseScale * Mathf.Max(0f, shrink);
                 creepObject.transform.position = basePosition + Vector3.up * sink;
+
+                // Darkens faster than it shrinks: the first frame of the hold should already
+                // read as a corpse, before the silhouette has changed much.
+                if (creepDyingRenderers.TryGetValue(key, out var renderers) && creepDyingBaseColors.TryGetValue(key, out var colors))
+                {
+                    var darken = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(t * 1.6f));
+                    for (var index = 0; index < renderers.Count && index < colors.Count; index++)
+                    {
+                        var renderer = renderers[index];
+                        if (renderer == null)
+                        {
+                            continue;
+                        }
+
+                        var baseColor = colors[index];
+                        renderer.material.color = new Color(
+                            Mathf.Lerp(baseColor.r, baseColor.r * 0.3f, darken),
+                            Mathf.Lerp(baseColor.g, baseColor.g * 0.3f, darken),
+                            Mathf.Lerp(baseColor.b, baseColor.b * 0.3f, darken),
+                            baseColor.a);
+                    }
+                }
             }
         }
 
@@ -402,11 +537,7 @@ namespace LTW.UnityClient.Simulation
                 creepFacingYaw.Remove(key);
                 creepAnimators.Remove(key);
                 creepSpread.Remove(key);
-                creepDyingStartedAt.Remove(key);
-                creepDyingUntil.Remove(key);
-                creepDyingBasePosition.Remove(key);
-                creepDyingBaseScale.Remove(key);
-                creepDyingStyle.Remove(key);
+                ClearCreepDyingState(key);
             }
         }
 

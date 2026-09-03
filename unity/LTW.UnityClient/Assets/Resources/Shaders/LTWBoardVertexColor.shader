@@ -28,19 +28,36 @@ Shader "LTW/Board Vertex Color"
     Properties
     {
         _Color ("Tint", Color) = (1,1,1,1)
-        _Glossiness ("Smoothness", Range(0,1)) = 0.5
+        // Re-audit 2026-09-02 (R1): at 0.5 the perturbed normals threw near-white specular
+        // flecks across every cell and the board read as wet foil. Stone is matte.
+        _Glossiness ("Smoothness", Range(0,1)) = 0.18
         _Metallic ("Metallic", Range(0,1)) = 0.0
 
         [Header(Procedural Surface Noise)]
         _NoiseScale ("Albedo Noise Frequency", Float) = 3.0
-        _NoiseStrength ("Albedo Noise Strength", Range(0,1)) = 0.12
+        // R1: 0.12 gave every cell the same high-frequency energy; the fine octave is now a
+        // quiet grain and the large-scale variation comes from the macro octave below.
+        _NoiseStrength ("Albedo Noise Strength", Range(0,1)) = 0.065
         _TileSize ("Tile Cell Size (world units)", Float) = 1.0
-        _TileVariantStrength ("Tile Variant Strength", Range(0,0.5)) = 0.06
-        _BumpStrength ("Fake Normal Bump Strength", Range(0,2)) = 0.35
+        _TileVariantStrength ("Tile Variant Strength", Range(0,0.5)) = 0.05
+        // R1: 0.35 was the other half of the foil look — gradient-tilted normals at that
+        // strength catch the key light as a bright edge on every noise ridge.
+        _BumpStrength ("Fake Normal Bump Strength", Range(0,2)) = 0.12
+
+        [Header(Macro Variation)]
+        // R1: the re-audit's "nothing larger than a cell for the eye to rest on". One extra
+        // value-noise sample at a 3-5 cell wavelength so the board has broad light and dark
+        // regions the way a real slab floor does. World units per noise cell.
+        _MacroScale ("Macro Noise Wavelength (world units)", Float) = 4.5
+        // Second Wave 4 capture: 0.09 was barely visible at the shipped framing; 0.14 gives the
+        // floor readable light and dark regions without any single cell standing out.
+        _MacroStrength ("Macro Noise Strength", Range(0,0.5)) = 0.14
 
         [Header(Edge Wear)]
         _EdgeWearWidth ("Edge Wear Width (fraction of cell)", Range(0,0.5)) = 0.05
-        _EdgeWearStrength ("Edge Wear Darkening", Range(0,1)) = 0.3
+        // R1: full-dark seams on top of the noise over-gridded the board; a third of the
+        // darkening keeps the tile read without drawing a black line around every cell.
+        _EdgeWearStrength ("Edge Wear Darkening", Range(0,1)) = 0.1
 
         [Header(Path Inlay)]
         _PathLuminanceThreshold ("Path Luminance Threshold", Range(0,1)) = 0.1
@@ -89,6 +106,9 @@ Shader "LTW/Board Vertex Color"
                 float _TileSize;
                 float _TileVariantStrength;
                 float _BumpStrength;
+
+                float _MacroScale;
+                float _MacroStrength;
 
                 float _EdgeWearWidth;
                 float _EdgeWearStrength;
@@ -188,6 +208,12 @@ Shader "LTW/Board Vertex Color"
                 float baseNoise = FBM(noiseP);
                 float noiseSigned = (baseNoise / 0.875 - 0.5) * 2.0;
                 float albedoNoise = 1.0 + noiseSigned * _NoiseStrength;
+
+                // R1 macro octave: one smooth value-noise sample at a several-cell wavelength,
+                // signed and applied as a broad brightness drift. This is what makes one part of
+                // the floor read darker than another, which the per-cell noise alone never did.
+                float macro = ValueNoise(worldXZ / max(_MacroScale, 0.001)) * 2.0 - 1.0;
+                albedoNoise *= 1.0 + macro * _MacroStrength;
 
                 // Cheap "3-4 tile variants" without UVs: floor world position into cells the same
                 // size as a board tile (see BoardMeshBuilder/UnityVerticalSliceRenderer.Board.cs,
