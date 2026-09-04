@@ -41,7 +41,7 @@ namespace LTW.UnityClient.Simulation
 
         private ContentCatalog? wireContent;
         private int wireLocalSeat = 1;
-        private long wireLastAppliedTick = long.MinValue;
+        private long wireLastAppliedSequence = long.MinValue;
         private int nextPredictedEntityId = -1;
         /// <summary>
         /// Ceiling on simulation ticks advanced in a single frame.
@@ -65,6 +65,16 @@ namespace LTW.UnityClient.Simulation
 
         private float accumulator;
         private float openingBuildCountdownEndsAt;
+
+        /// <summary>
+        /// Whether this driver is currently running a server-authoritative match rather than a
+        /// local one. <see cref="LocalSessionFlowOverlay"/>'s opening-build-countdown panel reads
+        /// this to hide controls (START NOW, MENU) that only make sense when the client itself
+        /// owns the match clock — for a wire match the server alone decides when the window ends,
+        /// and there is no disconnect/leave path yet (a separate, pre-existing gap; see
+        /// docs/MULTIPLAYER_ROLLOUT.md's MP-06).
+        /// </summary>
+        public bool IsWireBacked => wireClient is not null;
 
         public bool HasStarted { get; private set; }
 
@@ -214,7 +224,7 @@ namespace LTW.UnityClient.Simulation
             wireClient = client;
             wireContent = SampleVerticalSliceContent.Create();
             wireLocalSeat = 1;
-            wireLastAppliedTick = long.MinValue;
+            wireLastAppliedSequence = long.MinValue;
             SnapshotRevision = long.MinValue;
             HasStarted = false;
             IsPaused = true;
@@ -325,15 +335,26 @@ namespace LTW.UnityClient.Simulation
             if (client.Welcome is { } welcome)
             {
                 wireLocalSeat = welcome.Seat;
-                HasStarted = true;
-                IsPaused = false;
             }
 
-            if (client.LatestTick is { } tick && tick.Tick != wireLastAppliedTick)
+            // Keyed on Sequence, not Tick: the server freezes Tick at 0 for the whole opening
+            // build window (see ServerMatch's own remarks), so a Tick-based dedupe would apply
+            // only the first of that window's countdown messages and silently ignore every later
+            // one — including whatever remaining-seconds value they carry.
+            if (client.LatestTick is { } tick && tick.Sequence != wireLastAppliedSequence)
             {
-                wireLastAppliedTick = tick.Tick;
+                wireLastAppliedSequence = tick.Sequence;
+
+                // Mirrors BeginOpeningBuildCountdown/StartMatch's own HasStarted/IsPaused pairing
+                // for local play — LocalSessionFlowOverlay's ActiveShellScreen switches on exactly
+                // this combination regardless of who (local countdown vs. server) is driving it.
+                IsOpeningBuildCountdown = tick.IsOpeningBuildCountdown;
+                OpeningBuildCountdownRemaining = (float)tick.OpeningBuildCountdownRemainingSeconds;
+                HasStarted = !tick.IsOpeningBuildCountdown;
+                IsPaused = tick.IsOpeningBuildCountdown;
+
                 LatestSnapshot = BuildSnapshotFromWire(tick, client.PendingPredictions);
-                SnapshotRevision = tick.Tick;
+                SnapshotRevision = tick.Sequence;
             }
         }
 

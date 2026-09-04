@@ -32,7 +32,20 @@ public sealed class ServerMatch
     /// </summary>
     private const double DefaultTicksPerSecond = 10;
 
+    /// <summary>
+    /// How long a match sits at tick 0 accepting placement commands before the simulation clock
+    /// (and bot opening sends) start — mirrors the local single-player flow's 30 second "tap PLAY
+    /// to begin" window (see Unity's <c>UnitySimulationDriver.BeginOpeningBuildCountdown</c>),
+    /// which has no server-side equivalent otherwise: without this, <see cref="RunLoopAsync"/>
+    /// called <c>AdvanceOneTick</c> on its very first iteration, and bots sent their opening creeps
+    /// inside that same call — before a human player could place a single tower.
+    /// </summary>
+    private const double DefaultOpeningBuildWindowSeconds = 30;
+
     private readonly double ticksPerSecond;
+    private readonly TimeSpan openingBuildWindow;
+    private DateTimeOffset matchStartedAtUtc;
+    private long tickSequence;
 
     public string MatchId { get; }
 
@@ -79,13 +92,15 @@ public sealed class ServerMatch
         string replayDirectory,
         double ticksPerSecond = DefaultTicksPerSecond,
         IReadOnlyDictionary<int, string>? playFabIdBySeat = null,
-        LTW.MatchServer.PlayFab.PlayFabSessionAuthority? playFabAuthority = null)
+        LTW.MatchServer.PlayFab.PlayFabSessionAuthority? playFabAuthority = null,
+        double openingBuildWindowSeconds = DefaultOpeningBuildWindowSeconds)
     {
         MatchId = matchId;
         this.content = content;
         this.options = options;
         this.replayDirectory = replayDirectory;
         this.ticksPerSecond = ticksPerSecond;
+        openingBuildWindow = TimeSpan.FromSeconds(openingBuildWindowSeconds);
         this.playFabIdBySeat = playFabIdBySeat ?? new Dictionary<int, string>();
         this.playFabAuthority = playFabAuthority;
         authority = new ConnectionSeatAuthority();
@@ -111,6 +126,7 @@ public sealed class ServerMatch
             return;
         }
 
+        matchStartedAtUtc = DateTimeOffset.UtcNow;
         loopCancellation = new CancellationTokenSource();
         _ = RunLoopAsync(loopCancellation.Token);
     }
@@ -126,18 +142,31 @@ public sealed class ServerMatch
             await matchLock.WaitAsync(cancellation);
             try
             {
-                // No BeginClientRequest before this: every bot decision this tick resolves its
-                // own claimed seat as trusted, per ConnectionSeatAuthority's default state — see
-                // its own remarks for why treating "no request in flight" as "internal, trusted
-                // call" is deliberate rather than a hole.
-                slice.AdvanceOneTick();
-                var events = slice.DrainEvents();
-                message = BuildTickMessage(events);
-
-                if (slice.MatchSummary is not null && !replayWritten)
+                var remaining = openingBuildWindow - (DateTimeOffset.UtcNow - matchStartedAtUtc);
+                if (remaining > TimeSpan.Zero)
                 {
-                    replayWritten = true;
-                    await WriteReplayAsync();
+                    // Deliberately no AdvanceOneTick here: the whole point of the window is that
+                    // nothing simulation-side happens yet (see openingBuildWindow's remarks) — bots
+                    // take their opening turn inside a match's very first AdvanceOneTick call, so
+                    // skipping the call skips that too. Placement commands still reach the slice
+                    // normally through DispatchAsync, which never gates on this.
+                    message = BuildTickMessage(Array.Empty<LTW.Simulation.Events.ISimulationEvent>(), isOpeningBuildCountdown: true, remaining.TotalSeconds);
+                }
+                else
+                {
+                    // No BeginClientRequest before this: every bot decision this tick resolves its
+                    // own claimed seat as trusted, per ConnectionSeatAuthority's default state — see
+                    // its own remarks for why treating "no request in flight" as "internal, trusted
+                    // call" is deliberate rather than a hole.
+                    slice.AdvanceOneTick();
+                    var events = slice.DrainEvents();
+                    message = BuildTickMessage(events, isOpeningBuildCountdown: false, remainingSeconds: 0);
+
+                    if (slice.MatchSummary is not null && !replayWritten)
+                    {
+                        replayWritten = true;
+                        await WriteReplayAsync();
+                    }
                 }
             }
             finally
@@ -149,12 +178,15 @@ public sealed class ServerMatch
         }
     }
 
-    private TickMessage BuildTickMessage(IReadOnlyList<LTW.Simulation.Events.ISimulationEvent> events)
+    private TickMessage BuildTickMessage(IReadOnlyList<LTW.Simulation.Events.ISimulationEvent> events, bool isOpeningBuildCountdown, double remainingSeconds)
     {
         var snapshot = slice.GetSnapshot();
         return new TickMessage
         {
             Tick = snapshot.Tick.Value,
+            Sequence = ++tickSequence,
+            IsOpeningBuildCountdown = isOpeningBuildCountdown,
+            OpeningBuildCountdownRemainingSeconds = remainingSeconds,
             Events = events.Select(simulationEvent => new EventDto
             {
                 Kind = simulationEvent.GetType().Name,

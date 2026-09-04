@@ -67,6 +67,18 @@ namespace LTW.UnityClient.Online.Wire
         [JsonProperty("tick")]
         public long Tick { get; set; }
 
+        /// <summary>Increments every server loop iteration, ticking or not — unlike <see cref="Tick"/>,
+        /// which is frozen at 0 for the whole opening build window, this is what should decide
+        /// whether a tick message is new.</summary>
+        [JsonProperty("sequence")]
+        public long Sequence { get; set; }
+
+        [JsonProperty("isOpeningBuildCountdown")]
+        public bool IsOpeningBuildCountdown { get; set; }
+
+        [JsonProperty("openingBuildCountdownRemainingSeconds")]
+        public double OpeningBuildCountdownRemainingSeconds { get; set; }
+
         [JsonProperty("events")]
         public List<EventDto> Events { get; set; } = new();
 

@@ -362,6 +362,19 @@ namespace LTW.UnityClient.Simulation
             DrawLabel(panel.x + 24f * scale, panel.y + 31f * scale, panel.width - 48f * scale, 32f * scale, seconds.ToString(), titleStyle!, TextAnchor.MiddleCenter);
             DrawLabel(panel.x + 22f * scale, panel.y + 62f * scale, panel.width - 44f * scale, 18f * scale, "Place opening towers. Sends unlock when LIVE begins.", bodyStyle!, TextAnchor.MiddleCenter);
 
+            // Neither button below is meaningful for a server match: START NOW only forwards to
+            // the LOCAL simulation's clock (a no-op online, since the server alone decides when
+            // the window ends — see ServerMatch's own remarks), and MENU's ResetToTitle only
+            // resets local driver flags, which the next incoming tick would immediately overwrite
+            // again since the wire client keeps pumping regardless. Leaving a live online match
+            // is a separate, not-yet-built feature (see docs/MULTIPLAYER_ROLLOUT.md's MP-06) —
+            // hiding these here avoids two buttons that would otherwise look wired up but do
+            // nothing but flicker.
+            if (simulationDriver.IsWireBacked)
+            {
+                return;
+            }
+
             var buttonWidth = 96f * scale;
             var buttonHeight = 24f * scale;
             var gap = 8f * scale;

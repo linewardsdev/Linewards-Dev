@@ -107,7 +107,7 @@ public sealed class HttpMatchHost
             ? new CreateMatchRequest()
             : JsonSerializer.Deserialize<CreateMatchRequest>(body, json) ?? new CreateMatchRequest();
 
-        var match = registry.CreateMatch(request.HumanSeats ?? new List<int> { 1 }, request.TicksPerSecond, request.PlayFabSeats);
+        var match = registry.CreateMatch(request.HumanSeats ?? new List<int> { 1 }, request.TicksPerSecond, request.PlayFabSeats, request.OpeningBuildWindowSeconds);
         var responseBody = JsonSerializer.SerializeToUtf8Bytes(new CreateMatchResponse
         {
             MatchId = match.MatchId,
@@ -215,6 +215,10 @@ public sealed class HttpMatchHost
         /// <summary>Seat number -> the PlayFabId that alone may claim it. See
         /// MatchRegistry.CreateMatch and docs/MULTIPLAYER_ROLLOUT.md's MP-05.</summary>
         public Dictionary<int, string>? PlayFabSeats { get; set; }
+
+        /// <summary>Real clients never set this either — same reasoning as <see cref="TicksPerSecond"/>,
+        /// so a test can prove the opening build window's behavior without a real 30 second wait.</summary>
+        public double? OpeningBuildWindowSeconds { get; set; }
     }
 
     private sealed class CreateMatchResponse

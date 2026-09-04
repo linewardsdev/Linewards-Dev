@@ -65,10 +65,13 @@ public sealed class MatchServerIntegrationTests : IAsyncLifetime
 
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
 
-    private async Task<(string matchId, Dictionary<string, string> tokens)> CreateMatchAsync(int[] humanSeats, double? ticksPerSecond = null)
+    private async Task<(string matchId, Dictionary<string, string> tokens)> CreateMatchAsync(int[] humanSeats, double? ticksPerSecond = null, double openingBuildWindowSeconds = 0)
     {
         using var client = new HttpClient();
-        var body = JsonSerializer.Serialize(new { humanSeats, ticksPerSecond }, Json);
+        // Defaults to 0 so every test but the one exercising the window itself keeps seeing the
+        // pre-window behavior (ticks advance from the first loop iteration) rather than needing to
+        // wait out ServerMatch's real 30 second default.
+        var body = JsonSerializer.Serialize(new { humanSeats, ticksPerSecond, openingBuildWindowSeconds }, Json);
         var response = await client.PostAsync(
             $"http://localhost:{port}/matches",
             new StringContent(body, Encoding.UTF8, "application/json"));
@@ -212,6 +215,58 @@ public sealed class MatchServerIntegrationTests : IAsyncLifetime
         var chosenLine = playerAfterPlace.GetProperty("chosenTowerLine").GetInt32();
         Assert.NotEqual(-1, chosenLine);
         Assert.Equal(1, playerAfterPlace.GetProperty("towerLineTiers")[chosenLine].GetInt32());
+    }
+
+    /// <summary>
+    /// The bug a live PLAY ONLINE test found: a server match previously started ticking (and bots
+    /// opened their creep sends) on its very first loop iteration, so a player dropped straight
+    /// into an active match with no chance to place an opening tower first — see ServerMatch's own
+    /// remarks on <c>openingBuildWindow</c>. Proves the window's contract end to end: tick stays at
+    /// 0 and no creeps appear while it runs, placement commands still work, and it ends on its own
+    /// into a normal ticking match that keeps whatever was placed during it.
+    /// </summary>
+    [Fact]
+    public async Task Opening_build_window_holds_the_tick_and_still_accepts_placement()
+    {
+        var (matchId, tokens) = await CreateMatchAsync(new[] { 1 }, ticksPerSecond: 20, openingBuildWindowSeconds: 1);
+        using var seat1 = await JoinAsync(matchId, 1, tokens["1"]);
+        await ReceiveOfTypeAsync(seat1, "welcome");
+
+        var firstTick = await ReceiveOfTypeAsync(seat1, "tick");
+        Assert.True(firstTick.GetProperty("isOpeningBuildCountdown").GetBoolean());
+        Assert.Equal(0, firstTick.GetProperty("tick").GetInt64());
+        Assert.Empty(firstTick.GetProperty("creeps").EnumerateArray());
+
+        await SendAsync(seat1, """{"type":"placeTower","id":"place","laneId":1,"towerId":"tower.arrow","x":2,"y":14}""");
+        var placeResult = await ReceiveOfTypeAsync(seat1, "commandResult");
+        Assert.True(placeResult.GetProperty("accepted").GetBoolean());
+
+        // Polls until the window ends and real ticks resume, then confirms the tower placed
+        // DURING the window survived into live play — the same "poll until visible" pattern the
+        // class's other tests use, since a tick/commandResult ordering race exists here too (see
+        // Tick_messages_carry_the_players_chosen_line_and_tier_state's own remarks).
+        JsonElement? placedTowerAfterLive = null;
+        var deadline = DateTime.UtcNow.AddSeconds(10);
+        while (DateTime.UtcNow < deadline)
+        {
+            var tick = await ReceiveOfTypeAsync(seat1, "tick", TimeSpan.FromSeconds(5));
+            if (tick.GetProperty("isOpeningBuildCountdown").GetBoolean())
+            {
+                Assert.Equal(0, tick.GetProperty("tick").GetInt64());
+                continue;
+            }
+
+            Assert.True(tick.GetProperty("tick").GetInt64() > 0);
+            var candidate = tick.GetProperty("towers").EnumerateArray()
+                .FirstOrDefault(tower => tower.GetProperty("ownerId").GetInt32() == 1 && tower.GetProperty("x").GetInt32() == 2 && tower.GetProperty("y").GetInt32() == 14);
+            if (candidate.ValueKind != JsonValueKind.Undefined)
+            {
+                placedTowerAfterLive = candidate;
+                break;
+            }
+        }
+
+        Assert.NotNull(placedTowerAfterLive);
     }
 
     [Fact]
