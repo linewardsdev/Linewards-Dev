@@ -884,17 +884,30 @@ exercised against a real match at the time it was written. Found and fixed, not 
   the tier fields — is currently harmless, since the send cooldown it feeds is presently 0 ticks
   for every match, local or networked, per its own pre-existing code comment.
 
+### Title-screen entry point — landed, audit finding avoided
+
+Audited `LocalSessionFlowOverlay.cs` before touching anything, per the concern raised when this
+was first deferred. Found a real seam rather than a risk: `ActiveShellScreen` already polls
+`simulationDriver.HasStarted`/`IsPaused`/`IsOpeningBuildCountdown` every frame to decide what to
+show, and does not care WHO changed them — a local match starting and a wire-backed match
+connecting look identical to it. So a PLAY ONLINE button was wired the same self-contained way
+SIGN IN WITH GOOGLE was (`ShellScreenView`, not routed through `IShellScreenActions`/the overlay):
+on tap, calls `OnlineMatchService.CreateAndJoinAsync`, and on success calls
+`UnitySimulationDriver.Initialize(MatchWireClient)` plus finds and initializes
+`UnityCommandAdapter` the same way `RebuildMatchFromPendingOptions` already does internally for
+Practice. **Zero changes to `LocalSessionFlowOverlay.cs`** — the file this doc specifically flagged
+as the regression risk. Once `HasStarted` flips true, the overlay's existing per-frame poll
+switches away from Title on its own, exactly as it would for a local match.
+
+No explicit "connecting" screen — the button's own text ("CONNECTING...") is the only feedback,
+same minimal affordance as sign-in. That gap is already tracked below.
+
 ### What this has NOT proven
 
 Everything above compiles cleanly (`dotnet format`-equivalent Unity batchmode checks, zero errors)
 but has NOT been exercised against a real running match — no two-instance test, no device test, the
 way MP-04's transport and MP-05's identity were each proven with a real client before being called
-done. The title screen also has no "play online" entry point yet — `OnlineMatchService`/
-`UnitySimulationDriver.Initialize(MatchWireClient)`/`UnityCommandAdapter.Initialize(MatchWireClient, ...)`
-exist and compile, but nothing calls them yet. That specific wiring was deliberately left for a
-separate, focused pass rather than rushed: it intersects `LocalSessionFlowOverlay`'s existing
-session-flow state machine, which this pass did not audit, and getting that wrong risks a
-regression to the local/Practice flow that DOES already work and is well tested.
+done.
 
 ### Acceptance Checks
 
@@ -909,7 +922,9 @@ regression to the local/Practice flow that DOES already work and is well tested.
       compiling cleanly against the actual consumer set, not a synthetic test harness.
 - [ ] A real device joins a real match over the wire and plays it — the actual end-to-end proof.
       Not yet done; see "What this has NOT proven" above.
-- [ ] A title-screen entry point exists to start/join an online match. Not yet done.
+- [x] A title-screen entry point exists to start/join an online match — PLAY ONLINE, landed
+      2026-09-04 with zero changes to `LocalSessionFlowOverlay.cs`. Compiles cleanly; not yet
+      exercised live.
 
 **Estimate:** one to two weeks. Revised down from the original estimate now that the core wire
 layer, snapshot reconstruction and command routing are built — what remains is the title-screen

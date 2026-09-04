@@ -109,6 +109,7 @@ namespace LTW.UnityClient.UI
         private Label? resultsHeadline;
         private Label? resultsNote;
         private Button? signInButton;
+        private Button? playOnlineButton;
 
         private Texture2D? fieldGradient;
         private Texture2D? wardGlow;
@@ -266,6 +267,61 @@ namespace LTW.UnityClient.UI
                         signInButton.SetEnabled(true);
                     }
                 });
+        }
+
+        /// <summary>
+        /// PLAY ONLINE: creates and joins a private match over the wire, using the signed-in
+        /// PlayFab identity to claim the seat. See docs/MULTIPLAYER_ROLLOUT.md's MP-06 for what
+        /// this does and does not prove — this is the first entry point that can reach any of it.
+        /// </summary>
+        /// <remarks>
+        /// No explicit "connecting" screen (an acceptance check MP-06 already records as not done)
+        /// — just the button's own text, the same minimal affordance SIGN IN WITH GOOGLE uses. On
+        /// success this does not need to change the screen itself: initializing the driver flips
+        /// HasStarted, and LocalSessionFlowOverlay's own per-frame poll of that flag switches away
+        /// from Title on its own, exactly as it would for a local match starting.
+        /// </remarks>
+        private async void OnPlayOnlineTapped()
+        {
+            if (playOnlineButton == null)
+            {
+                return;
+            }
+
+            if (!LTW.UnityClient.Online.PlayFabSession.IsSignedIn)
+            {
+                playOnlineButton.text = "SIGN IN FIRST";
+                return;
+            }
+
+            playOnlineButton.SetEnabled(false);
+            playOnlineButton.text = "CONNECTING...";
+
+            var client = await LTW.UnityClient.Online.OnlineMatchService.CreateAndJoinAsync(onFailure: message =>
+            {
+                Debug.LogWarning($"SHELL play online failed: {message}");
+            });
+
+            if (client == null)
+            {
+                if (playOnlineButton != null)
+                {
+                    playOnlineButton.text = "PLAY ONLINE";
+                    playOnlineButton.SetEnabled(true);
+                }
+
+                return;
+            }
+
+            simulationDriver.Initialize(client);
+            if (simulationDriver.TryGetComponent<LTW.UnityClient.Simulation.UnityCommandAdapter>(out var commandAdapter))
+            {
+                commandAdapter.Initialize(client, simulationDriver);
+            }
+            else
+            {
+                Debug.LogError("SHELL play online: no UnityCommandAdapter on the simulation driver's GameObject — commands will not reach the server.");
+            }
         }
 
         private void OnDisable()
@@ -477,6 +533,16 @@ namespace LTW.UnityClient.UI
             // handles it directly rather than routing through the overlay.
             signInButton = root.Q<Button>("title-signin");
             Wire(root, "title-signin", OnSignInWithGoogleTapped);
+
+            // Also not a session action, same reasoning as SIGN IN WITH GOOGLE just above — see
+            // docs/MULTIPLAYER_ROLLOUT.md's MP-06. Self-contained here rather than routed through
+            // IShellScreenActions/LocalSessionFlowOverlay deliberately: that overlay's ActiveShellScreen
+            // already polls simulationDriver.HasStarted/IsPaused every frame and switches away from
+            // Title automatically once they flip — it does not care WHO called
+            // UnitySimulationDriver.Initialize(MatchWireClient), only the resulting state. Routing
+            // this through the overlay would mean touching its state machine for no behavioral gain.
+            playOnlineButton = root.Q<Button>("title-play-online");
+            Wire(root, "title-play-online", OnPlayOnlineTapped);
 
             Wire(root, "title-settings", () => actions.OpenSettings());
             Wire(root, "title-quit", () => actions.QuitGame());
