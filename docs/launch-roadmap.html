@@ -121,32 +121,32 @@
 <div class="wrap">
 
   <h1>Line Wards — Launch Roadmap</h1>
-  <p class="sub">Four weeks to a soft launch · 1 – 31 August 2026</p>
-  <p class="stamp">Drafted 2026-07-31 · updated 2026-08-04 · proposal for review, dates and scope not committed</p>
+  <p class="sub">Four weeks to a soft launch · Sep 4 – Oct 1 2026</p>
+  <p class="stamp">Drafted 2026-09-03 · proposal for review, dates and scope not committed</p>
 
   <div class="alert">
-    <b>Where this stands, 6 August.</b> Four of the ten P0 gaps have moved since the 31 July draft: audio is closed, Graphics Wave 1's AO half is done roster-wide with LODs wired, app identity is most of the way there, and a title/pause/results shell now exists. <b>The binding constraint is now external, not technical</b> — neither store account is enrolled, which blocks the bundle identifier, TestFlight and the Play track alike. <b>The one that has not moved is the one that matters most</b> — the game still has never run on a phone, and roughly twenty acceptance boxes still need a human to play it. Every balance number below is bot-versus-bot. The 31 August target still assumes both store enrolments start immediately; Apple alone carries a 24–48h approval lead.
+    <b>Where this stands, 3 September.</b> The August plan named its binding constraint on 6 August: store enrolment. It did not happen — the bundle identifier is still <code>com.ltwplaceholder.ltw</code> on both platforms and no signing team is set. Meanwhile the four weeks went almost entirely into work that plan ranked P1 or put out of scope: graphics Waves 1–5 (it excluded "Waves 2–3 beyond what tier B needs"), the tablet rail, and the tutorial. The game is materially better than it was on 31 July, and it is not one step closer to a store. Two things did move that matter here: it has run on a real iPad twice (9 and 21 August, 13 of 17 findings closed), and onboarding is built. It has never run on a phone, never been built for Android, has no crash reporting, no listing assets and no privacy policy. <b>This plan is one week of unblocking, one week of proving it on a phone, one week of making it submittable, and one week of testers — with all polish frozen.</b>
   </div>
 
   <h2>What “launch” means</h2>
   <div class="tiers">
     <div class="tier">
       <div class="t">Tier A</div>
-      <div class="n">Playable on your own phone</div>
+      <div class="n">Playable on your own device</div>
       <div class="d">Sideloaded via free signing, no store</div>
-      <div class="when"><b>~1 week</b> — nothing external blocks it</div>
+      <div class="when"><b>Done, on iPad</b> — two device rounds in August; a phone is week 2</div>
     </div>
     <div class="tier on">
       <div class="t">Tier B <span class="badge">TARGET</span></div>
       <div class="n">Soft launch</div>
-      <div class="d">TestFlight + Play internal track, invited testers, no public listing</div>
-      <div class="when"><b>End of August</b> — this roadmap's target</div>
+      <div class="d">TestFlight, invited testers, no public listing</div>
+      <div class="when"><b>1 October</b> — this plan's target; iOS only</div>
     </div>
     <div class="tier">
       <div class="t">Tier C</div>
       <div class="n">Public store launch</div>
-      <div class="d">Live on the App Store and Google Play</div>
-      <div class="when"><b>Mid-to-late September</b> — needs review cycles, store assets, a privacy policy and a first round of real-user fixes</div>
+      <div class="d">Live on the App Store, and Google Play if Android is taken on</div>
+      <div class="when"><b>Late October</b> — review cycles, a first round of real-user fixes, and Android if chosen</div>
     </div>
   </div>
 
@@ -155,103 +155,83 @@
    <div class="g-min">
     <div class="g-head">
       <div>&nbsp;</div>
-      <div class="wk">Week 1 <span>Aug 1–7 · prove it is a game, on a phone</span></div>
-      <div class="wk">Week 2 <span>Aug 8–14 · make it look and sound shipped</span></div>
-      <div class="wk">Week 3 <span>Aug 15–21 · make it survivable</span></div>
-      <div class="wk">Week 4 <span>Aug 22–31 · ship it</span></div>
+      <div class="wk">Week 1 <span>Sep 4–10 · unblock the store</span></div>
+      <div class="wk">Week 2 <span>Sep 11–17 · prove it on a phone</span></div>
+      <div class="wk">Week 3 <span>Sep 18–24 · make it submittable</span></div>
+      <div class="wk">Week 4 <span>Sep 25–Oct 1 · testers, then decide</span></div>
     </div>
 
     <div class="grp">External — start day one</div>
     <div class="row">
-      <div class="lbl">Apple Developer Program<small>$99/yr · 24–48h approval</small></div>
-      <div class="track"><div class="bar bext2" style="left:0.5%;width:14.0%">enrol → active</div></div>
+      <div class="lbl">Apple Developer Program<small>$99/yr · 24–48h approval · gates everything below</small></div>
+      <div class="track"><div class="bar bext2" style="left:0.5%;width:12.0%">enrol → active</div></div>
     </div>
     <div class="row">
-      <div class="lbl">Google Play Console<small>$25 · identity verification</small></div>
-      <div class="track"><div class="bar bext2" style="left:0.5%;width:14.0%">enrol → active</div></div>
-    </div>
-
-    <div class="grp">Week 1 — prove it’s a game</div>
-    <div class="row">
-      <div class="lbl">Fix app identity<small>name, company, icon done · bundle id still placeholder</small></div>
-      <div class="track"><div class="bar b4" style="left:0.5%;width:8.0%;opacity:.75">✓ most</div><div class="bar b1" style="left:9.0%;width:4.0%">id</div></div>
-    </div>
-    <div class="row">
-      <div class="lbl">Build to a physical iOS device<small>iOS then Android</small></div>
-      <div class="track"><div class="bar b1" style="left:8.0%;width:14.0%">1–2d</div></div>
-    </div>
-    <div class="row">
-      <div class="lbl">Play the game, with hands, and write notes<small>unblocks ~20 acceptance boxes</small></div>
-      <div class="track"><div class="bar b1" style="left:18.0%;width:7.0%">★</div></div>
-    </div>
-    <div class="row">
-      <div class="lbl">Act on what the play session finds<small>hold this time loosely</small></div>
-      <div class="track"><div class="bar b1" style="left:22.0%;width:12.0%">2–3d</div></div>
+      <div class="lbl">Google Play Console<small>$25 · same day · for tier C</small></div>
+      <div class="track"><div class="bar bext2" style="left:0.5%;width:6.0%">enrol</div></div>
     </div>
 
-    <div class="grp">Week 2 — look &amp; sound shipped</div>
+    <div class="grp">Week 1 — unblock the store</div>
     <div class="row">
-      <div class="lbl">Audio pass<small>33 SFX + adaptive 3-stem score</small></div>
-      <div class="track"><div class="bar b4" style="left:0.5%;width:16.0%;opacity:.75">✓ done Aug 3–4</div></div>
+      <div class="lbl">Enrol, and freeze polish<small>day one; nothing else in this plan moves without it</small></div>
+      <div class="track"><div class="bar b1" style="left:0.5%;width:5.0%">★</div></div>
     </div>
     <div class="row">
-      <div class="lbl">Graphics Wave 1<small>AO + LODs on all 30 roles · normal maps deferred</small></div>
-      <div class="track"><div class="bar b4" style="left:25.0%;width:19.0%;opacity:.75">✓ AO done Aug 6</div></div>
+      <div class="lbl">Set the bundle identifier and signing<small>after enrolment; the id binds to the account that uploads first</small></div>
+      <div class="track"><div class="bar b1" style="left:6.0%;width:6.0%"><1d</div></div>
     </div>
     <div class="row">
-      <div class="lbl">Title/menu scene<small>title, pause, results built · still a panel, not a scene</small></div>
-      <div class="track"><div class="bar b4" style="left:25.0%;width:12.0%;opacity:.75">✓ done Aug 3</div><div class="bar b2" style="left:38.0%;width:8.0%">scene?</div></div>
+      <div class="lbl">Add crash reporting and analytics<small>Unity Cloud Diagnostics or Sentry, whichever sets up faster</small></div>
+      <div class="track"><div class="bar b1" style="left:6.0%;width:10.0%">1d</div></div>
     </div>
     <div class="row">
-      <div class="lbl">App icon and splash<small>icon, splash and brand mark landed</small></div>
-      <div class="track"><div class="bar b4" style="left:42.0%;width:11.0%;opacity:.75">✓ done Aug 4</div></div>
-    </div>
-
-    <div class="grp">Week 3 — make it survivable</div>
-    <div class="row">
-      <div class="lbl">Crash reporting and basic analytics<small>else feedback is anecdote</small></div>
-      <div class="track"><div class="bar b3" style="left:50.0%;width:9.0%">1d</div></div>
-    </div>
-    <div class="row">
-      <div class="lbl">Onboarding / first-run teaching<small>teach mazing or players bounce</small></div>
-      <div class="track"><div class="bar b3" style="left:53.0%;width:14.0%">2–3d</div></div>
-    </div>
-    <div class="row">
-      <div class="lbl">Performance validation on device<small>frame rate + thermals, heavy send</small></div>
-      <div class="track"><div class="bar b3" style="left:60.0%;width:11.0%">2d</div></div>
-    </div>
-    <div class="row">
-      <div class="lbl">Store listing assets<small>screenshots, rating, privacy URL</small></div>
-      <div class="track"><div class="bar b3" style="left:63.0%;width:12.0%">2–3d</div></div>
-    </div>
-    <div class="row">
-      <div class="lbl">Bot roster fix<small>only if week 1 flagged opponent quality</small></div>
-      <div class="track"><div class="bar b3" style="left:68.0%;width:7.0%">if needed</div></div>
+      <div class="lbl">Cut a signed iPhone build<small>the first build that is not an iPad</small></div>
+      <div class="track"><div class="bar b1" style="left:16.0%;width:9.0%">1d</div></div>
     </div>
 
-    <div class="grp">Week 4 — ship it</div>
+    <div class="grp">Week 2 — prove it on a phone</div>
     <div class="row">
-      <div class="lbl">Upload to TestFlight and the Play internal track<small>1–3d first review each</small></div>
-      <div class="track"><div class="bar bext2" style="left:75.0%;width:11.0%">submit → review</div></div>
+      <div class="lbl">Run it on a phone and write the numbers down<small>frame rate, thermals, memory, an 8-lane heavy send</small></div>
+      <div class="track"><div class="bar b2" style="left:25.0%;width:9.0%">1–2d</div></div>
+    </div>
+    <div class="row">
+      <div class="lbl">Play the acceptance pass with hands<small>GD-01 to GD-10, the tutorial included, on the phone</small></div>
+      <div class="track"><div class="bar b2" style="left:32.0%;width:10.0%">2d</div></div>
+    </div>
+    <div class="row">
+      <div class="lbl">Act on what the phone finds<small>reserved; only tester-blocking fixes</small></div>
+      <div class="track"><div class="bar b2" style="left:41.0%;width:9.0%">reserved</div></div>
+    </div>
+
+    <div class="grp">Week 3 — make it submittable</div>
+    <div class="row">
+      <div class="lbl">Store listing assets and the privacy policy<small>screenshots from the phone build, description, age rating, hosted URL</small></div>
+      <div class="track"><div class="bar b3" style="left:50.0%;width:12.0%">2–3d</div></div>
+    </div>
+    <div class="row">
+      <div class="lbl">Upload to TestFlight<small>first review 1–3 days</small></div>
+      <div class="track"><div class="bar bext2" style="left:60.0%;width:9.0%">submit → review</div></div>
     </div>
     <div class="row">
       <div class="lbl">Recruit 10–20 testers<small>anyone who isn't you</small></div>
-      <div class="track"><div class="bar b4" style="left:79.0%;width:10.0%">&nbsp;</div></div>
+      <div class="track"><div class="bar b3" style="left:69.0%;width:6.0%">1d</div></div>
+    </div>
+
+    <div class="grp">Week 4 — testers, then decide</div>
+    <div class="row">
+      <div class="lbl">Testers play; triage and fix<small>no features scheduled here</small></div>
+      <div class="track"><div class="bar b4" style="left:75.0%;width:17.0%">reserved</div></div>
     </div>
     <div class="row">
-      <div class="lbl">Triage and fix<small>no features scheduled here</small></div>
-      <div class="track"><div class="bar b4" style="left:86.0%;width:13.5%">reserved</div></div>
-    </div>
-    <div class="row">
-      <div class="lbl">Decide on tier C<small>submit publicly in September?</small></div>
-      <div class="track"><div class="bar b4" style="left:95.5%;width:4.0%">decision</div></div>
+      <div class="lbl">Decide tier C and Android<small>public submission in late October? Play track?</small></div>
+      <div class="track"><div class="bar b4" style="left:92.5%;width:7.0%">decision</div></div>
     </div>
 
     <div class="legend">
-      <span><i style="background:var(--w1)"></i>Week 1 · phone &amp; identity</span>
-      <span><i style="background:var(--w2)"></i>Week 2 · audio &amp; art</span>
-      <span><i style="background:var(--w3)"></i>Week 3 · survivability</span>
-      <span><i style="background:var(--w4)"></i>Week 4 · ship / done</span>
+      <span><i style="background:var(--w1)"></i>Week 1 · unblock the store</span>
+      <span><i style="background:var(--w2)"></i>Week 2 · prove it on a phone</span>
+      <span><i style="background:var(--w3)"></i>Week 3 · make it submittable</span>
+      <span><i style="background:var(--w4)"></i>Week 4 · testers, then decide</span>
       <span><i style="background:rgba(92,200,255,.15);border:1px dashed var(--ext)"></i>External / review — not compressible</span>
       <span>★ highest-leverage single hour in the plan</span>
     </div>
@@ -261,68 +241,65 @@
   <h2>P0 — cannot soft-launch without these</h2>
   <table>
     <tr><th class="n">#</th><th>Gap</th><th>Evidence</th><th style="text-align:right">Est.</th></tr>
-    <tr><td class="n">1</td><td><b>Never run on a phone</b></td><td class="e">Both device-validation docs are empty templates, zero runs</td><td class="est">1–2 d</td></tr>
-    <tr><td class="n">2</td><td><b>App identity — mostly done; bundle id BLOCKED on store enrolment</b> — <em>re-checked 2026-08-06</em></td><td class="e">Company is <code>Line Wards Games</code>, product <code>Line Wards</code>, and a 1024px icon is set. <code>applicationIdentifier</code> still reads <code>com.ltwplaceholder.ltw</code> on both platforms. <b>Blocked, not forgotten:</b> neither developer account is enrolled yet (owner, 2026-08-06), and the identifier binds permanently to whichever account first uploads under it, so setting it before enrolment risks binding the wrong string. Proposed value once enrolment happens: <code>com.linewardsgames.linewards</code></td><td class="est">&lt;1 d, after enrolment</td></tr>
-    <tr style="opacity:.6"><td class="n">3</td><td><b>Audio is seven sine beeps</b> — <em>closed 2026-08-04</em></td><td class="e">Was: 7 procedural tones, zero asset files. Now: 33 SFX takes + a three-stem adaptive score (bed/tension/combat, mixed by live lane pressure), all regenerable from <code>tools/audio/synthesize_game_audio.py</code> — per-family baked reverb, one D-minor key, Karplus-Strong and modal instruments, variant pools, camera-relative pan, a splash boom synced to the mortar's crater, and an <code>LTWAudioDirector</code> with rate limiting, ducking and sample-locked stems. <b>Auditioned by the owner 2026-08-04: "they all sound good."</b> See <code>AUDIO_DIRECTION.md</code>. A licensed pass remains optional polish — a file-for-file swap, no longer scheduled work</td><td class="est"><s>4–6 d</s> done</td></tr>
-    <tr><td class="n">4</td><td><b>Shell screens exist; still not a scene</b> — <em>re-checked 2026-08-04</em></td><td class="e">Title, pause and results now render through UI Toolkit — <code>ShellScreens.uxml/.uss</code>, <code>ShellScreenView.cs</code>, a generated <code>PanelSettings</code>, and the brand mark on the title. Captured and verified. <b>But <code>Assets/Scenes/</code> still holds only <code>LocalVerticalSlice.unity</code></b>: the shell is a panel over the match, not a scene, so the app still boots straight into a running board. Whether that matters for Tier B is a call worth making deliberately rather than by default</td><td class="est">1–2 d</td></tr>
-    <tr><td class="n">5</td><td><b>No crash reporting or analytics</b></td><td class="e">Zero references anywhere</td><td class="est">1 d</td></tr>
-    <tr><td class="n">6</td><td><b>Store accounts not enrolled</b></td><td class="e">Apple Developer Program $99/yr, 24–48h approval; Google Play Console $25 one-time</td><td class="est">External</td></tr>
-    <tr><td class="n">7</td><td><b>No store listing assets</b></td><td class="e">No icon, screenshots, description, age rating, or privacy-policy URL</td><td class="est">2–3 d</td></tr>
-    <tr><td class="n">8</td><td><b>~20 acceptance boxes need a human to play</b></td><td class="e">GD-01→10 unchecked; all balance is bot-vs-bot</td><td class="est">2–3 d</td></tr>
-    <tr style="opacity:.6"><td class="n">9</td><td><b>Graphics Wave 1 — AO done, LODs wired, normal maps deferred by decision</b> — <em>worked 2026-08-04/06</em></td><td class="e"><b>AO bound on all 30 roles</b> (was 2 of 119); evidence in <code>screenshot-reviews/stylized-shader-20260801/after_ao_bound_roster.png</code>. <b>LODs wired on all 30 prefabs</b> — every role decimated to 50%/25% (<code>tools/art/make_all_lods.py</code>) and given a LODGroup (<code>AuthorLodGroups</code>), closing open item 15's last sub-item; before this the two proof meshes were referenced by nothing. <b>Normal maps have a route and a verdict:</b> baking LOD0 onto LOD2 would work, but a high-to-low map is only correct on the low mesh and all three levels share one material per role, so it needs ~60 new materials and more SRP-batcher breaks to buy detail that is close to invisible at the 46–105px units occupy. <b>Owner decided 2026-08-06</b> to bank the LOD win and revisit only if LOD popping shows in play</td><td class="est"><s>2–4 d</s> AO + LODs done · normals deferred</td></tr>
-    <tr><td class="n">10</td><td><b>Onboarding is partial</b></td><td class="e">Some flow in <code>LocalSessionFlowOverlay</code>; no first-run teaching</td><td class="est">2–3 d</td></tr>
+    <tr><td class="n">1</td><td><b>Apple Developer Program not enrolled</b></td><td class="e">No team id in <code>ProjectSettings.asset</code>; <code>STORE_SIGNING_PREREQUISITES.md</code> boxes unchecked. Gates 2, 6 and 7 — every store step waits on it</td><td class="est">External — start 4 Sep</td></tr>
+    <tr><td class="n">2</td><td><b>Bundle identifier and signing are placeholders</b></td><td class="e"><code>applicationIdentifier</code> is <code>com.ltwplaceholder.ltw</code> for iPhone and Android; <code>appleEnableAutomaticSigning: 0</code>. Proposed final value: <code>com.linewardsgames.linewards</code>, set only after enrolment so it binds to the right account</td><td class="est">&lt;1 d, after 1</td></tr>
+    <tr><td class="n">3</td><td><b>No crash reporting or analytics</b></td><td class="e">Zero references in <code>Packages/manifest.json</code> or <code>Assets/Scripts</code>. Without it tester feedback is anecdote</td><td class="est">1 d</td></tr>
+    <tr><td class="n">4</td><td><b>Never run on a phone, no performance numbers</b></td><td class="e">Both iPad rounds were a 13" iPad Pro. <code>IOS_DEVICE_VALIDATION.md</code> is an empty template: no frame rate, thermal or memory figure exists for any device. Item 44's LODs are static, so the perf win is parked</td><td class="est">1–2 d</td></tr>
+    <tr><td class="n">5</td><td><b>No human acceptance pass</b></td><td class="e"><code>GAMEPLAY_DEVELOPMENT_CHECKLIST.md</code> at 75 checked / 42 open; the iPad rounds produced bug lists, not an acceptance pass. The tutorial (OPEN_ITEMS 54) has never been played on a device</td><td class="est">2 d</td></tr>
+    <tr><td class="n">6</td><td><b>No store listing assets, no privacy policy</b></td><td class="e">No screenshot set, description, age rating or hosted privacy URL. Screenshots should be taken after week 2's phone run, not before</td><td class="est">2–3 d</td></tr>
+    <tr><td class="n">7</td><td><b>Not on TestFlight</b></td><td class="e">Nothing has ever been uploaded. First review is 1–3 days</td><td class="est">2–3 d, external</td></tr>
+    <tr><td class="n">8</td><td><b>No testers</b></td><td class="e">Nobody who is not the owner has played it</td><td class="est">1 d to recruit, then ongoing</td></tr>
   </table>
 
   <h2>Critical path — the uncompressible bits</h2>
   <div class="card" style="margin-bottom:14px">
-    <div class="dep"><span>Apple Developer Program enrolment</span><b><b>Aug 1</b> · 24–48h, occasionally longer</b></div>
-    <div class="dep"><span>Google Play Console enrolment</span><b><b>Aug 1</b> · Usually same-day, identity verification can add days</b></div>
-    <div class="dep"><span>TestFlight first build review</span><b>Aug 22 · 1–3 days</b></div>
-    <div class="dep"><span>Play internal track first review</span><b>Aug 22 · Usually hours, can be days</b></div>
-    <div class="dep"><span>Privacy policy hosted at a public URL</span><b>Week 3 · Needs a domain</b></div>
+    <div class="dep"><span>Apple Developer Program</span><b><b>Sep 4</b> · 24–48h, occasionally longer</b></div>
+    <div class="dep"><span>Google Play Console</span><b><b>Sep 4</b> (for tier C) · Usually same day; identity checks can add days</b></div>
+    <div class="dep"><span>TestFlight first build review</span><b>Sep 18 · 1–3 days, longer on a metadata rejection</b></div>
+    <div class="dep"><span>Privacy policy hosted at a public URL</span><b>Sep 18 · Needs a domain</b></div>
   </div>
 
   <h2>Risks worth naming</h2>
   <div class="cols">
     <div class="card">
-      <h3>1. Week 1's play session finds something structural</h3>
-      <p>This is the intended outcome — it is better to learn it in week 1 than week 4 — but it can consume days. Mitigate by holding week 2 lightly, not by skipping the session.</p>
+      <h3>1. Enrolment slips again</h3>
+      <p>Every P0 row but 3, 4 and 5 waits on it, and the August plan showed what happens when it drifts: the weeks fill with polish. Mitigation is procedural, not technical — it is the first bullet of week 1 and nothing else in week 1 starts before it is submitted.</p>
     </div>
     <div class="card">
-      <h3>2. Audio is underestimated</h3>
-      <p><em>Resolved 2026-08-04 — this risk inverted: audio went from the least-tracked P0 item to closed (synthesis, not licensing), auditioned, with its own direction doc and regeneration pipeline. Kept here because the mitigation is worth remembering: the fix was making asset work reproducible code, not budgeting more days.</em></p>
+      <h3>2. The phone run finds a performance problem</h3>
+      <p>All device evidence so far is an 8 GB M4 iPad; the quality tier drops below 6 GB to Medium, but no phone has ever run a full eight-lane match with bloom and shadows on. The static LODs (item 44) are the known lever. Week 2's reserved days exist for this.</p>
     </div>
     <div class="card">
-      <h3>3. Store review rejects the first submission</h3>
-      <p>Common causes for a first-time game: missing privacy policy, incomplete age rating, placeholder metadata. Weeks 3–4 exist to surface these early.</p>
+      <h3>3. Polish creep</h3>
+      <p>It is what consumed August: five graphics waves and a tutorial, each individually justified, none on the critical path. The freeze in week 1 is the mitigation, and the test for an exception is written down: would a tester fail to get through their first ten minutes without it?</p>
     </div>
   </div>
 
   <h2>Landed since the draft — not on the critical path</h2>
   <div class="cols">
     <div class="card">
-      <h3>Board readability <em>3–4 Aug</em></h3>
-      <p>Five separate defects made the board look marked-up: a send beam drawn to an off-screen lane, additive bursts accumulating past white into flat saturated slabs, opponents' send beams crossfiring in the all-lanes view, an arrival cue that drew a square with an X through it, and lane direction markers that read as a cross rather than an arrow. <b>Worth knowing:</b> four of the five were independently authored as two beams crossing at a point, which is the universal "missing asset" glyph. That shape keeps getting written because each instance looks reasonable alone.</p>
+      <h3>Graphics Waves 1–5 <em>1–3 Sep</em></h3>
+      <p>A live-capture render review found twenty issues; five waves closed the units, the board material, grounding, combat VFX and tier silhouettes, with a re-audit at the same frames between them. Ready for store screenshots, which is the one way this work feeds the plan.</p>
     </div>
     <div class="card">
-      <h3>A defeated seat could rebuild <em>4 Aug</em></h3>
-      <p>Bots kept taking turns after elimination, and the commands disagreed about whether to stop them: upgrade, sell-batch and tier-buy each refused, while <code>PlaceTower</code> and <code>SellTowerAt</code> did not — so a wiped lane came back. <b>Why it matters here:</b> this is exactly the class of thing a first tester finds in the first ten minutes, and it was invisible to every existing test because they all run two or three lanes rather than the eight that ship.</p>
+      <h3>The iPad rounds and the tablet rail <em>9–30 Aug</em></h3>
+      <p>Two device rounds on a 13" iPad Pro produced seventeen findings, thirteen closed; the tablet UI became a full-width rail with list rows, a seat leaderboard and a send panel. This is the nearest thing to the August plan's "play it with hands" session, and it is why tier A is marked done.</p>
     </div>
     <div class="card">
-      <h3>Economy: tiers now cost, twice <em>3–4 Aug</em></h3>
-      <p>Category tiers escalate 25% per tier already held, and a tier now also raises what its own units cost — 65% of the power increase, so a tier-3 creep carries 225% health for 181% price. Previously the tier's own price was the entire lever and every unit after it was free power. The income ceiling moved 600 → 900 because the gate is half the price and the last upgrade had become unreachable rather than expensive. <b>Unverified:</b> all of it is bot-versus-bot on one seed. Match length landed within 3% of where it started, but by two changes pulling opposite ways rather than by design.</p>
+      <h3>How to Play and Practice <em>2–3 Sep</em></h3>
+      <p>A five-card How to Play screen, a first-run offer, and a skippable, re-enterable Practice match against passive bots with a coach strip — OPEN_ITEMS item 54. Built after August's window, captured at phone and iPad widths, unverified on a device.</p>
     </div>
   </div>
 
   <h2>What “done” means on 31 August</h2>
   <div class="card">
     <ul class="check">
-      <li>Runs on iOS and Android phones, with a real name, icon and identity</li>
-      <li>Has music and sound effects</li>
-      <li>Has a title screen, teaches the player how to maze, and reports its own crashes</li>
-      <li>Assets carry normal maps and AO, and render through the intended post-processing</li>
-      <li>Is on TestFlight and the Play internal track, with real testers giving feedback</li>
-      <li>Is free, with no store screen and no payment code — monetization follows, per the cosmetic SKU roadmap</li>
+      <li>Runs on an iPhone, with a real identifier, and there are written frame-rate, thermal and memory numbers for it</li>
+      <li>Reports its own crashes and counts sessions, match starts, tutorial outcomes and leaks</li>
+      <li>Has passed a written, with-hands acceptance pass including the tutorial</li>
+      <li>Has a store listing, an age rating and a hosted privacy policy</li>
+      <li>Is on TestFlight with 10–20 external testers, and their feedback exists in writing</li>
+      <li>Is free, iOS only, with the Android and public-launch decisions made on that feedback</li>
     </ul>
   </div>
 

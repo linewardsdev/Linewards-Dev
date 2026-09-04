@@ -86,6 +86,25 @@ public sealed class LocalMatchOptions
     }
 
     /// <summary>
+    /// Returns a copy of these options with every lane's bot set to
+    /// <see cref="BotDecisionProfile.Passive"/>: the guided practice table, where the neighbours
+    /// build and defend but never send. Enabled flags and primary creeps are kept as they are.
+    /// </summary>
+    /// <remarks>
+    /// The local seat's own entry is switched too. It is inert while the human sits there (see
+    /// <see cref="IsBotEnabledFor"/>), and switching it means a later <see cref="WithLocalPlayer"/>
+    /// still yields an all-passive table rather than one lane that quietly starts attacking.
+    /// </remarks>
+    public LocalMatchOptions WithAllBotsPassive() =>
+        new LocalMatchOptions(
+            Seed,
+            LaneCount,
+            lanes.Values
+                .Select(lane => new BotLaneOptions(lane.PlayerId.Value, lane.Enabled, BotDecisionProfile.Passive, lane.PrimaryCreepId))
+                .ToArray(),
+            LocalPlayerId.Value);
+
+    /// <summary>
     /// The local human's own seat is never bot-driven, whatever the lane config says. This keeps
     /// "who is the human" a single knob (<see cref="LocalPlayerId"/>) instead of requiring callers
     /// to remember to also disable the bot on that lane.

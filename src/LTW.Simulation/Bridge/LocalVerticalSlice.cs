@@ -11,6 +11,7 @@ using LTW.Simulation.Events;
 using LTW.Simulation.Pathing;
 using LTW.Simulation.Primitives;
 using LTW.Simulation.Replay;
+using LTW.Simulation.Seats;
 
 namespace LTW.Simulation.Bridge;
 
@@ -73,9 +74,56 @@ public sealed class LocalVerticalSlice
     // not, and combat reads them through this. Refreshed once per tick in AdvanceOneTick.
     private CombatContent combatContent;
     private readonly LocalMatchOptions options;
+
+    /// <summary>
+    /// Whether this match runs live bots at all — <c>false</c> only for <see cref="Replay"/>'s
+    /// fresh instance, which drives every seat from a recorded log instead. Stored so
+    /// <see cref="Reset"/> can rebuild <see cref="bots"/> the same way the constructor did, now
+    /// that <see cref="bots"/> is no longer immutable after construction (see
+    /// <see cref="standInBotSeats"/>'s remarks) — before that, nothing needed this remembered.
+    /// </summary>
+    private readonly bool enableBots;
     private readonly LocalMatchTopology topology;
     private readonly List<ISimulationEvent> pendingEvents = new();
     private readonly Dictionary<PlayerId, BotController> bots;
+
+    /// <summary>
+    /// The human seat(s) currently standing in for nobody — see <see cref="DropSeat"/>. A seat in
+    /// here also has a live entry in <see cref="bots"/>, added the same moment it is dropped; this
+    /// set is what tells <see cref="GetSeatTable"/> and <see cref="ReconnectSeat"/> that the entry
+    /// is a STAND-IN rather than the seat's own bot, which <see cref="Seats.SeatRole.Human"/> never
+    /// has one of otherwise.
+    /// </summary>
+    private readonly HashSet<PlayerId> droppedSeats = new();
+
+    /// <summary>
+    /// Seats currently driven by another player's recorded play rather than a live bot or a human
+    /// — MULTIPLAYER_SEATS_AND_AUTHORITY.md's MP-02. Disjoint from <see cref="bots"/> by
+    /// construction: <see cref="AssignRecordedOpponent"/> removes any existing bot entry for a
+    /// seat before adding it here, and <see cref="AdvanceOneTick"/> does the reverse the moment a
+    /// recording runs out.
+    /// </summary>
+    private readonly Dictionary<PlayerId, RecordedSeatDriver> recordedSeats = new();
+
+    /// <summary>
+    /// Seats whose <see cref="bots"/> entry is a stand-in rather than what <see cref="CreateBots"/>
+    /// configured — a dropped human, or a recorded seat whose recording ran out. Tracked
+    /// separately from <see cref="droppedSeats"/> (which means something narrower: THIS seat is a
+    /// disconnected human) purely so <see cref="Reset"/> knows which <see cref="bots"/> entries to
+    /// remove: <see cref="bots"/> is otherwise immutable after construction, so before either of
+    /// these mechanisms existed, resetting it was never a real question.
+    /// </summary>
+    private readonly HashSet<PlayerId> standInBotSeats = new();
+
+    /// <summary>
+    /// What a seat plays as once nobody real is behind it any more: a dropped human seat (see
+    /// <see cref="DropSeat"/>), or a recorded seat whose recording ran out (see
+    /// <see cref="RecordedSeatDriver"/>, used from <see cref="AdvanceOneTick"/>). Balanced rather
+    /// than trying to read the departed player's own tendencies — a stand-in only needs to keep
+    /// the lane a credible, not-embarrassing opponent for whoever it now faces, not to imitate
+    /// whoever it is standing in for.
+    /// </summary>
+    private const BotDecisionProfile StandInBotProfile = BotDecisionProfile.Balanced;
 
     /// <summary>What the bots are allowed to see of this match, and how they act on it.</summary>
     /// <remarks>
@@ -86,6 +134,18 @@ public sealed class LocalVerticalSlice
 
     private readonly List<AcceptedCommandRecord> acceptedCommands = new();
     private readonly List<BotDecisionRecord> botDecisionRecords = new();
+
+    /// <summary>
+    /// Every accepted command, full-fidelity — see <see cref="MatchReplayRecord"/> for why this is
+    /// a second list rather than an extension of <see cref="acceptedCommands"/>.
+    /// </summary>
+    private readonly List<RecordedCommand> commandLog = new();
+
+    /// <summary>
+    /// Assigned to <see cref="RecordedCommand.Sequence"/> in true call order, across every command
+    /// kind and every source (human, bot, replay) — see that property's remarks.
+    /// </summary>
+    private int nextCommandSequence;
 
     private EconomyPlayerSet playersState = null!;
     private CombatState combatStateValue = null!;
@@ -321,6 +381,211 @@ public sealed class LocalVerticalSlice
     /// <summary>Send-only telemetry, not a reproducible replay — see ReplayRecord's remarks.</summary>
     public ReplayRecord GetReplayRecord() => new ReplayRecord(options.Seed, content.Version, content.Maps[0].Id, players.Players.Select(player => player.PlayerId).ToArray(), tick, acceptedCommands);
 
+    /// <summary>A full, reissuable log of this match so far — see <see cref="MatchReplayRecord"/>.</summary>
+    public MatchReplayRecord GetMatchReplayRecord() => new MatchReplayRecord(options.Seed, content.Version, content.Maps[0].Id, players.Players.Select(player => player.PlayerId).ToArray(), tick, commandLog);
+
+    /// <summary>The tick currently in progress or about to begin. See <see cref="Replay"/>, which
+    /// walks a fresh instance through this value to decide when to apply each recorded command.</summary>
+    public SimulationTick CurrentTick => tick;
+
+    /// <summary>Every seat in this match, as it stands right now. See <see cref="SeatTable"/>.</summary>
+    public SeatTable GetSeatTable() =>
+        new SeatTable(topology.Players.Select(playerId =>
+        {
+            if (playerId.Equals(options.LocalPlayerId))
+            {
+                var standingIn = droppedSeats.Contains(playerId) && bots.TryGetValue(playerId, out var stand) ? stand.Profile : (BotDecisionProfile?)null;
+                return new Seat(playerId, SeatRole.Human, isConnected: !droppedSeats.Contains(playerId), standingIn);
+            }
+
+            if (recordedSeats.TryGetValue(playerId, out var recorded))
+            {
+                return new Seat(playerId, SeatRole.Recorded, isConnected: true, null, recorded.DisplayName);
+            }
+
+            return bots.TryGetValue(playerId, out var bot)
+                ? new Seat(playerId, SeatRole.Bot, isConnected: true, bot.Profile)
+                : new Seat(playerId, SeatRole.Empty, isConnected: true, null);
+        }).ToArray());
+
+    /// <summary>
+    /// Marks a human seat dropped and, from the next tick, has a bot stand in for it — the seat's
+    /// own identity is unchanged, see <see cref="Seat"/>'s remarks. A no-op for any seat that is
+    /// not currently a connected <see cref="SeatRole.Human"/> (a bot seat, an empty one, or one
+    /// already dropped): there is nothing to drop.
+    /// </summary>
+    /// <remarks>
+    /// Only <see cref="LocalMatchOptions.LocalPlayerId"/> can ever satisfy that today — this game
+    /// has exactly one human seat until MP-05 gives it sessions and more than one connection to
+    /// track. The method is written against "a seat that is Human and connected" rather than
+    /// against that specific id so it needs no change on the day a second one exists.
+    /// </remarks>
+    public bool DropSeat(PlayerId playerId)
+    {
+        if (!playerId.Equals(options.LocalPlayerId) || droppedSeats.Contains(playerId))
+        {
+            return false;
+        }
+
+        droppedSeats.Add(playerId);
+        standInBotSeats.Add(playerId);
+        bots[playerId] = new BotController(
+            StandInBotProfile,
+            options.PrimaryCreepFor(playerId) ?? content.Creeps[0].Id,
+            new LTW.Simulation.Random.SeededRandomSource((options.Seed * 397) ^ playerId.Value));
+        return true;
+    }
+
+    /// <summary>
+    /// Ends a stand-in and returns the seat to the human. A no-op for a seat that was never
+    /// dropped. The tick this is called on is the last one the stand-in acts for real —
+    /// <see cref="AdvanceOneTick"/> only ever consults <see cref="bots"/> once per tick, and this
+    /// removes the entry before that tick's iteration if called between ticks, same as a drop.
+    /// </summary>
+    public bool ReconnectSeat(PlayerId playerId)
+    {
+        if (!droppedSeats.Remove(playerId))
+        {
+            return false;
+        }
+
+        standInBotSeats.Remove(playerId);
+        bots.Remove(playerId);
+        return true;
+    }
+
+    /// <summary>
+    /// Seats a recorded opponent — MULTIPLAYER_SEATS_AND_AUTHORITY.md's MP-02. From the next tick,
+    /// <paramref name="playerId"/> is driven by <paramref name="sourcePlayerId"/>'s slice of
+    /// <paramref name="recording"/> instead of by a live bot decision loop.
+    /// </summary>
+    /// <remarks>
+    /// A no-op on the local human's own seat: there is nothing to replay INTO a person who is
+    /// already playing. A content-version mismatch does not fail outright — MP-02's own deliverable
+    /// is that this degrades to an ordinary bot, quietly, with a <see cref="RecordedSeatFallbackEvent"/>
+    /// for whoever is watching telemetry, rather than leaving the seat undriven or throwing over a
+    /// recording that is simply from a different build.
+    /// </remarks>
+    /// <returns>True if the recording was seated; false if it was rejected (wrong seat, or a
+    /// content-version mismatch — check the emitted event for which).</returns>
+    public bool AssignRecordedOpponent(PlayerId playerId, MatchReplayRecord recording, PlayerId sourcePlayerId, string displayName)
+    {
+        if (!topology.HasPlayer(playerId) || playerId.Equals(options.LocalPlayerId))
+        {
+            return false;
+        }
+
+        recordedSeats.Remove(playerId);
+        bots.Remove(playerId);
+
+        if (recording.ContentVersion != content.Version)
+        {
+            standInBotSeats.Add(playerId);
+            bots[playerId] = new BotController(
+                StandInBotProfile,
+                options.PrimaryCreepFor(playerId) ?? content.Creeps[0].Id,
+                new LTW.Simulation.Random.SeededRandomSource((options.Seed * 397) ^ playerId.Value));
+            pendingEvents.Add(new RecordedSeatFallbackEvent(tick, playerId, $"content version mismatch: recording is '{recording.ContentVersion}', match is '{content.Version}'"));
+            return false;
+        }
+
+        recordedSeats[playerId] = new RecordedSeatDriver(recording, sourcePlayerId, displayName);
+        return true;
+    }
+
+    /// <summary>
+    /// Reconstructs a match from a <see cref="MatchReplayRecord"/> by reissuing every recorded
+    /// command against a fresh instance of the same match, in the order it was originally
+    /// accepted. This is MULTIPLAYER_SEATS_AND_AUTHORITY.md's MP-00 exit signal: the returned
+    /// instance's own state (and its own <see cref="GetMatchReplayRecord"/>) should match the
+    /// original's exactly.
+    /// </summary>
+    /// <remarks>
+    /// Bots are disabled (<paramref name="content"/> is played with <c>enableBots: false</c>)
+    /// rather than reseeded to decide again: every bot action already reached the ORIGINAL match
+    /// through the same public command methods a human uses (see
+    /// <c>LocalVerticalSlice.BotMatchContext</c>), so <paramref name="record"/> already carries
+    /// their effects. Re-enabling bots here would run a second, independent decision process
+    /// alongside the replayed one, and the two would fight over the same gold and grid cells.
+    /// <see cref="SeedExpandedLaneBotOpeners"/> already no-ops with no bots for the same reason,
+    /// so a recorded opening-turn placement replays through the same path as everything else.
+    ///
+    /// The caller supplies <paramref name="options"/> rather than this method reconstructing it
+    /// from <paramref name="record"/>: <see cref="MatchReplayRecord"/> carries enough to identify
+    /// which match this was (seed, content version, map, players) but nothing here yet persists
+    /// lane count, seat profiles or the local seat — the same gap OPEN_ITEMS.md's MP-01 (seat
+    /// table) exists to close. Until then, whoever is replaying a match already knows what it was
+    /// configured with, which is true of every consumer this exists for today (a test holding the
+    /// original options, and later a server that started the match in the first place).
+    ///
+    /// A recorded command's own <see cref="RecordedCommand.Tick"/> says which tick it was accepted
+    /// on; this applies every command for a tick, in <see cref="RecordedCommand.Sequence"/> order —
+    /// the order they actually happened in, including across a human command and a bot's, which is
+    /// not otherwise recoverable once both share a tick — before advancing past that tick.
+    /// </remarks>
+    public static LocalVerticalSlice Replay(MatchReplayRecord record, ContentCatalog content, LocalMatchOptions options)
+    {
+        var slice = new LocalVerticalSlice(content, options, enableBots: false);
+        var commands = record.Commands.OrderBy(command => command.Sequence).ToArray();
+        var next = 0;
+
+        while (slice.tick.Value < record.CompletedAtTick.Value)
+        {
+            while (next < commands.Length && commands[next].Tick.Equals(slice.tick))
+            {
+                slice.Apply(commands[next]);
+                next++;
+            }
+
+            slice.AdvanceOneTick();
+        }
+
+        // Anything left unapplied means CompletedAtTick undercounts what the record actually
+        // contains — a caller error (a record and a completion tick that disagree), not a replay
+        // defect, so it fails loudly here rather than silently dropping the tail of a match.
+        if (next < commands.Length)
+        {
+            throw new InvalidOperationException(
+                $"MatchReplayRecord has {commands.Length - next} command(s) recorded at or after " +
+                $"CompletedAtTick ({record.CompletedAtTick.Value}); nothing replayed them.");
+        }
+
+        return slice;
+    }
+
+    /// <summary>
+    /// Reissues one recorded command through the same public method a live caller would use. See
+    /// <see cref="Replay"/>.
+    /// </summary>
+    private void Apply(RecordedCommand command)
+    {
+        var result = command.Kind switch
+        {
+            RecordedCommandKind.PlaceTower =>
+                PlaceTower(command.PlayerId, command.LaneId!.Value, command.ContentId!.Value, command.Position!.Value),
+            RecordedCommandKind.SellTower =>
+                SellTowerAt(command.PlayerId, command.LaneId!.Value, command.Position!.Value),
+            RecordedCommandKind.UpgradeTower =>
+                UpgradeTower(command.PlayerId, command.LaneId!.Value, command.Position!.Value),
+            RecordedCommandKind.BuyCategoryTier =>
+                BuyCategoryTier(command.PlayerId, command.Category!.Value, command.CategoryIndex!.Value, command.TargetTier!.Value),
+            RecordedCommandKind.Send =>
+                QueueSend(command.PlayerId, command.ContentId!.Value, command.Quantity!.Value),
+            _ => throw new ArgumentOutOfRangeException(nameof(command), command.Kind, "Unhandled recorded command kind."),
+        };
+
+        // A command that was accepted the first time and is rejected on replay is exactly the
+        // latent non-determinism this whole record exists to catch — surfaced here, at the command
+        // that diverged, rather than as a mismatched final state with no indication of where the
+        // two runs parted ways.
+        if (!result.Accepted)
+        {
+            throw new InvalidOperationException(
+                $"Replayed {command.Kind} for player {command.PlayerId.Value} at tick {command.Tick.Value} " +
+                $"(sequence {command.Sequence}) was rejected: {result.RejectionReason}. It was accepted when recorded.");
+        }
+    }
+
     /// <summary>
     /// Total creep entities held in combat state, unfiltered by HasLeaked. GetSnapshot's creep list goes
     /// through GetCreepSnapshots, which already excludes spent lane-transfer entities, so it cannot show
@@ -381,10 +646,11 @@ public sealed class LocalVerticalSlice
     {
     }
 
-    public LocalVerticalSlice(ContentCatalog content, LocalMatchOptions options, bool enableBots = true)
+    public LocalVerticalSlice(ContentCatalog content, LocalMatchOptions options, bool enableBots = true, ISeatAuthority? seatAuthority = null)
     {
         this.content = content;
         this.options = options;
+        this.enableBots = enableBots;
         towersById = content.Towers.ToDictionary(tower => tower.Id);
         creepsById = content.Creeps.ToDictionary(creep => creep.Id);
         topology = new LocalMatchTopology(options.LaneCount);
@@ -429,11 +695,14 @@ public sealed class LocalVerticalSlice
         combatState = new CombatState(Enumerable.Empty<CreepCombatState>(), Enumerable.Empty<TowerCombatState>());
         bots = enableBots ? CreateBots(topology.Players) : new Dictionary<PlayerId, BotController>();
 
-        // Both are the local stand-ins for what a server will own. Constructed here rather than
-        // injected because nothing yet has anywhere to inject from; the point is that the bridge
-        // already asks the questions, so the server implementation replaces two objects rather than
-        // rewriting every call site. See ISeatAuthority and ICommandRateLimiter.
-        seatAuthority = new LocalSeatAuthority(topology.Players);
+        // Both are the local stand-ins for what a server will own. Defaulted rather than always
+        // constructed here now that MULTIPLAYER_SEATS_AND_AUTHORITY.md's MP-03 has somewhere to
+        // inject FROM: a real server needs its own ISeatAuthority answering "is this the seat on
+        // THIS CONNECTION" rather than "is this seat in the match" (see that interface's remarks),
+        // and CommandAuthorityTests needs to inject a deliberately hostile one to prove every
+        // command path actually asks it rather than trusting its own argument. Every existing
+        // caller keeps today's behaviour untouched by leaving the parameter out.
+        this.seatAuthority = seatAuthority ?? new LocalSeatAuthority(topology.Players);
         enqueueRateLimiter = new TokenBucketRateLimiter();
         botMatch = new BotMatchContext(this);
         tick = new SimulationTick(0);
@@ -481,6 +750,16 @@ public sealed class LocalVerticalSlice
 
     public VerticalSliceCommandResult PlaceTower(PlayerId playerId, LaneId laneId, ContentId towerId, GridPosition position)
     {
+        if (!TryResolveSeat(playerId, out playerId, out var rejection))
+        {
+            return rejection;
+        }
+
+        if (!buildRateLimiter.TryConsume(playerId, tick))
+        {
+            return VerticalSliceCommandResult.Reject(CommandRejectionReason.CooldownActive);
+        }
+
         var validation = ValidateTowerPlacement(playerId, laneId, towerId, position);
         if (!validation.Result.Accepted)
         {
@@ -510,6 +789,7 @@ public sealed class LocalVerticalSlice
             combatState.Creeps,
             combatState.Towers.Concat(new[] { new TowerCombatState(towerEntityId, towerId, playerId, laneId, position, builtTier) }));
         pendingEvents.Add(new TowerPlacedEvent(tick, playerId, laneId, towerEntityId, towerId, position));
+        commandLog.Add(RecordedCommand.ForPlaceTower(tick, nextCommandSequence++, playerId, laneId, towerId, position));
         return VerticalSliceCommandResult.Accept();
     }
 
@@ -556,7 +836,47 @@ public sealed class LocalVerticalSlice
     /// </remarks>
     private readonly ISeatAuthority seatAuthority;
 
+    /// <summary>
+    /// The seat comes from the authority, never from the argument — see <see cref="ISeatAuthority"/>'s
+    /// remarks. MULTIPLAYER_SEATS_AND_AUTHORITY.md's MP-03: every state-mutating command resolves
+    /// through this before touching anything, so a claimed <see cref="PlayerId"/> can never look up
+    /// or spend on behalf of a seat the authority does not agree it is.
+    /// </summary>
+    /// <remarks>
+    /// Not applied to <see cref="EnqueueSend"/>/<see cref="CancelQueuedSend"/>/<see cref="ClearSendQueue"/>,
+    /// which already resolve inline (this was written first for those three, before the pattern had
+    /// a name) — left as they are rather than migrated, since they already satisfy the same
+    /// property and touching working, already-tested code for a purely cosmetic match was not worth
+    /// the diff.
+    /// </remarks>
+    private bool TryResolveSeat(PlayerId claimed, out PlayerId resolved, out VerticalSliceCommandResult rejection)
+    {
+        var seat = seatAuthority.ResolveSeat(claimed);
+        if (seat is null)
+        {
+            resolved = claimed;
+            rejection = VerticalSliceCommandResult.Reject(CommandRejectionReason.InvalidPlayer);
+            return false;
+        }
+
+        resolved = seat.Value;
+        rejection = VerticalSliceCommandResult.Accept();
+        return true;
+    }
+
     private readonly ICommandRateLimiter enqueueRateLimiter;
+
+    /// <summary>
+    /// Shared by <see cref="PlaceTower"/>, <see cref="UpgradeTower"/>, <see cref="SellTowerAt"/>,
+    /// <see cref="SellTowers"/> and <see cref="BuyCategoryTier"/> — one budget for the whole build
+    /// family rather than five separate ones, so a client cannot multiply its allowance by
+    /// spreading requests across different build commands. A batch (<see cref="SellTowers"/>,
+    /// <see cref="UpgradeTowerLine"/>) consumes one token per tower it actually touches, the same
+    /// as if each had been requested individually — a batch is not a discount on request rate, it
+    /// is exactly the taps it stands in for (see <see cref="UpgradeTowerLine"/>'s own remarks on
+    /// that principle for rejection rules; it applies here too).
+    /// </summary>
+    private readonly ICommandRateLimiter buildRateLimiter = new TokenBucketRateLimiter();
 
     public VerticalSliceCommandResult EnqueueSend(PlayerId playerId, ContentId creepId)
     {
@@ -747,7 +1067,9 @@ public sealed class LocalVerticalSlice
                 // original per-unit loop had for free, which batching must not give up to fix the
                 // income accounting below.
                 var affordable = AffordableRunQuantity(playerId, creepId, runLength);
-                if (affordable <= 0 || !QueueSend(playerId, creepId, affordable).Accepted)
+                // QueueSendCore, not QueueSend: this is realizing a send already rate-limited once
+                // at EnqueueSend time, not a new request — see QueueSend's own remarks.
+                if (affordable <= 0 || !QueueSendCore(playerId, creepId, affordable).Accepted)
                 {
                     break;
                 }
@@ -918,7 +1240,45 @@ public sealed class LocalVerticalSlice
         return VerticalSliceCommandResult.Accept();
     }
 
+    /// <summary>
+    /// The client-facing entry point: resolves and rate-limits before doing anything real. Shares
+    /// <see cref="enqueueRateLimiter"/> with <see cref="EnqueueSend"/> rather than its own budget —
+    /// a client that called this directly instead of enqueueing should not get a second, separate
+    /// allowance for doing so.
+    /// </summary>
+    /// <remarks>
+    /// NOT what <see cref="DrainSendQueues"/> calls. That method realizes a send whose intent was
+    /// already rate-limited once, at the moment it was queued — charging it again here would
+    /// either double that cost against the same budget, or, on a rejection, make
+    /// <see cref="DrainSendQueues"/>'s loop stop and strand the rest of that seat's queue behind a
+    /// throttle that has nothing to do with the queue's own rule, which is gold, not pacing. See
+    /// docs/MULTIPLAYER_ROLLOUT.md's MP-03 for why this split exists rather than one method doing
+    /// both jobs.
+    /// </remarks>
     public VerticalSliceCommandResult QueueSend(PlayerId playerId, ContentId creepId, int quantity)
+    {
+        if (!TryResolveSeat(playerId, out playerId, out var rejection))
+        {
+            return rejection;
+        }
+
+        if (!enqueueRateLimiter.TryConsume(playerId, tick))
+        {
+            return VerticalSliceCommandResult.Reject(CommandRejectionReason.CooldownActive);
+        }
+
+        return QueueSendCore(playerId, creepId, quantity);
+    }
+
+    /// <summary>
+    /// The actual send: content, targeting, economy, spawning, recording. No authority resolution
+    /// and no rate limit — both of this match's two callers already carry a trustworthy id
+    /// (<see cref="QueueSend"/>, right above, resolved and charged it a moment ago; the OTHER
+    /// caller, <see cref="DrainSendQueues"/>, iterates <see cref="sendQueues"/>'s own keys, which
+    /// only ever exist because <see cref="EnqueueSend"/> resolved and charged them when they were
+    /// added).
+    /// </summary>
+    private VerticalSliceCommandResult QueueSendCore(PlayerId playerId, ContentId creepId, int quantity)
     {
         var command = new QueueSendCommand(playerId, tick, creepId, quantity);
         var contentResult = commandValidator.Validate(command, content);
@@ -953,6 +1313,7 @@ public sealed class LocalVerticalSlice
         var spawned = Enumerable.Range(0, quantity).Select(_ => combat.SpawnCreep(NextEntityId(), creep, playerId, laneId, healthPercent)).ToArray();
         combatState = new CombatState(combatState.Creeps.Concat(spawned), combatState.Towers);
         acceptedCommands.Add(new AcceptedCommandRecord(tick, playerId, creepId, quantity));
+        commandLog.Add(RecordedCommand.ForSend(tick, nextCommandSequence++, playerId, creepId, quantity));
         pendingEvents.Add(new CreepQueuedEvent(tick, playerId, send.TargetPlayerId.Value, creepId, quantity));
         foreach (var spawnedCreep in spawned) pendingEvents.Add(new CreepSpawnedEvent(tick, spawnedCreep.EntityId, creepId, playerId, send.TargetPlayerId.Value));
         return VerticalSliceCommandResult.Accept();
@@ -972,6 +1333,16 @@ public sealed class LocalVerticalSlice
     /// </remarks>
     public VerticalSliceCommandResult BuyCategoryTier(PlayerId playerId, CategoryKind categoryKind, int categoryIndex, int targetTier)
     {
+        if (!TryResolveSeat(playerId, out playerId, out var rejection))
+        {
+            return rejection;
+        }
+
+        if (!buildRateLimiter.TryConsume(playerId, tick))
+        {
+            return VerticalSliceCommandResult.Reject(CommandRejectionReason.CooldownActive);
+        }
+
         var command = new BuyCategoryTierCommand(playerId, tick, categoryKind, categoryIndex, targetTier);
         var contentResult = commandValidator.Validate(command, content);
         if (!contentResult.Accepted)
@@ -1019,6 +1390,7 @@ public sealed class LocalVerticalSlice
         players = players.Replace(purchased);
 
         pendingEvents.Add(new CategoryTierPurchasedEvent(tick, playerId, categoryKind, categoryIndex, targetTier, new Gold(cost)));
+        commandLog.Add(RecordedCommand.ForBuyCategoryTier(tick, nextCommandSequence++, playerId, categoryKind, categoryIndex, targetTier));
         return VerticalSliceCommandResult.Accept();
     }
 
@@ -1037,6 +1409,16 @@ public sealed class LocalVerticalSlice
     /// </remarks>
     public VerticalSliceCommandResult UpgradeTower(PlayerId playerId, LaneId laneId, GridPosition position)
     {
+        if (!TryResolveSeat(playerId, out playerId, out var rejection))
+        {
+            return rejection;
+        }
+
+        if (!buildRateLimiter.TryConsume(playerId, tick))
+        {
+            return VerticalSliceCommandResult.Reject(CommandRejectionReason.CooldownActive);
+        }
+
         var tower = combatState.Towers.FirstOrDefault(candidate =>
             candidate.OwnerId.Equals(playerId) && candidate.LaneId.Equals(laneId) && candidate.Position.Equals(position));
         if (tower is null)
@@ -1067,6 +1449,7 @@ public sealed class LocalVerticalSlice
         var upgraded = tower.WithTier(tower.Tier + 1);
         combatState = combatState.ReplaceTower(upgraded);
         pendingEvents.Add(new TowerUpgradedEvent(tick, playerId, laneId, tower.EntityId, tower.TowerId, position, upgraded.Tier, new Gold(cost)));
+        commandLog.Add(RecordedCommand.ForUpgradeTower(tick, nextCommandSequence++, playerId, laneId, position));
         return VerticalSliceCommandResult.Accept();
     }
 
@@ -1194,6 +1577,16 @@ public sealed class LocalVerticalSlice
     /// </remarks>
     public BatchSellOutcome SellTowers(PlayerId playerId, LaneId laneId, IReadOnlyCollection<GridPosition> positions)
     {
+        // Resolved and rebound before OwnedTowersAt below, which is a lookup BY OwnerId == playerId
+        // — the same hazard SellTowerAt's own remarks call out for the single-tower path.
+        // Resolving after that lookup instead of before it would let a forged id select towers it
+        // does not own and only get caught at the point of sale, one tower at a time, rather than
+        // rejected outright before any lookup happens on its behalf.
+        if (!TryResolveSeat(playerId, out playerId, out _))
+        {
+            return new BatchSellOutcome(0, 0);
+        }
+
         if (players.Get(playerId).IsEliminated)
         {
             return new BatchSellOutcome(0, 0);
@@ -1203,7 +1596,9 @@ public sealed class LocalVerticalSlice
         var sold = 0;
         foreach (var tower in OwnedTowersAt(playerId, laneId, positions))
         {
-            if (SellTower(playerId, tower).Accepted)
+            // One token per tower actually touched, same as SellTowerAt would charge for each on
+            // its own — a batch is the taps it stands in for, not a discount on request rate.
+            if (buildRateLimiter.TryConsume(playerId, tick) && SellTower(playerId, tower).Accepted)
             {
                 sold++;
             }
@@ -1320,6 +1715,16 @@ public sealed class LocalVerticalSlice
 
     public VerticalSliceCommandResult SellTowerAt(PlayerId playerId, LaneId laneId, GridPosition position)
     {
+        if (!TryResolveSeat(playerId, out playerId, out var rejection))
+        {
+            return rejection;
+        }
+
+        if (!buildRateLimiter.TryConsume(playerId, tick))
+        {
+            return VerticalSliceCommandResult.Reject(CommandRejectionReason.CooldownActive);
+        }
+
         // Before the lookup, not after. Elimination wipes the lane, so by the time this searches
         // there is no tower to find and the honest "you are out" would come back as NotOwner — a
         // rejection that happens to be right while saying something false about why.
@@ -1355,6 +1760,7 @@ public sealed class LocalVerticalSlice
         grids[tower.LaneId] = grids[tower.LaneId].WithoutOccupied(tower.Position);
         SetRoute(tower.LaneId, pathService.FindRoute(grids[tower.LaneId]).Route);
         pendingEvents.Add(new TowerSoldEvent(tick, playerId, tower.LaneId, tower.EntityId, refund));
+        commandLog.Add(RecordedCommand.ForSellTower(tick, nextCommandSequence++, playerId, tower.LaneId, tower.Position));
         return VerticalSliceCommandResult.Accept();
     }
 
@@ -1375,15 +1781,36 @@ public sealed class LocalVerticalSlice
         // (OPEN_ITEMS.md item 26 — that used to be about 350 lines of this class). What stays here is
         // the one part that is genuinely the bridge's: the order the seats decide in.
         //
-        // OrderBy(bot.Key.Value): Dictionary<PlayerId, BotController> enumeration order is
-        // documented-unspecified, and it feeds NextEntityId() assignment (via QueueSend/PlaceTower)
-        // here, which is the final tie-breaker in SelectTarget, Pulse's splash Take(2) and ChainArc.
-        // It happens to be insertion order today (no removals from this dictionary), but a sim that
-        // records and replays should not rely on that — SeedExpandedLaneBotOpeners already sorts for
-        // the same reason (OPEN_ITEMS.md's retired 2026-07-29 review, "determinism: one real hazard").
-        foreach (var bot in bots.OrderBy(bot => bot.Key.Value))
+        // Ordered by seat number across BOTH dictionaries, not "every bot, then every recorded
+        // seat": Dictionary enumeration order is documented-unspecified, and it feeds
+        // NextEntityId() assignment (via QueueSend/PlaceTower) here, which is the final tie-breaker
+        // in SelectTarget, Pulse's splash Take(2) and ChainArc. It happens to be insertion order
+        // today (no removals from either dictionary during this loop), but a sim that records and
+        // replays should not rely on that — SeedExpandedLaneBotOpeners already sorts for the same
+        // reason (OPEN_ITEMS.md's retired 2026-07-29 review, "determinism: one real hazard"). Two
+        // separate ordered passes (all bots, then all recordings) would give seat 6's recording a
+        // systematically different position in call order than if seat 6 were bot-driven instead
+        // — a difference with no gameplay reason to exist, so seat number is what orders this, not
+        // which kind of driver a seat happens to have.
+        foreach (var playerId in bots.Keys.Concat(recordedSeats.Keys).OrderBy(playerId => playerId.Value).ToArray())
         {
-            bot.Value.TakeTurn(bot.Key, botMatch);
+            if (bots.TryGetValue(playerId, out var bot))
+            {
+                bot.TakeTurn(playerId, botMatch);
+                continue;
+            }
+
+            if (recordedSeats.TryGetValue(playerId, out var recorded) && !recorded.TakeTurn(playerId, tick, botMatch))
+            {
+                // MP-02's "bot-filled from that tick": the recording has nothing left to play, so
+                // from here this seat is a live bot like any other, not a ghost that stopped moving.
+                recordedSeats.Remove(playerId);
+                standInBotSeats.Add(playerId);
+                bots[playerId] = new BotController(
+                    StandInBotProfile,
+                    options.PrimaryCreepFor(playerId) ?? content.Creeps[0].Id,
+                    new LTW.Simulation.Random.SeededRandomSource((options.Seed * 397) ^ playerId.Value));
+            }
         }
 
         tick = new SimulationTick(tick.Value + 1);
@@ -1424,22 +1851,34 @@ public sealed class LocalVerticalSlice
                 var creep = CreepFor(leakedCreep.CreepId);
                 var defenderLivesBefore = players.Get(leak.DefenderId).Lives.Amount;
                 players = economy.ApplyLeak(players, leak.SenderId, leak.DefenderId, creep, leak.LivesLost).Players;
+
+                // The spent entity is removed unconditionally, not just when it transfers, and BEFORE
+                // WipeEliminatedLane below rather than after. Reaching a lane end is not death (health
+                // carries forward per the design note in OPEN_ITEMS.md's retired 2026-07-29 review,
+                // "every lane hop leaves a permanent spent entity"), but the entity that just left this
+                // lane is done regardless of whether a next lane exists for it: on transfer its successor
+                // is the new entity below, and if every other seat is already eliminated (nextLaneId is
+                // null) it simply has nowhere left to go. Leaving it in CombatState either way makes it a
+                // tombstone: still HasLeaked, still holding the health it exited with, invisible to every
+                // filter except one (the bot pressure check, item 10) that forgot to exclude HasLeaked —
+                // which is what let these accumulate for a whole match.
+                //
+                // Ordering fix (found auditing a mass-send report, 2026-08-31): this creep's own leak can
+                // be what just zeroed the defender's lives, and WipeEliminatedLane matches "every creep
+                // still in that lane" by LaneId — which this entity still was, since it is only removed
+                // here. Wiping before removing double-processed it: WipeEliminatedLane reported it killed
+                // for 0 gold via the lane-owner filter, and then the transfer below ALSO spawned its
+                // successor into the next lane from the same leak — one creep both "killed" and
+                // "transferred" out of a single LeakEvent. Removing it first takes it out of
+                // WipeEliminatedLane's own creep scan entirely, leaving exactly one outcome per creep.
+                combatState = combatState.RemoveCreep(leak.CreepEntityId);
+
                 if (defenderLivesBefore > 0 && players.Get(leak.DefenderId).Lives.Amount == 0)
                 {
                     RecordElimination(leak.DefenderId);
                     pendingEvents.Add(new PlayerEliminatedEvent(tick, leak.DefenderId));
                     WipeEliminatedLane(leak.DefenderId);
                 }
-
-                // The spent entity is removed unconditionally, not just when it transfers. Reaching a lane
-                // end is not death (health carries forward per the design note in OPEN_ITEMS.md's retired 2026-07-29 review, "every lane hop leaves a permanent spent entity"),
-                // but the entity that just left this lane is done regardless of whether a next lane exists
-                // for it: on transfer its successor is the new entity below, and if every other seat is
-                // already eliminated (nextLaneId is null) it simply has nowhere left to go. Leaving it in
-                // CombatState either way makes it a tombstone: still HasLeaked, still holding the health it
-                // exited with, invisible to every filter except one (the bot pressure check, item 10) that
-                // forgot to exclude HasLeaked — which is what let these accumulate for a whole match.
-                combatState = combatState.RemoveCreep(leak.CreepEntityId);
 
                 var nextLaneId = NextActiveOpponentLaneId(leakedCreep.LaneId, leakedCreep.SenderId);
                 if (nextLaneId is not null)
@@ -1469,7 +1908,8 @@ public sealed class LocalVerticalSlice
             combat.GetBrambleCells(combatState, combatContent, routeSet),
             sendQueues.ToDictionary(
                 entry => entry.Key,
-                entry => (IReadOnlyList<ContentId>)entry.Value.ToArray()));
+                entry => (IReadOnlyList<ContentId>)entry.Value.ToArray()),
+            GetSeatTable());
 
     public IReadOnlyList<ISimulationEvent> DrainEvents()
     {
@@ -1495,7 +1935,24 @@ public sealed class LocalVerticalSlice
         matchEnded = false;
         MatchSummary = null;
         acceptedCommands.Clear();
+        commandLog.Clear();
+        nextCommandSequence = 0;
         botDecisionRecords.Clear();
+        // A full rebuild rather than only undoing standInBotSeats: bots is otherwise immutable
+        // after construction, so before drop/reconnect and recorded seats existed, a reset never
+        // needed to touch it at all. Rebuilding from CreateBots is what actually restores a
+        // stand-in seat's OWN configured profile, not just removes the stand-in and leaves the
+        // seat empty — the gap a first version of this reset left, caught by
+        // RecordedSeatTests.Reset_restores_a_stand_in_seat_to_its_configured_bot.
+        bots.Clear();
+        foreach (var entry in enableBots ? CreateBots(topology.Players) : new Dictionary<PlayerId, BotController>())
+        {
+            bots[entry.Key] = entry.Value;
+        }
+
+        standInBotSeats.Clear();
+        droppedSeats.Clear();
+        recordedSeats.Clear();
 
         // Two more per-match dictionaries this used to leave standing, both found from a "reset
         // doesn't reset correctly" report. Neither is emptied by resetting `players` above, because
@@ -1512,6 +1969,13 @@ public sealed class LocalVerticalSlice
         // ranked that seat using an elimination time from a match that no longer exists.
         sendQueues.Clear();
         eliminatedAtTick.Clear();
+
+        // A third instance of the same pattern, found from "send cooldown bug on replay": this one
+        // keys off absolute tick rather than PlayerId, so it needed its own Reset rather than a
+        // Clear() here — see ICommandRateLimiter.TokenBucketRateLimiter.Reset's remarks for why a
+        // stale LastTick from the previous match is actively harmful, not just leftover state.
+        enqueueRateLimiter.Reset();
+        buildRateLimiter.Reset();
     }
 
     public void StartMatch()
@@ -1963,5 +2427,8 @@ public sealed class LocalVerticalSlice
 
         public bool TryUpgradeTower(PlayerId playerId, LaneId laneId, GridPosition position) =>
             slice.UpgradeTower(playerId, laneId, position).Accepted;
+
+        public bool TrySellTower(PlayerId playerId, LaneId laneId, GridPosition position) =>
+            slice.SellTowerAt(playerId, laneId, position).Accepted;
     }
 }

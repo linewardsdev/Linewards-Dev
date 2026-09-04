@@ -158,7 +158,7 @@ public static class SampleVerticalSliceContent
                 new TowerDefinition(ControlTowerId, "Control Ward", new Gold(24), rangeCells: 3, damage: 6, attackCooldownTicks: 6, categoryIndex: 0, role: TowerRole.Dps),
                 new TowerDefinition(UtilityTowerId, "Relay Ward", new Gold(28), rangeCells: 2, damage: 4, attackCooldownTicks: 8, categoryIndex: 0, signalGoldPerHit: 3, role: TowerRole.Economy),
                 new TowerDefinition(PulseTowerId, "Pulse Ward", new Gold(32), rangeCells: 1, damage: 12, attackCooldownTicks: 8, categoryIndex: 0, role: TowerRole.Aoe),
-                new TowerDefinition(PrismTowerId, "Prism Ward", new Gold(42), rangeCells: 4, damage: 18, attackCooldownTicks: 12, categoryIndex: 0, role: TowerRole.Dps),
+                new TowerDefinition(PrismTowerId, "Prism Ward", new Gold(42), rangeCells: 4, damage: 18, attackCooldownTicks: 12, categoryIndex: 0, countersFlyers: true, role: TowerRole.Dps),
 
                 // Twin Crescent fires TWICE per cooldown at two DIFFERENT creeps, and the second
                 // barrel is wasted when only one target is in range. That is the whole design: it
@@ -186,7 +186,7 @@ public static class SampleVerticalSliceContent
                 // was the worst value in the game: 26 points of damage-per-tick x cells-covered
                 // against Arrow's 19.5, at more than twice the price. Priced here at Arrow's own
                 // value-per-gold, which is what makes choosing Foundry a choice rather than a tax.
-                new TowerDefinition(GatlingTowerId, "Gatling Turret", new Gold(19), rangeCells: 2, damage: 4, attackCooldownTicks: 2, categoryIndex: 1, role: TowerRole.Dps),
+                new TowerDefinition(GatlingTowerId, "Gatling Turret", new Gold(19), rangeCells: 2, damage: 4, attackCooldownTicks: 2, categoryIndex: 1, countersFlyers: true, role: TowerRole.Dps),
                 // 38 to 44. Chain Arc turned out to be the strongest mechanic on the roster relative to
                 // its own baseline (+60% against a stack, +49% in a trickle), and at 38 the
                 // opportunity-cost test failed: a Tesla returned 1.37 damage per gold against 1.24 for
@@ -212,7 +212,7 @@ public static class SampleVerticalSliceContent
 
                 // Grove line. Cheap and individually weak — the line you spam early and outgrow,
                 // except Elder Canopy, which is the roster's long-range anchor and priced for it.
-                new TowerDefinition(ElderCanopyTowerId, "Elder Canopy", new Gold(46), rangeCells: 5, damage: 14, attackCooldownTicks: 12, categoryIndex: 2, role: TowerRole.Dps),
+                new TowerDefinition(ElderCanopyTowerId, "Elder Canopy", new Gold(46), rangeCells: 5, damage: 14, attackCooldownTicks: 12, categoryIndex: 2, countersFlyers: true, role: TowerRole.Dps),
                 new TowerDefinition(SaplingTowerId, "Sapling Sentinel", new Gold(10), rangeCells: 2, damage: 6, attackCooldownTicks: 6, categoryIndex: 2, role: TowerRole.Wall),
                 new TowerDefinition(BloomheartTowerId, "Bloomheart Totem", new Gold(22), rangeCells: 2, damage: 8, attackCooldownTicks: 6, categoryIndex: 2, role: TowerRole.Support),
                 // Range 1 to 2 is required by the mechanic, not a buff: at range 1 the bramble zone

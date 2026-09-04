@@ -19,10 +19,14 @@ namespace LTW.UnityClient.UI
         private static readonly Color DisabledInk = new(0.22f, 0.25f, 0.32f, 0.88f);
         private static readonly Color DisabledText = new(0.55f, 0.59f, 0.68f, 1f);
 
+        // Dimmer than the meta row: context, not a number the player is pricing a decision against.
+        private static readonly Color MutedTraitText = new(0.62f, 0.68f, 0.78f, 0.85f);
+
         private static GUIStyle? panelStyle;
         private static GUIStyle? titleStyle;
         private static GUIStyle? buttonStyle;
         private static GUIStyle? metaStyle;
+        private static GUIStyle? rowNameStyle;
 
         [SerializeField]
         private UnityCommandAdapter commandAdapter = null!;
@@ -80,6 +84,15 @@ namespace LTW.UnityClient.UI
         {
             var scale = MobileViewportLayout.UiScale();
             var frame = MobileViewportLayout.ScreenRect();
+
+            // The launcher is a phone-only control (see OnGUI, 2026-08-30): on a rail the dock is
+            // always expanded and never draws it, so answering for its old screen position here
+            // would claim board taps that land on nothing drawn.
+            if (MobileViewportLayout.HasSideRails)
+            {
+                return PanelRect(scale, frame).Contains(guiPoint);
+            }
+
             return LauncherRect(scale, frame).Contains(guiPoint)
                 || (isExpanded && PanelRect(scale, frame).Contains(guiPoint));
         }
@@ -268,11 +281,25 @@ namespace LTW.UnityClient.UI
             var frame = MobileViewportLayout.ScreenRect();
             var launcherRect = LauncherRect(scale, frame);
             var touchPlacement = TouchPlacement;
-            if (touchPlacement?.IsTowerPaletteExpanded == true)
+            // Phone-only, for the same reason as the symmetric check in
+            // TouchPlacementController.Gui.cs's DrawTowerPalette: a bottom drawer is one physical
+            // slot BUILD's palette genuinely covers, but a tablet rail gives SEND its own column
+            // that BUILD's rail never overlaps — closing SEND and refusing to draw its launcher
+            // just because BUILD opened on the other side of the screen left it permanently
+            // untappable there. That was this bug for SEND's half of it.
+            if (!MobileViewportLayout.HasSideRails && touchPlacement?.IsTowerPaletteExpanded == true)
             {
                 isExpanded = false;
                 SelectedCategory = -1;
                 return;
+            }
+
+            // No launcher, no collapse: on a tablet rail there is room for the dock to just stay
+            // open (owner's call, 2026-08-30). This alone makes the collapsed branch below dead
+            // code for rail, which is what removes the SEND launcher from it.
+            if (MobileViewportLayout.HasSideRails)
+            {
+                isExpanded = true;
             }
 
             if (!isExpanded)
@@ -308,19 +335,25 @@ namespace LTW.UnityClient.UI
 
             DrawPanel(rect, PanelInk);
             DrawAccent(new Rect(rect.x, rect.yMax - 4f * scale, rect.width, 4f * scale), SignalGold);
-            if (DrawLauncherButton(launcherRect, "CLOSE", SignalGold, scale))
+
+            // No CLOSE on rail: the dock cannot collapse there, so a button that used to do it
+            // would either do nothing or reopen the launcher this branch no longer draws.
+            if (!railMode && DrawLauncherButton(launcherRect, "CLOSE", SignalGold, scale))
             {
                 CloseDock();
                 return;
             }
 
-            var titleText = selectedCategory < 0 ? "SEND" : $"SEND › {CategoryLabels[selectedCategory]}";
+            // Always just "SEND", matching the build palette's own header (TouchPlacementController.
+            // Gui.cs DrawTowerPalette, which never grows past the literal "BUILD" either). This used
+            // to append "› {category}" once one was selected, which wrapped onto two cramped lines
+            // in the portrait rail specifically — the drawer and the wider landscape rail both had
+            // room for it, so this went untested until reported live as "squashed" (2026-08-31). The
+            // category itself is not lost: BACK is already the tell that one is selected, the same
+            // way it is on the build side.
             titleStyle!.fontSize = Mathf.RoundToInt(12f * scale);
             titleStyle.normal.textColor = SignalGold;
-            // Clamped to the panel less BACK's corner, not a fixed 220 — the rail is narrower than
-            // the drawer and a fixed width ran the title under the button.
-            var titleWidth = Mathf.Min(220f * scale, rect.width - 96f * scale);
-            GUI.Label(new Rect(rect.x + 12f * scale, rect.y + 10f * scale, titleWidth, 20f * scale), titleText, titleStyle);
+            GUI.Label(new Rect(rect.x + 12f * scale, rect.y + 10f * scale, 120f * scale, 20f * scale), "SEND", titleStyle);
             // Only one CLOSE. The launcher slot above already turned into CLOSE when the dock
             // opened, and it has to stay something other than SEND while expanded, so a second
             // CLOSE in the header was pure duplication — two controls, same owner, same action,
@@ -392,56 +425,40 @@ namespace LTW.UnityClient.UI
                     metaStyle);
             }
 
-            float buttonY;
-            float buttonHeight;
             var gap = 8f * scale;
 
             if (railMode)
             {
-                // Reuses the drawer's own card-drawing methods (DrawCategoryPicker, DrawSendCards)
-                // rather than a parallel compact layout. A custom text-row rail layout was tried
-                // first and measured wrong against its own goal: it dropped icons entirely and
-                // stacked one item per row, both regressions once it became clear how much width a
-                // real tablet's rail actually carries — the board column narrows to the game's own
-                // portrait aspect regardless of the device's, so the two side rails together
-                // commonly hold more than half the screen (MobileViewportLayout.BoardColumnFraction).
-                // Reported from play 2026-08-29: "removed the icons and are very long... we have
-                // more real estate... we should utilize it." Reusing the drawer methods restores the
-                // icons for free and turns the creep grid's five stacked rows into the drawer's own
-                // 3-then-2 layout, because both are driven by the SAME width-based card sizing the
-                // drawer already had tuned — the rail did not need new layout code, it needed the
-                // width it already had handed to the layout code that already existed.
-                //
-                // Height is derived from the first row's width through the card art's own aspect,
-                // not the drawer's fixed 84 — that constant assumes the drawer's ~500-unit cap, and
-                // holding it fixed while width grows to fill a much wider rail would flatten the
-                // card art rather than scale it up with the rest of the row.
-                var railCardWidth = (rect.width - 24f * scale - gap * 2f) / 3f;
-                buttonHeight = railCardWidth / RuntimeUiChrome.CommandCardArtAspect;
+                // A full-width LIST, not the drawer's grid of narrow cards (owner's call,
+                // 2026-08-30). The grid was tried here first, twice — once with icons dropped
+                // entirely, then again by reusing the drawer's card-drawing methods outright — and
+                // both rounds kept finding a new way to overflow the same fixed portrait card
+                // shape as more was asked of it (icon size, then specialty text, then row height).
+                // A rail card only ever gets a third or half of the rail's width, shared with
+                // siblings; a full-width row gets all of it, which is what actually answers "too
+                // small and hard to read" instead of narrowing the margin on the same failure. See
+                // RuntimeUiChrome.DrawListRow for why this cannot reuse the card art itself.
+                var contentTop = rect.y + 68f * scale;
+                if (selectedCategory < 0)
+                {
+                    DrawCategoryPickerRail(rect, contentTop, scale);
+                }
+                else
+                {
+                    DrawSendCardsRail(CardsForSelectedCategory(), rect, contentTop, scale, gold);
+                }
 
-                // Fixed at 68, not conditional on totalQueued. It used to drop to 50 when the queue
-                // was empty, to reclaim the QUEUE line's blank space — but that meant every category
-                // row and creep row shifted by 18 units the instant the queue crossed zero in either
-                // direction, which reads as the whole panel jumping while a player is actively
-                // tapping (reported from play 2026-08-29). Reserving the space unconditionally and
-                // simply not drawing the label when empty keeps the layout still; the cost is 18
-                // units of blank header on an empty queue, which is cheaper than a panel that jitters
-                // under a live hand.
-                buttonY = rect.y + 68f * scale;
+                return;
             }
-            else
-            {
-                buttonY = rect.y + 84f * scale;
-                buttonHeight = 84f * scale;
-            }
+
+            var buttonY = rect.y + 84f * scale;
+            var buttonHeight = 84f * scale;
 
             // Explicitly three-way. This was previously a bare `else` for Category 2, which would
             // have silently rendered Category 2's grid for any new category index.
             if (selectedCategory < 0)
             {
-                // 2 columns in rail mode, not 3 — see DrawCategoryPicker's own doc for why.
-                var pickerColumns = railMode ? 2 : CategoryLabels.Length;
-                DrawCategoryPicker(rect, buttonY, buttonHeight, gap, scale, pickerColumns);
+                DrawCategoryPicker(rect, buttonY, buttonHeight, gap, scale, CategoryLabels.Length);
             }
             else if (selectedCategory == 0)
             {
@@ -483,13 +500,15 @@ namespace LTW.UnityClient.UI
             var accents = new[] { ArcaneBlue, WardViolet, SignalGold };
             var gold = CurrentPlayerGold();
             var rowHeight = 0f;
+            var rowCount = Mathf.CeilToInt((float)CategoryLabels.Length / columns);
+            var maxCardHeight = RuntimeUiChrome.CategoryPickerRowMaxHeight(rect, buttonY, gap, rowCount, scale);
 
             for (var category = 0; category < CategoryLabels.Length; category++)
             {
                 var row = category / columns;
                 var column = category % columns;
                 var top = buttonY + row * (rowHeight + gap);
-                var cardRect = RuntimeUiChrome.CategoryCardRect(rect, top, gap, column, columns, scale);
+                var cardRect = RuntimeUiChrome.CategoryCardRect(rect, top, gap, column, columns, scale, maxCardHeight);
                 if (row == 0 && column == 0)
                 {
                     rowHeight = cardRect.height;
@@ -663,6 +682,215 @@ namespace LTW.UnityClient.UI
         private void DrawCategoryThreeCreeps(Rect rect, float buttonY, float buttonHeight, float gap, int gold, float scale) =>
             DrawSendCards(CategoryThreeCards(), rect, buttonY, buttonHeight, gap, gold, scale);
 
+        /// <summary>The rail list's equivalent of DrawCategoryOne/Two/ThreeCreeps — one lookup, not three.</summary>
+        private SendCard[] CardsForSelectedCategory() => selectedCategory switch
+        {
+            0 => CategoryOneCards(),
+            1 => CategoryTwoCards(),
+            _ => CategoryThreeCards()
+        };
+
+        /// <summary>
+        /// Rail-only category list: one full-width row per category, replacing the grid of narrow
+        /// cards. See RuntimeUiChrome.DrawListRow for why this is a flat row rather than the card
+        /// art the drawer's DrawCategoryPicker still uses.
+        /// </summary>
+        private void DrawCategoryPickerRail(Rect rect, float contentTop, float scale)
+        {
+            var accents = new[] { ArcaneBlue, WardViolet, SignalGold };
+            var gold = CurrentPlayerGold();
+            const float rowHeight = 98f;
+            const float gap = 10f;
+
+            for (var category = 0; category < CategoryLabels.Length; category++)
+            {
+                var row = RuntimeUiChrome.ListRowRect(rect, contentTop, rowHeight * scale, gap * scale, category);
+                if (row.yMax > rect.yMax + 1f)
+                {
+                    break;
+                }
+
+                var accent = accents[category];
+
+                // Excludes the tier row at the bottom, or the row's own GUI.Button consumes the
+                // upgrade button's click before DrawCategoryTier ever draws it — the same
+                // Event.Use() hazard RuntimeUiChrome.CategoryCardSelectRect exists to avoid on the
+                // drawer's cards.
+                var tierTop = RuntimeUiChrome.CategoryTierRowRect(row, scale).y;
+                var selectRect = new Rect(row.x, row.y, row.width, Mathf.Max(1f, tierTop - row.y));
+                if (RuntimeUiChrome.DrawListRow(row, accent, CommandCardState.Normal, scale, selectRect))
+                {
+                    SelectedCategory = category;
+                }
+
+                var textX = row.x + 14f * scale;
+                var textWidth = row.width - 28f * scale;
+
+                rowNameStyle!.fontSize = Mathf.RoundToInt(16f * scale);
+                rowNameStyle.normal.textColor = Cloud;
+                GUI.Label(new Rect(textX, row.y + 8f * scale, textWidth, 24f * scale), CategoryLabels[category], rowNameStyle);
+
+                metaStyle!.fontSize = Mathf.RoundToInt(10f * scale);
+                metaStyle.alignment = TextAnchor.MiddleLeft;
+                metaStyle.wordWrap = false;
+                metaStyle.clipping = TextClipping.Overflow;
+                metaStyle.normal.textColor = accent;
+                GUI.Label(new Rect(textX, row.y + 34f * scale, textWidth, 18f * scale), "5 SENDS  ·  ALL AT TIER", metaStyle);
+
+                // Same data and the same drawing method the drawer's grid card uses — only the
+                // outer row shape changed, not the tier/upgrade business logic.
+                DrawCategoryTier(row, category, accent, gold, scale);
+            }
+        }
+
+        /// <summary>
+        /// Rail-only creep list: one full-width row per creep, replacing the grid of narrow cards.
+        /// </summary>
+        /// <summary>Scroll offset for the rail's creep list, one per dock instance.</summary>
+        private Vector2 sendListScroll;
+
+        /// <summary>Drag-scroll state for <see cref="sendListScroll"/>. See HandleListDragScroll.</summary>
+        private readonly RuntimeUiChrome.DragScrollTracker sendListDragTracker = new();
+
+        /// <summary>
+        /// Rail-only creep list: one full-width row per creep, scrolling rather than the grid's
+        /// silent clip.
+        /// </summary>
+        /// <remarks>
+        /// Measured live 2026-08-30: at a comfortable row height, SUPPORT's five rows do not all
+        /// fit under SEND's rail (it starts below the seats table, which SEND does not get back).
+        /// The grid's old per-row "stop drawing past the panel" guard would have silently dropped
+        /// the fifth creep off the bottom — reachable in the simulation, invisible and unsendable
+        /// from this rail. A scroll view is strictly better than either shrinking every row to
+        /// force a fit or losing one row outright: the content stays the size that makes it
+        /// readable, and touch-scrolling a short list is completely ordinary on a tablet.
+        /// </remarks>
+        private void DrawSendCardsRail(SendCard[] cards, Rect rect, float contentTop, float scale, int gold)
+        {
+            const float rowHeight = 88f;
+            const float gap = 8f;
+
+            var order = new int[cards.Length];
+            for (var index = 0; index < order.Length; index++)
+            {
+                order[index] = index;
+            }
+
+            System.Array.Sort(order, (left, right) =>
+            {
+                var byCost = commandAdapter != null
+                    ? commandAdapter.SendCost(cards[left].CreepId).CompareTo(commandAdapter.SendCost(cards[right].CreepId))
+                    : 0;
+                return byCost != 0 ? byCost : cards[left].Role.CompareTo(cards[right].Role);
+            });
+
+            var viewRect = new Rect(rect.x, contentTop, rect.width, Mathf.Max(1f, rect.yMax - contentTop));
+            var rowStride = rowHeight * scale + gap * scale;
+            var contentHeight = Mathf.Max(viewRect.height, cards.Length * rowStride - gap * scale);
+            // Reserves room for Unity's own vertical scrollbar so it does not sit on top of the
+            // tier/cost column every row already draws at its own right edge.
+            var scrollbarAllowance = contentHeight > viewRect.height ? 18f * scale : 0f;
+            var contentRect = new Rect(0f, 0f, viewRect.width - scrollbarAllowance, contentHeight);
+            var listPanel = new Rect(0f, 0f, contentRect.width, contentRect.height);
+
+            // The scrollbar column is excluded from the touch rect on purpose — see
+            // RuntimeUiChrome.HandleListDragScroll's remarks on why a press on the thumb itself is
+            // left to Unity's own scrollbar handling instead of also being read as a content drag.
+            var dragTouchRect = new Rect(viewRect.x, viewRect.y, viewRect.width - scrollbarAllowance, viewRect.height);
+            sendListScroll = RuntimeUiChrome.HandleListDragScroll(sendListDragTracker, dragTouchRect, sendListScroll, viewRect.height, contentHeight, scale);
+
+            sendListScroll = GUI.BeginScrollView(viewRect, sendListScroll, contentRect);
+
+            // try/finally around the whole loop, not just tidiness: GUI.BeginScrollView and
+            // GUI.EndScrollView must always pair. Anything thrown between them (a bad icon
+            // lookup, a text measurement, any of it) would otherwise skip EndScrollView and leave
+            // IMGUI's internal clip/group stack unbalanced for every draw call after this one —
+            // not just this component, and not just this frame. That is corruption a Unity Editor
+            // session tends to survive by luck; an IL2CPP device build reported crashing outright
+            // right after switching panels, which is exactly the shape of damage this would do.
+            try
+            {
+                for (var slot = 0; slot < cards.Length; slot++)
+                {
+                    var card = cards[order[slot]];
+                    var row = RuntimeUiChrome.ListRowRect(listPanel, 0f, rowHeight * scale, gap * scale, slot);
+
+                    var cost = commandAdapter != null ? commandAdapter.SendCost(card.CreepId) : 0;
+                    var income = commandAdapter != null ? commandAdapter.SendIncomeGain(card.CreepId) : 0;
+                    var queued = commandAdapter != null ? commandAdapter.QueuedSendCount(card.CreepId) : 0;
+                    var hasQueueSpace = queued < LTW.Simulation.Bridge.LocalVerticalSlice.MaxQueuedSendsPerCreep;
+                    var meta = queued > 0 ? $"{cost}G  +{income}   x{queued}" : $"{cost}G  +{income}";
+                    var trait = CodexScreenView.FindCreep(card.CreepId.Value) is { } creepDefinition
+                        ? CodexScreenView.CreepTraits(creepDefinition)
+                        : string.Empty;
+
+                    if (DrawSendRow(row, card.Label, meta, trait, card.IconResource, card.Icon, card.Accent, hasQueueSpace, highlightedCreepRole == card.Role, scale, card.IgnoresCooldown))
+                    {
+                        card.Send();
+                    }
+                }
+            }
+            finally
+            {
+                GUI.EndScrollView();
+            }
+        }
+
+        /// <summary>One creep, as a full-width rail row rather than a card.</summary>
+        private static bool DrawSendRow(Rect row, string label, string meta, string trait, string iconResource, CreepIconKind iconKind, Color accent, bool isAffordable, bool isSelected, float scale, bool ignoresCooldown)
+        {
+            isAffordable = isAffordable && (ignoresCooldown || !isSendCoolingDown);
+            var displayAccent = isAffordable ? accent : DisabledText;
+            var state = isAffordable
+                ? isSelected ? CommandCardState.Selected : CommandCardState.Normal
+                : CommandCardState.Disabled;
+            var pressed = RuntimeUiChrome.DrawListRow(row, accent, state, scale);
+
+            var iconRect = RuntimeUiChrome.ListRowIconRect(row, scale);
+            RuntimeUiChrome.DrawListRowIconWell(iconRect, displayAccent, scale);
+            if (!RuntimeUiIconLibrary.DrawIcon(iconRect, iconResource, isAffordable))
+            {
+                DrawCreepIcon(iconRect, iconKind, displayAccent, scale);
+            }
+
+            var costColumnWidth = 108f * scale;
+            var textX = iconRect.xMax + 12f * scale;
+            var textWidth = Mathf.Max(1f, row.xMax - costColumnWidth - textX);
+
+            rowNameStyle!.fontSize = Mathf.RoundToInt(14f * scale);
+            rowNameStyle.normal.textColor = isAffordable ? Cloud : DisabledText;
+            GUI.Label(new Rect(textX, row.y + 8f * scale, textWidth, 22f * scale), label, rowNameStyle);
+
+            if (!string.IsNullOrEmpty(trait))
+            {
+                metaStyle!.fontSize = Mathf.RoundToInt(10f * scale);
+                metaStyle.alignment = TextAnchor.MiddleLeft;
+                metaStyle.wordWrap = false;
+                metaStyle.clipping = TextClipping.Overflow;
+                var fitted = RuntimeUiChrome.FitSpecialtyText(trait, metaStyle, textWidth);
+                if (fitted != null)
+                {
+                    metaStyle.normal.textColor = isAffordable ? MutedTraitText : DisabledText;
+                    GUI.Label(new Rect(textX, row.yMax - 26f * scale, textWidth, 18f * scale), fitted, metaStyle);
+                }
+            }
+
+            metaStyle!.fontSize = Mathf.RoundToInt(12f * scale);
+            metaStyle.alignment = TextAnchor.MiddleRight;
+            metaStyle.wordWrap = false;
+            metaStyle.clipping = TextClipping.Overflow;
+            metaStyle.normal.textColor = isAffordable
+                ? new Color(
+                    Mathf.Lerp(displayAccent.r, 1f, 0.55f),
+                    Mathf.Lerp(displayAccent.g, 1f, 0.55f),
+                    Mathf.Lerp(displayAccent.b, 1f, 0.55f),
+                    1f)
+                : displayAccent;
+            GUI.Label(new Rect(row.xMax - costColumnWidth - 8f * scale, row.y, costColumnWidth, row.height), meta, metaStyle);
+
+            return pressed;
+        }
+
         /// <summary>
         /// Draws one category's cards cheapest first, left to right, three across then two.
         /// </summary>
@@ -734,7 +962,13 @@ namespace LTW.UnityClient.UI
                 // Without it a queued tap and a tap that did nothing look identical, which is the
                 // one thing that would make queueing feel broken rather than helpful.
                 var meta = queued > 0 ? $"{cost}G  +{income}   x{queued}" : $"{cost}G  +{income}";
-                if (DrawSendButton(new Rect(x, y, width, buttonHeight), card.Label, meta, card.IconResource, card.Icon, card.Accent, hasQueueSpace, highlightedCreepRole == card.Role, scale, card.IgnoresCooldown))
+                // Only looked up on a rail: CommandCardSpecialtyRect is zero-height on a phone
+                // drawer card, so a definition lookup and a trait string nobody draws would be
+                // pure waste on the tighter layout.
+                var trait = MobileViewportLayout.HasSideRails
+                    ? CodexScreenView.FindCreep(card.CreepId.Value) is { } creepDefinition ? CodexScreenView.CreepTraits(creepDefinition) : string.Empty
+                    : string.Empty;
+                if (DrawSendButton(new Rect(x, y, width, buttonHeight), card.Label, meta, trait, card.IconResource, card.Icon, card.Accent, hasQueueSpace, highlightedCreepRole == card.Role, scale, card.IgnoresCooldown))
                 {
                     card.Send();
                 }
@@ -775,7 +1009,7 @@ namespace LTW.UnityClient.UI
             }
         }
 
-        private static bool DrawSendButton(Rect rect, string label, string meta, string iconResource, CreepIconKind iconKind, Color accent, bool isAffordable, bool isSelected, float scale, bool ignoresCooldown = false)
+        private static bool DrawSendButton(Rect rect, string label, string meta, string trait, string iconResource, CreepIconKind iconKind, Color accent, bool isAffordable, bool isSelected, float scale, bool ignoresCooldown = false)
         {
             // Cooling down reads as unaffordable, because for the player it is the same thing:
             // the card cannot be sent right now. Without this a card you could clearly afford
@@ -789,7 +1023,8 @@ namespace LTW.UnityClient.UI
                 : CommandCardState.Disabled;
             var pressed = RuntimeUiChrome.DrawCommandCard(rect, accent, state, scale);
 
-            var iconRect = RuntimeUiChrome.CommandCardIconRect(rect, scale);
+            RuntimeUiChrome.DrawCommandCardUnitIconWell(rect, displayAccent, scale);
+            var iconRect = RuntimeUiChrome.CommandCardUnitIconRect(rect, scale);
             if (!RuntimeUiIconLibrary.DrawIcon(iconRect, iconResource, isAffordable))
             {
                 DrawCreepIcon(iconRect, iconKind, displayAccent, scale);
@@ -800,6 +1035,25 @@ namespace LTW.UnityClient.UI
             buttonStyle.hover.textColor = buttonStyle.normal.textColor;
             buttonStyle.active.textColor = buttonStyle.normal.textColor;
             GUI.Label(RuntimeUiChrome.CommandCardLabelRect(rect, scale), label, buttonStyle);
+
+            // "If there is space left, add details or stats" (2026-08-30) — space is judged per
+            // card, not assumed from being on a rail: CommandCardSpecialtyRect comes back too
+            // short to hold one legible line on a narrower rail card, and this skips it rather
+            // than wrapping a sentence onto a card not tall enough for a second line of it.
+            var specialtyRect = RuntimeUiChrome.CommandCardSpecialtyRect(rect, scale);
+            if (specialtyRect.height >= 14f * scale)
+            {
+                metaStyle!.fontSize = Mathf.RoundToInt(8f * scale);
+                metaStyle.alignment = TextAnchor.MiddleCenter;
+                metaStyle.wordWrap = false;
+                metaStyle.clipping = TextClipping.Clip;
+                var fitted = RuntimeUiChrome.FitSpecialtyText(trait, metaStyle, specialtyRect.width);
+                if (fitted != null)
+                {
+                    metaStyle.normal.textColor = isAffordable ? MutedTraitText : DisabledText;
+                    GUI.Label(specialtyRect, fitted, metaStyle);
+                }
+            }
 
             // Raw accent at this size washed out over the pale stone areas of the card art — the
             // cost digits faded while the "+income" beside them stayed readable. Lifting the
@@ -815,8 +1069,11 @@ namespace LTW.UnityClient.UI
                 : displayAccent;
             // Explicit, matching the name label above it (buttonStyle, never mutated away from its
             // MiddleCenter default): metaStyle IS mutated elsewhere (the rail rows set it left- and
-            // right-aligned), so this card's meta line must not inherit whatever state that left.
+            // right-aligned, and the specialty trait line above sets it to clip, single-line), so
+            // this card's meta line must not inherit whatever state that left.
             metaStyle.alignment = TextAnchor.MiddleCenter;
+            metaStyle.wordWrap = false;
+            metaStyle.clipping = TextClipping.Overflow;
             GUI.Label(RuntimeUiChrome.CommandCardMetaRect(rect, scale), meta, metaStyle);
             return pressed;
         }
@@ -971,6 +1228,7 @@ namespace LTW.UnityClient.UI
 
             panelStyle = new GUIStyle(GUI.skin.box)
             {
+                font = RuntimeUiChrome.SharedFont,
                 border = new RectOffset(6, 6, 6, 6),
                 margin = ZeroOffset(),
                 padding = ZeroOffset()
@@ -978,6 +1236,7 @@ namespace LTW.UnityClient.UI
 
             titleStyle = new GUIStyle(GUI.skin.label)
             {
+                font = RuntimeUiChrome.SharedFont,
                 alignment = TextAnchor.MiddleLeft,
                 fontStyle = FontStyle.Bold,
                 normal = { textColor = SignalGold }
@@ -985,18 +1244,37 @@ namespace LTW.UnityClient.UI
 
             buttonStyle = new GUIStyle(GUI.skin.button)
             {
+                font = RuntimeUiChrome.SharedFont,
                 alignment = TextAnchor.MiddleCenter,
                 fontStyle = FontStyle.Bold,
                 margin = ZeroOffset(),
                 padding = ZeroOffset(),
-                normal = { textColor = Cloud },
-                hover = { textColor = Cloud },
-                active = { textColor = Cloud }
+                // Background cleared on all three: this style is used via GUI.Label for plain
+                // bold text over hand-drawn chrome, and GUI.skin.button's own gray box was
+                // rendering behind it — invisible against the old card art's similarly gray
+                // nameplate, stark against a flat row background.
+                normal = { textColor = Cloud, background = null },
+                hover = { textColor = Cloud, background = null },
+                active = { textColor = Cloud, background = null }
             };
 
             metaStyle = new GUIStyle(GUI.skin.label)
             {
+                font = RuntimeUiChrome.SharedFont,
                 alignment = TextAnchor.MiddleCenter,
+                fontStyle = FontStyle.Bold,
+                normal = { textColor = Cloud }
+            };
+
+            // Rail list rows' name text (category/creep name). Deliberately GUI.skin.label, not
+            // GUI.skin.button like buttonStyle: a GUI.skin.button copy's `.normal.background = null`
+            // measured live as NOT actually suppressing the button skin's default gray box behind
+            // the text — invisible on the old card art's own similarly gray nameplate, stark on this
+            // row's flat background. A label style never carried that chrome to begin with.
+            rowNameStyle = new GUIStyle(GUI.skin.label)
+            {
+                font = RuntimeUiChrome.SharedFont,
+                alignment = TextAnchor.MiddleLeft,
                 fontStyle = FontStyle.Bold,
                 normal = { textColor = Cloud }
             };

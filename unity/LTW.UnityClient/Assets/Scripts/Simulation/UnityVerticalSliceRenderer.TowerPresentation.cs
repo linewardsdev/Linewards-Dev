@@ -5,6 +5,7 @@ using LTW.Simulation.Events;
 using LTW.Simulation.Primitives;
 using LTW.UnityClient.UI;
 using UnityEngine;
+using UnityEngine.Rendering;
 
 namespace LTW.UnityClient.Simulation
 {
@@ -32,15 +33,86 @@ namespace LTW.UnityClient.Simulation
         // below root by design and would otherwise dip beneath BoardTopY and clip into the floor.
         private const float TowerBaseClearance = 0.08f;
 
+        /// <summary>
+        /// World Y a real tower prefab's root is placed at, before its profile's own lift.
+        /// </summary>
+        /// <remarks>
+        /// Exposed for the placement ghost, which is a copy of the same prefab and has to stand on
+        /// the same floor: it used to sit at GridToWorld's 0.6, so the preview floated well above
+        /// the spot the tower then landed on.
+        /// </remarks>
+        internal static float PlacedTowerBaseY => BoardTopY + TowerBaseClearance;
+
         private static void SetTowerTransform(GameObject instance, GridPosition position, LaneId laneId, string towerId, TowerVisualProfile visualProfile)
         {
             var hasRealPrefab = visualProfile != null && visualProfile.Prefab != null;
             var lift = hasRealPrefab ? visualProfile.Lift : TowerRoleLift(towerId);
             var basePosition = GridToWorld(position, laneId);
             var baseY = hasRealPrefab ? BoardTopY + TowerBaseClearance : basePosition.y;
-            instance.transform.position = new Vector3(basePosition.x, baseY + lift, basePosition.z);
+            instance.transform.position = new Vector3(basePosition.x, baseY + lift + TowerRootSink(towerId), basePosition.z);
             instance.transform.localScale = visualProfile != null && visualProfile.HasScale ? visualProfile.Scale : TowerRoleScale(towerId);
             instance.transform.rotation = Quaternion.identity;
+
+            if (hasRealPrefab)
+            {
+                ApplyTowerBodyShadowPolicy(instance);
+            }
+        }
+
+        /// <summary>
+        /// Finding #11 (2026-09-01 render review): Elder Canopy and Bloomheart show their roots
+        /// hovering above the tile. Both meshes come through the shared Grove import (unsplit,
+        /// same as every other non-turret role — see the "Foundry and Grove lines" specs in
+        /// Tower3DProofSetGenerator), which normalises every source mesh to the same rest pose;
+        /// these two just happen to have been authored/baked with their root slightly above their
+        /// own pivot. Nudging every tower's shared placement math to fix two roles would be wrong
+        /// for the other thirteen, so this is a tiny per-content-id lookup instead. A real fix
+        /// belongs in the mesh's own rest pivot if these prefabs get touched again; this is a
+        /// targeted, code-only sink in the meantime.
+        /// </summary>
+        private static float TowerRootSink(string towerId) => towerId switch
+        {
+            "tower.elder_canopy" => -0.06f,
+            "tower.bloomheart" => -0.07f,
+            _ => 0f
+        };
+
+        /// <summary>
+        /// Finding #11 (2026-09-01 render review): live towers never cast a shadow. Root cause is
+        /// Tower3DImportPipeline's NormalizeRendererPolicy/ApplyRuntimeMaterial, which force
+        /// shadowCastingMode Off / receiveShadows false on EVERY MeshRenderer under the imported
+        /// hierarchy at wrapper-generation time — a blanket policy that is correct for the flat
+        /// cosmetic accessories (RangeHalo/OwnerTrim/RoleMarker, which really do look wrong
+        /// casting a shadow from a thin ring or plate) but also caught Body's own visible mesh.
+        /// Confirmed directly against the shipped prefabs (e.g. Tower_Gatling_3D.prefab): the
+        /// renderers actually used at normal camera distance — Body/Imported3DVisual/.../Base and
+        /// Body/HeadPivot/Head+Barrel — are baked with both flags off.
+        ///
+        /// This is fixed here at runtime rather than in the import pipeline: regenerating a
+        /// wrapper from its raw FBX is exactly the operation GenerateWrapperIfRawExists' own
+        /// remarks warn is destructive post-hoc — these prefabs have since had an LODGroup and
+        /// hand-bound LOD1/LOD2 renderers added by a later pass the generator knows nothing about,
+        /// and an earlier blanket regeneration already silently stripped that LODGroup from all
+        /// fifteen towers once. Re-running it again without Unity available to verify the result
+        /// is a worse trade than a two-line runtime override. RoleMarker/OwnerTrim/RangeHalo are
+        /// root-level siblings of Body, not descendants of it (see
+        /// Tower3DImportPipeline.GenerateWrapperIfRawExists), so restricting this to renderers
+        /// under Body cannot reach them — the accessories keep their existing shadowless look.
+        /// </summary>
+        private static void ApplyTowerBodyShadowPolicy(GameObject towerObject)
+        {
+            var body = towerObject.transform.Find("Body");
+            if (body == null)
+            {
+                return;
+            }
+
+            var renderers = body.GetComponentsInChildren<MeshRenderer>(true);
+            for (var index = 0; index < renderers.Length; index++)
+            {
+                renderers[index].shadowCastingMode = ShadowCastingMode.On;
+                renderers[index].receiveShadows = true;
+            }
         }
 
         private const float TowerRecoilDuration = 0.35f;
@@ -54,7 +126,7 @@ namespace LTW.UnityClient.Simulation
         /// </summary>
         private void UpdateTowerMotion(GameObject towerObject, long key, Vector3 towerPosition, TowerVisualProfile visualProfile)
         {
-            var parts = ResolveTowerMotionParts(key, towerObject);
+            var parts = ResolveTowerMotionParts(key, towerObject, visualProfile);
             var body = parts.Body;
             var idle = TowerRoleMotion(visualProfile.Role);
 
@@ -178,6 +250,57 @@ namespace LTW.UnityClient.Simulation
 
                 spinPart.localRotation = Quaternion.AngleAxis(Time.time * TowerRingSpinDegreesPerSecond, spinState.LocalSpinAxis) * tilted;
             }
+
+            if (IsTeslaTower(visualProfile.TowerId))
+            {
+                UpdateTeslaSteam(key, body);
+            }
+        }
+
+        // Finding #16 (2026-09-01 render review): "two puff sprites fixed to [Tesla's] flanks
+        // that never animate". There is no such sprite anywhere in this project — grepped for
+        // Steam/Puff/Vent/Smoke across Assets and read Tesla's whole import path
+        // (Tower3DProofSetGenerator's "tower.tesla" spec, Tower3DImportPipeline's anchor
+        // creation, Tower_Tesla_3D.prefab's own node list) end to end; the prefab carries only
+        // Muzzle/Lens anchors, LODs and the body mesh. Wave 3's own tracking
+        // (docs/OPEN_ITEMS.md item 51) already names the actual fix instead of a sprite to
+        // animate: "route through the Rise burst on a 0.6 s timer" — the same pooled
+        // BurstShape.Rise puff SpawnEffect already uses for a tower coming online or a lane
+        // banking income (UnityVerticalSliceRenderer.cs). Two Rise puffs, one per flank of the
+        // coil, on a steady interval read as venting steam without needing any new sprite,
+        // any new pooled mesh, or a change to Effects.cs.
+        private const float TeslaSteamIntervalSeconds = 0.6f;
+        private const float TeslaSteamFlankOffset = 0.18f;
+        private const float TeslaSteamScale = 0.22f;
+        private const float TeslaSteamDuration = 0.32f;
+        private static readonly Color TeslaSteamColor = new Color(0.83f, 0.9f, 0.96f, 0.42f);
+        private readonly Dictionary<long, float> towerNextSteamAt = new Dictionary<long, float>();
+
+        private void UpdateTeslaSteam(long key, Transform body)
+        {
+            if (!towerNextSteamAt.TryGetValue(key, out var nextAt))
+            {
+                // Staggers each Tesla's cycle by a small, deterministic-per-instance amount off
+                // the raw entity id so several coils on the board don't all vent in lockstep.
+                nextAt = Time.time + (key % 7) * (TeslaSteamIntervalSeconds / 7f);
+            }
+
+            if (Time.time < nextAt)
+            {
+                return;
+            }
+
+            towerNextSteamAt[key] = Time.time + TeslaSteamIntervalSeconds;
+
+            // "Lens" is the coil's actual glowing tip mesh (see Tower3DImportPipeline's anchor
+            // resolution: the Lens/ControlCore/PulseCore family all sit at spec.CorePosition) —
+            // falling back to Body itself keeps this harmless if a future Tesla rebuild renames
+            // or removes that mesh.
+            var coil = FindDeepChild(body, "Lens") ?? body;
+            var origin = coil.position + Vector3.up * 0.1f;
+            var flank = body.right * TeslaSteamFlankOffset;
+            SpawnEffect(origin + flank, TeslaSteamColor, TeslaSteamScale, TeslaSteamDuration, BurstShape.Rise);
+            SpawnEffect(origin - flank, TeslaSteamColor, TeslaSteamScale, TeslaSteamDuration, BurstShape.Rise);
         }
 
         private const float TowerRingSpinDegreesPerSecond = 32f;
@@ -266,7 +389,7 @@ namespace LTW.UnityClient.Simulation
 
         private readonly Dictionary<long, TowerMotionParts> towerMotionParts = new Dictionary<long, TowerMotionParts>();
 
-        private TowerMotionParts ResolveTowerMotionParts(long key, GameObject towerObject)
+        private TowerMotionParts ResolveTowerMotionParts(long key, GameObject towerObject, TowerVisualProfile visualProfile = null)
         {
             if (towerMotionParts.TryGetValue(key, out var cached) && cached.Instance == towerObject && cached.Body != null)
             {
@@ -274,6 +397,17 @@ namespace LTW.UnityClient.Simulation
             }
 
             var body = ResolveTowerMotionTarget(towerObject);
+
+            // visualProfile is only null from ResolveTowerBodyTransform's attack-VFX call site,
+            // which can only run for a tower RenderSnapshot's UpdateTowerMotion loop already
+            // resolved earlier this same frame (RenderSnapshot runs before RenderEvents in
+            // Render()) — so the cache-hit branch above always wins there in practice, and this
+            // guard exists only so a null profile can never NRE on the pulse-tower check.
+            if (visualProfile != null && IsPulseTower(visualProfile.TowerId))
+            {
+                ApplyPulseRangeRingFix(body);
+            }
+
             var parts = new TowerMotionParts(
                 towerObject,
                 body,
@@ -283,6 +417,92 @@ namespace LTW.UnityClient.Simulation
             towerMotionParts[key] = parts;
             return parts;
         }
+
+        /// <summary>
+        /// Finding #15 (2026-09-01 render review): Pulse's "Ring" mesh — the same accessory the
+        /// comment above (in <see cref="UpdateTowerMotion"/>) already calls out as the one part of
+        /// Pulse that spins, via the shared Ring/Dish/Spire sweep in
+        /// <see cref="TowerVisualLibrary.SpinPartNames"/> — is real modelled geometry with real
+        /// thickness (confirmed directly in Tower_Pulse_3D.prefab: a MeshFilter/MeshRenderer
+        /// pair, not a code-generated primitive; PulseRingA/PulseRingB are anchor empties with no
+        /// renderer at all, see Tower3DImportPipeline.ResolveAnchorPosition). As it sweeps about
+        /// world-up against the board's 30-degree camera tilt, it repeatedly passes through
+        /// near-edge-on phases where a thin 3D band aliases into a scratchy, hand-drawn-looking
+        /// line even with SMAA — the same class of prefab-vs-runtime tradeoff
+        /// <see cref="ApplyTowerBodyShadowPolicy"/> above documents: the correct fix is in the
+        /// import pipeline (author it as a flat decal instead of a modelled band), but
+        /// regenerating Tower_Pulse_3D's wrapper is exactly the destructive, unverifiable
+        /// operation GenerateWrapperIfRawExists' own remarks warn against with no interactive
+        /// Unity session available this pass.
+        ///
+        /// So this disables the aliasing mesh and grows a flat decal in its place instead. A
+        /// decal lying flat in the XZ plane never has an edge-on phase to alias regardless of
+        /// camera tilt or spin, which a thin vertical band fundamentally cannot avoid. Reuses
+        /// BoardRenderResources.ContactShadowMesh/CreateContactShadowMaterial — the exact
+        /// infrastructure the standing mechanic markers (Thorn's braked cells, Grovebond's bond
+        /// ring, via Effects.cs's MechanicDecalMaterial) already use for "a stencilled ring that
+        /// must never present an edge" — at MechanicDecalSoftness's sharp ~2px edge (matching
+        /// OPEN_ITEMS.md item 51's "pooled shockwave-ring decal at 2 px") rather than the softer,
+        /// glowier ShockwaveRingMaterial the transient burst effects use, since this is a
+        /// standing accessory, not a flash of light.
+        ///
+        /// Runs once per pooled instance (from ResolveTowerMotionParts' cache-miss branch, same
+        /// as HeadPivot/Barrel/SpinPart above), guarded by the decal's own presence so a re-entry
+        /// after a pool swap is a no-op rather than a duplicate.
+        /// </summary>
+        private void ApplyPulseRangeRingFix(Transform body)
+        {
+            if (body.Find(PulseRangeRingDecalName) != null)
+            {
+                return;
+            }
+
+            Bounds? ringBounds = null;
+            var renderers = body.GetComponentsInChildren<MeshRenderer>(true);
+            for (var index = 0; index < renderers.Length; index++)
+            {
+                var candidate = renderers[index];
+                if (candidate.gameObject.name != "Ring")
+                {
+                    continue;
+                }
+
+                ringBounds ??= candidate.bounds;
+                candidate.enabled = false;
+            }
+
+            var decal = new GameObject(PulseRangeRingDecalName);
+            decal.transform.SetParent(body, false);
+
+            if (ringBounds.HasValue)
+            {
+                var bounds = ringBounds.Value;
+                decal.transform.position = bounds.center;
+                var bodyScale = Mathf.Max(0.0001f, body.lossyScale.x);
+                var diameter = Mathf.Max(bounds.size.x, bounds.size.z) / bodyScale;
+                decal.transform.localScale = new Vector3(diameter, 1f, diameter);
+            }
+            else
+            {
+                // No "Ring" mesh found (a future rebuild renamed or removed it) — fall back to the
+                // procedural fallback's own PulseRingA placement/scale (ConfigureTowerRoleMarker
+                // above) so this still reads as a range ring rather than nothing.
+                decal.transform.localPosition = new Vector3(0f, 0.34f, 0f);
+                decal.transform.localScale = new Vector3(1.26f, 1f, 1.26f);
+            }
+
+            var filter = decal.AddComponent<MeshFilter>();
+            filter.sharedMesh = BoardRenderResources.ContactShadowMesh;
+            var renderer = decal.AddComponent<MeshRenderer>();
+            renderer.sharedMaterial = MechanicDecalMaterial();
+            renderer.shadowCastingMode = ShadowCastingMode.Off;
+            renderer.receiveShadows = false;
+            renderer.lightProbeUsage = LightProbeUsage.Off;
+            renderer.reflectionProbeUsage = ReflectionProbeUsage.Off;
+            SetColor(decal, DimValue(TowerMarkerColor("tower.pulse"), 0.7f));
+        }
+
+        private const string PulseRangeRingDecalName = "PulseRangeRingDecal";
 
         /// <summary>Barrel spin, in degrees/second, while the gun is actively firing.</summary>
         private const float BarrelFiringSpinDegreesPerSecond = 900f;
@@ -323,7 +543,7 @@ namespace LTW.UnityClient.Simulation
 
             if (!towerBarrelState.TryGetValue(key, out var state))
             {
-                state = new SpinPartState(LongestLocalAxis(barrel), barrel.localRotation);
+                state = new SpinPartState(LongestLocalAxis(barrel), barrel.localRotation, barrel.localPosition, LocalBoundsCentre(barrel));
                 towerBarrelState[key] = state;
             }
 
@@ -338,7 +558,18 @@ namespace LTW.UnityClient.Simulation
             }
 
             towerBarrelAngle[key] = angle;
-            barrel.localRotation = Quaternion.AngleAxis(angle, state.LocalSpinAxis) * state.RestLocalRotation;
+            var spin = Quaternion.AngleAxis(angle, state.LocalSpinAxis) * state.RestLocalRotation;
+            barrel.localRotation = spin;
+
+            // localRotation turns the mesh about the transform's ORIGIN, which is only the bore if the
+            // export put it there — a Meshy part keeps the whole model's origin unless it was re-split
+            // with --center-origin, and the barrel orbited a point outside itself when it was not
+            // (render review finding #2, 2026-09-01). So the origin is moved each frame by exactly
+            // what the spin displaced the bounds centre by, which holds that centre fixed in HeadPivot
+            // space whatever the pivot is. A pivot already on the centre makes this a no-op.
+            barrel.localPosition = state.RestLocalPosition
+                + state.RestLocalRotation * state.LocalCentre
+                - spin * state.LocalCentre;
         }
 
         /// <summary>The part's longest mesh-bounds extent, as a direction in its own local space.</summary>
@@ -359,6 +590,23 @@ namespace LTW.UnityClient.Simulation
             return local.sqrMagnitude < 1e-6f ? Vector3.forward : local.normalized;
         }
 
+        /// <summary>
+        /// The part's mesh-bounds centre in its own space, pre-scaled so that
+        /// <c>localRotation * centre</c> is the parent-space offset from the part's origin. Found
+        /// the same way as <see cref="LongestLocalAxis"/>, so both describe the same mesh.
+        /// </summary>
+        private static Vector3 LocalBoundsCentre(Transform part)
+        {
+            var filter = part.GetComponentInChildren<MeshFilter>();
+            if (filter == null || filter.sharedMesh == null)
+            {
+                return Vector3.zero;
+            }
+
+            var world = filter.transform.TransformPoint(filter.sharedMesh.bounds.center);
+            return Vector3.Scale(part.InverseTransformPoint(world), part.localScale);
+        }
+
         private static Transform FindSpinPart(Transform body)
         {
             for (var index = 0; index < TowerSpinPartNames.Length; index++)
@@ -376,13 +624,29 @@ namespace LTW.UnityClient.Simulation
         private readonly struct SpinPartState
         {
             public SpinPartState(Vector3 localSpinAxis, Quaternion restLocalRotation)
+                : this(localSpinAxis, restLocalRotation, Vector3.zero, Vector3.zero)
+            {
+            }
+
+            public SpinPartState(Vector3 localSpinAxis, Quaternion restLocalRotation, Vector3 restLocalPosition, Vector3 localCentre)
             {
                 LocalSpinAxis = localSpinAxis;
                 RestLocalRotation = restLocalRotation;
+                RestLocalPosition = restLocalPosition;
+                LocalCentre = localCentre;
             }
 
             public Vector3 LocalSpinAxis { get; }
             public Quaternion RestLocalRotation { get; }
+
+            /// <summary>Where the part sat before any spin, in its parent's space.</summary>
+            public Vector3 RestLocalPosition { get; }
+
+            /// <summary>
+            /// The part's bounds centre as <see cref="LocalBoundsCentre"/> reads it. Zero for the
+            /// Ring/Dish/Spire path, whose pivots already sit on the spin axis.
+            /// </summary>
+            public Vector3 LocalCentre { get; }
         }
 
         private static Transform FindDeepChild(Transform parent, string name)
@@ -833,12 +1097,15 @@ namespace LTW.UnityClient.Simulation
             _ => 1.16f
         };
 
-        private static void ApplyTowerColor(GameObject towerObject, string towerId, int ownerId, TowerVisualProfile visualProfile, int tier)
+        // Instance rather than static since Wave 5: the tier crown below keeps a per-pooled-instance
+        // cache (towerTierCrowns) so a snapshot that changes nothing about a tower costs nothing.
+        private void ApplyTowerColor(GameObject towerObject, string towerId, int ownerId, TowerVisualProfile visualProfile, int tier)
         {
             var roleColor = BoostValue(TowerMarkerColor(towerId), TierMarkerBoost(tier));
             var baseColor = BoostValue(TowerBaseColor(towerId), 1.08f);
             var ownerColor = OwnerAccent(ownerId);
-            var rangeColor = DimValue(roleColor, 0.7f);
+            var rangeTint = DimValue(roleColor, 0.7f);
+            var rangeColor = new Color(rangeTint.r, rangeTint.g, rangeTint.b, RangeHaloAlpha);
 
             if (visualProfile == null || visualProfile.Prefab == null)
             {
@@ -850,6 +1117,429 @@ namespace LTW.UnityClient.Simulation
             SetProfileColor(towerObject, visualProfile.RoleMarkerRendererPath, roleColor);
             SetProfileColor(towerObject, visualProfile.OwnerTrimRendererPath, AccentPoolColor(ownerColor));
             SetProfileColor(towerObject, visualProfile.RangeHaloRendererPath, rangeColor);
+            ApplyTierSilhouette(towerObject, visualProfile, tier);
+            ApplyTierCrown(towerObject, ownerId, ownerColor, TowerMarkerColor(towerId), tier);
+        }
+
+        // Rest local scale of the three accessories CreateOwnerTrim/CreateRoleMarker/
+        // CreateRangeHalo bake into every one of the 15 tower wrappers, unconditionally and with
+        // the same values regardless of role (verified directly against several shipped prefabs
+        // spanning both split-headed and unsplit roles: Gatling, Control, Relay, ElderCanopy,
+        // Bloomheart all carry the exact same three scales). ApplyTierSilhouette scales relative
+        // to these fixed rest values rather than the accessory's current scale, so re-applying it
+        // on every snapshot (tier can only go up, but this stays correct either way) never
+        // compounds.
+        private static readonly Vector3 OwnerTrimRestScale = new Vector3(1.05f, 1.05f, 1f);
+        private static readonly Vector3 RoleMarkerRestScale = new Vector3(0.16f, 0.08f, 0.16f);
+        private static readonly Vector3 RangeHaloRestScale = new Vector3(0.92f, 0.008f, 0.92f);
+
+        /// <summary>
+        /// Alpha written onto the RangeHalo accessory's material in ApplyTowerColor, and the
+        /// widest the halo may be drawn, in world units (one board cell).
+        /// </summary>
+        /// <remarks>
+        /// R8d (re-audit 2026-09-02, OPEN_ITEMS item 53): "the tier-2 Control ward's RangeHalo
+        /// reads as an opaque violet pancake under the tower." rangeColor's alpha came from
+        /// TowerCatalog's Accent (1.0) through DimValue, which only scales RGB — and the halo
+        /// material the wrappers bake in (mat_tower_*_3d_range_halo_v01, URP Lit, transparent,
+        /// premultiplied) honours alpha, so at 1.0 it is opaque by construction. 0.25 here.
+        ///
+        /// Recorded because it changes what this fix can be judged on: in every one of the 16
+        /// shipped wrappers the RangeHalo MeshRenderer is m_Enabled: 0
+        /// (Tower3DImportPipeline.CreateRangeHalo sets renderer.enabled = false), and no runtime
+        /// path enables it — SetProfileColor tints it and ApplyTierSilhouette scales it, but a
+        /// disabled renderer draws nothing at either. Both changes below are therefore correct
+        /// and currently invisible, and whatever the frame showed under the Control ward is a
+        /// different object (the OwnerTrim pool, the Control model's own ring, or the LOD_1
+        /// mesh are the candidates under the same footprint). The scale clamp still binds the
+        /// moment the halo is ever switched on: rest 0.92 x 1.18 on a profile scale of 0.9
+        /// (the largest shipped) is 0.98 of a cell, and any profile at or above 0.92 crosses it.
+        /// </remarks>
+        private const float RangeHaloAlpha = 0.25f;
+        private const float RangeHaloMaxWorldDiameter = 1f;
+
+        /// <summary>
+        /// Finding #12 (2026-09-01 render review): TierMarkerBoost's colour ramp is "a hint, not a
+        /// readout" per its own remarks — telling tier 2 from tier 3 apart across a busy board is
+        /// hard from colour alone. This adds the structural silhouette change the review asked
+        /// for, on top of (not instead of) that colour ramp: tier 2 grows the owner trim plate and
+        /// the tower's one small emissive accessory (RoleMarker — built from the recipe's
+        /// EnergyMaterial in Tower3DImportPipeline.CreateRoleMarker, i.e. exactly the "crystal"
+        /// the review meant) by 1.1x; tier 3 grows both again and enlarges RangeHalo (the
+        /// halo/base-ring accessory, whose colour already ramps via TierMarkerBoost) beyond its
+        /// own tier-2 size as the "second emissive element".
+        ///
+        /// Driven entirely by the tower's existing TowerVisualProfile renderer-path fields — the
+        /// same three names ApplyTowerColor already recolors — rather than any per-role accessory
+        /// list, so it needs no per-role authoring and covers all 15 roles uniformly. A role
+        /// missing one of these children is skipped, not thrown on; none currently are missing one
+        /// (RoleMarker/OwnerTrim/RangeHalo are all created unconditionally per wrapper), but a
+        /// future role that skipped one would just keep its tier-1 look for that accessory.
+        /// </summary>
+        private static void ApplyTierSilhouette(GameObject towerObject, TowerVisualProfile visualProfile, int tier)
+        {
+            var trimAndCoreScale = tier switch
+            {
+                >= 3 => 1.21f,
+                2 => 1.1f,
+                _ => 1f
+            };
+            var haloScale = tier >= 3 ? 1.18f : 1f;
+
+            // R8d (re-audit 2026-09-02, OPEN_ITEMS item 53): the halo may never exceed the tower's
+            // own footprint. Its world diameter is rest scale x tier multiplier x the root's
+            // profile scale (SetTowerTransform has already applied the latter by the time
+            // ApplyTowerColor calls this — see the snapshot loop), so the multiplier is clamped
+            // against that product rather than against the local scale alone.
+            var rootScale = Mathf.Max(0.0001f, towerObject.transform.localScale.x);
+            var haloWorldDiameter = RangeHaloRestScale.x * haloScale * rootScale;
+            if (haloWorldDiameter > RangeHaloMaxWorldDiameter)
+            {
+                haloScale *= RangeHaloMaxWorldDiameter / haloWorldDiameter;
+            }
+
+            ScaleProfileChild(towerObject, visualProfile.OwnerTrimRendererPath, OwnerTrimRestScale, trimAndCoreScale);
+            ScaleProfileChild(towerObject, visualProfile.RoleMarkerRendererPath, RoleMarkerRestScale, trimAndCoreScale);
+            ScaleProfileChild(towerObject, visualProfile.RangeHaloRendererPath, RangeHaloRestScale, haloScale);
+        }
+
+        private static void ScaleProfileChild(GameObject root, string rendererPath, Vector3 restScale, float multiplier)
+        {
+            var target = string.IsNullOrWhiteSpace(rendererPath) ? null : root.transform.Find(rendererPath);
+            if (target == null)
+            {
+                return;
+            }
+
+            target.localScale = restScale * multiplier;
+        }
+
+        // ---- Tier crown (Wave 5, finding #12) --------------------------------------------------
+
+        private const string TierCrownName = "TierCrown";
+        private const string TierCrownStudNamePrefix = "Stud";
+
+        /// <summary>Studs at tier 3; tier 2 draws half of them. Tier 1 draws none.</summary>
+        private const int TierCrownMaxStuds = 8;
+
+        /// <summary>
+        /// Stud diameter and height in WORLD units, independent of the tower's profile scale — a
+        /// 0.55-scale Barricade and a 0.9-scale Tesla get the same-sized stud, because the stud's
+        /// job is to be readable at the shipped 60–90 px tower size, not to be proportional to the
+        /// model. Tier 3's is a shade larger so its ring also reads heavier, not only fuller.
+        /// </summary>
+        // First Wave 5 capture: at 0.14/0.16 the studs were as large and as blue as the selection
+        // ring and competed with it; 0.10/0.12 still reads as a tier mark at the shipped framing.
+        private const float TierCrownStudWorldSizeTier2 = 0.10f;
+        private const float TierCrownStudWorldSizeTier3 = 0.12f;
+
+        /// <summary>
+        /// Clamp on the measured footprint half-extent, world units. The floor stops a very narrow
+        /// mesh from drawing its studs inside its own plinth; the ceiling plus half a tier-3 stud
+        /// stays inside the cell (half a cell is 0.5), so a crown never crosses into a neighbour.
+        /// </summary>
+        private const float TierCrownMinWorldRadius = 0.18f;
+        private const float TierCrownMaxWorldRadius = 0.40f;
+
+        /// <summary>Hair above BoardTopY the stud base may never sink below, to avoid z-fighting the board.</summary>
+        private const float TierCrownFloorLift = 0.005f;
+
+        /// <summary>Value boost on the owner accent for the studs; see <see cref="BoardRenderResources.TierCrownMaterial"/>.</summary>
+        private const float TierCrownAccentBoost = 1.15f;
+
+        /// <summary>
+        /// Fraction of the body material's own emission peak that the role accent is added at,
+        /// per tier — the "+25% / +50%" the Wave 5 brief asked for, expressed against each
+        /// material's actual HDR range rather than a fixed constant (every shipped body material
+        /// peaks at 2.0, so this is accent x 0.5 at tier 2 and accent x 1.0 at tier 3 today).
+        /// </summary>
+        private const float TierEmissionLiftTier2 = 0.25f;
+        private const float TierEmissionLiftTier3 = 0.5f;
+
+        private static readonly int EmissionColorId = Shader.PropertyToID("_EmissionColor");
+        private static MaterialPropertyBlock tierEmissionPropertyBlock;
+
+        /// <summary>
+        /// What a pooled tower instance's crown was last built for, plus its once-measured
+        /// footprint. Keyed by the instance's id, not the entity's: pooling hands the same
+        /// GameObject to different entities over a match, and the footprint is a property of the
+        /// mesh, not the entity.
+        /// </summary>
+        private readonly struct TierCrownState
+        {
+            public TierCrownState(int tier, int ownerId, float localRadius, float localFloorY)
+            {
+                Tier = tier;
+                OwnerId = ownerId;
+                LocalRadius = localRadius;
+                LocalFloorY = localFloorY;
+            }
+
+            public int Tier { get; }
+            public int OwnerId { get; }
+
+            /// <summary>Footprint half-extent in the tower root's local units (world / profile scale).</summary>
+            public float LocalRadius { get; }
+
+            /// <summary>Stud base height in the root's local units.</summary>
+            public float LocalFloorY { get; }
+        }
+
+        // Keyed by the pooled instance itself rather than GetInstanceID(): Unity 6000.5 marks
+        // GetInstanceID obsolete-as-error, and a reference key is exactly what "per pooled
+        // instance" means anyway.
+        private readonly Dictionary<GameObject, TierCrownState> towerTierCrowns = new Dictionary<GameObject, TierCrownState>();
+
+        private static int TierCrownStudCount(int tier) => tier switch
+        {
+            >= 3 => TierCrownMaxStuds,
+            2 => TierCrownMaxStuds / 2,
+            _ => 0
+        };
+
+        /// <summary>
+        /// Finding #12 (render review 2026-09-01), judged open again by Wave 4: the new
+        /// `36-tier-pair-closeup` step places a tier-3 Arrow at lane 1 (2,14) beside a tier-1 Arrow
+        /// at (4,14) at the same framing, and they are indistinguishable. Wave 2's
+        /// <see cref="ApplyTierSilhouette"/> scales OwnerTrim/RoleMarker/RangeHalo, but RangeHalo's
+        /// renderer is disabled in all 16 shipped wrappers (see <see cref="RangeHaloAlpha"/>'s
+        /// remarks) and the other two are too small to read at the shipped 60–90 px tower size,
+        /// so a 10–21% scale on them moves nothing a viewer can see. That scaling is kept —
+        /// harmless — but the read now comes from here.
+        ///
+        /// THE SHAPE: a ring of raised studs on the board around the tower's base — four on the
+        /// diagonals at tier 2, eight (every 45 degrees, a superset of tier 2's positions) at tier
+        /// 3, in the owner accent (see <see cref="BoardRenderResources.TierCrownStudMesh"/> for
+        /// why a countable ring rather than another colour ramp). Parented to the tower ROOT, not
+        /// Body: Body carries idle drift, aim yaw and recoil (<see cref="UpdateTowerMotion"/>), and
+        /// a crown that swung with the barrel or kicked on every shot would read as part of the
+        /// weapon rather than as a rank marker; the root is only ever positioned by
+        /// <see cref="SetTowerTransform"/>. It is the same "root-level accessory, sibling of Body"
+        /// contract OwnerTrim/RoleMarker/RangeHalo already follow.
+        ///
+        /// THE SIZING RULE: ring radius = the tower's measured footprint + half a stud, so the studs
+        /// sit just outside the widest point of the body mesh — measured from the renderer bounds
+        /// under Body at first sight of each pooled instance, exactly as
+        /// <see cref="ApplyPulseRangeRingFix"/> measures the Pulse ring, and converted into the
+        /// root's local units so the ring lands at the right world radius on the 0.55-scale
+        /// Barricade and the 0.9-scale Tesla alike. Stud size is fixed in WORLD units for the same
+        /// reason (see <see cref="TierCrownStudWorldSizeTier2"/>). For a tower whose widest point is
+        /// its canopy rather than its plinth (Elder Canopy) the ring lands under the canopy's rim,
+        /// which still reads as "a ring around this tower".
+        ///
+        /// POOLED AND IDEMPOTENT: the crown is a fixed set of at most eight stud children under one
+        /// "TierCrown" child, created once per pooled instance and then only enabled/placed, so
+        /// re-applying the same tier does nothing (the per-instance cache short-circuits before
+        /// any transform is touched), a tier change re-places the same studs, and a tier-1 tower
+        /// hides them. Because the studs are children of the pooled instance they leave and return
+        /// with it — <c>ReleaseTowerToPool</c> deactivates the whole hierarchy — so Pooling.cs
+        /// needed no hook; the next <see cref="ApplyTowerColor"/> on the instance rebuilds for
+        /// whatever tier and owner it now has.
+        /// </summary>
+        private void ApplyTierCrown(GameObject towerObject, int ownerId, Color ownerColor, Color roleAccent, int tier)
+        {
+            var instanceId = towerObject;
+            var hasState = towerTierCrowns.TryGetValue(instanceId, out var state);
+            if (hasState && state.Tier == tier && state.OwnerId == ownerId)
+            {
+                return;
+            }
+
+            var root = towerObject.transform;
+            var body = ResolveTowerMotionTarget(towerObject);
+            if (!hasState)
+            {
+                state = MeasureTierCrownFootprint(root, body);
+            }
+
+            towerTierCrowns[instanceId] = new TierCrownState(tier, ownerId, state.LocalRadius, state.LocalFloorY);
+
+            var studCount = TierCrownStudCount(tier);
+            var crown = root.Find(TierCrownName);
+            if (crown == null)
+            {
+                if (studCount > 0)
+                {
+                    crown = new GameObject(TierCrownName).transform;
+                    crown.SetParent(root, false);
+                }
+            }
+
+            if (crown != null)
+            {
+                crown.localPosition = Vector3.zero;
+                crown.localRotation = Quaternion.identity;
+                crown.localScale = Vector3.one;
+                crown.gameObject.SetActive(studCount > 0);
+
+                if (studCount > 0)
+                {
+                    // Root scale is the profile scale SetTowerTransform applied (same read as
+                    // ApplyTierSilhouette's halo clamp); world sizes divide by it to become local.
+                    var rootScale = Mathf.Max(0.0001f, root.localScale.x);
+                    var studLocalSize = (tier >= 3 ? TierCrownStudWorldSizeTier3 : TierCrownStudWorldSizeTier2) / rootScale;
+                    var ringRadius = state.LocalRadius + studLocalSize * 0.5f;
+                    var material = BoardRenderResources.TierCrownMaterial(BoostValue(ownerColor, TierCrownAccentBoost));
+                    var angleStep = 360f / studCount;
+                    // Tier 2 on the diagonals: two studs face the tilted camera instead of one, and
+                    // the four are exactly the odd positions of tier 3's eight, so an upgrade adds
+                    // studs between the existing ones rather than moving them.
+                    var angleOffset = studCount == TierCrownMaxStuds ? 0f : 45f;
+
+                    for (var index = 0; index < TierCrownMaxStuds; index++)
+                    {
+                        var stud = EnsureTierCrownStud(crown, index);
+                        var active = index < studCount;
+                        stud.gameObject.SetActive(active);
+                        if (!active)
+                        {
+                            continue;
+                        }
+
+                        var angle = (angleOffset + index * angleStep) * Mathf.Deg2Rad;
+                        stud.localPosition = new Vector3(Mathf.Cos(angle) * ringRadius, state.LocalFloorY, Mathf.Sin(angle) * ringRadius);
+                        stud.localRotation = Quaternion.identity;
+                        stud.localScale = Vector3.one * studLocalSize;
+                        if (stud.TryGetComponent<MeshRenderer>(out var studRenderer))
+                        {
+                            studRenderer.sharedMaterial = material;
+                        }
+                    }
+                }
+            }
+
+            ApplyTierEmission(body, roleAccent, tier);
+        }
+
+        /// <summary>
+        /// Footprint half-extent and floor height of a tower's Body, in the root's local units.
+        /// Measured against the ROOT's position, not the bounds centre, so an asymmetric mesh
+        /// (Arrow's barrel side) still gets a ring centred on the tower.
+        /// </summary>
+        private static TierCrownState MeasureTierCrownFootprint(Transform root, Transform body)
+        {
+            var rootScale = Mathf.Max(0.0001f, root.localScale.x);
+            var rootPosition = root.position;
+            var extent = 0f;
+            var lowestY = rootPosition.y;
+            var measured = false;
+
+            var renderers = body.GetComponentsInChildren<MeshRenderer>(true);
+            for (var index = 0; index < renderers.Length; index++)
+            {
+                var candidate = renderers[index];
+                // The Pulse decal is a runtime child sized to the Ring it replaces; the Ring
+                // itself is still under Body (disabled, bounds intact) and is the measure.
+                if (candidate.gameObject.name == PulseRangeRingDecalName)
+                {
+                    continue;
+                }
+
+                var bounds = candidate.bounds;
+                extent = Mathf.Max(extent, Mathf.Max(
+                    Mathf.Max(Mathf.Abs(bounds.min.x - rootPosition.x), Mathf.Abs(bounds.max.x - rootPosition.x)),
+                    Mathf.Max(Mathf.Abs(bounds.min.z - rootPosition.z), Mathf.Abs(bounds.max.z - rootPosition.z))));
+                lowestY = measured ? Mathf.Min(lowestY, bounds.min.y) : bounds.min.y;
+                measured = true;
+            }
+
+            if (!measured)
+            {
+                // A wrapper with no mesh under Body (nothing shipped is) still gets a legible ring
+                // at the narrow end of the clamp rather than no tier read at all.
+                extent = TierCrownMinWorldRadius;
+            }
+
+            extent = Mathf.Clamp(extent, TierCrownMinWorldRadius, TierCrownMaxWorldRadius);
+
+            // Studs stand on the model's own base plane (root y, where the wrapper's pivot sits)
+            // or lower if the mesh extends below its pivot, but never under the board surface.
+            var floorWorldY = Mathf.Max(BoardTopY + TierCrownFloorLift, Mathf.Min(rootPosition.y, lowestY));
+            return new TierCrownState(0, -1, extent / rootScale, (floorWorldY - rootPosition.y) / rootScale);
+        }
+
+        private static Transform EnsureTierCrownStud(Transform crown, int index)
+        {
+            // Studs are created in index order and never reordered, so the child index is the id.
+            if (index < crown.childCount)
+            {
+                return crown.GetChild(index);
+            }
+
+            var stud = new GameObject(TierCrownStudNamePrefix + index);
+            stud.transform.SetParent(crown, false);
+            stud.AddComponent<MeshFilter>().sharedMesh = BoardRenderResources.TierCrownStudMesh;
+            var renderer = stud.AddComponent<MeshRenderer>();
+            // Same renderer policy as the Pulse decal and the wrapper accessories: a thumb-sized
+            // boss casting a shadow is noise, and probes are wasted on an unlit material.
+            renderer.shadowCastingMode = ShadowCastingMode.Off;
+            renderer.receiveShadows = false;
+            renderer.lightProbeUsage = LightProbeUsage.Off;
+            renderer.reflectionProbeUsage = ReflectionProbeUsage.Off;
+            return stud.transform;
+        }
+
+        /// <summary>
+        /// The second half of the Wave 5 tier read: a tier-keyed lift on the body's own emission.
+        /// </summary>
+        /// <remarks>
+        /// Assets/Resources/Shaders/LTWStylizedUnit.shader does expose one — <c>[HDR]
+        /// _EmissionColor</c>, applied as <c>_EmissionMap * _EmissionColor</c> — and all 16
+        /// shipped body materials (mat_tower_*_body_runtime_v01) bind an emission map, enable
+        /// <c>_EMISSION</c> and carry an HDR colour peaking at 2.0, so lifting the colour lifts the
+        /// glow the model already has (its lens, coil, core: the emission map masks it to those
+        /// regions) rather than flooding the whole body. Additive on the material's OWN value,
+        /// read back from <c>sharedMaterial</c> at apply time, so the tint the art pass chose is
+        /// preserved and only brightened; the ROLE accent is added rather than the owner's
+        /// because the body materials' emission tints already agree with that accent (see
+        /// <see cref="TowerMarkerColor"/>), so the lift brightens the existing hue instead of
+        /// shifting it — the owner is carried by the crown.
+        ///
+        /// Through a MaterialPropertyBlock, never <c>renderer.material</c>: the per-renderer
+        /// override leaves every tower on the shared material. It does take that renderer out of
+        /// the SRP batcher, which is why it is only written when tier or owner changes and only
+        /// for tier 2/3 bodies; a tier-1 body gets an empty block, which clears any override a
+        /// pooled instance inherited from a previous life at a higher tier. Renderers whose
+        /// material has no emission property (the Pulse decal's contact-shadow recipe) are left
+        /// alone.
+        /// </remarks>
+        private static void ApplyTierEmission(Transform body, Color accent, int tier)
+        {
+            var lift = tier switch
+            {
+                >= 3 => TierEmissionLiftTier3,
+                2 => TierEmissionLiftTier2,
+                _ => 0f
+            };
+
+            tierEmissionPropertyBlock ??= new MaterialPropertyBlock();
+            var renderers = body.GetComponentsInChildren<MeshRenderer>(true);
+            for (var index = 0; index < renderers.Length; index++)
+            {
+                var renderer = renderers[index];
+                var material = renderer.sharedMaterial;
+                if (material == null || !material.HasProperty(EmissionColorId))
+                {
+                    continue;
+                }
+
+                tierEmissionPropertyBlock.Clear();
+                if (lift > 0f)
+                {
+                    var baseEmission = material.GetColor(EmissionColorId);
+                    var peak = Mathf.Max(baseEmission.r, Mathf.Max(baseEmission.g, baseEmission.b));
+                    if (peak <= 0f)
+                    {
+                        peak = 1f;
+                    }
+
+                    var lifted = baseEmission + accent * (lift * peak);
+                    lifted.a = baseEmission.a;
+                    tierEmissionPropertyBlock.SetColor(EmissionColorId, lifted);
+                }
+
+                renderer.SetPropertyBlock(tierEmissionPropertyBlock);
+            }
         }
 
         private static void ConfigureTowerRoleMarker(GameObject towerObject, string towerId, int ownerId)
@@ -987,6 +1677,8 @@ namespace LTW.UnityClient.Simulation
         private static bool IsPulseTower(string towerId) => ContainsRole(towerId, "pulse");
 
         private static bool IsPrismTower(string towerId) => ContainsRole(towerId, "prism");
+
+        private static bool IsTeslaTower(string towerId) => ContainsRole(towerId, "tesla");
 
         private static Vector3 TowerOwnerTrimScale(string towerId)
         {

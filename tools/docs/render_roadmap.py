@@ -242,13 +242,26 @@ def validate(r: Roadmap) -> list[str]:
 CSS = (REPO / "tools/docs/roadmap.css").read_text(encoding="utf-8")
 
 WEEK_CLASS = {"ext": "bext2", "1": "b1", "2": "b2", "3": "b3", "4": "b4"}
-WEEK_LABEL = {
-    "ext": "External — start day one",
-    "1": "Week 1 — prove it’s a game",
-    "2": "Week 2 — look &amp; sound shipped",
-    "3": "Week 3 — make it survivable",
-    "4": "Week 4 — ship it",
-}
+
+
+def week_label(group: str, r: "Roadmap") -> str:
+    """Group headings come from the parsed week titles, so a rewritten plan cannot leave the
+    August themes behind in the chart the way a hard-coded table did."""
+    if group == "ext":
+        return "External — start day one"
+    for week in r.weeks:
+        if week.number == group:
+            return f"Week {group} — {inline(week.title.lower())}"
+    return f"Week {group}"
+
+
+def span_label(r: "Roadmap") -> str:
+    """'Sep 4 – Oct 1 2026' from the first and last week's date ranges."""
+    if not r.weeks:
+        return ""
+    first = r.weeks[0].dates.split("–")[0].strip()
+    last = r.weeks[-1].dates.split("–")[-1].strip()
+    return f"{first} – {last} 2026"
 
 
 def render(r: Roadmap) -> str:
@@ -276,7 +289,7 @@ def render(r: Roadmap) -> str:
     a('<div class="wrap">')
     a("")
     a("  <h1>Line Wards — Launch Roadmap</h1>")
-    a('  <p class="sub">Four weeks to a soft launch · 1 – 31 August 2026</p>')
+    a(f'  <p class="sub">Four weeks to a soft launch · {span_label(r)}</p>')
     a(f'  <p class="stamp">{stamp}</p>')
 
     if r.status:
@@ -319,7 +332,7 @@ def render(r: Roadmap) -> str:
         if not rows:
             continue
         a("")
-        a(f'    <div class="grp">{WEEK_LABEL[group]}</div>')
+        a(f'    <div class="grp">{week_label(group, r)}</div>')
         for row in rows:
             badge, cls, extra = row.badge, WEEK_CLASS[group], ""
             if badge.startswith("done:"):
@@ -339,10 +352,9 @@ def render(r: Roadmap) -> str:
 
     a("")
     a('    <div class="legend">')
-    a('      <span><i style="background:var(--w1)"></i>Week 1 · phone &amp; identity</span>')
-    a('      <span><i style="background:var(--w2)"></i>Week 2 · audio &amp; art</span>')
-    a('      <span><i style="background:var(--w3)"></i>Week 3 · survivability</span>')
-    a('      <span><i style="background:var(--w4)"></i>Week 4 · ship / done</span>')
+    for week in r.weeks:
+        a(f'      <span><i style="background:var(--w{week.number})"></i>'
+          f'Week {week.number} · {inline(week.title.lower())}</span>')
     a('      <span><i style="background:rgba(92,200,255,.15);border:1px dashed var(--ext)"></i>'
       "External / review — not compressible</span>")
     a("      <span>★ highest-leverage single hour in the plan</span>")

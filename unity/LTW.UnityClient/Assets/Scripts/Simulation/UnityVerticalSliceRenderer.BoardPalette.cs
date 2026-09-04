@@ -75,12 +75,6 @@ namespace LTW.UnityClient.Simulation
 
         private static Color LaneGutterColor(int laneId) => laneId == 1 ? BoardSurface(new Color(0.018f, 0.034f, 0.054f)) : BoardSurface(new Color(0.014f, 0.018f, 0.032f));
 
-        private static Color LaneAnchorColor(Color accent, bool isPlayerLane)
-        {
-            var strength = isPlayerLane ? 0.34f : 0.18f;
-            return BoardSurface(new Color(accent.r * strength, accent.g * strength, accent.b * strength));
-        }
-
         private static Color LaneTickColor(Color accent, bool isPlayerLane)
         {
             var strength = isPlayerLane ? 0.5f : 0.26f;

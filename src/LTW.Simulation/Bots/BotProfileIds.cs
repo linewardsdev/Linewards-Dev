@@ -13,11 +13,18 @@ public static class BotProfileIds
     public static readonly ContentId Balanced = new("bot.balanced");
     public static readonly ContentId Defensive = new("bot.defensive");
 
+    /// <summary>
+    /// Optional in a catalog: a Passive bot that finds no entry under this id plays on Defensive's
+    /// tuning — see <see cref="BotController.ResolveProfile"/>.
+    /// </summary>
+    public static readonly ContentId Passive = new("bot.passive");
+
     public static ContentId For(BotDecisionProfile profile) => profile switch
     {
         BotDecisionProfile.Greedy => Greedy,
         BotDecisionProfile.Balanced => Balanced,
         BotDecisionProfile.Defensive => Defensive,
+        BotDecisionProfile.Passive => Passive,
         _ => Balanced
     };
 }

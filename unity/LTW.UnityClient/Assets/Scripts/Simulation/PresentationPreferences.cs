@@ -11,6 +11,7 @@ namespace LTW.UnityClient.Simulation
         private const string FeedbackVolumeKey = "ltw.presentation.feedback-volume";
         private const string MusicVolumeKey = "ltw.presentation.music-volume";
         private const string HealthBarsVisibleKey = "ltw.presentation.health-bars-visible";
+        private const string TutorialSeenKey = "ltw.tutorial.seen";
 
         public static bool ReducedEffects
         {
@@ -80,6 +81,26 @@ namespace LTW.UnityClient.Simulation
             set
             {
                 PlayerPrefs.SetInt(HealthBarsVisibleKey, value ? 1 : 0);
+                PlayerPrefs.Save();
+            }
+        }
+
+        /// <summary>
+        /// Whether the player has been through the guided first match, or has declined it.
+        /// </summary>
+        /// <remarks>
+        /// Set by three things and only three: finishing the practice strip, skipping it, and
+        /// tapping START GAME on the first-run offer. Merely opening practice from the title does
+        /// not count — a player who bailed out mid-way has not seen the tutorial, and the offer
+        /// coming back the next time they press START GAME is the honest reading. Lives here, not
+        /// on the director, so every PlayerPrefs write in the client keeps going through one type.
+        /// </remarks>
+        public static bool TutorialSeen
+        {
+            get => PlayerPrefs.GetInt(TutorialSeenKey, 0) == 1;
+            set
+            {
+                PlayerPrefs.SetInt(TutorialSeenKey, value ? 1 : 0);
                 PlayerPrefs.Save();
             }
         }

@@ -144,6 +144,41 @@ Recorded because the first two look correct and produce flat glyphs with no erro
 into one `+7` per tower per second rather than seven `+1`s. That is still outstanding, and it is the
 remaining volume item now that the cuts have landed.
 
+### Layout pass (2026-09-01)
+
+Prompted by the live render review: a leak drew `-1 LIFE`, `+4` and a cue word in one cell on top of
+each other, two creeps leaking on the same tick drew two `-1 LIFE` through each other, and
+`+441 income` floated beside the spawn gate looking like a different font. Three changes, all in
+`SpawnBoardLabel` (which `SpawnFloatingText` / `SpawnFloatingAmount` feed):
+
+- **Kinds.** Every label now carries a `BoardLabelKind` — `Text`, `Gold`, `Income`, `LifeLost`,
+  `LifeStolen`, `Send` — passed by the caller, never parsed back out of the string. The kind owns
+  the wording, so `-2 LIVES` and `+7` are produced by one formatter rather than by the call sites.
+- **Merge.** A same-kind label within 0.6 units and 0.2s of a live one is folded into it: the
+  earlier label's amount absorbs the new one, its text is rewritten as the aggregate, and its clock
+  restarts. `Text` never merges. `Income` merges for as long as the earlier label is alive, which
+  is what caps it to one per lane. This is the same-tick half of the aggregation item above — the
+  per-second accumulation of Relay `+1` is still not done, and 0.2s is deliberately shorter than
+  one tick so that it does not become that by accident.
+- **Stack.** Anything else within 0.6 units of a live label is lifted 0.35 units per neighbour,
+  capped at four, so simultaneous labels at one cell read as a column. No kind test: a cue word and
+  a bounty at the same creep still want separate lines. The leak bounty lost its old half-cell
+  sideways nudge for this — a nudge on top of a lift read as a diagonal.
+
+Typeface: the board was already in the HUD's family — `RuntimeUiChrome.SharedFont` is LiberationSans
+as a legacy Font, and the board's TMP default is LiberationSans SDF — but only by inheriting
+`TMP_Settings.defaultFontAsset` without ever setting `font`. It is now set explicitly from
+`RuntimeUiChrome.SharedBoardFont`, and the outlined material moved next to it as
+`RuntimeUiChrome.SharedBoardTextMaterial`, so both halves of the typeface question are answered in
+one file. The three-attempts note about the outline lives on that property now. One point size
+(`BoardLabelFontSize`) for every kind — `+441 income` was never larger, just longer.
+
+The legacy `TextMesh` lane text on the board (`YOUR LINE - DEFEND`, `TARGET n`, the never-called
+`SPAWN` / `LEAK`) went in the same pass: 0.03-0.04 scale at the shipped camera is a 2-px smudge, and
+the HUD's seats table already names every lane. The badge's underline band went with it — it was in
+the inter-lane margin, tinted the same way as the NorthAnchor purple line the 2026-08-31 pass
+removed.
+
 ### The batch playtest is timing out, and it is not this work
 
 Worth flagging separately. `LocalPlaytestBatchRunner` has a 180s timeout, and the last three passing

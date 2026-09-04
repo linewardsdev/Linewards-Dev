@@ -153,11 +153,58 @@ namespace LTW.UnityClient.Simulation
         /// </summary>
         public int IncomeIntervalTicks => simulation is null ? 50 : simulation.IncomeIntervalTicks;
 
+        /// <summary>
+        /// Cells a creep walks in <paramref name="laneId"/> right now — the measure of its maze.
+        /// </summary>
+        /// <remarks>
+        /// A pass-through, because the slice is private to this driver and the tutorial director
+        /// needs to ask "has the player bent the path yet?" without being handed the simulation.
+        /// Zero before <see cref="Initialize"/>, matching how the slice answers an unknown lane.
+        /// </remarks>
+        public int RouteLength(LaneId laneId) => simulation is null ? 0 : simulation.RouteLength(laneId);
+
+        /// <summary>Cells of the unmazed route in <paramref name="laneId"/>. See <see cref="RouteLength"/>.</summary>
+        public int DirectRouteLength(LaneId laneId) => simulation is null ? 0 : simulation.DirectRouteLength(laneId);
+
         public void Initialize(LocalVerticalSlice localSimulation)
         {
             simulation = localSimulation;
             SnapshotRevision = long.MinValue;
             RefreshSnapshot();
+        }
+
+        /// <summary>
+        /// Replaces the match with a fresh one built from <see cref="LocalMatchRuntimeOptions.PendingOptions"/>.
+        /// </summary>
+        /// <remarks>
+        /// Needed because bot profiles are fixed at construction: <c>LocalVerticalSlice</c> builds
+        /// its <c>BotController</c>s in its constructor from the options it was given, and
+        /// <c>Reset()</c> keeps both the options and the bots. <c>PendingOptions</c> was, until
+        /// practice, read exactly once — by <c>UnityMatchBootstrapper</c> at scene load — so nothing
+        /// set after that could ever reach a match. This is the one path that can.
+        ///
+        /// The command adapter is re-pointed here rather than by whoever calls this, because it is
+        /// the only other component holding the slice (everything else reads through this driver),
+        /// and it lives on the same GameObject by the launcher's construction. A caller that had to
+        /// remember to re-initialise it separately would, one day, not — and every tap would then
+        /// go to a board nobody is looking at.
+        ///
+        /// Ends in the same state as <see cref="ResetMatch"/> — not started, paused, no countdown —
+        /// so callers sequence it exactly where they used to sequence a reset. Draining the fresh
+        /// slice's (empty) events here keeps a consumer that runs before this driver's next Update
+        /// from replaying the old match's last frame of events over the new board.
+        /// </remarks>
+        public void RebuildMatchFromPendingOptions()
+        {
+            var rebuilt = new LocalVerticalSlice(SampleVerticalSliceContent.Create(), LocalMatchRuntimeOptions.PendingOptions);
+            Initialize(rebuilt);
+            if (TryGetComponent<UnityCommandAdapter>(out var commandAdapter))
+            {
+                commandAdapter.Initialize(rebuilt, this);
+            }
+
+            ResetMatch();
+            RefreshSnapshot(drainEvents: true);
         }
 
         private void Update()

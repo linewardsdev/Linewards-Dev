@@ -11,6 +11,13 @@
       },
       "hash": "c35f184d7656bd14e7748f11a05060feeb286d6e"
     },
+    "com.google.external-dependency-manager": {
+      "version": "https://github.com/googlesamples/unity-jar-resolver.git?path=upm",
+      "depth": 0,
+      "source": "git",
+      "dependencies": {},
+      "hash": "1a9384872d6b8b954a8c0115fdcdf146c995062a"
+    },
     "com.unity.2d.sprite": {
       "version": "1.0.0",
       "depth": 1,

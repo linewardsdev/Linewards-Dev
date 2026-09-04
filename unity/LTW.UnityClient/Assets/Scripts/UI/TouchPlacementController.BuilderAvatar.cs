@@ -1,7 +1,6 @@
 #nullable enable
 
 using System.Collections.Generic;
-using System.Linq;
 using LTW.Simulation.Bridge;
 using LTW.Simulation.Commands;
 using LTW.Simulation.Combat;
@@ -50,18 +49,22 @@ namespace LTW.UnityClient.UI
                 instance.transform.localRotation = Quaternion.identity;
                 // Raw mesh stands ~2.2 units tall. 0.4 put it at ~0.88 world units — under a single
                 // board cell, which read as a dropped prop rather than as the unit doing the work,
-                // especially next to towers that occupy most of their own cell. 0.6 puts it at
-                // ~1.32, so it clears a cell and is legible at the tilted match camera's angle
-                // without overtopping the towers it builds. One number to dial if it wants to be
-                // larger still.
-                instance.transform.localScale = new Vector3(0.6f, 0.6f, 0.6f);
+                // especially next to towers that occupy most of their own cell. 0.6 (~1.32 units)
+                // cleared a cell but, per the 2026-09-01 render review (finding #7), that made the
+                // builder taller than every tower once towers were normalised to 0.75-0.95 of a
+                // cell — it was the biggest thing on the board. 0.36 puts it at ~0.79 units, in
+                // that same band rather than looming over the towers it builds.
+                instance.transform.localScale = new Vector3(0.36f, 0.36f, 0.36f);
                 builderAvatarAnimator = instance.GetComponentInChildren<Animator>(true);
                 return;
             }
 
             // Fallback if the 3D model asset is missing for any reason (e.g. a build stripped
             // Resources content it shouldn't have) — the original primitive-and-sprite avatar.
-            builderAvatar.transform.localScale = new Vector3(1.35f, 1.35f, 1.35f);
+            // 0.8 matches the rigged model's post-render-review size (roughly 0.8 of a board
+            // cell); this path was still at the old 1.35 and would have shipped an oversized
+            // builder if it were ever the one actually loaded.
+            builderAvatar.transform.localScale = new Vector3(0.8f, 0.8f, 0.8f);
             CreateBuilderPart("Body", PrimitiveType.Capsule, new Vector3(0f, 0.34f, 0f), new Vector3(0.28f, 0.34f, 0.28f));
             CreateBuilderPart("Pack", PrimitiveType.Cube, new Vector3(0f, 0.38f, -0.2f), new Vector3(0.25f, 0.3f, 0.12f));
             CreateBuilderPart("Visor", PrimitiveType.Cube, new Vector3(0f, 0.53f, 0.18f), new Vector3(0.2f, 0.08f, 0.08f));
@@ -90,7 +93,7 @@ namespace LTW.UnityClient.UI
                 return;
             }
 
-            var target = BuilderGroundPosition(selectedCell);
+            var target = BuilderGroundPosition(BuilderTargetCell);
             var current = builderAvatar.transform.position;
             var flatCurrent = new Vector3(current.x, 0f, current.z);
             var flatTarget = new Vector3(target.x, 0f, target.z);
@@ -106,7 +109,7 @@ namespace LTW.UnityClient.UI
                     // Arrived — only now does the tower ghost actually appear, settled exactly
                     // onto the real cell, reading as the builder having walked over and set it
                     // down rather than a preview that was already floating there.
-                    ghost.transform.position = GridToWorld(selectedCell, 0.6f);
+                    ghost.transform.position = GhostWorldPosition();
                     ghost.SetActive(true);
                 }
 
@@ -150,7 +153,18 @@ namespace LTW.UnityClient.UI
 
         private static Vector3 BuilderRestOffset => new(-0.48f, 0f, 0.24f);
 
+        // The lane's default column (LaneWidth / 2) is also its unmazed spawn-to-exit route, so an
+        // idle builder parked there sits dead centre on the path — and on whatever the player has
+        // already built there (render review finding #7: "parks on the Relay ward"). LaneWidth-1 is
+        // the lane's east edge column: still a real, buildable cell (ClampToLane already treats
+        // LaneWidth-1 as in-range), just one that is not the default route and reads as a gutter
+        // next to the board's own EastGutter dressing. Only the IDLE rest position moves; while
+        // isPlacing is true the builder still walks to selectedCell exactly as before.
+        private static Vector2Int BuilderRestCell => new(LaneWidth - 1, LaneLength - 3);
+
         private Vector3 BuilderGroundPosition(Vector2Int cell) => GridToWorld(cell, 0.02f) + BuilderRestOffset;
+
+        private Vector2Int BuilderTargetCell => isPlacing ? selectedCell : BuilderRestCell;
 
         private void UpdateBuilderAvatar()
         {
@@ -171,7 +185,7 @@ namespace LTW.UnityClient.UI
             var alreadyVisible = builderAvatar.activeSelf;
             if (!alreadyVisible)
             {
-                builderAvatar.transform.position = BuilderGroundPosition(selectedCell);
+                builderAvatar.transform.position = BuilderGroundPosition(BuilderTargetCell);
             }
 
             builderAvatar.SetActive(true);

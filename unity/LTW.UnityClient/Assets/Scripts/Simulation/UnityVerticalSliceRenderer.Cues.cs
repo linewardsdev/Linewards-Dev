@@ -23,6 +23,46 @@ namespace LTW.UnityClient.Simulation
         /// <summary>World units a board label rises over its life.</summary>
         private const float FloatingTextRise = 0.5f;
 
+        /// <summary>World units a board label starts above the event it marks.</summary>
+        private const float FloatingTextLift = 0.55f;
+
+        /// <summary>
+        /// TMP point size every board label draws at, before <see cref="PresentationPreferences.TextScale"/>.
+        /// One number for every kind: "+441 income" is a longer string than "+4", not a bigger one.
+        /// </summary>
+        private const float BoardLabelFontSize = 3.4f;
+
+        /// <summary>
+        /// Horizontal distance, in world units, within which two labels count as being in the same
+        /// place — the reach of both stacking and merging.
+        /// </summary>
+        /// <remarks>
+        /// 0.6 is a little over half a cell. A leak puts its "-1 LIFE" and its "+N" bounty at the
+        /// same creep, and a kill puts its bounty at the creep while the relay tower that got the
+        /// last hit puts its "+1" a cell away; the first pair should share a column, the second
+        /// should not.
+        /// </remarks>
+        private const float FloatingTextNeighbourRadius = 0.6f;
+
+        /// <summary>Vertical step between labels stacked over one spot.</summary>
+        private const float FloatingTextStackStep = 0.35f;
+
+        /// <summary>Most steps a stacked label can be lifted by. Beyond four it is off the cell.</summary>
+        private const int FloatingTextStackCap = 4;
+
+        /// <summary>
+        /// Seconds after a label spawns during which an identical-kind label at the same spot is
+        /// folded into it rather than drawn beside it.
+        /// </summary>
+        /// <remarks>
+        /// Short on purpose: it is for events the simulation raised on the same tick — two creeps
+        /// leaking together, a bounty and a refund landing at once — not for aggregating a stream.
+        /// At 4 ticks a second, 0.2s is less than one tick, so two labels from consecutive ticks
+        /// still draw as two. <see cref="BoardLabelKind.Income"/> is the exception and merges for
+        /// as long as the earlier label is alive, which is what keeps it to one per lane.
+        /// </remarks>
+        private const float FloatingTextMergeWindow = 0.2f;
+
         /// <summary>
         /// Most board labels alive at once. Beyond this, new ones are dropped.
         /// </summary>
@@ -43,10 +83,66 @@ namespace LTW.UnityClient.Simulation
         /// </remarks>
         private const int MaxLiveFloatingLabels = 24;
 
-        /// <summary>Board labels currently animating. See SpawnFloatingText and UpdateFloatingLabels.</summary>
+        /// <summary>Board labels currently animating. See SpawnBoardLabel and UpdateFloatingLabels.</summary>
         private readonly List<FloatingLabel> floatingLabels = new List<FloatingLabel>();
 
-        private void SpawnFloatingText(Vector3 position, string text, Color color) => SpawnFloatingText(position, text, color, 0.7f);
+        /// <summary>
+        /// What a board label is about. Decides whether two labels landing on the same spot fold
+        /// into one, and how the folded amount is written.
+        /// </summary>
+        /// <remarks>
+        /// Passed by the caller, never recovered from the text: "+4" is a bounty and "+4 LIFE" is a
+        /// stolen life, and the only thing that knows which is the event that raised it. Parsing
+        /// the string back would work until the next wording change, silently.
+        /// </remarks>
+        private enum BoardLabelKind
+        {
+            /// <summary>Free text that never merges: the elimination and victory banners, and the reduced-effects cue words.</summary>
+            Text,
+
+            /// <summary>"+N" gold — kill bounty, leak bounty, sell refund, relay earnings.</summary>
+            Gold,
+
+            /// <summary>"+N income" at the lane's income point. At most one alive per lane.</summary>
+            Income,
+
+            /// <summary>"-N LIFE" / "-N LIVES" at the leak.</summary>
+            LifeLost,
+
+            /// <summary>"+N LIFE" / "+N LIVES" on the lane of the seat that gained them.</summary>
+            LifeStolen,
+
+            /// <summary>"SEND" at the local player's own gate. Merges to keep one banner under a burst of taps.</summary>
+            Send,
+        }
+
+        /// <summary>A free-text board label: banners, cue words, SEND.</summary>
+        private void SpawnFloatingText(Vector3 position, BoardLabelKind kind, string text, Color color, float duration) =>
+            SpawnBoardLabel(position, kind, 0, text, color, duration);
+
+        /// <summary>A board label for a number: gold, income, lives. The kind decides the wording.</summary>
+        private void SpawnFloatingAmount(Vector3 position, BoardLabelKind kind, int amount, Color color, float duration) =>
+            SpawnBoardLabel(position, kind, amount, null, color, duration);
+
+        /// <summary>Wording for an amount label, including the aggregate after a merge.</summary>
+        private static string BoardLabelText(BoardLabelKind kind, int amount, string text) => kind switch
+        {
+            BoardLabelKind.Gold => $"+{amount}",
+            BoardLabelKind.Income => $"+{amount} income",
+            BoardLabelKind.LifeLost => amount == 1 ? "-1 LIFE" : $"-{amount} LIVES",
+            BoardLabelKind.LifeStolen => amount == 1 ? "+1 LIFE" : $"+{amount} LIVES",
+            _ => text,
+        };
+
+        /// <summary>
+        /// Whether two labels of this kind at one spot fold into one. Free text never does: "PLAYER
+        /// 3 OUT" and "PLAYER 5 OUT" are two facts, and a cue word repeated is still one word.
+        /// </summary>
+        private static bool BoardLabelMerges(BoardLabelKind kind) => kind != BoardLabelKind.Text;
+
+        /// <summary>How long after spawning a label of this kind still accepts a merge.</summary>
+        private static float BoardLabelMergeWindow(BoardLabelKind kind) =>
+            kind == BoardLabelKind.Income ? float.PositiveInfinity : FloatingTextMergeWindow;
 
         /// <summary>
         /// Orientation that presents flat world-space text square-on to the gameplay camera.
@@ -56,6 +152,19 @@ namespace LTW.UnityClient.Simulation
         {
             var camera = presentationCamera != null ? presentationCamera : Camera.main;
             return camera != null ? camera.transform.rotation : Quaternion.Euler(90f, 0f, 0f);
+        }
+
+        /// <summary>Distance across the board between two points, ignoring how high each sits.</summary>
+        /// <remarks>
+        /// Height is ignored because stacking puts height in: a third label over a cell has to be
+        /// measured against the anchors of the two already lifted there, not against where they
+        /// have risen to.
+        /// </remarks>
+        private static float PlanarDistance(Vector3 a, Vector3 b)
+        {
+            var dx = a.x - b.x;
+            var dz = a.z - b.z;
+            return Mathf.Sqrt(dx * dx + dz * dz);
         }
 
         /// <summary>
@@ -72,12 +181,50 @@ namespace LTW.UnityClient.Simulation
         /// Motion carries the rest. Text used to appear, hold and vanish, which reads as a label
         /// switching on. It now rises, fades out, and punches up in scale over its first frames, so
         /// it reads as an event that happened.
+        ///
+        /// Layout is the other half, added 2026-09-01 after the live render review found labels
+        /// colliding: a leak drew "-1 LIFE", "+4" and a cue word in one cell on top of each other,
+        /// and two creeps leaking on the same tick drew two "-1 LIFE" through each other. Two rules,
+        /// both scoped to <see cref="FloatingTextNeighbourRadius"/> of a label that is still alive:
+        ///
+        /// Merge first. Same kind, same spot, within <see cref="BoardLabelMergeWindow"/> of the
+        /// earlier label's spawn — the earlier label's amount absorbs the new one, its text is
+        /// rewritten as the aggregate ("-2 LIVES", "+7"), and its clock restarts so the scale punch
+        /// replays as the number ticks up. Nothing new is spawned, so this also does not count
+        /// against <see cref="MaxLiveFloatingLabels"/>.
+        ///
+        /// Otherwise stack. Every live label within reach lifts the new one by
+        /// <see cref="FloatingTextStackStep"/>, capped at <see cref="FloatingTextStackCap"/> steps,
+        /// so simultaneous labels at one cell read as a column rather than a pile. Stacking has no
+        /// kind test — a cue word and a bounty at the same creep still want separate lines.
         /// </remarks>
-        private void SpawnFloatingText(Vector3 position, string text, Color color, float duration)
+        private void SpawnBoardLabel(Vector3 position, BoardLabelKind kind, int amount, string text, Color color, float duration)
         {
             if (!IsOnActiveLane(position))
             {
                 return;
+            }
+
+            if (BoardLabelMerges(kind))
+            {
+                var window = BoardLabelMergeWindow(kind);
+                for (var index = 0; index < floatingLabels.Count; index++)
+                {
+                    var existing = floatingLabels[index];
+                    if (existing.Kind != kind || existing.Label == null || existing.Object == null)
+                    {
+                        continue;
+                    }
+
+                    if (Time.time - existing.SpawnedAt > window || PlanarDistance(existing.Anchor, position) > FloatingTextNeighbourRadius)
+                    {
+                        continue;
+                    }
+
+                    existing.Absorb(amount, BoardLabelText(kind, existing.Amount + amount, text), Time.time, duration);
+                    ExtendTimedPresentation(existing.Object, existing.SpawnedAt + existing.Duration);
+                    return;
+                }
             }
 
             // Dropped rather than queued: a label that cannot be shown now is worthless a second
@@ -87,8 +234,19 @@ namespace LTW.UnityClient.Simulation
                 return;
             }
 
+            var neighbours = 0;
+            for (var index = 0; index < floatingLabels.Count; index++)
+            {
+                if (PlanarDistance(floatingLabels[index].Anchor, position) <= FloatingTextNeighbourRadius)
+                {
+                    neighbours++;
+                }
+            }
+
+            var stackLift = Mathf.Min(neighbours, FloatingTextStackCap) * FloatingTextStackStep;
+
             var textObject = GetTextObject();
-            textObject.transform.position = position + Vector3.up * 0.55f;
+            textObject.transform.position = position + Vector3.up * (FloatingTextLift + stackLift);
             // Face the camera rather than lying flat on the board. The old fixed Euler(90,0,0) was
             // only legible because the camera was nearly straight down; at any real tilt the text
             // slants away and loses readability. Billboarding keeps it face-on at any camera angle.
@@ -101,35 +259,66 @@ namespace LTW.UnityClient.Simulation
                 label = textObject.AddComponent<TMPro.TextMeshPro>();
                 label.alignment = TMPro.TextAlignmentOptions.Center;
                 label.textWrappingMode = TMPro.TextWrappingModes.NoWrap;
-                label.fontSize = 3.4f;
                 label.raycastTarget = false;
-                // The outline is the whole point of moving to SDF: board text sits over lane
-                // plating, range halos and creep bodies, and an unoutlined glyph at this size loses
-                // its edges against all three.
-                //
-                // ONE shared outlined material for every label, built once (BoardTextMaterial).
-                // Two other routes were tried and neither produced an outline: setting _OutlineWidth
-                // and the OUTLINE_ON keyword on fontMaterial, and TMP's per-component outlineWidth
-                // and outlineColor. Both compiled, ran, and rendered flat glyphs. Enabling the
-                // keyword on a real material and handing it to the component is what TMP actually
-                // honours, and it batches rather than instancing a material per label.
-                label.fontSharedMaterial = BoardTextMaterial(label.font);
+                // One typeface and one outlined material for every label, resolved in one place
+                // (RuntimeUiChrome, beside the HUD's SharedFont — same LiberationSans family, so
+                // board and HUD text agree). Font first, then material: assigning `font` resets
+                // the component's material to the font's plain default, so the outlined one has
+                // to land after it or the outline silently disappears. See
+                // RuntimeUiChrome.SharedBoardTextMaterial for why it is a shared material and not
+                // a per-label property.
+                label.font = RuntimeUiChrome.SharedBoardFont;
+                var material = RuntimeUiChrome.SharedBoardTextMaterial;
+                if (material != null)
+                {
+                    label.fontSharedMaterial = material;
+                }
             }
 
-            label.text = text;
+            label.text = BoardLabelText(kind, amount, text);
             label.color = color;
-            label.fontSize = 3.4f * PresentationPreferences.TextScale;
+            label.fontSize = BoardLabelFontSize * PresentationPreferences.TextScale;
 
             // Board furniture such as the endpoint gate plates draws through SpriteRenderers with
-            // sorting orders up to 3, so board text sorts above all board decoration.
+            // sorting orders up to 3, so board text sorts above all board decoration. Depth against
+            // units is handled by the shared material (ZTest Always, queue 3100 — see
+            // RuntimeUiChrome.SharedBoardTextMaterial), not here: sortingOrder orders labels among
+            // their transparent-queue neighbours, it cannot stop a creep model cutting them.
             var textRenderer = textObject.GetComponent<MeshRenderer>();
             if (textRenderer != null)
             {
                 textRenderer.sortingOrder = FloatingTextSortingOrder;
             }
 
-            floatingLabels.Add(new FloatingLabel(textObject, label, Time.time, duration));
+            floatingLabels.Add(new FloatingLabel(textObject, label, kind, amount, position, Time.time, duration));
             timedPresentations.Add(new TimedPresentation(textObject, Time.time + duration, textPool));
+        }
+
+        /// <summary>Pushes back the pool release of an object already in <see cref="timedPresentations"/>.</summary>
+        /// <remarks>
+        /// A merged label restarts its clock, and its pooled text object has to outlive the new
+        /// clock or the pool hands it to the next label while this one is still writing to it.
+        /// A linear scan: the list also holds every live beam, but a merge only happens when two
+        /// events land on one spot in a fifth of a second, which is rare enough that indexing the
+        /// list for it would cost more than it saves.
+        /// </remarks>
+        private void ExtendTimedPresentation(GameObject target, float releaseAt)
+        {
+            for (var index = 0; index < timedPresentations.Count; index++)
+            {
+                var presentation = timedPresentations[index];
+                if (!ReferenceEquals(presentation.Object, target))
+                {
+                    continue;
+                }
+
+                if (releaseAt > presentation.ReleaseAt)
+                {
+                    timedPresentations[index] = new TimedPresentation(target, releaseAt, presentation.Pool);
+                }
+
+                return;
+            }
         }
 
         /// <summary>
@@ -167,31 +356,7 @@ namespace LTW.UnityClient.Simulation
         private bool IsLocalSeat(PlayerId playerId) =>
             simulationDriver != null && playerId.Equals(simulationDriver.LocalPlayerId);
 
-        private Material boardTextMaterial;
-
-        /// <summary>
-        /// The shared outlined material every board label draws with.
-        /// </summary>
-        /// <remarks>
-        /// A dark outline is what keeps small text legible over lane plating, range halos and creep
-        /// bodies. It is a material variant rather than a per-label property because that is the
-        /// form TMP honours, and because one shared material lets all board text batch.
-        /// </remarks>
-        private Material BoardTextMaterial(TMPro.TMP_FontAsset font)
-        {
-            if (boardTextMaterial != null)
-            {
-                return boardTextMaterial;
-            }
-
-            boardTextMaterial = new Material(font.material) { name = "LTW Board Text" };
-            boardTextMaterial.EnableKeyword("OUTLINE_ON");
-            boardTextMaterial.SetFloat("_OutlineWidth", 0.25f);
-            boardTextMaterial.SetColor("_OutlineColor", new Color(0.02f, 0.03f, 0.05f, 1f));
-            return boardTextMaterial;
-        }
-
-        /// <summary>Rises, fades and punches in scale over its life. See SpawnFloatingText.</summary>
+        /// <summary>Rises, fades and punches in scale over its life. See SpawnBoardLabel.</summary>
         private void UpdateFloatingLabels()
         {
             for (var index = floatingLabels.Count - 1; index >= 0; index--)
@@ -234,7 +399,8 @@ namespace LTW.UnityClient.Simulation
 
         /// <summary>Marks the gate cell a creep has just walked into.</summary>
         /// <remarks>
-        /// The frame is the whole cue. It used to also draw two beams across the diagonals, and a
+        /// The cell pulse is the whole cue (a ring since Wave 5, a beam square before that — see
+        /// SpawnCellFrameCue). It used to also draw two beams across the diagonals, and a
         /// square outline with an X through it is the single most recognisable "this asset failed
         /// to load" glyph there is — it was reported as one. The diagonals reached ±0.54 against a
         /// cell about a unit across, so the X overhung the frame it was drawn in and read as a
@@ -257,10 +423,29 @@ namespace LTW.UnityClient.Simulation
         /// still sits at its rest pose. Falls back to the old flat world-space offset if the tower
         /// GameObject could not be resolved (e.g. it was removed the same frame).
         /// </summary>
+        /// <remarks>
+        /// Wave 5 (finding #8 / R4, render review 2026-09-01, re-judged 2026-09-02). The frames
+        /// showed every ranged shot as a one-frame straight line whatever its width, colour or
+        /// duration — a 0.1s beam sampled at 0.1s IS a line — so every branch here was re-read
+        /// and sorted one of two ways. Anything that was an instantaneous straight SpawnBeam from
+        /// muzzle to target is now a <see cref="SpawnProjectile"/> dart with a trail: Arrow,
+        /// Control, Relay, Prism, Repair Drone, Spore/Bloomheart, Sapling and the line tail here,
+        /// Gatling and Barricade inside their own helpers. Anything already shaped and
+        /// non-instant is kept as it was: Tesla's forked arc, the Thorn/Canopy vine lashes,
+        /// Pulse's and Control's expanding rings, every muzzle burst.
+        ///
+        /// Also gone: the short beam pairs that crossed at the tower body (Arrow's limb and
+        /// string, Relay's two body strokes, Prism's head cross, Pulse's four spokes) — from
+        /// above they were an X on the tower every frame — and every SpawnCellFrameCue on a hit
+        /// cell, which was the square bracket. The hit's impact is raised by the dart when it
+        /// lands (UpdateProjectiles), not here, so it arrives with the shot.
+        /// </remarks>
         private void SpawnTowerAttackCue(Vector3 towerPosition, Vector3 hitPosition, string towerId, int damage, Transform bodyTransform, int tier = 1)
         {
             Vector3 At(Vector3 localOffset) =>
                 bodyTransform != null ? bodyTransform.TransformPoint(localOffset) : towerPosition + localOffset;
+
+            lastAttackCueLaunchedProjectile = false;
 
             var shotColor = TowerShotColor(towerId, damage);
             var muzzle = At(Vector3.up * 0.62f);
@@ -269,85 +454,82 @@ namespace LTW.UnityClient.Simulation
             // which are already tuned, but no longer their own arbitrary beam widths.
             var line = LineFor(towerId);
             var style = StyleFor(line, damage, tier);
+            var shape = ProjectileFor(line, style);
+            var impact = hitPosition + Vector3.up * 0.12f;
+            // What the dart raises when it lands: a ring this wide with this many sparks.
+            var impactScale = damage >= 5 ? 0.62f : 0.46f;
+            var impactSparks = damage >= 5 ? 6 : 5;
+
             if (IsArrowTower(towerId))
             {
-                SpawnBeam(At(new Vector3(-0.5f, 0.62f, -0.18f)), At(new Vector3(0.5f, 0.62f, -0.18f)), shotColor, 0.08f);
-                SpawnBeam(At(new Vector3(0f, 0.58f, -0.32f)), At(new Vector3(0f, 0.66f, 0.26f)), SignalGold, 0.08f);
-                SpawnBeam(At(new Vector3(0f, 0.62f, 0.08f)), hitPosition + Vector3.up * 0.12f, shotColor, style.Duration, style.Width, style.Intensity);
-                SpawnCellFrameCue(hitPosition, shotColor, damage >= 5 ? 0.15f : 0.1f);
-                SpawnEffect(At(new Vector3(0f, 0.62f, 0.12f)), shotColor, damage >= 5 ? 0.28f : 0.2f, 0.08f, BurstShape.Muzzle, hitPosition - At(new Vector3(0f, 0.62f, 0.12f)));
+                // The bolt leaves the nock, a touch forward of the body centre, as a longer and
+                // slightly thinner dart than the line default. The limb and string flashes that
+                // used to frame it were two short beams at right angles on the body: a cross.
+                var nock = At(new Vector3(0f, 0.62f, 0.12f));
+                LaunchProjectile(nock, impact, shotColor, style.Intensity, shape.Scaled(0.9f, 1.15f), impactScale, impactSparks);
+                SpawnEffect(nock, shotColor, damage >= 5 ? 0.28f : 0.2f, 0.08f, BurstShape.Muzzle, hitPosition - nock);
                 return;
             }
 
             if (IsControlTower(towerId))
             {
-                // The old twin symmetric beams (fixed local offsets either side of centre) were
-                // tuned for a Control tower that never turned to aim — with its core+ring assembly
-                // now genuinely tracking the target (HeadPivot), a single beam from the core reads
-                // as an actual aimed shot rather than a fixed decorative gate. Expanding rings lean
-                // into Control's own ring/portal shape, replacing a static glow at the tower and
-                // the same blocky SpawnCellFrameCue square other towers' VFX had.
-                SpawnBeam(At(Vector3.up * 0.62f), hitPosition + Vector3.up * 0.12f, shotColor, style.Duration * 1.4f, style.Width, style.Intensity);
+                // Rings kept — they are Control's own portal shape. The aimed beam from the core
+                // is a fatter, slightly slower bolt so the ring at the tower has opened before the
+                // bolt lands.
+                LaunchProjectile(muzzle, impact, shotColor, style.Intensity, shape.Scaled(1.3f, 0.9f), impactScale * 1.1f, impactSparks);
                 SpawnExpandingRing(At(Vector3.up * 0.28f), shotColor, 0.15f, 1.4f, 0.35f);
                 SpawnExpandingRing(hitPosition + Vector3.up * 0.18f, shotColor, 0.1f, 0.85f, 0.22f);
-                SpawnEffect(hitPosition, shotColor, damage >= 5 ? 0.42f : 0.32f, 0.16f);
                 return;
             }
 
             if (IsRelayTower(towerId))
             {
-                SpawnBeam(muzzle, hitPosition + Vector3.up * 0.2f, shotColor, style.Duration * 1.6f, style.Width, style.Intensity);
-                SpawnBeam(At(new Vector3(-0.34f, 0.34f, 0f)), At(new Vector3(0.34f, 0.34f, 0f)), shotColor, 0.14f);
-                SpawnBeam(At(new Vector3(0f, 0.58f, -0.34f)), At(new Vector3(0f, 0.58f, 0.34f)), shotColor, 0.14f);
-                SpawnCellFrameCue(towerPosition, shotColor, 0.16f);
+                // The frames' "green square bracket on the tower that got the kill" was this
+                // branch's SpawnCellFrameCue at the tower base, in Relay's mint, drawn on every
+                // hit beside the "+N" earnings label RenderEvents raises for TowerEarnedGoldEvent.
+                // The label is the information; the bracket is now a 0.15s base flash so the
+                // tower still visibly acts. The two body strokes that crossed at the core are gone.
+                LaunchProjectile(muzzle, hitPosition + Vector3.up * 0.2f, shotColor, style.Intensity, shape, impactScale, impactSparks);
+                SpawnTowerBaseFlash(towerPosition, shotColor);
                 SpawnEffect(muzzle, shotColor, 0.26f, 0.12f, BurstShape.Muzzle, hitPosition - muzzle);
                 return;
             }
 
             if (IsPulseTower(towerId))
             {
-                // Previously drew 4 beams connecting the tower's own corners plus 2 more crossing
-                // diagonally — a literal square outline that read as dynamic while the whole body
-                // still rotated with each shot, but now that Pulse stays fixed (see locksYaw in
-                // UpdateTowerMotion), it flashed as an obvious static geometric square every time
-                // it fired. Replaced with an actual expanding shockwave — Pulse's whole identity is
-                // an energy pulse, and a ring that visibly grows outward from the spinning Ring
-                // part reads as that far better than a static glow ever could. A quick gold core
-                // pop underneath gives it a starting flash to expand from.
-                // Four short radial spokes, thrown outward the instant it fires. Measured at the
-                // board camera, this tower's cue put 146 lit pixels on screen at the moment of
-                // firing — the lowest in the roster by two orders of magnitude — because everything
-                // it drew was an expanding ring or a particle burst, and BOTH of those develop over
-                // later frames rather than existing when the shot happens. Spokes are geometry, so
-                // they are there immediately, and radiating outward is the one direction language
-                // that does not contradict an omnidirectional splash emitter.
-                for (var spoke = 0; spoke < 4; spoke++)
+                // Omnidirectional splash, so no dart. The four radial beam spokes — kept before
+                // because rings and bursts both arrive late and this tower had nothing on the frame
+                // it fired — are now six sparks thrown outward from the ring part: still geometry
+                // on the firing frame, but moving and fading rather than a static asterisk.
+                var ringHeight = At(Vector3.up * 0.5f);
+                for (var spoke = 0; spoke < 6; spoke++)
                 {
-                    var heading = Quaternion.Euler(0f, 45f + spoke * 90f, 0f) * Vector3.forward;
-                    SpawnBeam(At(Vector3.up * 0.5f), At(Vector3.up * 0.5f) + heading * 0.72f, shotColor, style.Duration, style.Width * 1.3f, style.Intensity);
+                    var heading = Quaternion.Euler(0f, 30f + spoke * 60f, 0f) * Vector3.forward;
+                    SpawnSpark(ringHeight, (heading + Vector3.up * 0.15f).normalized, shotColor, style.Width * 0.8f, 0.42f, 3.2f, style.Duration * 2f, style.Intensity);
                 }
 
-                SpawnExpandingRing(At(Vector3.up * 0.5f), shotColor, 0.15f, 1.6f, 0.4f);
-                SpawnEffect(At(Vector3.up * 0.5f), SignalGold, 0.16f, 0.1f);
-                // SpawnCellFrameCue drew the same kind of static square-outline box this VFX used
-                // to draw around the tower itself — same problem, same fix: an expanding ring
-                // reads as the splash actually spreading from the impact, not a blocky marker.
-                SpawnExpandingRing(hitPosition + Vector3.up * 0.18f, shotColor, 0.1f, 0.85f, 0.22f);
+                SpawnExpandingRing(ringHeight, shotColor, 0.15f, 1.6f, 0.4f);
+                SpawnEffect(ringHeight, SignalGold, 0.16f, 0.1f);
+                // A ring on the splashed cell, no sparks: the splash is the tower's, not the creep's.
+                SpawnImpactBurst(impact, shotColor, damage >= 5 ? 0.8f : 0.6f, 0, 0.24f);
                 SpawnEffect(hitPosition, shotColor, damage >= 5 ? 0.5f : 0.36f, 0.16f);
                 return;
             }
 
             if (IsPrismTower(towerId))
             {
-                SpawnBeam(At(new Vector3(-0.16f, 0.7f, 0f)), At(new Vector3(0.16f, 0.7f, 0f)), SignalGold, 0.12f);
-                SpawnBeam(At(new Vector3(0f, 0.7f, -0.16f)), At(new Vector3(0f, 0.7f, 0.16f)), SignalGold, 0.12f);
-                SpawnEffect(At(Vector3.up * 0.7f), SignalGold, 0.22f, 0.12f);
-                SpawnBeam(At(Vector3.up * 0.7f), hitPosition + Vector3.up * 0.16f, shotColor, style.Duration * 1.6f, style.Width, style.Intensity);
-                SpawnEffect(hitPosition + Vector3.up * 0.08f, shotColor, damage >= 5 ? 0.46f : 0.32f, 0.18f);
+                // The head glints with four short sparks where two crossing beams used to draw an X.
+                var head = At(Vector3.up * 0.7f);
+                for (var facet = 0; facet < 4; facet++)
+                {
+                    var heading = Quaternion.Euler(0f, 45f + facet * 90f, 0f) * Vector3.forward;
+                    SpawnSpark(head, (heading + Vector3.up * 0.6f).normalized, SignalGold, 0.05f, 0.2f, 1.4f, 0.14f, 1.6f);
+                }
+
+                SpawnEffect(head, SignalGold, 0.22f, 0.12f);
+                LaunchProjectile(head, hitPosition + Vector3.up * 0.16f, shotColor, style.Intensity, shape.Scaled(0.85f, 1.2f), impactScale, impactSparks);
                 return;
             }
-
-            var impact = hitPosition + Vector3.up * 0.12f;
 
             // Per-tower tells. Each of these towers has a mechanic that was invisible while it drew
             // the shared fallback below. Several read their own mechanic straight off `damage`,
@@ -357,6 +539,8 @@ namespace LTW.UnityClient.Simulation
             {
                 // Chain Arc hops backward down the queue, halving each time, and each hop arrives
                 // as its own event — so a thinner, dimmer arc for a weaker hop shows the decay.
+                // Kept as beams: a jagged multi-segment arc is not a straight line, and it is the
+                // one shot here that SHOULD connect the two ends for its whole duration.
                 var arcColor = Color.Lerp(new Color(0.55f, 0.76f, 1f), new Color(0.86f, 0.95f, 1f), Mathf.Clamp01(damage / 8f));
                 SpawnForkedArc(muzzle, impact, arcColor, style, 4);
                 SpawnEffect(impact, arcColor, damage >= 5 ? 0.34f : 0.24f, 0.1f);
@@ -378,15 +562,12 @@ namespace LTW.UnityClient.Simulation
             if (IsRepairDroneTower(towerId))
             {
                 // A support tower, not a weapon: a maintenance pulse rather than a shot. The
-                // servicing tether to its neighbours is drawn continuously elsewhere.
-                // A thin service beam first, for the same reason as Pulse above: rings and bursts
-                // both arrive late, and measured at the instant of firing this tower put 424 lit
-                // pixels on screen. Kept deliberately thin and short-lived — this is a support
-                // tower and the beam is there to say WHEN it acted, not to look like a weapon.
-                SpawnBeam(muzzle, impact, shotColor, style.Duration * 0.8f, style.Width * 0.6f, style.Intensity);
+                // servicing tether to its neighbours is drawn continuously elsewhere. The thin
+                // service beam is now a slim, dim dart with a ring and no sparks on arrival — it
+                // still says WHEN the tower acted without looking like a weapon.
+                LaunchProjectile(muzzle, impact, shotColor, style.Intensity * 0.8f, shape.Scaled(0.6f, 0.8f), 0.36f, 0);
                 SpawnExpandingRing(muzzle, shotColor, 0.3f, 0.95f, style.Duration * 1.6f);
                 SpawnExpandingRing(impact, shotColor, 0.2f, 0.6f, style.Duration);
-                SpawnEffect(impact, shotColor, 0.24f, 0.12f);
                 return;
             }
 
@@ -413,9 +594,10 @@ namespace LTW.UnityClient.Simulation
             {
                 // Rot scales off the target's max health and Crowd Bloom off how many creeps share
                 // the cell — both arrive as bigger damage, so a bloom sized by damage shows a fat
-                // target or a big stack being punished specifically.
+                // target or a big stack being punished specifically. The seed is a fatter dart for
+                // a bigger bloom; the ring and burst on the target are unchanged.
                 var bloom = Mathf.Lerp(0.75f, 1.8f, Mathf.Clamp01(damage / 10f));
-                SpawnBeam(muzzle, impact, shotColor, style.Duration, style.Width, style.Intensity);
+                LaunchProjectile(muzzle, impact, shotColor, style.Intensity, shape.Scaled(Mathf.Lerp(0.9f, 1.4f, (bloom - 0.75f) / 1.05f), 1f), bloom * 0.55f, impactSparks);
                 // A particle burst carries the bloom, with the ring only underneath it. Measured at
                 // the real camera, SpawnExpandingRing draws a soft low-contrast glow rather than a
                 // crisp ring — legible for Control, whose ring is a slow deliberate beat, but far
@@ -428,10 +610,10 @@ namespace LTW.UnityClient.Simulation
 
             if (ContainsRole(towerId, "sapling"))
             {
-                // Grovebond adds damage per bonded neighbour, so a shot that visibly thickens with
+                // Grovebond adds damage per bonded neighbour, so a seed that visibly thickens with
                 // damage is the bond paying off.
                 var bonded = style.Scaled(Mathf.Lerp(0.7f, 1.6f, Mathf.Clamp01(damage / 8f)), 1f);
-                SpawnBeam(muzzle, impact, shotColor, bonded.Duration, bonded.Width, bonded.Intensity);
+                LaunchProjectile(muzzle, impact, shotColor, bonded.Intensity, ProjectileFor(line, bonded), impactScale, impactSparks);
                 SpawnEffect(impact, shotColor, damage >= 5 ? 0.32f : 0.22f, style.Duration * 0.5f);
                 return;
             }
@@ -439,39 +621,86 @@ namespace LTW.UnityClient.Simulation
             // The line grammar. Whatever is left reaches this tail — it is where a GROVE spore
             // bloom and a FOUNDRY gatling used to fire the exact same blue box.
 
-            // Replaces two beams that crossed at the tower body: they were fixed to local axes, so
-            // they read as a static X unrelated to where the tower was shooting. A burst thrown
-            // along the firing direction reads as the weapon actually discharging.
+            // A burst thrown along the firing direction reads as the weapon actually discharging.
             SpawnEffect(muzzle, shotColor, damage >= 5 ? 0.3f : 0.22f, 0.1f, BurstShape.Muzzle, impact - muzzle);
-            SpawnBeam(muzzle, impact, shotColor, style.Duration, style.Width, style.Intensity);
+            LaunchProjectile(muzzle, impact, shotColor, style.Intensity, shape, impactScale, impactSparks);
 
             if (line == TowerLine.Grove)
             {
                 // Soft and organic all the way through, including the impact: a bloom opening on
-                // the target instead of the hard square SpawnCellFrameCue snaps around its cell.
+                // the target on top of the dart's own ring.
                 SpawnExpandingRing(impact, shotColor, 0.12f, damage >= 5 ? 0.92f : 0.7f, style.Duration);
                 SpawnEffect(hitPosition, shotColor, damage >= 5 ? 0.42f : 0.3f, style.Duration * 0.6f);
                 return;
             }
 
-            SpawnCellFrameCue(hitPosition, shotColor, damage >= 5 ? 0.16f : 0.12f);
             SpawnEffect(hitPosition, shotColor, damage >= 5 ? 0.3f : 0.22f, 0.1f);
         }
 
-        private void SpawnCreepHitCue(Vector3 position, Color color, int damage)
+        /// <summary>
+        /// Whether the SpawnTowerAttackCue call just made launched a dart toward its hit. Read and
+        /// cleared by <see cref="SpawnCreepHitCue"/>, which RenderEvents calls straight after it
+        /// for the same CreepDamagedEvent.
+        /// </summary>
+        private bool lastAttackCueLaunchedProjectile;
+
+        /// <summary><see cref="SpawnProjectile"/>, recording that this attack cue's hit will land with the dart.</summary>
+        private void LaunchProjectile(Vector3 from, Vector3 to, Color color, float intensity, ProjectileShape shape, float impactScale, int impactSparks)
         {
-            var scale = damage >= 5 ? 0.44f : 0.3f;
-            SpawnBeam(position + new Vector3(-scale, 0.2f, 0f), position + new Vector3(scale, 0.2f, 0f), color, 0.1f);
-            SpawnBeam(position + new Vector3(0f, 0.2f, -scale), position + new Vector3(0f, 0.2f, scale), color, 0.1f);
+            if (SpawnProjectile(from, to, color, intensity, shape, impactScale, impactSparks))
+            {
+                lastAttackCueLaunchedProjectile = true;
+            }
         }
 
+        /// <summary>A brief ring pulse at a tower's base: "this tower just acted", without a bracket.</summary>
+        /// <remarks>
+        /// 0.15s and a filled soft disc rather than the annulus the impacts use, so it reads as a
+        /// glow under the tower rather than a second impact. The recoil kick itself is
+        /// UpdateTowerMotion's (TowerPresentation.cs) and is not duplicated here.
+        /// </remarks>
+        private void SpawnTowerBaseFlash(Vector3 towerPosition, Color color)
+        {
+            if (!IsOnActiveLane(towerPosition))
+            {
+                return;
+            }
+
+            SpawnExpandingRingCore(towerPosition + Vector3.up * 0.05f, new Color(color.r, color.g, color.b, 0.55f), 0.55f, 1f, 0.15f, BoardRenderResources.ContactShadowMesh);
+        }
+
+        /// <summary>A hit that arrived with no dart to carry it: a small radial burst in the hit colour.</summary>
+        /// <remarks>
+        /// RenderEvents calls this straight after SpawnTowerAttackCue for the same event. When
+        /// that cue launched a dart, the dart raises the impact itself when it lands ~0.12s later
+        /// (UpdateProjectiles), and a burst here as well would put the impact on the creep before
+        /// the shot had reached it. Tesla, the vine lashes and Pulse do not launch darts and land
+        /// here. The two beams this used to cross at the creep were the frames' X at every hit.
+        /// </remarks>
+        private void SpawnCreepHitCue(Vector3 position, Color color, int damage)
+        {
+            if (lastAttackCueLaunchedProjectile)
+            {
+                lastAttackCueLaunchedProjectile = false;
+                return;
+            }
+
+            SpawnImpactBurst(position + Vector3.up * 0.08f, color, damage >= 5 ? 0.5f : 0.36f, damage >= 5 ? 5 : 4, 0.2f);
+        }
+
+        /// <summary>Role tells on a hit creep: a shade being revealed, a siege unit taking fire.</summary>
+        /// <remarks>
+        /// Both used to be two beams meeting at the creep — a diagonal cross for the reveal, a
+        /// vertical with a crossbar for siege — and read as the same X the hit cue drew. A reveal
+        /// is a shroud coming off, so it is a pale ring opening around the creep with a few sparks
+        /// lifting away; siege keeps its red-and-gold pair as a low red ring with gold sparks.
+        /// </remarks>
         private void SpawnCreepRoleFeedbackCue(Vector3 position, string creepId, int damage)
         {
             if (ContainsRole(creepId, "shade") || ContainsRole(creepId, "invisible") || ContainsRole(creepId, "stealth"))
             {
                 var color = new Color(0.72f, 0.94f, 1f);
-                SpawnBeam(position + new Vector3(-0.28f, 0.3f, -0.34f), position + new Vector3(0.28f, 0.3f, 0.34f), color, 0.18f);
-                SpawnBeam(position + new Vector3(-0.28f, 0.2f, 0.34f), position + new Vector3(0.28f, 0.2f, -0.34f), new Color(0.36f, 0.5f, 0.58f), 0.18f);
+                SpawnImpactBurst(position + Vector3.up * 0.2f, color, 0.7f, 4, 0.26f);
                 if (damage >= 5)
                 {
                     // No "REVEAL" word; the reveal VFX on the creep is the tell.
@@ -483,8 +712,13 @@ namespace LTW.UnityClient.Simulation
 
             if (ContainsRole(creepId, "siege") || ContainsRole(creepId, "attacker"))
             {
-                SpawnBeam(position + new Vector3(0f, 0.24f, -0.5f), position + new Vector3(0f, 0.24f, 0.58f), LeakRed, 0.16f);
-                SpawnBeam(position + new Vector3(-0.34f, 0.18f, 0.32f), position + new Vector3(0.34f, 0.18f, 0.32f), SignalGold, 0.14f);
+                SpawnImpactBurst(position + Vector3.up * 0.1f, LeakRed, 0.6f, 0, 0.22f);
+                for (var spark = 0; spark < 3; spark++)
+                {
+                    var heading = Quaternion.Euler(0f, UnityEngine.Random.Range(0f, 360f), 0f) * Vector3.forward;
+                    SpawnSpark(position + Vector3.up * 0.2f, (heading + Vector3.up * 0.5f).normalized, SignalGold, 0.06f, 0.3f, 2.2f, 0.2f, 1.4f);
+                }
+
                 if (damage >= 5)
                 {
                     SpawnReducedEffectCue(position, "SIEGE", LeakRed);
@@ -516,36 +750,52 @@ namespace LTW.UnityClient.Simulation
             }
         }
 
+        /// <summary>
+        /// The flash half of a creep's death: a radial burst in the style's palette, sized and
+        /// paced by how the creep breaks.
+        /// </summary>
+        /// <remarks>
+        /// Wave 3 left each style with one directional shard beam beside its particle burst; the
+        /// re-judged frames still read the beam as the arm of an X, and the particle burst alone
+        /// (fourteen soft dots) had no shape to it at 0.1s. Every style is now a
+        /// <see cref="SpawnImpactBurst"/>: a ring opening from the creep plus a fan of tapered
+        /// sparks, reading over ~6 frames. HeavyShatter is the widest and warmest, ShardScatter
+        /// the quickest and thinnest, SoftDissolve a faint slow ring with no sparks (the shrink in
+        /// UpdateDyingCreeps carries that one), SparkBurst — the common case — a plain gold burst.
+        ///
+        /// The model-level half of the send-off — shrinking, sinking and darkening this creep's
+        /// own instance — is started in ReleaseMissingCreeps (Pooling.cs), not here: by the time
+        /// this method runs, that sweep has already run for the same frame (see BeginCreepDying's
+        /// remark for why a hook here would be one release too late).
+        /// </remarks>
         private void SpawnCreepDeathCue(Vector3 position, Color color, string creepId, CreepVisualProfile visualProfile)
         {
             var deathCueStyle = CreepDeathCueStyleFor(creepId, visualProfile);
+
             if (deathCueStyle == CreepDeathCueStyle.HeavyShatter)
             {
-                SpawnBeam(position + new Vector3(-0.48f, 0.14f, -0.12f), position + new Vector3(0.48f, 0.14f, 0.12f), color, 0.18f);
-                SpawnBeam(position + new Vector3(-0.2f, 0.3f, -0.44f), position + new Vector3(0.2f, 0.3f, 0.44f), color, 0.18f);
-                SpawnBeam(position + new Vector3(-0.34f, 0.34f, 0.34f), position + new Vector3(0.34f, 0.08f, -0.34f), color, 0.18f);
+                SpawnImpactBurst(position + Vector3.up * 0.16f, Color.Lerp(color, new Color(1f, 0.55f, 0.25f), 0.5f), 1.15f, 7, 0.32f);
+                SpawnEffect(position + Vector3.up * 0.2f, color, 0.64f, 0.32f, BurstShape.Impact);
                 return;
             }
 
             if (deathCueStyle == CreepDeathCueStyle.ShardScatter)
             {
-                SpawnBeam(position + new Vector3(-0.46f, 0.12f, 0f), position + new Vector3(-0.12f, 0.24f, 0.36f), color, 0.12f);
-                SpawnBeam(position + new Vector3(0.42f, 0.12f, 0.04f), position + new Vector3(0.1f, 0.24f, -0.38f), color, 0.12f);
-                SpawnBeam(position + new Vector3(0f, 0.12f, -0.48f), position + new Vector3(0.34f, 0.24f, -0.12f), color, 0.12f);
-                SpawnBeam(position + new Vector3(0f, 0.12f, 0.48f), position + new Vector3(-0.34f, 0.24f, 0.12f), color, 0.12f);
+                SpawnImpactBurst(position + Vector3.up * 0.12f, Color.Lerp(color, new Color(0.72f, 1f, 0.86f), 0.5f), 0.8f, 6, 0.24f);
+                SpawnEffect(position + Vector3.up * 0.16f, color, 0.5f, 0.26f, BurstShape.Impact);
                 return;
             }
 
             if (deathCueStyle == CreepDeathCueStyle.SoftDissolve)
             {
-                SpawnBeam(position + new Vector3(-0.3f, 0.2f, -0.3f), position + new Vector3(0.3f, 0.2f, 0.3f), color, 0.2f);
-                SpawnBeam(position + new Vector3(-0.3f, 0.2f, 0.3f), position + new Vector3(0.3f, 0.2f, -0.3f), color, 0.2f);
+                var pale = Color.Lerp(color, new Color(0.72f, 0.84f, 0.95f), 0.6f);
+                SpawnImpactBurst(position + Vector3.up * 0.14f, new Color(pale.r, pale.g, pale.b, 0.6f), 0.7f, 0, 0.3f);
+                SpawnEffect(position + Vector3.up * 0.14f, color, 0.32f, 0.3f);
                 return;
             }
 
-            SpawnBeam(position + new Vector3(-0.38f, 0.16f, 0f), position + new Vector3(0.38f, 0.16f, 0f), color, 0.14f);
-            SpawnBeam(position + new Vector3(0f, 0.16f, -0.38f), position + new Vector3(0f, 0.16f, 0.38f), color, 0.14f);
-            SpawnBeam(position + new Vector3(-0.24f, 0.22f, -0.24f), position + new Vector3(0.24f, 0.22f, 0.24f), color, 0.14f);
+            SpawnImpactBurst(position + Vector3.up * 0.14f, color, 0.85f, 6, 0.26f);
+            SpawnEffect(position + Vector3.up * 0.18f, color, 0.46f, 0.24f, BurstShape.Impact);
         }
 
         /// <summary>
@@ -580,40 +830,39 @@ namespace LTW.UnityClient.Simulation
         }
 
         /// <summary>
-        /// A short bright streak that does not span the whole distance, plus a casing thrown clear.
-        /// Gatling's tracer.
+        /// A round in flight plus a casing thrown clear. Gatling's tracer.
         /// </summary>
         /// <remarks>
-        /// Deliberately fewer objects than the generic tail it replaces (two beams, two bursts and a
-        /// cell frame). Gatling fires every tick, which makes it the one tower here where the effect
-        /// could plausibly cost real frame time on a phone.
+        /// The fastest, shortest dart in the roster and the only one with no trail: Gatling fires
+        /// every tick, the trail is a second quad per shot, and a tracer round is a dot with a
+        /// direction rather than a comet. The mid-gap static beam it replaces was already meant
+        /// to read as "a round in flight, not a rod" — at 0.1s sampling it was a rod anyway.
         /// </remarks>
         private void SpawnTracerShot(Vector3 muzzle, Vector3 target, Color color, WeaponStyle style)
         {
             var direction = (target - muzzle).normalized;
-            var distance = Vector3.Distance(muzzle, target);
-            // A round in flight, not a rod connecting the barrel to the target: the tracer covers
-            // the middle of the gap and leaves both ends open.
-            var from = muzzle + direction * (distance * 0.28f);
-            var to = muzzle + direction * (distance * 0.78f);
-            SpawnBeam(from, to, color, style.Duration * 0.7f, style.Width * 0.8f, style.Intensity * 1.25f);
+            LaunchProjectile(muzzle, target, color, style.Intensity * 1.25f, new ProjectileShape(style.Width * 0.7f, 0.36f, 0f, ProjectileFlightSeconds * 0.75f), 0.34f, 3);
             SpawnEffect(muzzle, color, 0.26f, 0.07f, BurstShape.Muzzle, direction);
 
-            // Ejected sideways and slightly up, brass rather than muzzle-coloured.
-            var eject = Vector3.Cross(direction, Vector3.up).normalized * 0.3f + Vector3.up * 0.12f;
-            SpawnBeam(muzzle, muzzle + eject, new Color(0.85f, 0.68f, 0.32f), style.Duration * 0.55f, 0.05f, 0.8f);
+            // Ejected sideways and slightly up, brass rather than muzzle-coloured — a spark now,
+            // so it tumbles clear instead of standing as a short stick beside the barrel.
+            var eject = Vector3.Cross(direction, Vector3.up).normalized + Vector3.up * 0.4f;
+            SpawnSpark(muzzle, eject, new Color(0.85f, 0.68f, 0.32f), 0.04f, 0.14f, 1.6f, style.Duration * 1.4f, 0.9f);
         }
 
         /// <summary>
         /// One heavy short round with a hard muzzle flash behind it. Barricade's slug.
         /// </summary>
+        /// <remarks>
+        /// The widest dart, short and with a short trail; its impact (ring and five sparks) lands
+        /// with it rather than being raised here at fire time.
+        /// </remarks>
         private void SpawnSlugShot(Vector3 muzzle, Vector3 target, Color color, WeaponStyle style)
         {
             var direction = (target - muzzle).normalized;
-            SpawnBeam(muzzle, target, color, style.Duration, style.Width * 1.5f, style.Intensity);
+            LaunchProjectile(muzzle, target, color, style.Intensity, new ProjectileShape(style.Width * 1.1f, 0.44f, 0.4f, ProjectileFlightSeconds), 0.6f, 5);
             // Recoil reads as a flash driven back past the barrel, opposite the shot.
             SpawnEffect(muzzle - direction * 0.12f, color, 0.4f, 0.11f, BurstShape.Muzzle, -direction);
-            SpawnEffect(target, color, 0.36f, 0.12f);
         }
 
         /// <summary>
@@ -652,16 +901,24 @@ namespace LTW.UnityClient.Simulation
             }
         }
 
+        /// <summary>A pulse on a cell: a ring opening from the cell centre and fading. Build, sell, arrival.</summary>
+        /// <remarks>
+        /// Was four beams drawn as a square outline — the square bracket the render review's
+        /// frames carried on the build cell, the sell cell, the arrival gate and, until Wave 5,
+        /// every hit cell. A square drawn in beams says "selection gizmo" whatever its colour. A
+        /// ring opening at the same spot says the same thing — THIS cell — as motion rather than
+        /// markup. Keeps its name and signature: RenderEvents (not this pass's file) calls it for
+        /// build and sell. Draws under ReducedEffects too: it is one instanced quad, and a build
+        /// confirmation is worth more at that setting, not less.
+        /// </remarks>
         private void SpawnCellFrameCue(Vector3 center, Color color, float duration)
         {
-            var northWest = center + new Vector3(-0.48f, 0.18f, 0.48f);
-            var northEast = center + new Vector3(0.48f, 0.18f, 0.48f);
-            var southWest = center + new Vector3(-0.48f, 0.18f, -0.48f);
-            var southEast = center + new Vector3(0.48f, 0.18f, -0.48f);
-            SpawnBeam(northWest, northEast, color, duration);
-            SpawnBeam(southWest, southEast, color, duration);
-            SpawnBeam(northWest, southWest, color, duration);
-            SpawnBeam(northEast, southEast, color, duration);
+            if (!IsOnActiveLane(center))
+            {
+                return;
+            }
+
+            SpawnExpandingRingCore(center + Vector3.up * 0.12f, new Color(color.r, color.g, color.b, 0.7f), 0.45f, 1.1f, Mathf.Max(0.15f, duration + 0.08f), BoardRenderResources.MechanicRingMesh);
         }
 
         /// <summary>The line across the gate a leaking creep just crossed.</summary>
@@ -674,6 +931,18 @@ namespace LTW.UnityClient.Simulation
         ///
         /// One burst and one line reads as a thing crossing a threshold. Two bursts and a line
         /// reads as a mess in the shape of a leak.
+        ///
+        /// Finding #8 (2026-09-01 render review) described this as "an orange square outline",
+        /// which does not match what this method draws (one line, not a square) — most likely the
+        /// capture it was written from also caught a nearby tower's SpawnCellFrameCue firing on
+        /// the same frame. Left as the bare line: a leaking creep is just another key that drops
+        /// out of the snapshot, so it now gets the same BeginCreepDying shrink/sink send-off a
+        /// kill gets (see ReleaseMissingCreeps, Pooling.cs) with no leak-specific wiring needed,
+        /// and RenderEvents already raises a 0.6-scale BurstShape.Sweep at the creep's own
+        /// position for every leak. Between those two, one thin gate line reading as "something
+        /// crossed here" is enough; a second burst or ring stacked on top of an
+        /// already-Sweep-bursting, now visibly-sinking creep would be the over-build this task
+        /// explicitly warned against, not an improvement.
         /// </remarks>
         private void SpawnLeakGateCue(int laneId)
         {
@@ -767,7 +1036,7 @@ namespace LTW.UnityClient.Simulation
             // else's lane is 12% of all board text and nothing the player can act on.
             if (simulationDriver != null && queued.SenderId.Equals(simulationDriver.LocalPlayerId))
             {
-                SpawnFloatingText(senderPosition + Vector3.left * 0.42f, "SEND", color, 0.42f);
+                SpawnFloatingText(senderPosition + Vector3.left * 0.42f, BoardLabelKind.Send, "SEND", color, 0.42f);
             }
             // The large "{qty}x {NAME}" spawn banner over the defender's gate was removed: it
             // dominated the top of the board and duplicated information the send dock already
@@ -776,13 +1045,20 @@ namespace LTW.UnityClient.Simulation
             audioDirector.Play(LTWAudioCue.CreepSent);
         }
 
-        /// <summary>One animating board label: where it started, when, and for how long.</summary>
-        private readonly struct FloatingLabel
+        /// <summary>One animating board label: what it is, where it started, when, and for how long.</summary>
+        /// <remarks>
+        /// A class rather than the struct it used to be because a merge rewrites it in place —
+        /// amount, text, clock — and the list would otherwise have to swap the whole entry out.
+        /// </remarks>
+        private sealed class FloatingLabel
         {
-            public FloatingLabel(GameObject @object, TMPro.TextMeshPro label, float spawnedAt, float duration)
+            public FloatingLabel(GameObject @object, TMPro.TextMeshPro label, BoardLabelKind kind, int amount, Vector3 anchor, float spawnedAt, float duration)
             {
                 Object = @object;
                 Label = label;
+                Kind = kind;
+                Amount = amount;
+                Anchor = anchor;
                 Origin = @object.transform.position;
                 SpawnedAt = spawnedAt;
                 Duration = duration;
@@ -790,9 +1066,37 @@ namespace LTW.UnityClient.Simulation
 
             public GameObject Object { get; }
             public TMPro.TextMeshPro Label { get; }
+            public BoardLabelKind Kind { get; }
+
+            /// <summary>Running total for an amount kind; meaningless for free text.</summary>
+            public int Amount { get; private set; }
+
+            /// <summary>The event position the label was asked for, before lift and stacking. What neighbour tests measure against.</summary>
+            public Vector3 Anchor { get; }
+
+            /// <summary>Where the rise starts: the anchor plus lift plus any stacking offset.</summary>
             public Vector3 Origin { get; }
-            public float SpawnedAt { get; }
-            public float Duration { get; }
+
+            public float SpawnedAt { get; private set; }
+            public float Duration { get; private set; }
+
+            /// <summary>Folds a same-kind label into this one: new total, new wording, clock restarted.</summary>
+            /// <remarks>
+            /// The clock restarts from now rather than extending, so the rise and the scale punch
+            /// replay from the origin — on a label at most 0.2s old that is a jump of under 0.15
+            /// units, and it reads as the number ticking up. The longer of the two durations is
+            /// kept so a merge never shortens a label.
+            /// </remarks>
+            public void Absorb(int amount, string text, float now, float duration)
+            {
+                Amount += amount;
+                SpawnedAt = now;
+                Duration = Mathf.Max(Duration, duration);
+                if (Label != null)
+                {
+                    Label.text = text;
+                }
+            }
         }
     }
 }

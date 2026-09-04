@@ -9,8 +9,9 @@ using UnityEngine;
 namespace LTW.UnityClient.Simulation
 {
     /// <summary>
-    /// World VFX: particle bursts, weapon beams, expanding rings, mortar shells in flight,
-    /// spore fog, and the per-tower mechanic markers and servicing tethers.
+    /// World VFX: particle bursts, weapon beams, projectile darts and impact sparks, expanding
+    /// rings, mortar shells in flight, spore fog, and the per-tower mechanic markers and
+    /// servicing tethers.
     /// </summary>
     public sealed partial class UnityVerticalSliceRenderer
     {
@@ -82,7 +83,9 @@ namespace LTW.UnityClient.Simulation
         {
             if (PresentationPreferences.ReducedEffects)
             {
-                SpawnFloatingText(position + Vector3.up * 0.18f, label, color, 0.5f);
+                // BoardLabelKind.Text: a cue word never merges, so this path only gains the
+                // stacking every label gets; two "LEAK"s in one tick are still two "LEAK"s.
+                SpawnFloatingText(position + Vector3.up * 0.18f, BoardLabelKind.Text, label, color, 0.5f);
             }
         }
 
@@ -290,11 +293,439 @@ namespace LTW.UnityClient.Simulation
                 return;
             }
 
-            var ring = GetPooledShockwaveRing();
+            SpawnExpandingRingCore(position, color, startScale, endScale, duration, BoardRenderResources.ContactShadowMesh);
+        }
+
+        /// <summary>
+        /// The ring itself, with no ReducedEffects gate. The impact bursts below call this
+        /// directly because a ring is the one part of an impact that reduced mode KEEPS — it is
+        /// the cheapest tell there is (one instanced quad) and without it a reduced-mode hit has
+        /// no location at all.
+        /// </summary>
+        /// <param name="mesh">
+        /// <see cref="BoardRenderResources.ContactShadowMesh"/> for the soft filled disc every
+        /// pre-existing caller draws; <see cref="BoardRenderResources.MechanicRingMesh"/> for a
+        /// true annulus — the impact rings use it, because a shockwave that leaves its centre
+        /// clear reads as a wave leaving the hit point rather than a glow sitting on it.
+        /// </param>
+        private void SpawnExpandingRingCore(Vector3 position, Color color, float startScale, float endScale, float duration, Mesh mesh)
+        {
+            var ring = GetPooledShockwaveRing(mesh);
             ring.transform.position = position;
             ring.transform.localScale = new Vector3(startScale, 1f, startScale);
             SetColor(ring, color);
             activeShockwaveRings.Add(new ExpandingRingEffect(ring, Time.time, duration, startScale, endScale, color));
+        }
+
+        // ------------------------------------------------------------------ combat streaks
+        //
+        // Finding #8 / R4 (render review 2026-09-01, re-judged 2026-09-02): every combat frame
+        // was a one-frame straight beam from tower to creep, a crossed X at the kill and a square
+        // bracket on the tower. Three primitives replace that vocabulary, all drawn on the one
+        // wedge mesh in CombatVfxResources and all pooled through combatQuadPool:
+        //   - a PROJECTILE: a dart travelling muzzle -> hit over ~0.12s with a fading trail;
+        //   - a SPARK: a short wedge thrown outward from a point, easing out and fading;
+        //   - an IMPACT BURST: a small expanding ring plus a fan of sparks.
+        // Nothing here allocates per frame: the structs live in reusable lists, the material
+        // instance is made once per pooled object, and the per-frame writes are SetColor calls on
+        // that instance.
+
+        /// <summary>The pooled wedge quads behind projectiles, trails and sparks. One pool: they are the same object.</summary>
+        private readonly Queue<GameObject> combatQuadPool = new Queue<GameObject>();
+
+        private readonly List<ProjectileEffect> activeProjectiles = new List<ProjectileEffect>();
+        private readonly List<SparkEffect> activeSparks = new List<SparkEffect>();
+
+        /// <summary>Safety nets in the spirit of <see cref="MaxLiveBeams"/>: a pathological frame drops rather than grows.</summary>
+        private const int MaxLiveProjectiles = 400;
+        private const int MaxLiveSparks = 1200;
+
+        /// <summary>
+        /// Seconds a dart takes from muzzle to target. Distance-independent on purpose: at 4
+        /// ticks a second the hit has already been booked when the shot is drawn, so a long shot
+        /// that took longer to arrive would land visibly after its own damage.
+        /// </summary>
+        private const float ProjectileFlightSeconds = 0.12f;
+
+        /// <summary>
+        /// How one line's dart is shaped. Width and length in world units, trail as a length
+        /// behind the head. See <see cref="ProjectileFor"/>.
+        /// </summary>
+        private readonly struct ProjectileShape
+        {
+            public ProjectileShape(float width, float length, float trailLength, float duration)
+            {
+                Width = width;
+                Length = length;
+                TrailLength = trailLength;
+                Duration = duration;
+            }
+
+            public float Width { get; }
+            public float Length { get; }
+            public float TrailLength { get; }
+            public float Duration { get; }
+
+            public ProjectileShape Scaled(float width, float length) =>
+                new ProjectileShape(Width * width, Length * length, TrailLength * length, Duration);
+        }
+
+        /// <summary>
+        /// The dart each line fires, sized from the line's beam style so tier width boosts carry
+        /// over: Arcane a thin fast lance, Foundry a shorter hotter tracer, Grove a rounder slower
+        /// seed.
+        /// </summary>
+        private static ProjectileShape ProjectileFor(TowerLine line, WeaponStyle style) => line switch
+        {
+            TowerLine.Foundry => new ProjectileShape(style.Width * 0.75f, 0.5f, 0.55f, ProjectileFlightSeconds * 0.9f),
+            TowerLine.Grove => new ProjectileShape(style.Width * 0.6f, 0.4f, 0.4f, ProjectileFlightSeconds * 1.25f),
+            _ => new ProjectileShape(style.Width, 0.64f, 0.7f, ProjectileFlightSeconds)
+        };
+
+        /// <summary>
+        /// Fires a dart from <paramref name="from"/> to <paramref name="to"/>. On arrival it raises
+        /// an impact burst of <paramref name="impactScale"/> (0 for none) with
+        /// <paramref name="impactSparks"/> sparks, so the hit lands WITH the shot rather than a
+        /// flight-time before it.
+        /// </summary>
+        /// <remarks>
+        /// Not gated on ReducedEffects: the projectile is the whole tell of a shot and reduced
+        /// mode used to lose it entirely (SpawnBeam early-outs). Reduced mode drops the trail,
+        /// which is the second quad, and its impact keeps the ring only.
+        /// </remarks>
+        private bool SpawnProjectile(Vector3 from, Vector3 to, Color color, float intensity, ProjectileShape shape, float impactScale, int impactSparks)
+        {
+            if (!IsOnActiveLane(Vector3.Lerp(from, to, 0.5f)) || activeProjectiles.Count >= MaxLiveProjectiles)
+            {
+                return false;
+            }
+
+            var head = GetPooledCombatQuad("Projectile", out var headMaterial);
+            ConfigureStreakMaterial(headMaterial, color, intensity, 0.55f, 1f);
+
+            GameObject trail = null;
+            Material trailMaterial = null;
+            if (!PresentationPreferences.ReducedEffects && shape.TrailLength > 0f)
+            {
+                trail = GetPooledCombatQuad("ProjectileTrail", out trailMaterial);
+                // Bright where it meets the dart, nothing at its point: the mesh is turned round
+                // in UpdateProjectiles so that point trails behind.
+                ConfigureStreakMaterial(trailMaterial, color, intensity * 0.7f, 0.9f, 0f);
+            }
+
+            var effect = new ProjectileEffect(head, headMaterial, trail, trailMaterial, from, to, Time.time, shape, color, impactScale, impactSparks);
+            activeProjectiles.Add(effect);
+            // Placed now rather than on the next Update, so the shot exists on the frame it fires.
+            PlaceProjectile(effect, 0f, StreakViewDirection(from));
+            return true;
+        }
+
+        private void UpdateProjectiles()
+        {
+            for (var index = activeProjectiles.Count - 1; index >= 0; index--)
+            {
+                var projectile = activeProjectiles[index];
+                var t = Mathf.Clamp01((Time.time - projectile.StartTime) / Mathf.Max(0.01f, projectile.Shape.Duration));
+                if (t < 1f)
+                {
+                    PlaceProjectile(projectile, t, StreakViewDirection(projectile.To));
+                    continue;
+                }
+
+                ReleaseToPool(projectile.Head, combatQuadPool);
+                if (projectile.Trail != null)
+                {
+                    ReleaseToPool(projectile.Trail, combatQuadPool);
+                }
+
+                activeProjectiles.RemoveAt(index);
+
+                if (projectile.ImpactScale > 0f)
+                {
+                    SpawnImpactBurst(projectile.To, projectile.Color, projectile.ImpactScale, projectile.ImpactSparks, 0.22f);
+                }
+            }
+        }
+
+        /// <summary>Puts a dart and its trail where they are at progress <paramref name="t"/> along the flight.</summary>
+        private void PlaceProjectile(in ProjectileEffect projectile, float t, Vector3 toCamera)
+        {
+            var span = projectile.To - projectile.From;
+            var direction = span.sqrMagnitude > 0.0001f ? span.normalized : Vector3.forward;
+            var headTip = Vector3.Lerp(projectile.From, projectile.To, t);
+            var rotation = StreakRotation(direction, toCamera);
+
+            // Wide end at the back, point forward. The mesh's point sits at local +Z 0.5, so the
+            // centre is half a length behind the tip.
+            var length = projectile.Shape.Length;
+            projectile.Head.transform.position = headTip - direction * (length * 0.5f);
+            projectile.Head.transform.rotation = rotation;
+            projectile.Head.transform.localScale = new Vector3(projectile.Shape.Width, 1f, length);
+
+            // Solid for most of the flight, gone by the time it lands so the ring takes over.
+            var fade = 1f - Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(0.82f, 1f, t));
+            SetStreakAlpha(projectile.HeadMaterial, projectile.Color, fade);
+
+            if (projectile.Trail == null)
+            {
+                return;
+            }
+
+            // The trail never reaches back past the muzzle: its length is the distance flown,
+            // capped at the shape's trail length.
+            var flown = Vector3.Distance(projectile.From, headTip);
+            var trailLength = Mathf.Min(projectile.Shape.TrailLength, Mathf.Max(0.02f, flown));
+            var trailStart = headTip - direction * (length * 0.85f);
+            projectile.Trail.transform.position = trailStart - direction * (trailLength * 0.5f);
+            projectile.Trail.transform.rotation = StreakRotation(-direction, toCamera);
+            projectile.Trail.transform.localScale = new Vector3(projectile.Shape.Width * 0.9f, 1f, trailLength);
+            SetStreakAlpha(projectile.TrailMaterial, projectile.Color, fade * 0.75f);
+        }
+
+        /// <summary>
+        /// One short wedge thrown from <paramref name="origin"/> along <paramref name="direction"/>,
+        /// easing out and fading over <paramref name="duration"/>.
+        /// </summary>
+        private void SpawnSpark(Vector3 origin, Vector3 direction, Color color, float width, float length, float speed, float duration, float intensity)
+        {
+            if (PresentationPreferences.ReducedEffects || activeSparks.Count >= MaxLiveSparks)
+            {
+                return;
+            }
+
+            var quad = GetPooledCombatQuad("Spark", out var material);
+            ConfigureStreakMaterial(material, color, intensity, 0.7f, 1f);
+            var spark = new SparkEffect(quad, material, origin, direction.sqrMagnitude > 0.0001f ? direction.normalized : Vector3.up, Time.time, duration, color, width, length, speed);
+            activeSparks.Add(spark);
+            PlaceSpark(spark, 0f, StreakViewDirection(origin));
+        }
+
+        private void UpdateSparks()
+        {
+            for (var index = activeSparks.Count - 1; index >= 0; index--)
+            {
+                var spark = activeSparks[index];
+                var t = Mathf.Clamp01((Time.time - spark.StartTime) / Mathf.Max(0.01f, spark.Duration));
+                if (t < 1f)
+                {
+                    PlaceSpark(spark, t, StreakViewDirection(spark.Origin));
+                    continue;
+                }
+
+                ReleaseToPool(spark.Object, combatQuadPool);
+                activeSparks.RemoveAt(index);
+            }
+        }
+
+        private void PlaceSpark(in SparkEffect spark, float t, Vector3 toCamera)
+        {
+            // Ease-out: most of the travel happens in the first half, the way debris decelerates.
+            var eased = 1f - (1f - t) * (1f - t);
+            var tip = spark.Origin + spark.Direction * (spark.Speed * spark.Duration * eased);
+            // Shortens as it slows, so a spark at rest is a dot rather than a stuck line.
+            var length = spark.Length * Mathf.Lerp(1f, 0.35f, t);
+            spark.Object.transform.position = tip - spark.Direction * (length * 0.5f);
+            spark.Object.transform.rotation = StreakRotation(spark.Direction, toCamera);
+            spark.Object.transform.localScale = new Vector3(spark.Width, 1f, length);
+            SetStreakAlpha(spark.Material, spark.Color, Mathf.Pow(1f - t, 1.5f));
+        }
+
+        /// <summary>
+        /// The radial impact: a small expanding ring on the ground plane plus
+        /// <paramref name="sparkCount"/> sparks fanned outward and slightly upward from the hit
+        /// point, reading over ~6 frames at <paramref name="duration"/>.
+        /// </summary>
+        /// <remarks>
+        /// Replaces SpawnCreepHitCue's crossed beams and SpawnCreepDeathCue's shard beams — a
+        /// top-down camera reads any two lines meeting at a point as an X, the "asset failed to
+        /// load" glyph, and every variant of that arrangement tried so far read the same way.
+        /// Under ReducedEffects the ring is all that draws (SpawnSpark early-outs), so a reduced
+        /// hit still has a place.
+        /// </remarks>
+        private void SpawnImpactBurst(Vector3 position, Color color, float scale, int sparkCount, float duration)
+        {
+            if (!IsOnActiveLane(position))
+            {
+                return;
+            }
+
+            var ringColor = new Color(color.r, color.g, color.b, color.a * 0.85f);
+            SpawnExpandingRingCore(position + Vector3.up * 0.06f, ringColor, scale * 0.18f, scale, duration, BoardRenderResources.MechanicRingMesh);
+
+            if (sparkCount <= 0)
+            {
+                return;
+            }
+
+            // Evenly spaced round the hit with a little jitter, so a burst is a fan rather than
+            // either a regular star or a clump.
+            var step = 360f / sparkCount;
+            var phase = UnityEngine.Random.Range(0f, 360f);
+            for (var index = 0; index < sparkCount; index++)
+            {
+                var yaw = phase + step * index + UnityEngine.Random.Range(-step * 0.25f, step * 0.25f);
+                var flat = Quaternion.Euler(0f, yaw, 0f) * Vector3.forward;
+                var direction = (flat + Vector3.up * UnityEngine.Random.Range(0.2f, 0.55f)).normalized;
+                SpawnSpark(
+                    position + Vector3.up * 0.1f,
+                    direction,
+                    color,
+                    scale * UnityEngine.Random.Range(0.07f, 0.1f),
+                    scale * UnityEngine.Random.Range(0.32f, 0.48f),
+                    scale * UnityEngine.Random.Range(2.4f, 3.4f),
+                    duration * UnityEngine.Random.Range(0.85f, 1.15f),
+                    1.3f);
+            }
+        }
+
+        /// <summary>Which way the camera is from a world point, for billboarding a streak toward it.</summary>
+        /// <remarks>
+        /// The board camera is orthographic (UnityVerticalSliceRenderer.Camera.cs), so this is one
+        /// direction for every point and the per-object call costs a property read. Perspective
+        /// is handled anyway so a debug camera does not draw every streak edge-on.
+        /// </remarks>
+        private Vector3 StreakViewDirection(Vector3 at)
+        {
+            var camera = presentationCamera != null ? presentationCamera : Camera.main;
+            if (camera == null)
+            {
+                return Vector3.up;
+            }
+
+            return camera.orthographic ? -camera.transform.forward : camera.transform.position - at;
+        }
+
+        /// <summary>
+        /// Local +Z along <paramref name="direction"/>, local +Y (the wedge's normal) as close to
+        /// the camera as that allows — the wedge lies flat to the view along its travel axis.
+        /// </summary>
+        private static Quaternion StreakRotation(Vector3 direction, Vector3 toCamera)
+        {
+            var up = Vector3.Cross(Vector3.Cross(direction, toCamera), direction);
+            if (up.sqrMagnitude < 0.000001f)
+            {
+                up = Vector3.up;
+            }
+
+            return Quaternion.LookRotation(direction, up);
+        }
+
+        private static void ConfigureStreakMaterial(Material material, Color color, float intensity, float wideGlow, float pointGlow)
+        {
+            if (material == null)
+            {
+                return;
+            }
+
+            material.color = color;
+            if (material.HasProperty("_Color")) material.SetColor("_Color", color);
+            if (material.HasProperty("_CoreColor")) material.SetColor("_CoreColor", Color.Lerp(color, Color.white, 0.75f));
+            if (material.HasProperty("_Intensity")) material.SetFloat("_Intensity", intensity);
+            if (material.HasProperty("_WideGlow")) material.SetFloat("_WideGlow", wideGlow);
+            if (material.HasProperty("_PointGlow")) material.SetFloat("_PointGlow", pointGlow);
+        }
+
+        private static void SetStreakAlpha(Material material, Color color, float alpha)
+        {
+            if (material == null)
+            {
+                return;
+            }
+
+            var faded = new Color(color.r, color.g, color.b, color.a * Mathf.Clamp01(alpha));
+            material.color = faded;
+            if (material.HasProperty("_Color")) material.SetColor("_Color", faded);
+        }
+
+        /// <summary>
+        /// Takes a wedge quad from the pool, handing back the material instance it was built
+        /// with so the per-frame fades write to it directly rather than re-fetching
+        /// <c>renderer.material</c>.
+        /// </summary>
+        private GameObject GetPooledCombatQuad(string name, out Material material)
+        {
+            GameObject quad;
+            if (combatQuadPool.Count > 0)
+            {
+                quad = combatQuadPool.Dequeue();
+                quad.name = name;
+                quad.SetActive(true);
+                material = quad.TryGetComponent<Renderer>(out var pooledRenderer) ? pooledRenderer.sharedMaterial : null;
+                return quad;
+            }
+
+            quad = new GameObject(name);
+            quad.AddComponent<MeshFilter>().sharedMesh = CombatVfxResources.TaperedQuadMesh;
+            var renderer = quad.AddComponent<MeshRenderer>();
+            // One material per pooled quad, assigned as sharedMaterial so nothing here ever
+            // triggers a lazy clone; colour and alpha differ per shot and per frame, which is why
+            // the quads cannot share one.
+            material = CombatVfxResources.CreateStreakMaterial("LTW Combat Streak");
+            renderer.sharedMaterial = material;
+            renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            renderer.receiveShadows = false;
+            renderer.lightProbeUsage = UnityEngine.Rendering.LightProbeUsage.Off;
+            renderer.reflectionProbeUsage = UnityEngine.Rendering.ReflectionProbeUsage.Off;
+            return quad;
+        }
+
+        /// <summary>A dart in flight: the head wedge, its optional trail, and what to raise when it lands.</summary>
+        private readonly struct ProjectileEffect
+        {
+            public ProjectileEffect(GameObject head, Material headMaterial, GameObject trail, Material trailMaterial, Vector3 from, Vector3 to, float startTime, ProjectileShape shape, Color color, float impactScale, int impactSparks)
+            {
+                Head = head;
+                HeadMaterial = headMaterial;
+                Trail = trail;
+                TrailMaterial = trailMaterial;
+                From = from;
+                To = to;
+                StartTime = startTime;
+                Shape = shape;
+                Color = color;
+                ImpactScale = impactScale;
+                ImpactSparks = impactSparks;
+            }
+
+            public GameObject Head { get; }
+            public Material HeadMaterial { get; }
+            public GameObject Trail { get; }
+            public Material TrailMaterial { get; }
+            public Vector3 From { get; }
+            public Vector3 To { get; }
+            public float StartTime { get; }
+            public ProjectileShape Shape { get; }
+            public Color Color { get; }
+            public float ImpactScale { get; }
+            public int ImpactSparks { get; }
+        }
+
+        private readonly struct SparkEffect
+        {
+            public SparkEffect(GameObject @object, Material material, Vector3 origin, Vector3 direction, float startTime, float duration, Color color, float width, float length, float speed)
+            {
+                Object = @object;
+                Material = material;
+                Origin = origin;
+                Direction = direction;
+                StartTime = startTime;
+                Duration = duration;
+                Color = color;
+                Width = width;
+                Length = length;
+                Speed = speed;
+            }
+
+            public GameObject Object { get; }
+            public Material Material { get; }
+            public Vector3 Origin { get; }
+            public Vector3 Direction { get; }
+            public float StartTime { get; }
+            public float Duration { get; }
+            public Color Color { get; }
+            public float Width { get; }
+            public float Length { get; }
+            public float Speed { get; }
         }
 
         /// <summary>
@@ -326,7 +757,7 @@ namespace LTW.UnityClient.Simulation
             SetColor(shell, MortarShellColor);
 
             // A ring that contracts onto the impact cell, so its size reads as a countdown.
-            var telegraph = GetPooledShockwaveRing();
+            var telegraph = GetPooledShockwaveRing(BoardRenderResources.ContactShadowMesh);
             telegraph.transform.position = to + Vector3.up * 0.02f;
             telegraph.transform.localScale = new Vector3(MortarTelegraphStartScale, 1f, MortarTelegraphStartScale);
             SetColor(telegraph, MortarTelegraphColor);
@@ -410,7 +841,14 @@ namespace LTW.UnityClient.Simulation
 
             if (!towerMechanicMarkers.TryGetValue(key, out var marker) || marker == null)
             {
-                marker = GetPooledShockwaveRing();
+                // GetPooledMechanicDecal, not GetPooledShockwaveRing: this is a standing zone
+                // marker, not a transient burst, and finding #5 (2026-09-01 render review) asked
+                // for standing mechanic decals to read as a crisp inset ring rather than a soft
+                // glow. See MechanicDecalMaterial's remark for why that means a separate pool too.
+                // Filled disc, not MechanicRingMesh: the bond ring's whole read is that it reaches
+                // the neighbours it is bonded to (see the scale remark below), and R8b asked for
+                // its alpha alone to move.
+                marker = GetPooledMechanicDecal(BoardRenderResources.ContactShadowMesh);
                 marker.name = $"TowerMechanicMarker_{key}";
                 towerMechanicMarkers[key] = marker;
             }
@@ -443,13 +881,24 @@ namespace LTW.UnityClient.Simulation
             // Width is what fixed that invisibility, not alpha, which is why the alpha floor could
             // come back down to 0.15 without reopening it: the ring is over twice as wide as the one
             // that vanished, and it now sits above the build plates rather than under them.
+            //
+            // Finding #5 (2026-09-01 render review): 0.15 read as part of the same soft-decal mush
+            // as every other ground mark, at exactly the bonus-of-1 case that comment calls the
+            // common one. Raised to 0.32 so a freshly-bonded sapling is legible without a capture to
+            // find it, still ramping up to the (now brighter) GrovebondMarkerColor ceiling as the
+            // bonus grows — the ramp itself is unchanged, only its ends moved.
+            //
+            // R8b (re-audit 2026-09-02, OPEN_ITEMS item 53): the ceiling came back down to 0.30
+            // (see GrovebondMarkerColor), so the floor moved with it in the same proportion,
+            // 0.32 -> 0.18. Floor above ceiling would have inverted the ramp; the ramp's SHAPE
+            // (bonus 1 -> 3 spans floor -> ceiling) is what "keep the ramp" preserves.
             var scale = Mathf.Lerp(1.25f, 1.9f, (bonus - 1) / 2f);
             marker.transform.localScale = new Vector3(scale, 1f, scale);
             SetColor(marker, new Color(
                 GrovebondMarkerColor.r,
                 GrovebondMarkerColor.g,
                 GrovebondMarkerColor.b,
-                Mathf.Lerp(0.15f, GrovebondMarkerColor.a, (bonus - 1) / 2f)));
+                Mathf.Lerp(0.18f, GrovebondMarkerColor.a, (bonus - 1) / 2f)));
         }
 
         /// <summary>
@@ -684,7 +1133,18 @@ namespace LTW.UnityClient.Simulation
 
                         if (!brambleCellDecals.TryGetValue(key, out var decal) || decal == null)
                         {
-                            decal = GetPooledShockwaveRing();
+                            // GetPooledMechanicDecal, not GetPooledShockwaveRing — see that pool's
+                            // remark: a standing braked-cell marker is meant to read as a crisp
+                            // hatched cell (finding #5, 2026-09-01), not the soft transient glow
+                            // shockwave bursts use.
+                            //
+                            // MechanicRingMesh, not the filled ContactShadowMesh: R8a (re-audit
+                            // 2026-09-02, OPEN_ITEMS item 53) found the filled violet discs were
+                            // the loudest shapes on the board. A ring with the cell centre clear
+                            // (inner radius 65% of outer, see BoardRenderResources.MechanicRingMesh)
+                            // still marks exactly the braked cell — the honesty the per-cell
+                            // rewrite below was for — at a fraction of the painted area.
+                            decal = GetPooledMechanicDecal(BoardRenderResources.MechanicRingMesh);
                             decal.name = $"BrambleCell_{lane.Key.Value}_{cell.X}_{cell.Y}";
                             brambleCellDecals[key] = decal;
                         }
@@ -719,7 +1179,7 @@ namespace LTW.UnityClient.Simulation
             {
                 if (brambleCellDecals.TryGetValue(key, out var stale) && stale != null)
                 {
-                    ReleaseToPool(stale, shockwaveRingPool);
+                    ReleaseToPool(stale, mechanicDecalPool);
                 }
 
                 brambleCellDecals.Remove(key);
@@ -739,7 +1199,7 @@ namespace LTW.UnityClient.Simulation
 
             if (marker != null)
             {
-                ReleaseToPool(marker, shockwaveRingPool);
+                ReleaseToPool(marker, mechanicDecalPool);
             }
 
             towerMechanicMarkers.Remove(key);
@@ -747,6 +1207,18 @@ namespace LTW.UnityClient.Simulation
 
         private void UpdateExpandingRings()
         {
+            // UpdateDyingCreeps (Pooling.cs) piggybacks on this method rather than getting its own
+            // Update() hook: Update() lives in UnityVerticalSliceRenderer.cs, out of scope for
+            // this pass, but it already calls UpdateExpandingRings every frame — before the
+            // presentationDetail early return — which is exactly the unconditional per-frame
+            // timing a dying creep's shrink/sink needs. See UpdateDyingCreeps' own remark
+            // (finding #8, 2026-09-01 render review).
+            UpdateDyingCreeps();
+            // Same hook, same reason: the darts and sparks are per-frame motion and Update()
+            // is not this pass's file.
+            UpdateProjectiles();
+            UpdateSparks();
+
             for (var index = activeShockwaveRings.Count - 1; index >= 0; index--)
             {
                 var ring = activeShockwaveRings[index];
@@ -774,6 +1246,81 @@ namespace LTW.UnityClient.Simulation
             }
 
             return shockwaveRingMaterial;
+        }
+
+        /// <summary>Sharp enough to read as a stencilled edge rather than a glow — the "2-px edge"
+        /// half of finding #5's "0.5+ alpha with a 2-px edge" ask for mechanic decals.</summary>
+        private const float MechanicDecalSoftness = 0.16f;
+
+        private Material mechanicDecalMaterial;
+        private readonly Queue<GameObject> mechanicDecalPool = new Queue<GameObject>();
+
+        /// <summary>
+        /// A sharper-edged sibling of <see cref="ShockwaveRingMaterial"/>, for the STANDING mechanic
+        /// markers — Thorn's braked cells, Grovebond's bond ring — rather than transient bursts.
+        /// </summary>
+        /// <remarks>
+        /// Finding #5 (2026-09-01 render review): every soft-edged decal on the board — cast shadow,
+        /// contact shadow, owner glow, mechanic marker — blurred into the same mush, and nothing read
+        /// as a zone a player could plan around. A transient burst (<see cref="SpawnExpandingRing"/>,
+        /// the mortar telegraph) is still meant to read as a flash of light dissipating, so those keep
+        /// <see cref="ShockwaveRingMaterial"/> unchanged at 0.55 softness; a standing zone marker is
+        /// meant to read as a stencilled ring or hatched cell, so this variant uses
+        /// <see cref="MechanicDecalSoftness"/> instead. <see cref="BoardRenderResources.CreateContactShadowMaterial"/>
+        /// already takes softness as a parameter — this is that same call with a different number,
+        /// not a new shader.
+        ///
+        /// A separate material AND a separate pool (<see cref="mechanicDecalPool"/> /
+        /// <see cref="GetPooledMechanicDecal"/>), not this material swapped onto shockwaveRingPool's
+        /// objects — the same reason towerSporeFog and towerServicingTethers each keep their own pool
+        /// rather than sharing shockwaveRingPool/beamPool (see those fields' own remarks): a pooled
+        /// object here is only ever given its material once, at creation, and colour changes after
+        /// that go through <see cref="SetColor"/> (which clones whatever material the object already
+        /// has, not the caller's). Recycling a mechanic decal through the shockwave-ring pool would
+        /// hand some future burst this shader's crisp edge, or hand a future mechanic marker a soft
+        /// one, the first time the two pools' objects changed hands.
+        /// </remarks>
+        private Material MechanicDecalMaterial()
+        {
+            if (mechanicDecalMaterial == null)
+            {
+                mechanicDecalMaterial = BoardRenderResources.CreateContactShadowMaterial(
+                    "LTW Mechanic Decal",
+                    Color.white,
+                    MechanicDecalSoftness);
+            }
+
+            return mechanicDecalMaterial;
+        }
+
+        /// <param name="mesh">
+        /// <see cref="BoardRenderResources.ContactShadowMesh"/> for a filled disc (Grovebond's bond
+        /// ring), <see cref="BoardRenderResources.MechanicRingMesh"/> for an annulus (Thorn's
+        /// braked cells, R8a). Assigned on every acquire, pooled or fresh, because this pool is
+        /// shared by both shapes and a recycled object carries whichever mesh its last owner used —
+        /// the same hand-me-down hazard the material remark above records, solved here by always
+        /// restating the mesh rather than by a third pool. A sharedMesh assignment is a pointer
+        /// swap; the material is still only ever given once.
+        /// </param>
+        private GameObject GetPooledMechanicDecal(Mesh mesh)
+        {
+            if (mechanicDecalPool.Count > 0)
+            {
+                var pooled = mechanicDecalPool.Dequeue();
+                pooled.GetComponent<MeshFilter>().sharedMesh = mesh;
+                pooled.SetActive(true);
+                return pooled;
+            }
+
+            var decal = new GameObject("MechanicDecal");
+            decal.AddComponent<MeshFilter>().sharedMesh = mesh;
+            var renderer = decal.AddComponent<MeshRenderer>();
+            renderer.sharedMaterial = MechanicDecalMaterial();
+            renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            renderer.receiveShadows = false;
+            renderer.lightProbeUsage = UnityEngine.Rendering.LightProbeUsage.Off;
+            renderer.reflectionProbeUsage = UnityEngine.Rendering.ReflectionProbeUsage.Off;
+            return decal;
         }
 
         /// <summary>
@@ -859,14 +1406,43 @@ namespace LTW.UnityClient.Simulation
             return range;
         }
 
+        /// <remarks>
+        /// Finding #5 (2026-09-01 render review) asked mechanic decals generally to move toward a
+        /// crisper, higher-alpha read, and named spore fog among the things stacking on the board.
+        /// Alpha alone moved here, 0.26 -> 0.36: softness stays at 0.95 deliberately, because both
+        /// this file's own remark on <see cref="UpdateSporeFog"/> and the shader's header
+        /// (LTWSporeFog.shader) document that a spread-across-the-whole-radius gradient with no
+        /// locatable edge IS the mechanic's read — sharpening it the way <see cref="MechanicDecalMaterial"/>
+        /// does for Bramble/Grovebond would turn the range indicator into something a player could
+        /// (wrongly) read as a precise diamond boundary, which those two remarks specifically call
+        /// out as a future-me trap. Raising alpha, which only affects how STRONG the same gradient
+        /// reads, was judged to satisfy the finding's "stacking is illegible" complaint without
+        /// fighting that design.
+        ///
+        /// R8c (re-audit 2026-09-02, OPEN_ITEMS item 53): at 0.36 that gradient covered the nine
+        /// nearest cells at what read as one uniform density. The softness/churn parameters were
+        /// checked first — the falloff IS radial, and 0.95 was already the fastest relative fade
+        /// the shader's single smoothstep can make, so no number here could hold the first cell
+        /// full and drop to a fifth past it. The profile now comes from
+        /// <see cref="BoardRenderResources.SporeFogMesh"/> (UV-remapped disc; see its remark for
+        /// the table) and softness is 1 - SporeFogPlateauRadius, which is what makes the mesh's
+        /// plateau flat — the two are one setting, not two. Alpha ceiling stays 0.36: the ask
+        /// was to keep full density over the first cell, not to dim the tower's own cell. The
+        /// rim still sits exactly at the range, so the "no locatable edge" design above holds at
+        /// the boundary; there is now a visible soft shoulder at ~1.25 cells, which is the
+        /// finding's request, not a regression of it.
+        /// </remarks>
         private Material SporeFogMaterial()
         {
             if (sporeFogMaterial == null)
             {
                 sporeFogMaterial = BoardRenderResources.CreateSporeFogMaterial(
                     "LTW Spore Fog",
-                    new Color(0.42f, 0.86f, 0.34f, 0.26f),
-                    softness: 0.95f,
+                    // Second Wave 4 capture: against the now-matte, darker board (R1) the 0.36
+                    // plateau read as a bright green disc; 0.24 keeps the range legible without
+                    // being the brightest thing in the grove lane.
+                    new Color(0.42f, 0.86f, 0.34f, 0.24f),
+                    softness: 1f - BoardRenderResources.SporeFogPlateauRadius,
                     churn: 0.55f,
                     speed: 0.45f);
             }
@@ -884,7 +1460,9 @@ namespace LTW.UnityClient.Simulation
             }
 
             var fog = new GameObject("SporeFog");
-            fog.AddComponent<MeshFilter>().sharedMesh = BoardRenderResources.ContactShadowMesh;
+            // SporeFogMesh, not the flat ContactShadowMesh quad: the falloff profile lives in the
+            // mesh's UVs now (R8c, see SporeFogMaterial's remark).
+            fog.AddComponent<MeshFilter>().sharedMesh = BoardRenderResources.SporeFogMesh;
             var renderer = fog.AddComponent<MeshRenderer>();
             renderer.sharedMaterial = SporeFogMaterial();
             renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
@@ -910,17 +1488,24 @@ namespace LTW.UnityClient.Simulation
             towerSporeFog.Remove(key);
         }
 
-        private GameObject GetPooledShockwaveRing()
+        /// <param name="mesh">
+        /// Restated on every acquire, pooled or fresh, for the same reason
+        /// <see cref="GetPooledMechanicDecal"/> does it: the impact bursts draw this pool's objects
+        /// as an annulus (<see cref="BoardRenderResources.MechanicRingMesh"/>) and everything else
+        /// as the filled disc, so a recycled object carries whichever its last owner used.
+        /// </param>
+        private GameObject GetPooledShockwaveRing(Mesh mesh)
         {
             if (shockwaveRingPool.Count > 0)
             {
                 var pooled = shockwaveRingPool.Dequeue();
+                pooled.GetComponent<MeshFilter>().sharedMesh = mesh;
                 pooled.SetActive(true);
                 return pooled;
             }
 
             var ring = new GameObject("ShockwaveRing");
-            ring.AddComponent<MeshFilter>().sharedMesh = BoardRenderResources.ContactShadowMesh;
+            ring.AddComponent<MeshFilter>().sharedMesh = mesh;
             var renderer = ring.AddComponent<MeshRenderer>();
             renderer.sharedMaterial = ShockwaveRingMaterial();
             renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
@@ -952,8 +1537,23 @@ namespace LTW.UnityClient.Simulation
         /// the opacity: a shape that covers cells the brake does not is bound to look wrong at any
         /// alpha loud enough to notice. Per-cell decals cover only braked ground, so they can be
         /// legible without lying — hence the higher alpha here.
+        ///
+        /// Raised again, 0.34 -> 0.52, for finding #5 (2026-09-01 render review): "Mechanic decals
+        /// become crisp inset rings or hatched cells at 0.5+ alpha with a 2-px edge." Paired with
+        /// MechanicDecalMaterial's sharper falloff (see GetPooledMechanicDecal, now used here instead
+        /// of GetPooledShockwaveRing) rather than fought against it — a soft edge at low alpha and a
+        /// hard edge at low alpha both under-read; this decal only needed one of the two fixed to look
+        /// "too much" again, so both moved together deliberately rather than the shape fix alone
+        /// being asked to also cover the brightness gap on its own.
+        ///
+        /// R8a (re-audit 2026-09-02, OPEN_ITEMS item 53): at 0.52 with a crisp edge and a full
+        /// fill, the braked cells were the loudest shapes on the board. 0.52 -> 0.30, paired with
+        /// the disc becoming a ring (UpdateBrambleCells / BoardRenderResources.MechanicRingMesh):
+        /// same crisp edge, a third of the painted area, and an alpha that sits with the rest of
+        /// the ground marks instead of over them. Not back to the 0.15 of the "purple slab" era —
+        /// that value was compensating for the wrong shape, and the shape is now right.
         /// </remarks>
-        private static readonly Color BrambleMarkerColor = new Color(0.46f, 0.26f, 0.62f, 0.34f);
+        private static readonly Color BrambleMarkerColor = new Color(0.46f, 0.26f, 0.62f, 0.30f);
 
         /// <summary>A shade under a full cell, so adjacent braked cells read as a patch with texture
         /// rather than one flat rectangle.</summary>
@@ -973,8 +1573,23 @@ namespace LTW.UnityClient.Simulation
         /// ring visibly reaches the neighbours it is bonded to, which is the whole read of the
         /// mechanic, and it is also what made the ring legible when a narrower one was invisible
         /// under the tower mesh. Brightness is the dial that was wrong; width was not.
+        ///
+        /// Raised again, 0.30 -> 0.52, for finding #5 (2026-09-01 render review) alongside Bramble's
+        /// matching move above and the ring's move from GetPooledShockwaveRing to the sharper-edged
+        /// GetPooledMechanicDecal (see UpdateTowerMechanicMarker) — "0.5+ alpha with a 2-px edge".
+        /// UpdateTowerMechanicMarker's alpha floor for a fresh bond (bonus of 1) moved with it, 0.15
+        /// -> 0.32, so the common case this file's own comment flags is not left at the old faint
+        /// value while only the rare bonus-of-3 ceiling gets brighter.
+        ///
+        /// R8b (re-audit 2026-09-02, OPEN_ITEMS item 53): the same treatment as Bramble's move
+        /// above, 0.52 -> 0.30, for the same reason — the standing mechanic decals had become the
+        /// loudest shapes on the board. The bonus-of-1 floor in UpdateTowerMechanicMarker went
+        /// down in proportion (0.32 -> 0.18) so the ramp still spans floor -> ceiling. Shape and
+        /// scale are untouched; only brightness moved, again.
         /// </remarks>
-        private static readonly Color GrovebondMarkerColor = new Color(0.55f, 0.95f, 0.38f, 0.30f);
+        // Second Wave 4 capture: 0.30 still read as solid discs under the saplings on the darker
+        // board; 0.22 keeps the bond visible as a tint rather than a shape.
+        private static readonly Color GrovebondMarkerColor = new Color(0.55f, 0.95f, 0.38f, 0.22f);
 
         // Repair Drone Spire's own catalog accent (TowerCatalog.cs, id 9, label "DRONE"), reused here
         // rather than an invented color so the tether reads as belonging to the drone at a glance.

@@ -35,10 +35,15 @@ namespace LTW.UnityClient.UI
         /// which is what makes a stat sheet possible on a screen with no match running. It does
         /// allocate a fresh catalog per call, hence the cache — the codex reads it on every
         /// selection change.
+        ///
+        /// Internal rather than private: the tablet-rail send/build cards (SendDockController,
+        /// TouchPlacementController.Gui) reuse this cache and the trait strings below it, so the
+        /// specialty line a card shows agrees with what the codex says for the same unit rather
+        /// than restating the same rule a second way.
         /// </remarks>
-        private static ContentCatalog? catalog;
+        internal static ContentCatalog? catalog;
 
-        private static ContentCatalog Catalog => catalog ??= SampleVerticalSliceContent.Create();
+        internal static ContentCatalog Catalog => catalog ??= SampleVerticalSliceContent.Create();
 
         /// <summary>Fallback tick rate, matching the one the send dock uses when no driver is present.</summary>
         private const float FallbackTicksPerSecond = 4f;
@@ -485,7 +490,7 @@ namespace LTW.UnityClient.UI
         /// every cooldown on the roster did — and a hardcoded codex would have gone quietly wrong
         /// on that change while continuing to look authoritative.
         /// </remarks>
-        private static string TowerTraits(TowerDefinition definition)
+        internal static string TowerTraits(TowerDefinition definition)
         {
             var parts = new List<string> { RoleLabel(definition.Role) };
 
@@ -499,10 +504,15 @@ namespace LTW.UnityClient.UI
                 parts.Add("brakes creeps walking its range");
             }
 
+            if (definition.CountersFlyers)
+            {
+                parts.Add($"+{CombatService.AntiAirDamageBonusPercent}% damage against flying creeps");
+            }
+
             return string.Join("  ·  ", parts);
         }
 
-        private static string RoleLabel(TowerRole role) => role switch
+        internal static string RoleLabel(TowerRole role) => role switch
         {
             TowerRole.Aoe => "Hits more than one creep",
             TowerRole.Brake => "Slows what it shoots",
@@ -512,7 +522,7 @@ namespace LTW.UnityClient.UI
             _ => "Single-target damage"
         };
 
-        private static string CreepTraits(CreepDefinition definition)
+        internal static string CreepTraits(CreepDefinition definition)
         {
             var parts = new List<string>();
 
@@ -557,7 +567,7 @@ namespace LTW.UnityClient.UI
 
         // ---------------------------------------------------------------------------- lookups
 
-        private static TowerDefinition? FindTower(string contentId)
+        internal static TowerDefinition? FindTower(string contentId)
         {
             foreach (var tower in Catalog.Towers)
             {
@@ -570,7 +580,7 @@ namespace LTW.UnityClient.UI
             return null;
         }
 
-        private static CreepDefinition? FindCreep(string contentId)
+        internal static CreepDefinition? FindCreep(string contentId)
         {
             foreach (var creep in Catalog.Creeps)
             {

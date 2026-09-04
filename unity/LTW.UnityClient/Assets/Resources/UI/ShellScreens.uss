@@ -1,5 +1,6 @@
 /*
- * Line Wards shell screens: title, pause, results.
+ * Line Wards shell screens: title, first-run offer, how to play, codex, pause, results — and the
+ * coach strip that rides over a practice match.
  *
  * Authored against a 1080x1920 reference surface (see LineWardsShellPanelSettings), so every
  * length below is in reference units, not device pixels.
@@ -181,6 +182,28 @@
     min-height: 10px;
 }
 
+/*
+ * Title-only rebalance of the same two spacers, per finding #14 of the 2026-09-01 render review:
+ * "the button stack sits far below the wordmark with dead space between." At the old 1:0.5 split
+ * the gap right above the buttons was still roughly a third of ALL the screen's leftover height,
+ * because the reference canvas is tall relative to the fixed content on this screen and the split
+ * did nothing to change that — only where the leftover landed. 5:1 keeps the sum well above one
+ * (so this is a resize of the same two spacers, not a reach for the sum-below-one trick the
+ * comment above just finished warning off) and hands the wordmark block most of the leftover,
+ * which both reinforces its stated optical-centre placement and leaves a visibly tighter run
+ * from the tagline into START GAME. Title-specific rather than edited in place on the shared
+ * classes above, because pause and results deliberately use the opposite weighting for their own
+ * reasons and were not part of this finding.
+ */
+.ltw-spacer--title-top {
+    flex-grow: 1.25;
+}
+
+.ltw-spacer--title-actions {
+    flex-grow: 0.25;
+    min-height: 10px;
+}
+
 /* ---------------------------------------------------------------- typography */
 
 /*
@@ -278,16 +301,6 @@
     margin-bottom: 0;
     white-space: normal;
     text-shadow: 0 3px 12px rgba(4, 7, 16, 0.95);
-}
-
-.ltw-footer {
-    font-size: 19px;
-    letter-spacing: 2px;
-    color: rgb(104, 122, 158);
-    -unity-text-align: middle-center;
-    margin-top: 26px;
-    margin-bottom: 0;
-    white-space: normal;
 }
 
 /* ---------------------------------------------------------------- actions */
@@ -708,4 +721,426 @@
     -unity-font-style: bold;
     color: rgb(150, 168, 205);
     white-space: normal;
+}
+
+
+/* ---------------------------------------------------------------- how to play */
+
+/*
+ * Five cards in the codex's frame. The headline is the codex name's size rather than the 82px
+ * screen headline: "PLACE YOUR WARDS" at 82px with 6px tracking is wider than the column, and a
+ * headline that has to wrap onto a second line loses the one-glance quality that makes it a
+ * headline rather than a paragraph.
+ */
+.ltw-howto-headline {
+    font-size: 54px;
+    letter-spacing: 3px;
+    color: rgb(244, 247, 255);
+    -unity-font-style: bold;
+    -unity-text-align: middle-center;
+    margin-top: 2px;
+    margin-bottom: 0;
+    white-space: normal;
+    text-shadow: 0 4px 18px rgba(4, 7, 16, 0.95);
+}
+
+/* Larger than .ltw-note: this is the whole point of the screen, not a caption under something. */
+.ltw-howto-body {
+    font-size: 27px;
+    color: rgb(150, 168, 205);
+    -unity-text-align: middle-center;
+    white-space: normal;
+    margin-top: 24px;
+    margin-bottom: 0;
+    text-shadow: 0 3px 12px rgba(4, 7, 16, 0.95);
+}
+
+/*
+ * The preview slot. Fixed height so paging never moves the body copy or the nav; every preview
+ * is a child of it and exactly one carries .is-shown. Sized to the stage (the tallest of them) so
+ * the smaller previews centre inside it rather than the slot growing to fit the stage.
+ */
+.ltw-howto-slot {
+    width: 100%;
+    height: 450px;
+    align-items: center;
+    justify-content: center;
+    margin-top: 6px;
+    margin-bottom: 0;
+}
+
+.ltw-howto-preview {
+    display: none;
+}
+
+.ltw-howto-preview.is-shown {
+    display: flex;
+}
+
+/* The turntable, at the codex's 4:3 but smaller, because this screen has copy to leave room for. */
+.ltw-howto-stage {
+    width: 600px;
+    height: 450px;
+    align-items: center;
+    justify-content: center;
+    background-color: rgba(77, 163, 255, 0.05);
+    border-width: 2px;
+    border-color: rgba(77, 163, 255, 0.24);
+}
+
+/*
+ * The maze card: a 5x7 lane drawn from plain cells, no art. Gate at the top, leak gate at the
+ * bottom, and a path that bends around two ward cells — which is the whole lesson, so the path
+ * is the loudest thing on it and the empty platforms the quietest.
+ *
+ * Cell arithmetic: 7 rows of (54 + 3 + 3) = 420, plus 10 padding and 2 border each side = 444,
+ * which is the slot's 450 with a few units to spare. A 56px cell overshot it.
+ */
+.ltw-maze {
+    flex-direction: column;
+    padding-left: 10px;
+    padding-right: 10px;
+    padding-top: 10px;
+    padding-bottom: 10px;
+    background-color: rgba(77, 163, 255, 0.04);
+    border-width: 2px;
+    border-color: rgba(77, 163, 255, 0.24);
+}
+
+.ltw-maze__row {
+    flex-direction: row;
+}
+
+.ltw-maze__cell {
+    width: 54px;
+    height: 54px;
+    margin-left: 3px;
+    margin-right: 3px;
+    margin-top: 3px;
+    margin-bottom: 3px;
+    border-top-left-radius: 4px;
+    border-top-right-radius: 4px;
+    border-bottom-left-radius: 4px;
+    border-bottom-right-radius: 4px;
+    background-color: rgba(150, 168, 205, 0.06);
+    border-width: 1px;
+    border-color: rgba(150, 168, 205, 0.14);
+}
+
+.ltw-maze__cell--path {
+    background-color: rgba(77, 163, 255, 0.22);
+    border-color: rgba(77, 163, 255, 0.65);
+}
+
+.ltw-maze__cell--tower {
+    background-color: rgba(155, 108, 255, 0.42);
+    border-width: 2px;
+    border-color: rgb(155, 108, 255);
+}
+
+.ltw-maze__cell--gate {
+    background-color: rgba(255, 200, 74, 0.28);
+    border-width: 2px;
+    border-color: rgb(255, 200, 74);
+}
+
+/* The grow card: one income bar with the tier marks under it. */
+.ltw-income {
+    width: 100%;
+    max-width: 600px;
+    padding-left: 32px;
+    padding-right: 32px;
+    padding-top: 30px;
+    padding-bottom: 26px;
+    background-color: rgba(77, 163, 255, 0.05);
+    border-width: 2px;
+    border-color: rgba(77, 163, 255, 0.24);
+}
+
+.ltw-income__row {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: flex-end;
+    margin-bottom: 16px;
+}
+
+.ltw-income__label {
+    font-size: 19px;
+    letter-spacing: 3px;
+    color: rgb(104, 122, 158);
+    -unity-font-style: bold;
+    margin-top: 0;
+    margin-bottom: 6px;
+}
+
+/* Mint, the HUD's own income colour, so the bar and the readout it stands for agree. */
+.ltw-income__value {
+    font-size: 46px;
+    color: rgb(89, 225, 182);
+    -unity-font-style: bold;
+    margin-top: 0;
+    margin-bottom: 0;
+}
+
+.ltw-income__track {
+    height: 26px;
+    background-color: rgba(150, 168, 205, 0.12);
+    border-top-left-radius: 6px;
+    border-top-right-radius: 6px;
+    border-bottom-left-radius: 6px;
+    border-bottom-right-radius: 6px;
+}
+
+.ltw-income__fill {
+    height: 100%;
+    width: 62%;
+    background-color: rgb(89, 225, 182);
+    border-top-left-radius: 6px;
+    border-top-right-radius: 6px;
+    border-bottom-left-radius: 6px;
+    border-bottom-right-radius: 6px;
+}
+
+/* Ordinal only: the marks say tiers come in order on this bar, not where the thresholds are. */
+.ltw-income__tiers {
+    flex-direction: row;
+    justify-content: space-between;
+    margin-top: 12px;
+}
+
+.ltw-income__tier {
+    font-size: 17px;
+    letter-spacing: 3px;
+    color: rgb(104, 122, 158);
+    -unity-font-style: bold;
+    margin-top: 0;
+    margin-bottom: 0;
+}
+
+.ltw-income__tier--reached {
+    color: rgb(89, 225, 182);
+}
+
+.ltw-income__caption {
+    font-size: 19px;
+    letter-spacing: 3px;
+    color: rgb(150, 168, 205);
+    -unity-text-align: middle-center;
+    margin-top: 26px;
+    margin-bottom: 0;
+}
+
+/* The survive card: the number, large. */
+.ltw-lives {
+    align-items: center;
+    justify-content: center;
+}
+
+.ltw-lives__value {
+    font-size: 200px;
+    color: rgb(244, 247, 255);
+    -unity-font-style: bold;
+    -unity-text-align: middle-center;
+    margin-top: 0;
+    margin-bottom: 0;
+    text-shadow: 0 8px 28px rgba(4, 7, 16, 0.95);
+}
+
+/* The HUD's lives red, for the same reason the income bar is mint. */
+.ltw-lives__label {
+    font-size: 26px;
+    letter-spacing: 8px;
+    color: rgb(255, 82, 61);
+    -unity-font-style: bold;
+    -unity-text-align: middle-center;
+    margin-top: 0;
+    margin-bottom: 0;
+}
+
+.ltw-lives__caption {
+    font-size: 19px;
+    letter-spacing: 3px;
+    color: rgb(104, 122, 158);
+    -unity-text-align: middle-center;
+    margin-top: 18px;
+    margin-bottom: 0;
+}
+
+/* ---------------------------------------------------------------- first run */
+
+/* The title's mark and wordmark, reduced, so the offer reads as a card over the title. */
+.ltw-brand-mark--small {
+    width: 110px;
+    height: 95px;
+    margin-bottom: 10px;
+}
+
+.ltw-wordmark--small {
+    font-size: 54px;
+}
+
+/*
+ * The card. A framed panel on the field rather than a second full-screen composition, because
+ * the choice it offers is small and a full-height layout would leave two voids around one
+ * paragraph.
+ */
+.ltw-offer {
+    width: 100%;
+    padding-left: 40px;
+    padding-right: 40px;
+    padding-top: 38px;
+    padding-bottom: 36px;
+    background-color: rgba(77, 163, 255, 0.045);
+    border-width: 2px;
+    border-color: rgba(77, 163, 255, 0.34);
+    border-top-left-radius: 14px;
+    border-top-right-radius: 14px;
+    border-bottom-left-radius: 14px;
+    border-bottom-right-radius: 14px;
+}
+
+.ltw-offer__headline {
+    font-size: 70px;
+}
+
+.ltw-offer__body {
+    font-size: 25px;
+    margin-top: 0;
+    margin-bottom: 18px;
+}
+
+/* ---------------------------------------------------------------- coach strip */
+
+/*
+ * The strip rides over a live board, so unlike a screen it has no field behind it and must carry
+ * its own opacity. 0.94 of night ink: composited in linear it lands nearly opaque, which is the
+ * intent — the copy has to read over creeps and health bars.
+ *
+ * Top margin is the HUD's compact strip plus a gap. HudView draws its header 52 * UiScale tall,
+ * TopMargin below the safe area; at the 1080x1920 capture surface UiScale is 2.06 and TopMargin
+ * 23 device px, so the header's bottom edge sits at 130 device px — and this panel is matched on
+ * height against a 2340 reference, so that is 158 reference units. 176 clears it with a gap and
+ * holds on a 19.5:9 handset too (159 there). It does NOT clear the HUD's stats drawer when that
+ * is expanded (that reaches ~364); a practice match is expected to start with it collapsed.
+ *
+ * The strip sits inside a .ltw-safe wrapper, which ShellScreenView pads by the device insets, so
+ * this margin is measured from the safe area exactly as the HUD's own TopMargin is.
+ */
+.ltw-coach {
+    display: none;
+    opacity: 0;
+    translate: 0 -14px;
+    width: 92%;
+    max-width: 780px;
+    margin-top: 176px;
+    padding-left: 24px;
+    padding-right: 20px;
+    padding-top: 14px;
+    padding-bottom: 16px;
+    background-color: rgba(9, 13, 27, 0.94);
+    border-width: 2px;
+    border-color: rgba(255, 200, 74, 0.6);
+    border-top-left-radius: 12px;
+    border-top-right-radius: 12px;
+    border-bottom-left-radius: 12px;
+    border-bottom-right-radius: 12px;
+    transition-property: opacity, translate;
+    transition-duration: 200ms;
+    transition-timing-function: ease-out;
+}
+
+.ltw-coach.is-shown {
+    display: flex;
+}
+
+.ltw-coach.is-entered {
+    opacity: 1;
+    translate: 0 0;
+}
+
+.ltw-coach__head {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+}
+
+/* Gold rather than the eyebrow's arcane blue: this is coaching, and gold is the strip's accent. */
+.ltw-coach__eyebrow {
+    font-size: 19px;
+    letter-spacing: 5px;
+    color: rgb(255, 200, 74);
+    -unity-font-style: bold;
+    -unity-text-align: middle-left;
+    margin-top: 0;
+    margin-bottom: 0;
+    white-space: nowrap;
+}
+
+.ltw-coach__body {
+    font-size: 25px;
+    color: rgb(244, 247, 255);
+    -unity-text-align: middle-left;
+    white-space: normal;
+    margin-top: 6px;
+    margin-bottom: 0;
+}
+
+.ltw-coach__foot {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 10px;
+    min-height: 58px;
+}
+
+.ltw-coach__dots {
+    flex-direction: row;
+    align-items: center;
+}
+
+.ltw-coach__dot {
+    width: 14px;
+    height: 14px;
+    margin-right: 12px;
+    border-top-left-radius: 7px;
+    border-top-right-radius: 7px;
+    border-bottom-left-radius: 7px;
+    border-bottom-right-radius: 7px;
+    background-color: rgba(150, 168, 205, 0.28);
+    transition-property: background-color, scale;
+    transition-duration: 140ms;
+}
+
+.ltw-coach__dot--done {
+    background-color: rgba(255, 200, 74, 0.55);
+}
+
+.ltw-coach__dot--current {
+    background-color: rgb(255, 200, 74);
+    scale: 1.3 1.3;
+}
+
+/* Overrides .ltw-action's block sizing: these sit in a row and size to their label. */
+.ltw-coach__action {
+    height: 58px;
+    min-width: 150px;
+    flex-shrink: 0;
+    font-size: 21px;
+    letter-spacing: 3px;
+    margin-top: 0;
+    padding-left: 22px;
+    padding-right: 22px;
+}
+
+.ltw-coach__action--skip {
+    height: 44px;
+    min-width: 0;
+    font-size: 18px;
+    padding-left: 12px;
+    padding-right: 0;
+}
+
+/* NEXT only appears on a step that needs a tap; the foot keeps its height so the strip does not jump. */
+.ltw-coach__action.is-hidden {
+    display: none;
 }

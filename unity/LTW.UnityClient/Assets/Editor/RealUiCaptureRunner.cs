@@ -61,6 +61,13 @@ namespace LTW.UnityClient.Editor
             // panel height while the send dock's grew — worth a shot of its own so the two can be
             // compared rather than assumed to match.
             ("real-04-build-palette-open", OpenBuildPalette),
+            // The build palette's actual tower grid, not just its category picker above — the one
+            // state that would have caught the tablet unit-icon enlargement and specialty-line work
+            // (2026-08-30) not being mirrored onto the tower side the way it was on the send dock's
+            // real-03. Placed here, in the live-match group, rather than appended at the end: every
+            // shot after real-12 resets or ends the match (see the shell-screens group below), so a
+            // shot needing a live TouchPlacementController cannot run after that point.
+            ("real-20-build-category-one", OpenBuildCategoryOne),
             // The selected-tower panel, which is where a placed tower is upgraded.
             ("real-05-selected-tower", SelectAnUpgradeableTower),
             // A freshly built tower with NO line tier bought - the state every match starts in,
@@ -110,6 +117,38 @@ namespace LTW.UnityClient.Editor
             // the authored model scales run 0.208 to 1.36 across it, against 0.59 to 1.05 on the
             // towers. If the stage's auto-fit is going to crop or strand anything, it is here.
             ("real-19-shell-codex-creeps", ShowCodexCreeps),
+            // The HOW TO PLAY panel as it ships — the only teaching surface the game has, and the
+            // starting point for the 2026-09-02 how-to-play / tutorial pass.
+            // Three shots, not one: the title must be laid out for a frame before its button can be
+            // pressed (Clickable rejects a press on an element with an empty rect, which is what
+            // a screen switched this same frame has), and BACK must be pressed afterwards because
+            // the view keeps the how-to open across the overlay's per-frame Show(Title).
+            ("real-23a-title-before-how-to", ShowTitle),
+            ("real-23-shell-how-to-play", () => PressShellButton("title-howto", "how-to-play")),
+            ("real-23b-how-to-back", () => PressShellButton("howto-back", "how-to-back")),
+            // Reported from a real device (13" M4 iPad Pro, 2026-08-30): every category card
+            // showed overlapping, crushed text. Seed() calls StartMatch() directly, which sets
+            // IsOpeningBuildCountdown = false, so none of the shots above have ever opened the
+            // BUILD rail during the 30-second opening countdown — the exact window the countdown's
+            // own on-screen text ("Place opening towers") tells a player to use it for. This shot
+            // reproduces that specific combination instead of assuming real-20 already covers it.
+            // Placed last, not alongside real-20: BeginOpeningBuildCountdown() sets HasStarted
+            // false and IsPaused true, which every earlier shot in the live-match group above
+            // assumes is NOT the case, and there is no per-shot teardown to undo it afterward.
+            ("real-21-build-during-opening-countdown", OpenBuildCategoryOneDuringOpeningCountdown),
+            // Both rails open at once — a tablet-only combination that was structurally impossible
+            // to reach before 2026-08-30: SendDockController closed itself the instant BUILD's
+            // palette expanded, and DrawTowerPalette refused to draw BUILD's own launcher while
+            // SEND was expanded, both unconditionally rather than only on a phone's single bottom
+            // drawer. On a rail the two occupy separate, non-overlapping columns, so there was
+            // never a layout reason for either exclusion — only a phone-mode assumption that
+            // leaked in. Reported live as "the buttons have no function... tapping them does
+            // nothing," which matches exactly: whichever launcher opened second was never drawn,
+            // so there was nothing there to tap. This shot is the regression test for the fix.
+            ("real-22-both-rails-open", OpenBothRailsAtOnce),
+            // 2026-09-02 how-to-play / tutorial pass. Both reset the match, so they stay last.
+            ("real-24-first-run-offer", ShowFirstRunOffer),
+            ("real-25-practice-coach-strip", ShowPracticeCoachStrip),
         };
 
         /// <summary>The portrait surface the HUD is authored against, matching MotionCaptureRunner.</summary>
@@ -815,6 +854,63 @@ namespace LTW.UnityClient.Editor
         }
 
         /// <summary>
+        /// Presses a named UI Toolkit button on the shell document, or warns. The element must
+        /// already be laid out (on a screen shown in an earlier shot): a press on an empty rect
+        /// is rejected by Clickable, so a helper that switches screens and presses in the same
+        /// call photographs the screen it started on.
+        /// </summary>
+        private static void PressShellButton(string name, string shotLabel)
+        {
+            var document = Object.FindAnyObjectByType<UIDocument>();
+            var button = document != null && document.rootVisualElement != null
+                ? document.rootVisualElement.Q<Button>(name)
+                : null;
+            if (button == null)
+            {
+                Debug.LogWarning($"REALUI no '{name}' button found for the {shotLabel} shot");
+                return;
+            }
+
+            // Press and release through the Clickable manipulator, for the reason ShowCodexCreeps
+            // documents: a bare ClickEvent (or a submit event) is received and does nothing.
+            var centre = button.worldBound.center;
+            var local = button.WorldToLocal(centre);
+            SendPointer<PointerDownEvent>(button, centre, local);
+            SendPointer<PointerUpEvent>(button, centre, local);
+        }
+
+        /// <summary>The first-run offer: START GAME pressed with the tutorial never seen.</summary>
+        private static void ShowFirstRunOffer()
+        {
+            var overlay = Overlay();
+            if (overlay == null)
+            {
+                Debug.LogWarning("REALUI no LocalSessionFlowOverlay found for the first-run shot");
+                return;
+            }
+
+            // Cleared directly rather than through PresentationPreferences so this runner does
+            // not depend on the flag's accessor name — the key is the contract.
+            PlayerPrefs.DeleteKey("ltw.tutorial.seen");
+            overlay.ReturnToTitle();
+            overlay.StartGame();
+        }
+
+        /// <summary>Practice started from the title: the coach strip over the opening countdown.</summary>
+        private static void ShowPracticeCoachStrip()
+        {
+            var overlay = Overlay();
+            if (overlay == null)
+            {
+                Debug.LogWarning("REALUI no LocalSessionFlowOverlay found for the practice shot");
+                return;
+            }
+
+            overlay.ReturnToTitle();
+            overlay.StartPractice();
+        }
+
+        /// <summary>
         /// The codex, switched to its creeps half.
         /// </summary>
         /// <remarks>
@@ -919,6 +1015,64 @@ namespace LTW.UnityClient.Editor
 
             SetPrivate(dock, "isExpanded", true);
             SetSelectedCategory(dock, 1);
+        }
+
+        private static void OpenBuildCategoryOne()
+        {
+            var touch = Object.FindAnyObjectByType<TouchPlacementController>();
+            if (touch == null)
+            {
+                Debug.LogWarning("REALUI no TouchPlacementController found");
+                return;
+            }
+
+            var dock = Dock();
+            if (dock != null)
+            {
+                SetPrivate(dock, "isExpanded", false);
+            }
+
+            SetPrivate(touch, "isPaletteExpanded", true);
+            SetPrivate(touch, "selectedTowerCategory", 0);
+        }
+
+        private static void OpenBuildCategoryOneDuringOpeningCountdown()
+        {
+            var driver = Object.FindAnyObjectByType<UnitySimulationDriver>();
+            if (driver == null)
+            {
+                Debug.LogWarning("REALUI no UnitySimulationDriver found");
+                return;
+            }
+
+            // Puts the driver back into the state a fresh match actually starts in — HasStarted
+            // false, IsOpeningBuildCountdown true — which every earlier shot skips past by calling
+            // StartMatch() once in Seed() and never revisiting it.
+            driver.BeginOpeningBuildCountdown();
+
+            // The CATEGORY PICKER (ARCANE/FOUNDRY/GROVE), not a category's tower grid — that is
+            // what the device screenshot showed overlapping, and OpenBuildCategoryOne opens the
+            // grid one level past it.
+            OpenBuildPalette();
+        }
+
+        private static void OpenBothRailsAtOnce()
+        {
+            var touch = Object.FindAnyObjectByType<TouchPlacementController>();
+            var dock = Dock();
+            if (touch == null || dock == null)
+            {
+                Debug.LogWarning("REALUI no TouchPlacementController or SendDockController found");
+                return;
+            }
+
+            // Deliberately NOT via OpenSendDock()/OpenBuildPalette() — both of those force the
+            // OTHER dock closed as part of their own setup, which is exactly the phone-only
+            // assumption this shot exists to prove is gone. Set both open directly instead.
+            SetPrivate(dock, "isExpanded", true);
+            SetSelectedCategory(dock, 0);
+            SetPrivate(touch, "isPaletteExpanded", true);
+            SetPrivate(touch, "selectedTowerCategory", 0);
         }
 
         private static void Finish(string error)

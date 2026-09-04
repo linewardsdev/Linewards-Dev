@@ -1,6 +1,7 @@
 #nullable enable
 
 using LTW.Simulation.Bridge;
+using TMPro;
 using UnityEngine;
 
 namespace LTW.UnityClient.UI
@@ -27,6 +28,146 @@ namespace LTW.UnityClient.UI
         private static Texture2D? generatedPanelShadow;
         private static GUIStyle? panelStyle;
         private static GUIStyle? panelShadowStyle;
+        private static Font? sharedFont;
+        private static bool sharedFontLoadAttempted;
+        private static TMP_FontAsset? sharedBoardFont;
+        private static bool sharedBoardFontLoadAttempted;
+        private static Material? sharedBoardTextMaterial;
+
+        /// <summary>
+        /// The one font every hand-rolled IMGUI style in the HUD should set explicitly.
+        /// </summary>
+        /// <remarks>
+        /// Every GUIStyle across this HUD (SendDockController, TouchPlacementController,
+        /// LocalSessionFlowOverlay, HudView, SeatLeaderboardView, PlacementFeedbackView,
+        /// DiagnosticsOverlay) was built as <c>new GUIStyle(GUI.skin.label)</c> with no
+        /// <c>font</c> set, which leaves it on whatever GUI.skin resolves its default to —
+        /// and that default is not guaranteed to be the same asset in the Editor as in an
+        /// IL2CPP player. Reported live 2026-08-30: the BUILD category picker's text overlapped
+        /// on a real 13" M4 iPad Pro but was unreproducible in the Editor across every
+        /// resolution and match-state combination that could be constructed to match the
+        /// device — the one remaining variable neither of those tests could hold constant is
+        /// which font actually rendered the glyphs.
+        ///
+        /// Loaded from Resources rather than referenced as a serialized field because none of
+        /// these callers are MonoBehaviours with an inspector to drag an asset onto — they are
+        /// static helpers and plain classes. LiberationSans is TextMeshPro's own bundled
+        /// default (metrically compatible with Arial, open licensed), copied into
+        /// Resources/Art/UI/Fonts so it is loadable outside the Editor; the original under
+        /// Assets/TextMesh Pro is left untouched since TMP's own default font asset still
+        /// points at it.
+        /// </remarks>
+        public static Font? SharedFont
+        {
+            get
+            {
+                if (!sharedFontLoadAttempted)
+                {
+                    sharedFontLoadAttempted = true;
+                    sharedFont = Resources.Load<Font>("Art/UI/Fonts/LTWUiFont");
+                    if (sharedFont == null)
+                    {
+                        Debug.LogWarning("RuntimeUiChrome could not load Art/UI/Fonts/LTWUiFont; HUD text stays on GUI.skin's default font.");
+                    }
+                }
+
+                return sharedFont;
+            }
+        }
+
+        /// <summary>
+        /// The one TextMeshPro font asset every world-space board label draws with — the SDF twin
+        /// of <see cref="SharedFont"/>.
+        /// </summary>
+        /// <remarks>
+        /// Same family as the HUD on purpose. <see cref="SharedFont"/> is LiberationSans as a
+        /// legacy Font for IMGUI; this is LiberationSans as TMP's SDF atlas, which is the copy the
+        /// TTF in Resources/Art/UI/Fonts was made from. Board and HUD text therefore agree, and the
+        /// board labels used to reach this same asset implicitly by never setting <c>font</c> and
+        /// inheriting <c>TMP_Settings.defaultFontAsset</c>. Resolved here explicitly, and in one
+        /// place, so that "which typeface is the board in" has one answer that is not "whatever
+        /// TMP Settings happens to say".
+        ///
+        /// TMP Settings first, because that is the asset TmpEssentialsImporter guarantees exists;
+        /// the Resources path is the fallback for a project where TMP's own resources were moved
+        /// or the settings asset was not generated. If neither resolves, every board label draws
+        /// nothing, silently — TMP's documented failure mode when its essentials were never
+        /// imported — so the warning below is the only tell.
+        /// </remarks>
+        public static TMP_FontAsset? SharedBoardFont
+        {
+            get
+            {
+                if (!sharedBoardFontLoadAttempted)
+                {
+                    sharedBoardFontLoadAttempted = true;
+                    sharedBoardFont = TMP_Settings.defaultFontAsset;
+                    if (sharedBoardFont == null)
+                    {
+                        sharedBoardFont = Resources.Load<TMP_FontAsset>("Fonts & Materials/LiberationSans SDF");
+                    }
+
+                    if (sharedBoardFont == null)
+                    {
+                        Debug.LogWarning("RuntimeUiChrome could not resolve a TMP font asset for board text; board labels will render nothing until TMP essentials are imported.");
+                    }
+                }
+
+                return sharedBoardFont;
+            }
+        }
+
+        /// <summary>
+        /// The shared outlined material every board label draws with, built once from
+        /// <see cref="SharedBoardFont"/>'s own material.
+        /// </summary>
+        /// <remarks>
+        /// A dark outline is what keeps small text legible over lane plating, range halos and creep
+        /// bodies. It is a material variant rather than a per-label property because that is the
+        /// form TMP honours, and because one shared material lets all board text batch.
+        ///
+        /// Getting the outline to render took three attempts, recorded because the first two look
+        /// correct and produce flat glyphs with no error: <c>fontMaterial.EnableKeyword("OUTLINE_ON")</c>
+        /// plus <c>SetFloat("_OutlineWidth", ...)</c> — no outline; TMP's per-component
+        /// <c>outlineWidth</c> / <c>outlineColor</c> — no outline; a shared Material built from the
+        /// font's own material with the keyword enabled, assigned through <c>fontSharedMaterial</c>
+        /// — works, and batches. Callers must assign it AFTER <c>font</c>, since setting the font
+        /// resets the component to the font's plain default material.
+        ///
+        /// Re-created if Unity has destroyed it (the <c>== null</c> below is the overloaded
+        /// lifetime check, not a reference test), so a scene reload cannot leave labels holding a
+        /// dead material.
+        /// </remarks>
+        public static Material? SharedBoardTextMaterial
+        {
+            get
+            {
+                if (sharedBoardTextMaterial != null)
+                {
+                    return sharedBoardTextMaterial;
+                }
+
+                var font = SharedBoardFont;
+                if (font == null || font.material == null)
+                {
+                    return null;
+                }
+
+                sharedBoardTextMaterial = new Material(font.material) { name = "LTW Board Text" };
+                sharedBoardTextMaterial.EnableKeyword("OUTLINE_ON");
+                sharedBoardTextMaterial.SetFloat("_OutlineWidth", 0.25f);
+                sharedBoardTextMaterial.SetColor("_OutlineColor", new Color(0.02f, 0.03f, 0.05f, 1f));
+                // R5 (2026-09-02 re-audit): labels were depth-tested against units — "-3 LIVES" cut
+                // in half by the Warden standing on the leak gate. Drawn as an overlay instead:
+                // ZTest Always through the `ZTest [unity_GUIZTestMode]` state both TMP SDF shaders
+                // declare (ZWrite is already Off there), and queue 3100 so the text lands after
+                // every Transparent-queue creep and decal (all at 3000). World position and the
+                // sortingOrder stacking in UnityVerticalSliceRenderer.Cues.cs are unchanged.
+                sharedBoardTextMaterial.SetInt("unity_GUIZTestMode", (int)UnityEngine.Rendering.CompareFunction.Always);
+                sharedBoardTextMaterial.renderQueue = 3100;
+                return sharedBoardTextMaterial;
+            }
+        }
 
         /// <summary>Corner chamfer of the shared panel, in texture pixels.</summary>
         /// <remarks>
@@ -305,6 +446,200 @@ namespace LTW.UnityClient.UI
             return pressed;
         }
 
+        /// <summary>
+        /// Rect for one row in a tablet rail's LIST layout — full panel width, fixed height,
+        /// stacked top to bottom. The list alternative to <see cref="CategoryCardRect"/>'s grid,
+        /// used only on a rail (see <see cref="DrawListRow"/> for why the grid's card art cannot
+        /// serve double duty here).
+        /// </summary>
+        public static Rect ListRowRect(Rect panel, float contentTop, float rowHeight, float gap, int index) =>
+            new(panel.x, contentTop + index * (rowHeight + gap), panel.width, rowHeight);
+
+        /// <summary>Per-list drag state for <see cref="HandleListDragScroll"/>, one instance per scrolling list.</summary>
+        public sealed class DragScrollTracker
+        {
+            internal bool IsTrackingPress;
+            internal bool IsDragging;
+            internal Vector2 PointerDownPosition;
+            internal Vector2 PointerDownScroll;
+        }
+
+        /// <summary>How far a press has to move, in unscaled GUI pixels, before it counts as a drag rather than a tap.</summary>
+        private const float DragScrollThreshold = 6f;
+
+        /// <summary>
+        /// Drag-to-scroll for a list drawn inside a <c>GUI.BeginScrollView</c> block.
+        /// </summary>
+        /// <remarks>
+        /// Reported live 2026-08-31: "you have to use the scroll bar to scroll, you can't just drag
+        /// along the creeps." A Unity IMGUI scroll view's own built-in interaction only recognises a
+        /// drag on the SCROLLBAR THUMB — dragging a finger across the row content does nothing,
+        /// which is not how a touchscreen list is supposed to behave. This adds that gesture back.
+        ///
+        /// Call this BEFORE <c>GUI.BeginScrollView</c>, with <paramref name="touchRect"/> in the
+        /// same (outer) coordinate space <c>GUI.BeginScrollView</c>'s own view rect uses, and feed
+        /// its return value into that call as the scroll position. Calling it before entry avoids
+        /// any question of coordinate spaces inside the scroll view's clipped group, and lets the
+        /// updated scroll take effect the same frame it changes rather than one frame behind.
+        ///
+        /// <paramref name="touchRect"/> should exclude the scrollbar's own column (the view rect
+        /// minus its scrollbar allowance), not the full view rect — a press that starts on the
+        /// scrollbar thumb is left entirely to Unity's own handling, so the two mechanisms cannot
+        /// both react to the same drag and fight over the scroll position.
+        ///
+        /// Below <see cref="DragScrollThreshold"/> of movement a press is left alone completely — no
+        /// <c>GUIUtility.hotControl</c> is touched — so a plain tap on a row reaches that row's own
+        /// <c>GUI.Button</c> exactly as before. Only once a press moves far enough to be unambiguous
+        /// does this steal hotControl away from whatever row it started on, which is what stops that
+        /// row firing as a tap once the gesture is clearly a scroll instead — the same
+        /// tap-vs-drag split a native scroll view gives for free. Reads <c>Event.current.type</c>
+        /// directly rather than <c>GetTypeForControl</c> for exactly that reason: once a row has
+        /// claimed hotControl on the initial press, <c>GetTypeForControl</c> would report every
+        /// later drag event as <c>Ignore</c> for anyone else's control id, which is the one thing
+        /// this method has to see past to be able to steal it back.
+        /// </remarks>
+        public static Vector2 HandleListDragScroll(
+            DragScrollTracker tracker,
+            Rect touchRect,
+            Vector2 scroll,
+            float viewportHeight,
+            float contentHeight,
+            float scale)
+        {
+            var maxScroll = Mathf.Max(0f, contentHeight - viewportHeight);
+            if (maxScroll <= 0f)
+            {
+                return new Vector2(scroll.x, 0f);
+            }
+
+            var evt = Event.current;
+            var controlId = GUIUtility.GetControlID(FocusType.Passive);
+
+            switch (evt.type)
+            {
+                case EventType.MouseDown:
+                    if (evt.button == 0 && touchRect.Contains(evt.mousePosition))
+                    {
+                        tracker.IsTrackingPress = true;
+                        tracker.IsDragging = false;
+                        tracker.PointerDownPosition = evt.mousePosition;
+                        tracker.PointerDownScroll = scroll;
+                    }
+
+                    break;
+
+                case EventType.MouseDrag:
+                    if (!tracker.IsTrackingPress)
+                    {
+                        break;
+                    }
+
+                    if (!tracker.IsDragging)
+                    {
+                        var moved = evt.mousePosition - tracker.PointerDownPosition;
+                        if (moved.sqrMagnitude >= (DragScrollThreshold * scale) * (DragScrollThreshold * scale))
+                        {
+                            tracker.IsDragging = true;
+                        }
+                    }
+
+                    if (tracker.IsDragging)
+                    {
+                        GUIUtility.hotControl = controlId;
+                        var deltaY = evt.mousePosition.y - tracker.PointerDownPosition.y;
+                        scroll = new Vector2(scroll.x, Mathf.Clamp(tracker.PointerDownScroll.y - deltaY, 0f, maxScroll));
+                        evt.Use();
+                    }
+
+                    break;
+
+                case EventType.MouseUp:
+                    if (tracker.IsTrackingPress)
+                    {
+                        if (tracker.IsDragging && GUIUtility.hotControl == controlId)
+                        {
+                            GUIUtility.hotControl = 0;
+                            evt.Use();
+                        }
+
+                        tracker.IsTrackingPress = false;
+                        tracker.IsDragging = false;
+                    }
+
+                    break;
+            }
+
+            return scroll;
+        }
+
+        /// <summary>
+        /// Draws one list row's background — a flat fill, a coloured left edge, and a hairline
+        /// border — and returns whether it was pressed.
+        /// </summary>
+        /// <remarks>
+        /// Deliberately not <see cref="DrawCommandCardChrome"/>'s card art. That texture is
+        /// authored at <see cref="CommandCardArtAspect"/>, a portrait aspect, and is drawn with
+        /// <c>ScaleMode.StretchToFill</c> — this project already measured what happens when that
+        /// art is stretched into a wide, short rect instead: "it stretched portrait art across a
+        /// 7.7 aspect" (see <see cref="CategoryCardRect"/>'s own remarks on the exact same failure
+        /// from the grid's early history). A flat rectangle has no aspect to violate.
+        ///
+        /// Replaces the grid-of-narrow-cards rail layout entirely (owner's call, 2026-08-30, after
+        /// repeated rounds of "make more fit in the same card" — icon size, specialty text, row
+        /// height — kept finding a new way to overflow the same fixed portrait shape). A full-width
+        /// row gets the rail's ENTIRE width instead of a third or half of it shared with siblings,
+        /// which is what actually answers "too small and hard to read" rather than narrowing the
+        /// margin on the same failure.
+        /// </remarks>
+        public static bool DrawListRow(Rect rect, Color accent, CommandCardState state, float scale, Rect? hitRect = null)
+        {
+            var stateAccent = StateAccent(accent, state);
+            Fill(rect, new Color(0.055f, 0.075f, 0.105f, 0.92f));
+            if (state == CommandCardState.Disabled)
+            {
+                Fill(rect, new Color(0f, 0f, 0f, 0.34f));
+            }
+
+            Fill(new Rect(rect.x, rect.y, 3f * scale, rect.height), stateAccent);
+            var borderAlpha = state == CommandCardState.Selected ? 0.75f : 0.22f;
+            DrawOutline(rect, new Color(stateAccent.r, stateAccent.g, stateAccent.b, borderAlpha), Mathf.Max(1f, (state == CommandCardState.Selected ? 2f : 1f) * scale));
+
+            var previousEnabled = GUI.enabled;
+            GUI.enabled = state is not CommandCardState.Disabled and not CommandCardState.Error;
+            var pressed = GUI.Button(hitRect ?? rect, GUIContent.none, GUIStyle.none);
+            GUI.enabled = previousEnabled;
+            return pressed;
+        }
+
+        /// <summary>A row's unit icon: square, left-anchored, sized off the row's own height.</summary>
+        public static Rect ListRowIconRect(Rect row, float scale)
+        {
+            var size = Mathf.Max(1f, row.height - 16f * scale);
+            return new Rect(row.x + 8f * scale, row.y + (row.height - size) * 0.5f, size, size);
+        }
+
+        /// <summary>
+        /// Backdrop socket behind <see cref="ListRowIconRect"/> — a dark well plus an
+        /// accent-coloured ring, drawn before the icon itself.
+        /// </summary>
+        /// <remarks>
+        /// The icon PNGs are properly anti-aliased where they are cut out (checked directly:
+        /// every corner is alpha 0, and the silhouette edge itself fades over 2-3 source pixels,
+        /// not a 1-pixel hard jump). Reported live as looking "placed" with "hard crop edges"
+        /// anyway, because the row it drops onto is one flat, unbroken fill — a card had its own
+        /// stone-and-metal texture and a well (DrawCommandCardUnitIconWell) behind the same icon
+        /// to sit inside; a list row had neither, so even a correctly anti-aliased sprite reads as
+        /// a sticker with nothing tying its edge to what is behind it. The ring is what a hard-cut
+        /// sprite actually needs here: it gives the edge a deliberate boundary to end AT, in the
+        /// row's own accent, rather than leaving it to end nowhere in particular.
+        /// </remarks>
+        public static void DrawListRowIconWell(Rect iconRect, Color accent, float scale)
+        {
+            var well = Shrink(iconRect, -6f * scale);
+            Fill(well, new Color(0.006f, 0.01f, 0.016f, 0.55f));
+            DrawOutline(well, new Color(accent.r, accent.g, accent.b, 0.5f), Mathf.Max(1f, scale));
+        }
+
         // Action-row geometry, in unscaled units, measured up from the card's bottom edge. The card
         // now carries TWO buttons stacked above its bottom margin — the batch row above the tier row —
         // and all three rects derive from these numbers. If they drift, the card's own button either
@@ -374,6 +709,115 @@ namespace LTW.UnityClient.UI
         public static Rect CommandCardLabelRect(Rect rect, float scale)
         {
             return new Rect(rect.x + 7f * scale, rect.yMax - 32f * scale, rect.width - 14f * scale, 15f * scale);
+        }
+
+        /// <summary>
+        /// Where a send/build GRID card's unit icon draws — deliberately NOT the same rect as
+        /// <see cref="CommandCardIconRect"/>, which the category PICKER's cards also use for their
+        /// icon-well backdrop despite never drawing an icon into it (see OPEN_ITEMS.md item 48's
+        /// "unexplained translucent square"). Enlarging that shared rect would have enlarged the
+        /// picker's own unexplained square right along with the grid's icon.
+        /// </summary>
+        /// <remarks>
+        /// Two sizes, not one. The drawer's cards are already tight — three across at a phone's own
+        /// width — so this is identical to <see cref="CommandCardIconRect"/> there. A rail card is
+        /// wider AND has vertical room the drawer never had, and reported live 2026-08-29/30 as
+        /// "icons too small and not centered": a 52-unit icon in a 260+ unit tall card reads as a
+        /// stamp in the corner, not a portrait. On a rail this is instead the larger of what the
+        /// card's own width and height can carry, leaving <see cref="CommandCardSpecialtyRect"/>
+        /// whatever is left between it and the label.
+        /// </remarks>
+        public static Rect CommandCardUnitIconRect(Rect rect, float scale)
+        {
+            if (!MobileViewportLayout.HasSideRails)
+            {
+                return CommandCardIconRect(rect, scale);
+            }
+
+            var size = Mathf.Max(1f, Mathf.Min(rect.width * 0.58f, rect.height * 0.42f));
+            return new Rect(rect.x + (rect.width - size) * 0.5f, rect.y + 10f * scale, size, size);
+        }
+
+        /// <summary>
+        /// Backdrop plate behind <see cref="CommandCardUnitIconRect"/>, matching
+        /// <see cref="DrawCommandCardChrome"/>'s own well fill. Only the grid card callers need
+        /// this: on a phone drawer the two icon rects are identical and <c>DrawCommandCardChrome</c>
+        /// already painted the well, and the category picker never calls this at all because it has
+        /// no unit icon to back.
+        /// </summary>
+        /// <summary>
+        /// Backdrop socket behind a command card's unit icon — a dark well plus an accent-coloured
+        /// ring, matching <see cref="DrawListRowIconWell"/>'s reasoning exactly (see its own remarks
+        /// for why a hard-cut icon sprite needs a deliberate edge to end at).
+        /// </summary>
+        /// <remarks>
+        /// Used to skip drawing anything unless <see cref="MobileViewportLayout.HasSideRails"/>, and
+        /// unlike <see cref="DrawListRowIconWell"/> drew no ring even when it did draw — both wrong
+        /// in the same direction. The card layout this backs (<c>DrawSendButton</c>/
+        /// <c>DrawCatalogCard</c>) is reachable ONLY from the phone drawer today, since the tablet
+        /// rail moved to full-width list rows this session — so the old guard made this well
+        /// unconditionally dead code: a no-op on rail, where the card path never runs, and a no-op on
+        /// the one platform, phone, where it does. Reported live as "the icon was copy and pasted
+        /// onto the button" (2026-08-31), which is exactly what an icon with no backdrop at all reads
+        /// as. Fixed the same way the row version already was: draw always, and add the ring.
+        /// </remarks>
+        public static void DrawCommandCardUnitIconWell(Rect rect, Color accent, float scale)
+        {
+            var well = Shrink(CommandCardUnitIconRect(rect, scale), -4f * scale);
+            Fill(well, new Color(0.006f, 0.01f, 0.016f, 0.42f));
+            DrawOutline(well, new Color(accent.r, accent.g, accent.b, 0.5f), Mathf.Max(1f, scale));
+        }
+
+        /// <summary>
+        /// Tablet-only band between the unit icon and the name for one line of the same trait text
+        /// the codex shows (<c>CodexScreenView.CreepTraits</c>/<c>TowerTraits</c>) — "if there is
+        /// space left, add details or stats" (2026-08-30). Zero height on a phone drawer card, where
+        /// the icon rect already runs close to the label and there is nothing left to give it; the
+        /// caller is expected to skip drawing anything when this comes back too short for one line
+        /// rather than force a wrap onto a card not sized for it.
+        /// </summary>
+        public static Rect CommandCardSpecialtyRect(Rect rect, float scale)
+        {
+            if (!MobileViewportLayout.HasSideRails)
+            {
+                return new Rect(rect.x, rect.y, rect.width, 0f);
+            }
+
+            var icon = CommandCardUnitIconRect(rect, scale);
+            var labelTop = CommandCardLabelRect(rect, scale).y;
+            var top = icon.yMax + 4f * scale;
+            var height = Mathf.Max(0f, labelTop - top - 4f * scale);
+            return new Rect(rect.x + 8f * scale, top, rect.width - 16f * scale, height);
+        }
+
+        /// <summary>
+        /// Picks a single-line rendering of a " · "-joined trait string that actually fits
+        /// <paramref name="maxWidth"/> in <paramref name="style"/>, or null if none does.
+        /// </summary>
+        /// <remarks>
+        /// <see cref="TextClipping.Clip"/> was tried first and does not do this: a
+        /// <c>GUI.Label</c> wider than its rect at <c>wordWrap = false</c> measured live on a rail
+        /// card 2026-08-30 spilling text across the two cards on either side rather than clipping to
+        /// its own bounds. Measuring with <see cref="GUIStyle.CalcSize"/> before drawing sidesteps
+        /// that IMGUI behaviour entirely instead of depending on it. Only the first clause is tried
+        /// as a fallback, not a character-count truncation with an ellipsis, because a trait cut
+        /// mid-word ("Trails behind the pack it fo…") reads as broken UI, while dropping straight to
+        /// "Trails behind the pack it follows" or nothing at all always reads as a complete thought.
+        /// </remarks>
+        public static string? FitSpecialtyText(string fullTrait, GUIStyle style, float maxWidth)
+        {
+            if (string.IsNullOrEmpty(fullTrait) || maxWidth <= 0f)
+            {
+                return null;
+            }
+
+            if (style.CalcSize(new GUIContent(fullTrait)).x <= maxWidth)
+            {
+                return fullTrait;
+            }
+
+            var firstClause = fullTrait.Split(new[] { "  ·  " }, System.StringSplitOptions.None)[0];
+            return style.CalcSize(new GUIContent(firstClause)).x <= maxWidth ? firstClause : null;
         }
 
         /// <summary>
@@ -506,6 +950,11 @@ namespace LTW.UnityClient.UI
             // because it is the longer string, which made the hardest-to-satisfy state the hardest
             // to read — exactly backwards, since that is the one a player needs to act on.
             buttonStyle.fontSize = Mathf.RoundToInt(11f * scale);
+            // Explicit rather than assumed: buttonStyle is the caller's shared style, not this
+            // method's own, and a rail list row now sets it to MiddleLeft for its own name label
+            // just before reaching here — without this, "NEED +60" measured live rendering
+            // left-aligned and overlapping the button's own chrome instead of centred in it.
+            buttonStyle.alignment = TextAnchor.MiddleCenter;
             var pressed = DrawPanelButton(buttonRect, label, enabled ? accent : DisabledEdge, scale, buttonStyle);
             GUI.enabled = previousEnabled;
             buttonStyle.fontSize = Mathf.RoundToInt(11f * scale);
@@ -528,6 +977,14 @@ namespace LTW.UnityClient.UI
         /// aspect of its own. Deriving BOTH dimensions from the art removes that whole class: adding a
         /// category narrows the row, and a panel too short to hold it narrows the cards further, but
         /// nothing here can produce a distorted card or one that escapes its panel.
+        ///
+        /// <paramref name="maxHeight"/> is the caller's job to compute, not this method's: a
+        /// multi-row wrap (see <see cref="CategoryPickerRowMaxHeight"/>) must split the panel's
+        /// height EVENLY across every row before drawing any card, or row 0 sizes itself as if it
+        /// owned the whole panel and row 1 is left with whatever is left over — reported live
+        /// 2026-08-29 as a GROVE/ELITE card in the trailing row rendering tiny with its text lines
+        /// overlapping, because that row's own leftover budget was a fraction of a real card's
+        /// height while its label/meta text still drew at the normal, unscaled font size.
         /// </remarks>
         public static Rect CategoryCardRect(
             Rect panel,
@@ -535,7 +992,8 @@ namespace LTW.UnityClient.UI
             float gap,
             int index,
             int cardCount,
-            float scale)
+            float scale,
+            float maxHeight)
         {
             if (cardCount <= 0)
             {
@@ -550,7 +1008,6 @@ namespace LTW.UnityClient.UI
             // If the panel is too short for that, the card gives up WIDTH to keep its aspect rather
             // than being squashed. A squashed card is the exact failure this exists to prevent, and
             // silently flattening one to fit would reintroduce it by a different route.
-            var maxHeight = panel.yMax - 12f * scale - contentTop;
             if (height > maxHeight)
             {
                 height = Mathf.Max(1f, maxHeight);
@@ -562,6 +1019,23 @@ namespace LTW.UnityClient.UI
             var rowWidth = width * cardCount + gap * (cardCount - 1);
             var x = panel.x + (panel.width - rowWidth) * 0.5f + index * (width + gap);
             return new Rect(x, contentTop, width, height);
+        }
+
+        /// <summary>
+        /// The height budget every row in a wrapped category picker must share, so
+        /// <see cref="CategoryCardRect"/> clamps every row to the same value rather than letting an
+        /// early row spend space a later one needs. Callers compute this once before their loop and
+        /// pass the result into every <see cref="CategoryCardRect"/> call for that grid.
+        /// </summary>
+        public static float CategoryPickerRowMaxHeight(Rect panel, float contentTop, float gap, int rowCount, float scale)
+        {
+            if (rowCount <= 0)
+            {
+                return 1f;
+            }
+
+            var totalAvailable = panel.yMax - 12f * scale - contentTop - gap * (rowCount - 1);
+            return Mathf.Max(1f, totalAvailable / rowCount);
         }
 
         public static Rect CommandCardMetaRect(Rect rect, float scale)

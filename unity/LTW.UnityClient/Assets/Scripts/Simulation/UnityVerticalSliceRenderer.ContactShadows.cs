@@ -20,11 +20,33 @@ namespace LTW.UnityClient.Simulation
         /// </summary>
         private const float ContactShadowLift = 0.006f;
 
+        /// <summary>
+        /// Footprint scale for a hovering creep's ground-anchor decal (see <see cref="UpdateContactShadow"/>'s
+        /// finding #5 remark) - tighter than a grounded creep's old 0.86, so it reads as "this
+        /// creep's own footprint" rather than the wider blob a real cast shadow would have thrown.
+        /// </summary>
+        private const float FlyerGroundAnchorFootprintScale = 0.62f;
+
         private readonly Dictionary<long, GameObject> activeContactShadows = new Dictionary<long, GameObject>();
         private readonly Dictionary<string, Vector2> unitFootprints = new Dictionary<string, Vector2>();
         private readonly Queue<GameObject> contactShadowPool = new Queue<GameObject>();
 
         private readonly HashSet<long> visibleContactShadowKeys = new HashSet<long>();
+
+        /// <summary>
+        /// Keys (see <see cref="ContactShadowKey"/>) whose cast-shadow mode has already been set
+        /// for the creep instance currently holding that key.
+        /// </summary>
+        /// <remarks>
+        /// Needed because of pooling, not just to save a per-frame walk. A creep without its own
+        /// prefab (<c>GetPooledCreep</c>'s primitive fallback) is drawn from one shared pool
+        /// regardless of role, so the exact GameObject a new grounded creep receives may be one a
+        /// hovering creep left with its shadow switched off two spawns ago. Every key seen for the
+        /// first time gets <see cref="SetCreepCastShadowMode"/> applied once, in whichever direction
+        /// its own hover status calls for, which corrects that stale state rather than assuming a
+        /// freshly-pooled instance starts clean.
+        /// </remarks>
+        private readonly HashSet<long> creepShadowModeConfigured = new HashSet<long>();
 
         private Material towerContactShadowMaterial;
         private Material creepContactShadowMaterial;
@@ -41,10 +63,55 @@ namespace LTW.UnityClient.Simulation
         /// The decal is pooled and keyed off the same entity id as the unit itself, so it follows
         /// the existing pooling exactly - reused instances get repositioned, and anything that
         /// leaves the snapshot returns its blob on the same frame the unit is released.
+        ///
+        /// Finding #5 (2026-09-01 render review): a creep was stacking up to three soft ground
+        /// marks under it at once - its real cast shadow from the key light, this decal, and the
+        /// SenderAccent owner-glow pool - and nothing on the board read as crisp. Towers keep this
+        /// decal exactly as before (their cast shadow reads as nothing at this camera angle, per
+        /// the remark above, so the decal is their only grounding cue). Creeps no longer do: a
+        /// grounded creep now keeps only its real cast shadow, and a hovering one (turret_walker /
+        /// flying / air - <see cref="IsHoveringCreep"/>) gets this decal back as its ONLY grounding
+        /// cue, because <see cref="SetCreepCastShadowMode"/> turns its cast shadow off
+        /// instead: the key light elongates a cast shadow further the higher its caster stands, and
+        /// a flyer's hover height is exactly what was producing the "detached" streak on the ground
+        /// that finding #5 flagged. Sizing that replacement decal to the flyer's own measured
+        /// footprint (rather than the ground unit's usual scale) is the "clamp flyer shadow offset
+        /// to their ground cell" half of the fix.
+        ///
+        /// <see cref="ContactShadowKey"/>'s low bit tells towers and creeps apart, which is what the
+        /// branch below reads rather than adding a parameter - the call sites in the main file are
+        /// out of scope for this pass.
         /// </remarks>
         private void UpdateContactShadow(long key, GameObject unit, string poolKey, Material material, float footprintScale)
         {
-            if (material == null || unit == null)
+            if (unit == null)
+            {
+                return;
+            }
+
+            var isCreep = (key & 1L) == 1L;
+            if (isCreep)
+            {
+                var creepId = CreepIdFor(key >> 1);
+                var isHovering = IsHoveringCreep(creepId);
+                if (creepShadowModeConfigured.Add(key))
+                {
+                    SetCreepCastShadowMode(unit, castsShadow: !isHovering);
+                }
+
+                if (!isHovering)
+                {
+                    // Grounded creep: the real cast shadow is the only ground mark it keeps.
+                    return;
+                }
+
+                // Hovering creep: rebuild the decal at the creep's own tight footprint rather than
+                // the caller's requested scale, which was tuned for a grounded creep's usual (wider,
+                // half-hidden-under-the-body) blob.
+                footprintScale = FlyerGroundAnchorFootprintScale;
+            }
+
+            if (material == null)
             {
                 return;
             }
@@ -118,6 +185,11 @@ namespace LTW.UnityClient.Simulation
             }
 
             activeContactShadows.Remove(key);
+            // A despawned creep's shadow-mode bookkeeping is stale the moment its decal is gone (or,
+            // for a grounded creep, was never created) - without this a long match would grow this
+            // set by one entry per creep forever, and a pooled instance handed to a new creep would
+            // wrongly be treated as "already configured" for a hover status that is no longer true.
+            creepShadowModeConfigured.Remove(key);
         }
 
         private void ReleaseAllContactShadows()
@@ -131,6 +203,57 @@ namespace LTW.UnityClient.Simulation
             }
 
             activeContactShadows.Clear();
+            creepShadowModeConfigured.Clear();
+        }
+
+        /// <summary>
+        /// Sets whether a creep's own body casts a shadow, once per creep.
+        /// </summary>
+        /// <remarks>
+        /// See <see cref="UpdateContactShadow"/>'s finding #5 remark: the key light's shadow
+        /// projects further as its caster stands higher off the ground plane, so turret_walker and
+        /// flying/air creeps - lifted 0.32-0.72 above the board by <see cref="CreepRoleOffset"/> -
+        /// cast a visibly elongated, detached-looking shadow. Disabling the projection outright
+        /// (rather than trying to bias or clamp it per-renderer, which Unity does not expose per
+        /// caster on a single directional light) and handing the creep back a tight ground-anchor
+        /// decal via <see cref="UpdateContactShadow"/> is the bounded fix: one exception path for
+        /// hovering creeps only, everything else - including every grounded creep's real cast
+        /// shadow - unchanged.
+        ///
+        /// Both directions are real, not just "turn off for flyers": creeps without their own
+        /// prefab share one pool regardless of role (see <see cref="creepShadowModeConfigured"/>'s
+        /// remark), so a grounded creep can receive an instance a flyer left with its shadow off,
+        /// and this has to put it back on rather than assume every pooled instance starts clean.
+        ///
+        /// Excludes the same overlay renderers <see cref="UnitFootprint"/> already excludes
+        /// (health bar, role-readability markers) plus the SenderAccent ownership pool, none of
+        /// which should have their shadow state flipped just because the body they sit under does -
+        /// a health bar has never cast a shadow and should not start because it happened to sit on
+        /// a creep whose hover status just changed pools.
+        /// </remarks>
+        private static void SetCreepCastShadowMode(GameObject unit, bool castsShadow)
+        {
+            var mode = castsShadow
+                ? UnityEngine.Rendering.ShadowCastingMode.On
+                : UnityEngine.Rendering.ShadowCastingMode.Off;
+
+            var renderers = unit.GetComponentsInChildren<Renderer>(true);
+            for (var index = 0; index < renderers.Length; index++)
+            {
+                var candidate = renderers[index];
+                if (candidate == null)
+                {
+                    continue;
+                }
+
+                var rendererName = candidate.gameObject.name;
+                if (IsOverlayRenderer(rendererName) || rendererName.IndexOf("SenderAccent", StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    continue;
+                }
+
+                candidate.shadowCastingMode = mode;
+            }
         }
 
         /// <summary>
@@ -199,6 +322,13 @@ namespace LTW.UnityClient.Simulation
             return towerContactShadowMaterial;
         }
 
+        /// <summary>
+        /// The one soft-shadow material creeps still use, and only for the hovering-creep ground
+        /// anchor drawn by <see cref="UpdateContactShadow"/> - a grounded creep no longer gets a
+        /// decal at all (finding #5, 2026-09-01 render review). Left with its original name and
+        /// tuning rather than renamed, since it is the same blob a grounded creep used to get, just
+        /// no longer called for one.
+        /// </summary>
         private Material CreepContactShadowMaterial()
         {
             if (creepContactShadowMaterial == null)

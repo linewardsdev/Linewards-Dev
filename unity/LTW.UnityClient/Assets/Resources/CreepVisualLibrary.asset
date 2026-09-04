@@ -16,7 +16,7 @@ MonoBehaviour:
   - creepId: creep.runner
     role: 0
     prefab: {fileID: 3268587029970364819, guid: dd4a4d0cca2af4214881623a6b8ba645, type: 3}
-    scale: {x: 1.08, y: 1.08, z: 1.08}
+    scale: {x: 1.15, y: 1.15, z: 1.15}
     motionStyle: 1
     bodyRendererPath: BodyTintAnchor
     senderAccentRendererPaths:

@@ -435,3 +435,25 @@ public sealed class CreepHealedEvent : ISimulationEvent
 
     public int Health { get; }
 }
+
+/// <summary>
+/// A recorded opponent (MULTIPLAYER_SEATS_AND_AUTHORITY.md's MP-02) could not be seated because
+/// its recording's content version does not match this match's. Telemetry only: the seat is
+/// immediately bot-filled, silently as far as gameplay is concerned — see
+/// <c>LocalVerticalSlice.AssignRecordedOpponent</c>.
+/// </summary>
+public sealed class RecordedSeatFallbackEvent : ISimulationEvent
+{
+    public RecordedSeatFallbackEvent(SimulationTick tick, PlayerId playerId, string reason)
+    {
+        Tick = tick;
+        PlayerId = playerId;
+        Reason = reason;
+    }
+
+    public SimulationTick Tick { get; }
+
+    public PlayerId PlayerId { get; }
+
+    public string Reason { get; }
+}

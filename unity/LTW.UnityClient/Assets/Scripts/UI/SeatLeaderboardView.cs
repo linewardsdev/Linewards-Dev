@@ -281,6 +281,7 @@ namespace LTW.UnityClient.UI
         {
             titleStyle ??= new GUIStyle(GUI.skin.label)
             {
+                font = RuntimeUiChrome.SharedFont,
                 alignment = TextAnchor.MiddleCenter,
                 fontStyle = FontStyle.Bold,
                 normal = { textColor = ArcaneBlue }
@@ -288,6 +289,7 @@ namespace LTW.UnityClient.UI
 
             seatStyle ??= new GUIStyle(GUI.skin.label)
             {
+                font = RuntimeUiChrome.SharedFont,
                 alignment = TextAnchor.MiddleLeft,
                 fontStyle = FontStyle.Bold,
                 normal = { textColor = Cloud }
@@ -295,6 +297,7 @@ namespace LTW.UnityClient.UI
 
             valueStyle ??= new GUIStyle(GUI.skin.label)
             {
+                font = RuntimeUiChrome.SharedFont,
                 alignment = TextAnchor.MiddleRight,
                 fontStyle = FontStyle.Bold,
                 normal = { textColor = SignalGold }
@@ -302,6 +305,7 @@ namespace LTW.UnityClient.UI
 
             labelStyle ??= new GUIStyle(GUI.skin.label)
             {
+                font = RuntimeUiChrome.SharedFont,
                 alignment = TextAnchor.MiddleLeft,
                 normal = { textColor = MutedCloud }
             };

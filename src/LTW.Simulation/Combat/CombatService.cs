@@ -1106,7 +1106,7 @@ public sealed class CombatService
         List<ISimulationEvent> events,
         SupportAuraField auras)
     {
-        var damage = AdjustDamageForRoles(tower.TowerId, target.CreepId, baseDamage);
+        var damage = AdjustDamageForRoles(tower.TowerId, target.CreepId, content, baseDamage);
 
         // Every path that hurts a creep — direct fire, splash, chain, artillery — arrives here, so
         // the shield is applied once rather than at four call sites that could drift apart.
@@ -1127,11 +1127,56 @@ public sealed class CombatService
         }
     }
 
-    private static int AdjustDamageForRoles(ContentId towerId, ContentId creepId, int damage)
+    /// <summary>
+    /// The anti-air bonus against a flying creep, as a percent of base damage (100 = double).
+    /// </summary>
+    /// <remarks>
+    /// A first pass, not a measured value — this mechanic did not exist before this fix (owner's
+    /// call, 2026-08-31, choosing "give an existing tower a flyer bonus" over a new dedicated
+    /// anti-air tower, a stripped bramble immunity, or a flat Walker nerf).
+    ///
+    /// One tower per LINE, not one tower overall — caught live in review, 2026-08-31: a player's
+    /// first tower placed permanently commits them to that line for the rest of the match
+    /// (<c>PlayerEconomyState.CanBuildFromLine</c>, set the moment it lands in
+    /// <c>LocalVerticalSlice.PlaceTower</c>). Giving the bonus to Elder Canopy alone meant only a
+    /// GROVE commitment ever had an answer to Walker — ARCANE and FOUNDRY had none for the entire
+    /// match, which does not fix "walkers are too strong," it just relocates the problem to which
+    /// line a player happened to pick before Walker ever showed up. Prism Ward and Gatling Turret
+    /// cover the other two lines so every commitment has exactly one answer:
+    ///
+    ///   - Elder Canopy (GROVE): longest range (5) and an existing intercept-flavoured mechanic
+    ///     (SelectTarget's back-most-in-range rule, "engages arrivals at the mouth of the lane").
+    ///   - Prism Ward (ARCANE): second-longest range (4) and already the roster's other
+    ///     priority-targeting tower (SelectTarget's Shade/health/route-progress ordering).
+    ///   - Gatling Turret (FOUNDRY): the roster's fastest attack cooldown (2 ticks) — the "many
+    ///     chances to land a hit in a short window" answer, where the other two are "long enough
+    ///     range to get several hits in" answers.
+    ///
+    /// Range (or attack frequency, for Gatling) is what actually answers a flyer's real advantage,
+    /// which is TIME IN RANGE, not raw toughness: it skips the maze and takes the direct route, so
+    /// it is exposed to any tower for less of the lane than a mazed creep ever is. This value should
+    /// be measured and adjusted the way every other mechanic in this project's history has been (see
+    /// GD_TUNING_LOG.md's "20% meaningful bar" convention) once there is a scenario harness result to
+    /// judge it against, not treated as final.
+    ///
+    /// WHICH towers have this is authored on <see cref="TowerDefinition.CountersFlyers"/>, not
+    /// matched here by id — see that property's own remarks for why a string check on
+    /// "prism"/"gatling"/"elder_canopy" was rejected in review before it shipped. Quoted directly by
+    /// <c>CodexScreenView.TowerTraits</c> rather than restated as a hardcoded "+100%" there, the same
+    /// discipline that screen already applies to every other authored-mechanic number.
+    /// </remarks>
+    public const int AntiAirDamageBonusPercent = 100;
+
+    private static int AdjustDamageForRoles(ContentId towerId, ContentId creepId, CombatContent content, int damage)
     {
         if (IsShadeCreep(creepId) && !IsControlTower(towerId) && !IsPrismTower(towerId))
         {
             return Math.Max(1, (damage + 1) / 2);
+        }
+
+        if (content.GetCreep(creepId).IgnoresMaze && content.GetTower(towerId).CountersFlyers)
+        {
+            return damage * (100 + AntiAirDamageBonusPercent) / 100;
         }
 
         return damage;

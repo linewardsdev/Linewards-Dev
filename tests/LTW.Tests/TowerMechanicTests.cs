@@ -452,6 +452,75 @@ public sealed class TowerMechanicTests
     }
 
     /// <summary>
+    /// A Thorn Snare in one lane must not paint bramble decals into a neighbouring lane that holds no
+    /// slowing tower at all.
+    /// </summary>
+    /// <remarks>
+    /// Reported against a screenshot review (render-review-20260901, finding #18): violet Bramble
+    /// Hold decals appeared to sit on two path cells of a lane holding only Foundry-line towers,
+    /// while the only Thorn Snare was in the lane next door. That would only be a real bug if
+    /// BuildBrambleZones grouped a tower's spans under something other than the tower's OWN LaneId,
+    /// or if GetBrambleCells resolved a lane's spans against a DIFFERENT lane's route while still
+    /// labelling them with the right key — either would leave the client drawing another lane's
+    /// geometry under a key that looks correct. Neither happens: BuildBrambleZones keys by
+    /// `tower.LaneId` and reads `routes.Mazed[tower.LaneId]` for that same tower, so a lane whose
+    /// only tower does not slow creeps can never gain an entry, no matter what its neighbour is
+    /// doing. This test is the pass/fail encoding of that claim, and it also closes the coverage gap
+    /// that let the finding go unverified in the first place: every other bramble test here uses a
+    /// single lane, so a cross-lane leak had no test that could ever have caught it.
+    ///
+    /// Uses Gatling, not Foundry Core, as the neighbouring lane's tower. The first version of this
+    /// test used Foundry Core and failed — not because of a keying bug, but because Foundry Core
+    /// (`tower.foundry`) is ITSELF a second Bramble Hold tower: `slowsCreeps: true`,
+    /// `role: TowerRole.Brake`, same as Thorn Snare. A lane holding only a Foundry Core legitimately
+    /// gets its own bramble decals under its own key, drawn in the same
+    /// <c>BrambleMarkerColor</c> because the client colours the mechanic, not its source tower. That
+    /// is almost certainly what the screenshot actually showed: not a keying bug, but a second
+    /// Foundry-line Brake tower the reviewer did not realise slows creeps too.
+    /// </remarks>
+    [Fact]
+    public void Bramble_cells_do_not_leak_into_a_neighbouring_lane_with_no_thorn_tower()
+    {
+        var service = new CombatService();
+        var laneWithThorn = Lane;
+        var laneWithoutThorn = new LaneId(2);
+
+        var content = new CombatContent(
+            Catalog.Creeps,
+            Catalog.Towers,
+            new Dictionary<LaneId, PlayerId> { [laneWithThorn] = Defender, [laneWithoutThorn] = Defender });
+
+        var routes = new Dictionary<LaneId, IReadOnlyList<GridPosition>>
+        {
+            [laneWithThorn] = Enumerable.Range(0, 18).Select(y => new GridPosition(3, y)).ToArray(),
+            [laneWithoutThorn] = Enumerable.Range(0, 18).Select(y => new GridPosition(9, y)).ToArray()
+        };
+
+        var towers = new[]
+        {
+            new TowerCombatState(new EntityId(10), new ContentId("tower.thorn_snare"), Defender, laneWithThorn, new GridPosition(2, 8)),
+            // Gatling: Foundry-line, but plain Dps with no slowsCreeps — the actual "holds no
+            // bramble tower" control, unlike Foundry Core itself (see remarks above).
+            new TowerCombatState(new EntityId(11), new ContentId("tower.gatling"), Defender, laneWithoutThorn, new GridPosition(8, 8))
+        };
+        var state = new CombatState(System.Array.Empty<CreepCombatState>(), towers);
+
+        var drawn = service.GetBrambleCells(state, content, routes);
+
+        Assert.True(drawn.ContainsKey(laneWithThorn), "the thorn tower's own lane should have drawn cells");
+        Assert.NotEmpty(drawn[laneWithThorn]);
+
+        if (drawn.TryGetValue(laneWithoutThorn, out var leaked))
+        {
+            Assert.Empty(leaked);
+        }
+
+        // The literal shape of the reported bug: decals for the thorn lane sitting on the OTHER
+        // lane's path geometry (x=9) rather than the thorn tower's own (x=3).
+        Assert.DoesNotContain(drawn[laneWithThorn], cell => cell.X == 9);
+    }
+
+    /// <summary>
     /// A route can pass a single Thorn Snare twice — near it, away, then back — which is normal on a
     /// mazed lane. BrambleZonesFor must brake each visit as its own span rather than collapsing the
     /// first and last covered indices into one span that also brakes the stretch in between where

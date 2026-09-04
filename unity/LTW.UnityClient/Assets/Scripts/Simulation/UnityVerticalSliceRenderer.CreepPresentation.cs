@@ -174,14 +174,17 @@ namespace LTW.UnityClient.Simulation
             return Vector3.Lerp(from, GridToWorld(creep.NextPosition, creep.LaneId), fraction);
         }
 
-        private static void SetCreepTransform(GameObject instance, Vector3 lanePosition, LaneId laneId, string creepId, CreepVisualProfile visualProfile, bool snapToTarget, float hitFlashUntil, long key, float facingYaw)
+        private void SetCreepTransform(GameObject instance, Vector3 lanePosition, LaneId laneId, string creepId, CreepVisualProfile visualProfile, bool snapToTarget, float hitFlashUntil, long key, float facingYaw)
         {
             var roleMotion = CreepRoleMotion(creepId, visualProfile, hitFlashUntil, IsRiggedCreep(instance, creepId), key);
-            var targetPosition = lanePosition + CreepRoleOffset(creepId) + roleMotion.PositionOffset;
+            // Scale before position: the spread's first-sight footprint measurement reads the live
+            // scale, and a freshly pooled instance still carries whatever its last life left.
+            instance.transform.localScale = CreepRoleScale(creepId, visualProfile) * roleMotion.ScaleMultiplier;
+            var spread = CreepSpreadFor(key, instance, creepId, visualProfile, lanePosition, snapToTarget);
+            var targetPosition = lanePosition + CreepRoleOffset(creepId) + roleMotion.PositionOffset + CreepSpreadOffset(spread, lanePosition, facingYaw);
             instance.transform.position = snapToTarget || Vector3.Distance(instance.transform.position, targetPosition) > CreepTeleportSnapDistance
                 ? targetPosition
                 : Vector3.Lerp(instance.transform.position, targetPosition, Mathf.Clamp01(Time.deltaTime * 8f));
-            instance.transform.localScale = CreepRoleScale(creepId, visualProfile) * roleMotion.ScaleMultiplier;
             // Facing FIRST, then the idle motion, so sway and spin read as happening to a creep that
             // is pointing somewhere rather than replacing where it points. The old line applied only
             // the idle rotation, which is why a creep never turned: it faced its import orientation
@@ -189,6 +192,199 @@ namespace LTW.UnityClient.Simulation
             instance.transform.rotation = Quaternion.Euler(0f, facingYaw, 0f) * roleMotion.Rotation;
         }
 
+        /// <summary>
+        /// Where inside the path each creep walks, and how far behind its simulated cell it was
+        /// drawn at spawn. Fixed the frame a creep is first seen and cached for its life.
+        /// </summary>
+        /// <remarks>
+        /// Live render review 2026-09-01, finding #6: creeps queued in the same tick spawn on the
+        /// same cell and interpenetrate — a bot burst of Walkers and Obsidian Brutes arrives as one
+        /// clump with the Walkers riding through the Brutes, and a Brute renders inside a Colossus
+        /// two cells later. Speed differences are the only thing that ever separated them.
+        ///
+        /// Presentation-side, deliberately. The simulation has no lateral position: a creep IS its
+        /// route cell plus banked progress, and a sideways coordinate would be the first float in an
+        /// all-integer sim for a purely visual reason (ArchitectureBoundaryTests guards that). So the
+        /// spread is derived here from the entity id — the same digit hash that de-phases idle
+        /// motion — which makes it identical across clients and replays without the sim knowing it
+        /// exists, and stable for the creep's whole life so nothing jumps between frames.
+        ///
+        /// Cached rather than recomputed because the footprint measurement behind Lateral is a
+        /// renderer walk on a pool key's first sight, and this Update path is under an allocation
+        /// budget (OPEN_ITEMS item 24) — per frame this is one dictionary read. Released in
+        /// ReleaseMissingCreeps beside creepFacingYaw.
+        /// </remarks>
+        private readonly Dictionary<long, CreepSpread> creepSpread = new Dictionary<long, CreepSpread>();
+
+        private readonly struct CreepSpread
+        {
+            public CreepSpread(float lateral, float staggerStart, float spawnedAt, Vector3 spawnWorld)
+            {
+                Lateral = lateral;
+                StaggerStart = staggerStart;
+                SpawnedAt = spawnedAt;
+                SpawnWorld = spawnWorld;
+            }
+
+            /// <summary>Across-path offset in world units, positive to the creep's own right.</summary>
+            public float Lateral { get; }
+
+            /// <summary>Along-path offset at spawn, in [-<see cref="CreepStaggerRange"/>, 0]. Decays to 0.</summary>
+            public float StaggerStart { get; }
+
+            /// <summary><see cref="Time.time"/> the creep was first drawn.</summary>
+            public float SpawnedAt { get; }
+
+            /// <summary>Lane position the creep was first drawn at — the spawn cell, which the stagger may never pull it behind.</summary>
+            public Vector3 SpawnWorld { get; }
+        }
+
+        /// <summary>Widest across-path offset, in world units, either side of the lane centre.</summary>
+        private const float CreepLateralSpreadRange = 0.30f;
+
+        /// <summary>The width the spread keeps a creep's body inside: the path is one cell wide.</summary>
+        private const float CreepSpreadPathWidth = 1f;
+
+        /// <summary>How far behind its simulated cell a same-tick arrival may be drawn at spawn.</summary>
+        private const float CreepStaggerRange = 0.35f;
+
+        /// <summary>Seconds for the spawn stagger to close up.</summary>
+        private const float CreepStaggerSettleSeconds = 3f;
+
+        private CreepSpread CreepSpreadFor(long key, GameObject instance, string creepId, CreepVisualProfile visualProfile, Vector3 lanePosition, bool isNew)
+        {
+            if (!isNew && creepSpread.TryGetValue(key, out var cached))
+            {
+                return cached;
+            }
+
+            var hash = CreepSpreadHash(key);
+            var lateralUnit = (hash & 0xFFFF) / 65535f;
+            var staggerUnit = ((hash >> 16) & 0xFFFF) / 65535f;
+            // A creep seen mid-lane without an entry is a lost cache row, not an arrival, and
+            // must not be drawn dropping back as if it had just spawned.
+            var spread = new CreepSpread(
+                (lateralUnit * 2f - 1f) * CreepLateralSpreadRangeFor(instance, creepId, visualProfile),
+                isNew ? -staggerUnit * CreepStaggerRange : 0f,
+                Time.time,
+                lanePosition);
+            creepSpread[key] = spread;
+            return spread;
+        }
+
+        /// <summary>
+        /// How far this creep may be pushed off the lane centre and still keep its body inside
+        /// the path.
+        /// </summary>
+        private float CreepLateralSpreadRangeFor(GameObject instance, string creepId, CreepVisualProfile visualProfile)
+        {
+            // Siege Colossus fills its cell; any sideways shift walks its shoulders into the walls.
+            if (ContainsRole(creepId, "colossus"))
+            {
+                return 0f;
+            }
+
+            // The body's across-path width at live scale, from the same measurement the contact
+            // shadow is sized by. The smaller of the two extents rather than the local-X one:
+            // UnitFootprint measures world-aligned bounds whenever a pool key is first seen, at
+            // whatever yaw that creep happened to be drawn at, and every creep in the roster is at
+            // least as long as it is wide, so the smaller extent is the one that faces the walls.
+            // A body already 0.8 of a cell wide keeps 0.1 of room; one a full cell wide keeps none.
+            var footprint = UnitFootprint(CreepPoolKey(visualProfile), instance);
+            var width = Mathf.Min(footprint.x, footprint.y);
+            var range = Mathf.Min(CreepLateralSpreadRange, Mathf.Max(0f, (CreepSpreadPathWidth - width) * 0.5f));
+
+            // Hovering creeps get half. Their contact shadow and owner glow sit on the board well
+            // below the body, and at full range that pair reads as having drifted off the path
+            // while the body itself is comfortably inside it.
+            return IsHoveringCreep(creepId) ? range * 0.5f : range;
+        }
+
+        /// <summary>The creeps <see cref="CreepRoleOffset"/> lifts off the board.</summary>
+        private static bool IsHoveringCreep(string creepId) =>
+            ContainsRole(creepId, "turret_walker") || ContainsRole(creepId, "flying") || ContainsRole(creepId, "air");
+
+        /// <summary>
+        /// The spread as a world-space offset in the creep's own travel frame.
+        /// </summary>
+        /// <remarks>
+        /// "Across the path" means perpendicular to the current heading, not to the lane — a mazed
+        /// route is mostly corners. The frame is the facing yaw the caller already resolved
+        /// (<c>CreepFacingYaw</c> in the core file: the heading toward NextPosition, smoothed at
+        /// CreepTurnDegreesPerSecond), which is also what the body is rotated by, so the offset
+        /// swings round a corner with the creep instead of snapping the tick the route step turns.
+        /// The rigs face +Z at yaw 0, so forward is (sin, 0, cos) and right is (cos, 0, -sin).
+        ///
+        /// The stagger pulls the body BACK along the heading and closes over
+        /// <see cref="CreepStaggerSettleSeconds"/> on a smoothstep, so a same-tick burst fans out
+        /// behind its lead and then closes up. Clamped so the drawn position never falls behind the
+        /// cell the creep was first seen on — otherwise a fresh arrival would be drawn back through
+        /// the spawn gate sprite. On the spawn frame that clamp is exactly zero, and the stagger
+        /// reveals itself over the first third of a cell as the creep walks clear of the gate.
+        /// </remarks>
+        private static Vector3 CreepSpreadOffset(CreepSpread spread, Vector3 lanePosition, float facingYaw)
+        {
+            var yaw = facingYaw * Mathf.Deg2Rad;
+            var forwardX = Mathf.Sin(yaw);
+            var forwardZ = Mathf.Cos(yaw);
+
+            var settle = Mathf.SmoothStep(0f, 1f, (Time.time - spread.SpawnedAt) / CreepStaggerSettleSeconds);
+            var along = spread.StaggerStart * (1f - settle);
+            // How far behind the spawn cell the current heading allows: zero on the spawn frame,
+            // growing negative as the creep walks away from it.
+            var spawnBehind = (spread.SpawnWorld.x - lanePosition.x) * forwardX + (spread.SpawnWorld.z - lanePosition.z) * forwardZ;
+            along = Mathf.Max(along, Mathf.Min(spawnBehind, 0f));
+
+            return new Vector3(
+                forwardZ * spread.Lateral + forwardX * along,
+                0f,
+                -forwardX * spread.Lateral + forwardZ * along);
+        }
+
+        /// <summary>
+        /// Sixteen bits of lateral and sixteen of stagger from the entity id, via the same digit
+        /// hash <see cref="CreepMotionPhase"/> keeps every creep's idle phase on.
+        /// </summary>
+        /// <remarks>
+        /// The digit hash alone will not do here. It is a 31-multiplier string hash over a handful
+        /// of digits, so for entity ids under about 120 everything above bit 16 is zero — and the
+        /// phase already spends the low 16. The opening burst of a match, exactly where finding #6
+        /// bites hardest, would have shared one lateral slot. A murmur3 finaliser spreads the digit
+        /// hash across all 32 bits; the phase is untouched because it still reads the raw hash.
+        /// </remarks>
+        private static int CreepSpreadHash(long key)
+        {
+            unchecked
+            {
+                var mixed = (uint)CreepKeyDigitHash(key);
+                mixed ^= mixed >> 16;
+                mixed *= 0x85EBCA6Bu;
+                mixed ^= mixed >> 13;
+                mixed *= 0xC2B2AE35u;
+                mixed ^= mixed >> 16;
+                return (int)mixed;
+            }
+        }
+
+        /// <remarks>
+        /// Finding #5 (2026-09-01 render review) named the SenderAccent pool tinted below as one of
+        /// three overlapping soft ground marks a creep could carry and asked for it to be dropped.
+        /// It is kept: <see cref="CreepRoleColor"/> returns a FIXED colour, independent of senderId,
+        /// for every role except the plain runner fallback (brute/tank/boss, swarm, flying/air,
+        /// shade/stealth, siege, aura all hard-code their colour), and the role-readability overlay
+        /// most of those roles draw is suppressed entirely for the generated 3D mesh creeps
+        /// (<see cref="UsesMeshVisual"/> — see its own remark, "Ownership still reads from the
+        /// SenderAccent decal"). For those roles this pool is not decoration layered on top of an
+        /// ownership read that exists elsewhere on the creep — it IS the ownership read. Swarm is the
+        /// one place that already drops it (<see cref="ConfigureSwarmCluster"/>), and that remark is
+        /// explicit that doing so costs Swarm its sender identity and was accepted only because a
+        /// spread cluster of shards makes a ground pool read as a dominant glow rather than a tint.
+        /// Removing it everywhere else would make that same trade for every other role without the
+        /// justification Swarm had, and for a creep like Obsidian Brute (isBrute, fixed body colour)
+        /// would leave a player with literally no way to tell whose creep they are looking at. The
+        /// grounding-mark decluttering finding #5 wants is instead handled in ContactShadows.cs: the
+        /// separate pooled contact-shadow decal is what was dropped for creeps.
+        /// </remarks>
         private static void ApplyCreepColor(GameObject creepObject, string creepId, int senderId, CreepVisualProfile visualProfile, float healthFraction, bool isHitFlashing)
         {
             var bodyColor = CreepBodyColor(creepId, senderId, healthFraction, isHitFlashing);
@@ -814,12 +1010,21 @@ namespace LTW.UnityClient.Simulation
                 return 0f;
             }
 
+            return (CreepKeyDigitHash(key) & 0xFFFF) / 65535f * (Mathf.PI * 2f);
+        }
+
+        /// <summary>
+        /// The hash over the id's decimal digits that <see cref="CreepMotionPhase"/> and
+        /// <see cref="CreepSpreadHash"/> share. Digits, not the number — see the phase's remark.
+        /// </summary>
+        private static int CreepKeyDigitHash(long key)
+        {
             unchecked
             {
                 // Digits, most significant first, without materialising the string that used to
-                // carry them. Only the low 16 bits of the hash survive below, so a negative key's
-                // '-' sign is the one character this cannot reproduce; entity ids are never
-                // negative, and 0 keeps the old empty-key answer above.
+                // carry them. A negative key's '-' sign is the one character this cannot
+                // reproduce; entity ids are never negative, and CreepMotionPhase keeps the old
+                // empty-key answer for 0 itself.
                 var digits = 1;
                 for (var scale = key; scale >= 10L; scale /= 10L)
                 {
@@ -839,7 +1044,7 @@ namespace LTW.UnityClient.Simulation
                     divisor /= 10L;
                 }
 
-                return (hash & 0xFFFF) / 65535f * (Mathf.PI * 2f);
+                return hash;
             }
         }
 

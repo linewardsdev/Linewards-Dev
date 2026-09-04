@@ -114,7 +114,7 @@ namespace LTW.UnityClient.UI
         /// </remarks>
         public bool ShowTower(string contentId)
         {
-            towerLibrary ??= Resources.Load<TowerVisualLibrary>("TowerVisualLibrary");
+            towerLibrary ??= TowerVisualLibrary.LoadDefault();
             var profile = towerLibrary != null ? towerLibrary.FindProfile(contentId) : null;
             if (profile == null || profile.Prefab == null)
             {

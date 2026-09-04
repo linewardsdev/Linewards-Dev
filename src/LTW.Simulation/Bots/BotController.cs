@@ -191,12 +191,31 @@ public sealed class BotController
     public void TakeOpeningTurn(PlayerId playerId, IBotMatchContext match)
     {
         TryBuild(playerId, match);
+        if (profile == BotDecisionProfile.Passive)
+        {
+            return;
+        }
+
         match.TrySend(playerId, creepId, quantity: 1);
         lastSendTick = match.Tick.Value;
     }
 
+    /// <summary>
+    /// What this bot sends this tick, or <see cref="BotDecision.None"/>.
+    /// </summary>
+    /// <remarks>
+    /// Passive never sends, and the refusal lives here rather than only in <see cref="TrySend"/> so
+    /// a caller driving the decision directly gets the same answer the match does — the profile's
+    /// one promise is that no creep ever leaves its seat, and a promise kept in one of two entry
+    /// points is not kept.
+    /// </remarks>
     public BotDecision Decide(PlayerEconomyState player, ContentCatalog content, SimulationTick tick)
     {
+        if (profile == BotDecisionProfile.Passive)
+        {
+            return BotDecision.None;
+        }
+
         var creep = SelectCreep(player, content, tick);
         var sendQuantity = GetSendQuantity(player, content, creep);
         if (sendQuantity <= 0)
@@ -239,10 +258,23 @@ public sealed class BotController
     /// (see docs/ARCHITECTURE.md's Content And Persistence section) — a missing profile entry is a
     /// content authoring bug, not a runtime condition to paper over.
     /// </summary>
+    /// <remarks>
+    /// Passive is the one exception to "throws when missing", and deliberately: it is a behaviour
+    /// switch, not a separately balanced profile. Its build cadence, reserve floor and tier side are
+    /// Defensive's by design, so a catalog that has not authored <c>bot.passive</c> has not left a
+    /// gap — it has said nothing that Defensive's numbers do not already say. A catalog that does
+    /// author it wins, so the fallback never overrides a content decision.
+    /// </remarks>
     public BotProfileDefinition ResolveProfile(ContentCatalog content)
     {
         var id = BotProfileIds.For(profile);
-        return content.BotProfiles.FirstOrDefault(candidate => candidate.Id.Equals(id))
+        var found = content.BotProfiles.FirstOrDefault(candidate => candidate.Id.Equals(id));
+        if (found is null && profile == BotDecisionProfile.Passive)
+        {
+            found = content.BotProfiles.FirstOrDefault(candidate => candidate.Id.Equals(BotProfileIds.Defensive));
+        }
+
+        return found
             ?? throw new InvalidOperationException($"No BotProfileDefinition found for '{id.Value}'. Every BotDecisionProfile needs a matching content entry.");
     }
 
@@ -351,6 +383,13 @@ public sealed class BotController
     /// </remarks>
     private int SendSavingsFor(PlayerId playerId, IBotMatchContext match, BotProfileDefinition profileDefinition)
     {
+        // A bot that never sends is not starving for one. Without this a Passive bot reads as silent
+        // from tick 50 onward and holds a wall's worth of gold back from towers for the whole match.
+        if (profile == BotDecisionProfile.Passive)
+        {
+            return 0;
+        }
+
         if (!HasMinimumDefenseCoverage(playerId, match) || IsLaneUnderPressure(playerId, match))
         {
             return 0;
@@ -498,7 +537,9 @@ public sealed class BotController
         }
 
         var profileDefinition = ResolveProfile(match.Content);
-        var kind = profileDefinition.DefenseBias > profileDefinition.Aggression
+        // Passive is pinned to the line side rather than trusting its tuning to land there: a send
+        // tier on a seat that never sends is gold spent on nothing, whatever a catalog authors.
+        var kind = profile == BotDecisionProfile.Passive || profileDefinition.DefenseBias > profileDefinition.Aggression
             ? CategoryKind.TowerLine
             : CategoryKind.SendCategory;
         var categoryIndex = kind == CategoryKind.TowerLine

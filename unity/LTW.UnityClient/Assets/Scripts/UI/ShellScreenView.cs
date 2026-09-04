@@ -13,6 +13,8 @@ namespace LTW.UnityClient.UI
     {
         None,
         Title,
+        FirstRunOffer,
+        HowToPlay,
         Codex,
         Pause,
         Results
@@ -32,6 +34,16 @@ namespace LTW.UnityClient.UI
     {
         void StartGame();
 
+        /// <summary>Title PRACTICE and the first-run offer's PRACTICE FIRST: begin the guided match.</summary>
+        void StartPractice();
+
+        /// <summary>The first-run offer's JUST PLAY: decline practice and start a normal match.</summary>
+        void StartGameNow();
+
+        /// <summary>
+        /// Kept for the overlay, which still implements it; the view no longer calls it. HOW TO
+        /// PLAY is a UI Toolkit screen now and the view shows it itself, see <see cref="ShellScreenView.Show"/>.
+        /// </summary>
         void ShowHowToPlay();
 
         void ShowCodex();
@@ -52,7 +64,8 @@ namespace LTW.UnityClient.UI
     }
 
     /// <summary>
-    /// The title, pause and results screens, built in UI Toolkit.
+    /// The title, first-run offer, how-to-play, codex, pause and results screens, built in UI
+    /// Toolkit, plus the coach strip that rides over a practice match.
     /// </summary>
     /// <remarks>
     /// These were three IMGUI cards floating over a live board — the title was literally a 348x284
@@ -82,21 +95,38 @@ namespace LTW.UnityClient.UI
         private UIDocument? document;
         private VisualElement? shellRoot;
         private VisualElement? titleScreen;
+        private VisualElement? firstRunScreen;
+        private VisualElement? howToPlayScreen;
         private VisualElement? codexScreen;
         private VisualElement? pauseScreen;
         private VisualElement? resultsScreen;
         private CodexScreenView? codex;
+        private HowToPlayScreenView? howToPlay;
         private VisualElement? resultsTable;
         private Label? pauseLives;
         private Label? pauseGold;
         private Label? pauseIncome;
         private Label? resultsHeadline;
         private Label? resultsNote;
+        private Button? signInButton;
 
         private Texture2D? fieldGradient;
         private Texture2D? wardGlow;
 
         private ShellScreen currentScreen = ShellScreen.None;
+
+        /// <summary>
+        /// Whether HOW TO PLAY is open over the title.
+        /// </summary>
+        /// <remarks>
+        /// The one piece of navigation the view owns rather than the overlay. The overlay drives
+        /// <see cref="Show"/> every frame from session state, and HOW TO PLAY is not session state:
+        /// it is a screen of copy, opened from the title and closed back to it, with no match to
+        /// consult. So the overlay keeps saying Title while this is set, and the view resolves that
+        /// to the how-to screen; anything other than Title clears it, so leaving the title by any
+        /// route also leaves the how-to.
+        /// </remarks>
+        private bool howToPlayOpen;
 
         /// <summary>
         /// The summary the results table was last built from, compared by reference.
@@ -111,6 +141,12 @@ namespace LTW.UnityClient.UI
         /// </remarks>
         private MatchSummary? renderedSummary;
         private bool built;
+
+        /// <summary>
+        /// The practice coach strip. Null only before <see cref="Initialize"/> or when the document
+        /// failed to build, which is already reported as an error.
+        /// </summary>
+        internal CoachStripView CoachStrip { get; private set; } = null!;
 
         internal void Initialize(UnitySimulationDriver driver, IShellScreenActions shellActions)
         {
@@ -138,39 +174,109 @@ namespace LTW.UnityClient.UI
                 }
             }
 
-            if (screen != currentScreen)
+            // HOW TO PLAY is view-local, see howToPlayOpen: asking for it directly opens it, asking
+            // for the title keeps it, asking for anything else closes it.
+            if (screen == ShellScreen.HowToPlay)
             {
-                // Leaving the codex stops its stage. It owns a camera pointed at a render texture,
-                // and a camera with a target renders every frame whether or not anything reads it —
-                // so a player who opens the codex once and then plays a match would otherwise pay a
-                // full extra render pass for the rest of the session with nothing on screen to show
-                // for it.
+                howToPlayOpen = true;
+            }
+            else if (screen != ShellScreen.Title)
+            {
+                howToPlayOpen = false;
+            }
+
+            var resolved = screen == ShellScreen.Title && howToPlayOpen ? ShellScreen.HowToPlay : screen;
+
+            if (resolved != currentScreen)
+            {
+                // Leaving the codex or the how-to stops its stage. Each owns a camera pointed at a
+                // render texture, and a camera with a target renders every frame whether or not
+                // anything reads it — so a player who opens the codex once and then plays a match
+                // would otherwise pay a full extra render pass for the rest of the session with
+                // nothing on screen to show for it.
                 if (currentScreen == ShellScreen.Codex)
                 {
                     codex?.Close();
                 }
 
-                Hide(titleScreen);
-                Hide(codexScreen);
-                Hide(pauseScreen);
-                Hide(resultsScreen);
-                currentScreen = screen;
+                if (currentScreen == ShellScreen.HowToPlay)
+                {
+                    howToPlay?.Close();
+                }
+
+                HideAll();
+                currentScreen = resolved;
                 renderedSummary = null;
-                Enter(ScreenElement(screen));
+                Enter(ScreenElement(resolved));
             }
 
-            RefreshContent(screen);
+            RefreshContent(resolved);
+        }
+
+        /// <summary>Title: HOW TO PLAY. The view's own navigation; nothing about the session changes.</summary>
+        private void OpenHowToPlay()
+        {
+            Show(ShellScreen.HowToPlay);
+        }
+
+        /// <summary>How to play: BACK. Returns to whatever the overlay is asking for, which is the title.</summary>
+        private void CloseHowToPlay()
+        {
+            howToPlayOpen = false;
+            Show(ShellScreen.Title);
+        }
+
+        /// <summary>
+        /// SIGN IN WITH GOOGLE: real PlayFab identity, iOS only for now — see
+        /// <see cref="LTW.UnityClient.Online.GoogleSignInIOS"/>'s remarks for why (Google archived
+        /// the Unity Sign-In plugin; Android needs a separate Google Play Games Services flow this
+        /// build does not implement). On other platforms the button still works, it just always
+        /// reports "not implemented" rather than silently doing nothing.
+        /// </summary>
+        private void OnSignInWithGoogleTapped()
+        {
+            if (signInButton == null)
+            {
+                return;
+            }
+
+            if (LTW.UnityClient.Online.PlayFabSession.IsSignedIn)
+            {
+                return;
+            }
+
+            signInButton.SetEnabled(false);
+            signInButton.text = "SIGNING IN...";
+
+            LTW.UnityClient.Online.PlayFabLoginService.SignInWithGoogle(
+                new LTW.UnityClient.Online.GoogleSignInIOS(),
+                onSuccess: playFabId =>
+                {
+                    if (signInButton != null)
+                    {
+                        signInButton.text = "SIGNED IN";
+                    }
+                },
+                onFailure: message =>
+                {
+                    Debug.LogWarning($"SHELL Google sign-in failed: {message}");
+                    if (signInButton != null)
+                    {
+                        signInButton.text = "SIGN IN WITH GOOGLE";
+                        signInButton.SetEnabled(true);
+                    }
+                });
         }
 
         private void OnDisable()
         {
             // Leaves the panel empty rather than frozen on whatever screen was last up.
             currentScreen = ShellScreen.None;
+            howToPlayOpen = false;
             codex?.Close();
-            Hide(titleScreen);
-            Hide(codexScreen);
-            Hide(pauseScreen);
-            Hide(resultsScreen);
+            howToPlay?.Close();
+            HideAll();
+            CoachStrip?.Hide();
         }
 
         private void OnDestroy()
@@ -189,11 +295,23 @@ namespace LTW.UnityClient.UI
         private VisualElement? ScreenElement(ShellScreen screen) => screen switch
         {
             ShellScreen.Title => titleScreen,
+            ShellScreen.FirstRunOffer => firstRunScreen,
+            ShellScreen.HowToPlay => howToPlayScreen,
             ShellScreen.Codex => codexScreen,
             ShellScreen.Pause => pauseScreen,
             ShellScreen.Results => resultsScreen,
             _ => null
         };
+
+        private void HideAll()
+        {
+            Hide(titleScreen);
+            Hide(firstRunScreen);
+            Hide(howToPlayScreen);
+            Hide(codexScreen);
+            Hide(pauseScreen);
+            Hide(resultsScreen);
+        }
 
         private static void Hide(VisualElement? screen)
         {
@@ -293,6 +411,8 @@ namespace LTW.UnityClient.UI
 
             shellRoot = root.Q<VisualElement>("shell-root");
             titleScreen = root.Q<VisualElement>("screen-title");
+            firstRunScreen = root.Q<VisualElement>("screen-firstrun");
+            howToPlayScreen = root.Q<VisualElement>("screen-howto");
             codexScreen = root.Q<VisualElement>("screen-codex");
             pauseScreen = root.Q<VisualElement>("screen-pause");
             resultsScreen = root.Q<VisualElement>("screen-results");
@@ -303,7 +423,8 @@ namespace LTW.UnityClient.UI
             resultsHeadline = root.Q<Label>("results-headline");
             resultsNote = root.Q<Label>("results-note");
 
-            if (shellRoot is null || titleScreen is null || codexScreen is null || pauseScreen is null || resultsScreen is null)
+            if (shellRoot is null || titleScreen is null || firstRunScreen is null || howToPlayScreen is null
+                || codexScreen is null || pauseScreen is null || resultsScreen is null)
             {
                 Debug.LogError("SHELL UXML did not contain the expected screen elements.");
                 return;
@@ -316,6 +437,11 @@ namespace LTW.UnityClient.UI
             // is reported at launch alongside every other shell wiring error instead of on the tap
             // that first needs it.
             codex = new CodexScreenView(codexScreen, transform, simulationDriver);
+            howToPlay = new HowToPlayScreenView(howToPlayScreen, transform, simulationDriver);
+
+            // The strip's own taps go to whoever subscribes to it (the practice director), not to
+            // IShellScreenActions: NEXT and SKIP are steps of a lesson, not session flow.
+            CoachStrip = new CoachStripView(root);
 
             // Neither inset can be resolved until the panel has a size, and the panel is resized
             // whenever the surface changes, so these recompute rather than reading once.
@@ -333,8 +459,25 @@ namespace LTW.UnityClient.UI
         private void WireActions(VisualElement root)
         {
             Wire(root, "title-start", () => actions.StartGame());
-            Wire(root, "title-howto", () => actions.ShowHowToPlay());
+            Wire(root, "title-practice", () => actions.StartPractice());
+
+            // HOW TO PLAY is the one title button that is not a session action: it opens a screen
+            // of copy, so the view shows it itself and BACK closes it the same way. The codex is
+            // different only because the overlay keeps its own PreMatchScreen state for it.
+            Wire(root, "title-howto", OpenHowToPlay);
+            Wire(root, "howto-back", CloseHowToPlay);
+
+            Wire(root, "firstrun-practice", () => actions.StartPractice());
+            Wire(root, "firstrun-skip", () => actions.StartGameNow());
+
             Wire(root, "title-codex", () => actions.ShowCodex());
+
+            // Not a session action — see IShellScreenActions' remarks and OpenHowToPlay's own
+            // comment above: identity has nothing to do with match/session state, so this view
+            // handles it directly rather than routing through the overlay.
+            signInButton = root.Q<Button>("title-signin");
+            Wire(root, "title-signin", OnSignInWithGoogleTapped);
+
             Wire(root, "title-settings", () => actions.OpenSettings());
             Wire(root, "title-quit", () => actions.QuitGame());
 
@@ -386,13 +529,16 @@ namespace LTW.UnityClient.UI
             // purple haze across the top third rather than a bloom behind the wordmark.
             wardGlow ??= CreateRadialGlow(new Color(0.44f, 0.36f, 0.92f, 0.15f));
 
-            var titleField = root.Q<VisualElement>("title-field");
-            if (titleField != null)
+            foreach (var fieldName in new[] { "title-field", "firstrun-field", "howto-field" })
             {
-                titleField.style.backgroundImage = new StyleBackground(fieldGradient);
+                var field = root.Q<VisualElement>(fieldName);
+                if (field != null)
+                {
+                    field.style.backgroundImage = new StyleBackground(fieldGradient);
+                }
             }
 
-            foreach (var glowName in new[] { "title-glow", "results-glow" })
+            foreach (var glowName in new[] { "title-glow", "firstrun-glow", "howto-glow", "results-glow" })
             {
                 var glow = root.Q<VisualElement>(glowName);
                 if (glow != null)
@@ -436,6 +582,23 @@ namespace LTW.UnityClient.UI
         /// the panel still resolves those against the full window, and the reference resolution's
         /// 9:19.5 aspect is what makes the design's width land on the column width. This only moves
         /// the column's edges into place.
+        ///
+        /// Mirroring <see cref="MobileViewportLayout.CameraRect"/> exactly was itself too strict,
+        /// per finding #14 of the 2026-09-01 render review: on a 2064x2752 iPad the board's own
+        /// on-screen column is only ~61% of the width, and mirroring it left the whole shell — the
+        /// wordmark, the backdrop art, everything — composed inside that same narrow strip with true
+        /// black either side, because nothing else draws out there. The board genuinely cannot use
+        /// that margin (its camera is locked to a fixed vertical framing, see
+        /// <see cref="MobileViewportLayout.CameraRect"/>'s own remarks), but the shell is flat UI
+        /// with no live footage behind it to stay aligned with, so it does not need to give up that
+        /// margin the same way. This claims back half of it — continuously, the same "give a wide
+        /// screen's margin real work instead of leaving it dark" spirit
+        /// <see cref="MobileViewportLayout.HasSideRails"/>'s own board-column math already applies to
+        /// the HUD's side rails, just expressed here as a plain fraction rather than a rail layout. A
+        /// portrait phone still gets exactly 0 (unaffected — this is additive), and the explicit 16%
+        /// ceiling below is what keeps an ultra-wide monitor from stretching the column out
+        /// unreasonably even though the underlying board math already floors it well short of that on
+        /// its own.
         /// </remarks>
         private void ApplyViewportColumn()
         {
@@ -449,7 +612,8 @@ namespace LTW.UnityClient.UI
             // not stretch to the panel by default, so its resolved width is not dependable. A
             // percentage is resolved against the containing block by the layout engine itself, which
             // needs no width read here and stays correct through a resize.
-            var inset = Mathf.Clamp01(MobileViewportLayout.CameraRect().xMin) * 100f;
+            var boardInset = Mathf.Clamp01(MobileViewportLayout.CameraRect().xMin);
+            var inset = Mathf.Min(boardInset * 0.5f, 0.16f) * 100f;
 
             // Writing a style that is already set still schedules another geometry pass, and this
             // runs from the geometry callback, so an unguarded assignment loops every frame.
@@ -505,6 +669,10 @@ namespace LTW.UnityClient.UI
             {
                 case ShellScreen.Codex:
                     codex?.Refresh();
+                    break;
+
+                case ShellScreen.HowToPlay:
+                    howToPlay?.Refresh();
                     break;
 
                 case ShellScreen.Pause:

@@ -73,7 +73,15 @@ namespace LTW.UnityClient.UI
 
         private void BeginTowerPlacement(int towerRole)
         {
-            CloseSendDock();
+            // Phone-only: SEND and BUILD fight over one drawer slot there, so starting a placement
+            // has to evict SEND first. On a rail the two live in separate columns and SEND stays
+            // open permanently (2026-08-30) — closing it here would fight that every time a tower
+            // was picked to place.
+            if (!MobileViewportLayout.HasSideRails)
+            {
+                CloseSendDock();
+            }
+
             isPlacing = true;
             isPaletteExpanded = false;
             selectedTowerRole = towerRole;
@@ -297,7 +305,14 @@ namespace LTW.UnityClient.UI
 
         private void OpenTowerPalette()
         {
-            CloseSendDock();
+            // Phone-only, mirroring BeginTowerPlacement above: a rail keeps SEND open permanently
+            // once it is expanded (2026-08-30), so this must not evict it just because BUILD's
+            // panel was (re)entered from ALL or from the selected-tower panel's BUILD button.
+            if (!MobileViewportLayout.HasSideRails)
+            {
+                CloseSendDock();
+            }
+
             // Symmetric with CloseBottomPanelsForSend. Today the BUILD button is not even drawn
             // while multi-select is on — RAISE occupies its slot — so this cannot currently be
             // reached in that state. It is here so that stops being load-bearing: any future route

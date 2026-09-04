@@ -3,17 +3,42 @@
     <Style src="ShellScreens.uss" />
 
     <!--
-        The three shell screens, all present in one document and switched by display.
+        The shell screens, all present in one document and switched by display.
 
-        One document rather than three, because the shell is a single place in the app and this
+        One document rather than six, because the shell is a single place in the app and this
         keeps the enter transition, the safe-area padding and the backdrop layering defined once.
         Only one screen is ever .is-shown; the rest are display:none, so they cost no layout and
         cannot take a pointer.
+
+        The coach strip is NOT a screen. It is a slim strip that stays up during a practice match,
+        so it is declared first: a later sibling paints over an earlier one, and PAUSE and RESULTS
+        must cover it rather than the other way round.
 
         Nothing here is interactive except the Buttons: every container and label is
         picking-mode="Ignore" so a stray pick never lands on a backdrop.
     -->
     <ui:VisualElement name="shell-root" class="ltw-shell" picking-mode="Ignore">
+
+        <!-- ====================================================== COACH STRIP -->
+        <!--
+            Docked at the top safe area, below the HUD's status pill (see ShellScreens.uss for the
+            arithmetic). Every container here ignores picks so the board underneath stays tappable
+            through the strip's margins; only NEXT and SKIP take a pointer. The dots are built in
+            code to the step count the director hands over, so nothing here assumes five.
+        -->
+        <ui:VisualElement name="coach-safe" class="ltw-safe" picking-mode="Ignore">
+            <ui:VisualElement name="coach-strip" class="ltw-coach" picking-mode="Ignore">
+                <ui:VisualElement class="ltw-coach__head" picking-mode="Ignore">
+                    <ui:Label name="coach-eyebrow" text="PRACTICE · STEP 1 OF 5" class="ltw-coach__eyebrow" picking-mode="Ignore" />
+                    <ui:Button name="coach-skip" text="SKIP" class="ltw-action ltw-action--tertiary ltw-coach__action ltw-coach__action--skip" />
+                </ui:VisualElement>
+                <ui:Label name="coach-body" text="-" class="ltw-coach__body" picking-mode="Ignore" />
+                <ui:VisualElement class="ltw-coach__foot" picking-mode="Ignore">
+                    <ui:VisualElement name="coach-dots" class="ltw-coach__dots" picking-mode="Ignore" />
+                    <ui:Button name="coach-next" text="NEXT" class="ltw-action ltw-action--primary ltw-coach__action" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+        </ui:VisualElement>
 
         <!-- ============================================================ TITLE -->
         <ui:VisualElement name="screen-title" class="ltw-screen" picking-mode="Ignore">
@@ -21,7 +46,7 @@
             <ui:VisualElement name="title-glow" class="ltw-glow" picking-mode="Ignore" />
             <ui:VisualElement name="title-safe" class="ltw-safe" picking-mode="Ignore">
                 <ui:VisualElement class="ltw-column" picking-mode="Ignore">
-                    <ui:VisualElement class="ltw-spacer" picking-mode="Ignore" />
+                    <ui:VisualElement class="ltw-spacer ltw-spacer--title-top" picking-mode="Ignore" />
 
                     <ui:VisualElement class="ltw-brand-mark" picking-mode="Ignore" />
                     <ui:Label text="COMPETITIVE TOWER WARS" class="ltw-eyebrow" picking-mode="Ignore" />
@@ -29,15 +54,49 @@
                     <ui:VisualElement class="ltw-rule" picking-mode="Ignore" />
                     <ui:Label text="Build. Send. Outlast." class="ltw-tagline" picking-mode="Ignore" />
 
-                    <ui:VisualElement class="ltw-spacer ltw-spacer--tight" picking-mode="Ignore" />
+                    <ui:VisualElement class="ltw-spacer ltw-spacer--title-actions" picking-mode="Ignore" />
 
                     <ui:Button name="title-start" text="START GAME" class="ltw-action ltw-action--primary" />
+                    <ui:Button name="title-practice" text="PRACTICE" class="ltw-action ltw-action--secondary" />
                     <ui:Button name="title-howto" text="HOW TO PLAY" class="ltw-action ltw-action--secondary" />
                     <ui:Button name="title-codex" text="CODEX" class="ltw-action ltw-action--secondary" />
+                    <ui:Button name="title-signin" text="SIGN IN WITH GOOGLE" class="ltw-action ltw-action--secondary" />
                     <ui:Button name="title-settings" text="SETTINGS" class="ltw-action ltw-action--secondary" />
                     <ui:Button name="title-quit" text="QUIT" class="ltw-action ltw-action--tertiary" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+        </ui:VisualElement>
 
-                    <ui:Label name="title-footer" text="Prototype local vertical slice" class="ltw-footer" picking-mode="Ignore" />
+        <!-- ======================================================== FIRST RUN -->
+        <!--
+            The offer a new player sees before their first match. It reads as a card over the
+            title — same field, same glow, the wordmark reduced above it — but it is a screen of
+            its own, because only one screen is ever shown and layering two would mean two enter
+            transitions fighting over the same frame. The overlay decides when it is shown.
+        -->
+        <ui:VisualElement name="screen-firstrun" class="ltw-screen" picking-mode="Ignore">
+            <ui:VisualElement name="firstrun-field" class="ltw-field ltw-field--solid" picking-mode="Ignore" />
+            <ui:VisualElement name="firstrun-glow" class="ltw-glow" picking-mode="Ignore" />
+            <ui:VisualElement name="firstrun-safe" class="ltw-safe" picking-mode="Ignore">
+                <ui:VisualElement class="ltw-column" picking-mode="Ignore">
+                    <ui:VisualElement class="ltw-spacer ltw-spacer--tight" picking-mode="Ignore" />
+
+                    <ui:VisualElement class="ltw-brand-mark ltw-brand-mark--small" picking-mode="Ignore" />
+                    <ui:Label text="LINE WARDS" class="ltw-wordmark ltw-wordmark--small" picking-mode="Ignore" />
+
+                    <ui:VisualElement class="ltw-spacer ltw-spacer--tight" picking-mode="Ignore" />
+
+                    <ui:VisualElement name="firstrun-card" class="ltw-offer" picking-mode="Ignore">
+                        <ui:Label text="FIRST MATCH" class="ltw-eyebrow" picking-mode="Ignore" />
+                        <ui:Label text="New here?" class="ltw-headline ltw-offer__headline" picking-mode="Ignore" />
+                        <ui:VisualElement class="ltw-rule ltw-rule--quiet" picking-mode="Ignore" />
+                        <ui:Label text="Practice walks you through building, mazing and sending against quiet opponents. You can skip it and come back from the title any time." class="ltw-note ltw-offer__body" picking-mode="Ignore" />
+
+                        <ui:Button name="firstrun-practice" text="PRACTICE FIRST" class="ltw-action ltw-action--primary" />
+                        <ui:Button name="firstrun-skip" text="JUST PLAY" class="ltw-action ltw-action--secondary" />
+                    </ui:VisualElement>
+
+                    <ui:VisualElement class="ltw-spacer" picking-mode="Ignore" />
                 </ui:VisualElement>
             </ui:VisualElement>
         </ui:VisualElement>
@@ -88,6 +147,70 @@
                     </ui:VisualElement>
 
                     <ui:Button name="codex-back" text="BACK" class="ltw-action ltw-action--tertiary" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+        </ui:VisualElement>
+
+        <!-- ====================================================== HOW TO PLAY -->
+        <!--
+            Five cards, paged like the codex. The copy lives in HowToPlayScreenView so the eyebrow,
+            headline, body and the preview slot change together; only the frame is declared here.
+
+            The slot holds every preview at once and shows one: a stage for the ward and creep
+            cards (howto-stage takes picks for the same reason codex-preview does), a grid of cells
+            the view builds for MAZE, an income bar for GROW and the lives figure for SURVIVE. A
+            fixed-height slot rather than per-card heights, so paging never shifts the body copy
+            and the nav under it.
+        -->
+        <ui:VisualElement name="screen-howto" class="ltw-screen" picking-mode="Ignore">
+            <ui:VisualElement name="howto-field" class="ltw-field ltw-field--solid" picking-mode="Ignore" />
+            <ui:VisualElement name="howto-glow" class="ltw-glow" picking-mode="Ignore" />
+            <ui:VisualElement name="howto-safe" class="ltw-safe" picking-mode="Ignore">
+                <ui:VisualElement class="ltw-column" picking-mode="Ignore">
+                    <ui:VisualElement class="ltw-spacer ltw-spacer--tight" picking-mode="Ignore" />
+
+                    <ui:Label name="howto-eyebrow" text="1 / 5 · BUILD" class="ltw-eyebrow" picking-mode="Ignore" />
+                    <ui:Label name="howto-headline" text="PLACE YOUR WARDS" class="ltw-howto-headline" picking-mode="Ignore" />
+                    <ui:VisualElement class="ltw-rule" picking-mode="Ignore" />
+
+                    <ui:VisualElement name="howto-slot" class="ltw-howto-slot" picking-mode="Ignore">
+                        <ui:VisualElement name="howto-stage" class="ltw-howto-preview ltw-howto-stage">
+                            <ui:Label name="howto-stage-pending" text="MODEL PENDING" class="ltw-codex-pending" picking-mode="Ignore" />
+                        </ui:VisualElement>
+                        <ui:VisualElement name="howto-maze" class="ltw-howto-preview ltw-maze" picking-mode="Ignore" />
+                        <ui:VisualElement name="howto-income" class="ltw-howto-preview ltw-income" picking-mode="Ignore">
+                            <ui:VisualElement class="ltw-income__row" picking-mode="Ignore">
+                                <ui:Label text="INCOME" class="ltw-income__label" picking-mode="Ignore" />
+                                <ui:Label name="howto-income-value" text="+10" class="ltw-income__value" picking-mode="Ignore" />
+                            </ui:VisualElement>
+                            <ui:VisualElement class="ltw-income__track" picking-mode="Ignore">
+                                <ui:VisualElement class="ltw-income__fill" picking-mode="Ignore" />
+                            </ui:VisualElement>
+                            <ui:VisualElement class="ltw-income__tiers" picking-mode="Ignore">
+                                <ui:Label text="TIER 1" class="ltw-income__tier ltw-income__tier--reached" picking-mode="Ignore" />
+                                <ui:Label text="TIER 2" class="ltw-income__tier" picking-mode="Ignore" />
+                                <ui:Label text="TIER 3" class="ltw-income__tier" picking-mode="Ignore" />
+                            </ui:VisualElement>
+                            <ui:Label name="howto-income-caption" text="PAYS OUT EVERY 50 TICKS" class="ltw-income__caption" picking-mode="Ignore" />
+                        </ui:VisualElement>
+                        <ui:VisualElement name="howto-lives" class="ltw-howto-preview ltw-lives" picking-mode="Ignore">
+                            <ui:Label name="howto-lives-value" text="40" class="ltw-lives__value" picking-mode="Ignore" />
+                            <ui:Label text="LIVES" class="ltw-lives__label" picking-mode="Ignore" />
+                            <ui:Label text="EACH LEAK COSTS ONE" class="ltw-lives__caption" picking-mode="Ignore" />
+                        </ui:VisualElement>
+                    </ui:VisualElement>
+
+                    <ui:Label name="howto-body" text="-" class="ltw-howto-body" picking-mode="Ignore" />
+
+                    <ui:VisualElement class="ltw-spacer" picking-mode="Ignore" />
+
+                    <ui:VisualElement name="howto-nav" class="ltw-codex-nav">
+                        <ui:Button name="howto-prev" text="◀ PREV" class="ltw-action ltw-action--secondary ltw-codex-step" />
+                        <ui:Label name="howto-position" text="1 / 5" class="ltw-codex-position" picking-mode="Ignore" />
+                        <ui:Button name="howto-next" text="NEXT ▶" class="ltw-action ltw-action--secondary ltw-codex-step" />
+                    </ui:VisualElement>
+
+                    <ui:Button name="howto-back" text="BACK" class="ltw-action ltw-action--tertiary" />
                 </ui:VisualElement>
             </ui:VisualElement>
         </ui:VisualElement>

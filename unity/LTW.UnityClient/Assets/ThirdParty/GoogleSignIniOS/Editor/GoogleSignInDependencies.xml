@@ -1,0 +1,12 @@
+<dependencies>
+  <!--
+    Declares the GoogleSignIn CocoaPod for the iOS Resolver component of External Dependency
+    Manager for Unity (EDM4U, added via Packages/manifest.json) to link into the Xcode project
+    Unity exports. Backs Assets/Plugins/iOS/LTWGoogleSignInBridge.mm — see its own header comment.
+    A plain minimum-version bound rather than a "~>" pin, so pod install picks up the current
+    release rather than being capped at whatever major version was current when this was written.
+  -->
+  <iosPods>
+    <iosPod name="GoogleSignIn" version="&gt;= 7.0" minTargetSdk="13.0" />
+  </iosPods>
+</dependencies>
