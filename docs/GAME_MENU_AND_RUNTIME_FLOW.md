@@ -16,7 +16,11 @@ This doc does not cover:
 
 - Tower/creep balance details.
 - Final art replacement specs.
-- Online matchmaking, accounts, monetization, cloud saves, or ranked play.
+- Online matchmaking, monetization, cloud saves, or ranked play.
+- Accounts, EXCEPT: the title screen's SIGN IN WITH GOOGLE button (`ShellScreenView`, added
+  2026-09-04) — a narrow, deliberate scope change per `docs/MULTIPLAYER_ROLLOUT.md`'s MP-05, not
+  a reversal of the exclusion above. It only proves PlayFab identity; it does not open a lobby,
+  start a matchmade game, or touch anything else this doc's scope still excludes.
 
 ## Current Prototype Boundary
 

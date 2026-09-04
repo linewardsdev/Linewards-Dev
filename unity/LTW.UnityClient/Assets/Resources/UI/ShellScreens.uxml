@@ -60,6 +60,7 @@
                     <ui:Button name="title-practice" text="PRACTICE" class="ltw-action ltw-action--secondary" />
                     <ui:Button name="title-howto" text="HOW TO PLAY" class="ltw-action ltw-action--secondary" />
                     <ui:Button name="title-codex" text="CODEX" class="ltw-action ltw-action--secondary" />
+                    <ui:Button name="title-signin" text="SIGN IN WITH GOOGLE" class="ltw-action ltw-action--secondary" />
                     <ui:Button name="title-settings" text="SETTINGS" class="ltw-action ltw-action--secondary" />
                     <ui:Button name="title-quit" text="QUIT" class="ltw-action ltw-action--tertiary" />
                 </ui:VisualElement>

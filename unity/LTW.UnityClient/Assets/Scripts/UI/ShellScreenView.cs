@@ -108,6 +108,7 @@ namespace LTW.UnityClient.UI
         private Label? pauseIncome;
         private Label? resultsHeadline;
         private Label? resultsNote;
+        private Button? signInButton;
 
         private Texture2D? fieldGradient;
         private Texture2D? wardGlow;
@@ -223,6 +224,48 @@ namespace LTW.UnityClient.UI
         {
             howToPlayOpen = false;
             Show(ShellScreen.Title);
+        }
+
+        /// <summary>
+        /// SIGN IN WITH GOOGLE: real PlayFab identity, iOS only for now — see
+        /// <see cref="LTW.UnityClient.Online.GoogleSignInIOS"/>'s remarks for why (Google archived
+        /// the Unity Sign-In plugin; Android needs a separate Google Play Games Services flow this
+        /// build does not implement). On other platforms the button still works, it just always
+        /// reports "not implemented" rather than silently doing nothing.
+        /// </summary>
+        private void OnSignInWithGoogleTapped()
+        {
+            if (signInButton == null)
+            {
+                return;
+            }
+
+            if (LTW.UnityClient.Online.PlayFabSession.IsSignedIn)
+            {
+                return;
+            }
+
+            signInButton.SetEnabled(false);
+            signInButton.text = "SIGNING IN...";
+
+            LTW.UnityClient.Online.PlayFabLoginService.SignInWithGoogle(
+                new LTW.UnityClient.Online.GoogleSignInIOS(),
+                onSuccess: playFabId =>
+                {
+                    if (signInButton != null)
+                    {
+                        signInButton.text = "SIGNED IN";
+                    }
+                },
+                onFailure: message =>
+                {
+                    Debug.LogWarning($"SHELL Google sign-in failed: {message}");
+                    if (signInButton != null)
+                    {
+                        signInButton.text = "SIGN IN WITH GOOGLE";
+                        signInButton.SetEnabled(true);
+                    }
+                });
         }
 
         private void OnDisable()
@@ -428,6 +471,13 @@ namespace LTW.UnityClient.UI
             Wire(root, "firstrun-skip", () => actions.StartGameNow());
 
             Wire(root, "title-codex", () => actions.ShowCodex());
+
+            // Not a session action — see IShellScreenActions' remarks and OpenHowToPlay's own
+            // comment above: identity has nothing to do with match/session state, so this view
+            // handles it directly rather than routing through the overlay.
+            signInButton = root.Q<Button>("title-signin");
+            Wire(root, "title-signin", OnSignInWithGoogleTapped);
+
             Wire(root, "title-settings", () => actions.OpenSettings());
             Wire(root, "title-quit", () => actions.QuitGame());
 
