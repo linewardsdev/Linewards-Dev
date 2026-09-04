@@ -67,6 +67,15 @@ public sealed class TickMessage
     public List<CreepSnapshotDto> Creeps { get; set; } = new();
 }
 
+/// <summary>
+/// <see cref="ChosenTowerLine"/>/<see cref="TowerLineTiers"/>/<see cref="SendCategoryTiers"/> were
+/// missing from the original MP-06 pass — found in a self-audit immediately after, not by a live
+/// test. Their absence meant a wire-reconstructed <c>PlayerEconomyState</c> always read as
+/// tier-1/uncommitted regardless of real purchases, which silently broke every tier purchase past
+/// the first: <c>UnityCommandAdapter.BuyCategoryTier</c>'s wire-sent <c>TargetTier</c> is
+/// <c>current + 1</c>, so a "current" that always reads as 1 sends <c>TargetTier: 2</c> on every
+/// purchase, not just the first.
+/// </summary>
 public sealed class PlayerSnapshotDto
 {
     public int PlayerId { get; set; }
@@ -74,6 +83,15 @@ public sealed class PlayerSnapshotDto
     public int Income { get; set; }
     public int Lives { get; set; }
     public bool Eliminated { get; set; }
+
+    /// <summary>-1 (PlayerEconomyState.UnchosenTowerLine) if not yet committed.</summary>
+    public int ChosenTowerLine { get; set; }
+
+    /// <summary>Always PlayerEconomyState.CategoryCount (3) entries, index-aligned with the game's tower lines.</summary>
+    public int[] TowerLineTiers { get; set; } = System.Array.Empty<int>();
+
+    /// <summary>Always PlayerEconomyState.CategoryCount (3) entries, index-aligned with the game's send categories.</summary>
+    public int[] SendCategoryTiers { get; set; } = System.Array.Empty<int>();
 }
 
 public sealed class TowerSnapshotDto

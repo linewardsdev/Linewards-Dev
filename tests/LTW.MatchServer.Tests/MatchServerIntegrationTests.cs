@@ -157,6 +157,63 @@ public sealed class MatchServerIntegrationTests : IAsyncLifetime
         Assert.Equal(14, placedTower.GetProperty("y").GetInt32());
     }
 
+    /// <summary>
+    /// MP-06 self-audit: a wire-reconstructed player was missing ChosenTowerLine/tower-line-tiers/
+    /// send-category-tiers entirely, which silently broke tier purchases past the first client-side
+    /// (see PlayerSnapshotDto's own remarks). Proves the fix against a real match, not a unit test
+    /// of the DTO shape alone: place a tower and confirm both the resulting line commitment and its
+    /// starting tier show up in a real TickMessage.
+    /// </summary>
+    /// <remarks>
+    /// Does NOT also drive a live tier-2 purchase through to confirmation: tier 2 gates on minimum
+    /// income (NextTierMinimumIncome), and at 200 ticks/second against seven active bots a single
+    /// arrow tower reliably lost the match (PlayerEliminated) before affording it, tried three
+    /// times while writing this. Not a gap in what this proves — the reconstruction code path is
+    /// identical for tier 1 and tier 2 (the same WithTowerLineTier call this test already exercises
+    /// for the baseline), so orchestrating a live change would exercise no code this does not
+    /// already cover, only add a flaky economy-balance dependency this test does not need.
+    /// </remarks>
+    [Fact]
+    public async Task Tick_messages_carry_the_players_chosen_line_and_tier_state()
+    {
+        var (matchId, tokens) = await CreateMatchAsync(new[] { 1 }, ticksPerSecond: 200);
+        using var seat1 = await JoinAsync(matchId, 1, tokens["1"]);
+        await ReceiveOfTypeAsync(seat1, "welcome");
+
+        await SendAsync(seat1, """{"type":"placeTower","id":"place","laneId":1,"towerId":"tower.arrow","x":2,"y":14}""");
+        var placeResult = await ReceiveOfTypeAsync(seat1, "commandResult");
+        Assert.True(placeResult.GetProperty("accepted").GetBoolean());
+
+        // Polls for a tick where the placed tower is actually visible, the same robust pattern the
+        // class's other tests already use, rather than trusting that the very next "tick" message
+        // after "commandResult" already reflects it — commandResult is sent AFTER matchLock is
+        // released (see ServerMatch.DispatchAsync's own remarks), so a tick broadcast for the same
+        // or a later tick can legitimately arrive at the client before its triggering command's own
+        // reply does. Once the tower is visible, ChosenTowerLine and TowerLineTiers were set in the
+        // SAME PlaceTower call, atomically, so asserting them off this same message is correct.
+        JsonElement? placedTower = null;
+        JsonElement afterPlace = default;
+        var placeDeadline = DateTime.UtcNow.AddSeconds(10);
+        while (DateTime.UtcNow < placeDeadline)
+        {
+            afterPlace = await ReceiveOfTypeAsync(seat1, "tick", TimeSpan.FromSeconds(5));
+            var candidate = afterPlace.GetProperty("towers").EnumerateArray()
+                .FirstOrDefault(tower => tower.GetProperty("ownerId").GetInt32() == 1 && tower.GetProperty("x").GetInt32() == 2 && tower.GetProperty("y").GetInt32() == 14);
+            if (candidate.ValueKind != JsonValueKind.Undefined)
+            {
+                placedTower = candidate;
+                break;
+            }
+        }
+
+        Assert.NotNull(placedTower);
+        var playerAfterPlace = afterPlace.GetProperty("players").EnumerateArray()
+            .Single(player => player.GetProperty("playerId").GetInt32() == 1);
+        var chosenLine = playerAfterPlace.GetProperty("chosenTowerLine").GetInt32();
+        Assert.NotEqual(-1, chosenLine);
+        Assert.Equal(1, playerAfterPlace.GetProperty("towerLineTiers")[chosenLine].GetInt32());
+    }
+
     [Fact]
     public async Task An_invalid_join_token_is_refused()
     {

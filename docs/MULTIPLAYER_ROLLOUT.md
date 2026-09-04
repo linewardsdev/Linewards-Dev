@@ -842,6 +842,48 @@ completely unchanged.
   (`UpgradeTowerLine`/`UpgradeTowers`/`SellTowers`) and the opening build countdown UX are local-only
   in this pass; a networked match starts immediately with no countdown.
 
+### Self-audit (2026-09-04), requested immediately after landing this
+
+A deliberate re-read of the above with fresh, skeptical eyes, given how much of it had not been
+exercised against a real match at the time it was written. Found and fixed, not just noted:
+
+- **Real, significant bug: `PlayerSnapshotDto` never carried `ChosenTowerLine` or either tier
+  array.** A wire-reconstructed player always read as tier-1-everywhere and uncommitted to any
+  line, regardless of real purchases — because the simple public `PlayerEconomyState` constructor
+  defaults exactly those fields, and nothing overrode them. Consequence, concretely: the palette
+  would show base prices forever, and — the more serious half —
+  `UnityCommandAdapter.BuyCategoryTier`'s wire-sent `TargetTier` is `current + 1`, computed from
+  this same wrong-always-1 value, so a second tier purchase in the same category would have sent
+  `TargetTier: 2` again rather than `3`, which the server would reject. Fixed the same way the
+  creep gap was fixed earlier: extended `PlayerSnapshotDto` server- and client-side, and rebuilt a
+  wire player via `PlayerEconomyState`'s own `WithChosenTowerLine`/`WithTowerLineTier`/
+  `WithSendCategoryTier` methods (the simple constructor cannot set these — this project has no
+  access to the private, fuller one). Proven with a real test
+  (`Tick_messages_carry_the_players_chosen_line_and_tier_state`) that places a tower and confirms
+  the resulting line commitment and starting tier both show up in a real `TickMessage` — not
+  extended to also prove a live tier-2 purchase, after a single arrow tower reliably lost the match
+  to seven bots at 200 ticks/second before affording one, three attempts in a row; the
+  reconstruction code path is identical for tier 1 and tier 2, so this would have proven nothing
+  the passing test does not already cover, at the cost of a flaky economy-balance dependency.
+- **Real, moderate bug: `MatchWireClient`'s receive-loop task was fire-and-forget.**
+  `Dispose()` cancelled the shared cancellation token and immediately proceeded to close and
+  dispose the same `ClientWebSocket` the background receive loop might still be calling
+  `ReceiveAsync` on — a genuine race (cancellation unwinding is not instantaneous), not a
+  theoretical one. Fixed by tracking the loop's `Task` and bounded-waiting on it before closing the
+  socket. While there: the loop's catch clauses only handled `OperationCanceledException` and
+  `WebSocketException` — any other exception type would have become a silently-dropped unobserved
+  task exception, leaving the client looking connected while no more messages ever arrived, with
+  nothing reported via `OnError`. Broadened to catch `ObjectDisposedException` (treated as normal
+  shutdown) and any other `Exception` (routed to `OnError`, matching the class's own stated
+  contract that failure is always reported there).
+- Checked and found sound on this pass: real `EntityId`s only ever increment from 1 (server-side),
+  so the synthetic negative IDs predicted towers use cannot collide with one; the JSON casing
+  between `OnlineMatchService`'s anonymous request object and `HttpMatchHost.CreateMatchRequest`
+  (both resolve to camelCase, one by explicit property naming, one by `JsonSerializerDefaults.Web`);
+  and that `NextSendAvailableTick` — also defaulted incorrectly by the simple constructor, same as
+  the tier fields — is currently harmless, since the send cooldown it feeds is presently 0 ticks
+  for every match, local or networked, per its own pre-existing code comment.
+
 ### What this has NOT proven
 
 Everything above compiles cleanly (`dotnet format`-equivalent Unity batchmode checks, zero errors)

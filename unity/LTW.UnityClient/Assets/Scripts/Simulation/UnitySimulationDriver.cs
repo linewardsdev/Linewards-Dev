@@ -338,6 +338,51 @@ namespace LTW.UnityClient.Simulation
         }
 
         /// <summary>
+        /// Reconstructs one <see cref="PlayerEconomyState"/> from wire data, including its
+        /// committed tower line and per-category tiers — a gap the first MP-06 pass left, found in
+        /// a self-audit immediately after rather than by a live test. Missing this meant
+        /// <c>ChosenTowerLine</c> always read as uncommitted and every tier always read as base,
+        /// which silently broke tier purchases past the first:
+        /// <c>UnityCommandAdapter.BuyCategoryTier</c>'s wire-sent <c>TargetTier</c> is
+        /// <c>current + 1</c>, computed from exactly these fields.
+        /// </summary>
+        /// <remarks>
+        /// The simple public <c>PlayerEconomyState</c> constructor cannot set these — only the
+        /// private, fuller constructor can, and this project does not have access to it. Built up
+        /// instead via the class's own <c>With*</c> methods, the same way any other code in
+        /// <c>LTW.Simulation</c> would have to.
+        /// </remarks>
+        private static PlayerEconomyState BuildPlayerFromWire(PlayerSnapshotDto player)
+        {
+            var state = new PlayerEconomyState(
+                new PlayerId(player.PlayerId),
+                new LTW.Simulation.Primitives.Gold(player.Gold),
+                new LTW.Simulation.Primitives.Income(player.Income),
+                // A player's own invariant (WithLives sets isEliminated when lives hit zero) is
+                // relied on here rather than duplicated: an eliminated player's wire Lives is
+                // always 0, so the simple public constructor alone already gets IsEliminated
+                // right without needing the private full constructor this class does not expose.
+                new LTW.Simulation.Primitives.Lives(player.Eliminated ? 0 : player.Lives));
+
+            if (player.ChosenTowerLine != PlayerEconomyState.UnchosenTowerLine)
+            {
+                state = state.WithChosenTowerLine(player.ChosenTowerLine);
+            }
+
+            for (var i = 0; i < player.TowerLineTiers.Length; i++)
+            {
+                state = state.WithTowerLineTier(i, player.TowerLineTiers[i]);
+            }
+
+            for (var i = 0; i < player.SendCategoryTiers.Length; i++)
+            {
+                state = state.WithSendCategoryTier(i, player.SendCategoryTiers[i]);
+            }
+
+            return state;
+        }
+
+        /// <summary>
         /// Reconstructs a real <see cref="VerticalSliceSnapshot"/> from wire data — not a
         /// wire-shaped substitute — so every existing reader of this driver's
         /// <see cref="LatestSnapshot"/> (the renderer, the HUD, six other scripts — see
@@ -355,15 +400,7 @@ namespace LTW.UnityClient.Simulation
         /// </remarks>
         private VerticalSliceSnapshot BuildSnapshotFromWire(TickMessage tick, IReadOnlyCollection<PendingPrediction> predictions)
         {
-            var players = tick.Players.Select(player => new PlayerEconomyState(
-                new PlayerId(player.PlayerId),
-                new LTW.Simulation.Primitives.Gold(player.Gold),
-                new LTW.Simulation.Primitives.Income(player.Income),
-                // A player's own invariant (WithLives sets isEliminated when lives hit zero) is
-                // relied on here rather than duplicated: an eliminated player's wire Lives is
-                // always 0, so the simple public constructor alone already gets IsEliminated
-                // right without needing the private full constructor this class does not expose.
-                new LTW.Simulation.Primitives.Lives(player.Eliminated ? 0 : player.Lives)));
+            var players = tick.Players.Select(BuildPlayerFromWire);
 
             var towers = tick.Towers.Select(tower => new TowerCombatState(
                 new LTW.Simulation.Primitives.EntityId(tower.EntityId),
