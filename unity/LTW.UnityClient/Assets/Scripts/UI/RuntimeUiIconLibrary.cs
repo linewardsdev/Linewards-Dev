@@ -37,6 +37,42 @@ namespace LTW.UnityClient.UI
         /// next to the multi-hundred-MB baseline this project's own memory investigation already
         /// measured elsewhere.
         /// </remarks>
+        /// <summary>
+        /// Alpha below this is fringe, not subject. The scan used to accept any non-zero alpha,
+        /// so one stray sub-visible pixel anywhere on the canvas would have re-framed the whole
+        /// icon; measured across the roster (2026-09-03) the visible box and the any-alpha box
+        /// differ by at most a pixel today, so this is a guard, not a change in framing. (Twin
+        /// Crescent's light backdrop, in the same report, was not a trim problem at all: its
+        /// importer alone had mipmaps on with alpha-is-transparency off, which bleeds white into
+        /// the lower mips — fixed in its .meta, which now matches the other thirty.)
+        /// </summary>
+        private const byte VisibleAlpha = 32;
+
+        /// <summary>
+        /// Margin kept around the trimmed subject, as a fraction of the trimmed size, so the glow
+        /// and anti-aliased edge just outside the visible-alpha box are still drawn instead of
+        /// being cut hard at the UV boundary.
+        /// </summary>
+        private const float TrimMargin = 0.06f;
+
+        /// <summary>
+        /// Fraction of the slot left clear on every side. With no inset, every subject was fitted
+        /// edge to edge, so spires, glows and the ground-lines baked into several icons landed on
+        /// the well's accent ring and read as clipped — the "cropped" in the report. This is what
+        /// the well's ring needs to look like a boundary the icon sits INSIDE rather than one it
+        /// collides with.
+        /// </summary>
+        private const float SlotInset = 0.09f;
+
+        /// <summary>
+        /// Cap on how far trimming may enlarge a subject beyond a plain canvas fit. Trimming
+        /// alone scaled Repair Drone (41 px wide on its 128 canvas) to three times the size the
+        /// canvas fit would give it, so the slimmest silhouettes became the largest icons in the
+        /// rail — the "out of place" in the report. 1.5 lets a tightly-cropped subject grow enough
+        /// to match its neighbours' visual weight without letting a sliver dominate the row.
+        /// </summary>
+        private const float MaxTrimZoom = 1.5f;
+
         public static bool DrawIcon(Rect rect, string resourceName, bool enabled)
         {
             var texture = LoadTexture(resourceName);
@@ -48,9 +84,17 @@ namespace LTW.UnityClient.UI
             var previousColor = GUI.color;
             GUI.color = enabled ? Color.white : new Color(0.62f, 0.66f, 0.74f, 0.42f);
             var uv = TrimmedUv(resourceName, texture);
-            GUI.DrawTextureWithTexCoords(FitTrimmedRect(rect, uv, texture), texture, uv, true);
+            var slot = Inset(rect, SlotInset);
+            GUI.DrawTextureWithTexCoords(FitTrimmedRect(slot, uv, texture), texture, uv, true);
             GUI.color = previousColor;
             return true;
+        }
+
+        private static Rect Inset(Rect rect, float fraction)
+        {
+            var dx = rect.width * fraction;
+            var dy = rect.height * fraction;
+            return new Rect(rect.x + dx, rect.y + dy, Mathf.Max(1f, rect.width - dx * 2f), Mathf.Max(1f, rect.height - dy * 2f));
         }
 
         private static Texture2D? LoadTexture(string resourceName)
@@ -113,7 +157,7 @@ namespace LTW.UnityClient.UI
                 var rowOffset = y * width;
                 for (var x = 0; x < width; x++)
                 {
-                    if (pixels[rowOffset + x].a == 0)
+                    if (pixels[rowOffset + x].a < VisibleAlpha)
                     {
                         continue;
                     }
@@ -130,11 +174,19 @@ namespace LTW.UnityClient.UI
                 return fallback;
             }
 
-            return new Rect(
-                minX / (float)width,
-                minY / (float)height,
-                (maxX - minX + 1) / (float)width,
-                (maxY - minY + 1) / (float)height);
+            // The visible box, then a margin around it (clamped to the canvas) so the halo and
+            // anti-aliased edge just outside the threshold are drawn rather than cut at the UV
+            // boundary — see TrimMargin.
+            var boxWidth = maxX - minX + 1;
+            var boxHeight = maxY - minY + 1;
+            var marginX = boxWidth * TrimMargin;
+            var marginY = boxHeight * TrimMargin;
+            var x0 = Mathf.Max(0f, minX - marginX);
+            var y0 = Mathf.Max(0f, minY - marginY);
+            var x1 = Mathf.Min(width, maxX + 1 + marginX);
+            var y1 = Mathf.Min(height, maxY + 1 + marginY);
+
+            return new Rect(x0 / width, y0 / height, (x1 - x0) / width, (y1 - y0) / height);
         }
 
         /// <summary>
@@ -164,6 +216,18 @@ namespace LTW.UnityClient.UI
             {
                 height = container.height;
                 width = height * contentAspect;
+            }
+
+            // Cap the zoom trimming buys, relative to what a plain canvas fit would draw — see
+            // MaxTrimZoom. Screen pixels per texel for the trimmed fit against the same for the
+            // whole canvas fitted into this container.
+            var canvasFitScale = Mathf.Min(container.width / texture.width, container.height / texture.height);
+            var trimmedScale = width / contentWidth;
+            var maxScale = canvasFitScale * MaxTrimZoom;
+            if (trimmedScale > maxScale)
+            {
+                width = contentWidth * maxScale;
+                height = contentHeight * maxScale;
             }
 
             return new Rect(
