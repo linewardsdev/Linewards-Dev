@@ -189,10 +189,11 @@ public sealed class MatchServerIntegrationTests : IAsyncLifetime
         JsonElement? finalSummary = null;
         long lastSeenTick = -1;
         var messagesSeen = 0;
-        // Measured on this machine (see docs/MULTIPLAYER_ROLLOUT.md's MP-04 notes): about 34
-        // delivered ticks/second over the real loopback WebSocket transport, regardless of the
-        // requested rate — the bottleneck is round-trip send/receive overhead, not the simulation
-        // or the timer. 3849 ticks at that rate is ~115s; 150 leaves real margin.
+        // A "34 delivered ticks/second regardless of requested rate" figure was recorded here
+        // originally and was wrong — measured while a since-fixed bot-authority bug meant the
+        // match was stalled, not slow. See docs/MULTIPLAYER_ROLLOUT.md's MP-04 "What broke" for
+        // the correction: real throughput tracks the requested rate. 150s is simply generous
+        // margin for a CI-shared machine, not derived from a measured ceiling.
         var deadline = DateTime.UtcNow.AddSeconds(150);
         while (DateTime.UtcNow < deadline)
         {
@@ -226,5 +227,42 @@ public sealed class MatchServerIntegrationTests : IAsyncLifetime
         Assert.True(File.Exists(replayPath), "server-side replay capture was never written");
         var replayJson = await File.ReadAllTextAsync(replayPath);
         Assert.Contains("\"commands\"", replayJson, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// MP-06: a wire-based renderer cannot place a creep without this. Bots on the seven other
+    /// lanes will send on their own within the first few ticks at real content's default economy,
+    /// so this needs no scripted command — just enough ticks for that to happen.
+    /// </summary>
+    [Fact]
+    public async Task Tick_messages_carry_creep_positions_once_bots_start_sending()
+    {
+        var (matchId, tokens) = await CreateMatchAsync(new[] { 1 }, ticksPerSecond: 200);
+        using var seat1 = await JoinAsync(matchId, 1, tokens["1"]);
+        await ReceiveOfTypeAsync(seat1, "welcome");
+
+        JsonElement? tickWithCreeps = null;
+        var deadline = DateTime.UtcNow.AddSeconds(30);
+        while (DateTime.UtcNow < deadline)
+        {
+            var message = await ReceiveAsync(seat1, TimeSpan.FromSeconds(10));
+            if (!message.TryGetProperty("type", out var type) || type.GetString() != "tick")
+            {
+                continue;
+            }
+
+            if (message.GetProperty("creeps").GetArrayLength() > 0)
+            {
+                tickWithCreeps = message;
+                break;
+            }
+        }
+
+        Assert.NotNull(tickWithCreeps);
+        var creep = tickWithCreeps!.Value.GetProperty("creeps")[0];
+        Assert.True(creep.GetProperty("entityId").GetInt64() > 0);
+        Assert.False(string.IsNullOrEmpty(creep.GetProperty("creepId").GetString()));
+        Assert.True(creep.GetProperty("maxHealth").GetInt32() > 0);
+        Assert.True(creep.GetProperty("effectiveMovementCost").GetInt32() > 0);
     }
 }

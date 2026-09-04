@@ -1,11 +1,16 @@
 #nullable enable
 
 using System.Collections.Generic;
+using System.Linq;
 using LTW.Simulation.Bridge;
+using LTW.Simulation.Combat;
+using LTW.Simulation.Content;
 using LTW.Simulation.Events;
 using LTW.Simulation.Economy;
 using LTW.Simulation.Primitives;
 using LTW.Simulation.Replay;
+using LTW.UnityClient.Online;
+using LTW.UnityClient.Online.Wire;
 using UnityEngine;
 
 namespace LTW.UnityClient.Simulation
@@ -26,6 +31,18 @@ namespace LTW.UnityClient.Simulation
         private float openingBuildCountdownSeconds = 30f;
 
         private LocalVerticalSlice simulation = null!;
+
+        /// <summary>
+        /// Set instead of <see cref="simulation"/> for a networked match — see
+        /// <see cref="Initialize(MatchWireClient)"/>. The two are mutually exclusive; every branch
+        /// below that reads <c>simulation</c> has a wire-mode counterpart reading this instead.
+        /// </summary>
+        private MatchWireClient? wireClient;
+
+        private ContentCatalog? wireContent;
+        private int wireLocalSeat = 1;
+        private long wireLastAppliedTick = long.MinValue;
+        private int nextPredictedEntityId = -1;
         /// <summary>
         /// Ceiling on simulation ticks advanced in a single frame.
         /// </summary>
@@ -66,7 +83,7 @@ namespace LTW.UnityClient.Simulation
         /// the like — instead of keeping a client-side copy that goes stale. Same reasoning as
         /// UnityCommandAdapter reading cost from here rather than hardcoding it.
         /// </summary>
-        public LTW.Simulation.Content.ContentCatalog? Content => simulation?.Content;
+        public LTW.Simulation.Content.ContentCatalog? Content => simulation is not null ? simulation.Content : wireContent;
 
         public IReadOnlyList<ISimulationEvent> LatestEvents { get; private set; } = new List<ISimulationEvent>();
 
@@ -124,10 +141,10 @@ namespace LTW.UnityClient.Simulation
         /// Falls back to seat 1 only before <see cref="Initialize"/> has run, matching the previous
         /// hardcoded behavior for that window rather than throwing during scene startup.
         /// </summary>
-        public PlayerId LocalPlayerId => simulation is null ? new PlayerId(1) : simulation.LocalPlayerId;
+        public PlayerId LocalPlayerId => simulation is not null ? simulation.LocalPlayerId : new PlayerId(wireClient is not null ? wireLocalSeat : 1);
 
         /// <summary>The lane the local seat defends. Derived from the seat, never hardcoded.</summary>
-        public LaneId LocalPlayerLaneId => simulation is null ? new LaneId(1) : simulation.LocalPlayerLaneId;
+        public LaneId LocalPlayerLaneId => simulation is not null ? simulation.LocalPlayerLaneId : new LaneId(wireClient is not null ? wireLocalSeat : 1);
 
         /// <summary>
         /// Whether the local seat is out of the match, so its command surfaces must stand down.
@@ -151,6 +168,13 @@ namespace LTW.UnityClient.Simulation
         /// (OPEN_ITEMS.md's retired 2026-07-29 review, grouped smaller items — HudView used to hardcode this separately). Falls back to the
         /// sim's current default only before <see cref="Initialize"/> has run.
         /// </summary>
+        /// <remarks>
+        /// The 50-tick fallback matches <c>LocalVerticalSlice</c>'s own hardcoded
+        /// <c>incomeIntervalTicks: 50</c> — a fixed simulation rule, not something a match ever
+        /// varies, so a wire-backed match (which never constructs a local
+        /// <c>LocalVerticalSlice</c> to read this from) is safe to assume the same constant rather
+        /// than needing the server to say so on the wire.
+        /// </remarks>
         public int IncomeIntervalTicks => simulation is null ? 50 : simulation.IncomeIntervalTicks;
 
         /// <summary>
@@ -160,6 +184,10 @@ namespace LTW.UnityClient.Simulation
         /// A pass-through, because the slice is private to this driver and the tutorial director
         /// needs to ask "has the player bent the path yet?" without being handed the simulation.
         /// Zero before <see cref="Initialize"/>, matching how the slice answers an unknown lane.
+        /// Also zero for a wire-backed match, which has no local slice to ask at all — safe because
+        /// the tutorial never runs online (docs/MULTIPLAYER_ROLLOUT.md's MP-06: "Practice and the
+        /// tutorial stay local, never touch the server"), so this driver's only caller for this
+        /// method is never live at the same time <see cref="wireClient"/> is set.
         /// </remarks>
         public int RouteLength(LaneId laneId) => simulation is null ? 0 : simulation.RouteLength(laneId);
 
@@ -169,8 +197,30 @@ namespace LTW.UnityClient.Simulation
         public void Initialize(LocalVerticalSlice localSimulation)
         {
             simulation = localSimulation;
+            wireClient = null;
             SnapshotRevision = long.MinValue;
             RefreshSnapshot();
+        }
+
+        /// <summary>
+        /// The wire-backed equivalent of <see cref="Initialize(LocalVerticalSlice)"/> — see
+        /// docs/MULTIPLAYER_ROLLOUT.md's MP-06. <paramref name="client"/> must already be connected
+        /// (see <see cref="Online.OnlineMatchService.CreateAndJoinAsync"/>); this only starts
+        /// pumping it every frame from <see cref="Update"/>.
+        /// </summary>
+        public void Initialize(MatchWireClient client)
+        {
+            simulation = null!;
+            wireClient = client;
+            wireContent = SampleVerticalSliceContent.Create();
+            wireLocalSeat = 1;
+            wireLastAppliedTick = long.MinValue;
+            SnapshotRevision = long.MinValue;
+            HasStarted = false;
+            IsPaused = true;
+            IsOpeningBuildCountdown = false;
+            LatestMatchSummary = null;
+            LatestEvents = new List<ISimulationEvent>();
         }
 
         /// <summary>
@@ -209,6 +259,12 @@ namespace LTW.UnityClient.Simulation
 
         private void Update()
         {
+            if (wireClient is not null)
+            {
+                UpdateWire(wireClient);
+                return;
+            }
+
             if (simulation is null)
             {
                 return;
@@ -245,6 +301,130 @@ namespace LTW.UnityClient.Simulation
             }
 
             RefreshSnapshot(drainEvents: true);
+        }
+
+        /// <summary>
+        /// The wire-mode equivalent of the local branch above: pump the socket, and if a genuinely
+        /// new tick arrived, rebuild <see cref="LatestSnapshot"/> from it. There is deliberately no
+        /// local tick-advancing loop here — the server is the only clock for a networked match.
+        /// </summary>
+        /// <remarks>
+        /// <see cref="LatestEvents"/> stays empty and <see cref="LatestMatchSummary"/> stays null
+        /// for a wire-backed match — see docs/MULTIPLAYER_ROLLOUT.md's MP-06 "Landed" for why: the
+        /// wire has no fixed per-event-kind DTO catalog (<c>EventDto.Data</c> is the sender's own
+        /// concrete type serialized generically), so a client would need a mirror of every
+        /// <c>LTW.Simulation.Events.*</c> shape to consume it losslessly. Event-driven VFX/audio and
+        /// the results screen's automatic match-end detection are consequently a scoped-out gap for
+        /// this pass, not an oversight — the board, HUD and commands all work regardless, since
+        /// those read <see cref="LatestSnapshot"/>, not the event stream.
+        /// </remarks>
+        private void UpdateWire(MatchWireClient client)
+        {
+            client.Pump();
+
+            if (client.Welcome is { } welcome)
+            {
+                wireLocalSeat = welcome.Seat;
+                HasStarted = true;
+                IsPaused = false;
+            }
+
+            if (client.LatestTick is { } tick && tick.Tick != wireLastAppliedTick)
+            {
+                wireLastAppliedTick = tick.Tick;
+                LatestSnapshot = BuildSnapshotFromWire(tick, client.PendingPredictions);
+                SnapshotRevision = tick.Tick;
+            }
+        }
+
+        /// <summary>
+        /// Reconstructs a real <see cref="VerticalSliceSnapshot"/> from wire data — not a
+        /// wire-shaped substitute — so every existing reader of this driver's
+        /// <see cref="LatestSnapshot"/> (the renderer, the HUD, six other scripts — see
+        /// docs/MULTIPLAYER_ROLLOUT.md's MP-06 investigation) works completely unchanged. Verified
+        /// against <c>PlayerEconomyState</c>/<c>TowerCombatState</c>/<c>CreepPresentationSnapshot</c>'s
+        /// own public constructors rather than assumed.
+        /// </summary>
+        /// <remarks>
+        /// <see cref="VerticalSliceSnapshot"/>'s tower-aim-target, bramble-cell, send-queue and
+        /// seat-table fields are not on the wire yet (only players/towers/creeps are — MP-04's own
+        /// scoping note, extended for creeps this pass but not the rest) and are passed as empty
+        /// here. Safe: every reader treats an empty collection as "nothing to show" rather than
+        /// asserting non-empty, so this degrades to no aim-turn animation / no bramble decals / no
+        /// send-queue badges / no seat leaderboard for a networked match rather than crashing.
+        /// </remarks>
+        private VerticalSliceSnapshot BuildSnapshotFromWire(TickMessage tick, IReadOnlyCollection<PendingPrediction> predictions)
+        {
+            var players = tick.Players.Select(player => new PlayerEconomyState(
+                new PlayerId(player.PlayerId),
+                new LTW.Simulation.Primitives.Gold(player.Gold),
+                new LTW.Simulation.Primitives.Income(player.Income),
+                // A player's own invariant (WithLives sets isEliminated when lives hit zero) is
+                // relied on here rather than duplicated: an eliminated player's wire Lives is
+                // always 0, so the simple public constructor alone already gets IsEliminated
+                // right without needing the private full constructor this class does not expose.
+                new LTW.Simulation.Primitives.Lives(player.Eliminated ? 0 : player.Lives)));
+
+            var towers = tick.Towers.Select(tower => new TowerCombatState(
+                new LTW.Simulation.Primitives.EntityId(tower.EntityId),
+                new LTW.Simulation.Content.ContentId(tower.TowerId),
+                new PlayerId(tower.OwnerId),
+                new LaneId(tower.LaneId),
+                new GridPosition(tower.X, tower.Y),
+                tower.Tier)).ToList();
+
+            var creeps = tick.Creeps.Select(creep => new CreepPresentationSnapshot(
+                new LTW.Simulation.Primitives.EntityId(creep.EntityId),
+                new LTW.Simulation.Content.ContentId(creep.CreepId),
+                new PlayerId(creep.SenderId),
+                new LaneId(creep.LaneId),
+                new GridPosition(creep.X, creep.Y),
+                creep.Health,
+                creep.MaxHealth,
+                creep.SpeedPerSecond,
+                new GridPosition(creep.NextX, creep.NextY),
+                creep.MovementProgress,
+                // EffectiveMovementCost already has the bramble penalty folded in server-side (see
+                // CreepSnapshotDto's own remarks) — passed as MovementCost with IsBraked forced
+                // false so this snapshot's OWN EffectiveMovementCost getter (MovementCost +
+                // penalty-if-braked) does not apply that penalty a second time.
+                creep.EffectiveMovementCost,
+                isBraked: false)).ToList();
+
+            foreach (var prediction in predictions)
+            {
+                switch (prediction.Kind)
+                {
+                    case PendingPredictionKind.PlaceTower:
+                        towers.Add(new TowerCombatState(
+                            new LTW.Simulation.Primitives.EntityId(nextPredictedEntityId--),
+                            new LTW.Simulation.Content.ContentId(prediction.TowerId),
+                            LocalPlayerId,
+                            new LaneId(prediction.LaneId),
+                            new GridPosition(prediction.X, prediction.Y)));
+                        break;
+                    case PendingPredictionKind.SellTower:
+                        towers.RemoveAll(t => t.OwnerId.Equals(LocalPlayerId) && t.LaneId.Value == prediction.LaneId && t.Position.X == prediction.X && t.Position.Y == prediction.Y);
+                        break;
+                    case PendingPredictionKind.UpgradeTower:
+                        var index = towers.FindIndex(t => t.OwnerId.Equals(LocalPlayerId) && t.LaneId.Value == prediction.LaneId && t.Position.X == prediction.X && t.Position.Y == prediction.Y);
+                        if (index >= 0)
+                        {
+                            var current = towers[index];
+                            towers[index] = new TowerCombatState(current.EntityId, current.TowerId, current.OwnerId, current.LaneId, current.Position, current.Tier + 1);
+                        }
+
+                        break;
+                }
+            }
+
+            return new VerticalSliceSnapshot(
+                new SimulationTick(tick.Tick),
+                new EconomyPlayerSet(players),
+                creeps,
+                towers,
+                towerAimTargets: System.Array.Empty<TowerAimSnapshot>(),
+                brambleCells: new Dictionary<LaneId, IReadOnlyList<GridPosition>>());
         }
 
         /// <summary>

@@ -1,9 +1,12 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using LTW.Simulation.Bridge;
 using LTW.Simulation.Commands;
 using LTW.Simulation.Economy;
 using LTW.Simulation.Primitives;
+using LTW.UnityClient.Online;
+using LTW.UnityClient.Online.Wire;
 using UnityEngine;
 
 namespace LTW.UnityClient.Simulation
@@ -15,20 +18,46 @@ namespace LTW.UnityClient.Simulation
 
         private LocalVerticalSlice simulation;
         private UnitySimulationDriver simulationDriver;
+        private MatchWireClient wireClient;
 
         public void Initialize(LocalVerticalSlice localSimulation, UnitySimulationDriver driver)
         {
             simulation = localSimulation;
+            wireClient = null;
             simulationDriver = driver;
         }
 
         /// <summary>
-        /// Reads economy state directly from the simulation command source. UI code should use this
-        /// for immediate affordability/readback after a command instead of relying on a rendered snapshot.
+        /// The wire-backed equivalent of <see cref="Initialize(LocalVerticalSlice, UnitySimulationDriver)"/>
+        /// — see docs/MULTIPLAYER_ROLLOUT.md's MP-06. Only <see cref="PlaceTower"/>,
+        /// <see cref="SellTowerAt"/> and <see cref="UpgradeTowerAt"/> (plus
+        /// <see cref="BuyTowerLineTier"/>/<see cref="BuySendCategoryTier"/> and the send-family
+        /// methods) route to the server in this pass; batch operations
+        /// (<c>UpgradeTowerLine</c>/<c>UpgradeTowers</c>/<c>SellTowers</c>) and the review-runner-only
+        /// methods still check <c>simulation is null</c> and reject cleanly rather than being wired
+        /// — a deliberately scoped gap, not a bug, for the same reason MP-06's own doc gives for the
+        /// event stream: getting the core loop working correctly matters more here than full parity
+        /// in one pass. See this class's own per-method remarks for which is which.
+        /// </summary>
+        public void Initialize(MatchWireClient client, UnitySimulationDriver driver)
+        {
+            simulation = null;
+            wireClient = client;
+            simulationDriver = driver;
+        }
+
+        private static string NewRequestId() => Guid.NewGuid().ToString("N");
+
+        /// <summary>
+        /// Reads through <see cref="simulationDriver"/>'s published snapshot rather than
+        /// <c>simulation.GetSnapshot()</c> directly — see <see cref="TowerLineTier"/>'s remarks for
+        /// why (this also makes it work in wire mode). Safe in local mode too:
+        /// <see cref="RefreshAfterAccepted"/> already refreshes the driver's snapshot synchronously
+        /// right after any accepted local command, so this is never a frame stale.
         /// </summary>
         public int CurrentPlayerGold()
         {
-            return simulation is null ? 0 : simulation.GetSnapshot().Players.Get(simulation.LocalPlayerId).Gold.Amount;
+            return simulationDriver?.LatestSnapshot is null ? 0 : simulationDriver.LatestSnapshot.Players.Get(simulationDriver.LocalPlayerId).Gold.Amount;
         }
 
         /// <summary>
@@ -42,9 +71,9 @@ namespace LTW.UnityClient.Simulation
         /// </remarks>
         public int CurrentPlayerTowerLine()
         {
-            return simulation is null
+            return simulationDriver?.LatestSnapshot is null
                 ? PlayerEconomyState.UnchosenTowerLine
-                : simulation.GetSnapshot().Players.Get(simulation.LocalPlayerId).ChosenTowerLine;
+                : simulationDriver.LatestSnapshot.Players.Get(simulationDriver.LocalPlayerId).ChosenTowerLine;
         }
 
         /// <summary>
@@ -82,6 +111,16 @@ namespace LTW.UnityClient.Simulation
 
         public VerticalSliceCommandResult PreviewPrismTower(int x, int y) => PreviewTower(SampleVerticalSliceContent.PrismTowerId, x, y);
 
+        /// <remarks>
+        /// Not wired for wire mode — deliberately, not an oversight. This always rejects (so
+        /// <see cref="TouchPlacementController"/>'s ghost shows red) for a networked match, which
+        /// is cosmetic only: <see cref="PlaceTowerByRole"/>'s actual commit tap does not read this
+        /// result, it calls <see cref="PlaceTower"/> directly (confirmed by reading
+        /// TouchPlacementController.cs's own call sites before deferring this). A correct preview
+        /// would need either a server round trip per hover or a local approximation of the same
+        /// affordability rules <see cref="CanUpgradeTowerAt"/> already ports for upgrades — worth
+        /// doing, not required for placement itself to work.
+        /// </remarks>
         private VerticalSliceCommandResult PreviewTower(LTW.Simulation.Content.ContentId towerId, int x, int y)
         {
             if (!IsValidCell(x, y))
@@ -117,14 +156,22 @@ namespace LTW.UnityClient.Simulation
         /// <summary>
         /// The local player's current tier for one tower line (0 ARCANE, 1 FOUNDRY, 2 GROVE).
         /// </summary>
+        /// <remarks>
+        /// Reads through <see cref="simulationDriver"/>'s published snapshot rather than
+        /// <c>simulation.GetSnapshot()</c> directly, specifically so this also works in wire mode
+        /// (where <see cref="simulation"/> is null) — <see cref="BuyCategoryTier"/>'s wire-sent
+        /// <c>TargetTier</c> is <c>current + 1</c>, so a wrong "current" here would send the wrong
+        /// tier to the server on every purchase past the first.
+        /// </remarks>
         public int TowerLineTier(int lineIndex) =>
-            simulation is null ? 1 : simulation.GetSnapshot().Players.Get(simulation.LocalPlayerId).TowerLineTier(lineIndex);
+            simulationDriver?.LatestSnapshot is null ? 1 : simulationDriver.LatestSnapshot.Players.Get(simulationDriver.LocalPlayerId).TowerLineTier(lineIndex);
 
         /// <summary>
-        /// The local player's current tier for one send category (0 CORE, 1 RAPID, 2 ELITE).
+        /// The local player's current tier for one send category (0 CORE, 1 RAPID, 2 ELITE). See
+        /// <see cref="TowerLineTier"/>'s remarks for why this reads through the driver.
         /// </summary>
         public int SendCategoryTier(int categoryIndex) =>
-            simulation is null ? 1 : simulation.GetSnapshot().Players.Get(simulation.LocalPlayerId).SendCategoryTier(categoryIndex);
+            simulationDriver?.LatestSnapshot is null ? 1 : simulationDriver.LatestSnapshot.Players.Get(simulationDriver.LocalPlayerId).SendCategoryTier(categoryIndex);
 
         /// <summary>
         /// Gold to take a category from its current tier to the next, or 0 when already at the top.
@@ -153,13 +200,13 @@ namespace LTW.UnityClient.Simulation
         /// simulation would not charge — and it would widen with every tier the player bought.
         /// </remarks>
         private int UpgradesOwned() =>
-            simulation is null
+            simulationDriver?.LatestSnapshot is null
                 ? 0
                 : LTW.Simulation.Content.CategoryTierRules.UpgradesOwned(LocalSeat());
 
         /// <summary>The local seat's economy state, which every tiered price is read against.</summary>
         private LTW.Simulation.Economy.PlayerEconomyState LocalSeat() =>
-            simulation!.GetSnapshot().Players.Get(simulation.LocalPlayerId);
+            simulationDriver.LatestSnapshot!.Players.Get(simulationDriver.LocalPlayerId);
 
         /// <summary>Income the player must already be earning to buy the next tier, or 0 at the top.</summary>
         /// <remarks>
@@ -179,7 +226,7 @@ namespace LTW.UnityClient.Simulation
 
         /// <summary>The local player's income right now.</summary>
         public int CurrentPlayerIncome() =>
-            simulation is null ? 0 : simulation.GetSnapshot().Players.Get(simulation.LocalPlayerId).Income.Amount;
+            simulationDriver?.LatestSnapshot is null ? 0 : simulationDriver.LatestSnapshot.Players.Get(simulationDriver.LocalPlayerId).Income.Amount;
 
         public int MaxCategoryTier => LTW.Simulation.Content.CategoryTierRules.MaxTier;
 
@@ -196,14 +243,30 @@ namespace LTW.UnityClient.Simulation
                 return VerticalSliceCommandResult.Reject(CommandRejectionReason.MatchPaused);
             }
 
+            var current = kind == LTW.Simulation.Commands.CategoryKind.TowerLine
+                ? TowerLineTier(categoryIndex)
+                : SendCategoryTier(categoryIndex);
+
+            if (wireClient is not null)
+            {
+                // No optimistic prediction here — unlike a tower's position, a tier bump has no
+                // single obvious visual to show early, and the round trip resolves into the next
+                // real tick regardless, same as SendCreep below.
+                wireClient.SendCommand(new BuyCategoryTierMessage
+                {
+                    Id = NewRequestId(),
+                    CategoryKind = (int)kind,
+                    CategoryIndex = categoryIndex,
+                    TargetTier = current + 1,
+                });
+                return VerticalSliceCommandResult.Accept();
+            }
+
             if (simulation is null)
             {
                 return VerticalSliceCommandResult.Reject(CommandRejectionReason.MatchPaused);
             }
 
-            var current = kind == LTW.Simulation.Commands.CategoryKind.TowerLine
-                ? TowerLineTier(categoryIndex)
-                : SendCategoryTier(categoryIndex);
             return RefreshAfterAccepted(simulation.BuyCategoryTier(simulation.LocalPlayerId, kind, categoryIndex, current + 1));
         }
 
@@ -224,15 +287,15 @@ namespace LTW.UnityClient.Simulation
         /// </remarks>
         public bool CanUpgradeTowerAt(int x, int y)
         {
-            if (simulation is null)
+            if (simulationDriver?.LatestSnapshot is null || simulationDriver.Content is null)
             {
                 return false;
             }
 
-            var snapshot = simulation.GetSnapshot();
+            var snapshot = simulationDriver.LatestSnapshot;
             var tower = snapshot.Towers.FirstOrDefault(candidate =>
-                candidate.OwnerId.Equals(simulation.LocalPlayerId)
-                && candidate.LaneId.Equals(simulation.LocalPlayerLaneId)
+                candidate.OwnerId.Equals(simulationDriver.LocalPlayerId)
+                && candidate.LaneId.Equals(simulationDriver.LocalPlayerLaneId)
                 && candidate.Position.X == x
                 && candidate.Position.Y == y);
             if (tower is null)
@@ -240,13 +303,13 @@ namespace LTW.UnityClient.Simulation
                 return false;
             }
 
-            var definition = simulation.Content.Towers.FirstOrDefault(candidate => candidate.Id.Equals(tower.TowerId));
+            var definition = simulationDriver.Content.Towers.FirstOrDefault(candidate => candidate.Id.Equals(tower.TowerId));
             if (definition is null)
             {
                 return false;
             }
 
-            var ceiling = snapshot.Players.Get(simulation.LocalPlayerId).TowerLineTier(definition.CategoryIndex);
+            var ceiling = snapshot.Players.Get(simulationDriver.LocalPlayerId).TowerLineTier(definition.CategoryIndex);
             return tower.Tier < ceiling && tower.Tier < LTW.Simulation.Content.CategoryTierRules.MaxTier;
         }
 
@@ -259,14 +322,14 @@ namespace LTW.UnityClient.Simulation
         /// </remarks>
         public int TowerLineIndexAt(int x, int y)
         {
-            if (simulation is null)
+            if (simulationDriver?.LatestSnapshot is null || simulationDriver.Content is null)
             {
                 return -1;
             }
 
-            var tower = simulation.GetSnapshot().Towers.FirstOrDefault(candidate =>
-                candidate.OwnerId.Equals(simulation.LocalPlayerId)
-                && candidate.LaneId.Equals(simulation.LocalPlayerLaneId)
+            var tower = simulationDriver.LatestSnapshot.Towers.FirstOrDefault(candidate =>
+                candidate.OwnerId.Equals(simulationDriver.LocalPlayerId)
+                && candidate.LaneId.Equals(simulationDriver.LocalPlayerLaneId)
                 && candidate.Position.X == x
                 && candidate.Position.Y == y);
             if (tower is null)
@@ -274,7 +337,7 @@ namespace LTW.UnityClient.Simulation
                 return -1;
             }
 
-            var definition = simulation.Content.Towers.FirstOrDefault(candidate => candidate.Id.Equals(tower.TowerId));
+            var definition = simulationDriver.Content.Towers.FirstOrDefault(candidate => candidate.Id.Equals(tower.TowerId));
             return definition?.CategoryIndex ?? -1;
         }
 
@@ -364,6 +427,15 @@ namespace LTW.UnityClient.Simulation
                 return VerticalSliceCommandResult.Reject(CommandRejectionReason.MatchPaused);
             }
 
+            if (wireClient is not null)
+            {
+                var requestId = NewRequestId();
+                var laneId = simulationDriver.LocalPlayerLaneId.Value;
+                wireClient.AddPendingPrediction(new PendingPrediction { Id = requestId, Kind = PendingPredictionKind.UpgradeTower, LaneId = laneId, X = x, Y = y });
+                wireClient.SendCommand(new UpgradeTowerMessage { Id = requestId, LaneId = laneId, X = x, Y = y });
+                return VerticalSliceCommandResult.Accept();
+            }
+
             if (simulation is null)
             {
                 return VerticalSliceCommandResult.Reject(CommandRejectionReason.MatchPaused);
@@ -374,13 +446,13 @@ namespace LTW.UnityClient.Simulation
 
         public int TowerCost(int role)
         {
-            if (simulation is null)
+            if (simulationDriver?.Content is null || simulationDriver.LatestSnapshot is null)
             {
                 return 0;
             }
 
             var contentId = TowerCatalog.ForRole(role).ContentId;
-            foreach (var tower in simulation.Content.Towers)
+            foreach (var tower in simulationDriver.Content.Towers)
             {
                 if (tower.Id.Value == contentId)
                 {
@@ -407,12 +479,12 @@ namespace LTW.UnityClient.Simulation
         /// <summary>Gold for ONE creep of this type. See <see cref="SendCost"/> for what a send costs.</summary>
         public int CreepCost(LTW.Simulation.Content.ContentId creepId)
         {
-            if (simulation is null)
+            if (simulationDriver?.Content is null || simulationDriver.LatestSnapshot is null)
             {
                 return 0;
             }
 
-            foreach (var creep in simulation.Content.Creeps)
+            foreach (var creep in simulationDriver.Content.Creeps)
             {
                 if (creep.Id.Equals(creepId))
                 {
@@ -420,7 +492,7 @@ namespace LTW.UnityClient.Simulation
                     // discount, matching EconomyService.SendCostFor exactly — a card quoting a
                     // different number than what QueueSend actually charges is a button that lies.
                     var tier = LocalSeat().SendCategoryTier(creep.CategoryIndex);
-                    var tick = simulation.GetSnapshot().Tick.Value;
+                    var tick = simulationDriver.LatestSnapshot.Tick.Value;
                     return creep.Cost.Amount * LTW.Simulation.Content.CategoryTierRules.SendCostPercentFor(tier) / 100
                         * LTW.Simulation.Content.OpeningEconomyRules.CreepCostPercentFor(tick) / 100;
                 }
@@ -479,6 +551,23 @@ namespace LTW.UnityClient.Simulation
             if (!IsValidCell(x, y))
             {
                 return VerticalSliceCommandResult.Reject(CommandRejectionReason.InvalidLane);
+            }
+
+            if (wireClient is not null)
+            {
+                var requestId = NewRequestId();
+                var laneId = simulationDriver.LocalPlayerLaneId.Value;
+                wireClient.AddPendingPrediction(new PendingPrediction
+                {
+                    Id = requestId,
+                    Kind = PendingPredictionKind.PlaceTower,
+                    LaneId = laneId,
+                    TowerId = towerId.Value,
+                    X = x,
+                    Y = y,
+                });
+                wireClient.SendCommand(new PlaceTowerMessage { Id = requestId, LaneId = laneId, TowerId = towerId.Value, X = x, Y = y });
+                return VerticalSliceCommandResult.Accept();
             }
 
             if (simulation is null)
@@ -565,6 +654,16 @@ namespace LTW.UnityClient.Simulation
             if (simulationDriver == null || !simulationDriver.HasStarted || simulationDriver.IsPaused)
             {
                 return VerticalSliceCommandResult.Reject(CommandRejectionReason.MatchPaused);
+            }
+
+            if (wireClient is not null)
+            {
+                // One QueueSendMessage carrying the whole quantity, unlike the local path's one
+                // EnqueueSend call per creep — the server's own QueueSend command already takes a
+                // quantity (see LTW.MatchServer's ClientMessages.cs), so there is nothing to loop
+                // over here. No optimistic prediction, same reasoning as BuyCategoryTier above.
+                wireClient.SendCommand(new QueueSendMessage { Id = NewRequestId(), CreepId = creepId.Value, Quantity = quantity });
+                return VerticalSliceCommandResult.Accept();
             }
 
             if (simulation is null)
@@ -684,6 +783,15 @@ namespace LTW.UnityClient.Simulation
             if (!IsValidCell(x, y))
             {
                 return VerticalSliceCommandResult.Reject(CommandRejectionReason.InvalidLane);
+            }
+
+            if (wireClient is not null)
+            {
+                var requestId = NewRequestId();
+                var laneId = simulationDriver.LocalPlayerLaneId.Value;
+                wireClient.AddPendingPrediction(new PendingPrediction { Id = requestId, Kind = PendingPredictionKind.SellTower, LaneId = laneId, X = x, Y = y });
+                wireClient.SendCommand(new SellTowerMessage { Id = requestId, LaneId = laneId, X = x, Y = y });
+                return VerticalSliceCommandResult.Accept();
             }
 
             if (simulation is null)
