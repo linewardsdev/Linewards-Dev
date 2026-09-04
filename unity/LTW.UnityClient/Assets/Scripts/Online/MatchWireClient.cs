@@ -66,6 +66,7 @@ namespace LTW.UnityClient.Online
         private readonly CancellationTokenSource lifetime = new();
         private readonly JsonSerializerSettings jsonSettings = new() { NullValueHandling = NullValueHandling.Ignore };
         private readonly Dictionary<string, PendingPrediction> pendingPredictions = new();
+        private Task receiveLoop = Task.CompletedTask;
 
         public WelcomeMessage? Welcome { get; private set; }
 
@@ -86,7 +87,7 @@ namespace LTW.UnityClient.Online
         public async Task ConnectAsync()
         {
             await socket.ConnectAsync(joinUri, lifetime.Token);
-            _ = ReceiveLoopAsync();
+            receiveLoop = ReceiveLoopAsync();
         }
 
         private async Task ReceiveLoopAsync()
@@ -118,9 +119,25 @@ namespace LTW.UnityClient.Online
             {
                 // Normal shutdown via Dispose — nothing to report.
             }
+            catch (ObjectDisposedException)
+            {
+                // Also normal shutdown: Dispose() cancels lifetime first, which should already
+                // stop this loop via OperationCanceledException above, but a receive already past
+                // its cancellation check when the socket is disposed can surface this instead.
+            }
             catch (WebSocketException exception)
             {
                 inbox.Enqueue(BuildDisconnectSentinel(exception.Message));
+            }
+            catch (Exception exception)
+            {
+                // Found in a self-audit, not a live failure: only OperationCanceledException and
+                // WebSocketException were caught here originally. Anything else (this task is
+                // fire-and-forget, tracked only for Dispose to await) would have become an
+                // unobserved exception .NET silently drops — the receive loop would die with
+                // NOTHING reported, which is worse than any specific exception type, given this
+                // class's whole contract is "failure is reported via OnError."
+                inbox.Enqueue(BuildDisconnectSentinel($"receive loop failed: {exception.Message}"));
             }
         }
 
@@ -231,6 +248,23 @@ namespace LTW.UnityClient.Online
         public void Dispose()
         {
             lifetime.Cancel();
+
+            // Found in a self-audit: the receive loop task was fire-and-forget (`_ = ReceiveLoopAsync()`
+            // in ConnectAsync), so nothing here ever waited for it before proceeding to close and
+            // dispose the SAME socket it might still be calling ReceiveAsync on — a real race, not
+            // just a theoretical one, since cancellation unwinding is not instantaneous. Bounded
+            // wait rather than unbounded: a hung receive must not hang Dispose() itself.
+            try
+            {
+                receiveLoop.Wait(TimeSpan.FromSeconds(1));
+            }
+            catch (Exception)
+            {
+                // The loop's own exception handling already routed anything reportable to OnError
+                // via the inbox sentinel; this Wait exists only to sequence shutdown, not to
+                // surface failures a second time.
+            }
+
             try
             {
                 if (socket.State == WebSocketState.Open)

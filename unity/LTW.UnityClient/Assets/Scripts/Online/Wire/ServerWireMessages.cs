@@ -96,6 +96,15 @@ namespace LTW.UnityClient.Online.Wire
 
         [JsonProperty("eliminated")]
         public bool Eliminated { get; set; }
+
+        [JsonProperty("chosenTowerLine")]
+        public int ChosenTowerLine { get; set; }
+
+        [JsonProperty("towerLineTiers")]
+        public int[] TowerLineTiers { get; set; } = System.Array.Empty<int>();
+
+        [JsonProperty("sendCategoryTiers")]
+        public int[] SendCategoryTiers { get; set; } = System.Array.Empty<int>();
     }
 
     public sealed class TowerSnapshotDto

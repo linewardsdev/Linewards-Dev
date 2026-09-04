@@ -167,6 +167,9 @@ public sealed class ServerMatch
                 Income = player.Income.Amount,
                 Lives = player.Lives.Amount,
                 Eliminated = player.IsEliminated,
+                ChosenTowerLine = player.ChosenTowerLine,
+                TowerLineTiers = player.CopyTowerLineTiers(),
+                SendCategoryTiers = player.CopySendCategoryTiers(),
             }).ToList(),
             Towers = snapshot.Towers.Select(tower => new TowerSnapshotDto
             {
