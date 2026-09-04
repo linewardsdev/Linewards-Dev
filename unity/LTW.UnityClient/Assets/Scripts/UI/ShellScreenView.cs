@@ -209,6 +209,20 @@ namespace LTW.UnityClient.UI
                 currentScreen = resolved;
                 renderedSummary = null;
                 Enter(ScreenElement(resolved));
+
+                // Leaving an online match (see UnitySimulationDriver.LeaveOnlineMatch) returns
+                // here, but OnPlayOnlineTapped's CONNECTING.../disabled state was only ever
+                // designed to be undone by that same method's own failure branch — the success
+                // path deliberately leaves it alone because HasStarted flipping true was assumed
+                // to be one-way (see OnPlayOnlineTapped's own remarks). Now that a player can come
+                // back to Title mid-session, re-entering Title has to be the thing that resets it,
+                // or the button is stuck showing CONNECTING... and disabled forever after leaving
+                // a match that connected successfully.
+                if (resolved == ShellScreen.Title && playOnlineButton != null)
+                {
+                    playOnlineButton.text = "PLAY ONLINE";
+                    playOnlineButton.SetEnabled(true);
+                }
             }
 
             RefreshContent(resolved);

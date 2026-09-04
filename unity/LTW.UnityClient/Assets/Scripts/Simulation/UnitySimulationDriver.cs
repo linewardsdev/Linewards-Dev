@@ -348,11 +348,29 @@ namespace LTW.UnityClient.Simulation
                 // Mirrors BeginOpeningBuildCountdown/StartMatch's own HasStarted/IsPaused pairing
                 // for local play — LocalSessionFlowOverlay's ActiveShellScreen switches on exactly
                 // this combination regardless of who (local countdown vs. server) is driving it.
+                var wasOpeningBuildCountdown = IsOpeningBuildCountdown;
                 IsOpeningBuildCountdown = tick.IsOpeningBuildCountdown;
                 OpeningBuildCountdownRemaining = (float)tick.OpeningBuildCountdownRemainingSeconds;
                 HasStarted = !tick.IsOpeningBuildCountdown;
-                IsPaused = tick.IsOpeningBuildCountdown;
 
+                if (tick.IsOpeningBuildCountdown)
+                {
+                    IsPaused = true;
+                }
+                else if (wasOpeningBuildCountdown)
+                {
+                    // The window just ended: the match needs to start moving without a manual
+                    // unpause. This is the ONLY point past here that sets IsPaused for a wire
+                    // match — see the remark below for why every other live tick leaves it alone.
+                    IsPaused = false;
+                }
+
+                // Deliberately NOT set on every live tick: the server has no concept of a
+                // per-client pause and keeps ticking regardless, so once live, whether THIS
+                // client is paused is a purely local concern (LocalSessionFlowOverlay's PAUSE
+                // button / TogglePause()). Forcing it from tick.IsOpeningBuildCountdown (always
+                // false once live) here used to stomp a local pause back to false within one
+                // network tick interval — found live: "pause does not work" against a real match.
                 LatestSnapshot = BuildSnapshotFromWire(tick, client.PendingPredictions);
                 SnapshotRevision = tick.Sequence;
             }
@@ -614,6 +632,42 @@ namespace LTW.UnityClient.Simulation
             {
                 RefreshSnapshot();
             }
+        }
+
+        /// <summary>
+        /// The wire-mode equivalent of <see cref="ResetMatch"/> — closes the socket and returns
+        /// this driver to the same "nothing active" state a local reset leaves it in. Does nothing
+        /// for a local match; see <see cref="IsWireBacked"/>.
+        /// </summary>
+        /// <remarks>
+        /// <see cref="ResetMatch"/> itself must never be reused for this: it only ever touches
+        /// <see cref="simulation"/>, never <see cref="wireClient"/>, so calling it while still
+        /// connected leaves the socket pumping — the very next incoming tick silently overwrites
+        /// the reset right back to whatever the server was doing. See
+        /// <c>LocalSessionFlowOverlay.ResetMatchLeavingPractice</c>'s own remarks for how that was
+        /// first found (the opening-build-countdown panel's MENU button, before this existed).
+        /// <c>MatchWireClient.Dispose</c> can block the calling thread briefly (up to a second)
+        /// while its receive loop winds down — acceptable here since leaving a match is a rare,
+        /// deliberate action, not a per-frame call.
+        /// </remarks>
+        public void LeaveOnlineMatch()
+        {
+            if (wireClient is null)
+            {
+                return;
+            }
+
+            wireClient.Dispose();
+            wireClient = null;
+            wireContent = null;
+            wireLastAppliedSequence = long.MinValue;
+            accumulator = 0f;
+            HasStarted = false;
+            IsPaused = true;
+            IsOpeningBuildCountdown = false;
+            OpeningBuildCountdownRemaining = 0f;
+            LatestMatchSummary = null;
+            LatestEvents = new List<ISimulationEvent>();
         }
     }
 }

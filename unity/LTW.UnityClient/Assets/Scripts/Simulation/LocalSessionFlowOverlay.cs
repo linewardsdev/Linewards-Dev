@@ -362,31 +362,35 @@ namespace LTW.UnityClient.Simulation
             DrawLabel(panel.x + 24f * scale, panel.y + 31f * scale, panel.width - 48f * scale, 32f * scale, seconds.ToString(), titleStyle!, TextAnchor.MiddleCenter);
             DrawLabel(panel.x + 22f * scale, panel.y + 62f * scale, panel.width - 44f * scale, 18f * scale, "Place opening towers. Sends unlock when LIVE begins.", bodyStyle!, TextAnchor.MiddleCenter);
 
-            // Neither button below is meaningful for a server match: START NOW only forwards to
-            // the LOCAL simulation's clock (a no-op online, since the server alone decides when
-            // the window ends — see ServerMatch's own remarks), and MENU's ResetToTitle only
-            // resets local driver flags, which the next incoming tick would immediately overwrite
-            // again since the wire client keeps pumping regardless. Leaving a live online match
-            // is a separate, not-yet-built feature (see docs/MULTIPLAYER_ROLLOUT.md's MP-06) —
-            // hiding these here avoids two buttons that would otherwise look wired up but do
-            // nothing but flicker.
-            if (simulationDriver.IsWireBacked)
-            {
-                return;
-            }
-
             var buttonWidth = 96f * scale;
             var buttonHeight = 24f * scale;
             var gap = 8f * scale;
             var rowY = panel.yMax - 30f * scale;
-            var startX = panel.center.x - buttonWidth - gap * 0.5f;
 
-            if (DrawButton(new Rect(startX, rowY, buttonWidth, buttonHeight), "START NOW", MintSignal, scale, 9f))
+            // START NOW has no server equivalent — the server alone decides when the window ends
+            // (see ServerMatch's own remarks) — so it is hidden rather than left as a dead button
+            // for a wire-backed match. MENU is safe for both now: ResetToTitle routes through
+            // ResetMatchLeavingPractice, which properly disconnects a wire-backed match (see its
+            // own remarks) instead of only touching local driver flags the way it used to — that
+            // older behavior was the actual bug (the next incoming tick silently overwrote the
+            // reset right back), not "showing MENU during an online match" itself.
+            if (!simulationDriver.IsWireBacked)
             {
-                simulationDriver.StartMatch();
+                var startX = panel.center.x - buttonWidth - gap * 0.5f;
+                if (DrawButton(new Rect(startX, rowY, buttonWidth, buttonHeight), "START NOW", MintSignal, scale, 9f))
+                {
+                    simulationDriver.StartMatch();
+                }
+
+                if (DrawButton(new Rect(startX + buttonWidth + gap, rowY, buttonWidth, buttonHeight), "MENU", Cloud, scale, 9f))
+                {
+                    ResetToTitle();
+                }
+
+                return;
             }
 
-            if (DrawButton(new Rect(startX + buttonWidth + gap, rowY, buttonWidth, buttonHeight), "MENU", Cloud, scale, 9f))
+            if (DrawButton(new Rect(panel.center.x - buttonWidth * 0.5f, rowY, buttonWidth, buttonHeight), "MENU", Cloud, scale, 9f))
             {
                 ResetToTitle();
             }
@@ -689,6 +693,22 @@ namespace LTW.UnityClient.Simulation
         private void ResetMatchLeavingPractice()
         {
             tutorialDirector?.Stop();
+
+            if (simulationDriver.IsWireBacked)
+            {
+                // RESET MATCH, REMATCH and EXIT TO TITLE all land here for a local match, and now
+                // for an online one too — but neither RESET MATCH's nor REMATCH's in-place
+                // semantics have a server equivalent yet (a match cannot be reset or rematched,
+                // only left), so leaving always lands all the way back on Title regardless of
+                // which one of the three the caller was actually driving. Before this,
+                // ResetMatch() only ever touched local driver flags and left the wire client
+                // pumping, so the very next incoming tick silently overwrote the reset right back
+                // — see the countdown panel's own MENU button remarks for how that was found.
+                preMatchScreen = PreMatchScreen.Title;
+                simulationDriver.LeaveOnlineMatch();
+                return;
+            }
+
             if (LocalMatchRuntimeOptions.PracticePending)
             {
                 LocalMatchRuntimeOptions.LeavePractice();
