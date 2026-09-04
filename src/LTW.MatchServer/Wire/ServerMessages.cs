@@ -61,6 +61,19 @@ public sealed class TickMessage
 {
     public string Type { get; } = ServerMessageType.Tick;
     public long Tick { get; set; }
+
+    /// <summary>Increments every loop iteration, ticking or not — unlike <see cref="Tick"/>, which
+    /// is frozen at 0 for the whole opening build window (see <see cref="IsOpeningBuildCountdown"/>),
+    /// this is what a client should key "is this a new message" off of.</summary>
+    public long Sequence { get; set; }
+
+    /// <summary>True while <c>ServerMatch</c>'s opening build window is still running — the
+    /// simulation has not advanced past tick 0 and no creeps have been sent yet, but placement
+    /// commands still work normally.</summary>
+    public bool IsOpeningBuildCountdown { get; set; }
+
+    public double OpeningBuildCountdownRemainingSeconds { get; set; }
+
     public List<EventDto> Events { get; set; } = new();
     public List<PlayerSnapshotDto> Players { get; set; } = new();
     public List<TowerSnapshotDto> Towers { get; set; } = new();
@@ -68,13 +81,14 @@ public sealed class TickMessage
 }
 
 /// <summary>
-/// <see cref="ChosenTowerLine"/>/<see cref="TowerLineTiers"/>/<see cref="SendCategoryTiers"/> were
-/// missing from the original MP-06 pass — found in a self-audit immediately after, not by a live
-/// test. Their absence meant a wire-reconstructed <c>PlayerEconomyState</c> always read as
-/// tier-1/uncommitted regardless of real purchases, which silently broke every tier purchase past
-/// the first: <c>UnityCommandAdapter.BuyCategoryTier</c>'s wire-sent <c>TargetTier</c> is
-/// <c>current + 1</c>, so a "current" that always reads as 1 sends <c>TargetTier: 2</c> on every
-/// purchase, not just the first.
+/// <see cref="PlayerSnapshotDto.ChosenTowerLine"/>/<see cref="PlayerSnapshotDto.TowerLineTiers"/>/
+/// <see cref="PlayerSnapshotDto.SendCategoryTiers"/> were missing from the original MP-06 pass —
+/// found in a self-audit immediately after, not by a live test. Their absence meant a
+/// wire-reconstructed <c>PlayerEconomyState</c> always read as tier-1/uncommitted regardless of
+/// real purchases, which silently broke every tier purchase past the first:
+/// <c>UnityCommandAdapter.BuyCategoryTier</c>'s wire-sent <c>TargetTier</c> is <c>current + 1</c>,
+/// so a "current" that always reads as 1 sends <c>TargetTier: 2</c> on every purchase, not just
+/// the first.
 /// </summary>
 public sealed class PlayerSnapshotDto
 {

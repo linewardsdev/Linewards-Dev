@@ -45,7 +45,7 @@ public sealed class MatchRegistry
     /// whether a human or a matchmaker decided that mapping, per MP-05's own architecture note
     /// that private matches and matchmade ones differ only in who calls this.
     /// </remarks>
-    public ServerMatch CreateMatch(IReadOnlyCollection<int> humanSeats, double? ticksPerSecond = null, IReadOnlyDictionary<int, string>? playFabIdBySeat = null)
+    public ServerMatch CreateMatch(IReadOnlyCollection<int> humanSeats, double? ticksPerSecond = null, IReadOnlyDictionary<int, string>? playFabIdBySeat = null, double? openingBuildWindowSeconds = null)
     {
         var matchId = Guid.NewGuid().ToString("N");
         var options = LocalMatchOptions.Default;
@@ -71,7 +71,8 @@ public sealed class MatchRegistry
             replayDirectory,
             ticksPerSecond ?? 10,
             playFabIdBySeat,
-            playFabAuthority);
+            playFabAuthority,
+            openingBuildWindowSeconds ?? 30);
         matches[matchId] = match;
         match.Start();
         return match;

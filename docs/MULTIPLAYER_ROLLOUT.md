@@ -902,12 +902,59 @@ switches away from Title on its own, exactly as it would for a local match.
 No explicit "connecting" screen — the button's own text ("CONNECTING...") is the only feedback,
 same minimal affordance as sign-in. That gap is already tracked below.
 
+### Opening build window — found by the first live PLAY ONLINE test, fixed same day (2026-09-04)
+
+The first real device-adjacent test of PLAY ONLINE (Unity Editor, real `LTW.MatchServer`, real
+PlayFab session) surfaced a genuine gap the audit above did not catch: the player dropped straight
+into an active match with creeps already inbound, no chance to place an opening tower first. Root
+cause was architectural, not a typo — `ServerMatch.RunLoopAsync` called `slice.AdvanceOneTick()` on
+its very first loop iteration, and `LocalVerticalSlice.StartMatch()`'s `SeedExpandedLaneBotOpeners`
+fires inside that same call, so bots sent their opening creeps before tick 1. Local play's 30 second
+"tap PLAY to begin" window is a purely client-side trick (`UnitySimulationDriver` just doesn't call
+`AdvanceOneTick` yet) with no server-side equivalent at all — confirmed by grepping
+`src/LTW.MatchServer` and `src/LTW.Simulation` for any "build window"/"lobby"/"ready" concept: none
+existed.
+
+Fixed by giving `ServerMatch` its own opening build window (`openingBuildWindowSeconds`, defaults to
+30, matching local play): `RunLoopAsync` skips `AdvanceOneTick()` until it elapses, so the tick
+counter holds at 0 and no bot opens fire, while `DispatchAsync` (placement commands) is untouched and
+keeps working normally during the window. `TickMessage` grew `Sequence` (increments every loop
+iteration whether or not the tick advanced — needed because `Tick` itself is frozen at 0 for the
+whole window, so it can no longer be what a client dedupes "is this a new message" on),
+`IsOpeningBuildCountdown`, and `OpeningBuildCountdownRemainingSeconds`. Auto-starts at match
+creation rather than waiting for an explicit ready-up — today's online matches are solo-vs-bots, so
+there is no second human to wait for; a real matchmaking flow would need a ready-up step instead
+(not built here).
+
+`UnitySimulationDriver.UpdateWire` now keys its "new message" dedupe on `Sequence`, and sets
+`HasStarted`/`IsPaused`/`IsOpeningBuildCountdown`/`OpeningBuildCountdownRemaining` straight from each
+tick — mirroring `BeginOpeningBuildCountdown`/`StartMatch`'s own flag pairing for local play closely
+enough that `LocalSessionFlowOverlay`'s existing countdown panel renders correctly with **no changes
+to its display logic**. Two of its buttons DID need gating, though: `DrawBuildCountdownPanel`'s
+"START NOW" and "MENU" both only ever touch the local driver flags directly, which the next incoming
+server tick would immediately overwrite again — clicking either during an online match would flicker
+and do nothing. Both are now hidden behind a new `UnitySimulationDriver.IsWireBacked` check. Leaving
+a live online match at all remains unbuilt (no disconnect/leave-match path exists yet, online or off)
+— a separate, pre-existing gap this only surfaced, not introduced.
+
+Proved with a new integration test, `Opening_build_window_holds_the_tick_and_still_accepts_placement`
+(a fast, test-only `openingBuildWindowSeconds` override — 1s instead of 30 — keeps it from needing a
+real wait): asserts the first tick is a 0-tick countdown message with no creeps, places a tower
+during it, then polls past the window and confirms both a real advancing tick and the placed tower
+surviving into it. Full suite (377 tests across both worktrees) and Unity batchmode compiles both
+stayed clean.
+
+**Confirmed live, 2026-09-04**: Unity Editor Play Mode (debug-injected PlayFab session — see
+`DebugLocalOnlineTestSignIn.cs`, untracked) against a real, restarted local `LTW.MatchServer`. PLAY
+ONLINE showed the BUILD PHASE panel with a live ticking countdown and no creeps, a tower placed
+during it stuck, and the match went live into normal ticking play once the window ended.
+
 ### What this has NOT proven
 
-Everything above compiles cleanly (`dotnet format`-equivalent Unity batchmode checks, zero errors)
-but has NOT been exercised against a real running match — no two-instance test, no device test, the
-way MP-04's transport and MP-05's identity were each proven with a real client before being called
-done.
+Everything above compiles cleanly and the opening build window itself is now confirmed live (see
+just above), but the wider wire layer has NOT been exercised end to end otherwise — no two-instance
+test, no real device test, the way MP-04's transport and MP-05's identity were each proven with a
+real client before being called done.
 
 ### Acceptance Checks
 
