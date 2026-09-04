@@ -50,9 +50,12 @@ public sealed class EventDto
 /// per-message overhead) versus what this version measures.
 /// </summary>
 /// <remarks>
-/// <see cref="Players"/>/<see cref="Towers"/> are NOT creeps or combat state — see MP-04's notes
-/// for why that is a deliberately scoped gap (client rendering fidelity is Unity's concern, not
-/// this initiative's) rather than an oversight.
+/// <see cref="Creeps"/> was added for MP-06 — MP-04 deliberately scoped it out ("client rendering
+/// fidelity is Unity's concern, not this initiative's"), which was correct for proving the
+/// transport, but a client cannot render an actual match without it. It mirrors
+/// <c>LTW.Simulation.Combat.CreepPresentationSnapshot</c>, the same shape the LOCAL renderer
+/// already uses, field for field — a wire-based renderer should not need a second interpretation
+/// of movement interpolation from the one Practice already has.
 /// </remarks>
 public sealed class TickMessage
 {
@@ -61,6 +64,7 @@ public sealed class TickMessage
     public List<EventDto> Events { get; set; } = new();
     public List<PlayerSnapshotDto> Players { get; set; } = new();
     public List<TowerSnapshotDto> Towers { get; set; } = new();
+    public List<CreepSnapshotDto> Creeps { get; set; } = new();
 }
 
 public sealed class PlayerSnapshotDto
@@ -81,6 +85,30 @@ public sealed class TowerSnapshotDto
     public int X { get; set; }
     public int Y { get; set; }
     public int Tier { get; set; }
+}
+
+/// <summary>
+/// Field-for-field mirror of <c>LTW.Simulation.Combat.CreepPresentationSnapshot</c> — see that
+/// class's own remarks for why each field exists (in particular <see cref="MovementProgress"/>/
+/// <see cref="EffectiveMovementCost"/>, which is what lets a renderer place a creep BETWEEN cells
+/// rather than snapping it once per tick).
+/// </summary>
+public sealed class CreepSnapshotDto
+{
+    public long EntityId { get; set; }
+    public string CreepId { get; set; } = "";
+    public int SenderId { get; set; }
+    public int LaneId { get; set; }
+    public int X { get; set; }
+    public int Y { get; set; }
+    public int Health { get; set; }
+    public int MaxHealth { get; set; }
+    public int SpeedPerSecond { get; set; }
+    public int NextX { get; set; }
+    public int NextY { get; set; }
+    public int MovementProgress { get; set; }
+    public int EffectiveMovementCost { get; set; }
+    public bool IsBraked { get; set; }
 }
 
 /// <summary>A protocol-level problem (bad JSON, unknown message type, not yet authenticated) — not a rejected command, which gets <see cref="CommandResultMessage"/> instead.</summary>

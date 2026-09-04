@@ -178,6 +178,23 @@ public sealed class ServerMatch
                 Y = tower.Position.Y,
                 Tier = tower.Tier,
             }).ToList(),
+            Creeps = snapshot.Creeps.Select(creep => new CreepSnapshotDto
+            {
+                EntityId = creep.EntityId.Value,
+                CreepId = creep.CreepId.Value,
+                SenderId = creep.SenderId.Value,
+                LaneId = creep.LaneId.Value,
+                X = creep.Position.X,
+                Y = creep.Position.Y,
+                Health = creep.Health,
+                MaxHealth = creep.MaxHealth,
+                SpeedPerSecond = creep.SpeedPerSecond,
+                NextX = creep.NextPosition.X,
+                NextY = creep.NextPosition.Y,
+                MovementProgress = creep.MovementProgress,
+                EffectiveMovementCost = creep.EffectiveMovementCost,
+                IsBraked = creep.IsBraked,
+            }).ToList(),
         };
     }
 

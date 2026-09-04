@@ -749,7 +749,9 @@ the PlayFab account/title setup and the Apple/Google identity-provider configura
 
 ## MP-06: Client Over The Wire
 
-**Owner:** Client. **Status:** partial — the snapshot already carries per-seat state for this reason.
+**Owner:** Client. **Status:** core loop built 2026-09-04 — a real match can be joined, played,
+and rendered entirely from the wire. Compiles cleanly; NOT yet exercised on a real device against
+a real running match (see "What this has NOT proven" below).
 
 ### Deliverables
 
@@ -760,14 +762,117 @@ the PlayFab account/title setup and the Apple/Google identity-provider configura
 - Reconnect UX: a network hole shows a state, not a freeze; a reconnect resumes the seat.
 - The tutorial and Practice stay local; they never touch the server.
 
+### Landed
+
+- **`TickMessage` now carries creeps.** MP-04 deliberately scoped this out ("client rendering
+  fidelity is Unity's concern, not this initiative's") — correct for proving the transport, but a
+  client cannot render an actual match on Players/Towers alone. `CreepSnapshotDto`
+  (`LTW.MatchServer/Wire/ServerMessages.cs`) mirrors `LTW.Simulation.Combat.CreepPresentationSnapshot`
+  field for field, including `EffectiveMovementCost` (the brake-adjusted value, so a client never
+  has to know the bramble penalty constant to place a creep between cells correctly) — the same
+  shape the LOCAL renderer already consumes, so a wire-based renderer and Practice's renderer can
+  eventually share interpolation logic instead of each inventing its own.
+- Proven with a real test, not just a compile check: `Tick_messages_carry_creep_positions_once_bots_start_sending`
+  joins a real match and waits for bots to actually send creeps, then asserts on the real wire
+  shape — not a fake or a mocked snapshot.
+- In passing: a stale "34 delivered ticks/second regardless of requested rate" comment survived in
+  `MatchServerIntegrationTests.cs` after the actual doc correction (see MP-04's own "What broke")
+  — the number was fixed there but this comment, a second copy of the same wrong claim, was missed.
+  Corrected here too.
+
+### Landed (client): a real match, joinable and playable from the wire
+
+Investigated first, before writing any client code: `unity/LTW.UnityClient/Assets/Scripts/Simulation/`'s
+existing local pipeline had NO abstraction between "a live `LocalVerticalSlice`" and the 8+ scripts
+that read `UnitySimulationDriver`'s public surface directly (`UnityVerticalSliceRenderer`,
+`HudView`, `SeatLeaderboardView`, `ShellScreenView`, `TouchPlacementController`, and others). Rather
+than introduce a new interface and rewire all of them, `UnitySimulationDriver` and
+`UnityCommandAdapter` were given a second, wire-backed mode internally — every existing consumer is
+completely unchanged.
+
+- **`Assets/Scripts/Online/Wire/`**: `ClientWireMessages.cs`/`ServerWireMessages.cs`, plain
+  Newtonsoft-serializable classes mirroring `LTW.MatchServer/Wire/`'s DTOs field for field (added
+  `com.unity.nuget.newtonsoft-json` — this project had no JSON library wired into gameplay code at
+  all before this).
+- **`MatchWireClient`**: owns one `ClientWebSocket`. Background tasks do the actual socket I/O;
+  every received frame is only parsed enough to route it, then queued, and `Pump()` — called from
+  `UnitySimulationDriver.Update()`, i.e. the main thread — is the only place that touches Unity
+  state or fires events. The standard safe split for a background-socket/main-thread-game-loop
+  pairing, chosen over a SynchronizationContext dispatch trick.
+- **`OnlineMatchService`**: creates a private match via `POST /matches` (reserving the seat for the
+  signed-in PlayFab identity — MP-05) and joins it via the `playFabTicket=` path, percent-encoding
+  the ticket first (the MP-05 bug this doc already records under "second real bug").
+- **`UnitySimulationDriver.BuildSnapshotFromWire`**: reconstructs a REAL `VerticalSliceSnapshot` —
+  not a wire-shaped substitute — from a `TickMessage`, via `PlayerEconomyState`/`TowerCombatState`/
+  `CreepPresentationSnapshot`'s own public constructors (verified against their actual signatures,
+  not assumed). This is why the renderer, HUD, and every other existing reader needed zero changes:
+  they already only know how to read a `VerticalSliceSnapshot`, and now sometimes get one built from
+  a socket instead of a local sim. Tower aim-targets, bramble cells, send-queues and the seat table
+  are passed empty (not yet on the wire — see MP-04's original scoping note, extended for creeps
+  this pass but not the rest); every reader treats empty as "nothing to show," not a crash.
+- **Command routing**: `UnityCommandAdapter.PlaceTower`/`SellTowerAt`/`UpgradeTowerAt`/
+  `BuyCategoryTier`/`SendCreep` route to the wire client instead of the local simulation when wire-
+  backed. Several of the class's read-only helpers (`CurrentPlayerGold`, `CurrentPlayerIncome`,
+  `TowerLineTier`, `SendCategoryTier`, `CanUpgradeTowerAt`, `TowerCost`, `CreepCost`, and others)
+  read `simulation.GetSnapshot()`/`simulation.Content` directly rather than through the driver — a
+  separate data path that would have silently returned wrong fallback values (0 gold, tier always
+  1) for a networked match. These were ported to read through `simulationDriver` instead, since
+  `TowerLineTier`'s result feeds directly into `BuyCategoryTier`'s wire-sent `TargetTier` — a wrong
+  read there would have sent the wrong tier to the server on every purchase past the first, not
+  merely displayed a wrong number.
+- **Local-only prediction, not full lockstep.** A real architectural fork surfaced here: the
+  server's command replies are inherently asynchronous, but the existing UI expects a synchronous
+  accept/reject result. True lockstep prediction (replaying the whole match — bots, opponents, RNG
+  — client-side) would need a second wire-protocol change (broadcasting every seat's commands, not
+  just resulting state) and deterministic bot/RNG replication client-side; decided against as
+  disproportionate for this pass. Instead, `MatchWireClient` tracks `PendingPrediction`s for the
+  LOCAL player's own place/sell/upgrade actions only — `BuildSnapshotFromWire` merges them into the
+  towers list (synthetic negative `EntityId`s so they can never collide with a real one) so a
+  placement shows instantly, and `CommandResultMessage`'s matching `Id` resolves (removes) the
+  prediction either way, since the real effect (or its absence) is already knowable from there.
+  `BuyCategoryTier`/`SendCreep` are NOT predicted (no single obvious visual for a tier bump or a
+  queued send) — fire-and-wait, resolving on the next real tick.
+- **Deliberately deferred, not overlooked**: the event stream (`EventDto.Data` has no fixed
+  per-event-kind DTO catalog on the wire — a client would need a mirror of every
+  `LTW.Simulation.Events.*` shape to consume it losslessly), so event-driven VFX/audio and automatic
+  match-end/results-screen detection do not fire for a networked match yet — `LatestEvents`/
+  `LatestMatchSummary` stay empty/null. `PreviewTower`'s ghost-color hint always shows red (cosmetic
+  only — confirmed by reading `TouchPlacementController.cs`'s actual call sites that the real
+  placement tap does not depend on the preview result). Batch operations
+  (`UpgradeTowerLine`/`UpgradeTowers`/`SellTowers`) and the opening build countdown UX are local-only
+  in this pass; a networked match starts immediately with no countdown.
+
+### What this has NOT proven
+
+Everything above compiles cleanly (`dotnet format`-equivalent Unity batchmode checks, zero errors)
+but has NOT been exercised against a real running match — no two-instance test, no device test, the
+way MP-04's transport and MP-05's identity were each proven with a real client before being called
+done. The title screen also has no "play online" entry point yet — `OnlineMatchService`/
+`UnitySimulationDriver.Initialize(MatchWireClient)`/`UnityCommandAdapter.Initialize(MatchWireClient, ...)`
+exist and compile, but nothing calls them yet. That specific wiring was deliberately left for a
+separate, focused pass rather than rushed: it intersects `LocalSessionFlowOverlay`'s existing
+session-flow state machine, which this pass did not audit, and getting that wrong risks a
+regression to the local/Practice flow that DOES already work and is well tested.
+
 ### Acceptance Checks
 
 - [ ] A 2 s network hole mid-match is survivable with no desync.
 - [ ] Kill the app and relaunch inside the reconnect window: the seat resumes.
 - [ ] `RealUiCaptureRunner` shots for the lobby, the connecting state and a reconnect exist and
       are reviewed at phone and iPad widths.
+- [x] The wire protocol carries enough state (players, towers, creeps) to render a match without
+      reading the simulation directly — confirmed 2026-09-04 against a real running match.
+- [x] The client can build a real `VerticalSliceSnapshot` from wire data alone, compatible with
+      every existing renderer/HUD/UI consumer with zero changes to them — confirmed 2026-09-04 by
+      compiling cleanly against the actual consumer set, not a synthetic test harness.
+- [ ] A real device joins a real match over the wire and plays it — the actual end-to-end proof.
+      Not yet done; see "What this has NOT proven" above.
+- [ ] A title-screen entry point exists to start/join an online match. Not yet done.
 
-**Estimate:** one to two weeks.
+**Estimate:** one to two weeks. Revised down from the original estimate now that the core wire
+layer, snapshot reconstruction and command routing are built — what remains is the title-screen
+entry point, a live end-to-end device test, and the explicitly deferred items above (event-driven
+VFX, match-end detection, reconnect UX).
 
 ## MP-07: Operations
 
