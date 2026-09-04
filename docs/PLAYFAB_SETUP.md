@@ -69,12 +69,24 @@ same enrollment, not a second one:
 - [ ] Set the iOS App Bundle ID to the App ID from the step above.
 - [ ] Upload the Services ID, Team ID, Key ID, and the private key file from the steps above.
 
-## 3. Google Sign-In — done (2026-09-04)
+## 3. Google Sign-In — done and confirmed working end to end on a real iOS device (2026-09-04)
 
 The Google add-on is installed and active on title `FBC34`: a Web-application-type OAuth 2.0
 client was created in Google Cloud Console (Client Secret never left the user's own hands — not
 recorded in this repo or this chat) and its Client ID/Secret entered into PlayFab Game Manager's
-Google add-on.
+Google add-on. A real device build completed a real Google sign-in and produced a real PlayFab
+session ticket — see `docs/MULTIPLAYER_ROLLOUT.md`'s MP-05 "Landed (client)" for the two real bugs
+that surfaced getting there and how each was fixed.
+
+**Correction to this doc's own earlier guidance:** an earlier version of this checklist said
+Authorized redirect URIs were not required for this flow. That was wrong, and device testing
+proved it wrong — PlayFab's server exchanges the auth code with Google using its OWN fixed,
+PlayFab-hosted redirect URI, which must be registered on the Web-application OAuth client or the
+login fails server-side with `redirect_uri_mismatch`:
+
+- [x] On the Web-application OAuth client, under **Authorized redirect URIs**, add
+      `https://oauth.playfab.com/oauth2/google` — a fixed PlayFab URL, the same for every title,
+      not something generated per-project.
 
 <details>
 <summary>Original checklist, kept for reference</summary>
@@ -87,9 +99,6 @@ Google add-on.
       type even though players sign in from the mobile app). Note: the Google Cloud Console OAuth
       client creation form defaults its "Application type" picker to iOS (asks for a Bundle ID) —
       it must be switched to "Web application" explicitly, or there's no Client Secret at all.
-      Authorized JavaScript origins/redirect URIs are not required for the server-auth-code flow
-      `LoginWithGoogleAccount` uses; leave them blank, or use the title's own PlayFab API endpoint
-      as a harmless placeholder if the form insists on a non-empty value.
 - [x] Record the Client ID and Client Secret.
 
 **PlayFab Game Manager** (title dashboard → Add-ons):
@@ -147,21 +156,15 @@ one remaining unchecked acceptance check — a real session ticket authenticatin
 
 ## What's genuinely blocked on you right now
 
-Two separate things:
+Just **Section 2 (Sign in with Apple)** now. Sections 1, 3, and 3b are done, and Google Sign-In is
+confirmed working end to end on a real device (2026-09-04) — see
+`docs/MULTIPLAYER_ROLLOUT.md`'s MP-05 "Landed (client)".
 
-1. **Section 2 (Sign in with Apple).** Sections 1, 3, and 3b are done. Apple's setup needs the
-   Apple Developer Program enrollment tracked in `docs/STORE_SIGNING_PREREQUISITES.md` (not yet
-   done as of this writing — $99/yr, 24-48h approval wait) before the App ID capability, Services
-   ID, and private key steps can happen; that's an authenticated portal action this environment
-   cannot reach. Once that enrollment exists, the join-path integration on `LTW.MatchServer`
-   already works the same way for Apple as it does for Google (see `PlayFabSessionAuthority` — it
-   verifies any PlayFab session ticket regardless of which identity provider produced it), so
-   there's no new server code needed, only the Apple Developer Portal + PlayFab Apple add-on
-   configuration itself.
-2. **Proving the Google Sign-In client code actually works.** Everything needed to configure it is
-   done (both OAuth clients, both filled into the Unity project) and the code is written, but this
-   environment cannot build or run an iOS app. The real Xcode export for this project lives in
-   `/Users/admin/LTW/build/`, not this worktree — so this needs a real build from there, run on a
-   real device, by you, before "the button works" is anything more than a claim. See
-   `docs/MULTIPLAYER_ROLLOUT.md`'s MP-05 "Landed (client)" for exactly what has and hasn't been
-   exercised.
+Apple's setup needs the Apple Developer Program enrollment tracked in
+`docs/STORE_SIGNING_PREREQUISITES.md` (not yet done as of this writing — $99/yr, 24-48h approval
+wait) before the App ID capability, Services ID, and private key steps can happen; that's an
+authenticated portal action this environment cannot reach. Once that enrollment exists, the
+join-path integration on `LTW.MatchServer` already works the same way for Apple as it does for
+Google (see `PlayFabSessionAuthority` — it verifies any PlayFab session ticket regardless of which
+identity provider produced it), so there's no new server code needed, only the Apple Developer
+Portal + PlayFab Apple add-on configuration itself.

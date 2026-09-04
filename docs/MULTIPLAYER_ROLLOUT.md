@@ -659,12 +659,12 @@ That made it possible to prove the last thing the fake-backed tests above could 
   "delete player" step worth scripting for two rows, but worth knowing they're there if the title's
   player list looks non-empty later.
 
-### Landed (client) — 2026-09-04, iOS Google Sign-In only, untested on device
+### Landed (client) — confirmed on a real iOS device, 2026-09-04
 
 Scoped deliberately to iOS-only Google sign-in for now (Android needs a whole separate Google Play
-Games Services setup — see the scope decision below). Real code, not scaffolding, but the one thing
-nothing in this environment can do is build an Xcode project onto a real device, so none of this
-has actually run yet:
+Games Services setup — see the scope decision below). This is now proven, not just written: a real
+device build, a real Google account, a real PlayFab session ticket, title `FBC34`, button reads
+SIGNED IN. Three real bugs surfaced getting there, each is its own entry below.
 
 - **SDK choice reversed from what this doc originally assumed.** The new "v2 Unified" PlayFab
   Unity SDK's own generated docs mark `AuthenticationLoginWithGoogleAccountAsync` as "available on
@@ -672,9 +672,12 @@ has actually run yet:
   a caller can feed any server auth code into. That makes it unusable for the iOS flow this needs.
   The older `PlayFab/UnitySDK` (`PlayFabClientAPI`, plain HTTP via `UnityWebRequest`, no platform
   restriction, still actively maintained — last commit 2026-08-07) is vendored instead, under
-  `unity/LTW.UnityClient/Assets/ThirdParty/PlayFabSDK/` (Shared + Client only, Apache 2.0, license
-  file included). `LoginWithGoogleAccount` on this SDK is a plain POST to
-  `/Client/LoginWithGoogleAccount` — the exact same call `PlayFabSessionAuthority` verifies
+  `unity/LTW.UnityClient/Assets/ThirdParty/PlayFabSDK/`. **Vendored in full, not just Shared +
+  Client as first attempted** — a real iOS Xcode export (which an Editor-only compile check does
+  not equivalently exercise) revealed `Shared/Public/PlayFabEvents.cs` cross-references model types
+  from every API category, not just Client; this SDK is not designed to be split by category
+  despite the folder layout suggesting otherwise. `LoginWithGoogleAccount` on this SDK is a plain
+  POST to `/Client/LoginWithGoogleAccount` — the exact same call `PlayFabSessionAuthority` verifies
   server-side, just issued from Unity instead of a REST client.
 - **The official Unity Google Sign-In plugin (`google-signin-unity`) is archived** (April 2026,
   confirmed directly from the repo) — for both platforms, not just Android. There is no maintained
@@ -686,14 +689,28 @@ has actually run yet:
   `Packages/manifest.json` as a git-URL UPM package (same pattern already used for `mcp-unity`) so
   its iOS Resolver links the `GoogleSignIn` CocoaPod into the exported Xcode project automatically —
   declared in `Assets/ThirdParty/GoogleSignIniOS/Editor/GoogleSignInDependencies.xml`.
-- **A second Google OAuth client is needed that does not exist yet.** The Web-application client
-  from Google Sign-In setup (2026-09-04) covers `GIDServerClientID` (server-side verification via
-  PlayFab). Native iOS sign-in also needs an **iOS-type** OAuth client (`GIDClientID`, tied to the
-  Bundle ID `com.ltwplaceholder.ltw`) — this is a NEW, separate credential, not yet created. Both
-  live as placeholder constants in `Assets/Scripts/Online/GoogleSignInIOSConfig.cs`, with an
-  `IsConfigured` check that makes `Assets/Editor/iOS/GoogleSignInPostProcessBuild.cs` log a clear
-  warning and skip Info.plist injection rather than silently ship a broken build if they're not
-  filled in.
+- **First real bug, found on the first device test: "The user canceled the sign-in flow," even
+  though the user completed the Google sign-in screen.** Missing piece: nothing forwarded the OAuth
+  redirect URL (opened via the custom URL scheme Info.plist declares) back to `GIDSignIn`, so its
+  completion handler eventually gave up and reported cancellation. Fixed properly, not by
+  swizzling: `UnityAppController.mm` already posts a `kUnityOnOpenURL` notification to any
+  registered `AppDelegateListener` specifically so third-party plugins can hook this without
+  touching Unity's own generated code (which gets regenerated on every export anyway) — see
+  `Assets/Plugins/iOS/LTWGoogleSignInUrlHandler.mm`, a `__attribute__((constructor))`-registered
+  listener that forwards the URL to `[GIDSignIn.sharedInstance handleURL:url]`.
+- **Second real bug, found on the next device test: PlayFab's own server rejected the login with
+  `redirect_uri_mismatch`.** PlayFab's backend exchanges the server auth code with Google using a
+  FIXED, PlayFab-hosted redirect URI (`https://oauth.playfab.com/oauth2/google` — the same for
+  every PlayFab title, not title-specific), which has to be explicitly added to the Web-application
+  OAuth client's Authorized redirect URIs in Google Cloud Console. Not something any code change
+  could fix — pure Google Cloud Console configuration, now recorded in `docs/PLAYFAB_SETUP.md`.
+- **A second Google OAuth client was needed beyond the Web-application one — done.** The
+  Web-application client from Google Sign-In setup covers `GIDServerClientID` (server-side
+  verification via PlayFab). Native iOS sign-in also needed a separate **iOS-type** OAuth client
+  (`GIDClientID`, tied to the Bundle ID `com.ltwplaceholder.ltw`), created 2026-09-04. Both are
+  filled into `Assets/Scripts/Online/GoogleSignInIOSConfig.cs` (`GoogleSignInPostProcessBuild.cs`
+  still carries an `IsConfigured` check that logs a clear warning and skips Info.plist injection if
+  either is ever a placeholder again, rather than silently shipping a broken build).
 - **The client-side pieces**: `PlayFabConfig` (sets `PlayFabSettings.TitleId` in code, no inspector
   asset), `PlayFabSession` (static holder for the signed-in `PlayFabId`/`SessionTicket` — the
   session ticket is exactly what a future join would need to percent-encode into the query string,
@@ -721,10 +738,9 @@ has actually run yet:
       against a fake PlayFab response (`PlayFabJoinTests`) AND against the real title (`FBC34`).
 - [x] A PlayFab session ticket authenticates a real connection end to end against a live title —
       confirmed 2026-09-03 against title `FBC34`, both the matching-seat and wrong-PlayFabId cases.
-- [ ] The Unity client can obtain a real PlayFab session ticket via Sign in with Google, on a real
-      iOS device. Code written 2026-09-04; both OAuth client IDs (Web + iOS) are now filled into
-      `GoogleSignInIOSConfig` — still blocked on building from `/Users/admin/LTW/build/` onto a
-      real device to actually exercise it, which is the only thing left before this is provable.
+- [x] The Unity client can obtain a real PlayFab session ticket via Sign in with Google, on a real
+      iOS device. Confirmed 2026-09-04: a real device build, a real Google account, PlayFab title
+      `FBC34` — the title screen's button reads SIGNED IN after completing the flow.
 - [ ] Same, for Android via Google Play Games Services. Not started — see the scope decision above.
 
 **Estimate:** two to three weeks of engineering, once the external setup above is done. The
