@@ -949,6 +949,50 @@ stayed clean.
 ONLINE showed the BUILD PHASE panel with a live ticking countdown and no creeps, a tower placed
 during it stuck, and the match went live into normal ticking play once the window ended.
 
+### Leaving an online match — landed 2026-09-04
+
+Confirming the build window live surfaced the next gap immediately: there was no way to leave an
+online match at all. `UnitySimulationDriver.ResetMatch()` (what every existing exit path called)
+only ever touched the local `simulation` field, never `wireClient` — so the socket kept pumping in
+the background and the very next incoming tick silently overwrote the "reset" right back to
+whatever the server was doing. First found through the opening-build-countdown panel's MENU
+button (hidden entirely as a stopgap in the build-window fix above), this generalizes to the same
+problem on the normal in-match Pause screen's EXIT TO TITLE and RESET MATCH buttons, and the
+Results screen's REMATCH — all four route through the same
+`LocalSessionFlowOverlay.ResetMatchLeavingPractice`.
+
+Fixed at that single choke point rather than in each of the four callers: it now branches on the
+new `UnitySimulationDriver.IsWireBacked`, and for a wire-backed match calls a new
+`UnitySimulationDriver.LeaveOnlineMatch()` (disposes `MatchWireClient`, clears `wireClient`, resets
+the same `HasStarted`/`IsPaused`/`IsOpeningBuildCountdown` flags `ResetMatch()` resets for local)
+instead of `ResetMatch()`, and forces `preMatchScreen = Title` regardless of which of the four
+buttons triggered it — RESET MATCH and REMATCH have no real server equivalent yet (a match cannot
+be reset or rematched in place, only left), so all four honestly land on the same place: Title. The
+countdown panel's MENU button is un-hidden now that it works correctly; START NOW stays hidden,
+since starting the match early still has no server equivalent.
+
+Not yet covered by an automated test (no Unity Editor Play Mode test harness exists in this repo to
+drive `IShellScreenActions` through a real wire connection) — verified live instead, 2026-09-04:
+MENU during a live match now cleanly returns to Title, and PLAY ONLINE works again on a second tap
+(a related bug this same live test found — see below).
+
+**Two more regressions the live test found immediately after, same day**
+
+- The PLAY ONLINE button was only ever designed to be tapped once — nothing reset its
+  `CONNECTING...`/disabled state on success, because there was previously no way back to Title to
+  even notice. Fixed in `ShellScreenView.Show`: re-entering the Title screen now resets the button
+  back to its default text and re-enables it.
+- `UnitySimulationDriver.UpdateWire` (from the build-window fix above) set `IsPaused` from
+  `tick.IsOpeningBuildCountdown` on every single incoming tick, not just the build-window
+  transition — which is `false` for the whole rest of a live match, so it silently stomped a local
+  PAUSE back to unpaused within one network tick interval. The server has no concept of a
+  per-client pause and keeps ticking regardless, so once live, `IsPaused` is now purely a local
+  concern again (`LocalSessionFlowOverlay.TogglePause`) — the wire layer only forces it at the two
+  points it legitimately owns: `true` while the window runs, `false` exactly once when it ends.
+
+Both confirmed live immediately after fixing: PLAY ONLINE works on a second connection, and PAUSE
+now holds during live online play until RESUME is tapped.
+
 ### What this has NOT proven
 
 Everything above compiles cleanly and the opening build window itself is now confirmed live (see
@@ -960,6 +1004,11 @@ real client before being called done.
 
 - [ ] A 2 s network hole mid-match is survivable with no desync.
 - [ ] Kill the app and relaunch inside the reconnect window: the seat resumes.
+- [x] A player can leave an online match cleanly (socket closed, driver state reset) from any of
+      the existing exit paths (Pause's EXIT TO TITLE/RESET MATCH, Results' REMATCH, the
+      build-countdown panel's MENU) — landed and confirmed live 2026-09-04, along with two
+      regressions the live test itself found and fixed the same day (PLAY ONLINE button not
+      resetting after a match, PAUSE not holding during live online play).
 - [ ] `RealUiCaptureRunner` shots for the lobby, the connecting state and a reconnect exist and
       are reviewed at phone and iPad widths.
 - [x] The wire protocol carries enough state (players, towers, creeps) to render a match without
@@ -970,8 +1019,9 @@ real client before being called done.
 - [ ] A real device joins a real match over the wire and plays it — the actual end-to-end proof.
       Not yet done; see "What this has NOT proven" above.
 - [x] A title-screen entry point exists to start/join an online match — PLAY ONLINE, landed
-      2026-09-04 with zero changes to `LocalSessionFlowOverlay.cs`. Compiles cleanly; not yet
-      exercised live.
+      2026-09-04 with zero changes to `LocalSessionFlowOverlay.cs`. Confirmed live the same day
+      (Editor Play Mode against a real running `LTW.MatchServer`), including the opening build
+      window fix that live test itself found.
 
 **Estimate:** one to two weeks. Revised down from the original estimate now that the core wire
 layer, snapshot reconstruction and command routing are built — what remains is the title-screen
