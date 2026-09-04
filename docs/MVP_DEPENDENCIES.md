@@ -35,10 +35,11 @@ The MVP is offline. It does not require login, cloud saves, matchmaking, a persi
 ## Solution And Code Dependencies
 
 ```text
-LTW.Simulation      Pure .NET/C# match rules
-LTW.UnityClient     Unity app and presentation adapters
-LTW.Tests           Fast tests for LTW.Simulation
-LTW.MatchServer     Deferred .NET authority host for online play
+LTW.Simulation          Pure .NET/C# match rules
+LTW.UnityClient         Unity app and presentation adapters
+LTW.Tests               Fast tests for LTW.Simulation
+LTW.MatchServer         Headless authoritative match host for online play (built 2026-09-03)
+LTW.MatchServer.Tests   Slower, real-transport integration tests for LTW.MatchServer
 ```
 
 Dependency direction:
@@ -47,7 +48,7 @@ Dependency direction:
 LTW.UnityClient  --->  LTW.Simulation  <---  LTW.Tests
                                   ^
                                   |
-                         LTW.MatchServer (deferred)
+                           LTW.MatchServer  <---  LTW.MatchServer.Tests
 ```
 
 `LTW.Simulation` must not reference the Unity client, and `LTW.Tests` must not require the Unity editor to run.
@@ -174,19 +175,38 @@ Required measurements:
 
 The first test matrix should use the available iOS devices, including the oldest supported device as the initial baseline. Add a representative Android device before broader content scope or distribution.
 
+## Third-Party Runtime Services
+
+Rule 5 above: license, owner, version, purpose, and removal cost, for every third-party runtime
+dependency. The first entry here is the first one this project has taken on — see
+`docs/MULTIPLAYER_ROLLOUT.md`'s MP-05 for the architecture this serves and why it was chosen over
+Firebase Authentication.
+
+| Service | Owner | License / Terms | Version Pinned | Purpose | Removal Cost |
+| --- | --- | --- | --- | --- | --- |
+| PlayFab | Microsoft (Azure) | PlayFab Terms of Service; usage-based pricing above the free tier (free tier is 1,000 lifetime players per title as of a March 2026 change — see MP-05) | Server-side: plain REST call (`AuthenticateSessionTicket`), no SDK. Client-side: the older `PlayFab/UnitySDK` (`PlayFabClientAPI`), vendored as source under `unity/LTW.UnityClient/Assets/ThirdParty/PlayFabSDK/` (not the newer "v2 Unified" SDK — its Google login is Android-only internally, see MP-05's "Landed (client)"), unpinned since it's copied source, not a package reference | Player identity (Sign in with Apple/Google), matchmaking, lobby, durable player data/results — MULTIPLAYER_SEATS_AND_AUTHORITY.md's MP-05 | High once real accounts and match history exist: durable player data and result history live in PlayFab, not this project's own store. Low today — nothing has been migrated onto it yet beyond the server-side session-ticket check and the not-yet-tested client sign-in flow. |
+| External Dependency Manager for Unity (EDM4U) | Google | Apache 2.0 | `com.google.external-dependency-manager` via git URL in `Packages/manifest.json`, unpinned (tracks the repo's default branch, same as `mcp-unity`'s existing entry) | Links the `GoogleSignIn` CocoaPod into the Xcode project Unity exports, for Sign in with Google on iOS — see `Assets/ThirdParty/GoogleSignIniOS/Editor/GoogleSignInDependencies.xml` | Low — an Editor-only build tool, not runtime code; removing it just means the CocoaPod has to be linked by hand instead. |
+| GoogleSignIn-iOS (CocoaPod, linked via EDM4U) | Google | Apache 2.0 | `>= 7.0` (a floor, not a pin — see the dependency XML's own comment for why) | The only maintained way left to get a Google server auth code on iOS, since Google archived the official Unity plugin for this in April 2026 — see `Assets/Plugins/iOS/LTWGoogleSignInBridge.mm` | Low — isolated to one native bridge file; nothing else in the client depends on Google's SDK directly. |
+
+External setup this depends on: a PlayFab Studio and Title — done 2026-09-03, Title ID `FBC34`.
+Google Sign-In configured as a PlayFab identity provider — done 2026-09-04, including the
+iOS-specific OAuth client (`GIDClientID`) the native sign-in flow needs on top of the
+server-verification Web client. Sign in with Apple — still blocked on Apple Developer Program
+enrollment (see `docs/STORE_SIGNING_PREREQUISITES.md`). See `docs/PLAYFAB_SETUP.md`.
+
 ## Deferred Online Dependencies
 
 Do not introduce these into the simulated MVP:
 
 | Dependency | Reason To Defer | Trigger To Revisit |
 | --- | --- | --- |
-| `LTW.MatchServer` runtime | No online players yet | Local eight-player loop is fun and stable. |
-| WebSocket transport | No remote clients yet | Private online match spike. |
-| Container image and registry | No server deployment yet | First headless server proof. |
+| ~~`LTW.MatchServer` runtime~~ | Built 2026-09-03 — MULTIPLAYER_SEATS_AND_AUTHORITY.md's MP-04, real project in `LTW.sln`, integration-tested. See `docs/MULTIPLAYER_ROLLOUT.md`. | — |
+| ~~WebSocket transport~~ | Built 2026-09-03, `System.Net.WebSockets` (base class library, no new package — rule 4 above). | — |
+| Container image and registry | No server deployment yet | First real device/network trial (still not attempted — see MP-04's own notes on what a local dev environment cannot prove). |
 | Cloud host or managed game hosting | No concurrency or regional demand yet | External multiplayer test with real players. |
-| Database | No trusted accounts, results, or cloud profiles yet | Accounts or durable online results. |
-| Authentication provider | No account requirement yet | Cross-device identity or multiplayer access. |
-| Matchmaking | Fixed local simulated players | Private online matches are ready to expand. |
+| ~~Database~~ | Decided 2026-09-03 — PlayFab's own player-data store, not a self-run database. See "Third-Party Runtime Services" below. | — |
+| ~~Authentication provider~~ | Decided 2026-09-03 — PlayFab, chosen over Firebase Authentication because it also covers matchmaking and lobbies. See "Third-Party Runtime Services" below and `docs/MULTIPLAYER_ROLLOUT.md`'s MP-05. | — |
+| ~~Matchmaking~~ | Decided 2026-09-03 — PlayFab Matchmaking/Lobby, not hand-built. See below. | — |
 | Ranking and anti-cheat services | No competitive online results | Ranked mode planning. |
 | Terraform or other infrastructure-as-code | No cloud resources to manage | First repeatable cloud environment. |
 

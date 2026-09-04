@@ -1437,6 +1437,17 @@ defect already on record: commands apply mid-tick, which is part of why the repl
 cannot reproduce a match. The cost of this change only grows with every system built on
 the current assumption.
 
+**Half landed 2026-09-03, as `docs/MULTIPLAYER_ROLLOUT.md`'s MP-00.** The "replay record cannot
+reproduce a match" half is fixed: `RecordedCommand`/`MatchReplayRecord`
+(`src/LTW.Simulation/Replay/`) record every accepted `PlaceTower`, `SellTower`, `UpgradeTower`,
+`BuyCategoryTier` and `Send` — not just sends, the way `ReplayRecord` does — and
+`LocalVerticalSlice.Replay` reissues them against a fresh instance and reaches an identical
+`VerticalSliceSnapshot.Fingerprint()` (proved by `MatchReplayTests`, a real eight-lane bot match).
+**Still open:** commands still apply the moment they are accepted rather than being deferred to a
+tick boundary and merged with other sources in canonical order — there is only one call stack
+today, so nothing exists yet to prove that half against. See MP-00's "Not yet landed" for why that
+part was deliberately not attempted blind.
+
 ## R5. Consolidate status into fewer living documents
 
 The status docs contradict each other faster than two agents reconcile them:

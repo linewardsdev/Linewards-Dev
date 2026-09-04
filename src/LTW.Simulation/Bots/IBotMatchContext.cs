@@ -114,6 +114,18 @@ public interface IBotMatchContext
 
     /// <summary>Raises one placed tower by a tier, and returns whether the upgrade was accepted.</summary>
     bool TryUpgradeTower(PlayerId playerId, LaneId laneId, GridPosition position);
+
+    /// <summary>
+    /// Sells the tower at a position, and returns whether the sale was accepted.
+    /// </summary>
+    /// <remarks>
+    /// No live <c>BotController</c> calls this today — R3 in OPEN_ITEMS.md already names "bots
+    /// never sell" as a known gap in bot quality. It exists on the interface anyway for
+    /// <c>RecordedSeatDriver</c> (MULTIPLAYER_SEATS_AND_AUTHORITY.md's MP-02): a recorded HUMAN'S
+    /// play can include sells, and a driver that silently dropped them would not be replaying that
+    /// person's match, just an approximation of it.
+    /// </remarks>
+    bool TrySellTower(PlayerId playerId, LaneId laneId, GridPosition position);
 }
 
 /// <summary>The outcome of asking what a placement would do, without doing it.</summary>

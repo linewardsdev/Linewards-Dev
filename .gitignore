@@ -69,3 +69,7 @@ __pycache__/
 # Agent worktrees and session scratch. These are nested git repos; committing them
 # stages embedded repositories that a clone cannot resolve.
 .claude/
+
+# Local secrets for running LTW.MatchServer by hand. Never commit real credentials —
+# see docs/PLAYFAB_SETUP.md's "Handling the Secret Key".
+.env.local
