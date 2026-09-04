@@ -5,103 +5,95 @@
 > script and commit both; never edit the HTML. CI's `--check` fails on a stale page, and
 > generation fails if the timeline block below stops matching the week bullets.
 
-**Drafted 2026-07-31. Updated 2026-08-04** (audio closed; shell screens, identity and
-balance re-checked). Proposal for review — dates and scope are not committed to.
+**Drafted 2026-09-03.** A rewrite of the 31 July plan, made after its 31 August window was
+missed. The August plan and what became of it are kept at the bottom, because the reason it
+slipped is the main input to this one. Proposal for review — dates and scope are not
+committed to.
 
 ---
 
-## First, the date
+## First, why August slipped
 
-**Where this stands, 6 August.** Four of the ten P0 gaps have moved since the 31 July
-draft: audio is closed, Graphics Wave 1's AO half is done roster-wide with LODs wired,
-app identity is most of the way there, and a title/pause/results shell now exists.
-**The binding constraint is now external, not technical** — neither store account is
-enrolled, which blocks the bundle identifier, TestFlight and the Play track alike. **The one that has not moved is the one that matters most** — the game
-still has never run on a phone, and roughly twenty acceptance boxes still need a human to
-play it. Every balance number below is bot-versus-bot. The 31 August target still assumes
-both store enrolments start immediately; Apple alone carries a 24–48h approval lead.
-
-The roadmap was drafted on **Friday 31 July 2026**, built to **Sunday 31 August 2026** —
-four weeks.
-
-Four weeks is aggressive but not unreasonable. The project has produced **779 commits in
-20 days** (first commit 2026-07-11), recently running 25–63 commits/day. The risk is not
-throughput; it is that the remaining work is a *different kind* of work from the last three
-weeks — device, store, audio, identity and human judgement, rather than simulation and
-rendering.
+**Where this stands, 3 September.** The August plan named its binding constraint on 6 August:
+store enrolment. It did not happen — the bundle identifier is still `com.ltwplaceholder.ltw`
+on both platforms and no signing team is set. Meanwhile the four weeks went almost entirely
+into work that plan ranked P1 or put out of scope: graphics Waves 1–5 (it excluded "Waves 2–3
+beyond what tier B needs"), the tablet rail, and the tutorial. The game is materially better
+than it was on 31 July, and it is not one step closer to a store. Two things did move that
+matter here: it has run on a real iPad twice (9 and 21 August, 13 of 17 findings closed), and
+onboarding is built. It has never run on a phone, never been built for Android, has no crash
+reporting, no listing assets and no privacy policy. **This plan is one week of unblocking,
+one week of proving it on a phone, one week of making it submittable, and one week of
+testers — with all polish frozen.**
 
 ## Define "launch", because it changes the date by a month
 
 | Tier | Means | Realistic date |
 | --- | --- | --- |
-| **A. Playable on your own phone** | Sideloaded via free signing, no store | **~1 week** — nothing external blocks it |
-| **B. Soft launch** | TestFlight + Play internal track, invited testers, no public listing | **End of August** — this roadmap's target |
-| **C. Public store launch** | Live on the App Store and Google Play | **Mid-to-late September** — needs review cycles, store assets, a privacy policy and a first round of real-user fixes |
+| **A. Playable on your own device** | Sideloaded via free signing, no store | **Done, on iPad** — two device rounds in August; a phone is week 2 |
+| **B. Soft launch** | TestFlight, invited testers, no public listing | **1 October** — this plan's target; iOS only |
+| **C. Public store launch** | Live on the App Store, and Google Play if Android is taken on | **Late October** — review cycles, a first round of real-user fixes, and Android if chosen |
 
-**Recommendation: target B for 31 August, and treat C as a September milestone.** Trying to
-hit C by August compresses store review and the first real-user feedback into the same
-week, which is where launches go wrong. Shipping free (as decided) makes B genuinely useful
-on its own — it produces real players without needing any of the monetization work.
+**Recommendation: target B for 1 October, iOS only, and decide Android at the end of week 4.**
+Android has never been built; taking it on now doubles the device and store work in the
+exact weeks that slipped last time. A Play internal track can follow in tier C without
+delaying anything an iOS tester will see.
 
 ---
 
 ## What is actually left
 
-Verified against the working tree on 2026-07-31. Grouped by whether it blocks a soft
-launch.
+Verified against the working tree on 2026-09-03, not carried over from the August table.
+Grouped by whether it blocks a soft launch.
 
 ### P0 — cannot soft-launch without these
 
 | # | Gap | Evidence | Est. |
 | --- | --- | --- | --- |
-| 1 | **Never run on a phone** | Both device-validation docs are empty templates, zero runs | 1–2 d |
-| 2 | **App identity — mostly done; bundle id BLOCKED on store enrolment** — *re-checked 2026-08-06* | Company is `Line Wards Games`, product `Line Wards`, and a 1024px icon is set. `applicationIdentifier` still reads `com.ltwplaceholder.ltw` on both platforms. **Blocked, not forgotten:** neither developer account is enrolled yet (owner, 2026-08-06), and the identifier binds permanently to whichever account first uploads under it, so setting it before enrolment risks binding the wrong string. Proposed value once enrolment happens: `com.linewardsgames.linewards` | <1 d, after enrolment |
-| 3 | **Audio is seven sine beeps** — *closed 2026-08-04* | Was: 7 procedural tones, zero asset files. Now: 33 SFX takes + a three-stem adaptive score (bed/tension/combat, mixed by live lane pressure), all regenerable from `tools/audio/synthesize_game_audio.py` — per-family baked reverb, one D-minor key, Karplus-Strong and modal instruments, variant pools, camera-relative pan, a splash boom synced to the mortar's crater, and an `LTWAudioDirector` with rate limiting, ducking and sample-locked stems. **Auditioned by the owner 2026-08-04: "they all sound good."** See `AUDIO_DIRECTION.md`. A licensed pass remains optional polish — a file-for-file swap, no longer scheduled work | ~~4–6 d~~ done |
-| 4 | **Shell screens exist; still not a scene** — *re-checked 2026-08-04* | Title, pause and results now render through UI Toolkit — `ShellScreens.uxml/.uss`, `ShellScreenView.cs`, a generated `PanelSettings`, and the brand mark on the title. Captured and verified. **But `Assets/Scenes/` still holds only `LocalVerticalSlice.unity`**: the shell is a panel over the match, not a scene, so the app still boots straight into a running board. Whether that matters for Tier B is a call worth making deliberately rather than by default | 1–2 d |
-| 5 | **No crash reporting or analytics** | Zero references anywhere | 1 d |
-| 6 | **Store accounts not enrolled** | Apple Developer Program $99/yr, 24–48h approval; Google Play Console $25 one-time | External |
-| 7 | **No store listing assets** | No icon, screenshots, description, age rating, or privacy-policy URL | 2–3 d |
-| 8 | **~20 acceptance boxes need a human to play** | GD-01→10 unchecked; all balance is bot-vs-bot | 2–3 d |
-| 9 | **Graphics Wave 1 — AO done, LODs wired, normal maps deferred by decision** — *worked 2026-08-04/06* | **AO bound on all 30 roles** (was 2 of 119); evidence in `screenshot-reviews/stylized-shader-20260801/after_ao_bound_roster.png`. **LODs wired on all 30 prefabs** — every role decimated to 50%/25% (`tools/art/make_all_lods.py`) and given a LODGroup (`AuthorLodGroups`), closing open item 15's last sub-item; before this the two proof meshes were referenced by nothing. **Normal maps have a route and a verdict:** baking LOD0 onto LOD2 would work, but a high-to-low map is only correct on the low mesh and all three levels share one material per role, so it needs ~60 new materials and more SRP-batcher breaks to buy detail that is close to invisible at the 46–105px units occupy. **Owner decided 2026-08-06** to bank the LOD win and revisit only if LOD popping shows in play | ~~2–4 d~~ AO + LODs done · normals deferred |
-| 10 | **Onboarding built, device-unverified** — *worked 2026-09-02/03* | How to Play rewritten as a five-card shell screen; first-run offer; PRACTICE mode with passive bots and a five-step coach strip (skippable, re-enterable). Captured at phone and iPad widths; see OPEN_ITEMS item 54 | ~~2–3 d~~ done |
+| 1 | **Apple Developer Program not enrolled** | No team id in `ProjectSettings.asset`; `STORE_SIGNING_PREREQUISITES.md` boxes unchecked. Gates 2, 6 and 7 — every store step waits on it | External — start 4 Sep |
+| 2 | **Bundle identifier and signing are placeholders** | `applicationIdentifier` is `com.ltwplaceholder.ltw` for iPhone and Android; `appleEnableAutomaticSigning: 0`. Proposed final value: `com.linewardsgames.linewards`, set only after enrolment so it binds to the right account | <1 d, after 1 |
+| 3 | **No crash reporting or analytics** | Zero references in `Packages/manifest.json` or `Assets/Scripts`. Without it tester feedback is anecdote | 1 d |
+| 4 | **Never run on a phone, no performance numbers** | Both iPad rounds were a 13" iPad Pro. `IOS_DEVICE_VALIDATION.md` is an empty template: no frame rate, thermal or memory figure exists for any device. Item 44's LODs are static, so the perf win is parked | 1–2 d |
+| 5 | **No human acceptance pass** | `GAMEPLAY_DEVELOPMENT_CHECKLIST.md` at 75 checked / 42 open; the iPad rounds produced bug lists, not an acceptance pass. The tutorial (OPEN_ITEMS 54) has never been played on a device | 2 d |
+| 6 | **No store listing assets, no privacy policy** | No screenshot set, description, age rating or hosted privacy URL. Screenshots should be taken after week 2's phone run, not before | 2–3 d |
+| 7 | **Not on TestFlight** | Nothing has ever been uploaded. First review is 1–3 days | 2–3 d, external |
+| 8 | **No testers** | Nobody who is not the owner has played it | 1 d to recruit, then ongoing |
+
+### Decided out of scope for tier B
+
+- **The shell stays a panel over the match, not a scene.** The August plan asked for this
+  decision to be made deliberately; it is made here. The title, pause, results, codex, how-to
+  and first-run screens all work as a panel and nothing a TestFlight tester sees depends on a
+  scene boundary.
+- **Android waits for tier C.** See the recommendation above. Enrol in the Play Console now
+  anyway ($25, same day) so tier C is not gated on it later.
+- **All render, roster and rail polish is frozen.** OPEN_ITEMS item 53's residuals stay
+  parked; no Wave 6; the eleven staged roster meshes stay staged. New findings from the
+  phone run go into OPEN_ITEMS, and only ones that block a tester's first ten minutes come
+  back into this plan.
+- **Multiplayer has its own plan and waits for the tier C decision.** `MULTIPLAYER_ROLLOUT.md`
+  is the dependency-ordered checklist; its MP-00 (command queue at tick boundaries) is the
+  one initiative allowed through the freeze, into week 2's reserved time only if the phone
+  run comes back clean.
 
 ### P1 — should land before public launch (tier C), not blocking soft launch
 
-- **Bot quality is product quality** — bots are the shipped opponent. The specific claim
-  this entry used to make ("bots reach only 5 of 15 towers", citing `BotTowerForSlot`) is
-  **retired: it was measured false and the method it named no longer exists.** A seed-1
-  8-lane match places all 15 tower types, from 120 Arrows down to 6 Barricades, with none at
-  zero. What actually remains, per open item R3: bots never sell, `Decide` sees only an
-  economy record rather than the board, and there is no randomness anywhere in bot
-  decisions — so a human meets the identical opponent every single match.
-- **No LODs**, ~15k tris × 30 units, CPU skinning. A performance problem before a visual one.
-- **Settings persistence** — some `PlayerPrefs` use exists; needs an audit.
-- **Two capture states land nothing in frame**, so a blocking readability category cannot
-  currently be reviewed.
-
-### Explicitly out of scope for this roadmap
-
-Monetization (shipping free first, per decision), multiplayer, the match server, accounts
-and entitlements, Waves 2–3 of the graphics uplift beyond what tier B needs.
-
-**The roster expansion was never planned and is not committed.** It began as a spur-of-the-
-moment idea rather than a roadmap item, which is why it appears in no P0 or P1 row and no
-week below. `ROSTER_EXPANSION_PLAN.md` sketches 18 units to reach 8 per category; one of
-them, Twin Crescent Ward, was built end to end on 2026-08-08 and eleven more kitbash meshes
-are staged and idle. Nothing obliges the rest to happen, and the launch path does not wait
-on any of it.
-
-It is noted here only because it left two marks on work that *is* on this roadmap: the tower
-count is 16 rather than 15, and the Wave A line-skin SKUs in `MONETIZATION_EARLY_SKUS.md`
-are priced per line, so Arcane's skins now cover six towers instead of five. Continuing or
-parking the remaining units is an open call — the staged meshes cost nothing while they sit.
+- **Bot quality is product quality** — per open item R3: bots never sell, `Decide` sees only
+  an economy record rather than the board, and there is no randomness anywhere in bot
+  decisions, so a human meets the identical opponent every match. Week 4's testers will say
+  whether this matters before the public launch.
+- **Android build path** — none exists; `IosBuildRunner` has no counterpart.
+- **Static LODs** (item 44) — the perf win is parked until the meshes are skinned; whether it
+  is needed is what week 2's phone numbers answer.
+- **Settings persistence** — some `PlayerPrefs` use exists (reduced effects, text scale, the
+  tutorial flag); needs an audit before a public build.
 
 ---
 
 ## The four weeks
 
-Sequenced so that **externally-gated items start on day one** and everything with a review
-or approval delay is off the critical path by week three.
+Sequenced so the one externally-gated item starts on day one and nothing with a review delay
+sits on the critical path after week 3.
 
 <!-- gantt
   Timeline geometry for docs/launch-roadmap.html, rendered by tools/docs/render_roadmap.py.
@@ -111,91 +103,82 @@ or approval delay is off the critical path by week three.
   Columns:  week | item | sub-label | left% | width% | badge
     week    1-4, or "ext" for the externally-gated rows above week 1
     item    must match a bold bullet title in that week (or a Dependency in the critical
-            path table, for ext rows). The renderer FAILS if it does not — that assertion
-            is the whole point of keeping this here, since a renamed bullet cannot then
-            silently leave a stale bar behind.
-    badge   text shown inside the bar; prefix with "done:" to draw it as complete
+            path table, for ext rows). The renderer FAILS if it does not.
+    badge   text shown inside the bar; prefix with "done:" to draw it as complete, "ext:"
+            for an external wait
 
-ext | Apple Developer Program | $99/yr · 24–48h approval | 0.5 | 14 | enrol → active
-ext | Google Play Console | $25 · identity verification | 0.5 | 14 | enrol → active
-1 | Fix app identity | name, company, icon done · bundle id still placeholder | 0.5 | 8 | done:✓ most + 9 | 4 | id
-1 | Build to a physical iOS device | iOS then Android | 8 | 14 | 1–2d
-1 | Play the game, with hands, and write notes | unblocks ~20 acceptance boxes | 18 | 7 | ★
-1 | Act on what the play session finds | hold this time loosely | 22 | 12 | 2–3d
-2 | Audio pass | 33 SFX + adaptive 3-stem score | 0.5 | 16 | done:✓ done Aug 3–4
-2 | Graphics Wave 1 | AO + LODs on all 30 roles · normal maps deferred | 25 | 19 | done:✓ AO done Aug 6
-2 | Title/menu scene | title, pause, results built · still a panel, not a scene | 25 | 12 | done:✓ done Aug 3 + 38 | 8 | scene?
-2 | App icon and splash | icon, splash and brand mark landed | 42 | 11 | done:✓ done Aug 4
-3 | Crash reporting and basic analytics | else feedback is anecdote | 50 | 9 | 1d
-3 | ~~Onboarding / first-run teaching~~ built 2026-09-03 (OPEN_ITEMS 54) | teach mazing or players bounce | 53 | 14 | ~~2–3d~~ done
-3 | Performance validation on device | frame rate + thermals, heavy send | 60 | 11 | 2d
-3 | Store listing assets | screenshots, rating, privacy URL | 63 | 12 | 2–3d
-3 | Bot roster fix | only if week 1 flagged opponent quality | 68 | 7 | if needed
-4 | Upload to TestFlight and the Play internal track | 1–3d first review each | 75 | 11 | ext:submit → review
-4 | Recruit 10–20 testers | anyone who isn't you | 79 | 10 | &nbsp;
-4 | Triage and fix | no features scheduled here | 86 | 13.5 | reserved
-4 | Decide on tier C | submit publicly in September? | 95.5 | 4 | decision
+ext | Apple Developer Program | $99/yr · 24–48h approval · gates everything below | 0.5 | 12 | enrol → active
+ext | Google Play Console | $25 · same day · for tier C | 0.5 | 6 | enrol
+1 | Enrol, and freeze polish | day one; nothing else in this plan moves without it | 0.5 | 5 | ★
+1 | Set the bundle identifier and signing | after enrolment; the id binds to the account that uploads first | 6 | 6 | <1d
+1 | Add crash reporting and analytics | Unity Cloud Diagnostics or Sentry, whichever sets up faster | 6 | 10 | 1d
+1 | Cut a signed iPhone build | the first build that is not an iPad | 16 | 9 | 1d
+2 | Run it on a phone and write the numbers down | frame rate, thermals, memory, an 8-lane heavy send | 25 | 9 | 1–2d
+2 | Play the acceptance pass with hands | GD-01 to GD-10, the tutorial included, on the phone | 32 | 10 | 2d
+2 | Act on what the phone finds | reserved; only tester-blocking fixes | 41 | 9 | reserved
+3 | Store listing assets and the privacy policy | screenshots from the phone build, description, age rating, hosted URL | 50 | 12 | 2–3d
+3 | Upload to TestFlight | first review 1–3 days | 60 | 9 | ext:submit → review
+3 | Recruit 10–20 testers | anyone who isn't you | 69 | 6 | 1d
+4 | Testers play; triage and fix | no features scheduled here | 75 | 17 | reserved
+4 | Decide tier C and Android | public submission in late October? Play track? | 92.5 | 7 | decision
 -->
 
-### Week 1 (Aug 1–7) — Prove it is a game, on a phone
+### Week 1 (Sep 4–10) — Unblock the store
 
-The theme is *stop guessing*. Two of these have external lead times and must start Monday.
+The theme is *stop being gated*. The first bullet is the whole reason August slipped.
 
-- **Enrol in the Apple Developer Program and Google Play Console.** Day one. Everything in
-  weeks 3–4 waits on these.
-- **Fix app identity** — real bundle identifier, product name "Line Wards", company name,
-  version scheme. Unblocks every build after it.
-- **Build to a physical iOS device** via free signing, then Android.
-- **Play the game, with hands, and write notes.** This is the highest-leverage hour in the
-  whole roadmap — it unblocks ~20 acceptance boxes and is the only thing that can invalidate
-  work before it compounds.
-- **Act on what the play session finds.** Reserve real time here; do not schedule around the
-  assumption that it will find nothing.
+- **Enrol, and freeze polish.** Apple Developer Program on day one, and the Play Console in
+  the same sitting so tier C is not gated later. From this day, no render, roster or rail
+  work lands unless a tester could not get through their first ten minutes without it.
+- **Set the bundle identifier and signing.** `com.linewardsgames.linewards` on both
+  platforms, automatic signing with the enrolled team — only after enrolment, because the
+  identifier binds permanently to the first account that uploads under it.
+- **Add crash reporting and analytics.** One package, wired at boot, with a deliberate crash
+  in a debug build to prove a report arrives. Sessions, match starts, tutorial skip or
+  finish, and leaks per match are the four events worth counting.
+- **Cut a signed iPhone build.** The first build in this project's history that is not an
+  iPad. Free signing is fine until enrolment is active; the build path is `IosBuildRunner`.
 
-*Exit criteria:* the game runs on a phone, has a real identity, both store accounts are
-pending or live, and there is a written human account of what it is like to play.
+*Exit criteria:* both accounts enrolled or pending, a real identifier in the project, a
+crash report received, and an iPhone build in hand.
 
-### Week 2 (Aug 8–14) — Make it look and sound shipped
+### Week 2 (Sep 11–17) — Prove it on a phone
 
-- **Audio pass.** ~~The largest single unbudgeted item.~~ *Done ahead of schedule
-  (2026-08-03/04): full synthesized cue set, adaptive three-stem score, director with rate
-  limiting — auditioned and approved. See `AUDIO_DIRECTION.md`.* Remaining audio work is
-  optional: dock tap ticks, and a licensed swap if synthesis ever stops being enough.
-- **Graphics Wave 1** — *AO done 2026-08-06: baked and bound across all 30 roles, with LOD
-  groups on every prefab.* Normal maps are deferred by decision (see P0 row 9) rather than
-  outstanding: they need per-LOD materials to be correct, for detail that does not survive
-  at unit size.
-- **Title/menu scene** — a real scene, not an in-match overlay. Play, settings, quit.
-- **App icon and splash**, from the branding guide.
+- **Run it on a phone and write the numbers down.** Frame rate, thermal state and memory
+  through an eight-lane match with a heavy send, on the oldest iPhone available and a
+  current one. Written into `IOS_DEVICE_VALIDATION.md`, which has been an empty template
+  since July. This is the first real data on whether the parked LOD work matters.
+- **Play the acceptance pass with hands.** GD-01 through GD-10 from the gameplay checklist,
+  on the phone, starting from a cleared tutorial flag so Practice is judged as a new player
+  meets it. Write the result down; unchecked boxes with a reason beat checked ones.
+- **Act on what the phone finds.** Reserved time. Only fixes a tester would hit early belong
+  here; anything else goes to OPEN_ITEMS.
 
-*Exit criteria:* a stranger watching a 30-second clip would call it a game, not a prototype.
+*Exit criteria:* the game runs acceptably on a phone with numbers to show it, and there is a
+written human acceptance pass.
 
-### Week 3 (Aug 15–21) — Make it survivable
+### Week 3 (Sep 18–24) — Make it submittable
 
-- **Crash reporting and basic analytics.** Without this, soft-launch feedback is anecdote.
-- **Onboarding / first-run teaching** (built 2026-09-03, OPEN_ITEMS item 54). Mazing is not obvious; a player who does not
-  understand it will bounce and you will never know why.
-- **Performance validation on device** — frame rate and thermals under a heavy send. First
-  real data on whether LODs are needed before launch.
-- **Store listing assets** — screenshots (now that Wave 1 has landed), description, age
-  rating questionnaire, privacy policy hosted at a real URL.
-- **Bot roster fix** if week 1's play session flagged opponent quality.
-
-*Exit criteria:* a build you would put in a stranger's hands, with the means to learn what
-happened.
-
-### Week 4 (Aug 22–31) — Ship it
-
-- **Upload to TestFlight and the Play internal track.** Both have review steps; budget
-  2–3 days for the first submission of each.
-- **Recruit 10–20 testers.** Friends, a subreddit, a Discord — the number matters less than
+- **Store listing assets and the privacy policy.** Screenshots from the phone build (now that
+  the board and rails are final), a description, the age-rating questionnaire, and a privacy
+  policy at a real URL — which needs a domain, so start that on the first day of the week.
+- **Upload to TestFlight.** The first submission carries a 1–3 day review; budget for a
+  rejection on metadata and resubmit inside the week.
+- **Recruit 10–20 testers.** Friends, a subreddit, a Discord. The number matters less than
   that they are not you.
-- **Triage and fix.** Reserve the last four days entirely for this. Do not schedule features
-  into week 4.
-- **Decide on tier C** — whether to submit for public release in September based on what
-  testers say.
 
-*Exit criteria:* real people who are not you have played it, and you know what they thought.
+*Exit criteria:* a build approved for external TestFlight testing and a list of people who
+have agreed to play it.
+
+### Week 4 (Sep 25–Oct 1) — Testers, then decide
+
+- **Testers play; triage and fix.** The whole week. Crash reports and the four analytics
+  events say what happened; testers say what it felt like. Nothing new is scheduled here.
+- **Decide tier C and Android.** With a week of real feedback: submit publicly in late
+  October or not, and whether Android is worth the second device and store track.
+
+*Exit criteria:* real people who are not you have played it, you know what they thought, and
+the tier C decision is made on evidence.
 
 ---
 
@@ -205,64 +188,55 @@ Everything with a delay you cannot compress:
 
 | Dependency | Lead time | Start by |
 | --- | --- | --- |
-| Apple Developer Program enrolment | 24–48h, occasionally longer | **Aug 1** |
-| Google Play Console enrolment | Usually same-day, identity verification can add days | **Aug 1** |
-| TestFlight first build review | 1–3 days | Aug 22 |
-| Play internal track first review | Usually hours, can be days | Aug 22 |
-| Privacy policy hosted at a public URL | Needs a domain | Week 3 |
+| Apple Developer Program | 24–48h, occasionally longer | **Sep 4** |
+| Google Play Console | Usually same day; identity checks can add days | **Sep 4** (for tier C) |
+| TestFlight first build review | 1–3 days, longer on a metadata rejection | Sep 18 |
+| Privacy policy hosted at a public URL | Needs a domain | Sep 18 |
 
-**Both enrolments on day one.** They cost $124 total and nothing else in weeks 3–4 can
-proceed without them.
+**Enrolment on day one.** It cost the whole of August; it costs $124 and an afternoon.
 
 ## The three risks worth naming
 
-1. **Week 1's play session finds something structural.** This is the intended outcome — it
-   is better to learn it in week 1 than week 4 — but it can consume days. Mitigate by
-   holding week 2 lightly, not by skipping the session.
-2. **Audio is underestimated.** *Resolved 2026-08-04 — this risk inverted: audio went from
-   the least-tracked P0 item to closed (synthesis, not licensing), auditioned, with its own
-   direction doc and regeneration pipeline. Kept here because the mitigation is worth
-   remembering: the fix was making asset work reproducible code, not budgeting more days.*
-3. **Store review rejects the first submission.** Common causes for a first-time game:
-   missing privacy policy, incomplete age rating, placeholder metadata. Weeks 3–4 exist to
-   surface these early.
+1. **Enrolment slips again.** Every P0 row but 3, 4 and 5 waits on it, and the August plan
+   showed what happens when it drifts: the weeks fill with polish. Mitigation is procedural,
+   not technical — it is the first bullet of week 1 and nothing else in week 1 starts before
+   it is submitted.
+2. **The phone run finds a performance problem.** All device evidence so far is an 8 GB M4
+   iPad; the quality tier drops below 6 GB to Medium, but no phone has ever run a full
+   eight-lane match with bloom and shadows on. The static LODs (item 44) are the known lever.
+   Week 2's reserved days exist for this.
+3. **Polish creep.** It is what consumed August: five graphics waves and a tutorial, each
+   individually justified, none on the critical path. The freeze in week 1 is the mitigation,
+   and the test for an exception is written down: would a tester fail to get through their
+   first ten minutes without it?
 
-## Landed since the draft — not on the critical path
+## Landed since the draft — the August plan, as it played out
 
-### Board readability (3–4 Aug)
+### Graphics Waves 1–5 (1–3 Sep)
 
-Five separate defects made the board look marked-up: a send beam drawn to an off-screen
-lane, additive bursts accumulating past white into flat saturated slabs, opponents' send
-beams crossfiring in the all-lanes view, an arrival cue that drew a square with an X
-through it, and lane direction markers that read as a cross rather than an arrow. **Worth
-knowing:** four of the five were independently authored as two beams crossing at a point,
-which is the universal "missing asset" glyph. That shape keeps getting written because each
-instance looks reasonable alone.
+A live-capture render review found twenty issues; five waves closed the units, the board
+material, grounding, combat VFX and tier silhouettes, with a re-audit at the same frames
+between them. Ready for store screenshots, which is the one way this work feeds the plan.
 
-### A defeated seat could rebuild (4 Aug)
+### The iPad rounds and the tablet rail (9–30 Aug)
 
-Bots kept taking turns after elimination, and the commands disagreed about whether to stop
-them: upgrade, sell-batch and tier-buy each refused, while `PlaceTower` and `SellTowerAt`
-did not — so a wiped lane came back. **Why it matters here:** this is exactly the class of
-thing a first tester finds in the first ten minutes, and it was invisible to every existing
-test because they all run two or three lanes rather than the eight that ship.
+Two device rounds on a 13" iPad Pro produced seventeen findings, thirteen closed; the tablet
+UI became a full-width rail with list rows, a seat leaderboard and a send panel. This is the
+nearest thing to the August plan's "play it with hands" session, and it is why tier A is
+marked done.
 
-### Economy: tiers now cost, twice (3–4 Aug)
+### How to Play and Practice (2–3 Sep)
 
-Category tiers escalate 25% per tier already held, and a tier now also raises what its own
-units cost — 65% of the power increase, so a tier-3 creep carries 225% health for 181%
-price. Previously the tier's own price was the entire lever and every unit after it was
-free power. The income ceiling moved 600 → 900 because the gate is half the price and the
-last upgrade had become unreachable rather than expensive. **Unverified:** all of it is
-bot-versus-bot on one seed. Match length landed within 3% of where it started, but by two
-changes pulling opposite ways rather than by design.
+A five-card How to Play screen, a first-run offer, and a skippable, re-enterable Practice
+match against passive bots with a coach strip — OPEN_ITEMS item 54. Built after August's
+window, captured at phone and iPad widths, unverified on a device.
 
-## What "done" means on 31 August
+## What "done" means on 1 October
 
-- Runs on iOS and Android phones, with a real name, icon and identity.
-- Has music and sound effects.
-- Has a title screen, teaches the player how to maze, and reports its own crashes.
-- Assets carry normal maps and AO, and render through the intended post-processing.
-- Is on TestFlight and the Play internal track, with real testers giving feedback.
-- Is free, with no store screen and no payment code — monetization follows, per the
-  cosmetic SKU roadmap.
+- Runs on an iPhone, with a real identifier, and there are written frame-rate, thermal and
+  memory numbers for it.
+- Reports its own crashes and counts sessions, match starts, tutorial outcomes and leaks.
+- Has passed a written, with-hands acceptance pass including the tutorial.
+- Has a store listing, an age rating and a hosted privacy policy.
+- Is on TestFlight with 10–20 external testers, and their feedback exists in writing.
+- Is free, iOS only, with the Android and public-launch decisions made on that feedback.
