@@ -1,6 +1,6 @@
-# Line Wars Project Documentation
+# Line Wards Project Documentation
 
-This folder contains the durable project documentation for Line Wars, the mobile-first competitive tower-wars MVP.
+This folder contains the durable project documentation for Line Wards, the mobile-first competitive tower-wars MVP.
 
 ## Start Here
 
@@ -82,4 +82,4 @@ should cite the current file by item title, not by number.
 
 ## Related Context
 
-- [Line Wars LTW graphics art-direction skill](../skill/line-wars-ltw-graphics-art-direction.md)
+- [Line Wards LTW graphics art-direction skill](../skill/line-wards-ltw-graphics-art-direction.md)

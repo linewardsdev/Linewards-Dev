@@ -15,4 +15,4 @@
 ## Initial Notes
 
 - Strong directional ram read.
-- Several candidates have wheel/tank-like elements; reject anything that feels too vehicle-like for Line Wars.
+- Several candidates have wheel/tank-like elements; reject anything that feels too vehicle-like for Line Wards.

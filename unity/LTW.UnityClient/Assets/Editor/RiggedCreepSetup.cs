@@ -114,7 +114,7 @@ namespace LTW.UnityClient.Editor
             (RunnerRiggedModelPath, RunnerControllerPath),
         };
 
-        [MenuItem("Line Wars/Art/Configure Rigged Creep Animation")]
+        [MenuItem("Line Wards/Art/Configure Rigged Creep Animation")]
         public static void ConfigureRiggedCreeps()
         {
             var ok = true;

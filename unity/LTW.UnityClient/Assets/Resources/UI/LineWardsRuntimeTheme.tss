@@ -1,11 +1,11 @@
 @import url("unity-theme://default");
 
 /*
- * The runtime theme every Line Wars UI Toolkit panel resolves against.
+ * The runtime theme every Line Wards UI Toolkit panel resolves against.
  *
  * It imports Unity's default runtime theme rather than replacing it: the default is what
  * supplies the base font and the built-in control skins, and a PanelSettings with no theme
- * assigned renders unstyled text at runtime. Everything Line Wars actually looks like lives
+ * assigned renders unstyled text at runtime. Everything Line Wards actually looks like lives
  * in ShellScreens.uss, which the document pulls in on top of this.
  */
 VisualElement {

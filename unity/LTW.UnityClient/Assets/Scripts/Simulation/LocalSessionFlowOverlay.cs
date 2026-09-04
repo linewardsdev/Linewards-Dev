@@ -282,7 +282,7 @@ namespace LTW.UnityClient.Simulation
             var panel = CenteredPanel(scale, 336f, 224f);
             DrawPanel(panel, scale);
 
-            DrawLabel(panel.x + 22f * scale, panel.y + 20f * scale, panel.width - 44f * scale, 28f * scale, "LINE WARS", titleStyle!, TextAnchor.MiddleCenter);
+            DrawLabel(panel.x + 22f * scale, panel.y + 20f * scale, panel.width - 44f * scale, 28f * scale, "LINE WARDS", titleStyle!, TextAnchor.MiddleCenter);
             DrawLabel(panel.x + 22f * scale, panel.y + 50f * scale, panel.width - 44f * scale, 20f * scale, "LOCAL VERTICAL SLICE", subtitleStyle!, TextAnchor.MiddleCenter);
             DrawLabel(
                 panel.x + 28f * scale,

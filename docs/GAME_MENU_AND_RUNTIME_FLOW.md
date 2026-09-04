@@ -1,6 +1,6 @@
 # Game Menu And Runtime Flow
 
-This document centralizes Line Wars menu behavior so the app shell, runtime HUD, build/send drawers, pause flow, and results flow do not drift across implementation notes.
+This document centralizes Line Wards menu behavior so the app shell, runtime HUD, build/send drawers, pause flow, and results flow do not drift across implementation notes.
 
 The short version: the game should feel quiet and intentional before the player starts, fast during live play, and never hide the board behind oversized menus.
 
@@ -26,7 +26,7 @@ Since 2026-08-03 the shell is built in **two** technologies, and which one a scr
 
 **Full-screen shell screens — UI Toolkit (UXML + USS).** Title, Codex, Pause and Results are full-screen compositions in `Assets/Scripts/UI/ShellScreenView.cs`, rendered through a runtime `UIDocument` the launcher creates. They own the display: the title and codex paint an opaque field so no board reads through them, and pause and results dim the board behind a translucent one. Each has a single dominant mark, one obviously primary action, and subordinate actions distinguished by size and frame as well as colour.
 
-- Title: LINE WARS wordmark, START GAME, HOW TO PLAY, CODEX, SETTINGS, QUIT.
+- Title: LINE WARDS wordmark, START GAME, HOW TO PLAY, CODEX, SETTINGS, QUIT.
 - Codex: one ward or creep at a time — its real prefab turning on an off-board stage rendered into the card, a six-tile stat sheet, a trait line, and an icon rail of the whole half. Added 2026-08-08. Every number on it is read from `SampleVerticalSliceContent` at display time rather than written down, so a rebalance cannot leave the codex confidently wrong.
 - Pause: PAUSED, live lives/gold/income, RESUME, SETTINGS, RESET MATCH (with its consequence spelled out), EXIT TO TITLE.
 - Results: VICTORY or DEFEAT, the full eight-seat scoreboard, REMATCH, SETTINGS, EXIT TO TITLE.
@@ -191,8 +191,8 @@ The title, codex, pause and results screens and everything they need:
 - `Assets/Scripts/UI/UnitPreviewStage.cs` — the off-board stage that turns one unit in front of a camera and renders it into the codex card.
 - `Assets/Resources/UI/ShellScreens.uxml` — all four screens in one document, switched by `display`.
 - `Assets/Resources/UI/ShellScreens.uss` — the palette, the three action weights, and the enter transitions.
-- `Assets/Resources/UI/LineWarsRuntimeTheme.tss` — imports Unity's default runtime theme.
-- `Assets/Resources/UI/LineWarsShellPanelSettings.asset` — 1080x1920 reference surface, `ScaleWithScreenSize`, match width.
+- `Assets/Resources/UI/LineWardsRuntimeTheme.tss` — imports Unity's default runtime theme.
+- `Assets/Resources/UI/LineWardsShellPanelSettings.asset` — 1080x1920 reference surface, `ScaleWithScreenSize`, match width.
 - `Assets/Editor/ShellPanelSettingsGenerator.cs` — authors that asset, so its settings live next to the reasoning for them.
 - `Assets/Editor/ShellInputCheck.cs` — drives a pointer press on START GAME in Play Mode and asserts the build countdown began.
 - `Assets/Editor/CodexRosterCheck.cs` — asserts every simulation unit has exactly one client catalog entry, a prefab, an icon and a blurb. No Play Mode.

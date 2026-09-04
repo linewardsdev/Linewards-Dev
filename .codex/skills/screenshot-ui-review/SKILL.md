@@ -1,6 +1,6 @@
 ---
 name: screenshot-ui-review
-description: Consistent screenshot-based UI, HUD, gameplay readability, and visual-regression review. Use when Codex needs to inspect screenshots or captured frames for UI clarity, mobile readability, art readability, layout regressions, overlay safety, before/after comparisons, game visual polish, or Line Wars creep/tower/lane screenshot audits.
+description: Consistent screenshot-based UI, HUD, gameplay readability, and visual-regression review. Use when Codex needs to inspect screenshots or captured frames for UI clarity, mobile readability, art readability, layout regressions, overlay safety, before/after comparisons, game visual polish, or Line Wards creep/tower/lane screenshot audits.
 ---
 
 # Screenshot UI Review
@@ -48,9 +48,9 @@ Status: Pass | Needs Review | Blocked
 
 For repeated reviews, run `scripts/create_review_report.py` to scaffold the Markdown report from screenshot paths.
 
-## Line Wars creep/art review
+## Line Wards creep/art review
 
-For Line Wars creep or gameplay screenshots, always check:
+For Line Wards creep or gameplay screenshots, always check:
 
 - runner, brute, and swarm silhouettes are distinguishable without labels;
 - phone-size readability;

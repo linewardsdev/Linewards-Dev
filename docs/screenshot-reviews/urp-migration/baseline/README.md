@@ -1,7 +1,7 @@
 # URP Migration Baseline
 
 Full capture set taken from `main` on 2026-07-26, immediately before the `urp-migration`
-branch was opened. Captured with `Line Wars/Review/Capture Visual Review Set` under Unity
+branch was opened. Captured with `Line Wards/Review/Capture Visual Review Set` under Unity
 6000.5.3f1.
 
 These fifteen frames are the reference every migration comparison is made against. They are

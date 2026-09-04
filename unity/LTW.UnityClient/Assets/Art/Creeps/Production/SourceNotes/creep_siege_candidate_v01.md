@@ -12,5 +12,5 @@
 - Human edits performed: magenta chroma-key removal, alpha crop/pad normalization, grayscale copy, sprite-only AI plate prefab with primitive support renderers disabled.
 - Third-party inputs: none.
 - Player-facing AI disclosure needed: tbd if promoted to release/marketing.
-- Legal/IP notes: original Line Wars ward-tech prompt with protected-game avoidance block.
+- Legal/IP notes: original Line Wards ward-tech prompt with protected-game avoidance block.
 - Status: active runtime proof, pending hands-on active-lane confirmation.

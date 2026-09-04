@@ -8,7 +8,7 @@ namespace LTW.UnityClient.Editor
     /// <summary>Prints what each unit renderer is actually bound to. Diagnostic only.</summary>
     public static class StylizedUnitDiagnostic
     {
-        [MenuItem("Line Wars/Review/Diagnose Unit Materials")]
+        [MenuItem("Line Wards/Review/Diagnose Unit Materials")]
         public static void Diagnose()
         {
             var report = new StringBuilder("=== unit renderer binding ===\n");

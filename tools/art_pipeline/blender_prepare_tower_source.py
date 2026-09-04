@@ -38,7 +38,7 @@ def parse_args() -> argparse.Namespace:
     else:
         argv = []
 
-    parser = argparse.ArgumentParser(description="Prepare a Line Wars tower model for Unity.")
+    parser = argparse.ArgumentParser(description="Prepare a Line Wards tower model for Unity.")
     parser.add_argument("--input", required=False, help="Source model path: FBX, GLB/GLTF, OBJ, or BLEND.")
     parser.add_argument("--output", required=True, help="Prepared FBX output path.")
     parser.add_argument("--role", default="tower", help="Role label for exported metadata, e.g. control.")

@@ -65,33 +65,33 @@ namespace LTW.UnityClient.Editor
         private static VisualCaptureManifest? captureManifest;
         private static bool requireManagedImprovementCycle;
 
-        [MenuItem("Line Wars/Review/Capture Visual Review Set")]
+        [MenuItem("Line Wards/Review/Capture Visual Review Set")]
         public static void CaptureVisualReviewSet()
         {
             requireManagedImprovementCycle = false;
             BeginCapture(CaptureMode.FullReview);
         }
 
-        [MenuItem("Line Wars/Review/Capture Mobile Improvement Cycle")]
+        [MenuItem("Line Wards/Review/Capture Mobile Improvement Cycle")]
         public static void CaptureMobileImprovementCycle()
         {
             requireManagedImprovementCycle = true;
             BeginCapture(CaptureMode.FullReview);
         }
 
-        [MenuItem("Line Wars/Review/Capture Role Lineup Review Set")]
+        [MenuItem("Line Wards/Review/Capture Role Lineup Review Set")]
         public static void CaptureRoleLineupReviewSet()
         {
             BeginCapture(CaptureMode.RoleLineup);
         }
 
-        [MenuItem("Line Wars/Review/Capture Checklist Evidence Set")]
+        [MenuItem("Line Wards/Review/Capture Checklist Evidence Set")]
         public static void CaptureChecklistEvidenceSet()
         {
             BeginCapture(CaptureMode.ChecklistEvidence);
         }
 
-        [MenuItem("Line Wars/Review/Capture Role Contact Sheet")]
+        [MenuItem("Line Wards/Review/Capture Role Contact Sheet")]
         public static void CaptureRoleContactSheet()
         {
             outputDirectory = ResolveOutputDirectory();
@@ -122,7 +122,7 @@ namespace LTW.UnityClient.Editor
             }
         }
 
-        [MenuItem("Line Wars/Review/Capture Stylized Weapon Kit Contact Sheet")]
+        [MenuItem("Line Wards/Review/Capture Stylized Weapon Kit Contact Sheet")]
         public static void CaptureStylizedWeaponKitContactSheet()
         {
             outputDirectory = ResolveOutputDirectory();
@@ -157,7 +157,7 @@ namespace LTW.UnityClient.Editor
         {
             if (InternalEditorUtility.inBatchMode && HasArgument("-nographics"))
             {
-                Debug.LogError("LTW visual review capture cannot run with -nographics because the capture path renders active cameras. Run batch capture without -nographics, or use the in-editor Line Wars/Review menu item.");
+                Debug.LogError("LTW visual review capture cannot run with -nographics because the capture path renders active cameras. Run batch capture without -nographics, or use the in-editor Line Wards/Review menu item.");
                 EditorApplication.Exit(1);
                 return;
             }
@@ -804,7 +804,7 @@ namespace LTW.UnityClient.Editor
             }
 
             AddContactLabel("STYLIZED WEAPON KIT - SOURCE ASSET TRIAGE", new Vector3(0f, 0.08f, 4.78f), camera, 0.1f, new Color(0.38f, 0.93f, 1f));
-            AddContactLabel("Use as Line Wars wrapper-prefab parts; do not depend on vendor paths at runtime.", new Vector3(0f, 0.08f, -4.68f), camera, 0.065f, new Color(0.95f, 0.84f, 0.38f));
+            AddContactLabel("Use as Line Wards wrapper-prefab parts; do not depend on vendor paths at runtime.", new Vector3(0f, 0.08f, -4.68f), camera, 0.065f, new Color(0.95f, 0.84f, 0.38f));
 
             var texture = new RenderTexture(1920, 1080, 24, RenderTextureFormat.ARGB32);
             var previousActive = RenderTexture.active;

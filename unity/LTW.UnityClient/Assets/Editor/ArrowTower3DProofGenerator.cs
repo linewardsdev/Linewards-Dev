@@ -15,7 +15,7 @@ namespace LTW.UnityClient.Editor
         private const string SourceNotesPath = "Assets/Art/Towers/Arrow/arrow_3d_unity_ai_source_notes.md";
         private static readonly Quaternion RawGeneratedImportRotation = new(-0.5f, 0.5f, 0.5f, 0.5f);
 
-        [MenuItem("Line Wars/Art/Generate Arrow 3D Proof Wrapper")]
+        [MenuItem("Line Wards/Art/Generate Arrow 3D Proof Wrapper")]
         public static void GenerateAndPromote()
         {
             var rawPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(RawGeneratedPrefabPath);
@@ -235,7 +235,7 @@ Status: runtime proof wrapper generated for review
 ## Integration Notes
 
 - The raw Unity AI prefab is preserved as staging evidence.
-- The runtime wrapper preserves Line Wars tower contract children: `Body`, `RoleMarker`, `OwnerTrim`, `RangeHalo`.
+- The runtime wrapper preserves Line Wards tower contract children: `Body`, `RoleMarker`, `OwnerTrim`, `RangeHalo`.
 - `RoleMarker`, `OwnerTrim`, and `RangeHalo` are non-rendering anchors because the generated Arrow model already contains its own readable glow and trim details.
 - Arrow-specific anchors are present for review: `Lens`, `Muzzle`, `BowLeft`, `BowRight`.
 - `TowerVisualLibrary.asset` points `tower.arrow` at `Tower_Arrow_3D.prefab`.

@@ -12,8 +12,8 @@ PlayerSettings:
   targetDevice: 2
   useOnDemandResources: 0
   accelerometerFrequency: 60
-  companyName: Line Wars Games
-  productName: Line Wars
+  companyName: Line Wards Games
+  productName: Line Wards
   defaultCursor: {fileID: 0}
   cursorHotspot: {x: 0, y: 0}
   m_SplashScreenBackgroundColor: {r: 0.0627451, g: 0.09411765, b: 0.18431373, a: 1}

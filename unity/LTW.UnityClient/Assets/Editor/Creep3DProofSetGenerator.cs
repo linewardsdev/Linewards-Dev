@@ -10,9 +10,9 @@ namespace LTW.UnityClient.Editor
     /// </summary>
     public static class Creep3DProofSetGenerator
     {
-        private const string GenerateMenuPath = "Line Wars/Art/Generate Creep 3D Wrappers";
-        private const string PromoteMenuPath = "Line Wars/Art/Promote Creep 3D Set";
-        private const string ValidateMenuPath = "Line Wars/Art/Validate Creep 3D Wrappers";
+        private const string GenerateMenuPath = "Line Wards/Art/Generate Creep 3D Wrappers";
+        private const string PromoteMenuPath = "Line Wards/Art/Promote Creep 3D Set";
+        private const string ValidateMenuPath = "Line Wards/Art/Validate Creep 3D Wrappers";
 
         private const string ModelRoot = "Assets/Art/AIStaging/Models/Creeps";
 

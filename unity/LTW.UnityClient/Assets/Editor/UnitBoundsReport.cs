@@ -21,7 +21,7 @@ namespace LTW.UnityClient.Editor
             "Assets/Prefabs/Towers/Tower_Control_3D.prefab",
         };
 
-        [MenuItem("Line Wars/Art/Report Unit Bounds")]
+        [MenuItem("Line Wards/Art/Report Unit Bounds")]
         public static void ReportBounds()
         {
             for (var index = 0; index < Prefabs.Length; index++)

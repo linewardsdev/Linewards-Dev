@@ -27,7 +27,7 @@ namespace LTW.UnityClient.Editor
     ///
     ///   Unity -batchmode -quit -projectPath unity/LTW.UnityClient \
     ///     -executeMethod LTW.UnityClient.Editor.IosBuildRunner.Build \
-    ///     -ltwBundleId com.yourname.linewars \
+    ///     -ltwBundleId com.yourname.linewards \
     ///     -ltwTeamId ABCDE12345 \
     ///     -ltwSdk device|simulator \
     ///     -ltwBuildPath build/ios
@@ -36,7 +36,7 @@ namespace LTW.UnityClient.Editor
     {
         private const string DefaultBuildPath = "build/ios";
 
-        [MenuItem("Line Wars/Build/Export iOS Xcode Project")]
+        [MenuItem("Line Wards/Build/Export iOS Xcode Project")]
         public static void Build()
         {
             var exitCode = 0;

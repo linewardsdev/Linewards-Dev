@@ -25,7 +25,7 @@
 
                     <ui:VisualElement class="ltw-brand-mark" picking-mode="Ignore" />
                     <ui:Label text="COMPETITIVE TOWER WARS" class="ltw-eyebrow" picking-mode="Ignore" />
-                    <ui:Label text="LINE WARS" class="ltw-wordmark" picking-mode="Ignore" />
+                    <ui:Label text="LINE WARDS" class="ltw-wordmark" picking-mode="Ignore" />
                     <ui:VisualElement class="ltw-rule" picking-mode="Ignore" />
                     <ui:Label text="Build. Send. Outlast." class="ltw-tagline" picking-mode="Ignore" />
 

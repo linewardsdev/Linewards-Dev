@@ -1,14 +1,14 @@
-# Line Wars Art Theme And Role Guide
+# Line Wards Art Theme And Role Guide
 
 ## Purpose
 
-Line Wars needs to look better, but the first goal is not surface detail. The first goal is instant gameplay recognition.
+Line Wards needs to look better, but the first goal is not surface detail. The first goal is instant gameplay recognition.
 
 Every tower and creep should be identifiable by silhouette, pose, and motion before the player reads a label or notices color. This guide defines the shared theme language for tower and creep production so art, generated placeholders, prefabs, UI icons, and future effects all point in the same direction.
 
 ## North Star
 
-Line Wars is original ward-tech fantasy: crystal machines, rune plates, signal conduits, pressure cores, mechanical ritual objects, and clean board-game readability.
+Line Wards is original ward-tech fantasy: crystal machines, rune plates, signal conduits, pressure cores, mechanical ritual objects, and clean board-game readability.
 
 Target quality is closer to polished early-2000s strategy readability than modern noise: bold silhouettes, simple readable shapes, strong role motifs, modest texture detail, and clear team/accent color slots. The game should not chase realistic materials, dense ornament, or nostalgia copies of another RTS.
 

@@ -280,7 +280,7 @@ namespace LTW.UnityClient.Editor
             "Motion clarity",
             "Palette and material cohesion",
             "Icon-to-runtime silhouette match",
-            "Original Line Wars identity",
+            "Original Line Wards identity",
             "Fallback and missing-asset behavior"
         };
 

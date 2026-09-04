@@ -6,7 +6,7 @@ namespace LTW.UnityClient.Editor
 {
     public static class Tower3DRawCandidateGenerator
     {
-        private const string GenerateControlMenuPath = "Line Wars/Art/Rejected/Generate Rejected Control Mesh-Card Proof";
+        private const string GenerateControlMenuPath = "Line Wards/Art/Rejected/Generate Rejected Control Mesh-Card Proof";
         private const string ControlFolder = "Assets/Art/AIStaging/Models/Towers/Control";
         private const string ControlPrefabPath = ControlFolder + "/tower_control_3d.prefab";
         private const string MaterialFolder = ControlFolder + "/Materials";

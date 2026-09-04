@@ -1,6 +1,6 @@
 # AI Art Prompt Library
 
-Use these prompts for controlled Line Wars concept work. Do not paste protected-game names, screenshots, faction labels, UI frames, or icon chrome into generation tools.
+Use these prompts for controlled Line Wards concept work. Do not paste protected-game names, screenshots, faction labels, UI frames, or icon chrome into generation tools.
 
 ## Shared Style Block
 
@@ -101,7 +101,7 @@ Create one cleaned production source plate from candidate [candidate id] for [ro
 Use this only for external AI 3D generation. The output should be a real mesh export, not another source plate.
 
 ```text
-Create a polished Unity-ready 3D model for an original mobile tower-wars game called Line Wars.
+Create a polished Unity-ready 3D model for an original mobile tower-wars game called Line Wards.
 
 Asset: [role].
 

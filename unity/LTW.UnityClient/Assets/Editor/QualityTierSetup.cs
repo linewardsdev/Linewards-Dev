@@ -73,7 +73,7 @@ namespace LTW.UnityClient.Editor
         /// </summary>
         private static readonly int[] TierForQualityLevel = { 0, 0, 1, 1, 2, 2 };
 
-        [MenuItem("Line Wars/Migration/Create Quality Tier Pipeline Assets")]
+        [MenuItem("Line Wards/Migration/Create Quality Tier Pipeline Assets")]
         public static void CreateTierAssets()
         {
             var exitCode = 0;
@@ -224,7 +224,7 @@ namespace LTW.UnityClient.Editor
         /// Runs headless and exits non-zero:
         ///   Unity -batchmode -quit -executeMethod LTW.UnityClient.Editor.QualityTierSetup.ValidateTierAssets
         /// </remarks>
-        [MenuItem("Line Wars/Migration/Validate Quality Tier Pipeline Assets")]
+        [MenuItem("Line Wards/Migration/Validate Quality Tier Pipeline Assets")]
         public static void ValidateTierAssets()
         {
             var failures = new List<string>();

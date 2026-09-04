@@ -1,13 +1,13 @@
 ---
-name: line-wars-ltw-graphics-art-direction
-description: Use for Line Wars graphics and art direction: LTW-inspired mobile board readability, long skinny north-south lane/grid visuals, tower and creep silhouette language, tech/upgraded-tower visual families, HUD lives/gold/income/timer presentation, combat/economy feedback, visual polish, and concept-art prompts. Scan-level rule: preserve Line Tower Wars pressure readability, portrait-first long-lane maze flow, and send-for-income fantasy; use original ward-tech visuals; support readable boss/fast/swarm/flying/invisible/attacker-style pressure; and never copy Warcraft III names, assets, UI chrome, factions, silhouettes, icons, sounds, or screenshots.
+name: line-wards-ltw-graphics-art-direction
+description: Use for Line Wards graphics and art direction: LTW-inspired mobile board readability, long skinny north-south lane/grid visuals, tower and creep silhouette language, tech/upgraded-tower visual families, HUD lives/gold/income/timer presentation, combat/economy feedback, visual polish, and concept-art prompts. Scan-level rule: preserve Line Tower Wars pressure readability, portrait-first long-lane maze flow, and send-for-income fantasy; use original ward-tech visuals; support readable boss/fast/swarm/flying/invisible/attacker-style pressure; and never copy Warcraft III names, assets, UI chrome, factions, silhouettes, icons, sounds, or screenshots.
 ---
 
-# Line Wars LTW Graphics Art Direction
+# Line Wards LTW Graphics Art Direction
 
 ## Purpose
 
-This skill guides visual design, art direction, and graphics implementation for **Line Wars**, a mobile-first competitive tower-wars game inspired by the Warcraft III custom-map tradition of Line Tower Wars.
+This skill guides visual design, art direction, and graphics implementation for **Line Wards**, a mobile-first competitive tower-wars game inspired by the Warcraft III custom-map tradition of Line Tower Wars.
 
 Use this skill before creating or changing:
 
@@ -16,7 +16,7 @@ Use this skill before creating or changing:
 - HUD, send dock, tech panels, status readouts, and match results.
 - Brand, store art, screenshots, icons, trailers, and marketing visuals.
 
-The goal is not to recreate Warcraft III. The goal is to preserve the readable competitive fantasy of classic Line Tower Wars while building an original, touch-first visual language for Line Wars.
+The goal is not to recreate Warcraft III. The goal is to preserve the readable competitive fantasy of classic Line Tower Wars while building an original, touch-first visual language for Line Wards.
 
 ## Research Basis
 
@@ -43,7 +43,7 @@ Important observed traits from the source material:
 
 ## Non-Negotiable Legal And Brand Boundary
 
-Line Wars may be an homage to the LTW custom-game tradition, but it must be an original game.
+Line Wards may be an homage to the LTW custom-game tradition, but it must be an original game.
 
 Do not use or imitate:
 
@@ -62,7 +62,7 @@ Allowed homage:
 
 ## Visual North Star
 
-Line Wars should feel like a tactical board under pressure: clean enough for mobile, energetic enough for competitive play, and readable at a glance.
+Line Wards should feel like a tactical board under pressure: clean enough for mobile, energetic enough for competitive play, and readable at a glance.
 
 The art direction is:
 
@@ -117,7 +117,7 @@ LTW tension comes from the dual economy: defending while deciding whether to sen
 
 ### 4. Original Ward-Tech Fantasy
 
-Use the brand palette and idea of wards, lanes, signals, and arcane circuitry to separate Line Wars from Warcraft.
+Use the brand palette and idea of wards, lanes, signals, and arcane circuitry to separate Line Wards from Warcraft.
 
 Good motifs:
 
@@ -130,7 +130,7 @@ Avoid motifs that look like direct Warcraft race/faction units or buildings.
 
 ### 5. Mobile First, Not RTS Nostalgia First
 
-Warcraft III LTW had a dense command UI because it lived inside an RTS shell. Line Wars should preserve the information priority, not the shell.
+Warcraft III LTW had a dense command UI because it lived inside an RTS shell. Line Wards should preserve the information priority, not the shell.
 
 - Use larger touch targets and fewer simultaneous panels.
 - Replace command-card density with a send dock, compact tower palette, contextual placement controls, and glanceable status strips.
@@ -154,7 +154,7 @@ Recommended board language:
 
 ### Terrain
 
-Classic LTW often uses grass, stone, cityscape, and cliff-like boundaries. Line Wars should reinterpret these as clean mobile board materials.
+Classic LTW often uses grass, stone, cityscape, and cliff-like boundaries. Line Wards should reinterpret these as clean mobile board materials.
 
 Preferred materials:
 
@@ -301,7 +301,7 @@ Functional color rules:
 
 For production assets:
 
-- Prefer original sprites, low-poly models, or simple mesh/VFX assets made for Line Wars.
+- Prefer original sprites, low-poly models, or simple mesh/VFX assets made for Line Wards.
 - Keep files source-controlled and named by gameplay role, not temporary concept names.
 - Build small vertical-slice sets before making a full catalogue.
 - Test assets in-game under real board density before polishing them.
@@ -346,7 +346,7 @@ Do:
 - Design from the active long north-south lane outward.
 - Make towers and creeps readable by silhouette and motion.
 - Keep UI fast, compact, and mobile-native.
-- Use the Line Wars palette and ward-tech fantasy language.
+- Use the Line Wards palette and ward-tech fantasy language.
 
 Do not:
 

@@ -25,8 +25,8 @@ namespace LTW.UnityClient.Editor
     /// </remarks>
     public static class ShellPanelSettingsGenerator
     {
-        internal const string AssetPath = "Assets/Resources/UI/LineWarsShellPanelSettings.asset";
-        internal const string ThemePath = "Assets/Resources/UI/LineWarsRuntimeTheme.tss";
+        internal const string AssetPath = "Assets/Resources/UI/LineWardsShellPanelSettings.asset";
+        internal const string ThemePath = "Assets/Resources/UI/LineWardsRuntimeTheme.tss";
 
         /// <summary>
         /// The portrait surface the shell screens are authored against: 9:19.5, the same aspect
@@ -51,7 +51,7 @@ namespace LTW.UnityClient.Editor
         /// </remarks>
         internal static readonly Vector2Int ReferenceResolution = new Vector2Int(1080, 2340);
 
-        [MenuItem("Line Wars/UI/Create Shell Panel Settings")]
+        [MenuItem("Line Wards/UI/Create Shell Panel Settings")]
         public static void Run()
         {
             var directory = Path.GetDirectoryName(AssetPath);
@@ -78,7 +78,7 @@ namespace LTW.UnityClient.Editor
                 created = true;
             }
 
-            settings.name = "LineWarsShellPanelSettings";
+            settings.name = "LineWardsShellPanelSettings";
             settings.themeStyleSheet = theme;
 
             // Scale with the screen, against the same portrait surface the USS is authored in, so

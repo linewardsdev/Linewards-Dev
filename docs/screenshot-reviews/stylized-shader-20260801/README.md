@@ -122,10 +122,10 @@ Two practical traps, both hit during the 2026-08-03 session:
 - **Whichever side you leave it on is what is on disk and what gets committed.** Finish on
   AFTER unless you mean not to.
 
-- `Line Wars > Review > Capture Units As Currently Authored` — one render of what is on disk.
+- `Line Wards > Review > Capture Units As Currently Authored` — one render of what is on disk.
 - `LTW > Art > Stylized Units > 1. Report What Would Change (Dry Run)` — prints, writes nothing.
 - `LTW > Art > Stylized Units > 2. Apply Migration` — applies; re-runnable and idempotent.
-- `Line Wars > Review > Diagnose Unit Materials` — prints each renderer's material, shader,
+- `Line Wards > Review > Diagnose Unit Materials` — prints each renderer's material, shader,
   albedo and colour. This is what identified bug 1.
 
 All four run under `-batchmode -executeMethod`; `Apply` skips its confirmation dialog there.

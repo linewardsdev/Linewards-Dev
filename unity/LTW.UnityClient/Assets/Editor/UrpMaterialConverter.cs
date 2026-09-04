@@ -23,7 +23,7 @@ namespace LTW.UnityClient.Editor
         private const string LitShaderName = "Universal Render Pipeline/Lit";
         private const string UnlitShaderName = "Universal Render Pipeline/Unlit";
 
-        [MenuItem("Line Wars/Migration/Convert Materials To URP")]
+        [MenuItem("Line Wards/Migration/Convert Materials To URP")]
         public static void ConvertMaterials()
         {
             var lit = Shader.Find(LitShaderName);
@@ -99,7 +99,7 @@ namespace LTW.UnityClient.Editor
         /// emission. Auditing by map-and-colour rather than trusting the keyword makes the state
         /// checkable and repeatable.
         /// </remarks>
-        [MenuItem("Line Wars/Migration/Repair Emission Keywords")]
+        [MenuItem("Line Wards/Migration/Repair Emission Keywords")]
         public static void RepairEmissionKeywords()
         {
             var repaired = 0;

@@ -55,7 +55,7 @@ launch.
 | # | Gap | Evidence | Est. |
 | --- | --- | --- | --- |
 | 1 | **Never run on a phone** | Both device-validation docs are empty templates, zero runs | 1–2 d |
-| 2 | **App identity — mostly done; bundle id BLOCKED on store enrolment** — *re-checked 2026-08-06* | Company is `Line Wars Games`, product `Line Wars`, and a 1024px icon is set. `applicationIdentifier` still reads `com.ltwplaceholder.ltw` on both platforms. **Blocked, not forgotten:** neither developer account is enrolled yet (owner, 2026-08-06), and the identifier binds permanently to whichever account first uploads under it, so setting it before enrolment risks binding the wrong string. Proposed value once enrolment happens: `com.linewarsgames.linewars` (renamed from `com.linewardsgames.linewards` when the brand moved from "Line Wards" to "Line Wars" on 2026-08-09 — still just a proposal, nothing is registered under either string) | <1 d, after enrolment |
+| 2 | **App identity — mostly done; bundle id BLOCKED on store enrolment** — *re-checked 2026-08-06* | Company is `Line Wards Games`, product `Line Wards`, and a 1024px icon is set. `applicationIdentifier` still reads `com.ltwplaceholder.ltw` on both platforms. **Blocked, not forgotten:** neither developer account is enrolled yet (owner, 2026-08-06), and the identifier binds permanently to whichever account first uploads under it, so setting it before enrolment risks binding the wrong string. Proposed value once enrolment happens: `com.linewardsgames.linewards` | <1 d, after enrolment |
 | 3 | **Audio is seven sine beeps** — *closed 2026-08-04* | Was: 7 procedural tones, zero asset files. Now: 33 SFX takes + a three-stem adaptive score (bed/tension/combat, mixed by live lane pressure), all regenerable from `tools/audio/synthesize_game_audio.py` — per-family baked reverb, one D-minor key, Karplus-Strong and modal instruments, variant pools, camera-relative pan, a splash boom synced to the mortar's crater, and an `LTWAudioDirector` with rate limiting, ducking and sample-locked stems. **Auditioned by the owner 2026-08-04: "they all sound good."** See `AUDIO_DIRECTION.md`. A licensed pass remains optional polish — a file-for-file swap, no longer scheduled work | ~~4–6 d~~ done |
 | 4 | **Shell screens exist; still not a scene** — *re-checked 2026-08-04* | Title, pause and results now render through UI Toolkit — `ShellScreens.uxml/.uss`, `ShellScreenView.cs`, a generated `PanelSettings`, and the brand mark on the title. Captured and verified. **But `Assets/Scenes/` still holds only `LocalVerticalSlice.unity`**: the shell is a panel over the match, not a scene, so the app still boots straight into a running board. Whether that matters for Tier B is a call worth making deliberately rather than by default | 1–2 d |
 | 5 | **No crash reporting or analytics** | Zero references anywhere | 1 d |
@@ -143,7 +143,7 @@ The theme is *stop guessing*. Two of these have external lead times and must sta
 
 - **Enrol in the Apple Developer Program and Google Play Console.** Day one. Everything in
   weeks 3–4 waits on these.
-- **Fix app identity** — real bundle identifier, product name "Line Wars", company name,
+- **Fix app identity** — real bundle identifier, product name "Line Wards", company name,
   version scheme. Unblocks every build after it.
 - **Build to a physical iOS device** via free signing, then Android.
 - **Play the game, with hands, and write notes.** This is the highest-leverage hour in the

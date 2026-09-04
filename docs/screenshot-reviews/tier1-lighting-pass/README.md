@@ -1,6 +1,6 @@
 # Tier 1 Lighting Pass Evidence
 
-Captured 2026-07-25 with `Line Wars/Review/Capture Role Contact Sheet` under Unity
+Captured 2026-07-25 with `Line Wards/Review/Capture Role Contact Sheet` under Unity
 6000.5.3f1, after the Tier 1 lighting changes (three-point light rig, linear colour space,
 gradient ambient).
 

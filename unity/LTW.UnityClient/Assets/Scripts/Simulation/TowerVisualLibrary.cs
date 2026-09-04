@@ -4,7 +4,7 @@ using UnityEngine;
 
 namespace LTW.UnityClient.Simulation
 {
-    [CreateAssetMenu(fileName = "TowerVisualLibrary", menuName = "Line Wars/Tower Visual Library")]
+    [CreateAssetMenu(fileName = "TowerVisualLibrary", menuName = "Line Wards/Tower Visual Library")]
     public sealed class TowerVisualLibrary : ScriptableObject
     {
         [SerializeField] private TowerVisualProfile[] profiles = Array.Empty<TowerVisualProfile>();

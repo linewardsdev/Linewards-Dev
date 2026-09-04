@@ -1,6 +1,6 @@
 # AI Art Generation Log
 
-This log records every AI-assisted asset that is considered for Line Wars production use. Keep rough experiments out of runtime folders until a role has passed contact-sheet review, source-plate cleanup, and screenshot QA.
+This log records every AI-assisted asset that is considered for Line Wards production use. Keep rough experiments out of runtime folders until a role has passed contact-sheet review, source-plate cleanup, and screenshot QA.
 
 ## Status Values
 

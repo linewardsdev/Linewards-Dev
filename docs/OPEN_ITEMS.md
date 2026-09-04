@@ -1237,7 +1237,7 @@ roster-wide fix below is still the open decision.
 constants agree with each other. The committed materials do not: every
 `mat_creep_*_3d_body_v01.mat` carries `_Smoothness: 0.42`.
 
-The effect is that `Line Wars/Art/Validate Creep Body Material Tuning` fails on all fifteen
+The effect is that `Line Wards/Art/Validate Creep Body Material Tuning` fails on all fifteen
 creeps, one `CREEP TUNING FAIL` line each. Confirmed from the committed files, not just a live
 editor — `git show HEAD:<mat>` gives 0.42 for brute, siege and turretwalker.
 
@@ -1246,7 +1246,7 @@ material split; neither cluster was the right target") and `ApplyTuning` was nev
 afterwards, leaving the materials on the old value.
 
 **Not fixed here, deliberately.** The fix is probably one click — run
-`Line Wars/Art/Apply Creep Body Material Tuning` and commit the fifteen materials — but it is a
+`Line Wards/Art/Apply Creep Body Material Tuning` and commit the fifteen materials — but it is a
 visual change across the entire creep roster made on the assumption that the constant is the
 intended value rather than the materials. Given `19650e6`'s own message says neither cluster was
 the right target, that assumption is worth an owner confirming before fifteen materials move.
