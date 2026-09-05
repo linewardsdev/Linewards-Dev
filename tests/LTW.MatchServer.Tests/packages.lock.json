@@ -29,6 +29,14 @@
         "resolved": "3.1.4",
         "contentHash": "5mj99LvCqrq3CNi06xYdyIAXOEh+5b33F2nErCzI5zWiDdLHXiPXEWFSUAF8zlIv0ZWqjZNCwHTQeAPYbF3pCg=="
       },
+      "com.playfab.csharpgsdk": {
+        "type": "Transitive",
+        "resolved": "0.11.210519",
+        "contentHash": "HReZRBFbxXz2BxCk3+Xihq2tNTJtBefcI/ATpMUrUs5JqEhweByUIbUMPggQZaW352SyIJAM0jwmAJqGzAI1Rw==",
+        "dependencies": {
+          "Newtonsoft.Json": "11.0.2"
+        }
+      },
       "Microsoft.CodeCoverage": {
         "type": "Transitive",
         "resolved": "17.14.1",
@@ -96,7 +104,9 @@
       "ltw.matchserver": {
         "type": "Project",
         "dependencies": {
-          "LTW.Simulation": "[1.0.0, )"
+          "LTW.Simulation": "[1.0.0, )",
+          "Newtonsoft.Json": "[13.0.3, )",
+          "com.playfab.csharpgsdk": "[0.11.210519, )"
         }
       },
       "ltw.simulation": {

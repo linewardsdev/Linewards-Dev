@@ -12,4 +12,12 @@
     <ProjectReference Include="..\LTW.Simulation\LTW.Simulation.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- com.playfab.csharpgsdk (last published 2021 — MP-07's GSDK compatibility spike) pulls in
+         Newtonsoft.Json 11.0.2 transitively, which has a known high-severity vulnerability
+         (NU1903). Pinning a patched version directly overrides that transitive pull. -->
+    <PackageReference Include="com.playfab.csharpgsdk" Version="0.11.210519" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+  </ItemGroup>
+
 </Project>

@@ -26,11 +26,20 @@ public sealed class HttpMatchHost
     private readonly HttpListener listener = new();
     private readonly MatchRegistry registry;
     private readonly JsonSerializerOptions json = new(JsonSerializerDefaults.Web);
+    private readonly bool allowMatchCreation;
     private CancellationTokenSource? cancellation;
 
-    public HttpMatchHost(MatchRegistry registry, string prefix)
+    /// <summary>
+    /// <paramref name="allowMatchCreation"/> is false under PlayFab Multiplayer Servers (MP-07):
+    /// that process is reachable at a real address for the life of exactly one PlayFab-allocated
+    /// match, and leaving <c>POST /matches</c> live would let anything that can reach it create a
+    /// second, PlayFab-invisible match sharing the process — see
+    /// docs/MULTIPLAYER_ROLLOUT.md's MP-07.
+    /// </summary>
+    public HttpMatchHost(MatchRegistry registry, string prefix, bool allowMatchCreation = true)
     {
         this.registry = registry;
+        this.allowMatchCreation = allowMatchCreation;
         listener.Prefixes.Add(prefix);
     }
 
@@ -75,7 +84,7 @@ public sealed class HttpMatchHost
                 return;
             }
 
-            if (context.Request.HttpMethod == "POST" && context.Request.Url?.AbsolutePath == "/matches")
+            if (allowMatchCreation && context.Request.HttpMethod == "POST" && context.Request.Url?.AbsolutePath == "/matches")
             {
                 await HandleCreateMatchAsync(context);
                 return;
@@ -202,23 +211,6 @@ public sealed class HttpMatchHost
         {
             match.Disconnect(connectionId);
         }
-    }
-
-    private sealed class CreateMatchRequest
-    {
-        public List<int>? HumanSeats { get; set; }
-
-        /// <summary>Real clients never set this — it exists so an integration test can play a
-        /// match out in seconds instead of real-time minutes. See ServerMatch's own remarks.</summary>
-        public double? TicksPerSecond { get; set; }
-
-        /// <summary>Seat number -> the PlayFabId that alone may claim it. See
-        /// MatchRegistry.CreateMatch and docs/MULTIPLAYER_ROLLOUT.md's MP-05.</summary>
-        public Dictionary<int, string>? PlayFabSeats { get; set; }
-
-        /// <summary>Real clients never set this either — same reasoning as <see cref="TicksPerSecond"/>,
-        /// so a test can prove the opening build window's behavior without a real 30 second wait.</summary>
-        public double? OpeningBuildWindowSeconds { get; set; }
     }
 
     private sealed class CreateMatchResponse
