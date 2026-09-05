@@ -271,6 +271,8 @@ namespace LTW.UnityClient.UI
                     {
                         signInButton.text = "SIGNED IN";
                     }
+
+                    ResumePendingMatchIfAny();
                 },
                 onFailure: message =>
                 {
@@ -281,6 +283,57 @@ namespace LTW.UnityClient.UI
                         signInButton.SetEnabled(true);
                     }
                 });
+        }
+
+        /// <summary>
+        /// The kill-and-relaunch half of reconnect: <c>UnitySimulationDriver.AttemptReconnect</c>
+        /// only runs while this process is still alive to run it, so an app that was actually
+        /// killed (not merely backgrounded) mid-match has no driver left to retry anything. Called
+        /// from both places identity can become available again after a kill — a restored session
+        /// (<see cref="LTW.UnityClient.Online.PlayFabSession.TryRestore"/>, silent, right at
+        /// startup) or, failing that, a fresh manual sign-in — since either one is "identity exists
+        /// again" and <see cref="OnlineMatchService.PendingMatchId"/> survived the kill regardless.
+        /// </summary>
+        /// <remarks>
+        /// Silent by design (no confirmation prompt) per the same reasoning a network-hole
+        /// reconnect is silent: a player who was mid-match a moment ago overwhelmingly wants back
+        /// in, not a dialog to dismiss first. On failure — the match already ended, or is otherwise
+        /// unreachable — <see cref="OnlineMatchService.RejoinAsync"/> reports it and this simply
+        /// clears the pending match and leaves the player on Title exactly as if nothing had been
+        /// pending, rather than retrying indefinitely against a match that may no longer exist.
+        /// </remarks>
+        private async void ResumePendingMatchIfAny()
+        {
+            var matchId = LTW.UnityClient.Online.OnlineMatchService.PendingMatchId;
+            Debug.Log($"SHELL resume-on-launch: PendingMatchId={(matchId ?? "(null)")}, simulationDriver={(simulationDriver == null ? "null" : "set")}");
+            if (matchId is null || simulationDriver == null)
+            {
+                return;
+            }
+
+            Debug.Log($"SHELL resume-on-launch: attempting rejoin to matchId={matchId}");
+            var client = await LTW.UnityClient.Online.OnlineMatchService.RejoinAsync(matchId, onFailure: message =>
+            {
+                Debug.LogWarning($"SHELL resume-on-launch failed, giving up on the pending match: {message}");
+                LTW.UnityClient.Online.OnlineMatchService.ClearPendingMatch();
+            });
+
+            Debug.Log($"SHELL resume-on-launch: rejoin {(client == null ? "FAILED" : "SUCCEEDED")}");
+
+            if (client == null)
+            {
+                return;
+            }
+
+            simulationDriver.Initialize(client);
+            if (simulationDriver.TryGetComponent<LTW.UnityClient.Simulation.UnityCommandAdapter>(out var commandAdapter))
+            {
+                commandAdapter.Initialize(client, simulationDriver);
+            }
+            else
+            {
+                Debug.LogError("SHELL resume-on-launch: no UnityCommandAdapter on the simulation driver's GameObject — commands will not reach the server.");
+            }
         }
 
         /// <summary>
@@ -547,6 +600,22 @@ namespace LTW.UnityClient.UI
             // handles it directly rather than routing through the overlay.
             signInButton = root.Q<Button>("title-signin");
             Wire(root, "title-signin", OnSignInWithGoogleTapped);
+
+            // Found needed live testing kill-and-relaunch reconnect: nothing about being signed in
+            // survived a kill, so a player who had just been mid-match had to sign back into
+            // Google by hand before ResumePendingMatchIfAny below could even run. PlayFabSession's
+            // own restore is local-only (no Google interaction, no network call — see its own
+            // remarks), so this is safe to do unconditionally at startup rather than waiting for
+            // the player to notice sign-in is still needed.
+            if (LTW.UnityClient.Online.PlayFabSession.TryRestore())
+            {
+                if (signInButton != null)
+                {
+                    signInButton.text = "SIGNED IN";
+                }
+
+                ResumePendingMatchIfAny();
+            }
 
             // Also not a session action, same reasoning as SIGN IN WITH GOOGLE just above — see
             // docs/MULTIPLAYER_ROLLOUT.md's MP-06. Self-contained here rather than routed through

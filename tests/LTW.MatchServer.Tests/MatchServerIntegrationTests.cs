@@ -161,6 +161,35 @@ public sealed class MatchServerIntegrationTests : IAsyncLifetime
     }
 
     /// <summary>
+    /// Found investigating reconnect: <c>BindAsync</c> had no "already bound" check at all, so a
+    /// second connection presenting the same token for a seat that already had a live connection
+    /// would simply bind alongside it — both going on to receive every broadcast and dispatch
+    /// commands as that seat, which is exactly the kind of desync reconnect exists to avoid.
+    /// </summary>
+    [Fact]
+    public async Task Rejoining_a_seat_evicts_the_stale_connection_instead_of_double_binding_it()
+    {
+        var (matchId, tokens) = await CreateMatchAsync(new[] { 1 });
+        var stale = await JoinAsync(matchId, 1, tokens["1"]);
+        await ReceiveOfTypeAsync(stale, "welcome");
+
+        using var fresh = await JoinAsync(matchId, 1, tokens["1"]);
+        await ReceiveOfTypeAsync(fresh, "welcome");
+
+        // The stale connection is told it's done, not just silently ignored from here on — a
+        // client that never itself noticed the drop must still learn its connection is dead.
+        var buffer = new byte[16];
+        var closeResult = await stale.ReceiveAsync(buffer, CancellationToken.None);
+        Assert.Equal(WebSocketMessageType.Close, closeResult.MessageType);
+        stale.Dispose();
+
+        // Only the fresh connection can act as the seat now.
+        await SendAsync(fresh, """{"type":"placeTower","id":"a","laneId":1,"towerId":"tower.arrow","x":2,"y":14}""");
+        var result = await ReceiveOfTypeAsync(fresh, "commandResult");
+        Assert.True(result.GetProperty("accepted").GetBoolean());
+    }
+
+    /// <summary>
     /// MP-06 self-audit: a wire-reconstructed player was missing ChosenTowerLine/tower-line-tiers/
     /// send-category-tiers entirely, which silently broke tier purchases past the first client-side
     /// (see PlayerSnapshotDto's own remarks). Proves the fix against a real match, not a unit test
