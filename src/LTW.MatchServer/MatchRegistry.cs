@@ -69,7 +69,7 @@ public sealed class MatchRegistry
             options,
             humanSeats,
             replayDirectory,
-            ticksPerSecond ?? 10,
+            ticksPerSecond ?? ServerMatch.DefaultTicksPerSecond,
             playFabIdBySeat,
             playFabAuthority,
             openingBuildWindowSeconds ?? 30);

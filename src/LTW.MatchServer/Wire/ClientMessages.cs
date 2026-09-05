@@ -26,10 +26,30 @@ public sealed class PlaceTowerMessage : ClientCommandMessage
     public int Y { get; set; }
 }
 
+/// <summary>
+/// Wire equivalent of <c>LocalVerticalSlice.QueueSend</c> — an immediate, all-or-nothing spend and
+/// spawn, charged and rejected right now if the sender cannot afford it. NOT what the real send
+/// dock UI uses; see <see cref="EnqueueSendMessage"/> for that.
+/// </summary>
 public sealed class QueueSendMessage : ClientCommandMessage
 {
     public string CreepId { get; set; } = "";
     public int Quantity { get; set; } = 1;
+}
+
+/// <summary>
+/// Wire equivalent of <c>LocalVerticalSlice.EnqueueSend</c> — adds one creep to the sender's send
+/// queue, which the simulation drains as gold becomes available, rather than requiring the full
+/// cost up front. This is what a real player's tap of a send-dock card means locally
+/// (<c>UnityCommandAdapter.SendCreep</c>'s own remarks: "Queued, not sent... a tap states intent
+/// and the simulation pays for it when it can"). Found missing live, testing a real online match:
+/// the wire layer only ever had <see cref="QueueSendMessage"/>, so every online send silently
+/// failed outright the instant the sender could not afford it immediately, instead of waiting —
+/// confusingly, "QueueSend" is the immediate send; this is the actual queue.
+/// </summary>
+public sealed class EnqueueSendMessage : ClientCommandMessage
+{
+    public string CreepId { get; set; } = "";
 }
 
 public sealed class BuyCategoryTierMessage : ClientCommandMessage

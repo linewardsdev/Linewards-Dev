@@ -42,6 +42,13 @@ namespace LTW.UnityClient.Simulation
         private ContentCatalog? wireContent;
         private int wireLocalSeat = 1;
         private long wireLastAppliedSequence = long.MinValue;
+
+        /// <summary>The last tick message received, kept so <see cref="LatestSnapshot"/> can be
+        /// re-extrapolated every frame rather than only when a new one arrives. See UpdateWire's
+        /// own remarks.</summary>
+        private LTW.UnityClient.Online.Wire.TickMessage? wireLastTick;
+
+        private float wireLastTickReceivedAtRealtime;
         private int nextPredictedEntityId = -1;
         /// <summary>
         /// Ceiling on simulation ticks advanced in a single frame.
@@ -225,6 +232,8 @@ namespace LTW.UnityClient.Simulation
             wireContent = SampleVerticalSliceContent.Create();
             wireLocalSeat = 1;
             wireLastAppliedSequence = long.MinValue;
+            wireLastTick = null;
+            wireLastTickReceivedAtRealtime = 0f;
             SnapshotRevision = long.MinValue;
             HasStarted = false;
             IsPaused = true;
@@ -337,6 +346,17 @@ namespace LTW.UnityClient.Simulation
                 wireLocalSeat = welcome.Seat;
             }
 
+            // Cleared every frame, same as RefreshSnapshot's own drainEvents contract for local
+            // play: DrainEvents() empties the pending queue every Update() call regardless of
+            // whether a tick just advanced, so a consumer only ever sees one tick's events for
+            // exactly the one frame they arrived on. Setting this unconditionally before the "new
+            // tick?" check below, rather than only inside it, is what makes that true here too —
+            // the first draft of this left the LAST tick's events sitting in LatestEvents for
+            // every Update() call in between two network ticks, since Unity runs at ~60fps against
+            // a match ticking far slower, which would have replayed the same audio cue and tower
+            // recoil every one of those frames instead of once.
+            LatestEvents = System.Array.Empty<ISimulationEvent>();
+
             // Keyed on Sequence, not Tick: the server freezes Tick at 0 for the whole opening
             // build window (see ServerMatch's own remarks), so a Tick-based dedupe would apply
             // only the first of that window's countdown messages and silently ignore every later
@@ -371,8 +391,68 @@ namespace LTW.UnityClient.Simulation
                 // button / TogglePause()). Forcing it from tick.IsOpeningBuildCountdown (always
                 // false once live) here used to stomp a local pause back to false within one
                 // network tick interval — found live: "pause does not work" against a real match.
-                LatestSnapshot = BuildSnapshotFromWire(tick, client.PendingPredictions);
+                wireLastTick = tick;
+                wireLastTickReceivedAtRealtime = Time.unscaledTime;
                 SnapshotRevision = tick.Sequence;
+
+                // Feeds the exact same UnityVerticalSliceRenderer.RenderEvents path local play
+                // already uses for audio cues and tower recoil/attack VFX — those were a complete
+                // dead zone for a wire match until now (LatestEvents simply stayed empty forever;
+                // see WireEventReconstruction's own remarks for why the server did not need any
+                // change to make this possible).
+                LatestEvents = tick.Events
+                    .Select(WireEventReconstruction.TryBuild)
+                    .Where(simulationEvent => simulationEvent is not null)
+                    .Select(simulationEvent => simulationEvent!)
+                    .ToList();
+
+                // The results screen's own match-end detection (LocalSessionFlowOverlay.
+                // ActiveShellScreen: LatestMatchSummary is not null -> Results) was a complete dead
+                // zone for a wire match until now — found live: "no end game screen online play".
+                // Placement is left at its default (0) for every player: the wire protocol carries
+                // per-player gold/income/lives/eliminated every tick, but not a placement ranking,
+                // and ShellScreenView's own results table already renders a Placement of 0 as "—"
+                // rather than a wrong ordinal — an honest gap, not a guess. The winner banner itself
+                // reads WinnerId directly, independent of Placement, so it is unaffected.
+                var matchEnded = LatestEvents.OfType<LTW.Simulation.Events.MatchEndedEvent>().FirstOrDefault();
+                if (matchEnded != null)
+                {
+                    LatestMatchSummary = new LTW.Simulation.Economy.MatchSummary(
+                        matchEnded.WinnerId,
+                        new LTW.Simulation.Primitives.SimulationTick(tick.Tick),
+                        tick.Players.Select(player => new LTW.Simulation.Economy.PlayerEconomySummary(
+                            new PlayerId(player.PlayerId),
+                            new LTW.Simulation.Primitives.Gold(player.Gold),
+                            new LTW.Simulation.Primitives.Income(player.Income),
+                            new LTW.Simulation.Primitives.Lives(player.Eliminated ? 0 : player.Lives),
+                            player.Eliminated)).ToList());
+                }
+            }
+
+            // Rebuilt every frame, not just when a new tick lands — found live: creep motion held
+            // completely still between wire ticks otherwise, so a match ticking at a real 4/sec (or
+            // any slower-than-60fps rate) read as visibly stepping rather than moving, worse still
+            // whenever real network delivery timing was uneven. Local play never needed this: its
+            // own tick loop runs IN this same Update(), so a fresh tick (and thus fresh
+            // MovementProgress) is at most one frame away; a wire tick can be up to a full tick
+            // interval away, with real jitter on top. The extrapolation itself
+            // (BuildSnapshotFromWire's elapsedSeconds parameter) only ever advances
+            // MovementProgress, clamped at the effective cost — the same fraction
+            // UnityVerticalSliceRenderer.CreepTravelPosition already computes from it, so no
+            // rendering code needed to change. Correctness note: this assumes the server's real
+            // tick rate matches this driver's own ticksPerSecond (used only as the local-play tick
+            // duration otherwise) — any mismatch shows up as slightly wrong-paced extrapolation
+            // between ticks, self-correcting the instant the next real tick arrives, never
+            // compounding. The cost is real too: this now runs the full snapshot rebuild (players,
+            // towers, creeps) every Update() call for a wire match, not just on a new tick — the
+            // entity counts here are small enough that this was judged worth it for the visible
+            // fix; RenderSnapshot's own presentation-revision hash will also see creep data change
+            // every frame instead of once per tick, so its "structural changed" branch now runs
+            // every frame for a wire match too (still correct, just more often than necessary).
+            if (wireLastTick is { } lastTick)
+            {
+                var elapsedSeconds = Time.unscaledTime - wireLastTickReceivedAtRealtime;
+                LatestSnapshot = BuildSnapshotFromWire(lastTick, client.PendingPredictions, elapsedSeconds);
             }
         }
 
@@ -437,7 +517,7 @@ namespace LTW.UnityClient.Simulation
         /// asserting non-empty, so this degrades to no aim-turn animation / no bramble decals / no
         /// send-queue badges / no seat leaderboard for a networked match rather than crashing.
         /// </remarks>
-        private VerticalSliceSnapshot BuildSnapshotFromWire(TickMessage tick, IReadOnlyCollection<PendingPrediction> predictions)
+        private VerticalSliceSnapshot BuildSnapshotFromWire(TickMessage tick, IReadOnlyCollection<PendingPrediction> predictions, float extrapolatedSeconds = 0f)
         {
             var players = tick.Players.Select(BuildPlayerFromWire);
 
@@ -459,7 +539,19 @@ namespace LTW.UnityClient.Simulation
                 creep.MaxHealth,
                 creep.SpeedPerSecond,
                 new GridPosition(creep.NextX, creep.NextY),
-                creep.MovementProgress,
+                // Advanced past the server's own last-reported value using real elapsed time —
+                // see UpdateWire's own remarks for why (no interpolation between wire ticks
+                // otherwise, which read as visible stutter, worse under real network jitter).
+                // MovementProgress banks SpeedPerSecond units per TICK, not per real second
+                // (CreepPresentationSnapshot's own remarks), so elapsed real seconds is first
+                // converted to elapsed ticks via this driver's own ticksPerSecond — the same value
+                // local play's own fixed-timestep loop uses, and the best guess this client has at
+                // the server's actual rate (see the docs the server picked its default from).
+                // Clamped at the effective cost purely for hygiene: the renderer's own fraction is
+                // Clamp01'd regardless, so an unclamped overshoot here would not visibly matter.
+                System.Math.Min(
+                    creep.MovementProgress + Mathf.RoundToInt(creep.SpeedPerSecond * extrapolatedSeconds * ticksPerSecond),
+                    creep.EffectiveMovementCost),
                 // EffectiveMovementCost already has the bramble penalty folded in server-side (see
                 // CreepSnapshotDto's own remarks) — passed as MovementCost with IsBraked forced
                 // false so this snapshot's OWN EffectiveMovementCost getter (MovementCost +
@@ -494,13 +586,24 @@ namespace LTW.UnityClient.Simulation
                 }
             }
 
+            // Was missing entirely until a live test found it — see PlayerSnapshotDto's own
+            // remarks: VerticalSliceSnapshot.SendQueues already claimed to arrive over the wire
+            // "like gold and lives do", but nothing had ever actually put it on the wire, so a
+            // wire client's queue badge always read zero even after a send genuinely queued.
+            var sendQueues = tick.Players.ToDictionary(
+                player => new PlayerId(player.PlayerId),
+                player => (IReadOnlyList<LTW.Simulation.Content.ContentId>)player.SendQueue
+                    .Select(creepId => new LTW.Simulation.Content.ContentId(creepId))
+                    .ToList());
+
             return new VerticalSliceSnapshot(
                 new SimulationTick(tick.Tick),
                 new EconomyPlayerSet(players),
                 creeps,
                 towers,
                 towerAimTargets: System.Array.Empty<TowerAimSnapshot>(),
-                brambleCells: new Dictionary<LaneId, IReadOnlyList<GridPosition>>());
+                brambleCells: new Dictionary<LaneId, IReadOnlyList<GridPosition>>(),
+                sendQueues: sendQueues);
         }
 
         /// <summary>
@@ -661,6 +764,8 @@ namespace LTW.UnityClient.Simulation
             wireClient = null;
             wireContent = null;
             wireLastAppliedSequence = long.MinValue;
+            wireLastTick = null;
+            wireLastTickReceivedAtRealtime = 0f;
             accumulator = 0f;
             HasStarted = false;
             IsPaused = true;

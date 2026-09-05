@@ -181,12 +181,12 @@ public sealed class PlayerEliminationTests
     }
 
     [Fact]
-    public void The_wipe_announces_each_removed_entity_so_presentation_can_react()
+    public void The_wipe_announces_each_redirected_or_removed_entity_so_presentation_can_react()
     {
         var slice = new LocalVerticalSlice(SampleVerticalSliceContent.Create(), new LocalMatchOptions(seed: 7, laneCount: 3), enableBots: false);
         var sawEliminated = false;
         var soldOnWipe = 0;
-        var killedOnWipe = 0;
+        var redirectedOnWipe = 0;
 
         for (var tick = 0; tick < 40_000 && !sawEliminated; tick++)
         {
@@ -197,14 +197,70 @@ public sealed class PlayerEliminationTests
             {
                 sawEliminated = true;
                 soldOnWipe = events.Count(e => e is TowerSoldEvent);
-                killedOnWipe = events.Count(e => e is CreepKilledEvent);
+                redirectedOnWipe = events.Count(e => e is CreepSpawnedEvent);
             }
         }
 
         Assert.True(sawEliminated);
         // No towers were ever built in this scenario, so the meaningful signal is the creeps that
-        // were mid-lane when their target died.
-        output.WriteLine($"on the wipe tick: {soldOnWipe} tower-sold, {killedOnWipe} creep-killed");
-        Assert.True(killedOnWipe >= 1, "the creeps standing in the wiped lane should be announced");
+        // were mid-lane when their target died. Requested live, 2026-09-05: they now redirect to
+        // the next active opponent (CreepSpawnedEvent) rather than being killed outright, since
+        // this 3-lane scenario always has another active player for them to attack — see
+        // WipeEliminatedLane's own remarks (case 2) for why that is the deliberate design now.
+        output.WriteLine($"on the wipe tick: {soldOnWipe} tower-sold, {redirectedOnWipe} creep-redirected");
+        Assert.True(redirectedOnWipe >= 1, "the creeps standing in the wiped lane should redirect to the next active opponent");
+    }
+
+    /// <summary>
+    /// The precise version of the test above: not just that a redirect happens, but that it goes
+    /// to the RIGHT seat.
+    /// </summary>
+    [Fact]
+    public void Wiping_a_lane_redirects_its_attacking_creeps_to_the_next_active_opponent()
+    {
+        var slice = new LocalVerticalSlice(SampleVerticalSliceContent.Create(), new LocalMatchOptions(seed: 7, laneCount: 3), enableBots: false);
+        System.Collections.Generic.IReadOnlyList<ISimulationEvent> eventsAtElimination = System.Array.Empty<ISimulationEvent>();
+        var sawEliminated = false;
+
+        for (var tick = 0; tick < 40_000 && !sawEliminated; tick++)
+        {
+            slice.QueueSend(new PlayerId(1), SampleVerticalSliceContent.SiegeCreepId);
+            slice.AdvanceOneTick();
+            var events = slice.DrainEvents();
+            if (events.Any(e => e is PlayerEliminatedEvent))
+            {
+                sawEliminated = true;
+                eventsAtElimination = events;
+            }
+        }
+
+        Assert.True(sawEliminated);
+
+        // Checked against elimination order within the tick, not "any CreepSpawnedEvent in the
+        // same tick": sending continuously at two undefended seats can eliminate both within one
+        // tick (one leak's elimination check runs before the next leak in the same AdvanceOneTick
+        // call is processed), and the PRE-EXISTING leak-survival transfer (unrelated to this
+        // change — every leak, fatal or not, already tries to carry its creep on to the next
+        // active opponent) can legitimately target a seat that is ALSO eliminated later in that
+        // same tick, before this player's own elimination is even known. Found writing this test:
+        // asserting against the tick's first elimination flagged exactly that as a false failure.
+        // The real invariant is narrower and still meaningful: nothing ever redirects to a seat
+        // that was ALREADY eliminated earlier in the same event stream.
+        var eliminatedSoFar = new System.Collections.Generic.List<PlayerId>();
+        var redirectCount = 0;
+        foreach (var e in eventsAtElimination)
+        {
+            if (e is PlayerEliminatedEvent pe)
+            {
+                eliminatedSoFar.Add(pe.PlayerId);
+            }
+            else if (e is CreepSpawnedEvent spawned && spawned.SenderId.Equals(new PlayerId(1)))
+            {
+                redirectCount++;
+                Assert.DoesNotContain(spawned.DefenderId, eliminatedSoFar);
+            }
+        }
+
+        Assert.True(redirectCount >= 1, "at least one creep should redirect during the wipe");
     }
 }

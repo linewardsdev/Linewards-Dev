@@ -490,9 +490,30 @@ namespace LTW.UnityClient.UI
         /// every cooldown on the roster did — and a hardcoded codex would have gone quietly wrong
         /// on that change while continuing to look authoritative.
         /// </remarks>
+        /// <summary>
+        /// Found live: the send dock and build panel show ONLY this line, not the codex's own
+        /// numeric stat grid (RANGE/DAMAGE/RELOAD/DPS) — see SendDockController/
+        /// TouchPlacementController.Gui's own remarks on reusing this string. For every tower
+        /// without a special <see cref="TowerRole"/>, the old <c>RoleLabel</c> fallback
+        /// ("Single-target damage") was the WHOLE line: true of roughly half the roster and
+        /// distinguishing none of them, read live as "vague." Leads with real numbers instead —
+        /// they were already sitting on the definition, just never read here.
+        /// </summary>
         internal static string TowerTraits(TowerDefinition definition)
         {
-            var parts = new List<string> { RoleLabel(definition.Role) };
+            var parts = new List<string>();
+
+            if (definition.Role == TowerRole.Dps)
+            {
+                var seconds = definition.AttackCooldownTicks / FallbackTicksPerSecond;
+                parts.Add(seconds > 0f
+                    ? $"{definition.Damage} damage to one target every {seconds:0.0}s at up to {definition.RangeCells} cells"
+                    : $"{definition.Damage} damage to one target at up to {definition.RangeCells} cells");
+            }
+            else
+            {
+                parts.Add(RoleLabel(definition.Role));
+            }
 
             if (definition.SignalGoldPerHit > 0)
             {
@@ -522,6 +543,15 @@ namespace LTW.UnityClient.UI
             _ => "Single-target damage"
         };
 
+        /// <summary>
+        /// Found live: the send dock shows ONLY this line (plus cost and income, not health or
+        /// speed) — see SendDockController's own remarks on reusing this string. For the five CORE
+        /// creeps (no support role, no maze-walk, no trailing movement cost, no cooldown
+        /// exemption), the old fallback was a single bounty line and said nothing about how fast or
+        /// tough the creep actually is — read live as "nothing about their movement or
+        /// attributes." Leads with real numbers for that case; a creep with a genuine trait keeps
+        /// showing that trait, since the trait IS the thing worth knowing about it.
+        /// </summary>
         internal static string CreepTraits(CreepDefinition definition)
         {
             var parts = new List<string>();
@@ -559,7 +589,9 @@ namespace LTW.UnityClient.UI
 
             if (parts.Count == 0)
             {
-                parts.Add($"Pays {definition.KillBounty.Amount} gold to whoever kills it");
+                var cellsPerSecond = definition.SpeedPerSecond * FallbackTicksPerSecond / definition.MovementCost;
+                parts.Add($"{definition.MaxHealth} health at {cellsPerSecond:0.0} cells/s");
+                parts.Add($"Pays {definition.KillBounty.Amount} gold to whoever kills it, {definition.LeakBounty.Amount} if it leaks through");
             }
 
             return string.Join("  ·  ", parts);

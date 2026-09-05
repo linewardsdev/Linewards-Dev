@@ -70,6 +70,7 @@ namespace LTW.UnityClient.Editor
             }
 
             ApplyIdentityOverrides();
+            ApplyInsecureHttpOverride();
 
             var sdk = ReadArgument("-ltwSdk") ?? "device";
             PlayerSettings.iOS.sdkVersion = sdk.Equals("simulator", StringComparison.OrdinalIgnoreCase)
@@ -161,6 +162,32 @@ namespace LTW.UnityClient.Editor
                 // actually supplied, so passing nothing leaves the project's manual setup intact.
                 PlayerSettings.iOS.appleEnableAutomaticSigning = true;
             }
+        }
+
+        /// <summary>
+        /// Opts into cleartext HTTP/WS for LAN-testing builds — pass <c>-ltwAllowInsecureHttp 1</c>.
+        /// </summary>
+        /// <remarks>
+        /// iOS's App Transport Security refuses any plain "http://"/"ws://" request by default,
+        /// with no exception surfaced anywhere in-app — found live, testing PLAY ONLINE against a
+        /// real `LTW.MatchServer` on the same LAN: the request never even reaches the Mac, it is
+        /// blocked on-device before it leaves. `PlayerSettings.iOS.allowHTTPDownload` is what
+        /// injects the corresponding `NSAllowsArbitraryLoads` exception into the generated
+        /// Info.plist; unset by default (never written unless this override is passed), because it
+        /// is an App Store review flag and MP-07's real hosting will use HTTPS/WSS anyway — this
+        /// exists purely so a LAN-IP dev build (see MatchServerConfig's own remarks) can be tested
+        /// on a real device before that infrastructure exists.
+        /// </remarks>
+        private static void ApplyInsecureHttpOverride()
+        {
+            var flag = ReadArgument("-ltwAllowInsecureHttp");
+            if (string.IsNullOrWhiteSpace(flag) || flag == "0")
+            {
+                return;
+            }
+
+            PlayerSettings.iOS.allowHTTPDownload = true;
+            Debug.Log("IOS BUILD: allowHTTPDownload enabled (NSAllowsArbitraryLoads) — dev/LAN testing only, do not ship this.");
         }
 
         /// <summary>

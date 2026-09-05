@@ -524,6 +524,20 @@ namespace LTW.UnityClient.Simulation
         public int SendCost(LTW.Simulation.Content.ContentId creepId) =>
             CreepCost(creepId) * SendQuantity(creepId);
 
+        /// <summary>
+        /// Mirrors <see cref="LTW.Simulation.Economy.EconomyRules"/>'s own opening-band recipe —
+        /// <c>LocalVerticalSlice</c>'s own construction of it (both local and the server's, since
+        /// <c>ServerMatch</c> builds the same class) — so <see cref="SendIncomeGain"/> can compute
+        /// the taper for a wire-backed match without a simulation instance to ask. Only
+        /// <see cref="LTW.Simulation.Economy.EconomyRules.IncomeCeiling"/>/
+        /// <see cref="LTW.Simulation.Economy.EconomyRules.IncomeTaperStart"/> matter for that
+        /// calculation, and both are left at their defaults here rather than restated, so this
+        /// cannot drift from the real recipe even if the other fields (send cooldown, sell refund,
+        /// leak life loss — irrelevant to income) ever do.
+        /// </summary>
+        private static readonly EconomyService WireEconomy = new(new EconomyRules(
+            incomeIntervalTicks: 50, sendCooldownTicks: 0, sellRefundPercent: 50, leakLifeLoss: 1));
+
         /// <summary>Income one press of this send button actually grants right now.</summary>
         /// <remarks>
         /// Asks the simulation rather than printing the creep's authored IncomeGain, because the two
@@ -531,10 +545,36 @@ namespace LTW.UnityClient.Simulation
         /// advertising "+5" while granting +2 is worse than showing no number at all. Same reasoning
         /// as <see cref="SendCost"/>, and it includes the send quantity for the same reason.
         /// </remarks>
-        public int SendIncomeGain(LTW.Simulation.Content.ContentId creepId) =>
-            simulation is null
-                ? 0
-                : simulation.IncomeGainForSend(simulation.LocalPlayerId, creepId, SendQuantity(creepId));
+        /// <remarks>
+        /// Wire branch found live: this always returned 0 for an online match (simulation is
+        /// always null there — see its own remarks), so every send-dock card showed "+0" income
+        /// regardless of the creep or the player's real income — read by a live tester as "the
+        /// creep's income isn't correct." Recomputes the same taper client-side from the wire's own
+        /// current Income (authoritative — see PlayerSnapshotDto's remarks on why the queue is
+        /// carried the same way) rather than the creep's flat authored value, for the exact reason
+        /// this method already existed for local play.
+        /// </remarks>
+        public int SendIncomeGain(LTW.Simulation.Content.ContentId creepId)
+        {
+            if (simulation is not null)
+            {
+                return simulation.IncomeGainForSend(simulation.LocalPlayerId, creepId, SendQuantity(creepId));
+            }
+
+            if (simulationDriver == null || simulationDriver.LatestSnapshot == null)
+            {
+                return 0;
+            }
+
+            var creepDefinition = LTW.UnityClient.UI.CodexScreenView.FindCreep(creepId.Value);
+            if (creepDefinition == null)
+            {
+                return 0;
+            }
+
+            var currentIncome = simulationDriver.LatestSnapshot.Players.Get(simulationDriver.LocalPlayerId).Income;
+            return WireEconomy.IncomeGainFor(currentIncome, creepDefinition, SendQuantity(creepId));
+        }
 
         public VerticalSliceCommandResult PlaceSampleTower(int x, int y) => PlaceTower(SampleVerticalSliceContent.TowerId, x, y);
 
@@ -658,11 +698,19 @@ namespace LTW.UnityClient.Simulation
 
             if (wireClient is not null)
             {
-                // One QueueSendMessage carrying the whole quantity, unlike the local path's one
-                // EnqueueSend call per creep — the server's own QueueSend command already takes a
-                // quantity (see LTW.MatchServer's ClientMessages.cs), so there is nothing to loop
-                // over here. No optimistic prediction, same reasoning as BuyCategoryTier above.
-                wireClient.SendCommand(new QueueSendMessage { Id = NewRequestId(), CreepId = creepId.Value, Quantity = quantity });
+                // One EnqueueSendMessage per creep, matching local play's own "one enqueue per
+                // creep" behavior exactly (see the local branch below). This used to send a single
+                // QueueSendMessage carrying the whole quantity instead — QueueSend is a DIFFERENT,
+                // immediate all-or-nothing spend-and-spawn with no queueing at all (see
+                // ClientMessages.cs's own remarks), so every online send silently failed outright
+                // the instant gold was short, rather than waiting the way a real player's tap is
+                // supposed to. Found live, testing a real online match. No optimistic prediction,
+                // same reasoning as BuyCategoryTier above.
+                for (var i = 0; i < quantity; i++)
+                {
+                    wireClient.SendCommand(new EnqueueSendMessage { Id = NewRequestId(), CreepId = creepId.Value });
+                }
+
                 return VerticalSliceCommandResult.Accept();
             }
 
@@ -706,10 +754,24 @@ namespace LTW.UnityClient.Simulation
         /// simulation would be reading a local guess, and this badge would drift the first time a
         /// message was dropped — silently, and only for the player who queued.
         /// </remarks>
-        public int QueuedSendCount(LTW.Simulation.Content.ContentId creepId) =>
-            simulation is null
-                ? 0
-                : simulation.GetSnapshot().QueuedSendCountFor(simulation.LocalPlayerId, creepId);
+        /// <summary>
+        /// Local play reads the simulation's own live snapshot; a wire-backed match has no
+        /// simulation to read (see <see cref="simulation"/>'s own remarks), so it falls back to
+        /// <see cref="UnitySimulationDriver.LatestSnapshot"/> instead — the same wire-reconstructed
+        /// snapshot the board and HUD already render from, now carrying <c>SendQueue</c> too (see
+        /// PlayerSnapshotDto's own remarks for why that did not used to be true).
+        /// </summary>
+        public int QueuedSendCount(LTW.Simulation.Content.ContentId creepId)
+        {
+            if (simulation is not null)
+            {
+                return simulation.GetSnapshot().QueuedSendCountFor(simulation.LocalPlayerId, creepId);
+            }
+
+            return simulationDriver != null && simulationDriver.LatestSnapshot != null
+                ? simulationDriver.LatestSnapshot.QueuedSendCountFor(simulationDriver.LocalPlayerId, creepId)
+                : 0;
+        }
 
         /// <summary>Everything the local seat has waiting, across all creeps.</summary>
         /// <remarks>
@@ -718,10 +780,18 @@ namespace LTW.UnityClient.Simulation
         /// without reopening it. Read off the snapshot for the same authority reason as
         /// <see cref="QueuedSendCount"/> directly above.
         /// </remarks>
-        public int TotalQueuedSends() =>
-            simulation is null
-                ? 0
-                : simulation.GetSnapshot().SendQueueFor(simulation.LocalPlayerId).Count;
+        /// <summary>Same local-vs-wire fallback as <see cref="QueuedSendCount"/> above.</summary>
+        public int TotalQueuedSends()
+        {
+            if (simulation is not null)
+            {
+                return simulation.GetSnapshot().SendQueueFor(simulation.LocalPlayerId).Count;
+            }
+
+            return simulationDriver != null && simulationDriver.LatestSnapshot != null
+                ? simulationDriver.LatestSnapshot.SendQueueFor(simulationDriver.LocalPlayerId).Count
+                : 0;
+        }
 
         /// <summary>Takes back the local seat's most recent queued send of one creep.</summary>
         /// <remarks>

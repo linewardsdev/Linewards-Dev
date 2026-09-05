@@ -993,12 +993,112 @@ MENU during a live match now cleanly returns to Title, and PLAY ONLINE works aga
 Both confirmed live immediately after fixing: PLAY ONLINE works on a second connection, and PAUSE
 now holds during live online play until RESUME is tapped.
 
+### Real iPad device test, 2026-09-05 — the actual end-to-end proof, and eight bugs it found
+
+The first real-device test (not Editor Play Mode): a physical iPad, a fresh Xcode export
+(`IosBuildRunner`), against `LTW.MatchServer` running on the Mac's own LAN. This is the proof
+MP-06's exit signal has been waiting on since MP-04 — and, true to how every other milestone in
+this pass has gone, it immediately found real bugs the Editor test couldn't have, because the
+Editor test runs client and server on the same machine with no real network in between at all.
+
+**Connectivity (found in order, each fix re-exported and re-tested before the next was found):**
+
+1. **PLAY ONLINE did nothing.** `LTW.MatchServer`'s `HttpListener` only ever bound
+   `http://localhost:{port}/` — deliberately loopback-only since every test before this ran
+   client and server in the same process's address space. A device on the LAN sends a Host
+   header naming the Mac's own IP, which `localhost` was never registered to accept. Rebound to
+   `http://+:{port}/` (any host) — the same thing a real container deployment (MP-07) would need
+   anyway, since a container's own loopback is never reachable from outside it. `MatchServerConfig.Host`
+   also had to be pointed at the Mac's LAN IP for this test build specifically (temporary, reverted
+   before committing — see its own remarks: this is dev/LAN-testing infrastructure, not a real
+   answer, which real hosting will replace with a domain and HTTPS).
+2. **Still did nothing, even pointed at the right IP.** iOS's App Transport Security silently
+   blocks any plain `http://`/`ws://` request by default — no error surfaces in-app, the request
+   simply never leaves the device. `PlayerSettings.iOS.allowHTTPDownload` is what injects the
+   `NSAllowsArbitraryLoads` exception into the generated Info.plist; added as a new
+   `IosBuildRunner` flag (`-ltwAllowInsecureHttp 1`), opt-in and never the default, since it is an
+   App Store review flag and real hosting will use HTTPS/WSS instead.
+
+**Gameplay pace and feel:**
+
+3. **The whole match ran 2.5x too fast.** `ServerMatch`'s default tick rate was 10/second, picked
+   from `ARCHITECTURE.md`'s aspirational "10 to 20" prototype-target range — but the actual shipped
+   local client runs its own fixed-timestep loop at 4/second (confirmed: no scene or prefab
+   anywhere overrides `UnitySimulationDriver`'s `ticksPerSecond` field, so the compiled default is
+   the live value). Since every game number (creep speed, income, cooldowns) is defined per
+   simulation tick, running more of them per real second just makes everything happen faster, not
+   more precisely. Fixed the server's default to match local's real rate.
+4. **Creep motion visibly stuttered.** Wire-mode rendering held a creep completely still between
+   network ticks — fine in the Editor at a fast test tick rate where updates arrive almost every
+   frame, very visible at a real 4/second against real Wi-Fi jitter on top. Added client-side
+   extrapolation: `UnitySimulationDriver` now re-derives `MovementProgress` every render frame
+   using elapsed wall-clock time and the creep's own speed, self-correcting the instant the next
+   real tick lands, rather than freezing until it does.
+
+**Missing feedback (the wire carried the state; nothing read it, or nothing sent it):**
+
+5. **No audio or tower recoil/attack VFX at all.** A known, documented scoped-out gap from the
+   original MP-06 pass — `LatestEvents` stayed empty forever for a wire match, since the wire had
+   no per-event-kind DTO catalog. Turned out the server was already sending every event's full
+   field data (serialized by its own runtime type); the client just had nothing to parse it back
+   into. Added `WireEventReconstruction`, a client-side reconstructor for the 11 event kinds that
+   actually drive presentation (tower placed/sold/upgraded/fired, creep damaged/killed, income
+   tick, leak, player eliminated, match ended, tier purchased) — no server change needed.
+6. **Send queue silently did nothing when a send couldn't be afforded instantly.** The wire layer
+   only ever had `queueSend` — an immediate, all-or-nothing spend that rejects outright if unaffordable
+   — never the actual send-dock behavior (`EnqueueSend`: queue now, pay when affordable, no upfront
+   check). Added a real `enqueueSend` wire command routed to `LocalVerticalSlice.EnqueueSend`.
+7. **Even once queuing worked, nothing showed it — and the income number was wrong regardless.**
+   Two distinct bugs found together: the wire protocol never carried a player's send-queue contents
+   at all (`PlayerSnapshotDto` gained `SendQueue`, mirroring how `TowerLineTiers`/`SendCategoryTiers`
+   already do), and separately `UnityCommandAdapter.SendIncomeGain` always returned 0 online (asked
+   `simulation`, always null for a wire match) — read live as "the creep's income isn't correct."
+   Fixed by reconstructing the same income-taper calculation client-side from the wire's own current
+   income (`EconomyRules`'s two relevant fields are left at their documented defaults, so this
+   cannot drift from the real recipe even if the rules class's other fields ever do).
+8. **The send-dock and build-panel descriptions were generic to the point of being wrong.** These
+   panels show only one short trait line (no numeric stat grid, unlike the full Codex screen) — for
+   any of the five plain CORE creeps or any plain single-target tower, that line was a single bare
+   fallback phrase ("Pays 1 gold to whoever kills it" / "Single-target damage") true of roughly half
+   the roster and distinguishing none of them, with no movement or health information at all.
+   Rewrote both fallbacks in `CodexScreenView` to lead with the tower's/creep's real numbers instead.
+
+**Missing feedback at match end, and a design change:**
+
+9. **No results screen at all.** Same shape as bug 5: `ActiveShellScreen`'s existing check
+   (`LatestMatchSummary is not null -> Results`) was a dead zone for wire matches since nothing
+   ever set it. Now that `MatchEndedEvent` reconstructs via `WireEventReconstruction`, hooked its
+   arrival to build a `MatchSummary` from the wire's own per-tick player data — placement ranking
+   isn't carried over the wire yet, so the results table shows "—" for that column (already
+   handled gracefully by the existing UI), but the winner banner reads `WinnerId` directly and is
+   unaffected.
+10. **Elimination behavior, revised by request rather than found broken.** Investigated carefully
+    before changing anything, since `WipeEliminatedLane` is core simulation logic shared by local
+    and online play, with dedicated tests pinning a deliberate, previously-shipped design (a
+    2026-08-29 incident: letting an eliminated player's creeps keep marching caused leaks that
+    could not be credited to anyone, breaking life conservation). Confirmed towers already wipe
+    correctly — that part of the report was a misread. The creep half was a genuine, deliberate
+    change request: an eliminated player's attacking creeps now redirect to the next active
+    opponent, restarting at that lane's entrance, using the SAME transfer mechanism a creep that
+    survives reaching a lane's end already gets (`NextActiveOpponentLaneId`/
+    `CombatService.TransferCreep`) — which resolves the original 2026-08-29 problem differently
+    than deleting them did: the creep gets a new, live, creditable target instead of either
+    vanishing or being orphaned. Two tests added; one caught a real scheduling edge case (two
+    players eliminated within the same tick) during writing, confirmed correct once the test's own
+    assertion was fixed to check redirect order rather than tick membership.
+
+Every fix above went through the full loop: implemented, `dotnet test` (currently 379 tests) and a
+Unity batchmode compile in both worktrees, a fresh `IosBuildRunner` export, then re-tested live on
+the same physical iPad before moving to the next finding — not just compiled and assumed correct.
+
 ### What this has NOT proven
 
-Everything above compiles cleanly and the opening build window itself is now confirmed live (see
-just above), but the wider wire layer has NOT been exercised end to end otherwise — no two-instance
-test, no real device test, the way MP-04's transport and MP-05's identity were each proven with a
-real client before being called done.
+The core online loop (connect, build window, place/upgrade/sell, send and queue, pause, leave,
+eliminate, win) is now confirmed on a real device over a real (if LAN-local) network — the actual
+proof MP-06's exit signal asked for. Still not exercised: a real *hosted* deployment (the LAN IP /
+`allowHTTPDownload` combination is dev-only infrastructure, not what MP-07 will ship), a genuine
+network interruption mid-match, two simultaneous real human players (today's matches are still
+solo-vs-bots), and reconnect after a kill-and-relaunch.
 
 ### Acceptance Checks
 
@@ -1016,17 +1116,20 @@ real client before being called done.
 - [x] The client can build a real `VerticalSliceSnapshot` from wire data alone, compatible with
       every existing renderer/HUD/UI consumer with zero changes to them — confirmed 2026-09-04 by
       compiling cleanly against the actual consumer set, not a synthetic test harness.
-- [ ] A real device joins a real match over the wire and plays it — the actual end-to-end proof.
-      Not yet done; see "What this has NOT proven" above.
+- [x] A real device joins a real match over the wire and plays it — the actual end-to-end proof.
+      Landed and confirmed 2026-09-05: a real iPad, over the Mac's LAN, playing a full match
+      through to a result — see "Real iPad device test" above for the ten bugs that test found
+      and fixed along the way.
 - [x] A title-screen entry point exists to start/join an online match — PLAY ONLINE, landed
       2026-09-04 with zero changes to `LocalSessionFlowOverlay.cs`. Confirmed live the same day
       (Editor Play Mode against a real running `LTW.MatchServer`), including the opening build
       window fix that live test itself found.
 
-**Estimate:** one to two weeks. Revised down from the original estimate now that the core wire
-layer, snapshot reconstruction and command routing are built — what remains is the title-screen
-entry point, a live end-to-end device test, and the explicitly deferred items above (event-driven
-VFX, match-end detection, reconnect UX).
+**Estimate:** the wire layer, snapshot reconstruction, command routing, and now a full real-device
+playthrough are done. What remains before MP-06 can close: reconnect UX (2 s network hole,
+kill-and-relaunch resume), `RealUiCaptureRunner` coverage, and — beyond this plan's own scope —
+MP-07's real hosting to replace the LAN-IP/`allowHTTPDownload` dev setup this pass used to prove
+the wire layer works at all on a real device.
 
 ## MP-07: Operations
 

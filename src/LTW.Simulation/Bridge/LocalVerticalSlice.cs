@@ -2208,7 +2208,16 @@ public sealed class LocalVerticalSlice
     /// Four things have to happen together, and the fourth is the one that is easy to miss:
     ///
     /// 1. The towers go. They belong to a player who is out.
-    /// 2. The creeps in the lane go. They were attacking a seat that no longer exists.
+    /// 2. The creeps in the lane are redirected to the next active opponent, exactly like a creep
+    ///    that survives reaching the end of a lane (see <see cref="NextActiveOpponentLaneId"/>/
+    ///    <see cref="CombatService.TransferCreep"/> and their own remarks) — they were attacking a
+    ///    seat that no longer exists, but they are still a live, paid-for attack against whoever
+    ///    is defending next, not a debt that vanishes with the seat that placed it. Requested
+    ///    live, 2026-09-05: a mid-lane creep disappearing outright at the moment of elimination
+    ///    read as the wrong call once towers were seen wiping correctly right beside it — one
+    ///    seat's defeat should redirect the pressure it was already under, not erase it. Killed
+    ///    outright ONLY if no other active opponent remains to redirect to (case 4 below already
+    ///    covers why "nowhere to credit it" is the one situation this must not do).
     /// 3. The lane's GRID and ROUTE are rebuilt empty. Towers occupy cells and are what lengthens
     ///    the route, so removing them without rebuilding leaves the maze standing as an invisible
     ///    wall — creeps would keep walking the long way round obstacles that are no longer there.
@@ -2217,7 +2226,9 @@ public sealed class LocalVerticalSlice
     ///    now" — the reasoning this used to ship with) meant a dead seat's creeps kept marching and
     ///    kept leaking, and a leak from a sender who no longer exists cannot be credited to anyone
     ///    — the life is simply destroyed, breaking the conservation the steal mechanic depends on
-    ///    and permanently draining an active player for no one's benefit. See
+    ///    and permanently draining an active player for no one's benefit. Unlike case 2, there is
+    ///    no live defender on the OTHER end of this to redirect toward — the sender is what is
+    ///    gone, not the target — so this case is unchanged: still killed outright. See
     ///    <see cref="CombatState.WipeLane"/> for the removal itself; this method only owns
     ///    reporting each one killed with the right lane's actual defender on the event.
     /// </remarks>
@@ -2234,10 +2245,24 @@ public sealed class LocalVerticalSlice
             pendingEvents.Add(new TowerSoldEvent(tick, playerId, laneId, tower.EntityId, new Gold(0)));
         }
 
-        // Own lane: attacking a seat that no longer exists, reported against THIS player.
+        // Own lane: attacking a seat that no longer exists. Redirected to the next active
+        // opponent's lane, restarting at its entrance — the same transfer a creep that survives a
+        // leak already gets (NextActiveOpponentLaneId/TransferCreep) — rather than killed, unless
+        // no active opponent is left to redirect to (the match is presumably ending regardless).
+        var redirected = new List<CreepCombatState>();
         foreach (var creep in combatState.Creeps.Where(creep => creep.LaneId.Equals(laneId)).ToArray())
         {
-            pendingEvents.Add(new CreepKilledEvent(tick, creep.EntityId, playerId, new Gold(0)));
+            var nextLaneId = NextActiveOpponentLaneId(laneId, creep.SenderId);
+            if (nextLaneId is null)
+            {
+                pendingEvents.Add(new CreepKilledEvent(tick, creep.EntityId, playerId, new Gold(0)));
+                continue;
+            }
+
+            var nextDefenderId = combatContent.GetLaneOwner(nextLaneId.Value);
+            var transferredCreep = combat.TransferCreep(NextEntityId(), creep, nextLaneId.Value);
+            redirected.Add(transferredCreep);
+            pendingEvents.Add(new CreepSpawnedEvent(tick, transferredCreep.EntityId, transferredCreep.CreepId, transferredCreep.SenderId, nextDefenderId));
         }
 
         // Sent elsewhere: still walking a lane that belongs to whoever is actually defending it,
@@ -2248,6 +2273,10 @@ public sealed class LocalVerticalSlice
         }
 
         combatState = combatState.WipeLane(laneId, playerId);
+        if (redirected.Count > 0)
+        {
+            combatState = new CombatState(combatState.Creeps.Concat(redirected), combatState.Towers);
+        }
 
         var map = content.Maps[0];
         grids[laneId] = new LaneGrid(map);
