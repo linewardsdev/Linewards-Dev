@@ -92,8 +92,14 @@ namespace LTW.UnityClient.Online
             SessionTicket = null;
             IsSignedIn = false;
 
+            // Found by RealUiCaptureRunner's own fake test identity leaking into a second capture
+            // run: DeleteKey, like SetString, is not guaranteed to reach disk without an explicit
+            // Save — an abrupt process exit right after (EditorApplication.Exit here; a real kill
+            // on device) can otherwise leave the "cleared" credentials still readable by the next
+            // launch's TryRestore.
             PlayerPrefs.DeleteKey(PlayFabIdKey);
             PlayerPrefs.DeleteKey(SessionTicketKey);
+            PlayerPrefs.Save();
         }
 
         /// <summary>

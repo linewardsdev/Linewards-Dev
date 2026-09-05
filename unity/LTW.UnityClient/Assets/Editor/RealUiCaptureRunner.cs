@@ -104,6 +104,18 @@ namespace LTW.UnityClient.Editor
             ("real-14-shell-results-defeat", ShowResultsWithLocalSeatBeaten),
             ("real-15-shell-results-victory", ShowResultsWithLocalSeatWinning),
             ("real-16-shell-title", ShowTitle),
+            // MP-06's own "lobby, connecting state, reconnect" acceptance check. There is no
+            // separate lobby screen — PLAY ONLINE lives right on Title, so real-16 above already
+            // is that shot; nothing new needed for it. This one shot covers "connecting": the
+            // button's own text is the only feedback (see docs/MULTIPLAYER_ROLLOUT.md's MP-06 — no
+            // dedicated connecting screen was ever built) — see ShowPlayOnlineConnecting's own
+            // remarks for why it sets that state directly rather than triggering a real connect.
+            // "Reconnect" gets no shot of its own for the opposite reason: a network-hole or
+            // kill-and-relaunch reconnect is silent by design (see "Reconnect survivability" in
+            // the same doc) — the board simply holds its last frame with nothing overlaid, which
+            // is pixel-for-pixel what real-01's ordinary live board already shows. A dedicated
+            // "reconnecting" shot would photograph the exact same thing under a different name.
+            ("real-26-title-play-online-connecting", ShowPlayOnlineConnecting),
             // Settings is still IMGUI and is reachable from all three shell screens, so this is
             // the shot that says whether an IMGUI panel lands over or under a runtime UI Toolkit
             // panel. If it lands under, the shell has to stand down while settings is open.
@@ -834,6 +846,34 @@ namespace LTW.UnityClient.Editor
             }
 
             overlay.ReturnToTitle();
+        }
+
+        /// <summary>PLAY ONLINE's CONNECTING... state.</summary>
+        /// <remarks>
+        /// Sets the button's own state directly rather than actually tapping it. A real tap
+        /// (tried first) kicks off a genuine network round trip — match creation, then a PlayFab
+        /// ticket check against PlayFab's real servers — whose timing is not deterministic enough
+        /// for a capture that only needs one settled frame: found live, one run caught
+        /// CONNECTING... only because that round trip happened to still be in flight at the 0.6s
+        /// settle mark, and an identically-configured run right after resolved before that mark
+        /// and photographed PLAY ONLINE's resting state instead. This sets exactly the two things
+        /// <c>ShellScreenView.OnPlayOnlineTapped</c> itself sets before ever awaiting anything, so
+        /// it needs no PlayFab identity, no match server, and no race.
+        /// </remarks>
+        private static void ShowPlayOnlineConnecting()
+        {
+            var document = Object.FindAnyObjectByType<UIDocument>();
+            var button = document != null && document.rootVisualElement != null
+                ? document.rootVisualElement.Q<Button>("title-play-online")
+                : null;
+            if (button == null)
+            {
+                Debug.LogWarning("REALUI no 'title-play-online' button found for the play-online-connecting shot");
+                return;
+            }
+
+            button.SetEnabled(false);
+            button.text = "CONNECTING...";
         }
 
         private static void ShowCodex()
