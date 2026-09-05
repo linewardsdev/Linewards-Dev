@@ -1,7 +1,9 @@
 #nullable enable
 
+using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using LTW.Simulation.Bridge;
 using LTW.Simulation.Combat;
 using LTW.Simulation.Content;
@@ -49,6 +51,11 @@ namespace LTW.UnityClient.Simulation
         private LTW.UnityClient.Online.Wire.TickMessage? wireLastTick;
 
         private float wireLastTickReceivedAtRealtime;
+
+        /// <summary>Guards against starting a second reconnect attempt while one is already
+        /// in flight — <see cref="Update"/> calls <see cref="UpdateWire"/> every frame, and
+        /// <see cref="MatchWireClient.IsDisconnected"/> stays true the whole time one is running.</summary>
+        private bool wireReconnecting;
         private int nextPredictedEntityId = -1;
         /// <summary>
         /// Ceiling on simulation ticks advanced in a single frame.
@@ -328,18 +335,32 @@ namespace LTW.UnityClient.Simulation
         /// local tick-advancing loop here — the server is the only clock for a networked match.
         /// </summary>
         /// <remarks>
-        /// <see cref="LatestEvents"/> stays empty and <see cref="LatestMatchSummary"/> stays null
-        /// for a wire-backed match — see docs/MULTIPLAYER_ROLLOUT.md's MP-06 "Landed" for why: the
-        /// wire has no fixed per-event-kind DTO catalog (<c>EventDto.Data</c> is the sender's own
-        /// concrete type serialized generically), so a client would need a mirror of every
-        /// <c>LTW.Simulation.Events.*</c> shape to consume it losslessly. Event-driven VFX/audio and
-        /// the results screen's automatic match-end detection are consequently a scoped-out gap for
-        /// this pass, not an oversight — the board, HUD and commands all work regardless, since
-        /// those read <see cref="LatestSnapshot"/>, not the event stream.
+        /// <see cref="LatestEvents"/> and <see cref="LatestMatchSummary"/> are both populated for a
+        /// wire-backed match too, as of the real-device test pass (2026-09-05) — see
+        /// <see cref="LTW.UnityClient.Online.Wire.WireEventReconstruction"/>'s own remarks for how
+        /// the event stream stopped being a dead zone with no server-side change needed at all.
         /// </remarks>
         private void UpdateWire(MatchWireClient client)
         {
             client.Pump();
+
+            // A dropped connection — a real network hole, or the app having been backgrounded
+            // long enough for the OS to kill the socket — is not treated as leaving the match.
+            // AttemptReconnect keeps retrying against the SAME match id (OnlineMatchService.
+            // PendingMatchId, still set) until it succeeds or gives up; this method just stops
+            // touching the dead client in the meantime. See AttemptReconnect's own remarks for
+            // why nothing else here needs to change: the reconnect flow is what makes the
+            // "no desync" half of this true, not anything about extrapolation or the snapshot.
+            if (client.IsDisconnected)
+            {
+                if (!wireReconnecting)
+                {
+                    wireReconnecting = true;
+                    AttemptReconnect();
+                }
+
+                return;
+            }
 
             if (client.Welcome is { } welcome)
             {
@@ -426,6 +447,12 @@ namespace LTW.UnityClient.Simulation
                             new LTW.Simulation.Primitives.Income(player.Income),
                             new LTW.Simulation.Primitives.Lives(player.Eliminated ? 0 : player.Lives),
                             player.Eliminated)).ToList());
+
+                    // A finished match is not a reconnect target — see AttemptReconnect's own
+                    // remarks. Cleared here rather than only in LeaveOnlineMatch so a kill right
+                    // after the result screen appears does not leave a relaunch trying to rejoin a
+                    // match that has nothing left to resume.
+                    OnlineMatchService.ClearPendingMatch();
                 }
             }
 
@@ -454,6 +481,84 @@ namespace LTW.UnityClient.Simulation
                 var elapsedSeconds = Time.unscaledTime - wireLastTickReceivedAtRealtime;
                 LatestSnapshot = BuildSnapshotFromWire(lastTick, client.PendingPredictions, elapsedSeconds);
             }
+        }
+
+        private const int MaxReconnectAttempts = 5;
+        private const float ReconnectRetryDelaySeconds = 1f;
+
+        /// <summary>
+        /// Retries joining <see cref="OnlineMatchService.PendingMatchId"/> — the same match this
+        /// client was just dropped from — a few times before giving up, covering both acceptance
+        /// checks a reconnect needs to satisfy: a brief network hole (the first attempt or two
+        /// succeed, usually before the player even notices the board froze) and an app kill mid-
+        /// match, IF the process is merely backgrounded rather than actually killed (a real kill
+        /// destroys this whole driver; resuming after that is <c>ShellScreenView</c>'s job instead,
+        /// checked right after the next sign-in — see its own remarks).
+        /// </summary>
+        /// <remarks>
+        /// Does not attempt to resume any local prediction/animation state across the gap — the
+        /// existing "welcome then ticks" bootstrap (<see cref="Initialize(MatchWireClient)"/> plus
+        /// this same <see cref="UpdateWire"/>) already rebuilds a correct <see cref="LatestSnapshot"/>
+        /// from scratch the moment the new connection's first tick arrives, which is what makes
+        /// this "no desync" rather than merely "reconnected": the client never has to reconcile
+        /// anything, it just starts trusting a fresh authoritative snapshot again. The board simply
+        /// shows whatever it last had (frozen, not blank — <c>ActiveShellScreen</c> falls through to
+        /// <c>ShellScreen.None</c> while <c>!HasStarted</c> and the pre-match screen is not Title,
+        /// so nothing draws over it either) until that first snapshot lands.
+        /// </remarks>
+        private async void AttemptReconnect()
+        {
+            var matchId = OnlineMatchService.PendingMatchId;
+            if (matchId is null)
+            {
+                // Nothing to rejoin — a disconnect with no known match (should not happen in
+                // practice; Initialize(MatchWireClient) is only ever called right after a join
+                // that itself just set this) falls back to the same clean exit a deliberate leave
+                // uses, rather than sitting "reconnecting" forever with nowhere to reconnect to.
+                wireReconnecting = false;
+                LeaveOnlineMatch();
+                return;
+            }
+
+            for (var attempt = 1; attempt <= MaxReconnectAttempts; attempt++)
+            {
+                await Task.Delay(TimeSpan.FromSeconds(ReconnectRetryDelaySeconds));
+
+                MatchWireClient? client = null;
+                try
+                {
+                    client = await OnlineMatchService.RejoinAsync(matchId, onFailure: message =>
+                        Debug.LogWarning($"WIRE reconnect attempt {attempt}/{MaxReconnectAttempts} failed: {message}"));
+                }
+                catch (Exception exception)
+                {
+                    // A wire client's own contract routes failures to onFailure, not an exception —
+                    // this is defensive against a network call throwing outright (e.g. a DNS
+                    // failure), which is not this method's own concern to distinguish from any
+                    // other kind of failed attempt.
+                    Debug.LogWarning($"WIRE reconnect attempt {attempt}/{MaxReconnectAttempts} threw: {exception.Message}");
+                }
+
+                if (client is not null)
+                {
+                    wireReconnecting = false;
+                    Initialize(client);
+                    if (TryGetComponent<LTW.UnityClient.Simulation.UnityCommandAdapter>(out var commandAdapter))
+                    {
+                        commandAdapter.Initialize(client, this);
+                    }
+
+                    return;
+                }
+            }
+
+            // Exhausted every attempt — give up cleanly rather than leave the board frozen forever
+            // with no way out, resetting local state the same way a deliberate leave does. NOT a
+            // full LeaveOnlineMatch, though: PendingMatchId stays set on purpose, so a kill and
+            // relaunch can still try ShellScreenView's own post-sign-in rejoin even though this
+            // loop itself has given up — an outage longer than this loop's own window is exactly
+            // the case that fallback exists for.
+            ResetWireDriverState();
         }
 
         /// <summary>
@@ -760,12 +865,29 @@ namespace LTW.UnityClient.Simulation
                 return;
             }
 
-            wireClient.Dispose();
+            ResetWireDriverState();
+
+            // A deliberate leave has nothing left to resume — unlike AttemptReconnect exhausting
+            // its own retries while the app stays alive, which deliberately does NOT clear this:
+            // a longer outage than that loop's own window can still recover, and giving up on live
+            // retries should not also forfeit the kill-and-relaunch fallback. See
+            // OnlineMatchService.PendingMatchId's own remarks.
+            OnlineMatchService.ClearPendingMatch();
+        }
+
+        /// <summary>The local half of leaving a wire match — everything <see cref="LeaveOnlineMatch"/>
+        /// does except forgetting <see cref="OnlineMatchService.PendingMatchId"/>. Split out for
+        /// <see cref="AttemptReconnect"/>'s own give-up path, which resets exactly like a real
+        /// leave but must not erase the one thing a later relaunch would need to resume.</summary>
+        private void ResetWireDriverState()
+        {
+            wireClient?.Dispose();
             wireClient = null;
             wireContent = null;
             wireLastAppliedSequence = long.MinValue;
             wireLastTick = null;
             wireLastTickReceivedAtRealtime = 0f;
+            wireReconnecting = false;
             accumulator = 0f;
             HasStarted = false;
             IsPaused = true;

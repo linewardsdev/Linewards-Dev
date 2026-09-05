@@ -74,6 +74,15 @@ namespace LTW.UnityClient.Online
 
         public bool IsConnected => socket.State == WebSocketState.Open;
 
+        /// <summary>
+        /// True once the receive loop has ended for any reason — a real disconnect, distinct from
+        /// a mere protocol-level <c>ErrorMessage</c>, which does not mean the socket is gone.
+        /// Polled rather than an event, matching how <see cref="LatestTick"/> etc. are already
+        /// consumed once per frame from <c>Pump</c>'s caller, so a reconnect driven off this needs
+        /// no new subscription plumbing.
+        /// </summary>
+        public bool IsDisconnected { get; private set; }
+
         public event Action<CommandResultMessage>? OnCommandResult;
 
         /// <summary>Protocol-level errors AND disconnects — see <c>ErrorMessage</c>'s own remarks server-side.</summary>
@@ -196,6 +205,7 @@ namespace LTW.UnityClient.Online
                         OnError?.Invoke(error?.Message ?? "unknown protocol error");
                         break;
                     case DisconnectSentinelType:
+                        IsDisconnected = true;
                         OnError?.Invoke(root["message"]?.Value<string>() ?? "disconnected");
                         break;
                     default:

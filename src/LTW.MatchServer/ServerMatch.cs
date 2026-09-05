@@ -330,11 +330,51 @@ public sealed class ServerMatch
         return await BindAsync(socket, seat);
     }
 
+    /// <summary>
+    /// Binds a socket to a seat, first evicting whatever connection already held it.
+    /// </summary>
+    /// <remarks>
+    /// Found investigating reconnect: this had no "already bound" check at all — a second
+    /// connection presenting a valid token/ticket for a seat that already had a live connection
+    /// would simply bind alongside it, and both would go on receiving every broadcast and
+    /// dispatching commands as that seat. Harmless by accident until reconnect made rebinding an
+    /// already-bound seat a real, expected path (a network hole's stale socket has often not yet
+    /// noticed it is dead when the replacement connection arrives) — at which point two live
+    /// connections both acting as one player is exactly the desync reconnect is supposed to avoid.
+    /// The evicted socket's own receive loop discovers the close and calls <see cref="Disconnect"/>
+    /// on its own connection id, same as any other disconnect — this only forces that along.
+    /// </remarks>
     private async Task<int> BindAsync(WebSocket socket, int seat)
     {
+        var playerId = new PlayerId(seat);
+        foreach (var staleConnectionId in seatByConnectionId.Where(entry => entry.Value.Equals(playerId)).Select(entry => entry.Key).ToArray())
+        {
+            if (connectionsById.TryGetValue(staleConnectionId, out var staleSocket) && staleSocket.State == WebSocketState.Open)
+            {
+                try
+                {
+                    // CloseOutputAsync, not CloseAsync: the whole scenario this exists for is a
+                    // stale, half-dead socket whose OWN receive loop has not noticed it is dead yet
+                    // — exactly the case where nothing is left reading on that end to answer a full
+                    // close handshake. CloseAsync waits for that answering close frame before
+                    // returning; against a truly stale peer that wait never resolves, which would
+                    // hang THIS bind (and so the reconnecting client's own welcome) indefinitely.
+                    // Found by a test using a real but idle peer socket, not live traffic — same
+                    // shape of bug either way.
+                    await staleSocket.CloseOutputAsync(WebSocketCloseStatus.NormalClosure, "reconnected from elsewhere", CancellationToken.None);
+                }
+                catch (WebSocketException)
+                {
+                    // Already on its way down — the point was to make sure it stops being live for
+                    // this seat, not that this specific close frame lands.
+                }
+            }
+
+            Disconnect(staleConnectionId);
+        }
+
         var connectionId = nextConnectionId++;
         connectionsById[connectionId] = socket;
-        var playerId = new PlayerId(seat);
         seatByConnectionId[connectionId] = playerId;
         authority.BindConnection(connectionId, playerId);
 

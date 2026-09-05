@@ -1091,19 +1091,88 @@ Every fix above went through the full loop: implemented, `dotnet test` (currentl
 Unity batchmode compile in both worktrees, a fresh `IosBuildRunner` export, then re-tested live on
 the same physical iPad before moving to the next finding — not just compiled and assumed correct.
 
+### Reconnect survivability, 2026-09-05 — both acceptance checks confirmed live
+
+Investigated before touching anything, since this is core networking/session code: found the
+server's seat-binding had **no protection against double-binding at all**.
+`ServerMatch.BindAsync` never checked whether a seat already had a live connection — a second
+connection presenting the same token/PlayFab ticket would simply bind alongside the first, and
+both would go on receiving every broadcast and dispatching commands as that seat. Harmless purely
+by accident until reconnect made rebinding an already-bound seat a real, expected path (a network
+hole's stale socket has often not yet noticed it is dead when the replacement connection arrives)
+— fixed by evicting whatever connection already held the seat before binding the new one. Hit a
+real deadlock in the first version of that fix: closing the stale socket with `CloseAsync` waits
+for the peer's own close reply, which a genuinely stale/idle peer never sends — switched to
+`CloseOutputAsync`, which does not wait. A new test pins the eviction.
+
+With that in place, the two reconnect mechanisms themselves:
+
+- **A 2 s network hole**: `MatchWireClient` now exposes when its connection has actually died
+  (`IsDisconnected`), distinct from an ordinary protocol-level `ErrorMessage`. On that,
+  `UnitySimulationDriver.AttemptReconnect` retries rejoining the SAME match (up to 5 attempts, 1 s
+  apart) using the PlayFab identity already in memory — no user interaction. Because a fresh
+  connection re-syncs from a real server snapshot the moment it reconnects, there is nothing to
+  reconcile: this is "no desync" by construction, not by careful state-merging.
+- **Kill and relaunch**: `OnlineMatchService.PendingMatchId` persists the current match id to
+  `PlayerPrefs` on every successful join, cleared only on a deliberate leave or a real match end —
+  specifically NOT cleared when `AttemptReconnect` itself exhausts its retries while the app stays
+  alive, since an outage longer than that loop's own window should still be resumable by a later
+  kill-and-relaunch. `ShellScreenView` checks for a pending match right after a successful Google
+  sign-in and silently rejoins it instead of waiting for PLAY ONLINE to be tapped.
+
+**A second real bug found live-testing the kill-and-relaunch path**: the first attempt reported
+"dropped me into a new session instead of rejoining." Root cause was a gap in `JoinAsync` itself,
+not the resume logic: `ClientWebSocket.ConnectAsync` succeeding only proves the WebSocket UPGRADE
+succeeded — `HttpMatchHost.HandleJoinAsync` accepts that upgrade FIRST and only afterward checks
+the token/PlayFab ticket, closing the socket with a policy violation if it doesn't match. A caller
+trusting `ConnectAsync` alone treats that as a successful join and hands back a client that is
+already dying — indistinguishable from an ordinary disconnect a frame or two later, and (for a
+rejoin specifically) silently never actually rejoins anything. Fixed by waiting for the server's
+own `WelcomeMessage` (genuine acceptance) or the connection dying (rejection) before declaring a
+join successful, rather than trusting the handshake alone. Confirmed live immediately after: sign
+back in, silently rejoined the same match.
+
+Both confirmed live on the real iPad, same device/LAN setup as the initial device-test pass above.
+
+### Sign-in persistence, 2026-09-05 — the kill-and-relaunch flow is now fully automatic
+
+Requested immediately after confirming reconnect above: Google Sign-In itself did not survive a
+kill, so a player who had just been mid-match still had to tap SIGN IN WITH GOOGLE by hand on
+every relaunch before the rejoin above could even run. Fixed not by restoring Google's own native
+session, but by persisting what this game actually authenticates every online operation with: the
+PlayFab session ticket. `PlayFabSession.SetSignedIn` now saves the PlayFabId and ticket to
+`PlayerPrefs`; `PlayFabSession.TryRestore` — called once at Title startup, before the player can
+tap anything — brings them back with no network call and no Google interaction at all. Restoring
+is deliberately optimistic: a saved ticket may have expired since it was written, and nothing here
+spends a request just to check that ahead of time. The real check is the one every online
+operation already makes — `OnlineMatchService.JoinAsync`'s own join-acceptance wait (see
+"Reconnect survivability" above) now calls `PlayFabSession.ForgetOnAuthFailure` specifically on a
+closed-during-join rejection (a bad or expired ticket, as opposed to a network blip or a
+genuinely-gone match), resetting cleanly to the ordinary SIGN IN WITH GOOGLE state rather than
+leaving the player stuck behind a session that looks signed in but can never do anything.
+
+Confirmed live immediately after: killed the app mid-match, relaunched, and it dropped straight
+back into the same match with no sign-in tap at all.
+
 ### What this has NOT proven
 
 The core online loop (connect, build window, place/upgrade/sell, send and queue, pause, leave,
-eliminate, win) is now confirmed on a real device over a real (if LAN-local) network — the actual
-proof MP-06's exit signal asked for. Still not exercised: a real *hosted* deployment (the LAN IP /
-`allowHTTPDownload` combination is dev-only infrastructure, not what MP-07 will ship), a genuine
-network interruption mid-match, two simultaneous real human players (today's matches are still
-solo-vs-bots), and reconnect after a kill-and-relaunch.
+eliminate, win, a network hole, a kill-and-relaunch, sign-in persistence) is now confirmed on a
+real device over a real (if LAN-local) network. Still not exercised: a real *hosted* deployment
+(the LAN IP / `allowHTTPDownload` combination is dev-only infrastructure, not what MP-07 will
+ship), two simultaneous real human players (today's matches are still solo-vs-bots), and what
+happens once a restored PlayFab ticket has genuinely expired (the reset path is implemented and
+reasoned through, but the actual expiry window has not been waited out live).
 
 ### Acceptance Checks
 
-- [ ] A 2 s network hole mid-match is survivable with no desync.
-- [ ] Kill the app and relaunch inside the reconnect window: the seat resumes.
+- [x] A 2 s network hole mid-match is survivable with no desync. Landed and confirmed live
+      2026-09-05 — see "Reconnect survivability" above.
+- [x] Kill the app and relaunch inside the reconnect window: the seat resumes. Landed and
+      confirmed live 2026-09-05, along with a second real bug that same test found (a join whose
+      WebSocket handshake succeeded but whose application-level acceptance had not, silently
+      treated as successful) — see "Reconnect survivability" above. Fully automatic as of the
+      same day's sign-in persistence fix too: no manual re-sign-in needed for the resume to fire.
 - [x] A player can leave an online match cleanly (socket closed, driver state reset) from any of
       the existing exit paths (Pause's EXIT TO TITLE/RESET MATCH, Results' REMATCH, the
       build-countdown panel's MENU) — landed and confirmed live 2026-09-04, along with two
@@ -1125,11 +1194,10 @@ solo-vs-bots), and reconnect after a kill-and-relaunch.
       (Editor Play Mode against a real running `LTW.MatchServer`), including the opening build
       window fix that live test itself found.
 
-**Estimate:** the wire layer, snapshot reconstruction, command routing, and now a full real-device
-playthrough are done. What remains before MP-06 can close: reconnect UX (2 s network hole,
-kill-and-relaunch resume), `RealUiCaptureRunner` coverage, and — beyond this plan's own scope —
+**Estimate:** every acceptance check but `RealUiCaptureRunner` coverage is done. What remains
+before MP-06 can fully close: that screenshot coverage, and — beyond this plan's own scope —
 MP-07's real hosting to replace the LAN-IP/`allowHTTPDownload` dev setup this pass used to prove
-the wire layer works at all on a real device.
+the wire layer (and now reconnect) works at all on a real device.
 
 ## MP-07: Operations
 
