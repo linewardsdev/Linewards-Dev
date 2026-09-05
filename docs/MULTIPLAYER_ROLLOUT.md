@@ -1154,6 +1154,37 @@ leaving the player stuck behind a session that looks signed in but can never do 
 Confirmed live immediately after: killed the app mid-match, relaunched, and it dropped straight
 back into the same match with no sign-in tap at all.
 
+### RealUiCaptureRunner online-flow coverage, 2026-09-05 — the last acceptance check closes
+
+Added `real-26-title-play-online-connecting` to `RealUiCaptureRunner`'s existing 25-shot set. The
+other two states this check named needed no new shot at all: there is no separate lobby screen —
+PLAY ONLINE lives right on Title, so the existing `real-16-shell-title` shot already covers it —
+and a network-hole or kill-and-relaunch reconnect is silent by design (see "Reconnect
+survivability" above), so a "reconnecting" shot would photograph the exact same idle board
+`real-01` already does, under a different name.
+
+The connecting shot itself needed two iterations. The first version signed in with a fake PlayFab
+identity and genuinely tapped PLAY ONLINE, so the capture raced a real network round trip (match
+creation, then a PlayFab ticket check against PlayFab's real servers): one run caught
+`CONNECTING...` because that round trip was still in flight at the capture's 0.6 s settle mark, an
+identically-configured run right after did not. Fixed by having `ShowPlayOnlineConnecting` set the
+button's disabled state and text directly — exactly the two things
+`ShellScreenView.OnPlayOnlineTapped` itself sets before ever awaiting anything — so the shot needs
+no PlayFab identity, no match server and no race.
+
+That same fake-identity setup also surfaced a real, unrelated bug: `PlayFabSession.Clear()` was
+deleting its PlayerPrefs keys without calling `PlayerPrefs.Save()`, so a signed-out identity could
+still be read back by `TryRestore()` in a later process if the app exited (or, here, the Editor
+batch run quit) before Unity's own next autosave — the same lesson `SetSignedIn` had already
+learned. Confirmed via two successive capture runs: the first still showed the stale "SIGNED IN"
+state (leftover from a run made with the old, unfixed code), the second was clean.
+
+Reviewed a broader spot-check of the 28 shots beyond the two new/changed ones (HUD, send dock,
+tower inspector, both results screens, the eliminated/spectating state) at phone width for
+regressions from today's changes — none found. `PlayFabSession.cs` and `RealUiCaptureRunner.cs`
+mirrored into `LTW-integrate`; `dotnet test` still 380/380 green; both worktrees batchmode-compile
+clean.
+
 ### What this has NOT proven
 
 The core online loop (connect, build window, place/upgrade/sell, send and queue, pause, leave,
@@ -1178,8 +1209,10 @@ reasoned through, but the actual expiry window has not been waited out live).
       build-countdown panel's MENU) — landed and confirmed live 2026-09-04, along with two
       regressions the live test itself found and fixed the same day (PLAY ONLINE button not
       resetting after a match, PAUSE not holding during live online play).
-- [ ] `RealUiCaptureRunner` shots for the lobby, the connecting state and a reconnect exist and
-      are reviewed at phone and iPad widths.
+- [x] `RealUiCaptureRunner` shots for the lobby, the connecting state and a reconnect exist and
+      are reviewed at phone and iPad widths. Landed and confirmed 2026-09-05 — see "RealUiCapture
+      Runner online-flow coverage" above; the lobby and reconnect states needed no new shot since
+      existing shots already cover them pixel-for-pixel.
 - [x] The wire protocol carries enough state (players, towers, creeps) to render a match without
       reading the simulation directly — confirmed 2026-09-04 against a real running match.
 - [x] The client can build a real `VerticalSliceSnapshot` from wire data alone, compatible with
@@ -1194,10 +1227,10 @@ reasoned through, but the actual expiry window has not been waited out live).
       (Editor Play Mode against a real running `LTW.MatchServer`), including the opening build
       window fix that live test itself found.
 
-**Estimate:** every acceptance check but `RealUiCaptureRunner` coverage is done. What remains
-before MP-06 can fully close: that screenshot coverage, and — beyond this plan's own scope —
-MP-07's real hosting to replace the LAN-IP/`allowHTTPDownload` dev setup this pass used to prove
-the wire layer (and now reconnect) works at all on a real device.
+**Estimate:** every acceptance check in this plan's own scope is now done. What remains before
+MP-06's work is truly finished — beyond this plan's own scope — is MP-07's real hosting to replace
+the LAN-IP/`allowHTTPDownload` dev setup this pass used to prove the wire layer (and reconnect)
+works at all on a real device.
 
 ## MP-07: Operations
 
