@@ -97,6 +97,28 @@ public sealed class ServerMatch
 
     private CancellationTokenSource? loopCancellation;
 
+    /// <summary>
+    /// Resolves once <see cref="RunLoopAsync"/> actually stops — whether from <see cref="Stop"/>
+    /// (manual/Ctrl+C, in standalone mode) or from the match itself ending (see the
+    /// <c>slice.MatchSummary</c> check inside the loop). PlayFab MPS's GSDK integration (MP-07)
+    /// awaits this to know when its one hosted match is over and the process should exit — see
+    /// docs/MULTIPLAYER_ROLLOUT.md's MP-07.
+    /// </summary>
+    public Task Completion => loopCompletion.Task;
+
+    private readonly TaskCompletionSource loopCompletion = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+    /// <summary>
+    /// Told about every seat bind/disconnect purely for MP-07's GSDK integration
+    /// (<c>GameserverSDK.UpdateConnectedPlayers</c> is informational-only reporting to PlayFab —
+    /// <see cref="AcceptWithPlayFabAsync"/>'s ticket check remains the only real enforcement).
+    /// Plain BCL-typed delegates, not a GSDK reference, so this class and its tests stay
+    /// independent of whether GSDK is even referenced by the process hosting it.
+    /// </summary>
+    private readonly Action<int, PlayerId>? onSeatBound;
+
+    private readonly Action<int>? onSeatDisconnected;
+
     public ServerMatch(
         string matchId,
         ContentCatalog content,
@@ -106,7 +128,9 @@ public sealed class ServerMatch
         double ticksPerSecond = DefaultTicksPerSecond,
         IReadOnlyDictionary<int, string>? playFabIdBySeat = null,
         LTW.MatchServer.PlayFab.PlayFabSessionAuthority? playFabAuthority = null,
-        double openingBuildWindowSeconds = DefaultOpeningBuildWindowSeconds)
+        double openingBuildWindowSeconds = DefaultOpeningBuildWindowSeconds,
+        Action<int, PlayerId>? onSeatBound = null,
+        Action<int>? onSeatDisconnected = null)
     {
         MatchId = matchId;
         this.content = content;
@@ -116,6 +140,8 @@ public sealed class ServerMatch
         openingBuildWindow = TimeSpan.FromSeconds(openingBuildWindowSeconds);
         this.playFabIdBySeat = playFabIdBySeat ?? new Dictionary<int, string>();
         this.playFabAuthority = playFabAuthority;
+        this.onSeatBound = onSeatBound;
+        this.onSeatDisconnected = onSeatDisconnected;
         authority = new ConnectionSeatAuthority();
         slice = new LocalVerticalSlice(content, options, enableBots: true, seatAuthority: authority);
 
@@ -179,6 +205,16 @@ public sealed class ServerMatch
                     {
                         replayWritten = true;
                         await WriteReplayAsync();
+
+                        // The match itself is over — stop the loop after this tick's message still
+                        // goes out below. Before this, nothing ever stopped a finished match from
+                        // ticking (and broadcasting) forever; MP-07's GSDK integration also needs
+                        // the process to actually exit once its one hosted match ends, which starts
+                        // here. Canceling now (rather than breaking directly) means the loop's own
+                        // while-condition, not a second exit path, is what ends it — the next
+                        // iteration's `!cancellation.IsCancellationRequested` short-circuits false
+                        // before ever calling WaitForNextTickAsync on an already-canceled token.
+                        loopCancellation?.Cancel();
                     }
                 }
             }
@@ -189,6 +225,8 @@ public sealed class ServerMatch
 
             await BroadcastAsync(message);
         }
+
+        loopCompletion.TrySetResult();
     }
 
     private TickMessage BuildTickMessage(IReadOnlyList<LTW.Simulation.Events.ISimulationEvent> events, bool isOpeningBuildCountdown, double remainingSeconds)
@@ -377,6 +415,7 @@ public sealed class ServerMatch
         connectionsById[connectionId] = socket;
         seatByConnectionId[connectionId] = playerId;
         authority.BindConnection(connectionId, playerId);
+        onSeatBound?.Invoke(seat, playerId);
 
         await SendAsync(socket, new WelcomeMessage { Seat = seat, Tick = slice.GetSnapshot().Tick.Value });
         return connectionId;
@@ -385,7 +424,11 @@ public sealed class ServerMatch
     public void Disconnect(int connectionId)
     {
         connectionsById.Remove(connectionId);
-        seatByConnectionId.Remove(connectionId);
+        if (seatByConnectionId.Remove(connectionId, out var playerId))
+        {
+            onSeatDisconnected?.Invoke(playerId.Value);
+        }
+
         authority.ForgetConnection(connectionId);
     }
 

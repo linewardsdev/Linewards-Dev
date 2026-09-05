@@ -2,6 +2,21 @@
   "version": 1,
   "dependencies": {
     "net10.0": {
+      "com.playfab.csharpgsdk": {
+        "type": "Direct",
+        "requested": "[0.11.210519, )",
+        "resolved": "0.11.210519",
+        "contentHash": "HReZRBFbxXz2BxCk3+Xihq2tNTJtBefcI/ATpMUrUs5JqEhweByUIbUMPggQZaW352SyIJAM0jwmAJqGzAI1Rw==",
+        "dependencies": {
+          "Newtonsoft.Json": "11.0.2"
+        }
+      },
+      "Newtonsoft.Json": {
+        "type": "Direct",
+        "requested": "[13.0.3, )",
+        "resolved": "13.0.3",
+        "contentHash": "HrC5BXdl00IP9zeV+0Z848QWPAoCr9P3bDEZguI+gkLcBKAOxix/tLEAAHC+UvDNPv4a2d18lOReHMOagPa+zQ=="
+      },
       "ltw.simulation": {
         "type": "Project"
       }

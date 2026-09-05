@@ -1234,7 +1234,177 @@ works at all on a real device.
 
 ## MP-07: Operations
 
-**Owner:** Server. **Status:** nothing exists.
+**Owner:** Server. **Status:** the GSDK-integrated hosting mechanism itself is built and
+live-verified end to end (locally, via `LocalMultiplayerAgent`) on Azure PlayFab Multiplayer
+Servers (MPS), not a generic container host. Not yet done: the real PlayFab Game Manager portal
+setup, telemetry, the runbook, and abuse handling.
+
+### Why PlayFab Multiplayer Servers, not a generic Azure container host
+
+Work initially started toward a generic Azure Container Apps deployment (a resource group, an
+Azure Container Registry, a Log Analytics workspace — all since deleted) before recognizing PlayFab
+already has a purpose-built option for exactly this shape of workload. PlayFab is already this
+project's identity provider (`PlayFabSessionAuthority` server-side, `PlayFabSession`/
+`PlayFabLoginService` client-side), so MPS avoids standing up a second cloud relationship, and its
+free evaluation tier (750 Dasv4 core-hours/month, confirmed against Microsoft Learn docs as of
+2026-09-05) comfortably covers this project's current scale — no live population yet, one real
+device tested (see "Real iPad device test" under MP-06).
+
+The trade-off: this is not a drop-in swap. MPS's model — an ephemeral process per match, integrated
+via PlayFab's Game Server SDK (GSDK) — is the opposite of `LTW.MatchServer`'s existing shape (one
+process, always running, hosts arbitrarily many matches via `MatchRegistry`). The work is
+sequenced so the parts needing no PlayFab/Docker/cloud access land — and are `dotnet test`-verified
+— first, with live-verification-only work pushed as late as possible.
+
+### Landed 2026-09-05 — lifecycle fix and client-side plumbing, no live PlayFab MPS yet
+
+**A real, independent bug fix, found while designing around it:** a match that ended never
+actually stopped. `ServerMatch.RunLoopAsync`'s tick loop only checked a cancellation token — once
+`slice.MatchSummary` became non-null the only thing that happened was a one-time replay write; the
+loop kept ticking and broadcasting forever afterward. Fixed by canceling the loop's own token
+right after that replay write, letting the loop's existing `while` condition end it on its next
+iteration. `ServerMatch` now exposes `Completion` (a `Task` that resolves once the loop actually
+stops, from either this path or the existing manual `Stop()`), which MPS's GSDK integration will
+await to know when to exit the process. Also added: `ServerMatch` accepts optional
+`onSeatBound`/`onSeatDisconnected` delegates (plain BCL types, no GSDK reference) for MPS's
+eventual `GameserverSDK.UpdateConnectedPlayers` reporting; `MatchRegistry.CreateMatch` accepts an
+optional explicit `matchId` (so MPS can reuse PlayFab's own `SessionId` instead of minting a fresh
+one); `HttpMatchHost` accepts `allowMatchCreation: false` (so an MPS-hosted process, reachable at a
+real address for the life of one allocated match, can't have a second PlayFab-invisible match
+created on it via `POST /matches`). The `CreateMatchRequest` DTO moved out of `HttpMatchHost` into
+its own file so MPS's bootstrap can deserialize the identical JSON shape out of a PlayFab
+`SessionCookie` instead of an HTTP body. All covered by new tests in
+`tests/LTW.MatchServer.Tests/MatchServerIntegrationTests.cs` (dotnet test: 383/383 including
+these).
+
+**Client-side (`unity/LTW.UnityClient/Assets/Scripts/Online/OnlineMatchService.cs`)**: confirmed by
+reading the code that `MatchWireClient` already takes an arbitrary `Uri` and `ShellScreenView`'s
+two call sites only ever consume the returned `MatchWireClient?` — the entire client pivot is
+containable inside `OnlineMatchService.cs` alone, with zero changes needed elsewhere. Added a
+`OnlineMatchService.UseMultiplayerServers` toggle (default `false`): when false, behavior is
+byte-for-byte what it always was (direct-connect to `MatchServerConfig`'s known address) — this is
+deliberate, so ordinary local/LAN iteration (MP-06's whole rollout was tested this way) never needs
+a build uploaded to PlayFab or Docker running just to test gameplay changes. When true, a new
+`RequestServerAsync` calls PlayFab's `RequestMultiplayerServer` (via a `GetEntityToken` call first
+— PlayFab Multiplayer's REST API authenticates with an Entity Token, not the classic session
+ticket) with the same `{humanSeats, playFabSeats}` JSON as today's direct-create body, now carried
+in the `SessionCookie` field, and polls `GetMultiplayerServerDetails` until the allocation reaches
+`"Active"`. `JoinAsync` now takes an explicit `(host, port)` instead of reading `MatchServerConfig`
+implicitly; `RejoinAsync` persists and reuses that resolved address rather than ever calling
+`RequestMultiplayerServer` again — a match's server instance doesn't move during its life, so a
+rejoin (network hole, kill-and-relaunch) is just re-dialing the same address, exactly like today.
+New `MultiplayerServerConfig.cs` holds `BuildId`/`PreferredRegions`/`PortName` as placeholders until
+a real build is uploaded (see "Not yet done" below) — mirrors `PlayFabConfig.TitleId`'s own
+portal-sourced-constant shape. Verified via Unity batchmode compile only (0 `error CS`) — this
+cannot be functionally tested until a real PlayFab build exists to request a server from.
+
+**Containerization, built and live-verified 2026-09-05**: `src/LTW.MatchServer/Dockerfile`
+(multi-stage, `dotnet/sdk:10.0` → `dotnet/runtime:10.0` — not `aspnet:10.0`, since this is a
+console app on `HttpListener`/`WebSockets`, no ASP.NET Core) plus a repo-root `.dockerignore`. Once
+Docker was installed, built and ran cleanly: the "PlayFab not configured" degrade path works
+identically inside the container with no env vars set, `PlayFab configured: title FBC34` prints
+correctly with `PLAYFAB_TITLE_ID`/`PLAYFAB_SECRET_KEY` passed via `-e`, and a real create-match
+`POST` plus a real WebSocket join (receiving a genuine `welcome` message) both succeeded from the
+host across the Docker NAT boundary — the first real (non-loopback) network hop this project has
+exercised, directly chipping at MP-04's still-open "not provable here: a real network" note.
+
+**GSDK compatibility spike, done 2026-09-05 — both flagged unknowns resolved empirically**: added
+`com.playfab.csharpgsdk` 0.11.210519 to `LTW.MatchServer.csproj` (pinning `Newtonsoft.Json` to
+13.0.3 directly — the GSDK package's own transitive 11.0.2 has a known high-severity vulnerability,
+NU1903, that this project's restore treats as an error). Reflection against the installed package,
+then an actual local run with no PlayFab agent present, found:
+
+- The package **loads and runs cleanly on net10.0** — no `TypeLoadException`/
+  `MissingMethodException`/`BadImageFormatException`. Confirmed by actually calling
+  `GameserverSDK.RegisterShutdownCallback` (see below) and observing a clean, typed failure, not a
+  loader-level crash.
+- **The port to bind is not in `getConfigSettings()`'s string dictionary at all** — the docs never
+  named a key for it because there isn't one. It comes from
+  `GameserverSDK.GetGameServerConnectionInfo().GamePortsConfiguration`, a list of `GamePort` records
+  (`Name`, `ServerListeningPort` — what this process binds to — `ClientConnectionPort` — what
+  PlayFab reports back to a connecting client). This is available immediately after `Start()`,
+  unlike `SessionCookieKey`/`SessionIdKey`, which really are only populated post-allocation exactly
+  as documented.
+- `GameserverSDK.Start(bool debugLogs = false)` has a defaulted parameter, so the docs' own
+  parameterless `Start()` sample still compiles — a non-issue, checked directly.
+- **Initialization is lazy, triggered by the first GSDK API call touched at all** — not
+  specifically `Start()`. A local run with no agent config present threw
+  `GSDKInitializationException: GSDK file -  not found` from inside the very first
+  `RegisterShutdownCallback` call (registered before this code's own explicit `Start()`, per this
+  section's own ordering rule below) — the internal SDK initializes itself lazily on whichever
+  GSDK method is touched first, not necessarily the one that reads as "the" start call. Fails fast,
+  does not hang — safe to let it crash the process loudly rather than needing a guard.
+
+**Full GSDK integration, landed 2026-09-05 in `src/LTW.MatchServer/Program.cs`**: a new
+`LTW_MATCHSERVER_MODE` env var (`standalone`, default, unchanged behavior — confirmed identical via
+a real local run and a real create-match/join over it — or `mps`). The `mps` branch registers
+shutdown/health/maintenance callbacks before `Start()`, binds `HttpMatchHost` to the
+`GamePortsConfiguration` port found above with `allowMatchCreation: false`, awaits the documented
+blocking `ReadyForPlayers()` off the entry-point thread via `Task.Run`, then bootstraps the one
+match this process will ever host by deserializing the allocated `SessionCookie` into the shared
+`CreateMatchRequest` DTO (now `public`, not `internal` — the repo has no `InternalsVisibleTo`
+precedent, and this type has no reason to hide from the test assembly) and calling
+`registry.CreateMatch(..., matchId: sessionId)`. Seat bind/disconnect events feed
+`GameserverSDK.UpdateConnectedPlayers` (informational only — `AcceptWithPlayFabAsync` remains the
+real enforcement). The process awaits `Task.WhenAny(shutdownSignal, match.Completion)` and exits —
+its own exit is the only "I'm done" signal GSDK needs. Also added: a bootstrap log line
+(`GameserverSDK.LogMessage` + `Console.WriteLine`, so it reaches both a real deployment's zipped
+GSDK logs and local `docker logs`) recording the match id and join tokens — otherwise unobservable
+under MPS, since there's no HTTP create-response to read them from the way standalone mode has.
+
+**Live GSDK lifecycle verification, done 2026-09-05 via PlayFab's `LocalMultiplayerAgent` (LMA) —
+the full loop closes.** Built LMA from source for macOS/Apple Silicon (`PlayFab/MpsAgent`, official
+cross-platform support, "beta" on macOS) since Docker was already set up. Two local-environment
+snags, neither about this project's own code:
+
+- LMA's `MultiplayerSettingsValidator` throws if `OutputFolder` and `TitleId` are BOTH left empty
+  simultaneously (its own `SetDefaultsIfNotSpecified()`/validation ordering bug) — worked around by
+  setting both explicitly rather than relying on its auto-defaults.
+- LMA's Docker client **hardcodes** `unix:///var/run/docker.sock` and ignores `DOCKER_HOST`
+  entirely (confirmed by reading `DockerContainerEngine.cs` directly) — Docker Desktop for Mac's
+  real socket lives at `~/.docker/run/docker.sock`. Fixed via Docker Desktop's own "Allow the
+  default Docker socket to be used" setting (Settings → Advanced), which symlinks the default path
+  for you. A separate, real wrinkle worth remembering for Phase 5: LMA's `ContainerStartParameters`
+  has no field for custom container environment variables at all, so `LTW_MATCHSERVER_MODE=mps`
+  couldn't be injected via `MultiplayerSettings.json` — worked around locally with a one-line
+  throwaway image layer (`FROM ltw-matchserver:dev` + `ENV LTW_MATCHSERVER_MODE=mps`, discarded
+  after testing). The real PlayFab Game Manager build-upload flow may or may not expose a way to
+  set this env var directly — confirm during Phase 5; if it doesn't, the image built and uploaded
+  for the real MPS build should set it permanently in its own Dockerfile layer, since that image's
+  only purpose is running under MPS.
+
+With those worked around, the full lifecycle ran exactly as designed, end to end:
+`GameserverSDK.Start()` heartbeated successfully (`CurrentGameState: Active` in LMA's log —
+confirming allocation), `ReadyForPlayers()` unblocked, the bootstrap log line showed the match id
+came out **identical to the `SessionId` configured in the simulated allocation** (confirming the
+`matchId: sessionId` reuse design works), a real `ClientWebSocket` joined using the logged token
+and received a real `welcome`, the match played a real bot-heavy match out to a genuine
+`MatchEndedEvent`, and — the one thing this entire pivot most needed proof of — **the container
+exited on its own with exit code 0** immediately after, which LMA's own log confirms
+(`Container ... exited with exit code 0`) before it collected the container's logs and deleted it.
+Phase 0's lifecycle fix and Phase 3's GSDK integration are now verified working together, not just
+individually plausible.
+
+### Not yet done
+
+- **PlayFab Game Manager configuration** (title `FBC34`): enable "game client access" for
+  Multiplayer Servers (required for the client to call `RequestMultiplayerServer` directly), upload
+  the container image as a Build, pick a region + the smallest SKU fitting the free evaluation
+  allotment, record the real `BuildId`/port name into `MultiplayerServerConfig.cs`. Standby/max
+  server counts here are MP-07's actual cost-ceiling mechanism — config, not code.
+- **A known, accepted gap, not solved by this pass**: Azure can recycle the VM hosting an already-
+  allocated (live, in-match) server for maintenance (`GameserverSDK.RegisterMaintenanceCallback`
+  gives advance notice, but no in-match mitigation exists). MP-06's reconnect logic assumes the
+  same server process survives a network hole or kill-and-relaunch — it does not survive its own
+  process being recycled out from under a live match. Revisit if this is observed live.
+- Telemetry, the runbook, and abuse handling (this section's other three deliverables) have not
+  been started — existing replay infra (`LocalVerticalSlice.GetMatchReplayRecord`/
+  `MatchReplayRecord`, written by `ServerMatch.WriteReplayAsync` to `replays/{matchId}.json`,
+  replayable and proven equal by `tests/LTW.Tests/MatchReplayTests.cs`) is what the eventual
+  runbook builds on.
+- `com.playfab.csharpgsdk` is recorded in `docs/MVP_DEPENDENCIES.md`'s third-party dependency
+  table — a real new runtime dependency, unlike `PlayFabSessionAuthority`'s deliberate
+  hand-rolled-REST non-dependency.
 
 ### Deliverables
 
@@ -1251,7 +1421,11 @@ works at all on a real device.
 - [ ] A desync report can be reproduced from its replay by a second person using the runbook.
 - [ ] The monthly cost at ten times the observed population is known.
 
-**Estimate:** one week to stand up, then ongoing.
+**Estimate:** the hosting mechanism itself is built and live-verified end to end (locally, via
+`LocalMultiplayerAgent`) — what remains before these acceptance checks are even attemptable is
+Phase 5's PlayFab Game Manager portal work (real build upload, region/SKU/standby config) plus
+telemetry, the runbook, and abuse handling, none of which have been started. Once Phase 5 lands,
+these three checks become a matter of running the thing for real, not further engineering.
 
 ---
 

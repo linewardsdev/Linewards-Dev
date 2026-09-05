@@ -1,0 +1,11 @@
+# Keeps the LTW.MatchServer Docker build context (repo root — see its Dockerfile) small and
+# never lets local secrets leak into an image layer even by accident.
+**/bin/
+**/obj/
+.env.local
+.git/
+unity/
+replays/
+tests/
+docs/
+*.md

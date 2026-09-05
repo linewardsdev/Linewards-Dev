@@ -419,6 +419,110 @@ public sealed class MatchServerIntegrationTests : IAsyncLifetime
     }
 
     /// <summary>
+    /// Before this, a match that ended never actually stopped: the tick loop's own while
+    /// condition never checked <c>slice.MatchSummary</c>, so it kept ticking and broadcasting
+    /// forever once a match was over. MP-07's GSDK integration also needs the process to exit
+    /// once its one hosted match ends, which starts with the loop itself actually stopping — see
+    /// docs/MULTIPLAYER_ROLLOUT.md's MP-07.
+    /// </summary>
+    [Fact]
+    public async Task ServerMatch_completion_resolves_and_ticking_stops_once_the_match_ends()
+    {
+        var (matchId, tokens) = await CreateMatchAsync(new[] { 1 }, ticksPerSecond: 200);
+        var match = registry.Find(matchId);
+        Assert.NotNull(match);
+
+        using var seat1 = await JoinAsync(matchId, 1, tokens["1"]);
+        await ReceiveOfTypeAsync(seat1, "welcome");
+
+        var deadline = DateTime.UtcNow.AddSeconds(150);
+        var matchEnded = false;
+        while (DateTime.UtcNow < deadline)
+        {
+            var message = await ReceiveAsync(seat1, TimeSpan.FromSeconds(10));
+            if (!message.TryGetProperty("type", out var type) || type.GetString() != "tick")
+            {
+                continue;
+            }
+
+            if (message.GetProperty("events").EnumerateArray().Any(evt => evt.GetProperty("kind").GetString() == "MatchEndedEvent"))
+            {
+                matchEnded = true;
+                break;
+            }
+        }
+
+        Assert.True(matchEnded, "match never reached MatchEndedEvent");
+
+        var completed = await Task.WhenAny(match!.Completion, Task.Delay(TimeSpan.FromSeconds(5)));
+        Assert.Same(match.Completion, completed);
+        Assert.True(match.Completion.IsCompletedSuccessfully);
+    }
+
+    [Fact]
+    public void CreateMatch_reuses_an_explicit_matchId_when_given_one_and_mints_a_fresh_one_otherwise()
+    {
+        var explicitMatch = registry.CreateMatch(new[] { 1 }, matchId: "explicit-id");
+        Assert.Equal("explicit-id", explicitMatch.MatchId);
+        Assert.Same(explicitMatch, registry.Find("explicit-id"));
+
+        var mintedMatch = registry.CreateMatch(new[] { 1 });
+        Assert.NotEqual("explicit-id", mintedMatch.MatchId);
+        Assert.True(Guid.TryParseExact(mintedMatch.MatchId, "N", out _), $"expected a GUID-'N'-shaped id, got '{mintedMatch.MatchId}'");
+    }
+
+    [Fact]
+    public async Task HttpMatchHost_with_match_creation_disabled_rejects_create_but_still_allows_join()
+    {
+        // A separate host on its own port, sharing this test's registry — allowMatchCreation is a
+        // constructor-time choice on the host, not the registry, so the shared fixture's own
+        // (creation-enabled) host can't be reused for this.
+        var restrictedPort = FindFreePort();
+        var restrictedHost = new HttpMatchHost(registry, $"http://localhost:{restrictedPort}/", allowMatchCreation: false);
+        restrictedHost.Start();
+        try
+        {
+            using var client = new HttpClient();
+            var response = await client.PostAsync(
+                $"http://localhost:{restrictedPort}/matches",
+                new StringContent("{}", Encoding.UTF8, "application/json"));
+            Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+
+            // Creation is disabled on the HOST, not the registry itself — pre-register a match
+            // directly (as MP-07's GSDK bootstrap will) and confirm the join route still works.
+            var match = registry.CreateMatch(new[] { 1 });
+            var token = match.TokenFor(1)!;
+            using var socket = new ClientWebSocket();
+            await socket.ConnectAsync(new Uri($"ws://localhost:{restrictedPort}/matches/{match.MatchId}/join?seat=1&token={token}"), CancellationToken.None);
+            await ReceiveOfTypeAsync(socket, "welcome");
+        }
+        finally
+        {
+            restrictedHost.Stop();
+        }
+    }
+
+    /// <summary>
+    /// MP-07's GSDK bootstrap (<c>Program.cs</c>) deserializes a PlayFab <c>SessionCookie</c>
+    /// string into the exact same <see cref="CreateMatchRequest"/> shape
+    /// <see cref="HttpMatchHost.HandleCreateMatchAsync"/> deserializes its HTTP body into — a
+    /// plain xUnit test, no GSDK or PlayFab involved, pinning that shared contract.
+    /// </summary>
+    [Fact]
+    public void CreateMatchRequest_deserializes_from_a_SessionCookie_shaped_json_string()
+    {
+        var sessionCookie = "{\"humanSeats\":[1],\"ticksPerSecond\":200,\"playFabSeats\":{\"1\":\"some-playfab-id\"},\"openingBuildWindowSeconds\":5}";
+
+        var request = JsonSerializer.Deserialize<CreateMatchRequest>(sessionCookie, Json);
+
+        Assert.NotNull(request);
+        Assert.Equal(new List<int> { 1 }, request!.HumanSeats);
+        Assert.Equal(200, request.TicksPerSecond);
+        Assert.Equal("some-playfab-id", request.PlayFabSeats?[1]);
+        Assert.Equal(5, request.OpeningBuildWindowSeconds);
+    }
+
+    /// <summary>
     /// MP-06: a wire-based renderer cannot place a creep without this. Bots on the seven other
     /// lanes will send on their own within the first few ticks at real content's default economy,
     /// so this needs no scripted command — just enough ticks for that to happen.
