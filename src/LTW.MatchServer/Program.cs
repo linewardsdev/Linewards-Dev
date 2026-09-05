@@ -21,10 +21,15 @@ else
 }
 
 var registry = new MatchRegistry(replayDirectory, playFabAuthority);
-var host = new HttpMatchHost(registry, $"http://localhost:{port}/");
+// "+" (any host), not "localhost": a device on the same LAN sends a Host header naming the Mac's
+// own LAN IP, which HttpListener would otherwise refuse to match — found live testing against a
+// real iPad, which cannot reach "localhost" meaning itself. Binding to all interfaces is also
+// just what a real deployment (MP-07) needs anyway: a container's own loopback is never reachable
+// from outside it, so this was the right default to end up at, not a dev-only special case.
+var host = new HttpMatchHost(registry, $"http://+:{port}/");
 host.Start();
 
-Console.WriteLine($"LTW.MatchServer listening on http://localhost:{port}/");
+Console.WriteLine($"LTW.MatchServer listening on http://localhost:{port}/ (and any other interface)");
 Console.WriteLine("POST /matches  {\"humanSeats\":[1,2],\"playFabSeats\":{\"1\":\"<PlayFabId>\"}}");
 Console.WriteLine("GET  /matches/{id}/join?seat=N&token=T              (MP-04 join token)");
 Console.WriteLine("GET  /matches/{id}/join?seat=N&playFabTicket=T      (MP-05 PlayFab session ticket)");

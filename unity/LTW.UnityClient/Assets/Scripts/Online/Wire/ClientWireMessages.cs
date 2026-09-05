@@ -36,6 +36,11 @@ namespace LTW.UnityClient.Online.Wire
         public int Y { get; set; }
     }
 
+    /// <summary>
+    /// An immediate, all-or-nothing spend and spawn — rejected outright if the sender cannot
+    /// afford it right now. NOT what the real send-dock UI should use; see
+    /// <see cref="EnqueueSendMessage"/> for the actual send queue.
+    /// </summary>
     public sealed class QueueSendMessage : ClientCommandMessage
     {
         [JsonProperty("type")]
@@ -46,6 +51,23 @@ namespace LTW.UnityClient.Online.Wire
 
         [JsonProperty("quantity")]
         public int Quantity { get; set; } = 1;
+    }
+
+    /// <summary>
+    /// Adds one creep to the sender's send queue, drained by the simulation as gold becomes
+    /// available — what a real player's tap of a send-dock card means locally
+    /// (<c>UnityCommandAdapter.SendCreep</c>'s own remarks). Found missing live, testing a real
+    /// online match: <see cref="UnityCommandAdapter.SendCreep"/> sent <see cref="QueueSendMessage"/>
+    /// instead, so every online send silently failed the instant the sender could not afford it
+    /// immediately, instead of waiting like local play does.
+    /// </summary>
+    public sealed class EnqueueSendMessage : ClientCommandMessage
+    {
+        [JsonProperty("type")]
+        public string Type => "enqueueSend";
+
+        [JsonProperty("creepId")]
+        public string CreepId { get; set; } = "";
     }
 
     public sealed class BuyCategoryTierMessage : ClientCommandMessage

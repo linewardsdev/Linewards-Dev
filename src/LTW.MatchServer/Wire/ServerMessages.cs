@@ -106,6 +106,15 @@ public sealed class PlayerSnapshotDto
 
     /// <summary>Always PlayerEconomyState.CategoryCount (3) entries, index-aligned with the game's send categories.</summary>
     public int[] SendCategoryTiers { get; set; } = System.Array.Empty<int>();
+
+    /// <summary>
+    /// This seat's send queue, oldest first — ContentId values as strings. Was missing entirely
+    /// until a live test found it: <c>VerticalSliceSnapshot.SendQueues</c>'s own doc comment
+    /// already claimed the queue "arrives over the wire like gold and lives do", but nothing had
+    /// ever actually put it on this DTO, so a wire client's queue badge always read zero even
+    /// after a send was genuinely queued and later spawned.
+    /// </summary>
+    public string[] SendQueue { get; set; } = System.Array.Empty<string>();
 }
 
 public sealed class TowerSnapshotDto

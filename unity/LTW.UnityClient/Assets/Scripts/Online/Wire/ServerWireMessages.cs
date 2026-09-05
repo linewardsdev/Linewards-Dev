@@ -117,6 +117,10 @@ namespace LTW.UnityClient.Online.Wire
 
         [JsonProperty("sendCategoryTiers")]
         public int[] SendCategoryTiers { get; set; } = System.Array.Empty<int>();
+
+        /// <summary>This seat's send queue, oldest first — ContentId values as strings.</summary>
+        [JsonProperty("sendQueue")]
+        public string[] SendQueue { get; set; } = System.Array.Empty<string>();
     }
 
     public sealed class TowerSnapshotDto

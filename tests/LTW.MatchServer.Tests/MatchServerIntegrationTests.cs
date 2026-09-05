@@ -269,6 +269,54 @@ public sealed class MatchServerIntegrationTests : IAsyncLifetime
         Assert.NotNull(placedTowerAfterLive);
     }
 
+    /// <summary>
+    /// The bug a live online test found: the send-dock UI's real behavior is "queue this creep,
+    /// pay for it when affordable" (<c>LocalVerticalSlice.EnqueueSend</c>, no immediate gold
+    /// check), but the wire layer only ever had "queueSend" — an immediate, all-or-nothing
+    /// spend-and-spawn (<c>LocalVerticalSlice.QueueSend</c>) that rejects outright if the sender
+    /// cannot afford it right now. Every online send of anything not affordable on the spot
+    /// silently failed instead of waiting. Proves the fix directly: a fresh match starts with 100
+    /// gold (see LocalVerticalSlice's own player construction), the Siege Colossus costs 104 (see
+    /// SampleVerticalSliceContent), so an immediate "queueSend" for one would have been rejected —
+    /// "enqueueSend" must still be accepted, because it does not check affordability at all.
+    /// </summary>
+    [Fact]
+    public async Task Enqueue_send_accepts_a_creep_the_sender_cannot_yet_afford()
+    {
+        // The opening build window (see ServerMatch's own remarks) never calls AdvanceOneTick, so
+        // DrainSendQueues never runs either — a queued creep sits untouched for the window's whole
+        // duration regardless of gold. That is what makes this deterministic: outside the window,
+        // income (10/tick by default) clears the Colossus's 4-gold shortfall in a single tick at
+        // any real tick rate, so there is no reliable moment to observe "queued but not yet paid
+        // for" without either racing the drain or, as here, holding it off entirely.
+        var (matchId, tokens) = await CreateMatchAsync(new[] { 1 }, ticksPerSecond: 20, openingBuildWindowSeconds: 5);
+        using var seat1 = await JoinAsync(matchId, 1, tokens["1"]);
+        await ReceiveOfTypeAsync(seat1, "welcome");
+
+        await SendAsync(seat1, """{"type":"enqueueSend","id":"enqueue-colossus","creepId":"creep.colossus"}""");
+        var result = await ReceiveOfTypeAsync(seat1, "commandResult");
+        Assert.True(result.GetProperty("accepted").GetBoolean());
+
+        // The other half of the same live-test finding: even once the send genuinely queues
+        // server-side, a wire client had no data at all to show a queue badge from — PlayerSnapshotDto
+        // never carried it. Polls the same way the other tests here do, since this can land on a
+        // tick that arrives before or after the commandResult reply.
+        var deadline = DateTime.UtcNow.AddSeconds(4);
+        var sawQueuedColossus = false;
+        while (DateTime.UtcNow < deadline)
+        {
+            var tick = await ReceiveOfTypeAsync(seat1, "tick", TimeSpan.FromSeconds(5));
+            var player = tick.GetProperty("players").EnumerateArray().Single(p => p.GetProperty("playerId").GetInt32() == 1);
+            if (player.GetProperty("sendQueue").EnumerateArray().Any(entry => entry.GetString() == "creep.colossus"))
+            {
+                sawQueuedColossus = true;
+                break;
+            }
+        }
+
+        Assert.True(sawQueuedColossus, "the queued colossus never appeared in any tick's sendQueue");
+    }
+
     [Fact]
     public async Task An_invalid_join_token_is_refused()
     {

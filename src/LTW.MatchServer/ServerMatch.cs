@@ -23,14 +23,27 @@ namespace LTW.MatchServer;
 public sealed class ServerMatch
 {
     /// <summary>
-    /// The default, real-play pace — 10 ticks/second sits inside `ARCHITECTURE.md`'s own stated
-    /// 10-20 range. Overridable per match (see the constructor) purely for tests: a match that
-    /// takes minutes of wall-clock time to finish at real pace is still the right thing to run at
-    /// real pace in production, and the wrong thing to wait out in a test suite — MP-04's own
-    /// acceptance check ("runs to a result") is proven at a compressed rate instead, over the
-    /// same real WebSocket transport a real client would use.
+    /// The default, real-play pace — matches Unity's own shipped local single-player rate
+    /// (<c>UnitySimulationDriver</c>'s <c>ticksPerSecond</c> field, 4, never overridden by any
+    /// scene or prefab — confirmed by grepping every scene/prefab for its component GUID and
+    /// finding none, so the live value really is the script's compiled default).
     /// </summary>
-    private const double DefaultTicksPerSecond = 10;
+    /// <remarks>
+    /// Was 10 originally, picked from `ARCHITECTURE.md`'s aspirational "10 to 20 simulation ticks
+    /// per second" prototype target — which the actual shipped client never ended up running at.
+    /// Found live, testing a real match on a real iPad: the whole match (creep movement, income,
+    /// cooldowns, everything defined "per tick") played at 2.5x local's pace, because running the
+    /// identical simulation logic more often per real second makes it run everything faster in
+    /// real time, not just "more precisely" — a server tick rate is a pacing choice, not a free
+    /// precision upgrade over local play's rate.
+    ///
+    /// Overridable per match (see the constructor) purely for tests: a match that takes minutes
+    /// of wall-clock time to finish at real pace is still the right thing to run at real pace in
+    /// production, and the wrong thing to wait out in a test suite — MP-04's own acceptance check
+    /// ("runs to a result") is proven at a compressed rate instead, over the same real WebSocket
+    /// transport a real client would use.
+    /// </remarks>
+    internal const double DefaultTicksPerSecond = 4;
 
     /// <summary>
     /// How long a match sits at tick 0 accepting placement commands before the simulation clock
@@ -202,6 +215,7 @@ public sealed class ServerMatch
                 ChosenTowerLine = player.ChosenTowerLine,
                 TowerLineTiers = player.CopyTowerLineTiers(),
                 SendCategoryTiers = player.CopySendCategoryTiers(),
+                SendQueue = snapshot.SendQueueFor(player.PlayerId).Select(id => id.Value).ToArray(),
             }).ToList(),
             Towers = snapshot.Towers.Select(tower => new TowerSnapshotDto
             {
@@ -388,6 +402,9 @@ public sealed class ServerMatch
                     case "queueSend":
                         (result, commandId) = Handle(claimed, JsonSerializer.Deserialize<QueueSendMessage>(raw, json));
                         break;
+                    case "enqueueSend":
+                        (result, commandId) = Handle(claimed, JsonSerializer.Deserialize<EnqueueSendMessage>(raw, json));
+                        break;
                     case "buyCategoryTier":
                         (result, commandId) = Handle(claimed, JsonSerializer.Deserialize<BuyCategoryTierMessage>(raw, json));
                         break;
@@ -443,6 +460,17 @@ public sealed class ServerMatch
         }
 
         var result = slice.QueueSend(claimed, new ContentId(message.CreepId), message.Quantity);
+        return (result, message.Id);
+    }
+
+    private (VerticalSliceCommandResult, string?) Handle(PlayerId claimed, EnqueueSendMessage? message)
+    {
+        if (message is null)
+        {
+            return (VerticalSliceCommandResult.Reject(CommandRejectionReason.InvalidContentId), null);
+        }
+
+        var result = slice.EnqueueSend(claimed, new ContentId(message.CreepId));
         return (result, message.Id);
     }
 
