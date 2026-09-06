@@ -1385,13 +1385,44 @@ exited on its own with exit code 0** immediately after, which LMA's own log conf
 Phase 0's lifecycle fix and Phase 3's GSDK integration are now verified working together, not just
 individually plausible.
 
-### Not yet done
+### Phase 5 — PlayFab Game Manager configuration, in progress 2026-09-05
 
-- **PlayFab Game Manager configuration** (title `FBC34`): enable "game client access" for
-  Multiplayer Servers (required for the client to call `RequestMultiplayerServer` directly), upload
-  the container image as a Build, pick a region + the smallest SKU fitting the free evaluation
-  allotment, record the real `BuildId`/port name into `MultiplayerServerConfig.cs`. Standby/max
-  server counts here are MP-07's actual cost-ceiling mechanism — config, not code.
+Two things found while actually going through the portal flow (title `FBC34`), neither obvious
+from the docs alone:
+
+- **PlayFab provides its own free Azure Container Registry per account — no separate ACR needs to
+  be created or managed.** Confirmed directly from Microsoft's own Linux-build docs: "instead of
+  using a managed container image, you have to create and upload your container image to a
+  container registry. To make it easy for you to upload containers, your account comes with an
+  Azure container registry." Its credentials (hostname, username, password) are shown right on
+  Game Manager's **New build** page when **Linux** is selected. This corrects an earlier
+  assumption in this doc that a separate registry decision/provisioning step (recreating the
+  deleted `line-wards-prod` ACR, or picking an alternative like Docker Hub) would be needed —
+  it isn't.
+- **The free 750-Dasv4-core-hour evaluation tier is a *billing* concept, not an automatic *quota*
+  grant.** A brand-new title's default core quota is 16 Av2 cores + 8 Dv2 cores split across East
+  US/West US — **zero quota for Dasv4 in any region** until explicitly requested. Hit this live as
+  a save-blocking quota error when first trying to create a build. Fixed via Game Manager's
+  self-service **Multiplayer Servers → Quota Summary → Change Quota** flow: describe the request,
+  **+ Add change** for VM family **Dasv4** / region **East US**, request a small limit (8 cores is
+  plenty for a 1-standby/2-max beta config, well under the 24-core free-tier cap). Per PlayFab's
+  own docs, small requests like this are typically approved and provisioned immediately, unlike
+  large (1000+ core) requests, which need manual review. Quota request submitted; waiting on
+  approval before the build itself can be created.
+- `src/LTW.MatchServer/Dockerfile` gained a `MATCHSERVER_MODE` build arg (`ARG
+  MATCHSERVER_MODE=standalone` / `ENV LTW_MATCHSERVER_MODE=$MATCHSERVER_MODE`) — resolves the
+  earlier-flagged gap that PlayFab's build creation flow has no field for custom container
+  environment variables. Ordinary local `docker build` (Phase 1's smoke test, future debugging)
+  needs no extra flags and still defaults to standalone mode; the real deployment image is built
+  with `--build-arg MATCHSERVER_MODE=mps` so it comes up in MPS mode by default, since that image's
+  only purpose is running under a real GSDK agent.
+
+Still to do once the quota is approved and a build exists: push the MPS-mode image to the
+provided registry, finish the build form (port named `game`/5117/TCP, region East US, standby/max
+counts), enable "game client access" for Multiplayer Servers so the client can call
+`RequestMultiplayerServer` directly, and record the resulting `BuildId` into
+`MultiplayerServerConfig.cs`.
+
 - **A known, accepted gap, not solved by this pass**: Azure can recycle the VM hosting an already-
   allocated (live, in-match) server for maintenance (`GameserverSDK.RegisterMaintenanceCallback`
   gives advance notice, but no in-match mitigation exists). MP-06's reconnect logic assumes the
@@ -1405,6 +1436,35 @@ individually plausible.
 - `com.playfab.csharpgsdk` is recorded in `docs/MVP_DEPENDENCIES.md`'s third-party dependency
   table — a real new runtime dependency, unlike `PlayFabSessionAuthority`'s deliberate
   hand-rolled-REST non-dependency.
+
+### Estimated cost, 2026-09-05 — pre-Phase-5, replace with real billing data once live
+
+Worked out before any real PlayFab build exists, to sanity-check the free tier actually covers
+this project's near-term scale before spending time on Phase 5's portal setup. **Not a quote** —
+PlayFab's exact per-core-hour consumption rate for the Dasv4 family isn't published as static,
+fetchable text (it's a JS-rendered pricing table); the one confirmed source
+([Billing for PlayFab Multiplayer Servers 2.0](https://learn.microsoft.com/en-us/xbox/playfab/multiplayer/servers/billing-for-thunderhead))
+gives the free allotment and egress rate, not the overage rate. Overage figures below are anchored
+to Azure's own published raw Dasv4 IaaS pricing (~$0.048/core-hour for a 1-core VM) as a floor —
+PlayFab's managed rate is likely somewhat higher.
+
+Confirmed: **750 Dasv4 core-hours/month free in East US**, up to 24 simultaneous cores, 10GB free
+egress (then $0.05/GB in East US). The architecture this session landed — one `LTW.MatchServer`
+process per match under MPS, exiting when the match ends (see "Landed 2026-09-05" above) — means
+cost tracks (standby VMs kept warm) + (VM-hours actually running matches), not shared server
+capacity.
+
+For a 10-person beta on a 1-core VM, over a month:
+
+| Posture | Core-hours/month | Within free tier? | Estimated cost |
+| --- | --- | --- | --- |
+| No standby — allocate on demand (slower join, no pre-warmed server) | ~50 (10 testers × ~5 matches/week × ~15 min × 4 weeks) | Yes, with wide margin | **$0** |
+| 1 standby server kept warm 24/7 (faster, more consistent join) | ~720 (standby alone) + ~50 (play) ≈ 770 | No — ~20 hours over | **~$1–5** (overage estimate only) |
+
+Egress is a non-factor at this population — a tower-defense wire protocol's traffic per client is
+tiny relative to the 10GB free allotment. **Bottom line: a 10-person beta is realistically $0–$5/
+month**, dominated by whether a server is kept warm for responsiveness, not by actual play volume.
+Replace this whole section with real billing data once Phase 5's build is live for a full month.
 
 ### Deliverables
 
