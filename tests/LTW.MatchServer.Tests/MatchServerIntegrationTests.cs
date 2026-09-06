@@ -459,6 +459,25 @@ public sealed class MatchServerIntegrationTests : IAsyncLifetime
         Assert.True(match.Completion.IsCompletedSuccessfully);
     }
 
+    /// <summary>
+    /// docs/SECURITY_AUDIT_2026-09-05.md's H4: before RunLoopAsync's own try/finally existed,
+    /// Stop() canceling while the loop was mid-await threw OperationCanceledException straight out
+    /// of the fire-and-forget tick-loop task, skipping Completion's TrySetResult entirely and
+    /// contradicting Stop's own doc comment that Completion resolves either way. This is exactly
+    /// the coverage gap the audit itself flagged as missing.
+    /// </summary>
+    [Fact]
+    public async Task ServerMatch_completion_resolves_when_Stop_is_called_directly()
+    {
+        var match = registry.CreateMatch(new[] { 1 }, ticksPerSecond: 4);
+
+        match.Stop();
+
+        var completed = await Task.WhenAny(match.Completion, Task.Delay(TimeSpan.FromSeconds(5)));
+        Assert.Same(match.Completion, completed);
+        Assert.True(match.Completion.IsCompletedSuccessfully);
+    }
+
     [Fact]
     public void CreateMatch_reuses_an_explicit_matchId_when_given_one_and_mints_a_fresh_one_otherwise()
     {
@@ -503,6 +522,162 @@ public sealed class MatchServerIntegrationTests : IAsyncLifetime
     }
 
     /// <summary>
+    /// docs/SECURITY_AUDIT_2026-09-05.md's M3: standalone mode's create-secret gate. Null (every
+    /// other test's host) preserves today's open behavior; a host actually configured with a
+    /// secret must reject a request that omits or gets it wrong, and accept one that matches.
+    /// </summary>
+    [Fact]
+    public async Task HttpMatchHost_with_a_create_secret_configured_requires_a_matching_header()
+    {
+        const string secret = "test-secret";
+        var restrictedPort = FindFreePort();
+        var restrictedHost = new HttpMatchHost(registry, $"http://localhost:{restrictedPort}/", createSecret: secret);
+        restrictedHost.Start();
+        try
+        {
+            using var client = new HttpClient();
+            var body = new StringContent("{\"humanSeats\":[1]}", Encoding.UTF8, "application/json");
+            var withoutSecret = await client.PostAsync($"http://localhost:{restrictedPort}/matches", body);
+            Assert.Equal(HttpStatusCode.Unauthorized, withoutSecret.StatusCode);
+
+            using var wrongRequest = new HttpRequestMessage(HttpMethod.Post, $"http://localhost:{restrictedPort}/matches")
+            {
+                Content = new StringContent("{\"humanSeats\":[1]}", Encoding.UTF8, "application/json"),
+            };
+            wrongRequest.Headers.Add("X-Match-Create-Secret", "wrong");
+            var withWrongSecret = await client.SendAsync(wrongRequest);
+            Assert.Equal(HttpStatusCode.Unauthorized, withWrongSecret.StatusCode);
+
+            using var rightRequest = new HttpRequestMessage(HttpMethod.Post, $"http://localhost:{restrictedPort}/matches")
+            {
+                Content = new StringContent("{\"humanSeats\":[1]}", Encoding.UTF8, "application/json"),
+            };
+            rightRequest.Headers.Add("X-Match-Create-Secret", secret);
+            var withRightSecret = await client.SendAsync(rightRequest);
+            Assert.Equal(HttpStatusCode.OK, withRightSecret.StatusCode);
+        }
+        finally
+        {
+            restrictedHost.Stop();
+        }
+    }
+
+    /// <summary>
+    /// docs/SECURITY_AUDIT_2026-09-05.md's M3: before this cap existed, unauthenticated
+    /// <c>POST /matches</c> calls could grow a standalone process's match count (each with its own
+    /// bot-vs-bot tick loop) without limit.
+    /// </summary>
+    [Fact]
+    public void MatchRegistry_refuses_to_exceed_its_configured_concurrent_match_cap()
+    {
+        var boundedRegistry = new MatchRegistry(replayDirectory, maxConcurrentMatches: 2);
+        boundedRegistry.CreateMatch(new[] { 1 });
+        boundedRegistry.CreateMatch(new[] { 1 });
+
+        Assert.Throws<InvalidOperationException>(() => boundedRegistry.CreateMatch(new[] { 1 }));
+    }
+
+    /// <summary>
+    /// docs/SECURITY_AUDIT_2026-09-05.md's M3: MatchRegistry never removed a finished match before
+    /// this fix — <see cref="MatchRegistry.Find"/> would keep resolving it, and its sockets stayed
+    /// open, forever.
+    /// </summary>
+    [Fact]
+    public async Task Match_is_evicted_from_the_registry_once_it_ends()
+    {
+        var match = registry.CreateMatch(new[] { 1 }, ticksPerSecond: 200);
+        var token = match.TokenFor(1)!;
+        using var seat1 = await JoinAsync(match.MatchId, 1, token);
+        await ReceiveOfTypeAsync(seat1, "welcome");
+
+        match.Stop();
+        await match.Completion;
+
+        // Eviction runs as a continuation of Completion, not synchronously with it resolving —
+        // give it a moment, same as any other fire-and-forget cleanup in this codebase.
+        var deadline = DateTime.UtcNow.AddSeconds(5);
+        while (registry.Find(match.MatchId) is not null && DateTime.UtcNow < deadline)
+        {
+            await Task.Delay(50);
+        }
+
+        Assert.Null(registry.Find(match.MatchId));
+
+        var result = await seat1.ReceiveAsync(new byte[16], CancellationToken.None);
+        Assert.Equal(WebSocketMessageType.Close, result.MessageType);
+    }
+
+    /// <summary>
+    /// docs/SECURITY_AUDIT_2026-09-05.md's M5: without a join rate limit, every join attempt with
+    /// any <c>playFabTicket</c> — garbage or not — triggers a real, quota-limited PlayFab
+    /// <c>AuthenticateSessionTicket</c> call. This proves the limit actually engages per address
+    /// rather than merely existing in code.
+    /// </summary>
+    [Fact]
+    public async Task Excess_join_attempts_from_one_address_are_rejected_with_429()
+    {
+        var restrictedPort = FindFreePort();
+        var restrictedHost = new HttpMatchHost(registry, $"http://localhost:{restrictedPort}/");
+        restrictedHost.Start();
+        try
+        {
+            var match = registry.CreateMatch(new[] { 1 });
+            var token = match.TokenFor(1)!;
+            var sawTooManyRequests = false;
+            for (var i = 0; i < 25 && !sawTooManyRequests; i++)
+            {
+                // Each successful connect simply rebinds seat 1 (evicting the previous connection
+                // — already-proven behavior, see Rejoining_a_seat_evicts... above), so this loop
+                // never runs out of legitimate ways to reach the join handler.
+                using var socket = new ClientWebSocket();
+                try
+                {
+                    await socket.ConnectAsync(new Uri($"ws://localhost:{restrictedPort}/matches/{match.MatchId}/join?seat=1&token={token}"), CancellationToken.None);
+                }
+                catch (WebSocketException exception) when (exception.Message.Contains("429"))
+                {
+                    sawTooManyRequests = true;
+                }
+            }
+
+            Assert.True(sawTooManyRequests, "expected at least one join attempt to be rate-limited");
+        }
+        finally
+        {
+            restrictedHost.Stop();
+        }
+    }
+
+    /// <summary>
+    /// docs/SECURITY_AUDIT_2026-09-05.md's H1: the receive loop used to accumulate frames into an
+    /// unbounded MemoryStream — any client holding a valid token could send one multi-gigabyte
+    /// message and OOM the process. This proves the cap actually closes the connection rather than
+    /// buffering it, and that doing so doesn't take the rest of the match down with it.
+    /// </summary>
+    [Fact]
+    public async Task Oversized_inbound_message_closes_the_connection_instead_of_being_buffered()
+    {
+        var (matchId, tokens) = await CreateMatchAsync(new[] { 1, 2 });
+        using var seat1 = await JoinAsync(matchId, 1, tokens["1"]);
+        await ReceiveOfTypeAsync(seat1, "welcome");
+
+        // Comfortably past HttpMatchHost's 16KB cap, wrapped as a syntactically plausible frame so
+        // this is really testing the size cap, not just malformed JSON.
+        var oversized = $"{{\"type\":\"placeTower\",\"towerId\":\"{new string('a', 20 * 1024)}\"}}";
+        await SendAsync(seat1, oversized);
+
+        var buffer = new byte[16];
+        var result = await seat1.ReceiveAsync(buffer, CancellationToken.None);
+        Assert.Equal(WebSocketMessageType.Close, result.MessageType);
+        Assert.Equal(WebSocketCloseStatus.MessageTooBig, seat1.CloseStatus);
+
+        // The rest of the match (and the process) must still be alive — an unrelated seat can
+        // still join the same match normally right after.
+        using var seat2 = await JoinAsync(matchId, 2, tokens["2"]);
+        await ReceiveOfTypeAsync(seat2, "welcome");
+    }
+
+    /// <summary>
     /// MP-07's GSDK bootstrap (<c>Program.cs</c>) deserializes a PlayFab <c>SessionCookie</c>
     /// string into the exact same <see cref="CreateMatchRequest"/> shape
     /// <see cref="HttpMatchHost.HandleCreateMatchAsync"/> deserializes its HTTP body into — a
@@ -520,6 +695,64 @@ public sealed class MatchServerIntegrationTests : IAsyncLifetime
         Assert.Equal(200, request.TicksPerSecond);
         Assert.Equal("some-playfab-id", request.PlayFabSeats?[1]);
         Assert.Equal(5, request.OpeningBuildWindowSeconds);
+    }
+
+    /// <summary>
+    /// Before CreateMatchRequestValidator existed, this seat bound fine and only failed the
+    /// moment it sent an economy command (a `KeyNotFoundException` deep inside the slice). See
+    /// docs/SECURITY_AUDIT_2026-09-05.md's M1.
+    /// </summary>
+    [Fact]
+    public async Task POST_matches_rejects_an_out_of_range_seat()
+    {
+        using var client = new HttpClient();
+        var body = JsonSerializer.Serialize(new { humanSeats = new[] { 999 } }, Json);
+        var response = await client.PostAsync(
+            $"http://localhost:{port}/matches",
+            new StringContent(body, Encoding.UTF8, "application/json"));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    /// <summary>
+    /// Before CreateMatchRequestValidator existed, `ticksPerSecond: 0` reached
+    /// `PeriodicTimer`'s constructor and threw `OverflowException` inside the tick loop's own
+    /// background task — after the caller already had a 200 response with real join tokens for a
+    /// match that could never actually run. See docs/SECURITY_AUDIT_2026-09-05.md's M1.
+    /// </summary>
+    [Fact]
+    public async Task POST_matches_rejects_a_ticksPerSecond_of_zero()
+    {
+        using var client = new HttpClient();
+        var body = JsonSerializer.Serialize(new { humanSeats = new[] { 1 }, ticksPerSecond = 0 }, Json);
+        var response = await client.PostAsync(
+            $"http://localhost:{port}/matches",
+            new StringContent(body, Encoding.UTF8, "application/json"));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    /// <summary>
+    /// Before this fix, an omitted `towerId` (defaulting to `""`) reached `ContentId`'s own
+    /// constructor, which throws `ArgumentException` — uncaught inside `DispatchAsync`, which
+    /// ReceiveLoopAsync only guarded against `WebSocketException`, silently orphaning the
+    /// connection (no error, no close, no more ticks). See docs/SECURITY_AUDIT_2026-09-05.md's M2.
+    /// </summary>
+    [Fact]
+    public async Task Malformed_command_message_receives_an_error_instead_of_orphaning_the_connection()
+    {
+        var (matchId, tokens) = await CreateMatchAsync(new[] { 1 });
+        using var seat1 = await JoinAsync(matchId, 1, tokens["1"]);
+        await ReceiveOfTypeAsync(seat1, "welcome");
+
+        await SendAsync(seat1, """{"type":"placeTower","id":"bad","laneId":1,"x":2,"y":14}""");
+        var error = await ReceiveOfTypeAsync(seat1, "error");
+        Assert.False(string.IsNullOrEmpty(error.GetProperty("message").GetString()));
+
+        // The connection must still be alive and dispatching normally afterward.
+        await SendAsync(seat1, """{"type":"placeTower","id":"good","laneId":1,"towerId":"tower.arrow","x":2,"y":14}""");
+        var result = await ReceiveOfTypeAsync(seat1, "commandResult");
+        Assert.Equal("good", result.GetProperty("id").GetString());
     }
 
     /// <summary>
@@ -616,5 +849,28 @@ public sealed class MatchServerIntegrationTests : IAsyncLifetime
         using var socket = new ClientWebSocket();
         await Assert.ThrowsAsync<WebSocketException>(() =>
             socket.ConnectAsync(new Uri($"ws://localhost:{port}/matches/current/join?seat=1&token=irrelevant"), CancellationToken.None));
+    }
+
+    /// <summary>
+    /// docs/SECURITY_AUDIT_2026-09-05.md's L5: <see cref="HttpMatchHost"/> did not implement
+    /// <see cref="IDisposable"/> before this fix. <see cref="ServerMatch"/>'s own disposal is
+    /// exercised, unobserved, as part of <see cref="Match_is_evicted_from_the_registry_once_it_ends"/>'s
+    /// eviction — this covers <see cref="HttpMatchHost"/> directly, including with a connection
+    /// still live when Dispose runs.
+    /// </summary>
+    [Fact]
+    public async Task HttpMatchHost_disposes_without_throwing()
+    {
+        var restrictedPort = FindFreePort();
+        var restrictedHost = new HttpMatchHost(registry, $"http://localhost:{restrictedPort}/");
+        restrictedHost.Start();
+
+        var match = registry.CreateMatch(new[] { 1 });
+        var token = match.TokenFor(1)!;
+        using var socket = new ClientWebSocket();
+        await socket.ConnectAsync(new Uri($"ws://localhost:{restrictedPort}/matches/{match.MatchId}/join?seat=1&token={token}"), CancellationToken.None);
+        await ReceiveOfTypeAsync(socket, "welcome");
+
+        restrictedHost.Dispose();
     }
 }

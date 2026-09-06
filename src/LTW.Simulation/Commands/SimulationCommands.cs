@@ -181,19 +181,3 @@ public sealed class BuyTechCommand : ISimulationCommand
 
     public ContentId TechId { get; }
 }
-
-public sealed class PauseSimulationCommand : ISimulationCommand
-{
-    public PauseSimulationCommand(PlayerId playerId, SimulationTick requestedTick, bool isPaused)
-    {
-        PlayerId = playerId;
-        RequestedTick = requestedTick;
-        IsPaused = isPaused;
-    }
-
-    public PlayerId PlayerId { get; }
-
-    public SimulationTick RequestedTick { get; }
-
-    public bool IsPaused { get; }
-}

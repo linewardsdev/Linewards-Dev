@@ -72,22 +72,6 @@ public sealed class TowerSoldEvent : ISimulationEvent
     public Gold Refund { get; }
 }
 
-public sealed class TechPurchasedEvent : ISimulationEvent
-{
-    public TechPurchasedEvent(SimulationTick tick, PlayerId playerId, ContentId techId)
-    {
-        Tick = tick;
-        PlayerId = playerId;
-        TechId = techId;
-    }
-
-    public SimulationTick Tick { get; }
-
-    public PlayerId PlayerId { get; }
-
-    public ContentId TechId { get; }
-}
-
 /// <summary>
 /// A player bought a new tier for one of their categories.
 /// </summary>

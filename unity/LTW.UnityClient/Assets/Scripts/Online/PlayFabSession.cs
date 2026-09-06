@@ -1,5 +1,6 @@
 #nullable enable
 
+using PlayFab;
 using UnityEngine;
 
 namespace LTW.UnityClient.Online
@@ -79,6 +80,17 @@ namespace LTW.UnityClient.Online
             PlayFabId = playFabId;
             SessionTicket = sessionTicket;
             IsSignedIn = true;
+
+            // Without this, every PlayFab call this class's own fields LOOK ready for actually
+            // fails: the vendored SDK decides its own auth type per-call from
+            // PlayFabSettings.staticPlayer.IsClientLoggedIn() (true only once ClientSessionTicket
+            // is set here), not from anything on this class. GetEntityToken — the first call MP-07's
+            // MPS path makes — would silently send no auth header at all and PlayFab would reject
+            // it, with no ForgetOnAuthFailure() call anywhere in that failure's path: a restored
+            // player would be stuck reading SIGNED IN while every online action failed, with no way
+            // back to SIGN IN WITH GOOGLE. See docs/SECURITY_AUDIT_2026-09-05.md's M-C4.
+            PlayFabSettings.staticPlayer.ClientSessionTicket = sessionTicket;
+            PlayFabSettings.staticPlayer.PlayFabId = playFabId;
             return true;
         }
 

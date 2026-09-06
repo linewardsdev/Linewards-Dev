@@ -2,6 +2,10 @@
 
 This document outlines the security architecture, threat model, and defense strategies for Line Wards (LTW), covering the transition from the offline MVP to authoritative online play.
 
+See `docs/SECURITY_AUDIT_2026-09-05.md` for a dated, line-level audit of the actual current code
+against this doc's own mitigation claims — several are aspirational rather than built yet (noted
+inline below where the audit found a gap).
+
 ## Architectural Context
 
 LTW separates match execution into three distinct layers:
@@ -70,6 +74,9 @@ Because security in competitive mobile games rests on **strict server authority*
 
 ### Mitigation Strategy
 * **Transport Encryption**: All client-server traffic uses TLS / WSS / QUIC encryption.
+  *Status 2026-09-05:* not yet true — `LTW.MatchServer` is plain `http://`/`ws://` today (dev/LAN
+  infrastructure pending real hosting), and the PlayFab session ticket travels in the join URL's
+  query string in cleartext. See `docs/SECURITY_AUDIT_2026-09-05.md`'s H5.
 * **Input Rate Limiting**: The match host rate-limits input packets per seat per tick, silently dropping flood attempts before they touch `LTW.Simulation`.
   *Status 2026-08-08:* partly built, and in a different place than this sentence describes.
   `ICommandRateLimiter` and a per-seat token bucket exist **inside** `LTW.Simulation`

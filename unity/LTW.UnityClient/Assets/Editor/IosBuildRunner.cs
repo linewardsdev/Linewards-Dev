@@ -70,7 +70,7 @@ namespace LTW.UnityClient.Editor
             }
 
             ApplyIdentityOverrides();
-            ApplyInsecureHttpOverride();
+            var restoreInsecureHttp = ApplyInsecureHttpOverride();
 
             var sdk = ReadArgument("-ltwSdk") ?? "device";
             PlayerSettings.iOS.sdkVersion = sdk.Equals("simulator", StringComparison.OrdinalIgnoreCase)
@@ -112,6 +112,7 @@ namespace LTW.UnityClient.Editor
             finally
             {
                 RestoreMsaa(restoreMsaa);
+                RestoreInsecureHttpOverride(restoreInsecureHttp);
             }
 
             var summary = report.summary;
@@ -166,6 +167,12 @@ namespace LTW.UnityClient.Editor
 
         /// <summary>
         /// Opts into cleartext HTTP/WS for LAN-testing builds — pass <c>-ltwAllowInsecureHttp 1</c>.
+        /// Returns the PRE-override value of <c>allowHTTPDownload</c> so the caller can restore it
+        /// after the build, the same way <see cref="SuppressMsaaForSimulator"/>'s own snapshot is
+        /// restored — without that, this App Store review flag could survive into the committed
+        /// `ProjectSettings.asset` the next time anything calls `AssetDatabase.SaveAssets()` (this
+        /// runner's own simulator-architecture and MSAA paths both do). See
+        /// docs/SECURITY_AUDIT_2026-09-05.md's L2.
         /// </summary>
         /// <remarks>
         /// iOS's App Transport Security refuses any plain "http://"/"ws://" request by default,
@@ -178,16 +185,44 @@ namespace LTW.UnityClient.Editor
         /// exists purely so a LAN-IP dev build (see MatchServerConfig's own remarks) can be tested
         /// on a real device before that infrastructure exists.
         /// </remarks>
-        private static void ApplyInsecureHttpOverride()
+        private static bool ApplyInsecureHttpOverride()
         {
+            var original = PlayerSettings.iOS.allowHTTPDownload;
             var flag = ReadArgument("-ltwAllowInsecureHttp");
-            if (string.IsNullOrWhiteSpace(flag) || flag == "0")
+            if (string.IsNullOrWhiteSpace(flag))
+            {
+                return original;
+            }
+
+            // Strict, not "anything but exactly '0'" — that previous check meant "false"/"no"/
+            // "off"/any typo all silently ENABLED this hole in App Transport Security, the wrong
+            // failure direction for a flag guarding a security setting. See L2's own citation.
+            if (flag != "0" && flag != "1")
+            {
+                Debug.LogWarning($"IOS BUILD: unrecognized -ltwAllowInsecureHttp value '{flag}' — leaving allowHTTPDownload unchanged. Pass exactly '1' to enable it.");
+                return original;
+            }
+
+            if (flag == "1")
+            {
+                PlayerSettings.iOS.allowHTTPDownload = true;
+                Debug.Log("IOS BUILD: allowHTTPDownload enabled (NSAllowsArbitraryLoads) — dev/LAN testing only, do not ship this.");
+            }
+
+            return original;
+        }
+
+        /// <summary>Undoes <see cref="ApplyInsecureHttpOverride"/> — see its own remarks.</summary>
+        private static void RestoreInsecureHttpOverride(bool original)
+        {
+            if (PlayerSettings.iOS.allowHTTPDownload == original)
             {
                 return;
             }
 
-            PlayerSettings.iOS.allowHTTPDownload = true;
-            Debug.Log("IOS BUILD: allowHTTPDownload enabled (NSAllowsArbitraryLoads) — dev/LAN testing only, do not ship this.");
+            PlayerSettings.iOS.allowHTTPDownload = original;
+            AssetDatabase.SaveAssets();
+            Debug.Log("IOS BUILD: allowHTTPDownload restored.");
         }
 
         /// <summary>

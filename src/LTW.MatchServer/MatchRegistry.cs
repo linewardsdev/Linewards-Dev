@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Linq;
 using LTW.Simulation.Bridge;
 using LTW.Simulation.Content;
@@ -11,11 +12,27 @@ namespace LTW.MatchServer;
 /// players to use directly. See docs/MULTIPLAYER_ROLLOUT.md's MP-05 for where matchmaking and
 /// real identity belong instead.
 /// </summary>
+/// <remarks>
+/// <see cref="matches"/> is a <see cref="ConcurrentDictionary{TKey,TValue}"/>, not a plain
+/// <see cref="Dictionary{TKey,TValue}"/>: standalone mode's <c>POST /matches</c> can be called
+/// concurrently by multiple in-flight HTTP requests, and a plain dictionary offers no thread
+/// safety for concurrent inserts. See docs/SECURITY_AUDIT_2026-09-05.md's M3.
+/// </remarks>
 public sealed class MatchRegistry
 {
-    private readonly Dictionary<string, ServerMatch> matches = new();
+    /// <summary>
+    /// A generous ceiling, not a product decision — standalone mode has no accounts and no cost
+    /// model of its own (see this class's own remarks), so nothing else bounds how many matches
+    /// one process ends up holding. Without this, unauthenticated <c>POST /matches</c> calls alone
+    /// could grow this dictionary, its bot-vs-bot tick loops, and its sockets without limit. See
+    /// docs/SECURITY_AUDIT_2026-09-05.md's M3.
+    /// </summary>
+    public const int DefaultMaxConcurrentMatches = 200;
+
+    private readonly ConcurrentDictionary<string, ServerMatch> matches = new();
     private readonly ContentCatalog content = SampleVerticalSliceContent.Create();
     private readonly string replayDirectory;
+    private readonly int maxConcurrentMatches;
 
     /// <summary>
     /// Shared across every match this process hosts — stateless besides its own HttpClient and
@@ -26,10 +43,11 @@ public sealed class MatchRegistry
     /// </summary>
     private readonly LTW.MatchServer.PlayFab.PlayFabSessionAuthority? playFabAuthority;
 
-    public MatchRegistry(string replayDirectory, LTW.MatchServer.PlayFab.PlayFabSessionAuthority? playFabAuthority = null)
+    public MatchRegistry(string replayDirectory, LTW.MatchServer.PlayFab.PlayFabSessionAuthority? playFabAuthority = null, int maxConcurrentMatches = DefaultMaxConcurrentMatches)
     {
         this.replayDirectory = replayDirectory;
         this.playFabAuthority = playFabAuthority;
+        this.maxConcurrentMatches = maxConcurrentMatches;
     }
 
     /// <summary>
@@ -55,6 +73,11 @@ public sealed class MatchRegistry
         Action<int, LTW.Simulation.Primitives.PlayerId>? onSeatBound = null,
         Action<int>? onSeatDisconnected = null)
     {
+        if (matches.Count >= maxConcurrentMatches)
+        {
+            throw new InvalidOperationException($"this process already hosts the maximum of {maxConcurrentMatches} concurrent matches.");
+        }
+
         // Null means "mint a fresh id" (every caller today). MP-07's GSDK path passes PlayFab's
         // own SessionId in instead, so a process hosting exactly one match under PlayFab
         // Multiplayer Servers reuses the id the client already generated — see
@@ -84,11 +107,28 @@ public sealed class MatchRegistry
             ticksPerSecond ?? ServerMatch.DefaultTicksPerSecond,
             playFabIdBySeat,
             playFabAuthority,
-            openingBuildWindowSeconds ?? 30,
+            openingBuildWindowSeconds ?? ServerMatch.DefaultOpeningBuildWindowSeconds,
             onSeatBound,
             onSeatDisconnected);
         matches[resolvedMatchId] = match;
         match.Start();
+
+        // Standalone mode has no other end-of-life hook for a match: MPS mode instead exits the
+        // whole process once Completion resolves (Program.cs's own Task.WhenAny), which frees
+        // everything by itself. Without this, a finished standalone match kept its slice, its
+        // sockets, and its dictionary entry forever — MatchRegistry never removed anything. See
+        // docs/SECURITY_AUDIT_2026-09-05.md's M3.
+        _ = match.Completion.ContinueWith(async completedTask =>
+        {
+            await match.CloseAllConnectionsAsync();
+            matches.TryRemove(resolvedMatchId, out _);
+
+            // Only safe here: after this, nothing can look this match up through the registry to
+            // reach matchLock again. See ServerMatch.Dispose's own remarks and
+            // docs/SECURITY_AUDIT_2026-09-05.md's L5.
+            match.Dispose();
+        }, TaskScheduler.Default).Unwrap();
+
         return match;
     }
 

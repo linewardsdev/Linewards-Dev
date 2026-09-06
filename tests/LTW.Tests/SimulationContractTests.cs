@@ -71,6 +71,34 @@ public sealed class SimulationContractTests
         Assert.Equal(CommandRejectionReason.UnknownTech, unknownTech.RejectionReason);
     }
 
+    /// <summary>
+    /// docs/SECURITY_AUDIT_2026-09-05.md's C1: an unbounded quantity reaches
+    /// EconomyService.SendCostFor's unchecked int multiply and a spawn loop sized off the same
+    /// value — a large-enough quantity overflows the cost to something small (or negative,
+    /// crediting gold) and/or exhausts memory trying to spawn that many creeps. This must be
+    /// rejected here, before either of those, not merely bounded below zero.
+    /// </summary>
+    [Fact]
+    public void Command_validation_rejects_a_queue_send_quantity_above_the_queue_depth_cap()
+    {
+        var content = SampleContent.Valid();
+        var validator = new CommandContentValidator();
+
+        var withinBounds = validator.Validate(
+            new QueueSendCommand(new PlayerId(1), new SimulationTick(0), SampleContent.RunnerCreepId, LTW.Simulation.Bridge.LocalVerticalSlice.MaxQueuedSendsPerCreep),
+            content);
+        var overflowAttempt = validator.Validate(
+            new QueueSendCommand(new PlayerId(1), new SimulationTick(0), SampleContent.RunnerCreepId, 429_496_730),
+            content);
+        var justOverTheCap = validator.Validate(
+            new QueueSendCommand(new PlayerId(1), new SimulationTick(0), SampleContent.RunnerCreepId, LTW.Simulation.Bridge.LocalVerticalSlice.MaxQueuedSendsPerCreep + 1),
+            content);
+
+        Assert.Equal(CommandRejectionReason.None, withinBounds.RejectionReason);
+        Assert.Equal(CommandRejectionReason.InvalidQuantity, overflowAttempt.RejectionReason);
+        Assert.Equal(CommandRejectionReason.InvalidQuantity, justOverTheCap.RejectionReason);
+    }
+
     [Fact]
     public void Command_validation_rejects_default_identifiers()
     {

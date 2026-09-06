@@ -829,10 +829,11 @@ public sealed class BotController
         // clamped to 2. The strict Greedy > Balanced > Defensive ordering is the thing that test
         // exists to defend, and it is worth more than the variation.
         //
-        // The seed is plumbed as far as this class (see the remarks on `random`) and deliberately
-        // not consumed yet. It wants a decision that is not pinned to an exact value by a test and
-        // not upstream of the build step's gold — tower cell choice among equally-ranked cells is
-        // the strongest candidate.
+        // `random` (see its own remarks) already reaches gameplay elsewhere (preferredTowerLine) —
+        // deliberately not spent HERE specifically, on send quantity, for the two reasons just
+        // above. It wants a decision that is not pinned to an exact value by a test and not
+        // upstream of the build step's gold — tower cell choice among equally-ranked cells is the
+        // strongest candidate.
         return System.Math.Min(baseBatch, max);
     }
 }

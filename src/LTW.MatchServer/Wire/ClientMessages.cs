@@ -2,12 +2,14 @@ namespace LTW.MatchServer.Wire;
 
 /// <summary>
 /// Every message a client sends is one of these, chosen by its own <c>type</c> field — see
-/// <see cref="MatchConnection"/> for how an incoming frame is routed to one of these shapes.
+/// <see cref="ServerMatch.DispatchAsync"/> for how an incoming frame is routed to one of these
+/// shapes (there is no separate <c>MatchConnection</c> class; this comment previously named one
+/// that was never actually added — see docs/SECURITY_AUDIT_2026-09-05.md's L5).
 /// Deliberately plain DTOs rather than the <c>LTW.Simulation</c> primitive types
 /// (<c>PlayerId</c>, <c>LaneId</c>, <c>ContentId</c>...): those are constructor-validated value
 /// types with no default constructor <c>System.Text.Json</c> can deserialize into, and the wire
-/// format is this project's concern, not the simulation's — <c>MatchConnection.Dispatch</c> is
-/// the one place that converts between the two.
+/// format is this project's concern, not the simulation's — <see cref="ServerMatch.DispatchAsync"/>
+/// is the one place that converts between the two.
 ///
 /// <see cref="Id"/> is optional and, if the client sent one, is echoed back verbatim on the
 /// matching <see cref="ServerMessages.CommandResultMessage"/> so a client with more than one

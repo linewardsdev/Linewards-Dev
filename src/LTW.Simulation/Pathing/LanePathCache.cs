@@ -3,6 +3,15 @@ using LTW.Simulation.Primitives;
 
 namespace LTW.Simulation.Pathing;
 
+/// <summary>
+/// Not wired into production today — every call site that needs a lane's route
+/// (<c>LocalVerticalSlice</c>'s own <c>SetRoute</c>/<c>pathService.FindRoute</c> call sites) calls
+/// <see cref="GridPathService.FindRoute"/> directly, uncached, on every maze rebuild rather than
+/// through this. Kept rather than deleted (see docs/SECURITY_AUDIT_2026-09-05.md's L6): it has its
+/// own real behavioral contract (get-or-calculate plus per-lane invalidation) and its own test
+/// (<c>PathingTests.Path_cache_invalidates_only_requested_lane</c>), so it is ready the moment
+/// per-tick route recalculation becomes a measured cost rather than a re-authored one.
+/// </summary>
 public sealed class LanePathCache
 {
     private readonly GridPathService pathService;

@@ -83,6 +83,17 @@ namespace LTW.UnityClient.Online
         /// </summary>
         public bool IsDisconnected { get; private set; }
 
+        /// <summary>
+        /// The server's own close status, if this disconnect was a graceful server-initiated close
+        /// frame — null for a network drop, a send timeout, or any other non-graceful disconnect.
+        /// Before this existed, every disconnect reason was treated identically by callers (see
+        /// <c>OnlineMatchService.JoinAsync</c>'s own remarks) even though the server distinguishes
+        /// <c>PolicyViolation</c> ("bad token"/"bad ticket") from <c>InternalServerError</c> ("join
+        /// failed") — a network blip during the welcome window looked exactly like a rejected
+        /// ticket. See docs/SECURITY_AUDIT_2026-09-05.md's M-C3.
+        /// </summary>
+        public WebSocketCloseStatus? CloseStatus { get; private set; }
+
         public event Action<CommandResultMessage>? OnCommandResult;
 
         /// <summary>Protocol-level errors AND disconnects — see <c>ErrorMessage</c>'s own remarks server-side.</summary>
@@ -113,7 +124,7 @@ namespace LTW.UnityClient.Online
                         result = await socket.ReceiveAsync(buffer, lifetime.Token);
                         if (result.MessageType == WebSocketMessageType.Close)
                         {
-                            inbox.Enqueue(BuildDisconnectSentinel("server closed the connection"));
+                            inbox.Enqueue(BuildDisconnectSentinel("server closed the connection", result.CloseStatus));
                             return;
                         }
 
@@ -152,8 +163,8 @@ namespace LTW.UnityClient.Online
 
         private const string DisconnectSentinelType = "__disconnected";
 
-        private static string BuildDisconnectSentinel(string reason) =>
-            JsonConvert.SerializeObject(new { type = DisconnectSentinelType, message = reason });
+        private static string BuildDisconnectSentinel(string reason, WebSocketCloseStatus? closeStatus = null) =>
+            JsonConvert.SerializeObject(new { type = DisconnectSentinelType, message = reason, closeStatus = closeStatus?.ToString() });
 
         /// <summary>
         /// Drains whatever arrived since the last call and applies it. Call once per frame from the
@@ -206,6 +217,10 @@ namespace LTW.UnityClient.Online
                         break;
                     case DisconnectSentinelType:
                         IsDisconnected = true;
+                        var closeStatusText = root["closeStatus"]?.Value<string>();
+                        CloseStatus = closeStatusText is not null && Enum.TryParse<WebSocketCloseStatus>(closeStatusText, out var parsedCloseStatus)
+                            ? parsedCloseStatus
+                            : null;
                         OnError?.Invoke(root["message"]?.Value<string>() ?? "disconnected");
                         break;
                     default:

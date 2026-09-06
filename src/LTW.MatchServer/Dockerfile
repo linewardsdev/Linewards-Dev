@@ -38,6 +38,11 @@ COPY --from=build /app .
 ARG MATCHSERVER_MODE=standalone
 ENV LTW_MATCHSERVER_MODE=$MATCHSERVER_MODE
 
+# $APP_UID is the non-root "app" account Microsoft's .NET 8+ images ship built in specifically for
+# this — without it the process runs as root, which a container escape or a dependency RCE would
+# then inherit for nothing this process actually needs. See docs/SECURITY_AUDIT_2026-09-05.md's L4.
+USER $APP_UID
+
 # No fixed EXPOSE: standalone mode's port comes from the existing args[0] CLI convention (see
 # Program.cs), and MP-07's PlayFab-allocated mode reads its port from GSDK config instead — see
 # docs/MULTIPLAYER_ROLLOUT.md's MP-07.

@@ -1,4 +1,6 @@
 using System.Net.WebSockets;
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using LTW.MatchServer.Wire;
 using LTW.Simulation.Bridge;
@@ -17,10 +19,14 @@ namespace LTW.MatchServer;
 /// </summary>
 /// <remarks>
 /// Every match owns exactly one <c>LocalVerticalSlice</c>, ticked from exactly one loop, so
-/// commands from every connection are naturally serialized — there is no cross-connection race to
-/// resolve here, only the seat-spoofing question <see cref="ConnectionSeatAuthority"/> answers.
+/// commands from every connection are naturally serialized once <see cref="matchLock"/> is held —
+/// <see cref="ConnectionSeatAuthority"/> answers the separate seat-spoofing question. This
+/// previously claimed there was "no cross-connection race to resolve here" at all, which was false
+/// in practice: <see cref="BindAsync"/>/<see cref="DisconnectAsync"/> mutated the connection tables
+/// without taking the lock, racing the tick loop's own broadcast — see
+/// docs/SECURITY_AUDIT_2026-09-05.md's H2 for the incident this correction exists because of.
 /// </remarks>
-public sealed class ServerMatch
+public sealed class ServerMatch : IDisposable
 {
     /// <summary>
     /// The default, real-play pace — matches Unity's own shipped local single-player rate
@@ -53,7 +59,7 @@ public sealed class ServerMatch
     /// called <c>AdvanceOneTick</c> on its very first iteration, and bots sent their opening creeps
     /// inside that same call — before a human player could place a single tower.
     /// </summary>
-    private const double DefaultOpeningBuildWindowSeconds = 30;
+    internal const double DefaultOpeningBuildWindowSeconds = 30;
 
     private readonly double ticksPerSecond;
     private readonly TimeSpan openingBuildWindow;
@@ -89,6 +95,16 @@ public sealed class ServerMatch
 
     private readonly Dictionary<int, WebSocket> connectionsById = new();
     private readonly Dictionary<int, PlayerId> seatByConnectionId = new();
+
+    /// <summary>
+    /// One send at a time per connection. Before this, the tick loop's own broadcast and a
+    /// command's reply could both call <c>WebSocket.SendAsync</c> on the same socket
+    /// concurrently — the BCL contract only allows one outstanding send per socket at a time; on
+    /// some platforms this throws (killing the tick loop, see <see cref="Completion"/>'s own
+    /// remarks on why that matters), and even where it doesn't, an interleaved write can reorder
+    /// two whole JSON messages into the same frame. See docs/SECURITY_AUDIT_2026-09-05.md's M-S4.
+    /// </summary>
+    private readonly Dictionary<int, SemaphoreSlim> sendLocksByConnectionId = new();
     private int nextConnectionId;
 
     private readonly JsonSerializerOptions json = new(JsonSerializerDefaults.Web);
@@ -172,61 +188,91 @@ public sealed class ServerMatch
 
     public void Stop() => loopCancellation?.Cancel();
 
+    /// <summary>
+    /// Before this fix, the loop had no <c>try/finally</c> at all: <see cref="Stop"/> canceling
+    /// mid-wait threw <see cref="OperationCanceledException"/> straight out of the fire-and-forget
+    /// task (see <see cref="Start"/>), skipping <see cref="loopCompletion"/>'s own
+    /// <c>TrySetResult</c> entirely — contradicting this class's own doc comment that
+    /// <see cref="Completion"/> resolves "whether from <see cref="Stop"/> ... or from the match
+    /// itself ending." A bad <c>ticksPerSecond</c> producing an invalid <see cref="PeriodicTimer"/>
+    /// interval, or <see cref="WriteReplayAsync"/> throwing anything other than
+    /// <see cref="IOException"/>, hit the same gap. Under PlayFab Multiplayer Servers this hangs
+    /// <c>Program.cs</c>'s <c>Task.WhenAny(exit.Task, currentMatch.Completion)</c> forever, and the
+    /// health callback (which checks <c>Completion.IsCompleted</c>) reports a dead match healthy
+    /// indefinitely. See docs/SECURITY_AUDIT_2026-09-05.md's H4.
+    /// </summary>
     private async Task RunLoopAsync(CancellationToken cancellation)
     {
-        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(1.0 / ticksPerSecond));
-        while (!cancellation.IsCancellationRequested && await timer.WaitForNextTickAsync(cancellation))
+        try
         {
-            TickMessage message;
-            await matchLock.WaitAsync(cancellation);
-            try
+            using var timer = new PeriodicTimer(TimeSpan.FromSeconds(1.0 / ticksPerSecond));
+            while (!cancellation.IsCancellationRequested && await timer.WaitForNextTickAsync(cancellation))
             {
-                var remaining = openingBuildWindow - (DateTimeOffset.UtcNow - matchStartedAtUtc);
-                if (remaining > TimeSpan.Zero)
+                TickMessage message;
+                await matchLock.WaitAsync(cancellation);
+                try
                 {
-                    // Deliberately no AdvanceOneTick here: the whole point of the window is that
-                    // nothing simulation-side happens yet (see openingBuildWindow's remarks) — bots
-                    // take their opening turn inside a match's very first AdvanceOneTick call, so
-                    // skipping the call skips that too. Placement commands still reach the slice
-                    // normally through DispatchAsync, which never gates on this.
-                    message = BuildTickMessage(Array.Empty<LTW.Simulation.Events.ISimulationEvent>(), isOpeningBuildCountdown: true, remaining.TotalSeconds);
-                }
-                else
-                {
-                    // No BeginClientRequest before this: every bot decision this tick resolves its
-                    // own claimed seat as trusted, per ConnectionSeatAuthority's default state — see
-                    // its own remarks for why treating "no request in flight" as "internal, trusted
-                    // call" is deliberate rather than a hole.
-                    slice.AdvanceOneTick();
-                    var events = slice.DrainEvents();
-                    message = BuildTickMessage(events, isOpeningBuildCountdown: false, remainingSeconds: 0);
-
-                    if (slice.MatchSummary is not null && !replayWritten)
+                    var remaining = openingBuildWindow - (DateTimeOffset.UtcNow - matchStartedAtUtc);
+                    if (remaining > TimeSpan.Zero)
                     {
-                        replayWritten = true;
-                        await WriteReplayAsync();
+                        // Deliberately no AdvanceOneTick here: the whole point of the window is
+                        // that nothing simulation-side happens yet (see openingBuildWindow's
+                        // remarks) — bots take their opening turn inside a match's very first
+                        // AdvanceOneTick call, so skipping the call skips that too. Placement
+                        // commands still reach the slice normally through DispatchAsync, which
+                        // never gates on this.
+                        message = BuildTickMessage(Array.Empty<LTW.Simulation.Events.ISimulationEvent>(), isOpeningBuildCountdown: true, remaining.TotalSeconds);
+                    }
+                    else
+                    {
+                        // No BeginClientRequest before this: every bot decision this tick resolves
+                        // its own claimed seat as trusted, per ConnectionSeatAuthority's default
+                        // state — see its own remarks for why treating "no request in flight" as
+                        // "internal, trusted call" is deliberate rather than a hole.
+                        slice.AdvanceOneTick();
+                        var events = slice.DrainEvents();
+                        message = BuildTickMessage(events, isOpeningBuildCountdown: false, remainingSeconds: 0);
 
-                        // The match itself is over — stop the loop after this tick's message still
-                        // goes out below. Before this, nothing ever stopped a finished match from
-                        // ticking (and broadcasting) forever; MP-07's GSDK integration also needs
-                        // the process to actually exit once its one hosted match ends, which starts
-                        // here. Canceling now (rather than breaking directly) means the loop's own
-                        // while-condition, not a second exit path, is what ends it — the next
-                        // iteration's `!cancellation.IsCancellationRequested` short-circuits false
-                        // before ever calling WaitForNextTickAsync on an already-canceled token.
-                        loopCancellation?.Cancel();
+                        if (slice.MatchSummary is not null && !replayWritten)
+                        {
+                            replayWritten = true;
+                            await WriteReplayAsync();
+
+                            // The match itself is over — stop the loop after this tick's message
+                            // still goes out below. Before this, nothing ever stopped a finished
+                            // match from ticking (and broadcasting) forever; MP-07's GSDK
+                            // integration also needs the process to actually exit once its one
+                            // hosted match ends, which starts here. Canceling now (rather than
+                            // breaking directly) means the loop's own while-condition, not a
+                            // second exit path, is what ends it — the next iteration's
+                            // `!cancellation.IsCancellationRequested` short-circuits false before
+                            // ever calling WaitForNextTickAsync on an already-canceled token.
+                            loopCancellation?.Cancel();
+                        }
                     }
                 }
-            }
-            finally
-            {
-                matchLock.Release();
+                finally
+                {
+                    matchLock.Release();
+                }
+
+                await BroadcastAsync(message);
             }
 
-            await BroadcastAsync(message);
+            loopCompletion.TrySetResult();
         }
-
-        loopCompletion.TrySetResult();
+        catch (OperationCanceledException)
+        {
+            // Stop() canceling while WaitForNextTickAsync or matchLock.WaitAsync was already in
+            // flight — both only ever observe THIS match's own cancellation token (never an
+            // unrelated timeout), so this is always an expected exit, never a fault.
+            loopCompletion.TrySetResult();
+        }
+        catch (Exception exception)
+        {
+            Console.Error.WriteLine($"ServerMatch {MatchId}: tick loop faulted and stopped: {exception}");
+            loopCompletion.TrySetException(exception);
+        }
     }
 
     private TickMessage BuildTickMessage(IReadOnlyList<LTW.Simulation.Events.ISimulationEvent> events, bool isOpeningBuildCountdown, double remainingSeconds)
@@ -320,13 +366,26 @@ public sealed class ServerMatch
                     command.Quantity,
                 }).ToArray(),
             };
-            var path = Path.Combine(replayDirectory, $"{MatchId}.json");
+            // Path.GetFileName, not the raw MatchId, as the file name: under MPS, MatchId is the
+            // client-originated SessionId (see MatchRegistry.CreateMatch's own matchId parameter)
+            // — a Path.Combine second argument that happens to be rooted (e.g. "/etc/x.json")
+            // replaces the whole directory outright rather than being appended to it. GetFileName
+            // strips any directory component from either a relative traversal or an absolute path,
+            // so the write can only ever land inside replayDirectory. See
+            // docs/SECURITY_AUDIT_2026-09-05.md's L1.
+            var path = Path.Combine(replayDirectory, Path.GetFileName($"{MatchId}.json"));
             await File.WriteAllTextAsync(path, JsonSerializer.Serialize(dto, json));
         }
-        catch (IOException)
+        catch (Exception exception)
         {
             // Telemetry-only in this pass — a failed replay write must never take the match down
-            // for the players still on it.
+            // for the players still on it. Broadened from IOException: Directory.CreateDirectory
+            // and File.WriteAllTextAsync can also throw UnauthorizedAccessException (a read-only
+            // or non-writable directory), and JsonSerializer.Serialize can throw
+            // NotSupportedException — either previously escaped this catch entirely and faulted
+            // the tick loop mid-match-end, before RunLoopAsync's own H4 fix existed to catch it.
+            // See docs/SECURITY_AUDIT_2026-09-05.md's H4.
+            Console.Error.WriteLine($"ServerMatch {MatchId}: replay write failed: {exception}");
         }
     }
 
@@ -337,7 +396,10 @@ public sealed class ServerMatch
     /// </summary>
     public async Task<int?> AcceptAsync(WebSocket socket, int seat, string token)
     {
-        if (!joinTokensBySeat.TryGetValue(seat, out var expected) || expected != token)
+        // FixedTimeEquals, not `!=` — a 128-bit GUID token makes this impractical to actually
+        // exploit, but the fix is one line. See docs/SECURITY_AUDIT_2026-09-05.md's L4.
+        if (!joinTokensBySeat.TryGetValue(seat, out var expected)
+            || !CryptographicOperations.FixedTimeEquals(Encoding.UTF8.GetBytes(expected), Encoding.UTF8.GetBytes(token)))
         {
             return null;
         }
@@ -382,54 +444,185 @@ public sealed class ServerMatch
     /// The evicted socket's own receive loop discovers the close and calls <see cref="Disconnect"/>
     /// on its own connection id, same as any other disconnect — this only forces that along.
     /// </remarks>
+    /// <summary>
+    /// The dictionary mutations below (and the read in the eviction loop) run under
+    /// <see cref="matchLock"/> — before this fix they didn't, contradicting this class's own
+    /// remarks that the lock "serializes every touch" of match state. A join racing the tick
+    /// loop's own concurrent <c>BroadcastAsync</c> enumeration of <see cref="connectionsById"/>
+    /// could throw (crashing the tick loop silently, see <see cref="Completion"/>'s own remarks)
+    /// or, on two simultaneous joins landing on the same <see cref="nextConnectionId"/> value,
+    /// bind one player's connection over another's. See docs/SECURITY_AUDIT_2026-09-05.md's H2.
+    /// I/O (closing a stale socket, sending the welcome) deliberately happens AFTER the lock is
+    /// released, the same way <see cref="DispatchAsync"/> already computes its result under the
+    /// lock but sends the reply after releasing it — holding a lock across a slow or hung peer's
+    /// socket write would stall the tick loop for everyone else (see H3's own fix for that
+    /// specific risk on the broadcast path).
+    /// </summary>
     private async Task<int> BindAsync(WebSocket socket, int seat)
     {
         var playerId = new PlayerId(seat);
-        foreach (var staleConnectionId in seatByConnectionId.Where(entry => entry.Value.Equals(playerId)).Select(entry => entry.Key).ToArray())
+        var staleSockets = new List<WebSocket>();
+        var evictedPlayerIds = new List<PlayerId>();
+        int connectionId;
+        long welcomeTick;
+
+        await matchLock.WaitAsync();
+        try
         {
-            if (connectionsById.TryGetValue(staleConnectionId, out var staleSocket) && staleSocket.State == WebSocketState.Open)
+            foreach (var staleConnectionId in seatByConnectionId.Where(entry => entry.Value.Equals(playerId)).Select(entry => entry.Key).ToArray())
             {
-                try
+                if (connectionsById.TryGetValue(staleConnectionId, out var staleSocket) && staleSocket.State == WebSocketState.Open)
                 {
-                    // CloseOutputAsync, not CloseAsync: the whole scenario this exists for is a
-                    // stale, half-dead socket whose OWN receive loop has not noticed it is dead yet
-                    // — exactly the case where nothing is left reading on that end to answer a full
-                    // close handshake. CloseAsync waits for that answering close frame before
-                    // returning; against a truly stale peer that wait never resolves, which would
-                    // hang THIS bind (and so the reconnecting client's own welcome) indefinitely.
-                    // Found by a test using a real but idle peer socket, not live traffic — same
-                    // shape of bug either way.
-                    await staleSocket.CloseOutputAsync(WebSocketCloseStatus.NormalClosure, "reconnected from elsewhere", CancellationToken.None);
+                    staleSockets.Add(staleSocket);
                 }
-                catch (WebSocketException)
+
+                if (DisconnectLocked(staleConnectionId) is PlayerId evictedPlayerId)
                 {
-                    // Already on its way down — the point was to make sure it stops being live for
-                    // this seat, not that this specific close frame lands.
+                    evictedPlayerIds.Add(evictedPlayerId);
                 }
             }
 
-            Disconnect(staleConnectionId);
+            connectionId = nextConnectionId++;
+            connectionsById[connectionId] = socket;
+            seatByConnectionId[connectionId] = playerId;
+            sendLocksByConnectionId[connectionId] = new SemaphoreSlim(1, 1);
+            authority.BindConnection(connectionId, playerId);
+            welcomeTick = slice.GetSnapshot().Tick.Value;
+        }
+        finally
+        {
+            matchLock.Release();
         }
 
-        var connectionId = nextConnectionId++;
-        connectionsById[connectionId] = socket;
-        seatByConnectionId[connectionId] = playerId;
-        authority.BindConnection(connectionId, playerId);
-        onSeatBound?.Invoke(seat, playerId);
+        foreach (var staleSocket in staleSockets)
+        {
+            try
+            {
+                // CloseOutputAsync, not CloseAsync: the whole scenario this exists for is a
+                // stale, half-dead socket whose OWN receive loop has not noticed it is dead yet
+                // — exactly the case where nothing is left reading on that end to answer a full
+                // close handshake. CloseAsync waits for that answering close frame before
+                // returning; against a truly stale peer that wait never resolves, which would
+                // hang THIS bind (and so the reconnecting client's own welcome) indefinitely.
+                // Found by a test using a real but idle peer socket, not live traffic — same
+                // shape of bug either way.
+                await staleSocket.CloseOutputAsync(WebSocketCloseStatus.NormalClosure, "reconnected from elsewhere", CancellationToken.None);
+            }
+            catch (WebSocketException)
+            {
+                // Already on its way down — the point was to make sure it stops being live for
+                // this seat, not that this specific close frame lands.
+            }
+        }
 
-        await SendAsync(socket, new WelcomeMessage { Seat = seat, Tick = slice.GetSnapshot().Tick.Value });
+        foreach (var evictedPlayerId in evictedPlayerIds)
+        {
+            onSeatDisconnected?.Invoke(evictedPlayerId.Value);
+        }
+
+        onSeatBound?.Invoke(seat, playerId);
+        await SendAsync(connectionId, socket, new WelcomeMessage { Seat = seat, Tick = welcomeTick });
         return connectionId;
     }
 
-    public void Disconnect(int connectionId)
+    /// <summary>
+    /// Acquires <see cref="matchLock"/> itself — for a receive loop's own disconnect (its
+    /// <c>finally</c>, which holds no lock of its own). <see cref="BindAsync"/> evicting a stale
+    /// connection for the same seat uses <see cref="DisconnectLocked"/> directly instead, since it
+    /// already holds the lock and <see cref="SemaphoreSlim"/> is not reentrant.
+    /// </summary>
+    public async Task DisconnectAsync(int connectionId)
     {
-        connectionsById.Remove(connectionId);
-        if (seatByConnectionId.Remove(connectionId, out var playerId))
+        PlayerId? removedPlayerId;
+        await matchLock.WaitAsync();
+        try
+        {
+            removedPlayerId = DisconnectLocked(connectionId);
+        }
+        finally
+        {
+            matchLock.Release();
+        }
+
+        if (removedPlayerId is PlayerId playerId)
         {
             onSeatDisconnected?.Invoke(playerId.Value);
         }
+    }
+
+    /// <summary>
+    /// Releases <see cref="matchLock"/> and the tick loop's own cancellation source. Only safe to
+    /// call once <see cref="Completion"/> has resolved and <see cref="CloseAllConnectionsAsync"/>
+    /// has already run (see <see cref="MatchRegistry.CreateMatch"/>'s eviction continuation, the
+    /// only caller) — every other method on this class that touches <see cref="matchLock"/> only
+    /// ever runs while the match is still findable through the registry, and eviction removes it
+    /// from the registry before this is called. See docs/SECURITY_AUDIT_2026-09-05.md's L5.
+    /// </summary>
+    public void Dispose()
+    {
+        loopCancellation?.Dispose();
+        matchLock.Dispose();
+    }
+
+    /// <summary>
+    /// Closes every connection this match still holds — called once <see cref="Completion"/>
+    /// resolves (see <see cref="MatchRegistry.CreateMatch"/>), so a finished standalone-mode
+    /// match does not leave its sockets open forever alongside its now-orphaned dictionary entry.
+    /// See docs/SECURITY_AUDIT_2026-09-05.md's M3.
+    /// </summary>
+    public async Task CloseAllConnectionsAsync()
+    {
+        KeyValuePair<int, WebSocket>[] connections;
+        await matchLock.WaitAsync();
+        try
+        {
+            connections = connectionsById.ToArray();
+            connectionsById.Clear();
+            seatByConnectionId.Clear();
+            sendLocksByConnectionId.Clear();
+        }
+        finally
+        {
+            matchLock.Release();
+        }
+
+        foreach (var (connectionId, socket) in connections)
+        {
+            authority.ForgetConnection(connectionId);
+            if (socket.State != WebSocketState.Open)
+            {
+                continue;
+            }
+
+            try
+            {
+                using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+                await socket.CloseOutputAsync(WebSocketCloseStatus.NormalClosure, "match ended", timeout.Token);
+            }
+            catch (Exception)
+            {
+                // Best-effort: the match is gone regardless, and a peer that never acknowledges
+                // (or is already gone itself) must not hold this loop open.
+                socket.Abort();
+            }
+        }
+    }
+
+    private PlayerId? DisconnectLocked(int connectionId)
+    {
+        connectionsById.Remove(connectionId);
+        var removedPlayerId = seatByConnectionId.Remove(connectionId, out var playerId) ? (PlayerId?)playerId : null;
+
+        // Deliberately NOT disposed here: a concurrent SendAsync for this same connectionId may
+        // already hold a reference to this exact SemaphoreSlim (captured before this disconnect
+        // acquired matchLock) and still be using it — disposing out from under that would throw
+        // ObjectDisposedException from a completely unrelated send. Removing it from the dictionary
+        // is enough to stop any FUTURE send from finding it; the object itself is reclaimed by GC
+        // once the in-flight send (if any) finishes and drops its own reference.
+        sendLocksByConnectionId.Remove(connectionId);
 
         authority.ForgetConnection(connectionId);
+        return removedPlayerId;
     }
 
     /// <summary>
@@ -455,67 +648,93 @@ public sealed class ServerMatch
         }
         catch (JsonException)
         {
-            await SendAsync(socket, new ErrorMessage { Message = "malformed json" });
+            await SendAsync(connectionId, socket, new ErrorMessage { Message = "malformed json" });
             return;
         }
 
         using (document)
         {
-            if (!document.RootElement.TryGetProperty("type", out var typeProperty))
-            {
-                await SendAsync(socket, new ErrorMessage { Message = "missing 'type'" });
-                return;
-            }
-
-            var type = typeProperty.GetString();
-            var claimed = seatByConnectionId.TryGetValue(connectionId, out var seat) ? seat : new PlayerId(0);
-            var raw = document.RootElement.GetRawText();
-
+            string? type;
             VerticalSliceCommandResult? result;
             string? commandId;
-            await matchLock.WaitAsync();
             try
             {
-                authority.BeginClientRequest(connectionId);
-                switch (type)
+                if (!document.RootElement.TryGetProperty("type", out var typeProperty) || typeProperty.ValueKind != JsonValueKind.String)
                 {
-                    case "placeTower":
-                        (result, commandId) = Handle(claimed, JsonSerializer.Deserialize<PlaceTowerMessage>(raw, json));
-                        break;
-                    case "queueSend":
-                        (result, commandId) = Handle(claimed, JsonSerializer.Deserialize<QueueSendMessage>(raw, json));
-                        break;
-                    case "enqueueSend":
-                        (result, commandId) = Handle(claimed, JsonSerializer.Deserialize<EnqueueSendMessage>(raw, json));
-                        break;
-                    case "buyCategoryTier":
-                        (result, commandId) = Handle(claimed, JsonSerializer.Deserialize<BuyCategoryTierMessage>(raw, json));
-                        break;
-                    case "upgradeTower":
-                        (result, commandId) = Handle(claimed, JsonSerializer.Deserialize<UpgradeTowerMessage>(raw, json));
-                        break;
-                    case "sellTower":
-                        (result, commandId) = Handle(claimed, JsonSerializer.Deserialize<SellTowerMessage>(raw, json));
-                        break;
-                    default:
-                        result = null;
-                        commandId = null;
-                        break;
+                    await SendAsync(connectionId, socket, new ErrorMessage { Message = "missing or non-string 'type'" });
+                    return;
+                }
+
+                type = typeProperty.GetString();
+
+                if (!seatByConnectionId.TryGetValue(connectionId, out var claimed))
+                {
+                    // Previously fell back to `new PlayerId(0)` here — PlayerId's own constructor
+                    // rejects non-positive values, so that "sentinel" threw the instant it ran
+                    // rather than ever standing in for "no seat claimed". See
+                    // docs/SECURITY_AUDIT_2026-09-05.md's M2.
+                    await SendAsync(connectionId, socket, new ErrorMessage { Message = "connection is not bound to a seat" });
+                    return;
+                }
+
+                var raw = document.RootElement.GetRawText();
+
+                await matchLock.WaitAsync();
+                try
+                {
+                    authority.BeginClientRequest(connectionId);
+                    switch (type)
+                    {
+                        case "placeTower":
+                            (result, commandId) = Handle(claimed, JsonSerializer.Deserialize<PlaceTowerMessage>(raw, json));
+                            break;
+                        case "queueSend":
+                            (result, commandId) = Handle(claimed, JsonSerializer.Deserialize<QueueSendMessage>(raw, json));
+                            break;
+                        case "enqueueSend":
+                            (result, commandId) = Handle(claimed, JsonSerializer.Deserialize<EnqueueSendMessage>(raw, json));
+                            break;
+                        case "buyCategoryTier":
+                            (result, commandId) = Handle(claimed, JsonSerializer.Deserialize<BuyCategoryTierMessage>(raw, json));
+                            break;
+                        case "upgradeTower":
+                            (result, commandId) = Handle(claimed, JsonSerializer.Deserialize<UpgradeTowerMessage>(raw, json));
+                            break;
+                        case "sellTower":
+                            (result, commandId) = Handle(claimed, JsonSerializer.Deserialize<SellTowerMessage>(raw, json));
+                            break;
+                        default:
+                            result = null;
+                            commandId = null;
+                            break;
+                    }
+                }
+                finally
+                {
+                    authority.EndRequest();
+                    matchLock.Release();
                 }
             }
-            finally
+            catch (Exception exception) when (exception is JsonException or InvalidOperationException or ArgumentException)
             {
-                authority.EndRequest();
-                matchLock.Release();
+                // A well-formed-JSON-but-invalid frame (wrong-typed fields, an omitted
+                // towerId/creepId defaulting to "" -> ContentId's own constructor rejecting it, a
+                // non-positive laneId, negative coordinates, ...) used to throw straight out of
+                // DispatchAsync uncaught. ReceiveLoopAsync's only catch was WebSocketException, so
+                // a buggy-but-legitimate client silently stopped receiving ticks with no error and
+                // no close. See docs/SECURITY_AUDIT_2026-09-05.md's M2.
+                Console.Error.WriteLine($"ServerMatch: malformed message from connection {connectionId}: {exception.Message}");
+                await SendAsync(connectionId, socket, new ErrorMessage { Message = "malformed message" });
+                return;
             }
 
             if (result is null)
             {
-                await SendAsync(socket, new ErrorMessage { Message = $"unknown or malformed message: '{type}'" });
+                await SendAsync(connectionId, socket, new ErrorMessage { Message = $"unknown or malformed message: '{type}'" });
                 return;
             }
 
-            await SendAsync(socket, new CommandResultMessage
+            await SendAsync(connectionId, socket, new CommandResultMessage
             {
                 Id = commandId,
                 Accepted = result.Accepted,
@@ -592,29 +811,82 @@ public sealed class ServerMatch
 
     private async Task BroadcastAsync<T>(T message)
     {
-        foreach (var socket in connectionsById.Values.ToArray())
+        // Snapshotting under matchLock, not just ToArray()-ing the live dictionary unlocked: this
+        // runs after RunLoopAsync has already released the lock (broadcasting must not hold it —
+        // see SendAsync's own timeout for why), so without this the snapshot itself would race
+        // BindAsync/DisconnectAsync mutating connectionsById concurrently. See
+        // docs/SECURITY_AUDIT_2026-09-05.md's H2.
+        KeyValuePair<int, WebSocket>[] connections;
+        await matchLock.WaitAsync();
+        try
         {
-            await SendAsync(socket, message);
+            connections = connectionsById.ToArray();
+        }
+        finally
+        {
+            matchLock.Release();
+        }
+
+        foreach (var (connectionId, socket) in connections)
+        {
+            await SendAsync(connectionId, socket, message);
         }
     }
 
-    private async Task SendAsync<T>(WebSocket socket, T message)
+    /// <summary>
+    /// Bounds a single send. Before this, a player who opened a socket and simply stopped reading
+    /// would eventually fill their own TCP receive window; the next send to them then blocked
+    /// forever, and since <see cref="BroadcastAsync{T}"/> awaits each send in turn, EVERY other
+    /// player's match froze too — a single unresponsive peer, no exploit needed beyond not
+    /// reading. See docs/SECURITY_AUDIT_2026-09-05.md's H3.
+    /// </summary>
+    private const int SendTimeoutSeconds = 2;
+
+    private async Task SendAsync<T>(int connectionId, WebSocket socket, T message)
     {
         if (socket.State != WebSocketState.Open)
         {
             return;
         }
 
-        var bytes = JsonSerializer.SerializeToUtf8Bytes(message, json);
+        // One send in flight per connection at a time — see sendLocksByConnectionId's own remarks
+        // for why (docs/SECURITY_AUDIT_2026-09-05.md's M-S4). Missing means this connection has
+        // already been disconnected (a race between this call being queued and that disconnect
+        // landing first); nothing to send to.
+        if (!sendLocksByConnectionId.TryGetValue(connectionId, out var sendLock))
+        {
+            return;
+        }
+
+        await sendLock.WaitAsync();
         try
         {
-            await socket.SendAsync(bytes, WebSocketMessageType.Text, endOfMessage: true, CancellationToken.None);
+            var bytes = JsonSerializer.SerializeToUtf8Bytes(message, json);
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(SendTimeoutSeconds));
+            try
+            {
+                await socket.SendAsync(bytes, WebSocketMessageType.Text, endOfMessage: true, timeout.Token);
+            }
+            catch (WebSocketException)
+            {
+                // A dropped connection surfaces on its own receive loop, which removes it from
+                // connectionsById — nothing else to do about a broadcast that lost the race with a
+                // client going away mid-send.
+            }
+            catch (OperationCanceledException) when (timeout.IsCancellationRequested)
+            {
+                // The peer stopped reading — this send would otherwise have blocked every other
+                // player's broadcast indefinitely. Abort rather than attempt a graceful close: a
+                // peer this unresponsive is not going to answer a close handshake either. The abort
+                // makes the peer's own pending ReceiveAsync throw, which its receive loop's
+                // existing catch+finally already turns into a normal disconnect — no separate
+                // cleanup needed here.
+                socket.Abort();
+            }
         }
-        catch (WebSocketException)
+        finally
         {
-            // A dropped connection surfaces on its own receive loop, which removes it from
-            // connectionsById — nothing else to do about a broadcast that lost the race with a
-            // client going away mid-send.
+            sendLock.Release();
         }
     }
 }

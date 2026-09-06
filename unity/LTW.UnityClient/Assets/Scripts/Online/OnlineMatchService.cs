@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.WebSockets;
 using System.Text;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
@@ -229,7 +230,15 @@ namespace LTW.UnityClient.Online
                     // policy violation), as opposed to a network blip or a genuinely gone match —
                     // see PlayFabSession.ForgetOnAuthFailure's own remarks for why only this
                     // specific case resets the restored session rather than every join failure.
-                    PlayFabSession.ForgetOnAuthFailure();
+                    // Gated on CloseStatus specifically (not just IsDisconnected): a network drop
+                    // or a send timeout during this same window closes the socket for a reason
+                    // that says nothing about the ticket's validity, and used to wipe a perfectly
+                    // good session anyway. See docs/SECURITY_AUDIT_2026-09-05.md's M-C3.
+                    if (client.CloseStatus == WebSocketCloseStatus.PolicyViolation)
+                    {
+                        PlayFabSession.ForgetOnAuthFailure();
+                    }
+
                     onFailure("The server closed the connection while joining — the seat or match may no longer be valid.");
                     client.Dispose();
                     return null;

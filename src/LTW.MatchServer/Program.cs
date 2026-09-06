@@ -13,7 +13,12 @@ var playFabSecretKey = Environment.GetEnvironmentVariable("PLAYFAB_SECRET_KEY");
 PlayFabSessionAuthority? playFabAuthority = null;
 if (!string.IsNullOrEmpty(playFabTitleId) && !string.IsNullOrEmpty(playFabSecretKey))
 {
-    playFabAuthority = new PlayFabSessionAuthority(new HttpClient(), playFabTitleId, playFabSecretKey);
+    // A short, explicit timeout — the BCL default (100s) would otherwise pin a handler (and the
+    // join it's servicing) for a client's entire join attempt if PlayFab is slow or unreachable,
+    // compounding M5's amplification risk rather than failing it fast. See
+    // docs/SECURITY_AUDIT_2026-09-05.md's M5.
+    var playFabHttpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
+    playFabAuthority = new PlayFabSessionAuthority(playFabHttpClient, playFabTitleId, playFabSecretKey);
     Console.WriteLine($"PlayFab configured: title {playFabTitleId}");
 }
 else
@@ -44,7 +49,11 @@ static async Task RunStandaloneAsync(MatchRegistry registry, int port)
     // interfaces is also just what a real deployment needs anyway: a container's own loopback is
     // never reachable from outside it, so this was the right default to end up at, not a dev-only
     // special case.
-    var host = new HttpMatchHost(registry, $"http://+:{port}/");
+    // Optional, unset by default (local/dev use and the test suite): standalone mode otherwise has
+    // no auth at all in front of unbounded, unauthenticated match creation. See
+    // docs/SECURITY_AUDIT_2026-09-05.md's M3.
+    var createSecret = Environment.GetEnvironmentVariable("LTW_MATCH_CREATE_SECRET");
+    var host = new HttpMatchHost(registry, $"http://+:{port}/", createSecret: createSecret);
     host.Start();
 
     Console.WriteLine($"LTW.MatchServer listening on http://localhost:{port}/ (and any other interface)");
@@ -110,6 +119,11 @@ static async Task RunUnderPlayFabMultiplayerServersAsync(PlayFabSessionAuthority
         GameserverSDK.LogMessage("GSDK shutdown callback fired — exiting.");
         exit.TrySetResult();
     });
+    // Correct only because ServerMatch.RunLoopAsync now always resolves Completion (normal exit,
+    // Stop(), or a genuine crash — see its own H4 fix) instead of sometimes never resolving it at
+    // all. Before that fix, a faulted tick loop left Completion permanently unresolved, so
+    // IsCompleted stayed false forever and this reported a dead match healthy indefinitely. See
+    // docs/SECURITY_AUDIT_2026-09-05.md's H4.
     GameserverSDK.RegisterHealthCallback(() => currentMatch is null || !currentMatch.Completion.IsCompleted);
     GameserverSDK.RegisterMaintenanceCallback(scheduledTime =>
         GameserverSDK.LogMessage($"Azure VM maintenance scheduled at {scheduledTime:O} — no in-match mitigation exists yet, see docs/MULTIPLAYER_ROLLOUT.md's MP-07."));
@@ -169,6 +183,20 @@ static async Task RunUnderPlayFabMultiplayerServersAsync(PlayFabSessionAuthority
         // No SessionCookie content — this server was auto-allocated by a matchmaking queue's
         // ServerAllocationEnabled, not a direct request. See docs/MULTIPLAYER_ROLLOUT.md's MP-05.
         (humanSeats, playFabIdBySeat) = QueuedMatchBootstrap.AssignSeatsFromInitialPlayers(GameserverSDK.GetInitialPlayers());
+    }
+
+    // The SessionCookie branch above is client-authored (a direct RequestMultiplayerServer call
+    // carries whatever the caller put in it) — validated here for the same reason
+    // HttpMatchHost.HandleCreateMatchAsync validates its own HTTP body. Nothing can send a 400
+    // back at this point (there is no HTTP response, the server is already allocated), so an
+    // invalid request exits the process instead of letting ServerMatch construct itself from bad
+    // numbers — see docs/SECURITY_AUDIT_2026-09-05.md's M1.
+    if (!CreateMatchRequestValidator.TryValidate(humanSeats, playFabIdBySeat, request.TicksPerSecond, request.OpeningBuildWindowSeconds, out var validationError))
+    {
+        GameserverSDK.LogMessage($"Rejecting malformed match request: {validationError}");
+        Console.WriteLine($"Rejecting malformed match request: {validationError}");
+        host.Stop();
+        return;
     }
 
     currentMatch = registry.CreateMatch(

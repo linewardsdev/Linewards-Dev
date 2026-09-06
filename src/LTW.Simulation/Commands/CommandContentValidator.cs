@@ -70,7 +70,15 @@ public sealed class CommandContentValidator
                 return CommandResult.Reject(CommandRejectionReason.InvalidContentId);
             }
 
-            if (queueSend.Quantity <= 0)
+            // Upper bound, not just the existing lower one: an unchecked quantity reaches
+            // EconomyService.SendCostFor's unchecked int multiply and LocalVerticalSlice's
+            // Enumerable.Range(0, quantity) spawn loop untouched. A large-enough value overflows
+            // the cost calculation to something small or negative (letting the send through nearly
+            // free, or crediting gold) and/or exhausts memory trying to spawn that many creeps —
+            // see docs/SECURITY_AUDIT_2026-09-05.md's C1. Capped at the same depth a seat's queue
+            // itself enforces one entry at a time (LocalVerticalSlice.MaxQueuedSendsPerCreep) —
+            // nothing legitimate ever asks for more in one call.
+            if (queueSend.Quantity <= 0 || queueSend.Quantity > Bridge.LocalVerticalSlice.MaxQueuedSendsPerCreep)
             {
                 return CommandResult.Reject(CommandRejectionReason.InvalidQuantity);
             }
