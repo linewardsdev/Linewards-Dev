@@ -1428,11 +1428,23 @@ counts), enable "game client access" for Multiplayer Servers so the client can c
   gives advance notice, but no in-match mitigation exists). MP-06's reconnect logic assumes the
   same server process survives a network hole or kill-and-relaunch — it does not survive its own
   process being recycled out from under a live match. Revisit if this is observed live.
-- Telemetry, the runbook, and abuse handling (this section's other three deliverables) have not
-  been started — existing replay infra (`LocalVerticalSlice.GetMatchReplayRecord`/
-  `MatchReplayRecord`, written by `ServerMatch.WriteReplayAsync` to `replays/{matchId}.json`,
-  replayable and proven equal by `tests/LTW.Tests/MatchReplayTests.cs`) is what the eventual
-  runbook builds on.
+- **The runbook has a first draft**: `docs/MP07_RUNBOOK.md` — deploy, roll back, drain, and
+  investigate a desync from its replay. Writing it surfaced a real bug (see below), now fixed.
+  Telemetry and abuse handling (this section's other two deliverables) have not been started.
+- **A real bug found and fixed while writing the runbook, 2026-09-05**: `Program.cs` originally
+  computed `replayDirectory` once, before the standalone/mps mode branch even ran, always pointing
+  inside `AppContext.BaseDirectory` — a path that lives only inside a match's own ephemeral
+  container under MPS and is gone the instant PlayFab deletes it. Replays were silently
+  unrecoverable for every MPS-hosted match, making the runbook's own "investigate a desync from
+  its replay" section impossible to actually follow. Fixed by moving `MatchRegistry` construction
+  into each mode branch, and in `mps` mode pointing `replayDirectory` at
+  `GameserverSDK.GetLogsDirectory()` instead — the same directory PlayFab's VM agent zips and
+  archives after a server ends (confirmed via `com.playfab.csharpgsdk`'s "Logging" contract: any
+  file placed there, not just ones written through `GameserverSDK.LogMessage`, gets included).
+  **Confirmed working live** via `LocalMultiplayerAgent`: a completed match's
+  `replays/<matchId>.json` was found inside the collected `GameLogs/<id>/` folder afterward, with
+  real seed/content-version/roster/command data intact. `dotnet test` (384/384, standalone mode's
+  own path unaffected) stayed green throughout.
 - `com.playfab.csharpgsdk` is recorded in `docs/MVP_DEPENDENCIES.md`'s third-party dependency
   table — a real new runtime dependency, unlike `PlayFabSessionAuthority`'s deliberate
   hand-rolled-REST non-dependency.
@@ -1471,7 +1483,8 @@ Replace this whole section with real billing data once Phase 5's build is live f
 - Hosting with a cost ceiling and a scale-to-zero posture for a small population.
 - Telemetry: match health, desync reports, crash reports (from the launch roadmap's crash
   reporting), abuse signals.
-- A runbook: deploy, roll back, drain, investigate a desync from its replay.
+- A runbook: deploy, roll back, drain, investigate a desync from its replay. First draft:
+  `docs/MP07_RUNBOOK.md`, 2026-09-05.
 - Abuse handling: rate limits are MP-03; here it is reporting, muting and banning at the
   identity level.
 

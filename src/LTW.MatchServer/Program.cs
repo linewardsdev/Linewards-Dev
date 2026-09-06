@@ -4,7 +4,6 @@ using LTW.MatchServer.PlayFab;
 using Microsoft.Playfab.Gaming.GSDK.CSharp;
 
 var port = args.Length > 0 && int.TryParse(args[0], out var parsedPort) ? parsedPort : 5117;
-var replayDirectory = Path.Combine(AppContext.BaseDirectory, "replays");
 
 // PLAYFAB_SECRET_KEY is a real credential and is read from the environment only — never from a
 // config file or a command-line argument, which would land it in shell history or a process
@@ -22,8 +21,6 @@ else
     Console.WriteLine("PlayFab not configured (PLAYFAB_TITLE_ID / PLAYFAB_SECRET_KEY not set) — PlayFab-identified seats will refuse every join. See docs/PLAYFAB_SETUP.md.");
 }
 
-var registry = new MatchRegistry(replayDirectory, playFabAuthority);
-
 // Selects this PROCESS's own lifecycle, not anything about a match's rules. "standalone" (default,
 // unset) is today's exact behavior — one process, always running, hosts however many matches
 // POST /matches asks for. "mps" is Azure PlayFab Multiplayer Servers — the opposite shape, a
@@ -32,10 +29,11 @@ var registry = new MatchRegistry(replayDirectory, playFabAuthority);
 var mode = Environment.GetEnvironmentVariable("LTW_MATCHSERVER_MODE") ?? "standalone";
 if (mode == "mps")
 {
-    await RunUnderPlayFabMultiplayerServersAsync(registry);
+    await RunUnderPlayFabMultiplayerServersAsync(playFabAuthority);
     return;
 }
 
+var registry = new MatchRegistry(Path.Combine(AppContext.BaseDirectory, "replays"), playFabAuthority);
 await RunStandaloneAsync(registry, port);
 
 static async Task RunStandaloneAsync(MatchRegistry registry, int port)
@@ -70,7 +68,7 @@ static async Task RunStandaloneAsync(MatchRegistry registry, int port)
 /// docs/MULTIPLAYER_ROLLOUT.md's MP-07 for the design this follows and what it does not yet
 /// handle (Azure VM maintenance recycling an already-allocated server mid-match).
 /// </summary>
-static async Task RunUnderPlayFabMultiplayerServersAsync(MatchRegistry registry)
+static async Task RunUnderPlayFabMultiplayerServersAsync(PlayFabSessionAuthority? playFabAuthority)
 {
     // Must match both the port NAME configured for this build in PlayFab Game Manager (MP-07's
     // Phase 5) and the client's MultiplayerServerConfig.PortName.
@@ -117,6 +115,17 @@ static async Task RunUnderPlayFabMultiplayerServersAsync(MatchRegistry registry)
         GameserverSDK.LogMessage($"Azure VM maintenance scheduled at {scheduledTime:O} — no in-match mitigation exists yet, see docs/MULTIPLAYER_ROLLOUT.md's MP-07."));
 
     GameserverSDK.Start();
+
+    // Deliberately NOT a fixed path under AppContext.BaseDirectory (standalone mode's own
+    // choice): that path lives only inside this match's own ephemeral container and is gone the
+    // moment PlayFab deletes it after the match ends — silently losing every replay MP-07's
+    // runbook needs to investigate a desync. GSDK's own log folder is what the VM agent zips up
+    // and makes available after the server ends (see GSDK's "Logging" docs: any file placed in
+    // this directory, not just ones written through GameserverSDK.LogMessage, gets included) —
+    // writing replays there is what actually makes them retrievable. Available immediately after
+    // Start(), unlike SessionCookieKey/SessionIdKey below, which need allocation first.
+    var replayDirectory = Path.Combine(GameserverSDK.GetLogsDirectory(), "replays");
+    var registry = new MatchRegistry(replayDirectory, playFabAuthority);
 
     var connectionInfo = GameserverSDK.GetGameServerConnectionInfo();
     var gamePort = connectionInfo.GamePortsConfiguration.FirstOrDefault(candidate => candidate.Name == gamePortName)
