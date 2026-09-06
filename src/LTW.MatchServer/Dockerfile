@@ -5,6 +5,13 @@
 # broken container can never later be confused with a broken GSDK integration.
 #
 #   docker build -f src/LTW.MatchServer/Dockerfile -t ltw-matchserver:dev .
+#
+# For a real PlayFab Multiplayer Servers deployment (which always runs under GSDK, never
+# standalone), build with MATCHSERVER_MODE=mps so the image defaults into that mode without
+# needing the orchestrator to inject a custom environment variable — PlayFab's build creation
+# flow has no field for that, confirmed during MP-07's Phase 5:
+#
+#   docker build -f src/LTW.MatchServer/Dockerfile --build-arg MATCHSERVER_MODE=mps -t ltw-matchserver:mps .
 
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
@@ -24,6 +31,12 @@ RUN dotnet publish src/LTW.MatchServer/LTW.MatchServer.csproj -c Release -o /app
 FROM mcr.microsoft.com/dotnet/runtime:10.0 AS runtime
 WORKDIR /app
 COPY --from=build /app .
+
+# Default "standalone" so ordinary local `docker build`/`docker run` (Phase 1's smoke test, and
+# any future local debugging) needs no extra flags — override with --build-arg for a real MPS
+# deployment image, see this file's own top-of-file remarks.
+ARG MATCHSERVER_MODE=standalone
+ENV LTW_MATCHSERVER_MODE=$MATCHSERVER_MODE
 
 # No fixed EXPOSE: standalone mode's port comes from the existing args[0] CLI convention (see
 # Program.cs), and MP-07's PlayFab-allocated mode reads its port from GSDK config instead — see
