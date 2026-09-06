@@ -17,10 +17,12 @@ namespace LTW.UnityClient.Online
     /// <summary>
     /// Gets the local player into an online match and joins it, using the signed-in PlayFab
     /// session (see <see cref="PlayFabSession"/>) to claim the seat — the same
-    /// <c>playFabTicket=</c> join path <c>PlayFabJoinTests</c> proves server-side. There is no
-    /// matchmaking yet (MP-05's remaining scope), so this always asks for a fresh private match
-    /// for exactly one human seat plus seven bots, matching <c>MatchRegistry.CreateMatch</c>'s own
-    /// default shape.
+    /// <c>playFabTicket=</c> join path <c>PlayFabJoinTests</c> proves server-side. Under MPS
+    /// (<see cref="UseMultiplayerServers"/>), <see cref="QueueForMatchAsync"/> opportunistically
+    /// pools whoever else happens to be queuing at the same time (see its own remarks — this is
+    /// deliberately not an invite mechanism) and falls back to a direct solo-vs-bots request when
+    /// nobody else is around, matching <c>MatchRegistry.CreateMatch</c>'s own bot-fill shape either
+    /// way. See docs/MULTIPLAYER_ROLLOUT.md's MP-05.
     /// </summary>
     /// <remarks>
     /// Two ways to get there, chosen by <see cref="UseMultiplayerServers"/>: the direct-connect
@@ -106,10 +108,10 @@ namespace LTW.UnityClient.Online
 
             if (UseMultiplayerServers)
             {
-                string entityToken;
+                (string EntityToken, PlayFab.AuthenticationModels.EntityKey Entity) identity;
                 try
                 {
-                    entityToken = await GetEntityTokenAsync();
+                    identity = await GetEntityTokenAsync();
                 }
                 catch (Exception exception)
                 {
@@ -117,18 +119,7 @@ namespace LTW.UnityClient.Online
                     return null;
                 }
 
-                (string sessionId, string host, int port) allocation;
-                try
-                {
-                    allocation = await RequestServerAsync(PlayFabSession.PlayFabId, entityToken);
-                }
-                catch (Exception exception)
-                {
-                    onFailure($"Could not request a server: {exception.Message}");
-                    return null;
-                }
-
-                return await JoinAsync(allocation.sessionId, allocation.host, allocation.port, onFailure);
+                return await QueueForMatchAsync(PlayFabSession.PlayFabId, identity.EntityToken, identity.Entity, onFailure);
             }
 
             string matchId;
@@ -287,15 +278,17 @@ namespace LTW.UnityClient.Online
         /// <see cref="CreateAndJoinAsync"/>'s MPS branch can read the same way its direct-connect
         /// sibling does. Populates the vendored SDK's own entity-token cache as a side effect
         /// (<c>PlayFabHttp.OnPlayFabApiResult</c> stores it on <c>PlayFabSettings.staticPlayer</c>
-        /// automatically), which is what lets <see cref="RequestServerAsync"/>'s
-        /// <c>AuthType.EntityToken</c> calls authenticate with no explicit header of our own.
+        /// automatically), which is what lets <see cref="RequestServerAsync"/>'s and
+        /// <see cref="QueueForMatchAsync"/>'s <c>AuthType.EntityToken</c> calls authenticate with no
+        /// explicit header of our own. Also returns the caller's own <c>EntityKey</c> — needed as
+        /// <c>CreateMatchmakingTicketRequest.Creator</c>, which the token alone doesn't supply.
         /// </summary>
-        private static Task<string> GetEntityTokenAsync()
+        private static Task<(string EntityToken, PlayFab.AuthenticationModels.EntityKey Entity)> GetEntityTokenAsync()
         {
-            var completion = new TaskCompletionSource<string>();
+            var completion = new TaskCompletionSource<(string, PlayFab.AuthenticationModels.EntityKey)>();
             PlayFabAuthenticationAPI.GetEntityToken(
                 new GetEntityTokenRequest(),
-                result => completion.TrySetResult(result.EntityToken),
+                result => completion.TrySetResult((result.EntityToken, result.Entity)),
                 error => completion.TrySetException(new InvalidOperationException(error.GenerateErrorReport())));
             return completion.Task;
         }
@@ -310,12 +303,15 @@ namespace LTW.UnityClient.Online
         private const double ServerAllocationTimeoutSeconds = 10;
 
         /// <summary>
-        /// Asks PlayFab Multiplayer Servers (MP-07) for a server instead of creating a match on a
-        /// statically-known host ourselves. The <c>SessionCookie</c> carries the exact same
-        /// <c>{humanSeats, playFabSeats}</c> shape <see cref="CreateMatchAsync"/>'s HTTP body does
-        /// — the server-side <c>CreateMatchRequest</c> DTO deserializes it identically either way.
-        /// Polls <c>GetMultiplayerServerDetails</c> until the allocation reaches <c>"Active"</c>,
-        /// since a fresh allocation is not necessarily instant even from a warm pool.
+        /// Asks PlayFab Multiplayer Servers (MP-07) directly for a solo server instead of pooling
+        /// through matchmaking — <see cref="QueueForMatchAsync"/>'s fallback when nobody else is
+        /// queuing (MP-05's own bounded wait), and, when <see cref="UseMultiplayerServers"/> is
+        /// used without matchmaking at all, a direct entry point in its own right. The
+        /// <c>SessionCookie</c> carries the exact same <c>{humanSeats, playFabSeats}</c> shape
+        /// <see cref="CreateMatchAsync"/>'s HTTP body does — the server-side
+        /// <c>CreateMatchRequest</c> DTO deserializes it identically either way. Polls
+        /// <c>GetMultiplayerServerDetails</c> until the allocation reaches <c>"Active"</c>, since a
+        /// fresh allocation is not necessarily instant even from a warm pool.
         /// </summary>
         private static async Task<(string sessionId, string host, int port)> RequestServerAsync(string playFabId, string entityToken)
         {
@@ -358,6 +354,147 @@ namespace LTW.UnityClient.Online
                 ?? throw new InvalidOperationException($"allocated server had no port named '{MultiplayerServerConfig.PortName}'");
 
             return (sessionId, ipv4Address, port);
+        }
+
+        /// <summary>
+        /// How long a queued ticket waits for another real player before falling back to
+        /// <see cref="RequestServerAsync"/>'s direct solo-vs-bots path — see
+        /// docs/MULTIPLAYER_ROLLOUT.md's MP-05 for why this fallback is mandatory, not optional:
+        /// PlayFab's matchmaker can never match a ticket by itself (a queue's minimum match size is
+        /// always &gt;= 2, confirmed directly from Microsoft's own docs), so a ticket with no
+        /// company simply cancels after this — there is no shorter road to "solo, against bots"
+        /// through the matchmaker itself.
+        /// </summary>
+        private const int MatchmakingGiveUpAfterSeconds = 25;
+
+        private const double MatchmakingPollIntervalSeconds = 0.5;
+
+        /// <summary>
+        /// Queues for a match. If another real player is also queuing, PlayFab pools them into the
+        /// same server (bots filling whatever seats are left) — deliberately opportunistic, not an
+        /// invite: nothing here lets a player choose who they land with, per this project's own
+        /// explicit direction. If nobody else shows up within
+        /// <see cref="MatchmakingGiveUpAfterSeconds"/>, the ticket cancels and this falls back to
+        /// <see cref="RequestServerAsync"/>'s existing, already-proven direct solo-vs-bots path —
+        /// same as if matchmaking had never been attempted.
+        /// </summary>
+        private static async Task<MatchWireClient?> QueueForMatchAsync(string playFabId, string entityToken, PlayFab.AuthenticationModels.EntityKey entity, Action<string> onFailure)
+        {
+            string ticketId;
+            try
+            {
+                ticketId = await CreateMatchmakingTicketAsync(entity);
+            }
+            catch (Exception exception)
+            {
+                onFailure($"Could not create a matchmaking ticket: {exception.Message}");
+                return null;
+            }
+
+            // A small safety margin beyond the ticket's own server-side GiveUpAfterSeconds timer —
+            // PlayFab is what actually transitions the ticket to Canceled; this just guards against
+            // never observing that transition for some unexpected reason, rather than polling forever.
+            var deadline = DateTime.UtcNow.AddSeconds(MatchmakingGiveUpAfterSeconds + 10);
+            string status;
+            string? matchId;
+            do
+            {
+                await Task.Delay(TimeSpan.FromSeconds(MatchmakingPollIntervalSeconds));
+                GetMatchmakingTicketResult ticket;
+                try
+                {
+                    ticket = await GetMatchmakingTicketAsync(ticketId);
+                }
+                catch (Exception exception)
+                {
+                    onFailure($"Could not check matchmaking ticket status: {exception.Message}");
+                    return null;
+                }
+
+                status = ticket.Status;
+                matchId = ticket.MatchId;
+            }
+            while (status != "Matched" && status != "Canceled" && DateTime.UtcNow < deadline);
+
+            if (status == "Matched" && matchId is not null)
+            {
+                GetMatchResult match;
+                try
+                {
+                    match = await GetMatchAsync(matchId);
+                }
+                catch (Exception exception)
+                {
+                    onFailure($"Could not get match details: {exception.Message}");
+                    return null;
+                }
+
+                var matchedPort = match.ServerDetails.Ports?.FirstOrDefault(candidate => candidate.Name == MultiplayerServerConfig.PortName)?.Num
+                    ?? throw new InvalidOperationException($"matched server had no port named '{MultiplayerServerConfig.PortName}'");
+
+                // "current", not a derived id: a queue-auto-allocated server's own internal match id
+                // is not guaranteed to equal PlayFab's own MatchId here — HttpMatchHost's "current"
+                // join alias exists specifically to sidestep needing that equivalence. See
+                // docs/MULTIPLAYER_ROLLOUT.md's MP-05.
+                return await JoinAsync("current", match.ServerDetails.IPV4Address, matchedPort, onFailure);
+            }
+
+            // Nobody else was queuing within the bounded wait — the common case at this
+            // population. Falls back to the same direct-request flow that ran unconditionally
+            // before matchmaking existed; a solo player sees no functional difference.
+            (string sessionId, string host, int port) allocation;
+            try
+            {
+                allocation = await RequestServerAsync(playFabId, entityToken);
+            }
+            catch (Exception exception)
+            {
+                onFailure($"Could not request a server: {exception.Message}");
+                return null;
+            }
+
+            return await JoinAsync(allocation.sessionId, allocation.host, allocation.port, onFailure);
+        }
+
+        private static Task<string> CreateMatchmakingTicketAsync(PlayFab.AuthenticationModels.EntityKey entity)
+        {
+            var completion = new TaskCompletionSource<string>();
+            PlayFabMultiplayerAPI.CreateMatchmakingTicket(
+                new CreateMatchmakingTicketRequest
+                {
+                    QueueName = MultiplayerServerConfig.MatchmakingQueueName,
+                    GiveUpAfterSeconds = MatchmakingGiveUpAfterSeconds,
+                    Creator = new MatchmakingPlayer
+                    {
+                        // PlayFab.MultiplayerModels.EntityKey, a distinct type from
+                        // PlayFab.AuthenticationModels.EntityKey despite the identical shape — the
+                        // vendored SDK duplicates this model per API category rather than sharing one.
+                        Entity = new PlayFab.MultiplayerModels.EntityKey { Id = entity.Id, Type = entity.Type },
+                    },
+                },
+                result => completion.TrySetResult(result.TicketId),
+                error => completion.TrySetException(new InvalidOperationException(error.GenerateErrorReport())));
+            return completion.Task;
+        }
+
+        private static Task<GetMatchmakingTicketResult> GetMatchmakingTicketAsync(string ticketId)
+        {
+            var completion = new TaskCompletionSource<GetMatchmakingTicketResult>();
+            PlayFabMultiplayerAPI.GetMatchmakingTicket(
+                new GetMatchmakingTicketRequest { TicketId = ticketId, QueueName = MultiplayerServerConfig.MatchmakingQueueName },
+                result => completion.TrySetResult(result),
+                error => completion.TrySetException(new InvalidOperationException(error.GenerateErrorReport())));
+            return completion.Task;
+        }
+
+        private static Task<GetMatchResult> GetMatchAsync(string matchId)
+        {
+            var completion = new TaskCompletionSource<GetMatchResult>();
+            PlayFabMultiplayerAPI.GetMatch(
+                new GetMatchRequest { MatchId = matchId, QueueName = MultiplayerServerConfig.MatchmakingQueueName },
+                result => completion.TrySetResult(result),
+                error => completion.TrySetException(new InvalidOperationException(error.GenerateErrorReport())));
+            return completion.Task;
         }
 
         private static Task<RequestMultiplayerServerResponse> RequestMultiplayerServerAsync(RequestMultiplayerServerRequest request)

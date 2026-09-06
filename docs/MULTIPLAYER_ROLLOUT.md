@@ -728,10 +728,60 @@ SIGNED IN. Three real bugs surfaced getting there, each is its own entry below.
   SHA-1, and PlayFab's *different* `LoginWithGooglePlayGamesServices` identity path, since Google
   deprecated the classic Google Sign-In SDK for Android in February 2025. None of that is started.
 
+### Real matchmaking, landed 2026-09-05 — pools opportunistically, no invite mechanism
+
+Explicit product direction: no deliberate "invite my friends" feature. Players queue; if another
+real player happens to be queuing at the same time, PlayFab pools them into the same match (bots
+fill whatever seats are left). If nobody else shows up within a bounded wait, fall back to the
+already-proven solo-vs-bots direct request from MP-07 — same server, same experience, no visible
+difference to that player.
+
+A hard PlayFab platform constraint shapes this, confirmed directly from Microsoft's docs, not
+assumed: **a matchmaking queue's minimum match size must always be ≥ 2 — a lone ticket can never be
+matched by itself, no matter how long it waits.** That makes the solo-fallback path mandatory, not
+a convenience.
+
+- **Server (`Program.cs`)**: a queue's `ServerAllocationEnabled` auto-allocation gives the server no
+  `SessionCookie` of its own (nothing ever called `RequestMultiplayerServer` directly to set one) —
+  confirmed from PlayFab's own docs that the matched players instead come through
+  `GameserverSDK.GetInitialPlayers()`. New `QueuedMatchBootstrap.AssignSeatsFromInitialPlayers`
+  (pure, GSDK-free, unit-tested) turns that list into the same `humanSeats`/`playFabIdBySeat` shape
+  a direct request's `SessionCookie` already provides — `MatchRegistry.CreateMatch` needed zero
+  changes, since that shape was deliberately built matchmaking-agnostic from the start (MP-04/MP-05's
+  own design note). `Program.cs` forks on whether `SessionCookie` actually deserialized anything —
+  present and populated means a direct request (today's path, unchanged); empty means
+  queue-allocated, falling back to `GetInitialPlayers()`.
+- **`HttpMatchHost` gains a `current` join alias** (`GET /matches/current/join?...`), resolving to
+  "the only match this registry holds" — offered only when match creation is disallowed (MPS mode,
+  which already guarantees exactly one match per process). Exists specifically because a
+  queue-matched client only ever learns PlayFab's own `MatchId` (from `GetMatch`), which is not
+  confirmed to equal this registry's internal match id — rather than gambling on that equivalence,
+  "current" sidesteps needing it at all.
+- **Client (`OnlineMatchService.cs`)**: new `QueueForMatchAsync` — creates a matchmaking ticket
+  (`CreateMatchmakingTicket`, reusing the same `GetEntityTokenAsync` entity-token plumbing MP-07's
+  `RequestServerAsync` already built), polls `GetMatchmakingTicket` every 0.5s, and on `Matched`
+  resolves the allocated server via `GetMatch` and joins using the new `current` alias. On
+  `Canceled` (the ticket's own 25-second `GiveUpAfterSeconds` elapsed with nobody else around — the
+  expected common case at this population), falls back to the existing `RequestServerAsync` path
+  unchanged. `RequestServerAsync` itself is untouched — it's now `QueueForMatchAsync`'s fallback
+  callee rather than being called directly from `CreateAndJoinAsync`.
+- **Not yet done**: the actual PlayFab Game Manager queue (name, `MinMatchSize: 2`/`MaxMatchSize: 8`,
+  `ServerAllocationEnabled` tied to MP-07's `BuildId`) hasn't been created — portal work, gated on
+  the same account access as MP-07's Phase 5. Live verification (two real identities queuing
+  together, and the solo-timeout-fallback path) needs that queue plus a real allocatable server, so
+  it's gated on the same Dasv4 quota approval MP-07 is already waiting on. `dotnet test` (388/388)
+  and Unity batchmode compile (0 `error CS`) are what's verified so far — matching this project's
+  own established limit for GSDK/PlayFab-network code that can't be unit-tested without a real or
+  simulated agent.
+
 ### Acceptance Checks
 
-- [ ] A player queues alone and is in a match within the bounded wait, against bots.
-- [ ] Four players queuing together land in one match with four bot seats.
+- [ ] A player queues alone and is in a match within the bounded wait, against bots. Code landed
+      2026-09-05 (see above); live verification blocked on the same quota approval as MP-07.
+- [ ] Four players queuing together land in one match with four bot seats. Reframed per explicit
+      product direction — see above: players pool opportunistically if queuing concurrently, there
+      is no deliberate "queue together" invite mechanism. Code landed 2026-09-05; live verification
+      blocked on the same quota approval as MP-07.
 - [ ] Results survive a client crash and a server restart.
 - [x] Every third-party service used is in `MVP_DEPENDENCIES.md` — PlayFab is recorded there now.
 - [x] A PlayFab session ticket claims the seat it was verified for, and only that seat — proven

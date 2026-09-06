@@ -144,7 +144,15 @@ public sealed class HttpMatchHost
         var token = context.Request.QueryString["token"];
         var playFabTicket = context.Request.QueryString["playFabTicket"];
 
-        var match = matchId is not null ? registry.Find(matchId) : null;
+        // "current" resolves to "the only match this registry holds" instead of requiring an exact
+        // id — only meaningful (and only offered) when match creation is disallowed, i.e. PlayFab
+        // Multiplayer Servers mode, which already guarantees exactly one match per process. A
+        // queue-matched client only ever learns PlayFab's own MatchId, not necessarily this
+        // registry's internal id — see MatchRegistry.FindOnly's own remarks for why this sidesteps
+        // that question entirely rather than assuming the two happen to be equal.
+        var match = matchId == "current" && !allowMatchCreation
+            ? registry.FindOnly()
+            : matchId is not null ? registry.Find(matchId) : null;
         if (match is null || !int.TryParse(seatText, out var seat) || (token is null && playFabTicket is null))
         {
             context.Response.StatusCode = 400;

@@ -1,3 +1,4 @@
+using System.Linq;
 using LTW.Simulation.Bridge;
 using LTW.Simulation.Content;
 
@@ -92,4 +93,15 @@ public sealed class MatchRegistry
     }
 
     public ServerMatch? Find(string matchId) => matches.TryGetValue(matchId, out var match) ? match : null;
+
+    /// <summary>
+    /// The one match this registry holds, or null if there is zero or more than one — used only by
+    /// <see cref="HttpMatchHost"/>'s <c>current</c> join alias, itself only offered when
+    /// <c>allowMatchCreation</c> is false (PlayFab Multiplayer Servers mode), which already
+    /// guarantees exactly one match per process. See docs/MULTIPLAYER_ROLLOUT.md's MP-05: a
+    /// queue-matched client learns PlayFab's own <c>MatchId</c> from <c>GetMatch</c>, which is not
+    /// guaranteed to equal this registry's internal match id — "current" sidesteps needing that
+    /// equivalence at all rather than assuming it.
+    /// </summary>
+    public ServerMatch? FindOnly() => matches.Count == 1 ? matches.Values.Single() : null;
 }

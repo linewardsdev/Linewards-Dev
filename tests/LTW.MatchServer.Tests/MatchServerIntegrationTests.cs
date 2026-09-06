@@ -558,4 +558,63 @@ public sealed class MatchServerIntegrationTests : IAsyncLifetime
         Assert.True(creep.GetProperty("maxHealth").GetInt32() > 0);
         Assert.True(creep.GetProperty("effectiveMovementCost").GetInt32() > 0);
     }
+
+    /// <summary>
+    /// MP-05: a queue-auto-allocated server has no SessionCookie of its own — the matched players
+    /// come from GSDK's GetInitialPlayers() instead. See QueuedMatchBootstrap's own remarks.
+    /// </summary>
+    [Fact]
+    public void QueuedMatchBootstrap_assigns_sequential_seats_to_each_matched_playFabId()
+    {
+        var (humanSeats, playFabIdBySeat) = QueuedMatchBootstrap.AssignSeatsFromInitialPlayers(new[] { "playfab-a", "playfab-b", "playfab-c" });
+
+        Assert.Equal(new List<int> { 1, 2, 3 }, humanSeats);
+        Assert.Equal("playfab-a", playFabIdBySeat[1]);
+        Assert.Equal("playfab-b", playFabIdBySeat[2]);
+        Assert.Equal("playfab-c", playFabIdBySeat[3]);
+    }
+
+    [Fact]
+    public void QueuedMatchBootstrap_returns_empty_for_no_matched_players()
+    {
+        var (humanSeats, playFabIdBySeat) = QueuedMatchBootstrap.AssignSeatsFromInitialPlayers(Array.Empty<string>());
+
+        Assert.Empty(humanSeats);
+        Assert.Empty(playFabIdBySeat);
+    }
+
+    [Fact]
+    public async Task HttpMatchHost_current_alias_resolves_to_the_only_match_when_creation_is_disallowed()
+    {
+        var restrictedPort = FindFreePort();
+        var restrictedHost = new HttpMatchHost(registry, $"http://localhost:{restrictedPort}/", allowMatchCreation: false);
+        restrictedHost.Start();
+        try
+        {
+            var match = registry.CreateMatch(new[] { 1 });
+            var token = match.TokenFor(1)!;
+            using var socket = new ClientWebSocket();
+            await socket.ConnectAsync(new Uri($"ws://localhost:{restrictedPort}/matches/current/join?seat=1&token={token}"), CancellationToken.None);
+            var welcome = await ReceiveOfTypeAsync(socket, "welcome");
+            Assert.Equal(1, welcome.GetProperty("seat").GetInt32());
+        }
+        finally
+        {
+            restrictedHost.Stop();
+        }
+    }
+
+    [Fact]
+    public async Task HttpMatchHost_current_alias_is_not_offered_when_match_creation_is_allowed()
+    {
+        // Standalone mode (allowMatchCreation: true, the shared fixture's own host) never treats
+        // "current" as special — an exact match id is always required there, so this looks up a
+        // match literally named "current" (none exists) and never even reaches a WebSocket
+        // upgrade, unlike a rejected-but-upgraded join (see AcceptAsync's own token-mismatch path).
+        var match = registry.CreateMatch(new[] { 1 });
+        _ = match.TokenFor(1)!;
+        using var socket = new ClientWebSocket();
+        await Assert.ThrowsAsync<WebSocketException>(() =>
+            socket.ConnectAsync(new Uri($"ws://localhost:{port}/matches/current/join?seat=1&token=irrelevant"), CancellationToken.None));
+    }
 }

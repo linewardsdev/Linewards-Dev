@@ -26,5 +26,12 @@ namespace LTW.UnityClient.Online
         /// against a real build, not guessed — see MP-07's Phase 2/5.
         /// </summary>
         public const string PortName = "game";
+
+        /// <summary>
+        /// The matchmaking queue created in PlayFab Game Manager (MP-05's Phase 2) — must have
+        /// <c>ServerAllocationEnabled</c> pointed at the same <see cref="BuildId"/> above. Not set
+        /// until that portal step is done. See docs/MULTIPLAYER_ROLLOUT.md's MP-05.
+        /// </summary>
+        public const string MatchmakingQueueName = "TODO-set-after-queue-creation";
     }
 }

@@ -154,10 +154,27 @@ static async Task RunUnderPlayFabMultiplayerServersAsync(PlayFabSessionAuthority
     // Same JSON shape as HttpMatchHost's own POST /matches body — CreateMatchRequest is shared
     // between both so the contract can't drift.
     var request = JsonSerializer.Deserialize<CreateMatchRequest>(sessionCookie, json) ?? new CreateMatchRequest();
+
+    List<int> humanSeats;
+    Dictionary<int, string>? playFabIdBySeat;
+    if (request.HumanSeats is { Count: > 0 })
+    {
+        // A direct RequestMultiplayerServer call (today's solo-vs-bots path) — SessionCookie
+        // carries the real seat assignment, unchanged.
+        humanSeats = request.HumanSeats;
+        playFabIdBySeat = request.PlayFabSeats;
+    }
+    else
+    {
+        // No SessionCookie content — this server was auto-allocated by a matchmaking queue's
+        // ServerAllocationEnabled, not a direct request. See docs/MULTIPLAYER_ROLLOUT.md's MP-05.
+        (humanSeats, playFabIdBySeat) = QueuedMatchBootstrap.AssignSeatsFromInitialPlayers(GameserverSDK.GetInitialPlayers());
+    }
+
     currentMatch = registry.CreateMatch(
-        request.HumanSeats ?? new List<int> { 1 },
+        humanSeats,
         request.TicksPerSecond,
-        request.PlayFabSeats,
+        playFabIdBySeat,
         request.OpeningBuildWindowSeconds,
         matchId: sessionId,
         onSeatBound: OnSeatBound,
