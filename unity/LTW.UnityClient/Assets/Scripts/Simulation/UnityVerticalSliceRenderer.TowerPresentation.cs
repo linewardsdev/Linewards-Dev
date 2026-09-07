@@ -52,11 +52,6 @@ namespace LTW.UnityClient.Simulation
             instance.transform.position = new Vector3(basePosition.x, baseY + lift + TowerRootSink(towerId), basePosition.z);
             instance.transform.localScale = visualProfile != null && visualProfile.HasScale ? visualProfile.Scale : TowerRoleScale(towerId);
             instance.transform.rotation = Quaternion.identity;
-
-            if (hasRealPrefab)
-            {
-                ApplyTowerBodyShadowPolicy(instance);
-            }
         }
 
         /// <summary>
@@ -76,44 +71,6 @@ namespace LTW.UnityClient.Simulation
             "tower.bloomheart" => -0.07f,
             _ => 0f
         };
-
-        /// <summary>
-        /// Finding #11 (2026-09-01 render review): live towers never cast a shadow. Root cause is
-        /// Tower3DImportPipeline's NormalizeRendererPolicy/ApplyRuntimeMaterial, which force
-        /// shadowCastingMode Off / receiveShadows false on EVERY MeshRenderer under the imported
-        /// hierarchy at wrapper-generation time — a blanket policy that is correct for the flat
-        /// cosmetic accessories (RangeHalo/OwnerTrim/RoleMarker, which really do look wrong
-        /// casting a shadow from a thin ring or plate) but also caught Body's own visible mesh.
-        /// Confirmed directly against the shipped prefabs (e.g. Tower_Gatling_3D.prefab): the
-        /// renderers actually used at normal camera distance — Body/Imported3DVisual/.../Base and
-        /// Body/HeadPivot/Head+Barrel — are baked with both flags off.
-        ///
-        /// This is fixed here at runtime rather than in the import pipeline: regenerating a
-        /// wrapper from its raw FBX is exactly the operation GenerateWrapperIfRawExists' own
-        /// remarks warn is destructive post-hoc — these prefabs have since had an LODGroup and
-        /// hand-bound LOD1/LOD2 renderers added by a later pass the generator knows nothing about,
-        /// and an earlier blanket regeneration already silently stripped that LODGroup from all
-        /// fifteen towers once. Re-running it again without Unity available to verify the result
-        /// is a worse trade than a two-line runtime override. RoleMarker/OwnerTrim/RangeHalo are
-        /// root-level siblings of Body, not descendants of it (see
-        /// Tower3DImportPipeline.GenerateWrapperIfRawExists), so restricting this to renderers
-        /// under Body cannot reach them — the accessories keep their existing shadowless look.
-        /// </summary>
-        private static void ApplyTowerBodyShadowPolicy(GameObject towerObject)
-        {
-            var body = towerObject.transform.Find("Body");
-            if (body == null)
-            {
-                return;
-            }
-
-            var renderers = body.GetComponentsInChildren<MeshRenderer>(true);
-            for (var index = 0; index < renderers.Length; index++)
-            {
-                renderers[index].shadowCastingMode = ShadowCastingMode.On;
-                renderers[index].receiveShadows = true;
-            }
-        }
 
         private const float TowerRecoilDuration = 0.35f;
         private const float TowerAimTurnDegreesPerSecond = 260f;
@@ -428,12 +385,14 @@ namespace LTW.UnityClient.Simulation
         /// renderer at all, see Tower3DImportPipeline.ResolveAnchorPosition). As it sweeps about
         /// world-up against the board's 30-degree camera tilt, it repeatedly passes through
         /// near-edge-on phases where a thin 3D band aliases into a scratchy, hand-drawn-looking
-        /// line even with SMAA — the same class of prefab-vs-runtime tradeoff
-        /// <see cref="ApplyTowerBodyShadowPolicy"/> above documents: the correct fix is in the
-        /// import pipeline (author it as a flat decal instead of a modelled band), but
-        /// regenerating Tower_Pulse_3D's wrapper is exactly the destructive, unverifiable
-        /// operation GenerateWrapperIfRawExists' own remarks warn against with no interactive
-        /// Unity session available this pass.
+        /// line even with SMAA. The correct fix is in the import pipeline (author it as a flat
+        /// decal instead of a modelled band), but unlike a field-level policy flip (see
+        /// Tower3DImportPipeline.RepairShippedBodyShadowPolicy, added for item 52, which can only
+        /// ever change values on renderers that already exist), swapping a modelled mesh for a
+        /// decal is a geometry change — it needs either regenerating Tower_Pulse_3D's wrapper from
+        /// its raw FBX (exactly the destructive operation GenerateWrapperIfRawExists' own remarks
+        /// warn against, since it would also strip the wrapper's hand-bound LODGroup) or editing
+        /// the source FBX directly, neither of which this pass attempted.
         ///
         /// So this disables the aliasing mesh and grows a flat decal in its place instead. A
         /// decal lying flat in the XZ plane never has an edge-on phase to alias regardless of

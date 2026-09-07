@@ -266,6 +266,15 @@ namespace LTW.UnityClient.Editor
             }
         }
 
+        // OPEN_ITEMS.md item 52 / render review finding #11 (2026-09-01): both this and
+        // NormalizeRendererPolicy below are called exactly once each, on `generatedInstance`,
+        // BEFORE it is parented under Body and before any accessory (RangeHalo/RoleMarker/
+        // OwnerTrim) is created as a root-level sibling of Body — so every renderer either method
+        // ever touches is, by construction, Body's own imported visual, not a decorative
+        // accessory. On/true is therefore the right policy here. Previously fixed only at runtime,
+        // in a UnityVerticalSliceRenderer.TowerPresentation.cs override this pass removed now that
+        // the pipeline itself is correct — see RepairShippedBodyShadowPolicy below for how the 15
+        // already-shipped prefabs picked up the same fix without a destructive full regeneration.
         private static void ApplyRuntimeMaterial(GameObject root, Material material)
         {
             var renderers = root.GetComponentsInChildren<MeshRenderer>(true);
@@ -279,8 +288,8 @@ namespace LTW.UnityClient.Editor
                 }
 
                 renderer.sharedMaterials = materials;
-                renderer.shadowCastingMode = ShadowCastingMode.Off;
-                renderer.receiveShadows = false;
+                renderer.shadowCastingMode = ShadowCastingMode.On;
+                renderer.receiveShadows = true;
             }
         }
 
@@ -290,8 +299,8 @@ namespace LTW.UnityClient.Editor
             for (var index = 0; index < renderers.Length; index++)
             {
                 var renderer = renderers[index];
-                renderer.shadowCastingMode = ShadowCastingMode.Off;
-                renderer.receiveShadows = false;
+                renderer.shadowCastingMode = ShadowCastingMode.On;
+                renderer.receiveShadows = true;
 
                 var materials = renderer.sharedMaterials;
                 for (var materialIndex = 0; materialIndex < materials.Length; materialIndex++)
@@ -302,6 +311,72 @@ namespace LTW.UnityClient.Editor
                     }
                 }
             }
+        }
+
+        private const string RepairBodyShadowPolicyMenuPath = "Line Wards/Art/Repair Tower 3D Body Shadow Policy";
+
+        /// <summary>
+        /// One-off in-place repair for the 16 tower wrappers generated before item 52's fix above
+        /// existed: flips Body's own renderers from the old Off/false shadow policy to On/true,
+        /// matching what NormalizeRendererPolicy/ApplyRuntimeMaterial now write for any newly
+        /// generated wrapper. RangeHalo/RoleMarker/OwnerTrim are untouched — they are root-level
+        /// siblings of Body (see GenerateWrapperIfRawExists), not descendants, so walking Body's
+        /// own hierarchy cannot reach them.
+        /// </summary>
+        /// <remarks>
+        /// Deliberately NOT "Regenerate ALL Tower 3D Proof Wrappers" — that menu item's own label
+        /// says "(discards LODs)": it rebuilds each wrapper from its raw FBX from scratch, which
+        /// would strip the LODGroup and hand-bound LOD1/LOD2 renderers a later pass added, exactly
+        /// the risk that previously justified fixing this at runtime instead of here. This uses
+        /// LoadPrefabContents/SaveAsPrefabAsset instead, which edits the EXISTING prefab in place:
+        /// it can only ever flip two fields on whatever MeshRenderers already exist under Body, and
+        /// touches nothing else in the hierarchy.
+        /// </remarks>
+        [MenuItem(RepairBodyShadowPolicyMenuPath)]
+        public static void RepairShippedBodyShadowPolicy()
+        {
+            var guids = AssetDatabase.FindAssets("t:Prefab", new[] { RuntimePrefabFolder });
+            var prefabCount = 0;
+            var fixedCount = 0;
+            for (var index = 0; index < guids.Length; index++)
+            {
+                var path = AssetDatabase.GUIDToAssetPath(guids[index]);
+                var root = PrefabUtility.LoadPrefabContents(path);
+                try
+                {
+                    prefabCount++;
+                    var body = root.transform.Find("Body");
+                    if (body == null)
+                    {
+                        continue;
+                    }
+
+                    var renderers = body.GetComponentsInChildren<MeshRenderer>(true);
+                    var changed = false;
+                    for (var rendererIndex = 0; rendererIndex < renderers.Length; rendererIndex++)
+                    {
+                        var renderer = renderers[rendererIndex];
+                        if (renderer.shadowCastingMode != ShadowCastingMode.On || !renderer.receiveShadows)
+                        {
+                            renderer.shadowCastingMode = ShadowCastingMode.On;
+                            renderer.receiveShadows = true;
+                            changed = true;
+                        }
+                    }
+
+                    if (changed)
+                    {
+                        PrefabUtility.SaveAsPrefabAsset(root, path);
+                        fixedCount++;
+                    }
+                }
+                finally
+                {
+                    PrefabUtility.UnloadPrefabContents(root);
+                }
+            }
+
+            Debug.Log($"Repaired Body shadow policy on {fixedCount}/{prefabCount} tower 3D wrapper prefab(s).");
         }
 
         private static void ConfigurePreservedSourceMaterial(Material material)
@@ -506,15 +581,24 @@ namespace LTW.UnityClient.Editor
                     continue;
                 }
 
-                if (renderer.shadowCastingMode != ShadowCastingMode.Off)
+                // Item 52: every renderer reaching here is real, solid tower geometry — Body's own
+                // mesh (LOD0) plus the LOD_1/LOD_2 siblings a later pass bound alongside it — unlike
+                // the three flat decorative accessories skipped above. It should cast and receive
+                // shadows like any other opaque object, not hide under the policy that correctly
+                // keeps a thin ring or plate from casting one. (Not an ancestry check against
+                // "Body": LOD_1/LOD_2 are root-level siblings of Body, not descendants of it, and
+                // were already shipped at On/true — confirmed directly against Tower_Arrow_3D's own
+                // hierarchy — so this only needed to stop demanding Off/false, not start asking
+                // "is this under Body".)
+                if (renderer.shadowCastingMode != ShadowCastingMode.On)
                 {
-                    Debug.LogError($"{spec.DisplayName} renderer '{renderer.name}' casts shadows. Runtime tower 3D wrappers should disable shadows.", prefab);
+                    Debug.LogError($"{spec.DisplayName} renderer '{renderer.name}' has shadowCastingMode {renderer.shadowCastingMode}, expected On.", prefab);
                     issueCount++;
                 }
 
-                if (renderer.receiveShadows)
+                if (!renderer.receiveShadows)
                 {
-                    Debug.LogError($"{spec.DisplayName} renderer '{renderer.name}' receives shadows. Runtime tower 3D wrappers should disable shadow receive.", prefab);
+                    Debug.LogError($"{spec.DisplayName} renderer '{renderer.name}' does not receive shadows, expected true.", prefab);
                     issueCount++;
                 }
 

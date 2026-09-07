@@ -201,8 +201,10 @@ still open as of 2026-09-07, grouped by domain, with one line each.
 - [ ] **#53 — Render review residuals after Wave 5.** Four small polish items (~1 day total):
       label-on-label stacking, hit-flash timing, elimination/victory cue style, Control ward base
       dish alpha.
-- [ ] **#52 — Tower body loses its own shadow via `NormalizeRendererPolicy`.** Runtime workaround
-      shipped; root fix needs regenerating 15 tower prefabs in an interactive Editor session.
+- [x] **#52 — Tower body loses its own shadow via `NormalizeRendererPolicy`.** Closed 2026-09-07 —
+      fixed in the pipeline (`NormalizeRendererPolicy`/`ApplyRuntimeMaterial`/`ValidateRendererPolicy`)
+      and applied to the 16 shipped prefabs via a new in-place repair command, not a destructive
+      full regeneration. The runtime workaround is deleted; `ValidateProofWrappers` is clean.
 - [ ] **#33 — MSAA sample-count mismatch on Metal.** Needs a real device (Metal) re-test; not
       reproducible in the Editor.
 - [x] **#48 — Send dock category cards render content over the card art.** Closed 2026-09-07 —
