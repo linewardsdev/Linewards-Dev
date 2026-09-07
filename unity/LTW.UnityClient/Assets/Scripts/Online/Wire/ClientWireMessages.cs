@@ -70,6 +70,29 @@ namespace LTW.UnityClient.Online.Wire
         public string CreepId { get; set; } = "";
     }
 
+    /// <summary>
+    /// Withdraws the sender's own most recent queued send of this creep. Found missing 2026-09-07
+    /// alongside <see cref="ClearSendQueueMessage"/>, the same day a real UI control finally
+    /// reached <c>UnityCommandAdapter.CancelQueuedSend</c> on the local-play path (OPEN_ITEMS.md
+    /// item 47) and immediately exposed that neither had ever been given a wire message at all —
+    /// see item 55.
+    /// </summary>
+    public sealed class CancelSendMessage : ClientCommandMessage
+    {
+        [JsonProperty("type")]
+        public string Type => "cancelSend";
+
+        [JsonProperty("creepId")]
+        public string CreepId { get; set; } = "";
+    }
+
+    /// <summary>Empties the sender's whole send queue in one call. See <see cref="CancelSendMessage"/>'s own remarks.</summary>
+    public sealed class ClearSendQueueMessage : ClientCommandMessage
+    {
+        [JsonProperty("type")]
+        public string Type => "clearSendQueue";
+    }
+
     public sealed class BuyCategoryTierMessage : ClientCommandMessage
     {
         [JsonProperty("type")]

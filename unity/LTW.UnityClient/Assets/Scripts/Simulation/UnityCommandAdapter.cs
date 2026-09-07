@@ -804,6 +804,18 @@ namespace LTW.UnityClient.Simulation
         /// </remarks>
         public VerticalSliceCommandResult CancelQueuedSend(LTW.Simulation.Content.ContentId creepId)
         {
+            // Found missing 2026-09-05, the day a real UI control first reached this method
+            // (OPEN_ITEMS.md item 47's badge) — unlike every other command here, this had no
+            // wireClient branch at all, so canceling a queued send silently did nothing during an
+            // online match. No optimistic prediction, same reasoning as BuyCategoryTier above: a
+            // queue-count change has no single obvious visual to predict, and the badge already
+            // reads the count off the next real tick's snapshot regardless. See item 55.
+            if (wireClient is not null)
+            {
+                wireClient.SendCommand(new CancelSendMessage { Id = NewRequestId(), CreepId = creepId.Value });
+                return VerticalSliceCommandResult.Accept();
+            }
+
             if (simulation is null)
             {
                 return VerticalSliceCommandResult.Reject(CommandRejectionReason.MatchPaused);
@@ -820,6 +832,18 @@ namespace LTW.UnityClient.Simulation
         /// </remarks>
         public int ClearSendQueue()
         {
+            // Same missing-wire-branch gap as CancelQueuedSend above (item 55) — fixed the same
+            // way. The real removed count is not knowable synchronously online (it depends on
+            // state living on the server), and nothing calls this method yet regardless (see
+            // OPEN_ITEMS.md item 47's own note that a full clear "wants a separate home" — that
+            // home was never built), so 1 here is only ever "a wire send happened", not a real
+            // count, until an actual caller exists to need one.
+            if (wireClient is not null)
+            {
+                wireClient.SendCommand(new ClearSendQueueMessage { Id = NewRequestId() });
+                return 1;
+            }
+
             if (simulation is null)
             {
                 return 0;

@@ -114,12 +114,13 @@ Source: `GAMEPLAY_DEVELOPMENT_CHECKLIST.md`.
       8 rigged, each with exactly one `Walk` state. Open residuals: watch/tune the speed-scaling
       exponent, no death/hit-reaction clips, Aegis Warden's arm pose (not fixable by animation),
       Chain Arc's hops, Bramble Hold's visible slow effect blocked on a data plumbing gap.
-- [~] **Send queue (2026-08-08).** Simulation and adapter fully done and tested. **Closed
-      2026-09-07**: `SendDockController` now has a cancel badge reaching `CancelQueuedSend` for
-      local play (`OPEN_ITEMS.md` #47). **Found while closing it**: `CancelQueuedSend`/
-      `ClearSendQueue` have no online-multiplayer wire path at all (§4/§5's MP-06 work landed
-      after the send queue did, and nothing had exercised this until a real control existed) —
-      new `OPEN_ITEMS.md` #55. Still not played by a human.
+- [x] **Send queue (2026-08-08).** Simulation and adapter fully done and tested.
+      `SendDockController` has a cancel badge reaching `CancelQueuedSend` (`OPEN_ITEMS.md` #47,
+      closed 2026-09-07), and the online-multiplayer wire gap that closing #47 surfaced —
+      `CancelQueuedSend`/`ClearSendQueue` silently doing nothing in an online match — is also
+      closed (#55: new `CancelSendMessage`/`ClearSendQueueMessage` wire types, a server dispatch
+      case, and two new `MatchServerIntegrationTests`, 411/411 passing). Still not played by a
+      human.
 
 ---
 
@@ -250,12 +251,8 @@ still open as of 2026-09-07, grouped by domain, with one line each.
       send-queue entry above for what shipped and what it surfaced (#55).
 - [x] **#54 — How to Play rewrite and Practice tutorial.** Shipped and verified 2026-09-03 (batch
       compile, 340/340 tests, capture evidence). Minor residuals noted, device-unverified.
-- [ ] **#55 — `CancelQueuedSend`/`ClearSendQueue` have no online-multiplayer wire path.** Found
-      2026-09-07 while closing #47 — every other command (`PlaceTower`, `UpgradeTower`,
-      `BuyCategoryTier`) sends a real wire message in online mode; these two silently do nothing
-      instead. Needs a new wire message type, a server dispatch case, and its own
-      `MatchServerIntegrationTests` coverage — server-and-wire work, not attempted as part of the
-      UI-only fix that found it.
+- [x] **#55 — `CancelQueuedSend`/`ClearSendQueue` have no online-multiplayer wire path.** Closed
+      2026-09-07 — see the GD checklist's send-queue entry above for what shipped.
 
 ### Code / repo health
 

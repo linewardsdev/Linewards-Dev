@@ -54,6 +54,28 @@ public sealed class EnqueueSendMessage : ClientCommandMessage
     public string CreepId { get; set; } = "";
 }
 
+/// <summary>
+/// Wire equivalent of <c>LocalVerticalSlice.CancelQueuedSend</c> — withdraws the sender's own MOST
+/// RECENT queued send of this creep (see that method's own remarks for why the other end of the
+/// queue would be the wrong one). Found missing 2026-09-07 alongside <see cref="ClearSendQueueMessage"/>,
+/// the same day a real UI control finally reached both on the client's local-play path
+/// (OPEN_ITEMS.md item 47) and immediately exposed that neither had ever been given a wire message
+/// — every other command on <c>UnityCommandAdapter</c> already checks for a <c>wireClient</c> and
+/// sends one; these two silently did nothing online instead (OPEN_ITEMS.md item 55).
+/// </summary>
+public sealed class CancelSendMessage : ClientCommandMessage
+{
+    public string CreepId { get; set; } = "";
+}
+
+/// <summary>
+/// Wire equivalent of <c>LocalVerticalSlice.ClearSendQueue</c> — empties the sender's whole send
+/// queue in one call. See <see cref="CancelSendMessage"/>'s own remarks for why this exists now.
+/// </summary>
+public sealed class ClearSendQueueMessage : ClientCommandMessage
+{
+}
+
 public sealed class BuyCategoryTierMessage : ClientCommandMessage
 {
     /// <summary>0 = TowerLine, 1 = SendCategory — matches <c>LTW.Simulation.Commands.CategoryKind</c>'s declaration order.</summary>

@@ -149,29 +149,7 @@ than left as written; each carries its own dated finding.
 | Item | Commit | Outcome |
 | --- | --- | --- |
 | 47 | (this commit) | `SendDockController.cs`'s `DrawSendRow`/`DrawSendButton` (the tablet-rail and phone-drawer card renderers) each gained a small cancel badge in their top-right corner, drawn only when a creep has a queued send. Checked and consumed via IMGUI's own `Event.current` ordering before the row/card's own send-button call, so a tap on the badge withdraws one queued send (`UnityCommandAdapter.CancelQueuedSend`) instead of also sending another — no `hitRect` carve-out needed, since IMGUI controls consume the event in call order and a later `GUI.Button` checking an already-`Used` event correctly returns no press. `ClearSendQueue` was deliberately NOT wired to this same gesture, per the item's own instruction that a full clear needs a separate home. No new test: the item's own note that the behaviour is already pinned by `SendQueueTests` held — what was missing was exclusively the control, and it now exists. |
-
-## 55. `CancelQueuedSend`/`ClearSendQueue` have no online-multiplayer path
-
-Found 2026-09-07 while wiring item 47's UI control. `UnityCommandAdapter.CancelQueuedSend`/
-`ClearSendQueue` both check `if (simulation is null) return ...;` and give up outright — unlike
-every other command on the same class (`PlaceTower`, `SellTowerAt`, `UpgradeTower`,
-`BuyCategoryTier`), which each check `if (wireClient is not null)` and send a real wire message
-when playing an online match. `simulation` is null specifically in online mode (the class reads
-`simulationDriver`'s wire-reconstructed snapshot instead), so today, canceling or clearing a
-queued send during an online match silently does nothing at all — no rejection, no feedback, the
-tap simply has no effect.
-
-Latent rather than active: MP-06's own multiplayer work landed after the send queue did, and this
-gap was never exercised because item 47 (the local UI control just fixed) was the only thing that
-could have surfaced it. Now that a real control reaches `CancelQueuedSend`, an online player can
-actually hit this.
-
-**What it needs:** a `CancelSendMessage`/`ClearSendQueueMessage` wire message type (mirroring
-`UpgradeTowerMessage`'s shape), a case in `ServerMatch.DispatchAsync`'s switch, and the two
-`UnityCommandAdapter` methods gaining the same `if (wireClient is not null) { ... return; }`
-branch every other command already has. Not attempted here — it is server-and-wire surgery, a
-different kind of work than the UI-only fix this was found while doing, and deserves its own
-verification pass (a real `MatchServerIntegrationTests` case, not just a client-side check).
+| 55 | (this commit) | New `CancelSendMessage`/`ClearSendQueueMessage` wire types, on both the server (`src/LTW.MatchServer/Wire/ClientMessages.cs`) and the client's own mirror (`Assets/Scripts/Online/Wire/ClientWireMessages.cs`); a `case "cancelSend"`/`case "clearSendQueue"` in `ServerMatch.DispatchAsync`'s switch, each calling the same `LocalVerticalSlice.CancelQueuedSend`/`ClearSendQueue` the local path already used; and the missing `if (wireClient is not null) { ... }` branch on both `UnityCommandAdapter` methods, matching every other command on that class. `ClearSendQueue`'s wire branch deliberately always Accepts (an already-empty queue is a normal state, not a refusal, same contract the local path already had) and returns `1` rather than a real removed count, since the real count isn't knowable synchronously online and nothing calls this method from the client yet regardless. Two new `MatchServerIntegrationTests`: one queues a creep the sender cannot yet afford, cancels it over the wire, and confirms it actually leaves the tick's own `sendQueue`; the other does the same for a full clear. Unity batchmode compile clean (0 `error CS`), `dotnet test` 411/411. |
 
 ## 53. Render review — residuals after Wave 5
 

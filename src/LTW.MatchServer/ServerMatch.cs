@@ -753,6 +753,12 @@ public sealed class ServerMatch : IDisposable
                         case "enqueueSend":
                             (result, commandId) = Handle(claimed, JsonSerializer.Deserialize<EnqueueSendMessage>(raw, json));
                             break;
+                        case "cancelSend":
+                            (result, commandId) = Handle(claimed, JsonSerializer.Deserialize<CancelSendMessage>(raw, json));
+                            break;
+                        case "clearSendQueue":
+                            (result, commandId) = Handle(claimed, JsonSerializer.Deserialize<ClearSendQueueMessage>(raw, json));
+                            break;
                         case "buyCategoryTier":
                             (result, commandId) = Handle(claimed, JsonSerializer.Deserialize<BuyCategoryTierMessage>(raw, json));
                             break;
@@ -833,6 +839,26 @@ public sealed class ServerMatch : IDisposable
 
         var result = slice.EnqueueSend(claimed, new ContentId(message.CreepId));
         return (result, message.Id);
+    }
+
+    private (VerticalSliceCommandResult, string?) Handle(PlayerId claimed, CancelSendMessage? message)
+    {
+        if (message is null)
+        {
+            return (VerticalSliceCommandResult.Reject(CommandRejectionReason.InvalidContentId), null);
+        }
+
+        var result = slice.CancelQueuedSend(claimed, new ContentId(message.CreepId));
+        return (result, message.Id);
+    }
+
+    private (VerticalSliceCommandResult, string?) Handle(PlayerId claimed, ClearSendQueueMessage? message)
+    {
+        // Deliberately always Accept, matching UnityCommandAdapter.ClearSendQueue's own local-play
+        // contract: an already-empty queue is a normal state, not a refusal, so there is no
+        // rejection reason to report here regardless of how many entries actually went.
+        slice.ClearSendQueue(claimed);
+        return (VerticalSliceCommandResult.Accept(), message?.Id);
     }
 
     private (VerticalSliceCommandResult, string?) Handle(PlayerId claimed, BuyCategoryTierMessage? message)

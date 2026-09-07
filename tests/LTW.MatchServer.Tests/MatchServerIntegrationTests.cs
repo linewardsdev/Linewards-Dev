@@ -366,6 +366,83 @@ public sealed class MatchServerIntegrationTests : IAsyncLifetime
         Assert.True(sawQueuedColossus, "the queued colossus never appeared in any tick's sendQueue");
     }
 
+    /// <summary>
+    /// OPEN_ITEMS.md item 55: found the day item 47 finally gave <c>CancelQueuedSend</c> a real UI
+    /// control — every other command already had a wire message, this one never did, so canceling
+    /// a queued send silently did nothing during an online match. Proves the fix directly: queue a
+    /// creep the sender cannot afford yet (same opening-build-window trick as the enqueue test
+    /// above, so the queue entry sits still instead of draining), cancel it over the wire, and
+    /// confirm it actually leaves the tick's own sendQueue.
+    /// </summary>
+    [Fact]
+    public async Task Cancel_send_removes_a_queued_creep_from_the_wire_snapshot()
+    {
+        var (matchId, tokens) = await CreateMatchAsync(new[] { 1 }, ticksPerSecond: 20, openingBuildWindowSeconds: 5);
+        using var seat1 = await JoinAsync(matchId, 1, tokens["1"]);
+        await ReceiveOfTypeAsync(seat1, "welcome");
+
+        await SendAsync(seat1, """{"type":"enqueueSend","id":"enqueue-colossus","creepId":"creep.colossus"}""");
+        Assert.True((await ReceiveOfTypeAsync(seat1, "commandResult")).GetProperty("accepted").GetBoolean());
+
+        var sawQueuedColossus = await PollTicksAsync(seat1, TimeSpan.FromSeconds(4), player =>
+            player.GetProperty("sendQueue").EnumerateArray().Any(entry => entry.GetString() == "creep.colossus"));
+        Assert.True(sawQueuedColossus, "the queued colossus never appeared in any tick's sendQueue");
+
+        await SendAsync(seat1, """{"type":"cancelSend","id":"cancel-colossus","creepId":"creep.colossus"}""");
+        Assert.True((await ReceiveOfTypeAsync(seat1, "commandResult")).GetProperty("accepted").GetBoolean());
+
+        var stillQueued = await PollTicksAsync(seat1, TimeSpan.FromSeconds(4), player =>
+            player.GetProperty("sendQueue").EnumerateArray().Any(entry => entry.GetString() == "creep.colossus"));
+        Assert.False(stillQueued, "the colossus was still in the sendQueue after canceling it");
+    }
+
+    /// <summary>Same finding as above, for the whole-queue clear. See item 55.</summary>
+    [Fact]
+    public async Task Clear_send_queue_empties_the_wire_snapshots_sendQueue()
+    {
+        var (matchId, tokens) = await CreateMatchAsync(new[] { 1 }, ticksPerSecond: 20, openingBuildWindowSeconds: 5);
+        using var seat1 = await JoinAsync(matchId, 1, tokens["1"]);
+        await ReceiveOfTypeAsync(seat1, "welcome");
+
+        await SendAsync(seat1, """{"type":"enqueueSend","id":"enqueue-colossus-1","creepId":"creep.colossus"}""");
+        Assert.True((await ReceiveOfTypeAsync(seat1, "commandResult")).GetProperty("accepted").GetBoolean());
+        await SendAsync(seat1, """{"type":"enqueueSend","id":"enqueue-colossus-2","creepId":"creep.colossus"}""");
+        Assert.True((await ReceiveOfTypeAsync(seat1, "commandResult")).GetProperty("accepted").GetBoolean());
+
+        var sawQueuedColossus = await PollTicksAsync(seat1, TimeSpan.FromSeconds(4), player =>
+            player.GetProperty("sendQueue").EnumerateArray().Any(entry => entry.GetString() == "creep.colossus"));
+        Assert.True(sawQueuedColossus, "neither queued colossus ever appeared in any tick's sendQueue");
+
+        await SendAsync(seat1, """{"type":"clearSendQueue","id":"clear-queue"}""");
+        Assert.True((await ReceiveOfTypeAsync(seat1, "commandResult")).GetProperty("accepted").GetBoolean());
+
+        var stillQueued = await PollTicksAsync(seat1, TimeSpan.FromSeconds(4), player =>
+            player.GetProperty("sendQueue").EnumerateArray().Any(entry => entry.GetString() == "creep.colossus"));
+        Assert.False(stillQueued, "the send queue was not empty after clearSendQueue");
+    }
+
+    /// <summary>
+    /// Shared polling loop for the two tests above — same pattern
+    /// <see cref="Enqueue_send_accepts_a_creep_the_sender_cannot_yet_afford"/> already used inline,
+    /// pulled out since both new tests need it twice each (once to see the queue populated, once
+    /// to see the effect of canceling/clearing it).
+    /// </summary>
+    private static async Task<bool> PollTicksAsync(ClientWebSocket socket, TimeSpan timeout, Func<JsonElement, bool> matchesSeat1Player)
+    {
+        var deadline = DateTime.UtcNow.Add(timeout);
+        while (DateTime.UtcNow < deadline)
+        {
+            var tick = await ReceiveOfTypeAsync(socket, "tick", TimeSpan.FromSeconds(5));
+            var player = tick.GetProperty("players").EnumerateArray().Single(p => p.GetProperty("playerId").GetInt32() == 1);
+            if (matchesSeat1Player(player))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     [Fact]
     public async Task An_invalid_join_token_is_refused()
     {
