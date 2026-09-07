@@ -144,6 +144,35 @@ than left as written; each carries its own dated finding.
 | Render review Wave 4 | (this commit) | The re-audit's tuning list (former item 53), worked with the capture runner in the loop: two agents on disjoint files for the code items, the shader items by hand, two capture passes, every item judged at `53-active-lane-shipped-framing` before it was kept. Compile clean, 336/336, device export fresh. **R1 board material:** the "white flecks" were specular off gradient-tilted normals — smoothness 0.5→0.18 and bump 0.35→0.12 removed them; noise 0.12→0.065, a new 4.5-unit macro octave at 0.14, seams 0.3→0.1. The board is a matte slate now and the units sit on top of it. **R2 pads:** the seam/edge was the same specular; nothing pad-specific needed. **R3 gate AO:** the smear was an opaque cylinder baked into the lane mesh; replaced by a soft contact-shadow quad at ~1.2 cells, α 0.35. **R5 labels:** ZTest Always + queue 3100 on the runtime TMP material; landed, not yet frame-proven (see item 53). **R6 ghost:** mint/red validity tint at α 0.45; the scale chain traced to 0.75 on both paths — the "1.3×" was the opaque fill, not a scale. **R7 backdrop:** wobble 0.6→0, glow 0.32→0.04; boards on a dark plate, no grid. **R8 decals:** bramble is a UV-remapped ring mesh at α 0.30, grovebond α 0.22, spore fog a plateau-then-fade disc at α 0.24 — all mesh work in `BoardRenderResources`, no shader change. **R8d halo:** `RangeHalo` is disabled in all 16 wrappers, so the α/clamp landed but draw nothing; the violet pancake is the Control ward's own base dish (art). **#12:** the new tier-pair capture step shows tier-1 and tier-3 Arrows as indistinguishable — open, moved to item 53. |
 | Render review Wave 3 | (this commit) | Eight items from the same audit — the polish wave — worked in parallel across five agents on disjoint files, then verified with one compile fix, 336/336 tests, a `GraphicsAuditCaptureRunner` re-capture (two new steps added, `34-pulse-ring-seq` and `35-tesla-steam-seq`), a `RealUiCaptureRunner` pass at both phone and iPad aspect, and a device iOS export with all four new symbols confirmed in the IL2CPP output. **#15 Pulse rings:** the Ring mesh is real modelled geometry (confirmed in the prefab, not the anchor empties the review guessed), aliasing against the 30° tilt as it spins; disabled and replaced with a flat decal grown to the disabled renderer's measured bounds, reusing the existing sharp-edged mechanic-decal material — confirmed stable and alias-free across a 6-frame rotation burst. **#16 Tesla steam:** no steam sprite exists anywhere in the project; added `UpdateTeslaSteam`, firing two phase-staggered `Rise` bursts every 0.6 s from the tower's real `Lens` anchor — confirmed visible in the capture. **#17 Shadow acne:** fixed via `key.shadowBias`/`shadowNormalBias` (+0.015 each) in `LocalVerticalSliceLauncher.CreateLightRig`, the lower-risk, more localized fix versus retuning Medium's whole-scene shadow distance; not independently visually diffed. **#19 Quality tier:** the review's own "index 3 = High" lead was wrong — `QualitySettings.asset` shares that guid with Medium; the tier whose `customRenderPipeline` guid actually matches `LTW_URP_High` is index 4 ("Very High"). `SelectDeviceQualityTierForCapableIOSDevices` now runs first in `LocalVerticalSliceLauncher.Launch()` (provably earlier than `UnityMatchBootstrapper.Initialize()`), gated on `RuntimePlatform.IPhonePlayer`, ≥6 GB RAM and Metal; real-device `SystemInfo` behaviour is unverified in this environment. A stale call site (`ResolveTowerBodyTransform`, pre-existing) broke on `ResolveTowerMotionParts`' new required parameter — fixed by defaulting it to null with a null-guard, safe because that call site only ever runs after the same frame's `RenderSnapshot` has already populated the cache. **#8 VFX/death polish:** added `BeginCreepDying`/per-entity dying-state tracking so `ReleaseMissingCreeps` (Pooling.cs) holds a dead creep in place for its death treatment instead of releasing it the instant the simulation reports it gone, plus reworked per-style kill-cue geometry (`HeavyShatter`/`ShardScatter`/`SoftDissolve`/`SparkBurst`); per-tower attack choreography was left untouched as scoped, since it was already bespoke per role and the review's "one-frame beam" description was overstated. Exact timing/pop-height is the agent's own first-pass estimate, not measured against a target. **#20 Normal maps: not actionable, no-op.** The finding's premise ("Meshy exported normal maps for most of the roster into AIStaging") is false — a search of all 143 PNGs in the art tree for all 12 candidate units found zero. Duplicates item 3 (2026-07-31), which already reached the same conclusion; no files changed, see item 3's 2026-09-02 note. **#14 Shell on tablet:** root cause was `ApplyViewportColumn` mirroring the board camera's inset onto the *whole* shell root, not just its buttons; changed to `Mathf.Min(boardInset * 0.5f, 0.16f)`, new title-only flex-spacer ratios, and the dead "Prototype local vertical slice" footer label/USS rule removed — confirmed clean at both 1080×1920 phone and 1668×2388 iPad aspect via `RealUiCaptureRunner`, rails and shell both correctly proportioned with no crushed or overlapping text. **#18 Verify: no bug, a reviewer knowledge gap.** `BuildBrambleZones`/`GetBrambleCells` have no cross-lane-key path; the violet discs the review saw were real — Foundry Core is *also* a Brake-role tower (`slowsCreeps: true`, mechanically identical to Thorn Snare), a fact unknown when the finding was written. Verified with a new regression test, `Bramble_cells_do_not_leak_into_a_neighbouring_lane_with_no_thorn_tower` (`tests/LTW.Tests/TowerMechanicTests.cs`), using Gatling as the true non-slowing control after an initial draft using Foundry as the control failed and surfaced this exact gap. |
 
+### Resolved 2026-09-07
+
+| Item | Commit | Outcome |
+| --- | --- | --- |
+| 47 | (this commit) | `SendDockController.cs`'s `DrawSendRow`/`DrawSendButton` (the tablet-rail and phone-drawer card renderers) each gained a small cancel badge in their top-right corner, drawn only when a creep has a queued send. Checked and consumed via IMGUI's own `Event.current` ordering before the row/card's own send-button call, so a tap on the badge withdraws one queued send (`UnityCommandAdapter.CancelQueuedSend`) instead of also sending another — no `hitRect` carve-out needed, since IMGUI controls consume the event in call order and a later `GUI.Button` checking an already-`Used` event correctly returns no press. `ClearSendQueue` was deliberately NOT wired to this same gesture, per the item's own instruction that a full clear needs a separate home. No new test: the item's own note that the behaviour is already pinned by `SendQueueTests` held — what was missing was exclusively the control, and it now exists. |
+
+## 55. `CancelQueuedSend`/`ClearSendQueue` have no online-multiplayer path
+
+Found 2026-09-07 while wiring item 47's UI control. `UnityCommandAdapter.CancelQueuedSend`/
+`ClearSendQueue` both check `if (simulation is null) return ...;` and give up outright — unlike
+every other command on the same class (`PlaceTower`, `SellTowerAt`, `UpgradeTower`,
+`BuyCategoryTier`), which each check `if (wireClient is not null)` and send a real wire message
+when playing an online match. `simulation` is null specifically in online mode (the class reads
+`simulationDriver`'s wire-reconstructed snapshot instead), so today, canceling or clearing a
+queued send during an online match silently does nothing at all — no rejection, no feedback, the
+tap simply has no effect.
+
+Latent rather than active: MP-06's own multiplayer work landed after the send queue did, and this
+gap was never exercised because item 47 (the local UI control just fixed) was the only thing that
+could have surfaced it. Now that a real control reaches `CancelQueuedSend`, an online player can
+actually hit this.
+
+**What it needs:** a `CancelSendMessage`/`ClearSendQueueMessage` wire message type (mirroring
+`UpgradeTowerMessage`'s shape), a case in `ServerMatch.DispatchAsync`'s switch, and the two
+`UnityCommandAdapter` methods gaining the same `if (wireClient is not null) { ... return; }`
+branch every other command already has. Not attempted here — it is server-and-wire surgery, a
+different kind of work than the UI-only fix this was found while doing, and deserves its own
+verification pass (a real `MatchServerIntegrationTests` case, not just a client-side check).
+
 ## 53. Render review — residuals after Wave 5
 
 Waves 1–5 (2026-09-02) closed everything the 1 September live-capture review opened that this
@@ -1297,34 +1326,6 @@ it is, any change to the art's border thickness silently moves the text onto or 
 rather than guessed, and a capture to confirm — the same discipline `TowerMotionAmplitudeProbe`
 exists to enforce for motion. Guessing an inset would land in exactly the same place by a different
 route.
-
-## 47. The send-queue cancel exists but nothing on screen reaches it
-
-Filed 2026-08-09, the same day the cancel was built.
-
-`CancelQueuedSend` and `ClearSendQueue` are done, tested and merged, and
-`UnityCommandAdapter` exposes both. **No control calls either**, so from a player's side the send
-queue is still one-way and the checklist item this closed — "a mis-tap on a phone is likely and the
-only way out is to let it drain" — is still true in the hands.
-
-This is worth a numbered item rather than a note because the shape is a known trap: the simulation
-is green, the tests pass, the docs describe a working feature, and none of that is visible to
-anyone playing. A future reader grepping for `CancelQueuedSend` finds a complete implementation and
-would reasonably conclude the work is finished.
-
-**Why it was left:** the send dock is being actively reshaped by the tablet-layout work
-(`fix/tablet-viewport`, and the rail/`HasSideRails` split in `TouchPlacementController.Gui`).
-Placing an affordance into a surface another session is rewriting invites a conflict that neither
-side would notice until it shipped. This is a sequencing decision, not a difficulty one.
-
-**What it needs:** one affordance on the send card. A long press, or a tap on the existing count
-badge — the badge is already drawn and already means "how many are queued", which makes it the
-cheapest place to hang "remove one". `ClearSendQueue` wants a separate home, since a full clear
-should not be reachable by the same gesture that removes one.
-
-**How to know it is done:** queue three of a creep, cancel once, and see the badge go to two without
-a creep having been sent. There is no test to write here that is not already written — the
-behaviour is pinned by `SendQueueTests`; what is missing is exclusively the control.
 
 ## 39. Every creep *and tower* body material is at smoothness 0.42 against a constant of 0.45, so the tuning validators fail roster-wide
 

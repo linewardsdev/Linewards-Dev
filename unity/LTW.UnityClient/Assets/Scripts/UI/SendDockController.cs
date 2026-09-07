@@ -27,6 +27,7 @@ namespace LTW.UnityClient.UI
         private static GUIStyle? buttonStyle;
         private static GUIStyle? metaStyle;
         private static GUIStyle? rowNameStyle;
+        private static GUIStyle? cancelBadgeStyle;
 
         [SerializeField]
         private UnityCommandAdapter commandAdapter = null!;
@@ -824,9 +825,13 @@ namespace LTW.UnityClient.UI
                         ? CodexScreenView.CreepTraits(creepDefinition)
                         : string.Empty;
 
-                    if (DrawSendRow(row, card.Label, meta, trait, card.IconResource, card.Icon, card.Accent, hasQueueSpace, highlightedCreepRole == card.Role, scale, card.IgnoresCooldown))
+                    if (DrawSendRow(row, card.Label, meta, trait, card.IconResource, card.Icon, card.Accent, hasQueueSpace, highlightedCreepRole == card.Role, scale, card.IgnoresCooldown, queued, out var cancelRequested))
                     {
                         card.Send();
+                    }
+                    else if (cancelRequested)
+                    {
+                        commandAdapter?.CancelQueuedSend(card.CreepId);
                     }
                 }
             }
@@ -837,8 +842,26 @@ namespace LTW.UnityClient.UI
         }
 
         /// <summary>One creep, as a full-width rail row rather than a card.</summary>
-        private static bool DrawSendRow(Rect row, string label, string meta, string trait, string iconResource, CreepIconKind iconKind, Color accent, bool isAffordable, bool isSelected, float scale, bool ignoresCooldown)
+        /// <param name="queued">
+        /// How many of this creep are currently waiting in the local seat's send queue — 0 means
+        /// no cancel affordance is drawn at all, per OPEN_ITEMS.md item 47.
+        /// </param>
+        /// <param name="cancelRequested">
+        /// True if this call's tap landed on the cancel badge rather than the row itself. Checked
+        /// and consumed BEFORE <see cref="RuntimeUiChrome.DrawListRow"/> runs its own button, so a
+        /// tap on the badge withdraws one queued send instead of also sending another — see this
+        /// method's own remarks for why plain <see cref="Event"/> consumption, not a
+        /// <c>hitRect</c> carve-out, is what keeps the two from firing on the same tap.
+        /// </param>
+        private static bool DrawSendRow(Rect row, string label, string meta, string trait, string iconResource, CreepIconKind iconKind, Color accent, bool isAffordable, bool isSelected, float scale, bool ignoresCooldown, int queued, out bool cancelRequested)
         {
+            // Checked and (if it hits) consumed BEFORE DrawListRow's own GUI.Button runs, so a tap
+            // on the badge cannot also register as a tap on the row underneath it — IMGUI controls
+            // consume Event.current in call order, and a control that finds the event already Used
+            // correctly reports no press of its own. No hitRect narrowing on the row needed: the
+            // badge's own earlier button already wins any overlapping tap.
+            cancelRequested = queued > 0 && GUI.Button(QueueCancelBadgeRect(row, scale), GUIContent.none, GUIStyle.none);
+
             isAffordable = isAffordable && (ignoresCooldown || !isSendCoolingDown);
             var displayAccent = isAffordable ? accent : DisabledText;
             var state = isAffordable
@@ -888,7 +911,57 @@ namespace LTW.UnityClient.UI
                 : displayAccent;
             GUI.Label(new Rect(row.xMax - costColumnWidth - 8f * scale, row.y, costColumnWidth, row.height), meta, metaStyle);
 
+            // Drawn last, on top of everything above — the click was already handled at the top
+            // of this method, before DrawListRow's own chrome painted over that same area.
+            if (queued > 0)
+            {
+                DrawQueueCancelBadge(QueueCancelBadgeRect(row, scale), scale);
+            }
+
             return pressed;
+        }
+
+        /// <summary>
+        /// Top-right corner of a row/card — clear of the label (bottom-left), the meta text
+        /// (vertically centered, per <see cref="DrawSendRow"/>'s own layout), and
+        /// <see cref="RuntimeUiChrome.CommandCardUnitIconRect"/>, which centers itself
+        /// horizontally rather than anchoring to an edge. Shared by both the rail row and the grid
+        /// card layouts since both leave this corner free for the same reason.
+        /// </summary>
+        private static Rect QueueCancelBadgeRect(Rect container, float scale)
+        {
+            var size = 22f * scale;
+            var inset = 4f * scale;
+            return new Rect(container.xMax - size - inset, container.y + inset, size, size);
+        }
+
+        /// <summary>
+        /// The send-queue cancel affordance itself — OPEN_ITEMS.md item 47's missing half. The
+        /// simulation/adapter side (<c>CancelQueuedSend</c>) has been done and tested since the
+        /// send queue shipped; this is the one thing that was never wired to reach it. Withdraws
+        /// the MOST RECENT queued send of this creep, matching <c>UnityCommandAdapter.CancelQueuedSend</c>'s
+        /// own remarks on why the other end of the queue would be the wrong one to take back.
+        /// </summary>
+        private static void DrawQueueCancelBadge(Rect rect, float scale)
+        {
+            DrawIconRect(rect, new Color(0.05f, 0.06f, 0.09f, 0.88f));
+
+            // A thin four-edge border, the same shape RuntimeUiChrome.DrawOutline draws — that
+            // method is private to its own file, so this reuses DrawIconRect (already local to
+            // this file) rather than reaching for something not visible here.
+            var outline = new Color(1f, 0.42f, 0.42f, 0.9f);
+            var thickness = Mathf.Max(1f, scale);
+            DrawIconRect(new Rect(rect.x, rect.y, rect.width, thickness), outline);
+            DrawIconRect(new Rect(rect.x, rect.yMax - thickness, rect.width, thickness), outline);
+            DrawIconRect(new Rect(rect.x, rect.y, thickness, rect.height), outline);
+            DrawIconRect(new Rect(rect.xMax - thickness, rect.y, thickness, rect.height), outline);
+
+            cancelBadgeStyle ??= new GUIStyle(GUI.skin.label);
+            cancelBadgeStyle.fontSize = Mathf.RoundToInt(13f * scale);
+            cancelBadgeStyle.alignment = TextAnchor.MiddleCenter;
+            cancelBadgeStyle.fontStyle = FontStyle.Bold;
+            cancelBadgeStyle.normal.textColor = outline;
+            GUI.Label(rect, "✕", cancelBadgeStyle);
         }
 
         /// <summary>
@@ -968,9 +1041,13 @@ namespace LTW.UnityClient.UI
                 var trait = MobileViewportLayout.HasSideRails
                     ? CodexScreenView.FindCreep(card.CreepId.Value) is { } creepDefinition ? CodexScreenView.CreepTraits(creepDefinition) : string.Empty
                     : string.Empty;
-                if (DrawSendButton(new Rect(x, y, width, buttonHeight), card.Label, meta, trait, card.IconResource, card.Icon, card.Accent, hasQueueSpace, highlightedCreepRole == card.Role, scale, card.IgnoresCooldown))
+                if (DrawSendButton(new Rect(x, y, width, buttonHeight), card.Label, meta, trait, card.IconResource, card.Icon, card.Accent, hasQueueSpace, highlightedCreepRole == card.Role, scale, card.IgnoresCooldown, queued, out var cancelRequested))
                 {
                     card.Send();
+                }
+                else if (cancelRequested)
+                {
+                    commandAdapter?.CancelQueuedSend(card.CreepId);
                 }
 
                 x += width + gap;
@@ -1009,8 +1086,14 @@ namespace LTW.UnityClient.UI
             }
         }
 
-        private static bool DrawSendButton(Rect rect, string label, string meta, string trait, string iconResource, CreepIconKind iconKind, Color accent, bool isAffordable, bool isSelected, float scale, bool ignoresCooldown = false)
+        /// <param name="queued">See <see cref="DrawSendRow"/>'s own remarks — same contract, grid-card layout.</param>
+        /// <param name="cancelRequested">See <see cref="DrawSendRow"/>'s own remarks.</param>
+        private static bool DrawSendButton(Rect rect, string label, string meta, string trait, string iconResource, CreepIconKind iconKind, Color accent, bool isAffordable, bool isSelected, float scale, bool ignoresCooldown, int queued, out bool cancelRequested)
         {
+            // Same event-consumption ordering as DrawSendRow's own remarks: checked and consumed
+            // before DrawCommandCard's own button runs, so a tap on the badge cannot also send.
+            cancelRequested = queued > 0 && GUI.Button(QueueCancelBadgeRect(rect, scale), GUIContent.none, GUIStyle.none);
+
             // Cooling down reads as unaffordable, because for the player it is the same thing:
             // the card cannot be sent right now. Without this a card you could clearly afford
             // looked ready and answered a tap with a bare refusal. Category 2 creeps are exempt
@@ -1075,6 +1158,12 @@ namespace LTW.UnityClient.UI
             metaStyle.wordWrap = false;
             metaStyle.clipping = TextClipping.Overflow;
             GUI.Label(RuntimeUiChrome.CommandCardMetaRect(rect, scale), meta, metaStyle);
+
+            if (queued > 0)
+            {
+                DrawQueueCancelBadge(QueueCancelBadgeRect(rect, scale), scale);
+            }
+
             return pressed;
         }
 
