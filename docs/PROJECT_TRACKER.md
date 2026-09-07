@@ -82,7 +82,8 @@ that doc's own "eight lanes, not three" caveat is already folded in here.
 - [~] **MVP-10 — iOS TestFlight and device validation.** This is now literally `LAUNCH_ROADMAP.md`'s
       Weeks 1–3 — tracked there, not separately here, to avoid exactly the drift R5 warned about.
 - [ ] **MVP-11 — Android compatibility validation.** Not started; deferred to the tier C decision
-      (`LAUNCH_ROADMAP.md` Week 4).
+      (`LAUNCH_ROADMAP.md` Week 4). Store-facing deployment work (Play Console, signing, policy
+      gates) is tracked separately in §9.
 
 ---
 
@@ -295,7 +296,8 @@ Pulled together from every section above — nothing here needs more engineering
 8. Defeat-moment design: what a mid-match loss screen says and whether it's dismissible (§6, #35).
 9. Git LFS adoption and repo history rewrite (§6, #21).
 10. Raised graphics quality target confirmation (§6, #17).
-11. Whether Android is taken on for tier C, and the public-launch date (§1 — Week 4 of the launch plan).
+11. Whether Android is taken on for tier C, and the public-launch date (§1 — Week 4 of the launch
+    plan; §9 has the full Android deployment checklist this decision would greenlight).
 
 ---
 
@@ -313,3 +315,78 @@ new.
 - [~] **R4 — Command queue at a tick boundary.** Half landed as MP-00 (§4) — replay reproduction
       works; true deferred-application-at-a-tick-boundary is still open.
 - [x] **R5 — Consolidate status into fewer living documents.** This file.
+
+---
+
+## 9. Android marketplace deployment (not started)
+
+**Standing decision, not reversed here:** `LAUNCH_ROADMAP.md` explicitly deferred Android to tier
+C — "Android waits for tier C... taking it on now doubles the device and store work in the exact
+weeks that slipped last time" — with the actual go/no-go decision scheduled for Week 4 (§7, item
+11). This section exists so that decision is made against a real checklist instead of a blank
+page, not to jump the freeze. Nothing below is scheduled work yet.
+
+**Current state, verified against the working tree 2026-09-07:** `applicationIdentifier.Android`
+is still the placeholder `com.ltwplaceholder.ltw`; no keystore is configured
+(`androidUseCustomKeystore: 0`, `AndroidKeystoreName`/`AndroidKeyaliasName` empty); no Android
+build has ever been produced, storefront or otherwise (MVP-11, §2, is "Not started"); there is no
+`AndroidBuildRunner` — `IosBuildRunner` has no counterpart at all. Local sandbox testing (sideload
+to a physical device over USB debugging, no store account needed) already works today per
+`STORE_SIGNING_PREREQUISITES.md`/`ANDROID_DEVICE_VALIDATION.md` — that part was never blocked,
+it's the store-facing half that's untouched.
+
+### What Play Console publishing specifically needs, beyond local sideload testing
+
+- [ ] **Google Play Console developer account** — $25 one-time, same-day per `LAUNCH_ROADMAP.md`'s
+      own critical-path table (identity checks can occasionally add days).
+- [ ] **Package name decision.** `STORE_SIGNING_PREREQUISITES.md` already recommends keeping this
+      identical to the iOS bundle identifier (`com.linewardsgames.linewards`, proposed) for simple
+      cross-platform account linking later — same **DECISION** blocker as iOS's bundle ID (§7),
+      not a separate one.
+- [ ] **Play App Signing enrollment** (Google's recommended path: Google holds the app signing
+      key, the studio holds an upload key) and Unity's Android Publishing Settings pointed at that
+      keystore — through the Editor UI, not by hand-editing `ProjectSettings.asset`, since the
+      keystore password must never be committed.
+- [ ] **Release build settings confirmed before first upload**: IL2CPP scripting backend, ARM64
+      target architecture, `.aab` output (Play Console requires it; `.apk` does not satisfy
+      submission).
+- [ ] **Content rating questionnaire** (Play Console's own IARC-based flow — separate from
+      Apple's age-rating questionnaire, needs answering independently even though the app is the
+      same).
+- [ ] **Data Safety section** — Play Console's own disclosure form for what data the app collects
+      and shares; PlayFab's Google/session-ticket identity flow (MP-05) is the main thing to
+      declare accurately here.
+- [ ] **Privacy policy at a hosted URL** — same requirement iOS already needs (§1 P0), reusable
+      as-is once it exists.
+
+### Two current Play Store policy gates worth knowing about before assuming a build just uploads
+
+Checked directly (2026-09-07), because both are live enforcement today, not future warnings:
+
+- **Target API level.** Google requires new app submissions to target **Android 16 (API level
+  36)** as of **31 August 2026** — a deadline already passed as of this writing, so this isn't a
+  future concern, it's a precondition for the very first upload. (Existing published apps get
+  until API 35 to keep serving current users; that grace doesn't apply to a first-ever submission.)
+  Needs confirming that Unity `6000.5.3f1`'s bundled Android SDK/build tools can target API 36 at
+  all — not yet checked.
+- **16 KB memory page size support.** Google has been actively rejecting uploads that bundle
+  native (`.so`) libraries not aligned for 16 KB pages since around May 2026, not merely warning
+  about it. This matters specifically because Unity's IL2CPP scripting backend emits its own
+  native libraries — the toolchain version governs alignment, not a Unity project setting. Needs
+  verifying against whatever Unity/IL2CPP/NDK versions ship with `6000.5.3f1` before the first
+  real build attempt, not assumed compliant.
+
+### Already tracked elsewhere — cross-referenced, not duplicated
+
+- [ ] **MVP-11 — Android compatibility validation** (§2): device performance/compatibility testing
+      itself, distinct from store publishing.
+- [ ] **Google Play Games Services sign-in** (§4, MP-05): the Android equivalent of the iOS
+      Google Sign-In bridge — not started. Needed before an Android build can reach online
+      multiplayer at all, independent of Play Console publishing.
+- [ ] **M-C2's Android half** (§5): `SecureSessionStore`'s Keystore/`EncryptedSharedPreferences`
+      bridge was deliberately not built since there's no Android identity flow yet to protect —
+      revisit once Google Play Games Services sign-in above lands.
+
+**Bottom line:** every item above is genuinely zero-progress today. None of it needs to move until
+the Week 4 tier-C decision says so — this section is the answer to "what would it actually take",
+not a proposal to start now.
