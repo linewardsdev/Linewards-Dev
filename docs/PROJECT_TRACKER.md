@@ -326,14 +326,16 @@ weeks that slipped last time" — with the actual go/no-go decision scheduled fo
 11). This section exists so that decision is made against a real checklist instead of a blank
 page, not to jump the freeze. Nothing below is scheduled work yet.
 
-**Current state, verified against the working tree 2026-09-07:** `applicationIdentifier.Android`
-is still the placeholder `com.ltwplaceholder.ltw`; no keystore is configured
-(`androidUseCustomKeystore: 0`, `AndroidKeystoreName`/`AndroidKeyaliasName` empty); no Android
-build has ever been produced, storefront or otherwise (MVP-11, §2, is "Not started"); there is no
-`AndroidBuildRunner` — `IosBuildRunner` has no counterpart at all. Local sandbox testing (sideload
-to a physical device over USB debugging, no store account needed) already works today per
-`STORE_SIGNING_PREREQUISITES.md`/`ANDROID_DEVICE_VALIDATION.md` — that part was never blocked,
-it's the store-facing half that's untouched.
+**Current state, updated 2026-09-07:** `applicationIdentifier.Android` is still the placeholder
+`com.ltwplaceholder.ltw`; no keystore is configured (`androidUseCustomKeystore: 0`,
+`AndroidKeystoreName`/`AndroidKeyaliasName` empty) — the package-name/signing decision is still
+fully open. `MVP-11` (§2) device compatibility validation is still "Not started" — a build
+existing is not the same as it being tested on a device. **What changed**: `AndroidBuildRunner.cs`
+now exists (`IosBuildRunner`'s counterpart), and a real local build succeeded — see the policy-gate
+findings below for what that build proved. Local sandbox testing (sideload to a physical device
+over USB debugging, no store account needed) already worked before this and still does, per
+`STORE_SIGNING_PREREQUISITES.md`/`ANDROID_DEVICE_VALIDATION.md` — what's still genuinely untouched
+is the store-facing half (account, signing, listing).
 
 ### What Play Console publishing specifically needs, beyond local sideload testing
 
@@ -359,22 +361,40 @@ it's the store-facing half that's untouched.
 - [ ] **Privacy policy at a hosted URL** — same requirement iOS already needs (§1 P0), reusable
       as-is once it exists.
 
-### Two current Play Store policy gates worth knowing about before assuming a build just uploads
+### Two current Play Store policy gates — both now verified, 2026-09-07
 
-Checked directly (2026-09-07), because both are live enforcement today, not future warnings:
+Both were open questions when this section was first written; both are now closed by an actual
+build and a direct inspection of its output, not by assumption. `Assets/Editor/AndroidBuildRunner.cs`
+now exists (mirrors `IosBuildRunner.cs`) — this project's first-ever Android build tooling.
 
-- **Target API level.** Google requires new app submissions to target **Android 16 (API level
-  36)** as of **31 August 2026** — a deadline already passed as of this writing, so this isn't a
-  future concern, it's a precondition for the very first upload. (Existing published apps get
-  until API 35 to keep serving current users; that grace doesn't apply to a first-ever submission.)
-  Needs confirming that Unity `6000.5.3f1`'s bundled Android SDK/build tools can target API 36 at
-  all — not yet checked.
-- **16 KB memory page size support.** Google has been actively rejecting uploads that bundle
-  native (`.so`) libraries not aligned for 16 KB pages since around May 2026, not merely warning
-  about it. This matters specifically because Unity's IL2CPP scripting backend emits its own
-  native libraries — the toolchain version governs alignment, not a Unity project setting. Needs
-  verifying against whatever Unity/IL2CPP/NDK versions ship with `6000.5.3f1` before the first
-  real build attempt, not assumed compliant.
+- [x] **Target API level.** Google requires new app submissions to target **Android 16 (API
+      level 36)** as of **31 August 2026** — a deadline already passed as of this writing, so
+      this was a precondition for the very first upload, not a future concern. **Confirmed**:
+      Unity `6000.5.3f1`'s bundled Android SDK includes `android-36` outright
+      (`PlaybackEngines/AndroidPlayer/SDK/platforms/android-36`), and `AndroidBuildRunner`
+      defaults to `AndroidSdkVersions.AndroidApiLevel36`. A real build with this target
+      succeeded.
+- [x] **16 KB memory page size support.** Google has been actively rejecting uploads with
+      native (`.so`) libraries not aligned for 16 KB pages since around May 2026. This was a
+      real unknown, not a formality: Unity's bundled NDK here is r27c, which defaults new
+      binaries to **4 KB** alignment, not 16 KB. **Confirmed by direct measurement**, not
+      inferred from the NDK version: a real local build (`LineWards.apk`, 1224 MB, first-ever
+      Android build of this project) was produced via `AndroidBuildRunner`, and every LOAD
+      program-header segment in all 7 ARM64 native libraries it contains
+      (`lib_burst_generated.so`, `libc++_shared.so`, `libgame.so`, `libil2cpp.so`, `libmain.so`,
+      `libswappywrapper.so`, `libunity.so`) reads `Align = 0x4000` (16384 bytes) via
+      `llvm-readelf -l` — checked twice independently, same result both times. So despite the
+      NDK's own default, something in Unity `6000.5.3f1`'s Android build pipeline is already
+      forcing 16 KB alignment at link time for this project's output. **Not yet identified
+      which mechanism does it** (a Unity-side default for this Editor version, an implicit
+      Gradle/AGP setting, or something else) — worth knowing before assuming every future build
+      configuration stays compliant, but the current default pipeline, as used here, is not an
+      open compliance risk.
+- **One real, unrelated bug this build surfaced and fixed**: the first-ever Android compile
+  failed on `Assets/ThirdParty/PlayFabSDK/Shared/Public/PlayFabSettings.cs` referencing
+  `AndroidJavaClass`/`AndroidJavaObject` — the vendored PlayFab SDK needs the built-in
+  `com.unity.modules.androidjni` package, which had never been enabled since only iOS ever
+  compiled before. Added to `Packages/manifest.json`; the re-run succeeded.
 
 ### Already tracked elsewhere — cross-referenced, not duplicated
 
@@ -387,6 +407,8 @@ Checked directly (2026-09-07), because both are live enforcement today, not futu
       bridge was deliberately not built since there's no Android identity flow yet to protect —
       revisit once Google Play Games Services sign-in above lands.
 
-**Bottom line:** every item above is genuinely zero-progress today. None of it needs to move until
-the Week 4 tier-C decision says so — this section is the answer to "what would it actually take",
-not a proposal to start now.
+**Bottom line:** the build-tooling gap and both live policy-compliance unknowns are now closed —
+real, unblocked engineering that needed no account or decision. Everything else in this section
+(Play Console account, package name, signing, listing, Google Play Games Services) is still
+genuinely zero-progress and stays that way until the Week 4 tier-C decision says otherwise — this
+section remains the answer to "what would it actually take", not a proposal to start the rest now.

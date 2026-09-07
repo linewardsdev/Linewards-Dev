@@ -18,6 +18,10 @@
 [Uu]ser[Ss]ettings/
 [Mm]emoryCaptures/
 Recordings/
+# IL2CPP/CMake intermediate cache for Android builds — found leaking into `git status` the first
+# time this project ever built for Android (AndroidBuildRunner, 2026-09-07); not under Library/
+# or Temp/ so the patterns above don't already cover it.
+.utmp/
 unity/LTW.UnityClient/Assets/Plugins/LTW.Simulation.dll
 unity/LTW.UnityClient/Assets/Plugins/LTW.Simulation.dll.meta
 

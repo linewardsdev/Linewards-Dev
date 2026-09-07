@@ -4,6 +4,7 @@
     "com.google.external-dependency-manager": "https://github.com/googlesamples/unity-jar-resolver.git?path=upm",
     "com.unity.nuget.newtonsoft-json": "3.2.1",
     "com.unity.ai.assistant": "2.15.0-pre.2",
+    "com.unity.modules.androidjni": "1.0.0",
     "com.unity.modules.audio": "1.0.0",
     "com.unity.modules.particlesystem": "1.0.0",
     "com.unity.render-pipelines.universal": "17.5.0",
