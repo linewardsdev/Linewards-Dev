@@ -208,7 +208,7 @@ namespace LTW.UnityClient.Editor
                 // Pooled tower instances are parented under the renderer's own object and named for
                 // their prefab. Both the Body child and any spin part are tracked, because they are
                 // driven separately and either one alone stopping is a real defect.
-                foreach (var root in FindObjectsByType<Transform>(FindObjectsInactive.Exclude, FindObjectsSortMode.None))
+                foreach (var root in FindObjectsByType<Transform>(FindObjectsInactive.Exclude))
                 {
                     if (!root.name.StartsWith("Tower_"))
                     {

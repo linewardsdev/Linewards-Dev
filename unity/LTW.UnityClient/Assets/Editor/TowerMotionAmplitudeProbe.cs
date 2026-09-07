@@ -1,3 +1,4 @@
+#nullable enable
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -258,7 +259,7 @@ namespace LTW.UnityClient.Editor
 
         private static void Sample()
         {
-            var cam = Camera.main ?? Object.FindObjectsByType<Camera>(FindObjectsSortMode.None)[0];
+            var cam = Camera.main ?? Object.FindObjectsByType<Camera>(FindObjectsInactive.Exclude)[0];
             foreach (var track in Tracks)
             {
                 if (track.Root == null) continue;

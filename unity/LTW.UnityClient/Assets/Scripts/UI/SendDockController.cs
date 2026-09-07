@@ -563,20 +563,26 @@ namespace LTW.UnityClient.UI
         private static bool DrawCategoryCard(Rect rect, string label, Color accent, float scale)
         {
             // Hit region excludes the tier row, or the card's own button eats the upgrade button's
-            // click before it is ever delivered.
+            // click before it is ever delivered. hasIcon: false — this card has no icon, so the
+            // chrome's own icon-well backdrop is skipped rather than drawn over nothing (OPEN_ITEMS.md
+            // item 48's "unexplained translucent square").
             var pressed = RuntimeUiChrome.DrawCommandCard(
-                rect, accent, CommandCardState.Normal, scale, RuntimeUiChrome.CategoryCardSelectRect(rect, scale));
+                rect, accent, CommandCardState.Normal, scale, RuntimeUiChrome.CategoryCardSelectRect(rect, scale), hasIcon: false);
 
-            buttonStyle!.fontSize = Mathf.RoundToInt(13f * scale);
-            buttonStyle.normal.textColor = Cloud;
-            buttonStyle.hover.textColor = Cloud;
-            buttonStyle.active.textColor = Cloud;
+            // metaStyle, not buttonStyle: buttonStyle is GUI.skin.button underneath (see its own
+            // field declaration), and only its text colors were ever overridden here, so its solid
+            // grey button-skin background box drew behind the name on every card — wide enough to
+            // sit on top of the art's own rounded corners on both sides. Confirmed via a real-UI
+            // capture (item 48). metaStyle is GUI.skin.label, background-free.
+            metaStyle!.fontSize = Mathf.RoundToInt(13f * scale);
+            metaStyle.normal.textColor = Cloud;
+            metaStyle.alignment = TextAnchor.MiddleCenter;
             // 0.20/0.44, not 0.32/0.58. Those were tuned for an 84-tall card; on the 104-tall card
             // the tier row needs, 0.58 put "5 SENDS" straight on top of "TIER n" — confirmed in a
             // real-UI capture, where the two labels rendered as one unreadable smear.
-            GUI.Label(new Rect(rect.x, rect.y + rect.height * 0.20f, rect.width, 22f * scale), label, buttonStyle);
+            GUI.Label(new Rect(rect.x, rect.y + rect.height * 0.20f, rect.width, 22f * scale), label, metaStyle);
 
-            metaStyle!.fontSize = Mathf.RoundToInt(9f * scale);
+            metaStyle.fontSize = Mathf.RoundToInt(9f * scale);
             metaStyle.normal.textColor = accent;
             metaStyle.alignment = TextAnchor.MiddleCenter;
             GUI.Label(new Rect(rect.x, rect.y + rect.height * 0.44f, rect.width, 18f * scale), "5 SENDS", metaStyle);

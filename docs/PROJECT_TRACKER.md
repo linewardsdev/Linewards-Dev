@@ -205,8 +205,11 @@ still open as of 2026-09-07, grouped by domain, with one line each.
       shipped; root fix needs regenerating 15 tower prefabs in an interactive Editor session.
 - [ ] **#33 — MSAA sample-count mismatch on Metal.** Needs a real device (Metal) re-test; not
       reproducible in the Editor.
-- [ ] **#48 — Send dock category cards render content over the card art.** Needs the art's inner
-      region measured from source, not guessed.
+- [x] **#48 — Send dock category cards render content over the card art.** Closed 2026-09-07 —
+      the "art" overlap was a `GUIStyle` bug (a button skin's background box, not a position error),
+      the translucent square was an icon-well backdrop drawn for cards with no icon, and the tier
+      button clipping had already been fixed by unrelated later work. Same bug, same fix, in the
+      tower-line picker too. Verified with a `RealUiCaptureRunner` before/after capture.
 - [ ] **#39 — Every creep and tower body material is at smoothness 0.42 vs. a 0.45 constant.**
       Roster-wide validator failure. Fix is likely one click + committing 15 materials — **DECISION**:
       confirm 0.45 is actually the intended value before an owner approves the change.
@@ -261,9 +264,11 @@ still open as of 2026-09-07, grouped by domain, with one line each.
 - [~] **#28 — CI never compiles the Unity client.** Gate is written (`docs/ci/unity-compile.yml`).
       Blocked on two owner actions: a push credential with GitHub's `workflow` scope, and a Unity
       license in repo secrets. Unverified until then — cannot even run once without a license.
-- [ ] **#40 — Seventeen compiler warnings in the Editor assembly.** Invisible unless the assembly
-      recompiles. Categorized (obsolete API x6, nullable annotation x5, one dead field, one real
-      possible-null worth a look).
+- [x] **#40 — Compiler warnings in the Editor assembly.** Closed 2026-09-07 — a fresh forced
+      recompile found 23 (not the stale 17), all fixed: obsolete API x10 (6 `FindObjectsByType`,
+      4 `PlayerSettings.iOS.allowHTTPDownload`), nullable annotation x5, one dead field (deleted
+      with its two dead siblings), one possible-null false positive (`!` + comment). Verified 0
+      warnings across two independent forced-recompile runs.
 - [x] **#29 — WITHDRAWN.** "Creeps invisible in device build" was a reviewer misread; confirmed
       false the same day.
 - [ ] **#44 — Unit LODs are static (no skinned decimation).** Perf win parked until Week 2's phone

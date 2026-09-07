@@ -434,10 +434,16 @@ namespace LTW.UnityClient.UI
         /// GUI.Button calls Event.Use() on both MouseDown and MouseUp, so any button drawn
         /// afterwards inside the same rect never sees the event at all and silently does nothing.
         /// That is not a z-order problem a later draw call can win; the event is already gone.
+        ///
+        /// <paramref name="hasIcon"/> defaults to true because both existing icon-bearing callers
+        /// (a send/build grid card) draw their own icon and well afterward via
+        /// <see cref="DrawCommandCardUnitIconWell"/>. The category pickers pass false: they have no
+        /// icon at all, so the well this method would otherwise draw at <see cref="CommandCardIconRect"/>
+        /// had nothing to back — see OPEN_ITEMS.md item 48's "unexplained translucent square".
         /// </remarks>
-        public static bool DrawCommandCard(Rect rect, Color accent, CommandCardState state, float scale, Rect? hitRect = null)
+        public static bool DrawCommandCard(Rect rect, Color accent, CommandCardState state, float scale, Rect? hitRect = null, bool hasIcon = true)
         {
-            DrawCommandCardChrome(rect, accent, state, scale);
+            DrawCommandCardChrome(rect, accent, state, scale, hasIcon);
 
             var previousEnabled = GUI.enabled;
             GUI.enabled = state is not CommandCardState.Disabled and not CommandCardState.Error;
@@ -1112,14 +1118,17 @@ namespace LTW.UnityClient.UI
             return true;
         }
 
-        private static void DrawCommandCardChrome(Rect rect, Color accent, CommandCardState state, float scale)
+        private static void DrawCommandCardChrome(Rect rect, Color accent, CommandCardState state, float scale, bool hasIcon = true)
         {
             var stateAccent = StateAccent(accent, state);
             if (RuntimeUiArtLibrary.DrawChromeTexture(rect, CommandCardTextureName(state), state == CommandCardState.Disabled ? new Color(0.78f, 0.82f, 0.9f, 0.72f) : Color.white))
             {
-                var referenceIconRect = CommandCardIconRect(rect, scale);
-                var referenceIconWell = Shrink(referenceIconRect, -4f * scale);
-                Fill(referenceIconWell, new Color(0.006f, 0.01f, 0.016f, 0.42f));
+                if (hasIcon)
+                {
+                    var referenceIconRect = CommandCardIconRect(rect, scale);
+                    var referenceIconWell = Shrink(referenceIconRect, -4f * scale);
+                    Fill(referenceIconWell, new Color(0.006f, 0.01f, 0.016f, 0.42f));
+                }
 
                 if (state == CommandCardState.Selected)
                 {
@@ -1158,10 +1167,12 @@ namespace LTW.UnityClient.UI
             DrawMetalRails(rect, edge, scale);
             DrawCornerHardware(rect, stateAccent, scale);
 
-            var iconRect = CommandCardIconRect(rect, scale);
-            var iconWell = Shrink(iconRect, -5f * scale);
-            Fill(iconWell, new Color(0.012f, 0.018f, 0.026f, 0.82f));
-            DrawOutline(iconWell, new Color(stateAccent.r, stateAccent.g, stateAccent.b, 0.58f), Mathf.Max(1f, 1f * scale));
+            var iconWell = Shrink(CommandCardIconRect(rect, scale), -5f * scale);
+            if (hasIcon)
+            {
+                Fill(iconWell, new Color(0.012f, 0.018f, 0.026f, 0.82f));
+                DrawOutline(iconWell, new Color(stateAccent.r, stateAccent.g, stateAccent.b, 0.58f), Mathf.Max(1f, 1f * scale));
+            }
 
             // Kept clear of CommandCardMetaRect, which runs to yMax - 5*scale; this strip used to
             // start at yMax - 8 and so was drawn across the lower half of the cost/income text.
@@ -1175,7 +1186,10 @@ namespace LTW.UnityClient.UI
                 Fill(new Rect(rect.x + rect.width * 0.18f, rect.y + 9f * scale, rect.width * 0.64f, 5f * scale), new Color(stateAccent.r, stateAccent.g, stateAccent.b, 0.9f));
                 Fill(new Rect(rect.x + 8f * scale, rect.y + rect.height * 0.38f, 5f * scale, rect.height * 0.24f), stateAccent);
                 Fill(new Rect(rect.xMax - 13f * scale, rect.y + rect.height * 0.38f, 5f * scale, rect.height * 0.24f), stateAccent);
-                Fill(Shrink(iconWell, 5f * scale), new Color(stateAccent.r, stateAccent.g, stateAccent.b, 0.16f));
+                if (hasIcon)
+                {
+                    Fill(Shrink(iconWell, 5f * scale), new Color(stateAccent.r, stateAccent.g, stateAccent.b, 0.16f));
+                }
             }
             else if (state == CommandCardState.Error)
             {

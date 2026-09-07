@@ -167,7 +167,7 @@ namespace LTW.UnityClient.Editor
 
         /// <summary>
         /// Opts into cleartext HTTP/WS for LAN-testing builds — pass <c>-ltwAllowInsecureHttp 1</c>.
-        /// Returns the PRE-override value of <c>allowHTTPDownload</c> so the caller can restore it
+        /// Returns the PRE-override value of <c>insecureHttpOption</c> so the caller can restore it
         /// after the build, the same way <see cref="SuppressMsaaForSimulator"/>'s own snapshot is
         /// restored — without that, this App Store review flag could survive into the committed
         /// `ProjectSettings.asset` the next time anything calls `AssetDatabase.SaveAssets()` (this
@@ -178,16 +178,18 @@ namespace LTW.UnityClient.Editor
         /// iOS's App Transport Security refuses any plain "http://"/"ws://" request by default,
         /// with no exception surfaced anywhere in-app — found live, testing PLAY ONLINE against a
         /// real `LTW.MatchServer` on the same LAN: the request never even reaches the Mac, it is
-        /// blocked on-device before it leaves. `PlayerSettings.iOS.allowHTTPDownload` is what
-        /// injects the corresponding `NSAllowsArbitraryLoads` exception into the generated
-        /// Info.plist; unset by default (never written unless this override is passed), because it
-        /// is an App Store review flag and MP-07's real hosting will use HTTPS/WSS anyway — this
-        /// exists purely so a LAN-IP dev build (see MatchServerConfig's own remarks) can be tested
-        /// on a real device before that infrastructure exists.
+        /// blocked on-device before it leaves. `PlayerSettings.insecureHttpOption` is what injects
+        /// the corresponding `NSAllowsArbitraryLoads` exception into the generated Info.plist; left
+        /// at `NotAllowed` by default (never written unless this override is passed), because it is
+        /// an App Store review flag and MP-07's real hosting will use HTTPS/WSS anyway — this exists
+        /// purely so a LAN-IP dev build (see MatchServerConfig's own remarks) can be tested on a real
+        /// device before that infrastructure exists. `AlwaysAllowed` (rather than `DevelopmentOnly`)
+        /// is used to match the old boolean's unconditional behavior exactly, since this runner does
+        /// not otherwise mark its output a Development build.
         /// </remarks>
-        private static bool ApplyInsecureHttpOverride()
+        private static InsecureHttpOption ApplyInsecureHttpOverride()
         {
-            var original = PlayerSettings.iOS.allowHTTPDownload;
+            var original = PlayerSettings.insecureHttpOption;
             var flag = ReadArgument("-ltwAllowInsecureHttp");
             if (string.IsNullOrWhiteSpace(flag))
             {
@@ -199,30 +201,30 @@ namespace LTW.UnityClient.Editor
             // failure direction for a flag guarding a security setting. See L2's own citation.
             if (flag != "0" && flag != "1")
             {
-                Debug.LogWarning($"IOS BUILD: unrecognized -ltwAllowInsecureHttp value '{flag}' — leaving allowHTTPDownload unchanged. Pass exactly '1' to enable it.");
+                Debug.LogWarning($"IOS BUILD: unrecognized -ltwAllowInsecureHttp value '{flag}' — leaving insecureHttpOption unchanged. Pass exactly '1' to enable it.");
                 return original;
             }
 
             if (flag == "1")
             {
-                PlayerSettings.iOS.allowHTTPDownload = true;
-                Debug.Log("IOS BUILD: allowHTTPDownload enabled (NSAllowsArbitraryLoads) — dev/LAN testing only, do not ship this.");
+                PlayerSettings.insecureHttpOption = InsecureHttpOption.AlwaysAllowed;
+                Debug.Log("IOS BUILD: insecureHttpOption set to AlwaysAllowed (NSAllowsArbitraryLoads) — dev/LAN testing only, do not ship this.");
             }
 
             return original;
         }
 
         /// <summary>Undoes <see cref="ApplyInsecureHttpOverride"/> — see its own remarks.</summary>
-        private static void RestoreInsecureHttpOverride(bool original)
+        private static void RestoreInsecureHttpOverride(InsecureHttpOption original)
         {
-            if (PlayerSettings.iOS.allowHTTPDownload == original)
+            if (PlayerSettings.insecureHttpOption == original)
             {
                 return;
             }
 
-            PlayerSettings.iOS.allowHTTPDownload = original;
+            PlayerSettings.insecureHttpOption = original;
             AssetDatabase.SaveAssets();
-            Debug.Log("IOS BUILD: allowHTTPDownload restored.");
+            Debug.Log("IOS BUILD: insecureHttpOption restored.");
         }
 
         /// <summary>

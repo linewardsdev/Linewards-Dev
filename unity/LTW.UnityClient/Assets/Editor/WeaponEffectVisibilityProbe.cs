@@ -1,3 +1,4 @@
+#nullable enable
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -55,8 +56,6 @@ namespace LTW.UnityClient.Editor
             public int PeakLitPixels;
             public int PeakDelta;
             public int VisibleFrames;
-            public int AmbientLitPixels;
-            public int AmbientFrames;
         }
 
         private static readonly List<Result> Results = new();
@@ -69,7 +68,6 @@ namespace LTW.UnityClient.Editor
         private static int towerIndex;
         private static int watchedFrames;
         private static bool baselineTaken;
-        private static bool measuringAmbient;
         private static Color32[] baseline = System.Array.Empty<Color32>();
         private static Result? current;
         private static double startedAt;
@@ -82,7 +80,6 @@ namespace LTW.UnityClient.Editor
             baselineTaken = false;
             frames = 0;
             towerIndex = 0;
-            measuringAmbient = true;
             Results.Clear();
             Placed.Clear();
             outputPath = ReadArg("-ltwProbeOutput") ?? Path.Combine(Path.GetTempPath(), "weapon-effect-visibility.md");
@@ -243,7 +240,7 @@ namespace LTW.UnityClient.Editor
 
             // Damage 6 so damage-scaled tells (Grovebond, Crowd Bloom, Tesla's chain) sit mid-range
             // rather than at either extreme, and tier 1 so nothing is flattered by the tier boost.
-            cue.Invoke(renderer, new object[] { from, to, tower.TowerId.Value, 6, null, 1 });
+            cue.Invoke(renderer, new object?[] { from, to, tower.TowerId.Value, 6, null, 1 });
         }
 
         private static void Measure()
@@ -279,7 +276,7 @@ namespace LTW.UnityClient.Editor
             {
                 RenderTexture.active = renderTexture;
                 GL.Clear(true, true, Color.black);
-                var cameras = Object.FindObjectsByType<Camera>(FindObjectsSortMode.None);
+                var cameras = Object.FindObjectsByType<Camera>(FindObjectsInactive.Exclude);
                 System.Array.Sort(cameras, static (l, r) => l.depth.CompareTo(r.depth));
                 foreach (var camera in cameras)
                 {

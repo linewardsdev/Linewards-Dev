@@ -211,7 +211,7 @@ namespace LTW.UnityClient.Editor
             /// </summary>
             private static void ReportInputSource()
             {
-                var uguiComponents = FindObjectsByType<MonoBehaviour>(FindObjectsSortMode.None)
+                var uguiComponents = FindObjectsByType<MonoBehaviour>(FindObjectsInactive.Exclude)
                     .Select(behaviour => behaviour.GetType().Name)
                     .Where(name => name is "EventSystem" or "StandaloneInputModule" or "PanelEventHandler" or "PanelRaycaster")
                     .Distinct()

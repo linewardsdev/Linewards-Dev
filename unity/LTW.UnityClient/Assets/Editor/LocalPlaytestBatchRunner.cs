@@ -426,7 +426,10 @@ namespace LTW.UnityClient.Editor
         private static ContentId? ReadContentIdArgument(string name)
         {
             var value = ReadStringArgument(name);
-            return string.IsNullOrWhiteSpace(value) ? null : new ContentId(value);
+            // Unity's target framework's string.IsNullOrWhiteSpace lacks the [NotNullWhen]
+            // annotation the BCL ships elsewhere, so the compiler can't narrow `value` here on its
+            // own even though this guard already rules out null — hence the `!`, not a real defect.
+            return string.IsNullOrWhiteSpace(value) ? null : new ContentId(value!);
         }
 
         private static string SafeFilePart(string value)

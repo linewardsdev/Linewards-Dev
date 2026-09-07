@@ -150,6 +150,8 @@ than left as written; each carries its own dated finding.
 | --- | --- | --- |
 | 47 | (this commit) | `SendDockController.cs`'s `DrawSendRow`/`DrawSendButton` (the tablet-rail and phone-drawer card renderers) each gained a small cancel badge in their top-right corner, drawn only when a creep has a queued send. Checked and consumed via IMGUI's own `Event.current` ordering before the row/card's own send-button call, so a tap on the badge withdraws one queued send (`UnityCommandAdapter.CancelQueuedSend`) instead of also sending another — no `hitRect` carve-out needed, since IMGUI controls consume the event in call order and a later `GUI.Button` checking an already-`Used` event correctly returns no press. `ClearSendQueue` was deliberately NOT wired to this same gesture, per the item's own instruction that a full clear needs a separate home. No new test: the item's own note that the behaviour is already pinned by `SendQueueTests` held — what was missing was exclusively the control, and it now exists. |
 | 55 | (this commit) | New `CancelSendMessage`/`ClearSendQueueMessage` wire types, on both the server (`src/LTW.MatchServer/Wire/ClientMessages.cs`) and the client's own mirror (`Assets/Scripts/Online/Wire/ClientWireMessages.cs`); a `case "cancelSend"`/`case "clearSendQueue"` in `ServerMatch.DispatchAsync`'s switch, each calling the same `LocalVerticalSlice.CancelQueuedSend`/`ClearSendQueue` the local path already used; and the missing `if (wireClient is not null) { ... }` branch on both `UnityCommandAdapter` methods, matching every other command on that class. `ClearSendQueue`'s wire branch deliberately always Accepts (an already-empty queue is a normal state, not a refusal, same contract the local path already had) and returns `1` rather than a real removed count, since the real count isn't knowable synchronously online and nothing calls this method from the client yet regardless. Two new `MatchServerIntegrationTests`: one queues a creep the sender cannot yet afford, cancels it over the wire, and confirms it actually leaves the tick's own `sendQueue`; the other does the same for a full clear. Unity batchmode compile clean (0 `error CS`), `dotnet test` 411/411. |
+| 48 | (this commit) | Measured the source art (`ui_command_card_normal_option_04.png`, 192×232) directly rather than guessing an inset, and confirmed all three faults with a `RealUiCaptureRunner` capture before and after. **Fault 1, the grey box:** not actually a position bug — `DrawCategoryCard`'s label used `buttonStyle`, which is `new GUIStyle(GUI.skin.button)` with only its text colors ever overridden, so its solid grey button-skin background box drew behind the category name on every card, wide enough to sit on top of the art's own rounded corners on both sides. Switched to `metaStyle` (`GUI.skin.label`, background-free); the existing 0.20/0.44 height fractions were already clear of the frame once the box was gone, confirmed in the recapture. **Fault 3, the translucent square:** `DrawCommandCardChrome` unconditionally drew an icon-well backdrop at `CommandCardIconRect` for every card using this chrome, including the two category pickers that have no icon at all to back — a fact a prior session had already half-diagnosed in a doc comment on `CommandCardUnitIconRect` citing this exact item, but never finished. Added a `hasIcon` parameter (default `true`, so both real icon-bearing cards are unaffected) and pass `false` from both category-card call sites (send dock, tower-line picker); the procedural (no-art) fallback path had the identical unconditional well and was fixed the same way. **Fault 2, the clipped tier button:** already fixed — later, unrelated work (the 0.58 button-width split and the rail 2-column change, both dated after this item was filed) had already resolved it; the recapture shows "NEED +60"/"NEED +70" reading in full on both the send dock and the build palette, which share this exact card code. Fixed identically in both `SendDockController.DrawCategoryCard` and `TouchPlacementController.Gui.cs`'s tower-line card, since both had the identical bug (the second's own comment says it deliberately mirrors the first). Unity batchmode compile clean (0 `warning CS`, 0 `error CS`); no dotnet-side code touched. |
+| 40 | (this commit) | All 23 warnings a genuine forced Editor-assembly recompile actually showed (not the stale 17 the item was filed with — it also missed 4 `IosBuildRunner.cs` warnings that postdated the 2026-08-03 filing and missed `WardAnimationCheck.cs` entirely; re-audited fresh rather than trusted). **Six `FindObjectsByType(FindObjectsSortMode)` sites**: confirmed every one already used `.None` (no site relied on sort order) and the legacy sort-mode-only overload never included inactive objects either, so `FindObjectsByType<T>(FindObjectsInactive.Exclude)` is exact behavior parity, not a judgment call — no capture re-verification needed, since the object set returned is provably unchanged. **Four `PlayerSettings.iOS.allowHTTPDownload` sites in `IosBuildRunner.cs`**: migrated to `PlayerSettings.insecureHttpOption` (confirmed via reflection on the installed `UnityEditor.dll`, not the compiler's obsolete-message text alone), using `AlwaysAllowed` rather than the more tempting `DevelopmentOnly` specifically to preserve the old boolean's unconditional behavior, since this runner does not mark its output a Development build. **Five `CS8632`**: both files lacked `#nullable enable` despite meaningfully using `string?`/`Result?` for real nullability, so the context was enabled rather than the annotations dropped. **One `CS0414`**: `WeaponEffectVisibilityProbe.measuringAmbient`, and its `Result.AmbientLitPixels`/`AmbientFrames` siblings (unused, uncaught by the compiler only because they're public fields) were confirmed genuinely dead — never read anywhere, not even in the report generation — and deleted outright rather than just silenced. **One `CS8604`**: `LocalPlaytestBatchRunner.ReadContentIdArgument` was already null-safe in practice (`IsNullOrWhiteSpace` guards it), the warning is a false positive from Unity's target framework's `string.IsNullOrWhiteSpace` lacking the `[NotNullWhen]` BCL annotation elsewhere used for flow narrowing — resolved with an explicit `!` and a comment explaining why, not a behavior change. Enabling `#nullable enable` surfaced one genuinely new `CS8625` (a `null` array-literal element in a reflection `Invoke` call) — fixed by typing the array `object?[]` instead of `object[]`, which is the more correct type for `MethodInfo.Invoke`'s parameter anyway. Verified via two independent forced-recompile batchmode runs (0 `warning CS`, 0 `error CS`). |
 
 ## 53. Render review — residuals after Wave 5
 
@@ -1228,37 +1230,6 @@ Worth pairing with R1 (play the game with human hands) rather than designed from
 long a defeated player actually wants to keep watching is the input this needs, and nobody
 has watched yet.
 
-## 40. Seventeen compiler warnings in the Editor assembly, invisible unless it recompiles
-
-Filed 2026-08-03. All pre-existing — every file involved is untouched by recent work — but
-they went unnoticed for a reason worth recording: **Unity does not re-emit warnings for an
-assembly it did not recompile.** A batchmode run that only rebuilds the runtime assembly logs
-nothing from `Assets/Editor/`, so a build can look clean and not be. It was reported as clean
-in this session on exactly that basis, and that report was wrong.
-
-Three groups:
-
-- **`CS0618` `FindObjectsByType<T>(FindObjectsSortMode)` is obsolete** — six sites:
-  `MotionCaptureRunner:245`, `ShellInputCheck:214`, `TowerMotionAmplitudeProbe:258`,
-  `VisualReviewCaptureRunner:1293`, `WeaponEffectVisibilityProbe:282`. **Not a blind fix.** The
-  replacement overloads differ in whether inactive objects are included, and every one of these
-  sites is a capture or probe tool whose measurements back items elsewhere in this file. Change
-  the overload and the set of objects found can change with it, which would silently move
-  numbers that other items cite. Each needs its intended `FindObjectsInactive` stated and then
-  re-verified against a known capture.
-- **`CS8632` nullable annotation outside a `#nullable` context** — five sites in
-  `TowerMotionAmplitudeProbe` and `WeaponEffectVisibilityProbe`. Harmless and trivially fixed by
-  enabling the context or dropping the annotations.
-- **One `CS0414`** (`WeaponEffectVisibilityProbe.measuringAmbient` assigned but never used) and
-  **one `CS8604`** (`LocalPlaytestBatchRunner:429`, possible null into `ContentId`). The latter
-  is the only one that could be a real defect and is worth a look on its own.
-
-The cost of leaving it is the same as item 39's: a permanently noisy build in which a genuine
-new warning is invisible. **To see these at all, force the Editor assembly to recompile** —
-touching any file under `Assets/Editor/` is enough.
-
----
-
 ## 41. `PromoteCreep3DSet` silently overwrites committed motion styles with spec defaults
 
 Found 2026-08-03 during the wave 2.3 rig work and deliberately not shipped — the change was
@@ -1277,33 +1248,6 @@ it should report the overwrite, and probably refuse it without an explicit flag.
 Same shape as item 39 — a tool and its data disagree, and the tool wins quietly.
 
 ---
-
-## 48. The send dock's category cards render their content over the card art
-
-Reported from a local play session 2026-08-09, with a screenshot. Distinct from item 47 and from
-the dock height fixed the same day — this is the CARDS, not the panel.
-
-Three faults visible on all three picker cards (CORE / SUPPORT / ELITE):
-
-1. **The label sits on the art's frame** rather than inside its inner panel. `DrawCategoryCard`
-   places the label at `rect.height * 0.20` and "5 SENDS" at `0.44`, both fractions of the WHOLE
-   card. The art is a bordered frame whose usable interior is inset from that rect, so a fraction of
-   the outer height lands on the border.
-2. **The tier button is clipped.** `NEED +60` is cut off at both ends, so the row is being drawn
-   into less width than it asks for.
-3. **A translucent square sits in each card's upper-left corner**, over the art. Unexplained; it
-   looks like a chrome or state overlay drawn at the wrong rect rather than anything deliberate.
-
-**Why fractions of the outer rect are the wrong basis:** the same reasoning
-`RuntimeUiChrome.CategoryCardRect` already applies to the card's outer size — derive from the art
-rather than assume — has never been applied to what goes INSIDE it. The card art has a known inner
-region, and every label should be laid out against that, not against the card's bounding box. Until
-it is, any change to the art's border thickness silently moves the text onto or off the frame.
-
-**Not attempted here** because it wants the art's inner-region inset measured from the source PNG
-rather than guessed, and a capture to confirm — the same discipline `TowerMotionAmplitudeProbe`
-exists to enforce for motion. Guessing an inset would land in exactly the same place by a different
-route.
 
 ## 39. Every creep *and tower* body material is at smoothness 0.42 against a constant of 0.45, so the tuning validators fail roster-wide
 

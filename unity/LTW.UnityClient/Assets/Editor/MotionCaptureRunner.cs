@@ -242,7 +242,7 @@ namespace LTW.UnityClient.Editor
                 RenderTexture.active = renderTexture;
                 GL.Clear(true, true, Color.black);
 
-                var cameras = Object.FindObjectsByType<Camera>(FindObjectsSortMode.None);
+                var cameras = Object.FindObjectsByType<Camera>(FindObjectsInactive.Exclude);
                 System.Array.Sort(cameras, static (l, r) => l.depth.CompareTo(r.depth));
                 foreach (var camera in cameras)
                 {

@@ -704,17 +704,25 @@ namespace LTW.UnityClient.UI
                     rowHeight = cardRect.height;
                 }
                 // Hit region excludes BOTH action rows, or the card's own button eats their clicks
-                // before either is ever delivered.
+                // before either is ever delivered. hasIcon: false — this card has no icon, so the
+                // chrome's own icon-well backdrop is skipped rather than drawn over nothing
+                // (OPEN_ITEMS.md item 48's "unexplained translucent square").
                 var pressed = RuntimeUiChrome.DrawCommandCard(
-                    cardRect, accent, locked ? CommandCardState.Disabled : CommandCardState.Normal, scale, RuntimeUiChrome.CategoryCardSelectRect(cardRect, scale));
+                    cardRect, accent, locked ? CommandCardState.Disabled : CommandCardState.Normal, scale, RuntimeUiChrome.CategoryCardSelectRect(cardRect, scale), hasIcon: false);
 
-                buttonStyle!.fontSize = Mathf.RoundToInt(13f * scale);
-                buttonStyle.normal.textColor = locked ? DisabledText : Cloud;
+                // metaStyle, not buttonStyle: buttonStyle is GUI.skin.button underneath, and only its
+                // text color was ever overridden here, so its solid grey button-skin background box
+                // drew behind the line name on every card — wide enough to sit on top of the art's
+                // own rounded corners on both sides. Confirmed via a real-UI capture (item 48).
+                // metaStyle is GUI.skin.label, background-free.
+                metaStyle!.fontSize = Mathf.RoundToInt(13f * scale);
+                metaStyle.normal.textColor = locked ? DisabledText : Cloud;
+                metaStyle.alignment = TextAnchor.MiddleCenter;
                 // Label and meta are positioned proportionally here, matching the send dock's
                 // category card. They previously used CommandCardLabelRect/CommandCardMetaRect,
                 // which anchor a fixed distance off the card's BOTTOM edge — on a card grown for a
                 // tier row that put both lines straight through the new row.
-                GUI.Label(new Rect(cardRect.x, cardRect.y + cardRect.height * 0.20f, cardRect.width, 22f * scale), labels[category], buttonStyle);
+                GUI.Label(new Rect(cardRect.x, cardRect.y + cardRect.height * 0.20f, cardRect.width, 22f * scale), labels[category], metaStyle);
 
                 metaStyle!.fontSize = Mathf.RoundToInt(9f * scale);
                 metaStyle.normal.textColor = locked ? DisabledText : accent;
