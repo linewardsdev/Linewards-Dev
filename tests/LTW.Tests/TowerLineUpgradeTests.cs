@@ -157,6 +157,38 @@ public sealed class TowerLineUpgradeTests
         Assert.False(quote.IsGoldLimited);
     }
 
+    /// <summary>
+    /// <see cref="LocalVerticalSlice.QuoteTowerUpgrades"/> — the hand-picked-selection sibling of
+    /// <see cref="LocalVerticalSlice.QuoteTowerLineUpgrade"/>'s whole-line quote, used by the
+    /// client for a multi-select upgrade rather than "upgrade all". Had zero test references
+    /// before this — see docs/SECURITY_AUDIT_2026-09-05.md's M-T1. Quoting only the Arrow (not the
+    /// Prism, even though both are eligible Arcane towers) proves the position filter is actually
+    /// applied, not just delegating to the line-wide eligibility list and ignoring it.
+    /// </summary>
+    [Fact]
+    public void Quoting_a_hand_picked_selection_prices_only_that_selection()
+    {
+        var arrowCost = UpgradeCostOf(SampleVerticalSliceContent.TowerId);
+        var slice = Slice(goldAfterSetup: 5000);
+
+        var lineQuote = slice.QuoteTowerLineUpgrade(Player, Lane, Arcane);
+        var selectionQuote = slice.QuoteTowerUpgrades(Player, Lane, new[] { ArrowCell });
+
+        Assert.Equal(2, lineQuote.Eligible);
+        Assert.Equal(1, selectionQuote.Eligible);
+        Assert.Equal(arrowCost, selectionQuote.TotalCost);
+        Assert.Equal(arrowCost, selectionQuote.AffordableCost);
+        Assert.Equal(1, selectionQuote.Affordable);
+        Assert.False(selectionQuote.IsGoldLimited);
+
+        var outcome = slice.UpgradeTowers(Player, Lane, new[] { ArrowCell });
+
+        Assert.Equal(selectionQuote.Eligible, outcome.Eligible);
+        Assert.Equal(selectionQuote.TotalCost, outcome.GoldSpent);
+        Assert.Equal(2, TierOf(slice, ArrowCell));
+        Assert.Equal(1, TierOf(slice, PrismCell));
+    }
+
     [Fact]
     public void A_gold_limited_quote_predicts_the_partial_result_exactly()
     {

@@ -1,5 +1,12 @@
 # Open Items
 
+> **Superseded as the live tracker.** `docs/PROJECT_TRACKER.md` is now the single standardized
+> status board (2026-09-07), with a one-line current status for every item still open here. This
+> doc remains the detail archive — the investigative narrative, measurements, and resolved-item
+> ledgers below are not reproduced there. When an item's status changes, update both: the status
+> line in the tracker, and this file's own record per its stated rule (delete a fully resolved
+> item, or narrow an open one).
+
 Known gaps and decisions that are open right now. Each item is a thing someone still has
 to do or decide; when an item's work lands, delete the item rather than marking it done —
 the history is in git and in `GD_TUNING_LOG.md`.

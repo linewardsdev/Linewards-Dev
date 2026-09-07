@@ -153,11 +153,31 @@ public sealed class MatchServerIntegrationTests : IAsyncLifetime
         // and, now that the seat authority actually lets bots act (see ConnectionSeatAuthority's
         // and ServerMatch.matchLock's own remarks for the bug this test caught), they are already
         // building on their own lanes from tick zero. Filtered to seat 1's own tower specifically.
-        var tickMessage = await ReceiveOfTypeAsync(seat1, "tick");
-        var placedTower = tickMessage.GetProperty("towers").EnumerateArray()
-            .Single(tower => tower.GetProperty("ownerId").GetInt32() == 1);
-        Assert.Equal(2, placedTower.GetProperty("x").GetInt32());
-        Assert.Equal(14, placedTower.GetProperty("y").GetInt32());
+        //
+        // Polls across several "tick" messages rather than trusting the very first one received
+        // after "commandResult" already reflects the placement: commandResult is sent AFTER
+        // matchLock is released (see ServerMatch.DispatchAsync's own remarks), so a tick broadcast
+        // for an earlier tick can legitimately arrive at the client before its triggering command's
+        // own reply does. A bare `.Single(...)` on the first tick received was flaky for exactly
+        // this reason — see docs/SECURITY_AUDIT_2026-09-05.md's M-T1 and the identical, already-
+        // robust pattern in Tick_messages_carry_the_players_chosen_line_and_tier_state below.
+        JsonElement? placedTower = null;
+        var placeDeadline = DateTime.UtcNow.AddSeconds(10);
+        while (DateTime.UtcNow < placeDeadline)
+        {
+            var tickMessage = await ReceiveOfTypeAsync(seat1, "tick");
+            placedTower = tickMessage.GetProperty("towers").EnumerateArray()
+                .Select(tower => (JsonElement?)tower)
+                .SingleOrDefault(tower => tower!.Value.GetProperty("ownerId").GetInt32() == 1);
+            if (placedTower is not null)
+            {
+                break;
+            }
+        }
+
+        Assert.NotNull(placedTower);
+        Assert.Equal(2, placedTower!.Value.GetProperty("x").GetInt32());
+        Assert.Equal(14, placedTower.Value.GetProperty("y").GetInt32());
     }
 
     /// <summary>
@@ -416,6 +436,24 @@ public sealed class MatchServerIntegrationTests : IAsyncLifetime
         Assert.True(File.Exists(replayPath), "server-side replay capture was never written");
         var replayJson = await File.ReadAllTextAsync(replayPath);
         Assert.Contains("\"commands\"", replayJson, StringComparison.OrdinalIgnoreCase);
+
+        // Before ReplayFileReader existed, nothing in `src` could turn this file back into
+        // anything — MP07_RUNBOOK.md's "investigate a desync from its replay" step had no actual
+        // mechanism behind it. `humanSeats: [1]` means MatchRegistry.CreateMatch's own seat loop
+        // never disables a lane (seat 1 already IS LocalMatchOptions.Default's LocalPlayerId), so
+        // the options the live match actually ran under are exactly LocalMatchOptions.Default —
+        // the same instance this replay needs. See docs/SECURITY_AUDIT_2026-09-05.md's M-T1.
+        var record = await ReplayFileReader.ReadAsync(replayPath);
+        Assert.True(record.Commands.Count > 0, "expected a non-empty command log from a real completed match");
+
+        var replayedOnce = LocalVerticalSlice.Replay(record, SampleVerticalSliceContent.Create(), LocalMatchOptions.Default);
+        Assert.NotNull(replayedOnce.MatchSummary);
+        Assert.Equal(record.CompletedAtTick.Value, replayedOnce.CurrentTick.Value);
+
+        // Replaying the SAME parsed record twice must reach the same state both times — proves
+        // the file round-trips into something deterministic, not just something parseable.
+        var replayedTwice = LocalVerticalSlice.Replay(record, SampleVerticalSliceContent.Create(), LocalMatchOptions.Default);
+        Assert.Equal(replayedOnce.GetSnapshot().Fingerprint(), replayedTwice.GetSnapshot().Fingerprint());
     }
 
     /// <summary>
@@ -476,6 +514,85 @@ public sealed class MatchServerIntegrationTests : IAsyncLifetime
         var completed = await Task.WhenAny(match.Completion, Task.Delay(TimeSpan.FromSeconds(5)));
         Assert.Same(match.Completion, completed);
         Assert.True(match.Completion.IsCompletedSuccessfully);
+    }
+
+    /// <summary>
+    /// MP-07's telemetry deliverable, emission side: every match's start and end should now be a
+    /// structured, machine-parseable line rather than only free-text logging. Captures
+    /// <see cref="ServerMatch.TelemetrySink"/> for the duration of one real match instead of
+    /// redirecting the process's own <see cref="Console"/>, which would risk interleaving with
+    /// unrelated output from other tests. See docs/MULTIPLAYER_ROLLOUT.md's MP-07.
+    /// </summary>
+    [Fact]
+    public async Task Match_lifecycle_emits_structured_telemetry_for_start_and_end()
+    {
+        var lines = new System.Collections.Concurrent.ConcurrentQueue<string>();
+        var originalSink = ServerMatch.TelemetrySink;
+        ServerMatch.TelemetrySink = lines.Enqueue;
+        try
+        {
+            var match = registry.CreateMatch(new[] { 1 }, ticksPerSecond: 200);
+
+            // Same generous 150s budget as Eight_lane_match_of_one_human_and_seven_bots_runs_to_a_result
+            // for the same reason — this is a real bot-vs-bot match run to a real conclusion, not a
+            // fixed number of ticks, and CI-shared-machine margin matters more than a tight bound.
+            var deadline = DateTime.UtcNow.AddSeconds(150);
+            while (!match.Completion.IsCompleted && DateTime.UtcNow < deadline)
+            {
+                await Task.Delay(50);
+            }
+
+            Assert.True(match.Completion.IsCompletedSuccessfully, "match never completed naturally within the deadline");
+
+            var events = lines.Select(line => JsonSerializer.Deserialize<JsonElement>(line))
+                .Where(element => element.GetProperty("matchId").GetString() == match.MatchId)
+                .ToArray();
+
+            var started = Assert.Single(events, element => element.GetProperty("event").GetString() == "match_started");
+            Assert.Equal(1, started.GetProperty("details").GetProperty("humanSeatCount").GetInt32());
+
+            var ended = Assert.Single(events, element => element.GetProperty("event").GetString() == "match_ended");
+            Assert.True(ended.GetProperty("details").GetProperty("completedAtTick").GetInt64() > 0);
+            Assert.True(ended.GetProperty("details").GetProperty("durationSeconds").GetDouble() > 0);
+        }
+        finally
+        {
+            ServerMatch.TelemetrySink = originalSink;
+        }
+    }
+
+    /// <summary>
+    /// The "crash report" half of MP-07's telemetry deliverable — a faulted tick loop (H4's own
+    /// concern) must be visible as a structured event, not just a free-text
+    /// <c>Console.Error.WriteLine</c>. <c>ticksPerSecond: 0</c> reaches <c>PeriodicTimer</c>'s own
+    /// constructor and throws <c>OverflowException</c> before the loop ever ticks — see
+    /// docs/SECURITY_AUDIT_2026-09-05.md's M1 (the reason `HttpMatchHost`'s own HTTP path now
+    /// validates this upfront; calling <c>MatchRegistry.CreateMatch</c> directly, as this test
+    /// does, bypasses that validator on purpose, the same way H4's own coverage does).
+    /// </summary>
+    [Fact]
+    public async Task A_faulted_match_emits_structured_telemetry()
+    {
+        var lines = new System.Collections.Concurrent.ConcurrentQueue<string>();
+        var originalSink = ServerMatch.TelemetrySink;
+        ServerMatch.TelemetrySink = lines.Enqueue;
+        try
+        {
+            var match = registry.CreateMatch(new[] { 1 }, ticksPerSecond: 0);
+
+            var completed = await Task.WhenAny(match.Completion, Task.Delay(TimeSpan.FromSeconds(5)));
+            Assert.Same(match.Completion, completed);
+            Assert.True(match.Completion.IsFaulted);
+
+            var faulted = lines.Select(line => JsonSerializer.Deserialize<JsonElement>(line))
+                .Single(element => element.GetProperty("matchId").GetString() == match.MatchId
+                    && element.GetProperty("event").GetString() == "match_faulted");
+            Assert.Equal("OverflowException", faulted.GetProperty("details").GetProperty("exceptionType").GetString());
+        }
+        finally
+        {
+            ServerMatch.TelemetrySink = originalSink;
+        }
     }
 
     [Fact]

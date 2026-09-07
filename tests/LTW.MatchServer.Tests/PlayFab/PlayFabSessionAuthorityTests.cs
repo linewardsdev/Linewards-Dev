@@ -86,6 +86,40 @@ public sealed class PlayFabSessionAuthorityTests
         Assert.Null(result);
     }
 
+    /// <summary>
+    /// Defense-in-depth, not PlayFab's primary ban mechanism (that already invalidates the ticket
+    /// itself — see PlayFabSessionAuthority.AuthenticateAsync's own remarks): a valid, unexpired
+    /// ticket whose UserInfo.TitleInfo.isBanned is true must still be refused. See
+    /// docs/MULTIPLAYER_ROLLOUT.md's MP-07 abuse-handling note.
+    /// </summary>
+    [Fact]
+    public async Task A_banned_players_ticket_is_rejected_even_when_not_reported_as_expired()
+    {
+        var handler = new FakeHandler
+        {
+            Respond = () => JsonResponse(HttpStatusCode.OK, """{"code":200,"status":"OK","data":{"IsSessionTicketExpired":false,"UserInfo":{"PlayFabId":"ABC123","TitleInfo":{"isBanned":true}}}}"""),
+        };
+        var authority = new PlayFabSessionAuthority(new HttpClient(handler), "ABCDE", "secret");
+
+        var result = await authority.AuthenticateAsync("a-session-ticket");
+
+        Assert.Null(result);
+    }
+
+    [Fact]
+    public async Task A_non_banned_players_ticket_with_TitleInfo_present_is_still_accepted()
+    {
+        var handler = new FakeHandler
+        {
+            Respond = () => JsonResponse(HttpStatusCode.OK, """{"code":200,"status":"OK","data":{"IsSessionTicketExpired":false,"UserInfo":{"PlayFabId":"ABC123","TitleInfo":{"isBanned":false,"DisplayName":"whoever"}}}}"""),
+        };
+        var authority = new PlayFabSessionAuthority(new HttpClient(handler), "ABCDE", "secret");
+
+        var result = await authority.AuthenticateAsync("a-session-ticket");
+
+        Assert.Equal("ABC123", result);
+    }
+
     [Fact]
     public async Task An_invalid_ticket_reported_as_an_error_wrapper_is_rejected()
     {

@@ -1,5 +1,11 @@
 # MVP Status Snapshot
 
+> **Superseded as the live tracker.** `docs/PROJECT_TRACKER.md` is now the single standardized
+> status board (2026-09-07) — it reconciles this doc, `MVP_IMPLEMENTATION_CHECKLIST.md`,
+> `GAMEPLAY_DEVELOPMENT_CHECKLIST.md`, `OPEN_ITEMS.md`, and `LAUNCH_ROADMAP.md` against the
+> current working tree. This file is kept as a historical snapshot; do not trust its status
+> claims (e.g. lane counts, MVP-08/09 state) without checking the tracker first.
+
 This snapshot reconciles the current `main` branch with `MVP_IMPLEMENTATION_CHECKLIST.md`.
 
 ## Branch State

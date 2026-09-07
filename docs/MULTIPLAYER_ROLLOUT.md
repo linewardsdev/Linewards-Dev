@@ -1538,6 +1538,49 @@ Replace this whole section with real billing data once Phase 5's build is live f
 - Abuse handling: rate limits are MP-03; here it is reporting, muting and banning at the
   identity level.
 
+### Telemetry (emission side) and ban enforcement, landed 2026-09-07
+
+Started while still blocked on the Dasv4 quota approval — scoped to what is buildable and
+`dotnet test`-verifiable without a live PlayFab title or real Azure resources, which a genuine
+dashboard needs.
+
+- **`ServerMatch` now emits one structured JSON line per match lifecycle event** —
+  `match_started` (human seat count, ticks/second), `match_ended` (winner, completed-at tick,
+  duration), `match_faulted` (exception type/message, duration) — to stdout via a swappable
+  `ServerMatch.TelemetrySink` (defaults to `Console.WriteLine`; tests capture it instead of
+  redirecting the real `Console`, to stay safe under parallel test runs). Deliberately stdout, not
+  `GameserverSDK.LogMessage`: that requires `GameserverSDK.Start()`, which standalone mode never
+  calls, and `ServerMatch` has no way to know which mode it's running under — stdout already flows
+  into both `docker logs` (standalone) and PlayFab's own MPS log collection (per `Program.cs`'s
+  own bootstrap-message logging, which already relies on the same channel). Verified with two new
+  tests: `Match_lifecycle_emits_structured_telemetry_for_start_and_end` (a real match run to a
+  real conclusion) and `A_faulted_match_emits_structured_telemetry` (a `ticksPerSecond: 0` match,
+  the same `OverflowException` H4's own fix already catches).
+- **This is the emission side only, not the dashboard.** "Cost, crash, desync and abuse figures on
+  one dashboard" needs something ingesting these lines — Azure Monitor, Application Insights, or
+  similar — which needs real Azure resources this environment cannot provision. What exists now:
+  every match's start/end/fault is a structured, greppable line instead of only free-text
+  `Console.Error.WriteLine` prose.
+- **Crash reporting (client-side) has not been started** — `docs/LAUNCH_ROADMAP.md` item 3/#1
+  calls for "Unity Cloud Diagnostics or Sentry, whichever sets up faster," and either needs a real
+  vendor account and API key, which is a product decision plus a credential only the project owner
+  can provide. Not attempted here.
+- **Ban enforcement, at the identity level, landed**: `PlayFabSessionAuthority.AuthenticateAsync`
+  now also rejects a ticket whose `UserInfo.TitleInfo.isBanned` is `true` (confirmed field, from
+  `AuthenticateSessionTicket`'s own documented response shape, fetched 2026-09-07) — one extra
+  check on a response this class already fetches and parses, no new API call. This is explicitly
+  defense-in-depth, not the primary mechanism: PlayFab's own ban system (Game Manager → Players →
+  select player → Bans → Add Ban) already invalidates a banned player's existing session tickets
+  outright and rejects future login attempts (confirmed from Microsoft's own docs) — no custom
+  ban-issuing tool was built, because PlayFab's portal already is one. New tests:
+  `A_banned_players_ticket_is_rejected_even_when_not_reported_as_expired` and
+  `A_non_banned_players_ticket_with_TitleInfo_present_is_still_accepted`.
+- **Reporting and muting were assessed and NOT built**: this game has no chat or other
+  player-to-player communication channel today (checked — no such feature exists anywhere in
+  `Assets/Scripts`), so there is nothing concrete yet for a player to report or for a mute to
+  silence. Building either now would be speculative UI for a threat that doesn't exist in this
+  game yet. Revisit if/when any player-to-player communication feature is added.
+
 ### Acceptance Checks
 
 - [ ] One week of live matches with cost, crash, desync and abuse figures on one dashboard.
@@ -1545,10 +1588,13 @@ Replace this whole section with real billing data once Phase 5's build is live f
 - [ ] The monthly cost at ten times the observed population is known.
 
 **Estimate:** the hosting mechanism itself is built and live-verified end to end (locally, via
-`LocalMultiplayerAgent`) — what remains before these acceptance checks are even attemptable is
-Phase 5's PlayFab Game Manager portal work (real build upload, region/SKU/standby config) plus
-telemetry, the runbook, and abuse handling, none of which have been started. Once Phase 5 lands,
-these three checks become a matter of running the thing for real, not further engineering.
+`LocalMultiplayerAgent`). Telemetry's emission side and ban enforcement are landed (see above);
+what remains before these acceptance checks are even attemptable is Phase 5's PlayFab Game Manager
+portal work (real build upload, region/SKU/standby config) plus a real log-ingestion dashboard,
+client-side crash reporting (blocked on a vendor decision and account credentials), and the
+runbook's still-open telemetry/abuse sections. Once Phase 5 lands, these three checks become
+substantially a matter of running the thing for real and wiring a dashboard, not further
+from-scratch engineering.
 
 ---
 

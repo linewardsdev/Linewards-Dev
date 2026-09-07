@@ -126,17 +126,28 @@ Servers goes live; both are called out explicitly below.
       server distinguishes `PolicyViolation "bad token"` from `InternalServerError "join failed"`.
       A network blip, not a bad ticket, wipes the session. **Fix**: surface `CloseStatus` from
       `MatchWireClient`; call `ForgetOnAuthFailure()` only on `PolicyViolation`.
-- [ ] **M-C2 — Bearer session ticket persisted in plaintext `PlayerPrefs`.**
+- [~] **M-C2 — Bearer session ticket persisted in plaintext `PlayerPrefs`.**
       `PlayFabSession.cs:16-17,42-44,100-102`. iOS: plaintext plist in backups. Android: plaintext
       `shared_prefs` XML. No sign-out UI exists; only `ForgetOnAuthFailure` clears it. **Fix**:
       Keychain (`WhenUnlockedThisDeviceOnly`, non-synchronizable) via a native bridge — the pattern
       already exists in `LTWGoogleSignInBridge.mm`; `EncryptedSharedPreferences` on Android.
-      **Decision 2026-09-06**: held off, not fixed — this needs a real native Keychain/Keystore
-      bridge (Obj-C + Java/Kotlin plus a C# P/Invoke layer touching entitlements and access
-      groups), and this environment can only compile-check the C# side (Unity batchmode), not
-      build or run the actual iOS/Android project. Shipping unverified native security code here
-      risks a subtle bug (wrong access group, wrong entitlement) landing silently. Revisit with
-      real device/simulator verification available.
+      **Revised decision 2026-09-07**: iOS side drafted. New `Assets/Plugins/iOS/LTWKeychainBridge.mm`
+      (plain synchronous `SecItemAdd`/`SecItemCopyMatching`/`SecItemDelete` calls, no async
+      UnitySendMessage plumbing needed unlike the sign-in bridge — Keychain access is local and
+      synchronous) stores under `kSecAttrAccessibleWhenUnlockedThisDeviceOnly`, never sets
+      `kSecAttrSynchronizable` (so it never enters iCloud Keychain sync), and is scoped by the
+      app's own bundle id as the Keychain service name. New `SecureSessionStore.cs` wraps it via
+      `[DllImport("__Internal")]`, falling back to `PlayerPrefs` (with a logged warning) on any
+      Keychain write failure, in the Editor, and — deliberately — on Android too: Android has no
+      online sign-in provider at all yet (only `GoogleSignInIOS` exists, no Android equivalent),
+      so there is no Android secret to protect yet, and an `EncryptedSharedPreferences` bridge
+      with nothing to call it would be unverifiable dead code. `PlayFabSession.cs` now calls
+      `SecureSessionStore.Set/Get/Delete` instead of raw `PlayerPrefs`. Still **UNTESTED ON
+      DEVICE** — this environment can compile-check the C# side (Unity batchmode) but cannot
+      build or run the actual Xcode project, so the real Keychain read/write path, and whether
+      `kSecAttrAccessibleWhenUnlockedThisDeviceOnly` and the bundle-id-scoped service are
+      correct in practice, are unverified. Do not treat this as closed until confirmed on a real
+      device or simulator. Android's own bridge is still not started at all.
 - [x] **M1 — `CreateMatchRequest` numerics unvalidated, including from a client-authored MPS
       `SessionCookie`.** Verified `PeriodicTimer` behaviors (`ServerMatch.cs:177`): `ticksPerSecond
       = 0` → `OverflowException`; negative or `>1000` → `ArgumentOutOfRangeException`; exactly
@@ -195,7 +206,7 @@ Servers goes live; both are called out explicitly below.
       isolation; landing it needs a coordinated re-tuning of those seeds/assertions, out of scope
       for a security-fix pass. Still open — latent, not active, since server and client currently
       share one generator family.
-- [~] **M-T1 — A flaky test, a write-only replay format, and specific coverage gaps.** *(Not in
+- [x] **M-T1 — A flaky test, a write-only replay format, and specific coverage gaps.** *(Not in
       the original numbered fix order above — this is test-suite hygiene, not itself a
       vulnerability, so it was never prioritized against the others.)*
       `MatchServerIntegrationTests.cs:156-158`'s `.Single(...)` on the first post-command tick can
@@ -204,12 +215,25 @@ Servers goes live; both are called out explicitly below.
       anywhere in `src`, so replay capture is currently write-only. Untested: `ServerMatch.Stop()`
       → `Completion` (would have caught H4), every `DispatchAsync` error path, `ConnectionSeatAuthority`
       directly, `LocalVerticalSlice.QuoteTowerUpgrades` (called by the client, zero test references).
-      **Partially closed as a byproduct of other fixes**: `ServerMatch_completion_resolves_when_Stop_is_called_directly`
-      (added for H4) closes the `Stop()` → `Completion` gap;
-      `Malformed_command_message_receives_an_error_instead_of_orphaning_the_connection` (added for
-      M2) covers one `DispatchAsync` error path. Still open: the flaky `.Single(...)`, the
-      write-only replay format, `ConnectionSeatAuthority` direct coverage, and
-      `QuoteTowerUpgrades`.
+      **Closed 2026-09-07**: `Stop()` → `Completion` and one `DispatchAsync` error path were
+      already covered as a byproduct of H4/M2 (`ServerMatch_completion_resolves_when_Stop_is_called_directly`,
+      `Malformed_command_message_receives_an_error_instead_of_orphaning_the_connection`). This
+      pass closed the rest: the flaky `.Single(...)` in
+      `Two_humans_and_six_bots_complete_a_private_match_with_no_matchmaking` now polls across
+      several ticks (same robust pattern `Tick_messages_carry_the_players_chosen_line_and_tier_state`
+      already used), verified with 5 repeated runs; a new `ReplayFileReader.cs` parses a written
+      replay file back into a `MatchReplayRecord` (matched field-for-field against
+      `WriteReplayAsync`'s own DTO, reconstructed only through `RecordedCommand`'s existing
+      per-kind factory methods, never a public setter), and
+      `Eight_lane_match_of_one_human_and_seven_bots_runs_to_a_result` now reads its own written
+      replay back and confirms it replays deterministically (`LocalVerticalSlice.Replay` twice,
+      same fingerprint both times) — MP07_RUNBOOK.md's "investigate a desync from its replay" step
+      now has an actual mechanism behind it; new `ConnectionSeatAuthorityTests.cs` covers the
+      class directly (trust-between-requests, bound-connection-wins-during-a-request, fail-closed
+      for an unbound connection, `EndRequest`/`ForgetConnection`); new
+      `Quoting_a_hand_picked_selection_prices_only_that_selection` (`TowerLineUpgradeTests.cs`)
+      covers `QuoteTowerUpgrades` directly, proving its position filter is actually applied rather
+      than silently reusing the whole-line eligibility list. 405 tests passing.
 
 ## Low
 
@@ -230,8 +254,9 @@ Servers goes live; both are called out explicitly below.
       unvalidated on launch. Not a privilege escalation while M-C2 is open (same trust boundary);
       matters once M-C2 is fixed. Fix: re-resolve via `GetMultiplayerServerDetails` on rejoin instead
       of trusting the persisted address, once wss/cert validation exists.
-      Still open — blocked on M-C2, which was itself deliberately held off (see M-C2's own decision
-      note): no native Keychain/Keystore verification available in this environment.
+      Still open — blocked on both M-C2 (now drafted but unverified on a real device, see its own
+      updated note) and H5 (`wss`/cert validation, still fully open, infra-blocked). Revisit once
+      both are actually closed, not merely drafted.
 - [x] **L4** — Dockerfile has no `USER` directive (root); `Program.cs:188-190` logs join tokens
       under MPS (deliberate, currently `{}` since seats are PlayFab-reserved); `ServerMatch.cs:340`'s
       token compare (`expected != token`) isn't constant-time (impractical to exploit over 128-bit

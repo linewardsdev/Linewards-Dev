@@ -181,7 +181,7 @@
       <div class="track"><div class="bar b1" style="left:6.0%;width:6.0%"><1d</div></div>
     </div>
     <div class="row">
-      <div class="lbl">Add crash reporting and analytics<small>Unity Cloud Diagnostics or Sentry, whichever sets up faster</small></div>
+      <div class="lbl">Add crash reporting and analytics<small>Closed 2026-09-07 — Unity Diagnostics linked; session telemetry confirmed flowing, crash-specific event not separately confirmed (owner's call to close anyway — see the P0 gap table above)</small></div>
       <div class="track"><div class="bar b1" style="left:6.0%;width:10.0%">1d</div></div>
     </div>
     <div class="row">
@@ -243,7 +243,6 @@
     <tr><th class="n">#</th><th>Gap</th><th>Evidence</th><th style="text-align:right">Est.</th></tr>
     <tr><td class="n">1</td><td><b>Apple Developer Program not enrolled</b></td><td class="e">No team id in <code>ProjectSettings.asset</code>; <code>STORE_SIGNING_PREREQUISITES.md</code> boxes unchecked. Gates 2, 6 and 7 — every store step waits on it</td><td class="est">External — start 4 Sep</td></tr>
     <tr><td class="n">2</td><td><b>Bundle identifier and signing are placeholders</b></td><td class="e"><code>applicationIdentifier</code> is <code>com.ltwplaceholder.ltw</code> for iPhone and Android; <code>appleEnableAutomaticSigning: 0</code>. Proposed final value: <code>com.linewardsgames.linewards</code>, set only after enrolment so it binds to the right account</td><td class="est">&lt;1 d, after 1</td></tr>
-    <tr><td class="n">3</td><td><b>No crash reporting or analytics</b></td><td class="e">Zero references in <code>Packages/manifest.json</code> or <code>Assets/Scripts</code>. Without it tester feedback is anecdote</td><td class="est">1 d</td></tr>
     <tr><td class="n">4</td><td><b>Never run on a phone, no performance numbers</b></td><td class="e">Both iPad rounds were a 13" iPad Pro. <code>IOS_DEVICE_VALIDATION.md</code> is an empty template: no frame rate, thermal or memory figure exists for any device. Item 44's LODs are static, so the perf win is parked</td><td class="est">1–2 d</td></tr>
     <tr><td class="n">5</td><td><b>No human acceptance pass</b></td><td class="e"><code>GAMEPLAY_DEVELOPMENT_CHECKLIST.md</code> at 75 checked / 42 open; the iPad rounds produced bug lists, not an acceptance pass. The tutorial (OPEN_ITEMS 54) has never been played on a device</td><td class="est">2 d</td></tr>
     <tr><td class="n">6</td><td><b>No store listing assets, no privacy policy</b></td><td class="e">No screenshot set, description, age rating or hosted privacy URL. Screenshots should be taken after week 2's phone run, not before</td><td class="est">2–3 d</td></tr>

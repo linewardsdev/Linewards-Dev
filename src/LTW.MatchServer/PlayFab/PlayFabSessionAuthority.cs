@@ -88,6 +88,19 @@ public sealed class PlayFabSessionAuthority
                 return null;
             }
 
+            // Defense-in-depth, not the primary enforcement: PlayFab's own ban system already
+            // invalidates a banned player's session tickets outright (Game Manager's Players →
+            // Bans → Add Ban flow — "any existing player authentication tokens are invalidated
+            // and future authentication attempts... will be rejected", confirmed from Microsoft's
+            // own docs), which IsSessionTicketExpired above should already catch. This checks the
+            // ban flag PlayFab includes in the SAME response body directly, at zero extra API
+            // calls, rather than trusting that invalidation propagates with no gap. See
+            // docs/MULTIPLAYER_ROLLOUT.md's MP-07 abuse-handling note.
+            if (body.Data.UserInfo?.TitleInfo?.IsBanned == true)
+            {
+                return null;
+            }
+
             var playFabId = body.Data.UserInfo?.PlayFabId;
             return string.IsNullOrEmpty(playFabId) ? null : playFabId;
         }
@@ -120,5 +133,18 @@ public sealed class PlayFabSessionAuthority
     {
         [JsonPropertyName("PlayFabId")]
         public string? PlayFabId { get; set; }
+
+        [JsonPropertyName("TitleInfo")]
+        public UserTitleInfoDto? TitleInfo { get; set; }
+    }
+
+    private sealed class UserTitleInfoDto
+    {
+        // Lowercase in PlayFab's own documented response shape — every sibling field on this
+        // same object (AvatarUrl, Created, DisplayName, ...) is PascalCase; this one specifically
+        // is not, per learn.microsoft.com/en-us/rest/api/playfab/server/authentication/authenticate-session-ticket's
+        // UserTitleInfo table (fetched 2026-09-07).
+        [JsonPropertyName("isBanned")]
+        public bool IsBanned { get; set; }
     }
 }

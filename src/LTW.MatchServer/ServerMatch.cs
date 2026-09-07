@@ -135,6 +135,9 @@ public sealed class ServerMatch : IDisposable
 
     private readonly Action<int>? onSeatDisconnected;
 
+    /// <summary>Captured only for the "match_started" telemetry event — see <see cref="EmitTelemetry"/>.</summary>
+    private readonly int humanSeatCount;
+
     public ServerMatch(
         string matchId,
         ContentCatalog content,
@@ -158,6 +161,7 @@ public sealed class ServerMatch : IDisposable
         this.playFabAuthority = playFabAuthority;
         this.onSeatBound = onSeatBound;
         this.onSeatDisconnected = onSeatDisconnected;
+        humanSeatCount = humanSeats.Count;
         authority = new ConnectionSeatAuthority();
         slice = new LocalVerticalSlice(content, options, enableBots: true, seatAuthority: authority);
 
@@ -183,10 +187,52 @@ public sealed class ServerMatch : IDisposable
 
         matchStartedAtUtc = DateTimeOffset.UtcNow;
         loopCancellation = new CancellationTokenSource();
+        EmitTelemetry("match_started", new { humanSeatCount, ticksPerSecond });
         _ = RunLoopAsync(loopCancellation.Token);
     }
 
     public void Stop() => loopCancellation?.Cancel();
+
+    /// <summary>
+    /// One structured JSON line per lifecycle event, to stdout — the same sink this class and
+    /// <c>HttpMatchHost</c> already use for every other operational log line (<c>Console.Error.WriteLine</c>
+    /// for faults, <c>Console.WriteLine</c> for the MPS bootstrap message in <c>Program.cs</c>),
+    /// deliberately not <c>GameserverSDK.LogMessage</c>: that requires <c>GameserverSDK.Start()</c>
+    /// to have run first, which standalone mode never calls, and this class has no way to tell
+    /// which mode it is running under. stdout works in both — MPS-mode PlayFab log collection and
+    /// standalone-mode `docker logs` both already capture it, per <c>Program.cs</c>'s own bootstrap
+    /// message doing exactly this today.
+    /// </summary>
+    /// <remarks>
+    /// This is the emission side of MP-07's telemetry deliverable, not the deliverable itself — a
+    /// real "cost, crash, desync and abuse figures on one dashboard" needs something ingesting
+    /// these lines (Azure Monitor, Application Insights, or similar), which needs real Azure
+    /// resources this environment cannot provision. What this DOES give: every match's start/end/
+    /// fault is now a structured, greppable, machine-parseable line instead of prose scattered
+    /// across the existing free-text log lines. See docs/MULTIPLAYER_ROLLOUT.md's MP-07.
+    /// </remarks>
+    private static readonly JsonSerializerOptions TelemetryJson = new(JsonSerializerDefaults.Web);
+
+    /// <summary>
+    /// Where a telemetry line actually goes — a swappable static rather than a hardcoded
+    /// <c>Console.WriteLine</c> call so a test can capture emitted lines without redirecting the
+    /// real <see cref="Console"/>, which would risk interleaving with unrelated output from other
+    /// tests running concurrently in the same process. Defaults to <see cref="Console.WriteLine(string)"/>
+    /// in every real path.
+    /// </summary>
+    public static Action<string> TelemetrySink { get; set; } = Console.WriteLine;
+
+    private void EmitTelemetry(string eventName, object details)
+    {
+        var line = JsonSerializer.Serialize(new
+        {
+            @event = eventName,
+            timestamp = DateTimeOffset.UtcNow,
+            matchId = MatchId,
+            details,
+        }, TelemetryJson);
+        TelemetrySink(line);
+    }
 
     /// <summary>
     /// Before this fix, the loop had no <c>try/finally</c> at all: <see cref="Stop"/> canceling
@@ -236,6 +282,13 @@ public sealed class ServerMatch : IDisposable
                         if (slice.MatchSummary is not null && !replayWritten)
                         {
                             replayWritten = true;
+                            EmitTelemetry("match_ended", new
+                            {
+                                winnerId = slice.MatchSummary.WinnerId.Value,
+                                completedAtTick = slice.MatchSummary.CompletedAtTick.Value,
+                                durationSeconds = (DateTimeOffset.UtcNow - matchStartedAtUtc).TotalSeconds,
+                                humanSeatCount,
+                            });
                             await WriteReplayAsync();
 
                             // The match itself is over — stop the loop after this tick's message
@@ -271,6 +324,12 @@ public sealed class ServerMatch : IDisposable
         catch (Exception exception)
         {
             Console.Error.WriteLine($"ServerMatch {MatchId}: tick loop faulted and stopped: {exception}");
+            EmitTelemetry("match_faulted", new
+            {
+                exceptionType = exception.GetType().Name,
+                message = exception.Message,
+                durationSeconds = (DateTimeOffset.UtcNow - matchStartedAtUtc).TotalSeconds,
+            });
             loopCompletion.TrySetException(exception);
         }
     }

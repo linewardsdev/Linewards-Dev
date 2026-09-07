@@ -1,7 +1,6 @@
 #nullable enable
 
 using PlayFab;
-using UnityEngine;
 
 namespace LTW.UnityClient.Online
 {
@@ -30,9 +29,11 @@ namespace LTW.UnityClient.Online
         public static string? SessionTicket { get; private set; }
 
         /// <summary>
-        /// Signs in, and persists to <c>PlayerPrefs</c> so <see cref="TryRestore"/> can bring this
-        /// same identity back after a kill — see its own remarks for why a real session ticket
-        /// rather than Google's own native session is what actually needs to survive one.
+        /// Signs in, and persists via <see cref="SecureSessionStore"/> so <see cref="TryRestore"/>
+        /// can bring this same identity back after a kill — see its own remarks for why a real
+        /// session ticket rather than Google's own native session is what actually needs to
+        /// survive one, and <see cref="SecureSessionStore"/>'s own remarks for where this is (and
+        /// is not yet) backed by real platform secure storage rather than plaintext.
         /// </summary>
         public static void SetSignedIn(string playFabId, string sessionTicket)
         {
@@ -40,9 +41,8 @@ namespace LTW.UnityClient.Online
             SessionTicket = sessionTicket;
             IsSignedIn = true;
 
-            PlayerPrefs.SetString(PlayFabIdKey, playFabId);
-            PlayerPrefs.SetString(SessionTicketKey, sessionTicket);
-            PlayerPrefs.Save();
+            SecureSessionStore.Set(PlayFabIdKey, playFabId);
+            SecureSessionStore.Set(SessionTicketKey, sessionTicket);
         }
 
         /// <summary>
@@ -70,8 +70,8 @@ namespace LTW.UnityClient.Online
                 return true;
             }
 
-            var playFabId = PlayerPrefs.GetString(PlayFabIdKey, "");
-            var sessionTicket = PlayerPrefs.GetString(SessionTicketKey, "");
+            var playFabId = SecureSessionStore.Get(PlayFabIdKey);
+            var sessionTicket = SecureSessionStore.Get(SessionTicketKey);
             if (string.IsNullOrEmpty(playFabId) || string.IsNullOrEmpty(sessionTicket))
             {
                 return false;
@@ -105,13 +105,12 @@ namespace LTW.UnityClient.Online
             IsSignedIn = false;
 
             // Found by RealUiCaptureRunner's own fake test identity leaking into a second capture
-            // run: DeleteKey, like SetString, is not guaranteed to reach disk without an explicit
-            // Save — an abrupt process exit right after (EditorApplication.Exit here; a real kill
-            // on device) can otherwise leave the "cleared" credentials still readable by the next
-            // launch's TryRestore.
-            PlayerPrefs.DeleteKey(PlayFabIdKey);
-            PlayerPrefs.DeleteKey(SessionTicketKey);
-            PlayerPrefs.Save();
+            // run: PlayerPrefs.DeleteKey, like SetString, is not guaranteed to reach disk without
+            // an explicit Save — an abrupt process exit right after (EditorApplication.Exit here;
+            // a real kill on device) can otherwise leave the "cleared" credentials still readable
+            // by the next launch's TryRestore. SecureSessionStore.Delete calls Save() itself.
+            SecureSessionStore.Delete(PlayFabIdKey);
+            SecureSessionStore.Delete(SessionTicketKey);
         }
 
         /// <summary>

@@ -4,6 +4,11 @@
 > view — is generated from it by `tools/docs/render_roadmap.py`. Edit here, then run that
 > script and commit both; never edit the HTML. CI's `--check` fails on a stale page, and
 > generation fails if the timeline block below stops matching the week bullets.
+>
+> **Still the live plan for the launch push specifically.** `docs/PROJECT_TRACKER.md`
+> (2026-09-07) mirrors this doc's P0/P1 status alongside every other initiative in one place —
+> update both when a launch item's status changes, but this file stays the source for the
+> week-by-week plan and the Gantt generation.
 
 **Drafted 2026-09-03.** A rewrite of the 31 July plan, made after its 31 August window was
 missed. The August plan and what became of it are kept at the bottom, because the reason it
@@ -52,7 +57,7 @@ Grouped by whether it blocks a soft launch.
 | --- | --- | --- | --- |
 | 1 | **Apple Developer Program not enrolled** | No team id in `ProjectSettings.asset`; `STORE_SIGNING_PREREQUISITES.md` boxes unchecked. Gates 2, 6 and 7 — every store step waits on it | External — start 4 Sep |
 | 2 | **Bundle identifier and signing are placeholders** | `applicationIdentifier` is `com.ltwplaceholder.ltw` for iPhone and Android; `appleEnableAutomaticSigning: 0`. Proposed final value: `com.linewardsgames.linewards`, set only after enrolment so it binds to the right account | <1 d, after 1 |
-| 3 | **No crash reporting or analytics** | Zero references in `Packages/manifest.json` or `Assets/Scripts`. Without it tester feedback is anecdote | 1 d |
+| 3 | **Crash reporting and analytics — closed 2026-09-07.** Unity's own Diagnostics chosen over Sentry (both effectively free at this scale; Diagnostics needed no new vendor account since the project already lives in the Unity ecosystem). `LTW.UnityClient` is linked to a fresh Unity Cloud org/project created for this: org `developermtrakdqr`, project `Line Wards` (`cloudProjectId: ff7f3d9f-a208-4037-bc90-6e0f0f0a743d`), under the `developers@linewards.com` account rather than a personal one. `ProjectSettings.asset`'s `InsightsSettings.m_EngineDiagnosticsEnabled` is now `1` — no package reference appears in `Packages/manifest.json`, which is expected: Unity 6.2+'s Diagnostics is built into the Editor/Engine, not a separate installable package (this is also why the OLD `CrashReportingSettings.m_EnableCloudDiagnosticsReporting` field stays `0` — it's the deprecated Cloud Diagnostics service's own flag, not read by the new one). **Verification scope, by owner's own call**: session/telemetry data was confirmed flowing to the Unity Dashboard for this project. A crash- or exception-specific event was NOT separately confirmed (the F9-exception/F10-`ForceCrash` test methods were offered but not run/checked before this was called done) — if a real crash report is ever needed for something (a launch-blocking bug, say) and none ever shows up on the Dashboard, revisit whether the Diagnostics pipeline itself is actually receiving crash/exception events specifically, not just session pings. | 1 d |
 | 4 | **Never run on a phone, no performance numbers** | Both iPad rounds were a 13" iPad Pro. `IOS_DEVICE_VALIDATION.md` is an empty template: no frame rate, thermal or memory figure exists for any device. Item 44's LODs are static, so the perf win is parked | 1–2 d |
 | 5 | **No human acceptance pass** | `GAMEPLAY_DEVELOPMENT_CHECKLIST.md` at 75 checked / 42 open; the iPad rounds produced bug lists, not an acceptance pass. The tutorial (OPEN_ITEMS 54) has never been played on a device | 2 d |
 | 6 | **No store listing assets, no privacy policy** | No screenshot set, description, age rating or hosted privacy URL. Screenshots should be taken after week 2's phone run, not before | 2–3 d |
@@ -111,7 +116,7 @@ ext | Apple Developer Program | $99/yr · 24–48h approval · gates everything 
 ext | Google Play Console | $25 · same day · for tier C | 0.5 | 6 | enrol
 1 | Enrol, and freeze polish | day one; nothing else in this plan moves without it | 0.5 | 5 | ★
 1 | Set the bundle identifier and signing | after enrolment; the id binds to the account that uploads first | 6 | 6 | <1d
-1 | Add crash reporting and analytics | Unity Cloud Diagnostics or Sentry, whichever sets up faster | 6 | 10 | 1d
+1 | Add crash reporting and analytics | Closed 2026-09-07 — Unity Diagnostics linked; session telemetry confirmed flowing, crash-specific event not separately confirmed (owner's call to close anyway — see the P0 gap table above) | 6 | 10 | 1d
 1 | Cut a signed iPhone build | the first build that is not an iPad | 16 | 9 | 1d
 2 | Run it on a phone and write the numbers down | frame rate, thermals, memory, an 8-lane heavy send | 25 | 9 | 1–2d
 2 | Play the acceptance pass with hands | GD-01 to GD-10, the tutorial included, on the phone | 32 | 10 | 2d
@@ -133,9 +138,12 @@ The theme is *stop being gated*. The first bullet is the whole reason August sli
 - **Set the bundle identifier and signing.** `com.linewardsgames.linewards` on both
   platforms, automatic signing with the enrolled team — only after enrolment, because the
   identifier binds permanently to the first account that uploads under it.
-- **Add crash reporting and analytics.** One package, wired at boot, with a deliberate crash
-  in a debug build to prove a report arrives. Sessions, match starts, tutorial skip or
-  finish, and leaks per match are the four events worth counting.
+- **Add crash reporting and analytics — closed.** Unity Diagnostics chosen and linked (see the
+  P0 gap table above for the org/project) — no package or boot-time wiring needed, it's built
+  into the Editor/Engine in 6.2+. Closed on confirmed session telemetry reaching the Dashboard,
+  without separately confirming a crash-specific event (owner's call). Sessions, match starts,
+  tutorial skip or finish, and leaks per match are the four events worth counting once analytics
+  itself is scoped.
 - **Cut a signed iPhone build.** The first build in this project's history that is not an
   iPad. Free signing is fine until enrolment is active; the build path is `IosBuildRunner`.
 

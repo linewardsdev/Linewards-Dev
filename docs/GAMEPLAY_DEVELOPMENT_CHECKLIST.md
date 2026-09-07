@@ -1,5 +1,9 @@
 # LTW Gameplay Development Checklist
 
+> **Superseded as the live tracker.** `docs/PROJECT_TRACKER.md` is now the single standardized
+> status board (2026-09-07). This doc is kept as the detailed record of each GD initiative's
+> deliverables and evidence; check the tracker first for current status.
+
 ## Purpose
 
 The current build can launch a local Unity vertical slice, but it is not yet mature enough to justify mobile-device distribution work. This checklist forks the next phase toward game development: readable play, meaningful choices, pacing, content variety, feedback, and repeatable playtest evidence.

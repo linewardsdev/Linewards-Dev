@@ -946,11 +946,11 @@ PlayerSettings:
   activeInputHandler: 0
   windowsGamepadBackendHint: 0
   enableDirectStorage: 0
-  cloudProjectId: d81f8a1c-83f5-4e3a-b4bb-df57dba7f767
+  cloudProjectId: ff7f3d9f-a208-4037-bc90-6e0f0f0a743d
   framebufferDepthMemorylessMode: 0
   qualitySettingsNames: []
-  projectName: My project
-  organizationId: unity_54e45bff97a701e77a78
+  projectName: LineWards
+  organizationId: developermtrakdqr
   cloudEnabled: 0
   legacyClampBlendShapeWeights: 0
   hmiLoadingImage: {fileID: 0}

@@ -1,5 +1,10 @@
 # LTW MVP Implementation Checklist
 
+> **Superseded as the live tracker.** `docs/PROJECT_TRACKER.md` is now the single standardized
+> status board (2026-09-07). This doc is kept as the detailed record of what each MVP-0x
+> initiative delivered and its full acceptance-check history; check the tracker first for
+> current status.
+
 ## Goal
 
 Deliver an offline Unity MVP with one human player, seven simulated opponents, an eight-player carousel, touch placement, sends, economy, combat, leaks, elimination, replayable results, a coherent local gameplay loop, and later iOS device validation.
