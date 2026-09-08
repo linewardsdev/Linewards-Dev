@@ -56,7 +56,7 @@ Grouped by whether it blocks a soft launch.
 | # | Gap | Evidence | Est. |
 | --- | --- | --- | --- |
 | 1 | **Apple Developer Program not enrolled** | No team id in `ProjectSettings.asset`; `STORE_SIGNING_PREREQUISITES.md` boxes unchecked. Gates 2, 6 and 7 — every store step waits on it | External — start 4 Sep |
-| 2 | **Bundle identifier and signing are placeholders** | `applicationIdentifier` is `com.ltwplaceholder.ltw` for iPhone and Android; `appleEnableAutomaticSigning: 0`. Proposed final value: `com.linewardsgames.linewards`, set only after enrolment so it binds to the right account | <1 d, after 1 |
+| 2 | **Bundle identifier decided and set (2026-09-08); signing still gated on Apple enrolment** | `applicationIdentifier` is now `com.linewardsgames.linewards` for both iPhone and Android (`STORE_SIGNING_PREREQUISITES.md`), matching `companyName`/`productName` and the `linewards.com` email domain already in use. `appleEnableAutomaticSigning: 0` still — actually enabling it needs the Apple Developer Program enrolment from gap 1, and Play App Signing enrolment is separately still open now that the Play Console account itself is approved | <1 d, after 1 |
 | 3 | **Crash reporting and analytics — closed 2026-09-07.** Unity's own Diagnostics chosen over Sentry (both effectively free at this scale; Diagnostics needed no new vendor account since the project already lives in the Unity ecosystem). `LTW.UnityClient` is linked to a fresh Unity Cloud org/project created for this: org `developermtrakdqr`, project `Line Wards` (`cloudProjectId: ff7f3d9f-a208-4037-bc90-6e0f0f0a743d`), under the `developers@linewards.com` account rather than a personal one. `ProjectSettings.asset`'s `InsightsSettings.m_EngineDiagnosticsEnabled` is now `1` — no package reference appears in `Packages/manifest.json`, which is expected: Unity 6.2+'s Diagnostics is built into the Editor/Engine, not a separate installable package (this is also why the OLD `CrashReportingSettings.m_EnableCloudDiagnosticsReporting` field stays `0` — it's the deprecated Cloud Diagnostics service's own flag, not read by the new one). **Verification scope, by owner's own call**: session/telemetry data was confirmed flowing to the Unity Dashboard for this project. A crash- or exception-specific event was NOT separately confirmed (the F9-exception/F10-`ForceCrash` test methods were offered but not run/checked before this was called done) — if a real crash report is ever needed for something (a launch-blocking bug, say) and none ever shows up on the Dashboard, revisit whether the Diagnostics pipeline itself is actually receiving crash/exception events specifically, not just session pings. | 1 d |
 | 4 | **Never run on a phone, no performance numbers** | Both iPad rounds were a 13" iPad Pro. `IOS_DEVICE_VALIDATION.md` is an empty template: no frame rate, thermal or memory figure exists for any device. Item 44's LODs are static, so the perf win is parked | 1–2 d |
 | 5 | **No human acceptance pass** | `GAMEPLAY_DEVELOPMENT_CHECKLIST.md` at 75 checked / 42 open; the iPad rounds produced bug lists, not an acceptance pass. The tutorial (OPEN_ITEMS 54) has never been played on a device | 2 d |
@@ -135,9 +135,10 @@ The theme is *stop being gated*. The first bullet is the whole reason August sli
 - **Enrol, and freeze polish.** Apple Developer Program on day one, and the Play Console in
   the same sitting so tier C is not gated later. From this day, no render, roster or rail
   work lands unless a tester could not get through their first ten minutes without it.
-- **Set the bundle identifier and signing.** `com.linewardsgames.linewards` on both
-  platforms, automatic signing with the enrolled team — only after enrolment, because the
-  identifier binds permanently to the first account that uploads under it.
+- **Set the bundle identifier — closed 2026-09-08.** `com.linewardsgames.linewards` on both
+  platforms (`STORE_SIGNING_PREREQUISITES.md`). Signing itself is still open: automatic
+  signing with the enrolled team needs Apple Developer Program enrolment (gap 1), and Play
+  App Signing enrolment is separately open now that the Play Console account is approved.
 - **Add crash reporting and analytics — closed.** Unity Diagnostics chosen and linked (see the
   P0 gap table above for the org/project) — no package or boot-time wiring needed, it's built
   into the Editor/Engine in 6.2+. Closed on confirmed session telemetry reaching the Dashboard,

@@ -353,8 +353,7 @@ is the store-facing half (account, signing, listing).
 
 ### What Play Console publishing specifically needs, beyond local sideload testing
 
-- [ ] **Google Play Console developer account** — $25 one-time, same-day per `LAUNCH_ROADMAP.md`'s
-      own critical-path table (identity checks can occasionally add days).
+- [x] **Google Play Console developer account** — approved 2026-09-08.
 - [ ] **Package name decision.** `STORE_SIGNING_PREREQUISITES.md` already recommends keeping this
       identical to the iOS bundle identifier (`com.linewardsgames.linewards`, proposed) for simple
       cross-platform account linking later — same **DECISION** blocker as iOS's bundle ID (§7),
@@ -421,8 +420,9 @@ now exists (mirrors `IosBuildRunner.cs`) — this project's first-ever Android b
       bridge was deliberately not built since there's no Android identity flow yet to protect —
       revisit once Google Play Games Services sign-in above lands.
 
-**Bottom line:** the build-tooling gap and both live policy-compliance unknowns are now closed —
-real, unblocked engineering that needed no account or decision. Everything else in this section
-(Play Console account, package name, signing, listing, Google Play Games Services) is still
-genuinely zero-progress and stays that way until the Week 4 tier-C decision says otherwise — this
-section remains the answer to "what would it actually take", not a proposal to start the rest now.
+**Bottom line:** the build-tooling gap, both live policy-compliance unknowns, and the Play Console
+developer account are now closed. The package name decision (shared with iOS's bundle ID, §7),
+Play App Signing enrollment, and listing/Data-Safety/content-rating work are still genuinely
+zero-progress and stay that way until the Week 4 tier-C decision — and the package-name decision
+specifically — says otherwise. This section remains the answer to "what would it actually take",
+not a proposal to start the rest now.

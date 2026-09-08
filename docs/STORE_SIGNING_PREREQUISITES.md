@@ -23,15 +23,13 @@ To unblock local sandbox device testing without waiting on account setup, these 
 
 **These are throwaway values, not a naming decision.** They exist only so a local device build can compile and install today. Neither store enforces global uniqueness until you actually create the matching App ID / package listing in the Apple Developer portal or Play Console — nothing is reserved or public yet. Treat `com.ltwplaceholder.ltw` as a placeholder to grep-and-replace repo-wide once the real studio/bundle-ID decision is made, before any TestFlight or Play Console upload.
 
-## Decision Still Needed Before Any Real Store Upload: Company Name And Bundle Identifier Scheme
+## Company Name And Bundle Identifier: Decided (2026-09-08)
 
-Both stores require a reverse-DNS style identifier (e.g. `com.yourstudio.ltw`) that is effectively **permanent once a build is uploaded** — Apple and Google both treat changing it later as publishing a new, unrelated app, losing reviews/installs/rankings on the old one. This has to be decided by whoever owns the Apple Developer / Google Play accounts, not guessed. Needed, before the *first store upload* (not before local sandbox testing):
+Both stores require a reverse-DNS style identifier (e.g. `com.yourstudio.ltw`) that is effectively **permanent once a build is uploaded** — Apple and Google both treat changing it later as publishing a new, unrelated app, losing reviews/installs/rankings on the old one.
 
-- [ ] Studio/company name for `companyName` in Unity Player Settings.
-- [ ] Reverse-DNS bundle identifier, identical for iOS and Android, to replace the `com.ltwplaceholder.ltw` placeholder — ideally kept identical across platforms to keep cross-platform account linking (see the hosting doc's Section 4) simple later.
-- [ ] Confirm the final identifier isn't already taken on either store before committing to it.
-
-Once decided, set the *final* identifier in Unity: **Project Settings → Player → (per platform) → Other Settings → Identification**. Prefer the Editor UI over hand-editing for that final change too — this project has already lost a day of work once to an out-of-band `ProjectSettings.asset` mismatch (see the Unity editor version note in the root `README.md`), and the Editor UI is the safer path once real signing/store fields start getting touched alongside the identifier.
+- [x] `companyName`: already `Line Wards Games` in `ProjectSettings.asset` (set in an earlier pass not documented here at the time — confirmed current rather than assumed from this doc's stale placeholder note above).
+- [x] `applicationIdentifier`: `com.linewardsgames.linewards`, identical for `Android` and `iPhone`, replacing the `com.ltwplaceholder.ltw` placeholder — matches `companyName`/`productName` and the `linewards.com` email domain already in use. Set via `PlayerSettings.SetApplicationIdentifier` (the same API the Editor UI's Project Settings → Player → Identification calls), not a hand-edit of the `.asset` file.
+- [ ] **Still needed, and only possible once you're actually registering the App ID / package name in each portal**: confirm `com.linewardsgames.linewards` isn't already taken on either store. Nothing is reserved or public yet — that only happens when you create the matching listing in the Apple Developer portal or Play Console.
 
 ## Apple (iOS / TestFlight)
 
