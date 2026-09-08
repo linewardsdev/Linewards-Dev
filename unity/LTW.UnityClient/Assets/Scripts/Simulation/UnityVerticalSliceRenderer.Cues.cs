@@ -45,7 +45,17 @@ namespace LTW.UnityClient.Simulation
         private const float FloatingTextNeighbourRadius = 0.6f;
 
         /// <summary>Vertical step between labels stacked over one spot.</summary>
-        private const float FloatingTextStackStep = 0.35f;
+        /// <remarks>
+        /// Raised from 0.35 (OPEN_ITEMS.md item 53): a leak's "-N LIVES" and its bounty "+N" still
+        /// overlapped at one step — confirmed in a fresh `37-leak-row-labels-seq` capture, "+25"
+        /// sitting close enough above "-5 LIVES" to read as one smear rather than two numbers, the
+        /// same shape of defect the 2026-09-01 review already found and this step was raised once
+        /// for. One step is a touch under half of BoardLabelFontSize's actual rendered line height
+        /// at PresentationPreferences.TextScale 1, measured directly from that capture rather than
+        /// assumed from the TMP point size, which is not a reliable proxy for a custom font asset's
+        /// real glyph metrics.
+        /// </remarks>
+        private const float FloatingTextStackStep = 0.55f;
 
         /// <summary>Most steps a stacked label can be lifted by. Beyond four it is off the cell.</summary>
         private const int FloatingTextStackCap = 4;
@@ -640,9 +650,21 @@ namespace LTW.UnityClient.Simulation
         /// <summary>
         /// Whether the SpawnTowerAttackCue call just made launched a dart toward its hit. Read and
         /// cleared by <see cref="SpawnCreepHitCue"/>, which RenderEvents calls straight after it
-        /// for the same CreepDamagedEvent.
+        /// for the same CreepDamagedEvent. Also read (without clearing — see its own remarks) by
+        /// RenderEvents itself, to decide whether <see cref="CreepDamagedHitFlashColor"/> fires
+        /// immediately or waits for the dart (see <see cref="UpdateProjectiles"/>).
         /// </summary>
         private bool lastAttackCueLaunchedProjectile;
+
+        /// <summary>
+        /// Colour/scale/duration of the hit flash <c>RenderEvents</c> raises for a
+        /// <c>CreepDamagedEvent</c> — OPEN_ITEMS.md item 53. Shared with <see cref="UpdateProjectiles"/>
+        /// so a dart-carried hit gets the exact same flash the direct-hit path always has, just timed
+        /// to the dart's actual landing instead of the event's arrival.
+        /// </summary>
+        private static readonly Color CreepDamagedHitFlashColor = new(1f, 0.88f, 0.44f);
+        private const float CreepDamagedHitFlashScale = 0.24f;
+        private const float CreepDamagedHitFlashDuration = 0.12f;
 
         /// <summary><see cref="SpawnProjectile"/>, recording that this attack cue's hit will land with the dart.</summary>
         private void LaunchProjectile(Vector3 from, Vector3 to, Color color, float intensity, ProjectileShape shape, float impactScale, int impactSparks)
@@ -962,24 +984,44 @@ namespace LTW.UnityClient.Simulation
             SpawnBeam(west, east, SignalGold, 0.2f);
         }
 
+        /// <summary>How far a lane-level ring pulse grows: past the lane's own width, into its neighbours'.</summary>
+        /// <remarks>
+        /// A whole lane going down or winning is bigger than any single-cell event, so the ring
+        /// this now raises (OPEN_ITEMS.md item 53) needs to read as lane-scaled rather than
+        /// cell-scaled — <see cref="SpawnCellFrameCue"/>'s own end scale of 1.1 would shrink to a
+        /// dot against a 7-wide lane. Sized off LaneWidth rather than LaneLength: the camera frames
+        /// one lane at a time roughly as wide as it is tall on screen, so a ring keyed to the
+        /// narrower axis fills the visible lane without the far end still visibly short of it.
+        /// </remarks>
+        private const float LaneRingEndScale = LaneWidth + 1f;
+
         private void SpawnLaneShutdownCue(int laneId)
         {
-            var offset = LaneOffset(laneId);
-            var southwest = new Vector3(offset + 0.55f, 0.52f, 0.45f);
-            var northeast = new Vector3(offset + LaneWidth - 1.55f, 0.52f, LaneLength - 0.45f);
-            var northwest = new Vector3(offset + 0.55f, 0.52f, LaneLength - 0.45f);
-            var southeast = new Vector3(offset + LaneWidth - 1.55f, 0.52f, 0.45f);
-            SpawnBeam(southwest, northeast, LeakRed, 0.48f);
-            SpawnBeam(northwest, southeast, LeakRed, 0.48f);
+            var center = LaneCenter(laneId);
+            if (!IsOnActiveLane(center))
+            {
+                return;
+            }
+
+            // Two crossed beams (an X down the lane) replaced with the same ring-pulse language
+            // Wave 5 gave every other cue this shape — a square or a cross reads as "asset failed
+            // to load" from directly above; a ring reads as motion. See SpawnCellFrameCue's own
+            // remarks for the same call made at cell scale.
+            SpawnExpandingRingCore(center + Vector3.up * 0.14f, new Color(LeakRed.r, LeakRed.g, LeakRed.b, 0.7f), 1.2f, LaneRingEndScale, 0.6f, BoardRenderResources.MechanicRingMesh);
         }
 
         private void SpawnVictoryLaneCue(int laneId)
         {
             var center = LaneCenter(laneId);
-            var offset = LaneOffset(laneId);
+            if (!IsOnActiveLane(center))
+            {
+                return;
+            }
+
             SpawnEffect(center + Vector3.up * 0.38f, SignalGold, 1.05f, 0.45f);
-            SpawnBeam(new Vector3(offset + 0.65f, 0.5f, BoardCenterZ), new Vector3(offset + LaneWidth - 1.65f, 0.5f, BoardCenterZ), SignalGold, 0.42f);
-            SpawnBeam(new Vector3(offset + BoardCenterX, 0.5f, 0.65f), new Vector3(offset + BoardCenterX, 0.5f, LaneLength - 0.65f), SignalGold, 0.42f);
+            // The perpendicular beam pair (a + across the lane) replaced the same way as the
+            // shutdown cue's X — see its own remarks.
+            SpawnExpandingRingCore(center + Vector3.up * 0.14f, new Color(SignalGold.r, SignalGold.g, SignalGold.b, 0.7f), 1.2f, LaneRingEndScale, 0.6f, BoardRenderResources.MechanicRingMesh);
         }
 
         private void SpawnSendCue(CreepQueuedEvent queued)

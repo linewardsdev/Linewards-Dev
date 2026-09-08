@@ -198,9 +198,11 @@ still open as of 2026-09-07, grouped by domain, with one line each.
 
 ### Rendering / graphics polish
 
-- [ ] **#53 — Render review residuals after Wave 5.** Four small polish items (~1 day total):
-      label-on-label stacking, hit-flash timing, elimination/victory cue style, Control ward base
-      dish alpha.
+- [x] **#53 — Render review residuals after Wave 5.** Closed 2026-09-08. 3 of 4 fixed (label
+      stacking, hit-flash timing, elimination/victory cue style); the 4th (Control ward's violet
+      glow) traced to its own material's HDR emission and closed as intentional — git history
+      shows it's the Arcane line's deliberately restored brand identity, not a defect.
+- [x] **#52 — Tower body loses its own shadow via `NormalizeRendererPolicy`.** Closed 2026-09-07 —
 - [x] **#52 — Tower body loses its own shadow via `NormalizeRendererPolicy`.** Closed 2026-09-07 —
       fixed in the pipeline (`NormalizeRendererPolicy`/`ApplyRuntimeMaterial`/`ValidateRendererPolicy`)
       and applied to the 16 shipped prefabs via a new in-place repair command, not a destructive

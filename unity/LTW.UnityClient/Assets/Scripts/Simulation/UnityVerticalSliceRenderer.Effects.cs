@@ -444,6 +444,13 @@ namespace LTW.UnityClient.Simulation
                 {
                     SpawnImpactBurst(projectile.To, projectile.Color, projectile.ImpactScale, projectile.ImpactSparks, 0.22f);
                 }
+
+                // OPEN_ITEMS.md item 53: every dart this system carries is a CreepDamagedEvent's
+                // own shot (SpawnProjectile/LaunchProjectile have no other caller — see
+                // SpawnTowerAttackCue and its Gatling/Barricade helpers), so the fixed hit flash
+                // RenderEvents raises for that event belongs here, at the dart's actual landing,
+                // not at the event's arrival ~0.12s earlier where it used to fire unconditionally.
+                SpawnEffect(projectile.To, CreepDamagedHitFlashColor, CreepDamagedHitFlashScale, CreepDamagedHitFlashDuration);
             }
         }
 

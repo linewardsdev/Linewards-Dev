@@ -671,9 +671,19 @@ namespace LTW.UnityClient.Simulation
                         var towerTier = TowerTierAt(damaged.TowerPosition, damaged.LaneId);
                         var attackBody = ResolveTowerBodyTransform(damaged.TowerEntityId.Value);
                         SpawnTowerAttackCue(towerPosition, hitPosition, towerRole, damaged.DamageDealt, attackBody, towerTier);
+                        // OPEN_ITEMS.md item 53: read before SpawnCreepHitCue clears the flag (its
+                        // own doc comment describes exactly that consumption). A dart's own landing
+                        // now raises this same flash itself (UpdateProjectiles), ~0.12s later than
+                        // here — firing it again at event time put the flash on the creep before
+                        // the Wave 5 projectile had actually arrived.
+                        var hitFlashCarriedByDart = lastAttackCueLaunchedProjectile;
                         SpawnCreepHitCue(hitPosition, new Color(1f, 0.88f, 0.44f), damaged.DamageDealt);
                         SpawnCreepRoleFeedbackCue(hitPosition, damagedCreepId, damaged.DamageDealt);
-                        SpawnEffect(hitPosition, new Color(1f, 0.88f, 0.44f), 0.24f, 0.12f);
+                        if (!hitFlashCarriedByDart)
+                        {
+                            SpawnEffect(hitPosition, CreepDamagedHitFlashColor, CreepDamagedHitFlashScale, CreepDamagedHitFlashDuration);
+                        }
+
                         if (damaged.DamageDealt >= 5)
                         {
                             // No damage number. It was 34.7% of all board text, and it floated over a
