@@ -142,16 +142,78 @@ completion tick, and command history.
 desync-report format/diff tool is still-unstarted MP-07 scope (see MULTIPLAYER_ROLLOUT.md's own
 "Not yet done" list).
 
+## 5. Telemetry
+
+**What exists is the emission side only — there is no dashboard.** Landed 2026-09-07 (see
+MULTIPLAYER_ROLLOUT.md's own section on this), scoped to what's buildable and `dotnet
+test`-verifiable without real Azure resources. What this section covers is how to actually find
+and read that emitted data today, by hand, until a real log-ingestion dashboard exists.
+
+**What gets emitted**: `ServerMatch` writes one structured JSON line per match lifecycle event to
+stdout (via `ServerMatch.TelemetrySink`, defaulting to `Console.WriteLine`). Every line shares this
+envelope:
+
+```json
+{"event": "<name>", "timestamp": "<ISO-8601 UTC>", "matchId": "<guid>", "details": { ... }}
+```
+
+Three event names, each with its own `details` shape:
+
+- **`match_started`** — `details.humanSeatCount`, `details.ticksPerSecond`.
+- **`match_ended`** — `details.winnerId`, `details.completedAtTick`, `details.durationSeconds`,
+  `details.humanSeatCount`.
+- **`match_faulted`** — `details.exceptionType`, `details.message`, `details.durationSeconds`.
+  This is the crash/desync signal: a match whose tick loop threw. Cross-reference `matchId` against
+  step 4 above to pull that match's own replay.
+
+**Where to find these lines**: the exact same channel and retrieval path "Investigate a desync"
+above already documents — this is not a separate log stream. Standalone mode: `docker logs`.
+Under MPS: Game Manager → the build → **Servers** tab → find the server → **Download logs**, or
+`GetMultiplayerServerLogs` via the API (28-day retention). The telemetry lines are interleaved with
+everything else a match prints (the bootstrap "Match `<id>` bootstrapped..." line,
+`Console.Error.WriteLine` fault prose, PlayFab configuration prints) — grep for `"event":` to pull
+just the structured lines out, or a specific one, e.g. `"event":"match_faulted"`, to find failures
+across a batch of downloaded logs.
+
+**What this does NOT give you today**: aggregation across matches, a live view, alerting, or cost
+figures — all of that is "ingest these lines somewhere" work (Azure Monitor, Application Insights,
+or similar) that needs real Azure resources nobody has provisioned for this yet. Until then, "check
+telemetry" means downloading a specific server's logs and grepping them, not looking at a
+dashboard.
+
+## 6. Abuse handling (bans)
+
+**No custom ban-issuing tool was built, because PlayFab's own portal already is one.** Landed
+2026-09-07 alongside telemetry (see MULTIPLAYER_ROLLOUT.md's own section) — this is the identity
+level only; reporting and muting were assessed and not built, because the game has no
+player-to-player communication channel today for either to act on.
+
+**To ban a player**: Game Manager → title `FBC34` → **Players** → find and select the player →
+**Bans** → **Add Ban**. Confirmed from PlayFab's own docs that this immediately invalidates that
+player's existing session tickets and rejects future login attempts — no extra step needed on this
+project's side for the ban to take effect.
+
+**Defense in depth, already in the code**: `PlayFabSessionAuthority.AuthenticateAsync` separately
+checks `UserInfo.TitleInfo.isBanned` on every ticket it authenticates and rejects a banned ticket
+even in the (should-be-impossible) case it wasn't already invalidated by the mechanism above. This
+is belt-and-suspenders, not the primary mechanism — if a ban isn't taking effect, the bug is far
+more likely in how/whether the ban was actually applied in Game Manager than in this check.
+
+**What this doesn't cover**: reporting a player (no UI, no report queue) and muting (no chat or any
+other player-to-player channel exists to mute). Revisit both if/when this game ever adds
+player-to-player communication.
+
 ## Known gaps this runbook doesn't cover
 
 - No real cloud deployment has exercised this runbook end to end yet — everything server-side is
   confirmed via `LocalMultiplayerAgent`, which is a faithful local simulation of the real GSDK
   protocol but not a substitute for having actually done a real deploy/rollback/drain once.
-- No telemetry dashboard (match health, cost, crash, abuse) exists — MP-07's other three
-  deliverables haven't been started.
+- No telemetry *dashboard* exists (see section 5 above) — the emission side does, and is
+  documented; a real one needs Azure resources nobody has provisioned yet.
 - Nobody but the person who built this replay-retrieval path has tried to reproduce a desync from
   it — MP-07's own acceptance check ("a desync report can be reproduced from its replay by a
   *second* person using the runbook") is still open for exactly that reason.
-- Abuse handling (reporting/muting/banning) doesn't exist.
+- Abuse handling exists only at the identity level (see section 6 above) — reporting and muting
+  don't, because there's no player-to-player communication channel yet for either to act on.
 - Azure VM maintenance recycling an already-allocated (live, in-match) server has no in-match
   mitigation — `GameserverSDK.RegisterMaintenanceCallback` only logs a warning today.

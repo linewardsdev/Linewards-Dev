@@ -164,8 +164,9 @@ places.
       image built and pushed to the account's own ACR; "Allow Client to start games" enabled
       (Settings → API Features, not the build form — this doc's own earlier phrasing was too vague
       to act on). Build form submitted and provisioning; still open once it finishes: record the
-      `BuildId` into `MultiplayerServerConfig.cs` and run a live create-a-real-server check. Also
-      still open: a real log-ingestion dashboard, the runbook's telemetry/abuse sections, and
+      `BuildId` into `MultiplayerServerConfig.cs` and run a live create-a-real-server check. The
+      runbook's telemetry/abuse sections are now written (`MP07_RUNBOOK.md` sections 5–6). Still
+      open: a real log-ingestion dashboard (emission side landed 2026-09-07, no ingestion yet) —
       client-side crash reporting was resolved separately (see Launch section above, via Unity
       Diagnostics rather than a bespoke pipeline).
 

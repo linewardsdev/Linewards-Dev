@@ -1563,7 +1563,7 @@ Replace this whole section with real billing data once Phase 5's build is live f
 - Telemetry: match health, desync reports, crash reports (from the launch roadmap's crash
   reporting), abuse signals.
 - A runbook: deploy, roll back, drain, investigate a desync from its replay. First draft:
-  `docs/MP07_RUNBOOK.md`, 2026-09-05.
+  `docs/MP07_RUNBOOK.md`, 2026-09-05; telemetry and abuse-handling sections added 2026-09-09.
 - Abuse handling: rate limits are MP-03; here it is reporting, muting and banning at the
   identity level.
 
@@ -1617,13 +1617,14 @@ dashboard needs.
 - [ ] The monthly cost at ten times the observed population is known.
 
 **Estimate:** the hosting mechanism itself is built and live-verified end to end (locally, via
-`LocalMultiplayerAgent`). Telemetry's emission side and ban enforcement are landed (see above);
-what remains before these acceptance checks are even attemptable is Phase 5's PlayFab Game Manager
-portal work (real build upload, region/SKU/standby config) plus a real log-ingestion dashboard,
-client-side crash reporting (blocked on a vendor decision and account credentials), and the
-runbook's still-open telemetry/abuse sections. Once Phase 5 lands, these three checks become
-substantially a matter of running the thing for real and wiring a dashboard, not further
-from-scratch engineering.
+`LocalMultiplayerAgent`). Telemetry's emission side and ban enforcement are landed (see above), and
+the runbook's telemetry/abuse sections are now written (`docs/MP07_RUNBOOK.md` sections 5–6, how to
+actually find and read the emitted data and issue a ban today, by hand). Phase 5's PlayFab Game
+Manager portal work is done as of 2026-09-09 (quota approved, image pushed, client access enabled,
+build submitted and provisioning — see Phase 5 above); once a `BuildId` exists, what remains before
+these acceptance checks are even attemptable is a real log-ingestion dashboard and client-side
+crash reporting (blocked on a vendor decision and account credentials). Those two become
+substantially a matter of wiring existing pieces together, not further from-scratch engineering.
 
 ---
 
