@@ -6,7 +6,7 @@
 
 - No separate Android Studio install needed — Unity `6000.5.3f1`'s Android module bundles its own SDK/NDK/OpenJDK, including `adb`, under `PlaybackEngines/AndroidPlayer/`.
 - A physical Android device with Developer Options and USB debugging enabled. (No Android Studio/emulator system images are currently installed on this machine; get a physical device or install Android Studio for an AVD if one isn't available.)
-- The placeholder package name `com.ltwplaceholder.ltw` (set on `applicationIdentifier.Android` in `ProjectSettings.asset`) is sufficient for sideloaded local builds; it isn't reserved on Play Console and doesn't need to be until a real store submission.
+- The package name is `com.linewardsgames.linewards` (set on `applicationIdentifier.Android` in `ProjectSettings.asset`, decided 2026-09-08 — see `STORE_SIGNING_PREREQUISITES.md`). Sideloaded local builds don't need it reserved on Play Console until a real store submission.
 - An Android Unity export built from `unity/LTW.UnityClient` with the local vertical-slice scene enabled. A debug/local build can ship as a directly-installed `.apk`; `.aab` is only required for Play Console upload.
 
 **Only needed once this moves to Play Console internal testing / release:**

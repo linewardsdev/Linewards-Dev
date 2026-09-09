@@ -352,24 +352,23 @@ weeks that slipped last time" — with the actual go/no-go decision scheduled fo
 11). This section exists so that decision is made against a real checklist instead of a blank
 page, not to jump the freeze. Nothing below is scheduled work yet.
 
-**Current state, updated 2026-09-07:** `applicationIdentifier.Android` is still the placeholder
-`com.ltwplaceholder.ltw`; no keystore is configured (`androidUseCustomKeystore: 0`,
-`AndroidKeystoreName`/`AndroidKeyaliasName` empty) — the package-name/signing decision is still
-fully open. `MVP-11` (§2) device compatibility validation is still "Not started" — a build
-existing is not the same as it being tested on a device. **What changed**: `AndroidBuildRunner.cs`
-now exists (`IosBuildRunner`'s counterpart), and a real local build succeeded — see the policy-gate
-findings below for what that build proved. Local sandbox testing (sideload to a physical device
-over USB debugging, no store account needed) already worked before this and still does, per
-`STORE_SIGNING_PREREQUISITES.md`/`ANDROID_DEVICE_VALIDATION.md` — what's still genuinely untouched
-is the store-facing half (account, signing, listing).
+**Current state, updated 2026-09-09:** `applicationIdentifier.Android` is `com.linewardsgames.linewards`
+(set 2026-09-08, identical to iOS — see `STORE_SIGNING_PREREQUISITES.md`); the package-name
+decision below is closed, not open. No keystore is configured yet
+(`androidUseCustomKeystore: 0`, `AndroidKeystoreName`/`AndroidKeyaliasName` empty) — Play App
+Signing enrollment is genuinely still open. `MVP-11` (§2) device compatibility validation is still
+"Not started" — a build existing is not the same as it being tested on a device.
+`AndroidBuildRunner.cs` exists (`IosBuildRunner`'s counterpart), and a real local build succeeded —
+see the policy-gate findings below for what that build proved. Local sandbox testing (sideload to a
+physical device over USB debugging, no store account needed) already worked before this and still
+does, per `STORE_SIGNING_PREREQUISITES.md`/`ANDROID_DEVICE_VALIDATION.md` — what's still genuinely
+untouched is the rest of the store-facing half (signing, listing).
 
 ### What Play Console publishing specifically needs, beyond local sideload testing
 
 - [x] **Google Play Console developer account** — approved 2026-09-08.
-- [ ] **Package name decision.** `STORE_SIGNING_PREREQUISITES.md` already recommends keeping this
-      identical to the iOS bundle identifier (`com.linewardsgames.linewards`, proposed) for simple
-      cross-platform account linking later — same **DECISION** blocker as iOS's bundle ID (§7),
-      not a separate one.
+- [x] **Package name decision.** Closed 2026-09-08 — `com.linewardsgames.linewards`, identical to
+      the iOS bundle identifier as recommended, set in `ProjectSettings.asset` for both platforms.
 - [ ] **Play App Signing enrollment** (Google's recommended path: Google holds the app signing
       key, the studio holds an upload key) and Unity's Android Publishing Settings pointed at that
       keystore — through the Editor UI, not by hand-editing `ProjectSettings.asset`, since the
@@ -432,9 +431,8 @@ now exists (mirrors `IosBuildRunner.cs`) — this project's first-ever Android b
       bridge was deliberately not built since there's no Android identity flow yet to protect —
       revisit once Google Play Games Services sign-in above lands.
 
-**Bottom line:** the build-tooling gap, both live policy-compliance unknowns, and the Play Console
-developer account are now closed. The package name decision (shared with iOS's bundle ID, §7),
-Play App Signing enrollment, and listing/Data-Safety/content-rating work are still genuinely
-zero-progress and stay that way until the Week 4 tier-C decision — and the package-name decision
-specifically — says otherwise. This section remains the answer to "what would it actually take",
-not a proposal to start the rest now.
+**Bottom line:** the build-tooling gap, both live policy-compliance unknowns, the Play Console
+developer account, and the package name decision (shared with iOS's bundle ID, §7) are now closed.
+Play App Signing enrollment and listing/Data-Safety/content-rating work are still genuinely
+zero-progress and stay that way until the Week 4 tier-C decision says otherwise. This section
+remains the answer to "what would it actually take," not a proposal to start the rest now.

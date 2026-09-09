@@ -6,7 +6,7 @@
 
 - macOS with Xcode (confirmed installed: Xcode 26.6).
 - Any Apple ID, signed in to Xcode, using free "Personal Team" signing — no paid Apple Developer Program enrollment required.
-- The placeholder bundle identifier `com.ltwplaceholder.ltw` (set on `applicationIdentifier.iPhone` in `ProjectSettings.asset`) is sufficient; it isn't registered with Apple and doesn't need to be until a real store submission.
+- The bundle identifier is `com.linewardsgames.linewards` (set on `applicationIdentifier.iPhone` in `ProjectSettings.asset`, decided 2026-09-08 — see `STORE_SIGNING_PREREQUISITES.md`). It isn't registered with Apple yet and doesn't need to be until a real store submission.
 - An iOS Unity export built from `unity/LTW.UnityClient` with the local vertical-slice scene enabled.
 - Note: a free-provisioned build expires after 7 days and needs reinstalling, and there's a cap on free-provisioned app IDs per device per rolling week — fine for repeated local validation runs, not for distributing to other testers.
 
