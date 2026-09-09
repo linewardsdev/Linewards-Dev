@@ -79,8 +79,9 @@ static async Task RunStandaloneAsync(MatchRegistry registry, int port)
 /// </summary>
 static async Task RunUnderPlayFabMultiplayerServersAsync(PlayFabSessionAuthority? playFabAuthority)
 {
-    // Must match both the port NAME configured for this build in PlayFab Game Manager (MP-07's
-    // Phase 5) and the client's MultiplayerServerConfig.PortName.
+    // Must match (case-insensitively — see the lookup below) both the port NAME configured for
+    // this build in PlayFab Game Manager (MP-07's Phase 5) and the client's
+    // MultiplayerServerConfig.PortName.
     const string gamePortName = "game";
     var json = new JsonSerializerOptions(JsonSerializerDefaults.Web);
 
@@ -141,9 +142,17 @@ static async Task RunUnderPlayFabMultiplayerServersAsync(PlayFabSessionAuthority
     var replayDirectory = Path.Combine(GameserverSDK.GetLogsDirectory(), "replays");
     var registry = new MatchRegistry(replayDirectory, playFabAuthority);
 
+    // Case-insensitive on purpose: found live (2026-09-09) that Game Manager's own build form
+    // capitalizes a typed port name back on display ("Game" for an entry typed "game"), and this
+    // comparison was a plain ordinal `==` — every real deployment attempt threw this exception
+    // before GameserverSDK.Start()'s heartbeat could ever begin, which PlayFab then reports as
+    // "Unhealthy" (no heartbeat within its own ~10-minute window) with no clearer signal anywhere
+    // in Game Manager pointing at the actual cause. A human retyping a name into a portal field is
+    // exactly the kind of case drift worth being lenient about rather than a real configuration
+    // difference worth failing loudly over.
     var connectionInfo = GameserverSDK.GetGameServerConnectionInfo();
-    var gamePort = connectionInfo.GamePortsConfiguration.FirstOrDefault(candidate => candidate.Name == gamePortName)
-        ?? throw new InvalidOperationException($"no GamePortsConfiguration entry named '{gamePortName}' — check this build's port configuration in PlayFab Game Manager.");
+    var gamePort = connectionInfo.GamePortsConfiguration.FirstOrDefault(candidate => string.Equals(candidate.Name, gamePortName, StringComparison.OrdinalIgnoreCase))
+        ?? throw new InvalidOperationException($"no GamePortsConfiguration entry named '{gamePortName}' (case-insensitive) — check this build's port configuration in PlayFab Game Manager.");
 
     var host = new HttpMatchHost(registry, $"http://+:{gamePort.ServerListeningPort}/", allowMatchCreation: false);
     host.Start();

@@ -67,6 +67,33 @@ process per match, not one process serving many), independent of any Build chang
 match's server was already allocated. Pushing a new image or changing standby/max counts affects
 only servers requested **after** the change — an in-flight match is never disturbed by a deploy.
 
+### A build region shows "Unhealthy" and there's no server log to read
+
+A build-level health failure (a region that never reaches Standing By) has **no per-server
+download-logs entry** — those only exist once a server has actually been allocated to a match (see
+"Investigate a desync" below). This is a different, earlier failure than that section covers, and
+needs different troubleshooting.
+
+**Real cause found and fixed 2026-09-09** (see MULTIPLAYER_ROLLOUT.md's Phase 5 for the full
+story): Game Manager's own build form capitalizes a typed port name back on display (type `game`,
+it shows back as `Game`), and both the server's and the client's port-name lookups used to compare
+case-sensitively. Every real startup attempt threw before `GameserverSDK.Start()`'s heartbeat could
+begin, which PlayFab reports only as "Unhealthy" — a real code bug, not a portal misconfiguration,
+even though it was *triggered* by what looked like one. **This is fixed** (the lookup is
+case-insensitive now), but the general lesson stands for the next time a build shows Unhealthy with
+nothing else to go on:
+
+1. Rule out the image itself first, since it's the cheapest check: `docker inspect <image> --format
+   '{{range .Config.Env}}{{println .}}{{end}}'` and confirm `LTW_MATCHSERVER_MODE=mps` is actually
+   baked in — don't assume the build succeeded just because `docker build` exited 0.
+2. Re-read `Program.cs`'s `RunUnderPlayFabMultiplayerServersAsync` for anything that could throw
+   *before* `GameserverSDK.Start()` — an exception there crashes the process before any heartbeat,
+   which is indistinguishable from a real hang without a log to read. The port-name lookup was
+   exactly this shape of bug.
+3. Double-check the build form's own port name/number/protocol against `Program.cs`'s
+   `gamePortName` and `MultiplayerServerConfig.PortName` — even with the case-insensitive fix, a
+   genuinely different name or the wrong port number will still fail the same way.
+
 ### Dasv4 quota (first deploy only, usually)
 
 A brand-new title's default core quota is 16 Av2 cores + 8 Dv2 cores split across East US/West

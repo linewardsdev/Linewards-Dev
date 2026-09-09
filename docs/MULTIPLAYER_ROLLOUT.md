@@ -1498,9 +1498,33 @@ service calls; with it, a player's own entity token (what this project's client-
 `RequestServerAsync` already sends) is accepted directly. **Enabled 2026-09-09.**
 
 Build form submitted (image `ltw-matchserver:mps` from the pushed registry, region East US,
-4-standby/2-core as sized above, port named `game`/5117/TCP) and provisioning as of this writing.
-Still to do once it finishes: record the resulting `BuildId` into `MultiplayerServerConfig.cs` and
-run the actual live create-a-real-server verification — both still open.
+4-standby/2-core as sized above, port named `game`/5117/TCP) and provisioned — build named
+"LineWards East 1" (`BuildId faee9e3e-1558-425f-9474-35e9adeb4e01`).
+
+**Real bug found and fixed, 2026-09-09: the build's East US region came up `Unhealthy`.** Traced
+without any container log to go on (a build-level health failure has no per-server download-logs
+entry — those only exist once a server is actually allocated) by process of elimination: the
+image genuinely had `LTW_MATCHSERVER_MODE=mps` baked in (confirmed directly via `docker inspect`
+on the pushed image, not assumed), and the Dockerfile's `ARG`/`ENV` are correctly placed in the
+runtime stage, not lost across the multi-stage build — ruling out the two most likely code-side
+causes before touching any code. The actual cause: Game Manager's own build form capitalizes a
+typed port name back on display — typing `game` shows back as `Game` — and both
+`Program.cs`'s and the client's `OnlineMatchService.cs`'s port lookups did a case-sensitive
+`==` against the lowercase constant. Every real deployment attempt threw
+`InvalidOperationException` before `GameserverSDK.Start()`'s heartbeat could ever begin, which
+PlayFab reports as "Unhealthy" (no heartbeat within its own ~10-minute window) with nothing in
+Game Manager pointing at the actual cause. Fixed in three places — the server's own lookup and
+both of the client's (`RequestServerAsync` and the matchmaking-queue join path) — to compare
+case-insensitively (`StringComparison.OrdinalIgnoreCase`), since a human retyping a name into a
+portal field is exactly the kind of case drift worth being lenient about, not a real
+configuration difference worth failing loudly over. `dotnet test` 411/411, Unity batchmode
+compile clean (0 `warning CS`, 0 `error CS`) — not yet re-verified against a healthy build, since
+that also needs the portal's own port name corrected (or left as `Game`, now that the fix no
+longer cares).
+
+Still to do: confirm the region actually reports healthy after this fix and/or a portal-side
+correction, record the `BuildId` above into `MultiplayerServerConfig.cs`, and run the actual live
+create-a-real-server verification — all still open.
 
 - **A known, accepted gap, not solved by this pass**: Azure can recycle the VM hosting an already-
   allocated (live, in-match) server for maintenance (`GameserverSDK.RegisterMaintenanceCallback`

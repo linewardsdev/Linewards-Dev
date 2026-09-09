@@ -359,8 +359,12 @@ namespace LTW.UnityClient.Online
                 throw new TimeoutException($"server allocation for session {sessionId} did not reach Active in time (last state: {state})");
             }
 
-            var port = ports?.FirstOrDefault(candidate => candidate.Name == MultiplayerServerConfig.PortName)?.Num
-                ?? throw new InvalidOperationException($"allocated server had no port named '{MultiplayerServerConfig.PortName}'");
+            // Case-insensitive — see LTW.MatchServer/Program.cs's identical fix and its own
+            // remarks: Game Manager's build form capitalizes a typed port name back on display
+            // ("Game" for an entry typed "game"), so a case-sensitive match here would fail
+            // against the exact same real build that fix was found against.
+            var port = ports?.FirstOrDefault(candidate => string.Equals(candidate.Name, MultiplayerServerConfig.PortName, StringComparison.OrdinalIgnoreCase))?.Num
+                ?? throw new InvalidOperationException($"allocated server had no port named '{MultiplayerServerConfig.PortName}' (case-insensitive)");
 
             return (sessionId, ipv4Address, port);
         }
@@ -438,8 +442,10 @@ namespace LTW.UnityClient.Online
                     return null;
                 }
 
-                var matchedPort = match.ServerDetails.Ports?.FirstOrDefault(candidate => candidate.Name == MultiplayerServerConfig.PortName)?.Num
-                    ?? throw new InvalidOperationException($"matched server had no port named '{MultiplayerServerConfig.PortName}'");
+                // Case-insensitive — see the identical fix and remarks above (RequestServerAsync's
+                // own port lookup) and Program.cs's server-side counterpart.
+                var matchedPort = match.ServerDetails.Ports?.FirstOrDefault(candidate => string.Equals(candidate.Name, MultiplayerServerConfig.PortName, StringComparison.OrdinalIgnoreCase))?.Num
+                    ?? throw new InvalidOperationException($"matched server had no port named '{MultiplayerServerConfig.PortName}' (case-insensitive)");
 
                 // "current", not a derived id: a queue-auto-allocated server's own internal match id
                 // is not guaranteed to equal PlayFab's own MatchId here — HttpMatchHost's "current"
