@@ -38,7 +38,9 @@ plan and the reasoning).
 
 - [ ] **Apple Developer Program enrollment.** Not enrolled. Gates the bundle identifier, the store
       listing, and TestFlight. External, needs the owner. **This is the current blocking item.**
-- [ ] **Real bundle identifier and signing.** Still `com.ltwplaceholder.ltw`. Blocked on enrollment.
+- [~] **Real bundle identifier and signing.** Identifier decided and set 2026-09-08:
+      `com.linewardsgames.linewards` (`STORE_SIGNING_PREREQUISITES.md`). Signing itself still
+      blocked on enrollment.
 - [x] **Crash reporting and analytics.** Closed 2026-09-07 — Unity Diagnostics linked to a fresh
       Unity Cloud org (`developermtrakdqr`) under `developers@linewards.com`. Session telemetry
       confirmed flowing; a crash-specific event was not separately confirmed (owner's call to
@@ -55,7 +57,8 @@ plan and the reasoning).
 ### P1 — should land before public launch, not blocking soft launch
 
 - [ ] Bot quality as a product feature (bots never sell, no randomness in decisions) — see R3 below.
-- [ ] Android build path — none exists.
+- [x] Android build path — `AndroidBuildRunner.cs` exists and a real local build has succeeded
+      (see §9). Store publishing itself is separate and still open.
 - [ ] Static LODs — perf win parked until the meshes are skinned (`OPEN_ITEMS.md` #44).
 - [ ] Settings persistence audit (`PlayerPrefs` usage for reduced effects / text scale / tutorial flag).
 

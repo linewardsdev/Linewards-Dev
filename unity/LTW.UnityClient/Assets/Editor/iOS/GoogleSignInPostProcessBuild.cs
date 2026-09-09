@@ -20,10 +20,15 @@ namespace LTW.UnityClient.EditorTools.iOS
     /// plugins do it. See Assets/Plugins/iOS/LTWGoogleSignInBridge.mm for what consumes these.
     /// </summary>
     /// <remarks>
-    /// UNTESTED as of writing — this repo's actual Xcode exports happen from a different worktree
-    /// (see project memory on Xcode export staleness), so this has not run against a real export.
-    /// It only touches Info.plist keys; GoogleSignInDependencies.xml (EDM4U) is what links the
-    /// actual CocoaPod, independently of this script.
+    /// Verified 2026-09-08 against a real export (`IosBuildRunner.Build`, device SDK): the
+    /// exported Info.plist correctly carries GIDClientID, GIDServerClientID and the reversed-ID
+    /// URL scheme. An earlier export sitting in the same build path had none of these — built and
+    /// run as-is, the app crashed at launch with "No active configuration. Make sure GIDClientID
+    /// is set in Info.plist.", which is exactly what running an export from before this script
+    /// existed (or from a run where it silently didn't fire) looks like. Re-exporting is the fix;
+    /// there was nothing wrong with this script itself. It only touches Info.plist keys;
+    /// GoogleSignInDependencies.xml (EDM4U) is what links the actual CocoaPod, independently of
+    /// this script.
     /// </remarks>
     internal static class GoogleSignInPostProcessBuild
     {
