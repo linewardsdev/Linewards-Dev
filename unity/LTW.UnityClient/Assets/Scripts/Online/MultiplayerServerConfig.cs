@@ -11,8 +11,13 @@ namespace LTW.UnityClient.Online
     /// </summary>
     public static class MultiplayerServerConfig
     {
-        /// <summary>The uploaded build's guid, from PlayFab Game Manager. Not set until MP-07's Phase 5.</summary>
-        public const string BuildId = "TODO-set-after-build-upload";
+        /// <summary>
+        /// The uploaded build's guid, from PlayFab Game Manager. Set 2026-09-09, once the build
+        /// reported healthy in its region — the build this replaced (created earlier the same
+        /// day) came up Unhealthy from the case-sensitive port-name bug this file's own
+        /// <see cref="PortName"/> is downstream of; see MULTIPLAYER_ROLLOUT.md's MP-07 Phase 5.
+        /// </summary>
+        public const string BuildId = "4dbf4418-7048-4d7e-a8ed-68c617dd6c0a";
 
         /// <summary>
         /// Tried in order until one has a server available — see

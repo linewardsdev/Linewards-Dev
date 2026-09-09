@@ -94,6 +94,17 @@ nothing else to go on:
    `gamePortName` and `MultiplayerServerConfig.PortName` — even with the case-insensitive fix, a
    genuinely different name or the wrong port number will still fail the same way.
 
+**Once the real cause is fixed, don't expect the existing build to recover on its own.** A
+PlayFab build's container image is effectively immutable once created — there is no "swap the
+image on this build" action in Game Manager, confirmed against Microsoft's own docs, which point
+an existing build's update path at a Build Alias (a blue-green cutover) instead. Pushing a fixed
+image to the same registry tag does nothing for a build already pinned to the old one. The
+practical fix, for a build that was never carrying real traffic anyway: push the fixed image,
+create a **new** build with the same settings, confirm it comes up healthy, then drain (standby/
+max to 0) or delete the broken one so it stops holding quota for a build that can never recover.
+This is exactly what happened 2026-09-09: `faee9e3e-...` (Unhealthy, abandoned) →
+`4dbf4418-...` (healthy, now the one recorded in `MultiplayerServerConfig.cs`).
+
 ### Dasv4 quota (first deploy only, usually)
 
 A brand-new title's default core quota is 16 Av2 cores + 8 Dv2 cores split across East US/West

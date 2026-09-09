@@ -1501,7 +1501,7 @@ Build form submitted (image `ltw-matchserver:mps` from the pushed registry, regi
 4-standby/2-core as sized above, port named `game`/5117/TCP) and provisioned — build named
 "LineWards East 1" (`BuildId faee9e3e-1558-425f-9474-35e9adeb4e01`).
 
-**Real bug found and fixed, 2026-09-09: the build's East US region came up `Unhealthy`.** Traced
+**Real bug found and fixed, 2026-09-09: that build's East US region came up `Unhealthy`.** Traced
 without any container log to go on (a build-level health failure has no per-server download-logs
 entry — those only exist once a server is actually allocated) by process of elimination: the
 image genuinely had `LTW_MATCHSERVER_MODE=mps` baked in (confirmed directly via `docker inspect`
@@ -1518,13 +1518,20 @@ both of the client's (`RequestServerAsync` and the matchmaking-queue join path) 
 case-insensitively (`StringComparison.OrdinalIgnoreCase`), since a human retyping a name into a
 portal field is exactly the kind of case drift worth being lenient about, not a real
 configuration difference worth failing loudly over. `dotnet test` 411/411, Unity batchmode
-compile clean (0 `warning CS`, 0 `error CS`) — not yet re-verified against a healthy build, since
-that also needs the portal's own port name corrected (or left as `Game`, now that the fix no
-longer cares).
+compile clean (0 `warning CS`, 0 `error CS`).
 
-Still to do: confirm the region actually reports healthy after this fix and/or a portal-side
-correction, record the `BuildId` above into `MultiplayerServerConfig.cs`, and run the actual live
-create-a-real-server verification — all still open.
+**A PlayFab build's image is effectively immutable once created** (confirmed from Microsoft's own
+docs — updating an existing build's image is a "Build Alias"/blue-green concept, not an in-place
+swap), so the fix couldn't be deployed by pushing a new image to the same build. Rebuilt and
+re-pushed `ltw-matchserver:mps` with the fix, then created a **second** build against it rather
+than trying to update the first: **`BuildId 4dbf4418-7048-4d7e-a8ed-68c617dd6c0a`, same settings
+(East US, 4-standby/2-core, port `game`/5117/TCP) — came up healthy.** Recorded into
+`MultiplayerServerConfig.cs`. The original `faee9e3e-...` build is abandoned — it can never come
+up healthy regardless of image changes, since it's pinned to the broken one — and should be
+drained (standby/max to 0) or deleted in Game Manager to stop it holding quota for nothing.
+
+Still to do: run the actual live create-a-real-server verification against the new build — that's
+the one MP-07/MP-05 acceptance check this pass didn't reach.
 
 - **A known, accepted gap, not solved by this pass**: Azure can recycle the VM hosting an already-
   allocated (live, in-match) server for maintenance (`GameserverSDK.RegisterMaintenanceCallback`

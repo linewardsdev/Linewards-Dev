@@ -163,14 +163,16 @@ places.
       the same total quota — see `MULTIPLAYER_ROLLOUT.md`'s Phase 5 for the reasoning). MPS-mode
       image built and pushed to the account's own ACR; "Allow Client to start games" enabled
       (Settings → API Features, not the build form — this doc's own earlier phrasing was too vague
-      to act on). Build "LineWards East 1" provisioned (`BuildId faee9e3e-1558-425f-9474-35e9adeb4e01`)
-      but came up Unhealthy — real bug, not a portal misconfiguration: found and fixed a
-      case-sensitive port-name comparison (Game Manager capitalizes a typed name back on display)
-      in both `Program.cs` and `OnlineMatchService.cs`, which crashed every server before its
-      first heartbeat (`dotnet test` 411/411, Unity compile clean — see `MULTIPLAYER_ROLLOUT.md`'s
-      Phase 5 and `MP07_RUNBOOK.md`'s new Unhealthy-troubleshooting section). Still open: confirm
-      the region reports healthy after this fix, record the `BuildId` above into
-      `MultiplayerServerConfig.cs`, and run a live create-a-real-server check. The
+      to act on). First build ("LineWards East 1", `faee9e3e-...`) came up Unhealthy — real bug,
+      not a portal misconfiguration: found and fixed a case-sensitive port-name comparison (Game
+      Manager capitalizes a typed name back on display) in both `Program.cs` and
+      `OnlineMatchService.cs`, which crashed every server before its first heartbeat (`dotnet
+      test` 411/411, Unity compile clean — see `MULTIPLAYER_ROLLOUT.md`'s Phase 5 and
+      `MP07_RUNBOOK.md`'s new Unhealthy-troubleshooting section). PlayFab builds are effectively
+      immutable once created, so the fix shipped as a **second** build rather than an update to
+      the first: `BuildId 4dbf4418-7048-4d7e-a8ed-68c617dd6c0a`, healthy, now recorded in
+      `MultiplayerServerConfig.cs`. The abandoned first build should be drained/deleted. Still
+      open: run a live create-a-real-server check against the new build. The
       runbook's telemetry/abuse sections are now written (`MP07_RUNBOOK.md` sections 5–6). Still
       open: a real log-ingestion dashboard (emission side landed 2026-09-07, no ingestion yet) —
       client-side crash reporting was resolved separately (see Launch section above, via Unity
