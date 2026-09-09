@@ -149,9 +149,13 @@ places.
       proven identically otherwise.
 - [~] **MP-05 — Session, identity, lobby, matchmaking.** Identity (Google Sign-In via PlayFab) and
       opportunistic matchmaking code are landed and verified against both a fake handler and the
-      real title (`FBC34`) and a real iOS device. The Azure Dasv4 quota that blocked live
-      matchmaking verification is now approved (2026-09-08/09) — still needs the actual PlayFab
-      matchmaking queue created (needs MP-07's `BuildId` first) before the two-real-identities
+      real title (`FBC34`) and a real iOS device. **Sign in with Google reconfirmed working
+      2026-09-09** on the current bundle ID (`com.linewardsgames.linewards`) and a fresh export —
+      resolves the open question raised earlier the same day about whether the bundle-ID change
+      had left the Google Cloud OAuth client's registration stale; it hadn't, or it no longer
+      matters. The Azure Dasv4 quota that blocked live matchmaking verification is now approved
+      (2026-09-08/09) — still needs the actual PlayFab matchmaking queue created (MP-07's
+      `BuildId` now exists: `4dbf4418-7048-4d7e-a8ed-68c617dd6c0a`) before the two-real-identities
       pooling check can run live. Not started: Android identity (Google Play Games Services).
       Unchecked: "results survive a client crash and a server restart."
 - [x] **MP-06 — Client over the wire.** Every acceptance check in this initiative's own scope is
