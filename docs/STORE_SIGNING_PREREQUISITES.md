@@ -41,10 +41,81 @@ Both stores require a reverse-DNS style identifier (e.g. `com.yourstudio.ltw`) t
 
 ## Google (Play Console)
 
-- [ ] Create the Google Play Console account ($25 one-time).
-- [ ] Reserve the package name matching the identifier above.
-- [ ] Generate a signing key and enroll in **Play App Signing** (Google-recommended: Google stores the app signing key, you keep an upload key). This replaces the empty `AndroidKeystoreName`/`AndroidKeyaliasName` fields.
-- [ ] Set Unity's Android Player Settings to use that keystore for release builds (`androidUseCustomKeystore: 1` plus the keystore/alias paths) — again, do this through **Project Settings → Player → Android → Publishing Settings**, not by hand-editing the `.asset` file, since the keystore password should never be committed to source control.
+- [x] Create the Google Play Console account ($25 one-time) — approved 2026-09-08.
+- [x] Reserve the package name matching the identifier above — `com.linewardsgames.linewards`,
+      decided 2026-09-08.
+- [x] **Upload keystore generated and stored, 2026-09-09** — see "Android upload keystore" below
+      for the full setup, where it lives, and how to actually build a signed release with it.
+      **Still open**: the Play App Signing *enrollment* itself only happens the first time you
+      upload a release in Play Console (it's a portal step, not something scriptable from here) —
+      the keystore below is the upload key you'll use for that first upload and every one after.
+- [ ] Set Unity's Android Player Settings to use that keystore for release builds — done
+      automatically at build time by `AndroidBuildRunner.cs`'s existing `ApplyKeystoreOverrides`
+      (see below), not through the Editor UI and not by hand-editing `ProjectSettings.asset` — the
+      keystore path/passwords never need to be typed into or persisted by the Editor at all.
+
+### Android upload keystore
+
+**Where it lives — two independent copies, per standard keystore-loss guidance (a lost upload key
+with no backup is a genuinely unshippable-forever failure mode):**
+
+1. **Authoritative copy: Azure Key Vault `linewards-secrets`** (resource group
+   `linewards-secrets-rg`, subscription "LineWards 1" — the same Azure relationship behind PlayFab
+   Multiplayer Servers, so no new vendor). Two secrets:
+   - `android-upload-keystore` — the keystore file (`linewards-upload.jks`, alias
+     `linewards-upload`), base64-encoded.
+   - `android-upload-keystore-password` — the password, used for both the keystore and the key
+     (generated randomly, 24 characters; nobody typed or needs to remember it).
+   Cost is negligible — Key Vault Standard tier is $0.03/10,000 operations, no storage fee, and
+   this gets read maybe a handful of times a month at most.
+2. **Local backup copy**: `~/.android-keystores/linewards-upload.jks` on this machine, permissions
+   locked to the owning user (`chmod 600`). Treat the vault as authoritative if the two ever
+   disagree — this local copy is convenience, not the source of truth.
+
+Generated with `keytool` (bundled with Unity's Android module — no separate JDK install needed):
+RSA 2048, 10,000-day validity (~27 years, well past Google's own minimum expectations for a
+long-lived signing identity — the resulting certificate expires 2054-01-25).
+
+**To build a real signed release** (retrieve from the vault, build, and the plaintext keystore
+never touches disk longer than the build itself needs it — put it somewhere outside the repo, like
+this project's own scratch/temp convention, not inside `unity/LTW.UnityClient`):
+
+```bash
+az keyvault secret show --vault-name linewards-secrets --name android-upload-keystore \
+  --query value -o tsv | base64 -d > /tmp/linewards-upload.jks
+export LTW_ANDROID_KEYSTORE_PASSWORD=$(az keyvault secret show --vault-name linewards-secrets \
+  --name android-upload-keystore-password --query value -o tsv)
+export LTW_ANDROID_KEY_ALIAS_PASSWORD="$LTW_ANDROID_KEYSTORE_PASSWORD"   # same password for both
+
+Unity -batchmode -nographics -quit -projectPath unity/LTW.UnityClient \
+  -executeMethod LTW.UnityClient.Editor.AndroidBuildRunner.Build \
+  -ltwOutputFormat aab \
+  -ltwKeystorePath /tmp/linewards-upload.jks \
+  -ltwKeyaliasName linewards-upload \
+  -ltwBuildPath build/android
+
+rm -f /tmp/linewards-upload.jks
+unset LTW_ANDROID_KEYSTORE_PASSWORD LTW_ANDROID_KEY_ALIAS_PASSWORD
+```
+
+**A real gotcha, found running exactly this**: setting `PlayerSettings.Android.keystoreName`/
+`keyaliasName` via script — which `ApplyKeystoreOverrides` does — persists those two fields (the
+path and alias, NOT the passwords, which Unity never serializes) into the committed
+`ProjectSettings.asset`, and flips `androidUseCustomKeystore` to `1`. Harmless if the path still
+exists next time, but the retrieval command above writes to a temp path that's deleted right after
+— left in place, the *next* default build (no keystore args passed) would try to sign with a
+keystore that no longer exists and fail. **After a signed build, check `git status` on
+`ProjectSettings.asset` and revert it (`git checkout -- <path>`) if it picked up the temp path** —
+this is not a reason to avoid the script, just something to check for every time, the same
+discipline as reviewing any other unexpected diff before committing.
+
+**Verified end to end, 2026-09-09**: ran exactly this (`AndroidBuildRunner.cs`'s own
+`ApplyKeystoreOverrides` already existed and needed no changes — it was built expecting passwords
+from the environment, matching this exact retrieval pattern), producing a real signed
+`LineWards.aab` (`package=com.linewardsgames.linewards`, IL2CPP, ARM64, API 36). Signature
+confirmed with `jarsigner -verify` (bundled with Unity's Android module): `jar verified.`, showing
+the expected self-signed-certificate warning (normal for an upload key — Play Console doesn't
+require a CA chain) and a certificate expiry of 2054-01-25, matching the generated validity.
 
 ## Secrets Handling
 

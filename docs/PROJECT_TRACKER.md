@@ -322,8 +322,9 @@ Pulled together from every section above — nothing here needs more engineering
 8. Defeat-moment design: what a mid-match loss screen says and whether it's dismissible (§6, #35).
 9. Git LFS adoption and repo history rewrite (§6, #21).
 10. Raised graphics quality target confirmation (§6, #17).
-11. Whether Android is taken on for tier C, and the public-launch date (§1 — Week 4 of the launch
-    plan; §9 has the full Android deployment checklist this decision would greenlight).
+11. **Android tier C: decided 2026-09-09, yes** — work is underway (§9). Still open: the actual
+    public-launch date for it (§1 — was Week 4 of the launch plan; now a question of when the §9
+    checklist finishes, not whether to start it).
 
 ---
 
@@ -344,22 +345,24 @@ new.
 
 ---
 
-## 9. Android marketplace deployment (not started)
+## 9. Android marketplace deployment (in progress)
 
-**Standing decision, not reversed here:** `LAUNCH_ROADMAP.md` explicitly deferred Android to tier
-C — "Android waits for tier C... taking it on now doubles the device and store work in the exact
-weeks that slipped last time" — with the actual go/no-go decision scheduled for Week 4 (§7, item
-11). This section exists so that decision is made against a real checklist instead of a blank
-page, not to jump the freeze. Nothing below is scheduled work yet.
+**Formerly a standing freeze, lifted 2026-09-09:** `LAUNCH_ROADMAP.md` had explicitly deferred
+Android to tier C — "Android waits for tier C... taking it on now doubles the device and store
+work in the exact weeks that slipped last time" — with the go/no-go decision originally scheduled
+for Week 4 (§7, item 11). That decision was made early: **yes, take on Android now.** This section
+was written as the checklist for when that call came; it's now the live tracker for the work
+itself, not a frozen reference.
 
 **Current state, updated 2026-09-09:** `applicationIdentifier.Android` is `com.linewardsgames.linewards`
 (set 2026-09-08, identical to iOS — see `STORE_SIGNING_PREREQUISITES.md`); the package-name
-decision below is closed, not open. No keystore is configured yet
-(`androidUseCustomKeystore: 0`, `AndroidKeystoreName`/`AndroidKeyaliasName` empty) — Play App
-Signing enrollment is genuinely still open. `MVP-11` (§2) device compatibility validation is still
-"Not started" — a build existing is not the same as it being tested on a device.
-`AndroidBuildRunner.cs` exists (`IosBuildRunner`'s counterpart), and a real local build succeeded —
-see the policy-gate findings below for what that build proved. Local sandbox testing (sideload to a
+decision below is closed. An upload keystore is generated, verified, and stored in Azure Key Vault
+(see `STORE_SIGNING_PREREQUISITES.md`'s Google section) — Play App Signing *enrollment* itself
+still only happens at first real upload, a portal step. `MVP-11` (§2) device compatibility
+validation is still "Not started" — a build existing is not the same as it being tested on a
+device. `AndroidBuildRunner.cs` exists (`IosBuildRunner`'s counterpart), and both a local sideload
+build and a real signed release `.aab` have succeeded — see the policy-gate findings below and the
+signing section above for what those builds proved. Local sandbox testing (sideload to a
 physical device over USB debugging, no store account needed) already worked before this and still
 does, per `STORE_SIGNING_PREREQUISITES.md`/`ANDROID_DEVICE_VALIDATION.md` — what's still genuinely
 untouched is the rest of the store-facing half (signing, listing).
@@ -369,13 +372,18 @@ untouched is the rest of the store-facing half (signing, listing).
 - [x] **Google Play Console developer account** — approved 2026-09-08.
 - [x] **Package name decision.** Closed 2026-09-08 — `com.linewardsgames.linewards`, identical to
       the iOS bundle identifier as recommended, set in `ProjectSettings.asset` for both platforms.
-- [ ] **Play App Signing enrollment** (Google's recommended path: Google holds the app signing
-      key, the studio holds an upload key) and Unity's Android Publishing Settings pointed at that
-      keystore — through the Editor UI, not by hand-editing `ProjectSettings.asset`, since the
-      keystore password must never be committed.
-- [ ] **Release build settings confirmed before first upload**: IL2CPP scripting backend, ARM64
-      target architecture, `.aab` output (Play Console requires it; `.apk` does not satisfy
-      submission).
+- [~] **Play App Signing.** Upload keystore generated and verified 2026-09-09 (`keytool`, RSA
+      2048, ~27-year validity) — stored in Azure Key Vault `linewards-secrets` (base64 keystore +
+      password as separate secrets, same Azure subscription behind PlayFab MPS, negligible cost)
+      with a local backup copy. `AndroidBuildRunner.cs` already had the override mechanism built
+      (`ApplyKeystoreOverrides`, passwords from environment only) — no code changes needed, just
+      retrieval from the vault at build time (documented in `STORE_SIGNING_PREREQUISITES.md`).
+      **Still open**: the actual Play App Signing *enrollment* only happens on your first real
+      release upload in Play Console — a portal step, not scriptable from here.
+- [x] **Release build settings confirmed before first upload**: IL2CPP scripting backend, ARM64
+      target architecture, `.aab` output — all three verified together in the same 2026-09-09 real
+      signed build (`package=com.linewardsgames.linewards`, API 36, signature confirmed with
+      `jarsigner -verify`).
 - [ ] **Content rating questionnaire** (Play Console's own IARC-based flow — separate from
       Apple's age-rating questionnaire, needs answering independently even though the app is the
       same).
@@ -431,8 +439,9 @@ now exists (mirrors `IosBuildRunner.cs`) — this project's first-ever Android b
       bridge was deliberately not built since there's no Android identity flow yet to protect —
       revisit once Google Play Games Services sign-in above lands.
 
-**Bottom line:** the build-tooling gap, both live policy-compliance unknowns, the Play Console
-developer account, and the package name decision (shared with iOS's bundle ID, §7) are now closed.
-Play App Signing enrollment and listing/Data-Safety/content-rating work are still genuinely
-zero-progress and stay that way until the Week 4 tier-C decision says otherwise. This section
-remains the answer to "what would it actually take," not a proposal to start the rest now.
+**Bottom line:** the Week 4 tier-C go/no-go itself was decided early — **yes, take on Android now**
+(2026-09-09) — so this section is no longer a frozen checklist waiting on that call. The
+build-tooling gap, both live policy-compliance unknowns, the Play Console developer account, the
+package name decision (shared with iOS's bundle ID, §7), the upload keystore, and release build
+settings are all closed. Still genuinely open: the Play App Signing enrollment step itself (portal,
+happens on first real upload) and all listing/Data-Safety/content-rating/privacy-policy work below.

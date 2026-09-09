@@ -72,6 +72,9 @@ Grouped by whether it blocks a soft launch.
   scene boundary.
 - **Android waits for tier C.** See the recommendation above. Enrol in the Play Console now
   anyway ($25, same day) so tier C is not gated on it later.
+  **Update 2026-09-09: this freeze was lifted early — tier C decided "yes," Android
+  deployment work is now live in `PROJECT_TRACKER.md` §9 rather than waiting for Week 4.** Left
+  here rather than rewritten so the original plan and reasoning stay legible.
 - **All render, roster and rail polish is frozen.** OPEN_ITEMS item 53's residuals stay
   parked; no Wave 6; the eleven staged roster meshes stay staged. New findings from the
   phone run go into OPEN_ITEMS, and only ones that block a tester's first ten minutes come
