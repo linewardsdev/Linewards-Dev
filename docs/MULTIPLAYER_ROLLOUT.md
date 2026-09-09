@@ -766,13 +766,13 @@ a convenience.
   unchanged. `RequestServerAsync` itself is untouched — it's now `QueueForMatchAsync`'s fallback
   callee rather than being called directly from `CreateAndJoinAsync`.
 - **Not yet done**: the actual PlayFab Game Manager queue (name, `MinMatchSize: 2`/`MaxMatchSize: 8`,
-  `ServerAllocationEnabled` tied to MP-07's `BuildId`) hasn't been created — portal work, gated on
-  the same account access as MP-07's Phase 5. Live verification (two real identities queuing
-  together, and the solo-timeout-fallback path) needs that queue plus a real allocatable server, so
-  it's gated on the same Dasv4 quota approval MP-07 is already waiting on. `dotnet test` (388/388)
-  and Unity batchmode compile (0 `error CS`) are what's verified so far — matching this project's
-  own established limit for GSDK/PlayFab-network code that can't be unit-tested without a real or
-  simulated agent.
+  `ServerAllocationEnabled` tied to MP-07's `BuildId`) hasn't been created — portal work, needing
+  MP-07's `BuildId` to exist first (see Phase 5 below: the Dasv4 quota is now approved and a build
+  is provisioning, but no `BuildId` is recorded yet). Live verification (two real identities
+  queuing together, and the solo-timeout-fallback path) needs that queue plus a real allocatable
+  server. `dotnet test` (388/388) and Unity batchmode compile (0 `error CS`) are what's verified so
+  far — matching this project's own established limit for GSDK/PlayFab-network code that can't be
+  unit-tested without a real or simulated agent.
 
 ### Acceptance Checks
 
@@ -1455,10 +1455,10 @@ from the docs alone:
   a save-blocking quota error when first trying to create a build. Fixed via Game Manager's
   self-service **Multiplayer Servers → Quota Summary → Change Quota** flow: describe the request,
   **+ Add change** for VM family **Dasv4** / region **East US**, request a small limit (8 cores is
-  plenty for a 1-standby/2-max beta config, well under the 24-core free-tier cap). Per PlayFab's
-  own docs, small requests like this are typically approved and provisioned immediately, unlike
-  large (1000+ core) requests, which need manual review. Quota request submitted; waiting on
-  approval before the build itself can be created.
+  plenty for a small beta config, well under the 24-core free-tier cap). Per PlayFab's own docs,
+  small requests like this are typically approved and provisioned immediately, unlike large
+  (1000+ core) requests, which need manual review. **Approved 2026-09-08/09** — provisioned same
+  day as requested, matching that expectation.
 - `src/LTW.MatchServer/Dockerfile` gained a `MATCHSERVER_MODE` build arg (`ARG
   MATCHSERVER_MODE=standalone` / `ENV LTW_MATCHSERVER_MODE=$MATCHSERVER_MODE`) — resolves the
   earlier-flagged gap that PlayFab's build creation flow has no field for custom container
@@ -1467,11 +1467,40 @@ from the docs alone:
   with `--build-arg MATCHSERVER_MODE=mps` so it comes up in MPS mode by default, since that image's
   only purpose is running under a real GSDK agent.
 
-Still to do once the quota is approved and a build exists: push the MPS-mode image to the
-provided registry, finish the build form (port named `game`/5117/TCP, region East US, standby/max
-counts), enable "game client access" for Multiplayer Servers so the client can call
-`RequestMultiplayerServer` directly, and record the resulting `BuildId` into
-`MultiplayerServerConfig.cs`.
+### Phase 5 continued — standby sizing, image push, client access, 2026-09-09
+
+**Standby VM sizing: 4× 2-core over 1× 8-core or 2× 4-core, all within the same 8-core quota.**
+Game Manager's own cost estimator, checked directly for all three splits of the same 8-core
+request, showed dramatically different "hours of usage" before the free/requested core-hour
+budget is exhausted: 1×8-core ≈ 96 hours, 2×4-core ≈ 186 hours, 4×2-core ≈ 475 hours — despite
+identical total cores. Reasoned through rather than taken on faith: PlayFab MPS allocates exactly
+one match-server process per VM and bills for the *full allocated VM size* while that VM is
+active, not the CPU it actually uses. `LTW.MatchServer` is a lightweight console app
+(`HttpListener`/WebSockets, no per-match heavy compute) that doesn't approach even 2 cores of real
+use, so a bigger VM per match burns quota for no benefit. 4× 2-core strictly dominates the other
+two splits on this project's actual workload shape: more concurrent instant-join standby slots (4
+vs 1) *and* ~5x the usage-hours of the single-8-core option, for the same requested quota.
+
+**Image built and pushed, 2026-09-09**: `docker build --build-arg MATCHSERVER_MODE=mps -t
+ltw-matchserver:mps -f src/LTW.MatchServer/Dockerfile .`, then pushed to the account's own free
+ACR at `customerxm4ogh3zbvndm.azurecr.io/ltw-matchserver:mps` (the registry Phase 5's first bullet
+above already established comes free with the account — confirmed live, no separate registry
+needed). `docker login`/`push` succeeded cleanly against the credentials shown on Game Manager's
+own New Build page.
+
+**"Enable game client access" — corrected, this doc's own earlier phrasing was too vague to act
+on.** It is not a field on the build creation form. It's a **title-level** setting: Game Manager →
+title `FBC34` → **Settings** (left menu) → **API Features** tab → **"Allow Client to start
+games"**, confirmed against Microsoft's own current docs (not guessed from memory) at
+[Enable PlayFab Multiplayer Server feature](https://learn.microsoft.com/en-us/xbox/playfab/multiplayer/servers/enable-playfab-multiplayer-servers).
+Without it, `RequestMultiplayerServer` only accepts the title's own secret-key-authenticated
+service calls; with it, a player's own entity token (what this project's client-side
+`RequestServerAsync` already sends) is accepted directly. **Enabled 2026-09-09.**
+
+Build form submitted (image `ltw-matchserver:mps` from the pushed registry, region East US,
+4-standby/2-core as sized above, port named `game`/5117/TCP) and provisioning as of this writing.
+Still to do once it finishes: record the resulting `BuildId` into `MultiplayerServerConfig.cs` and
+run the actual live create-a-real-server verification — both still open.
 
 - **A known, accepted gap, not solved by this pass**: Azure can recycle the VM hosting an already-
   allocated (live, in-match) server for maintenance (`GameserverSDK.RegisterMaintenanceCallback`

@@ -149,17 +149,23 @@ places.
       proven identically otherwise.
 - [~] **MP-05 — Session, identity, lobby, matchmaking.** Identity (Google Sign-In via PlayFab) and
       opportunistic matchmaking code are landed and verified against both a fake handler and the
-      real title (`FBC34`) and a real iOS device. **Blocked on the Azure Dasv4 quota approval**
-      for live matchmaking verification (two real identities pooling). Not started: Android
-      identity (Google Play Games Services). Unchecked: "results survive a client crash and a
-      server restart."
+      real title (`FBC34`) and a real iOS device. The Azure Dasv4 quota that blocked live
+      matchmaking verification is now approved (2026-09-08/09) — still needs the actual PlayFab
+      matchmaking queue created (needs MP-07's `BuildId` first) before the two-real-identities
+      pooling check can run live. Not started: Android identity (Google Play Games Services).
+      Unchecked: "results survive a client crash and a server restart."
 - [x] **MP-06 — Client over the wire.** Every acceptance check in this initiative's own scope is
       done — real device, real match, reconnect survivability (including kill-and-relaunch),
       clean-exit paths, all confirmed live 2026-09-04/05.
 - [~] **MP-07 — Operations.** Hosting mechanism built and live-verified locally (`LocalMultiplayerAgent`).
-      **Blocked on the same Azure quota approval** for the real PlayFab Game Manager build.
-      Telemetry (structured JSON lifecycle events) and PlayFab-ban enforcement landed 2026-09-07.
-      Still open: a real log-ingestion dashboard, the runbook's telemetry/abuse sections, and
+      Azure Dasv4 quota approved 2026-09-08/09 (8 cores, East US); standby sized 4×2-core over
+      1×8-core/2×4-core after checking Game Manager's own cost estimator (~5x the usage-hours for
+      the same total quota — see `MULTIPLAYER_ROLLOUT.md`'s Phase 5 for the reasoning). MPS-mode
+      image built and pushed to the account's own ACR; "Allow Client to start games" enabled
+      (Settings → API Features, not the build form — this doc's own earlier phrasing was too vague
+      to act on). Build form submitted and provisioning; still open once it finishes: record the
+      `BuildId` into `MultiplayerServerConfig.cs` and run a live create-a-real-server check. Also
+      still open: a real log-ingestion dashboard, the runbook's telemetry/abuse sections, and
       client-side crash reporting was resolved separately (see Launch section above, via Unity
       Diagnostics rather than a bespoke pipeline).
 
@@ -175,8 +181,10 @@ Source and living detail doc: `SECURITY_AUDIT_2026-09-05.md`. 19 of 23 findings 
 test-verified (398+ tests passing throughout). Four remain, two of them deliberately deferred:
 
 - [ ] **H5 — PlayFab session ticket travels over plaintext `ws://`.** Open. Real fix is TLS
-      termination on real hosting — infrastructure, blocked on the same MP-07 quota approval.
-      A code-only mitigation was considered and rejected (no real benefit without TLS).
+      termination on real hosting — infrastructure. The quota approval that blocked a build from
+      existing at all is resolved (2026-09-08/09, see MP-07); still open until a build is actually
+      live and TLS termination on it is confirmed, not just assumed. A code-only mitigation was
+      considered and rejected (no real benefit without TLS).
 - [~] **M-C2 — Session ticket in plaintext `PlayerPrefs`.** iOS Keychain bridge drafted
       2026-09-07 (`LTWKeychainBridge.mm` + `SecureSessionStore.cs`, wired into `PlayFabSession`).
       **Compile-checked only — UNTESTED ON A REAL DEVICE.** Android has no online identity path
