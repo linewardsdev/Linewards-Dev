@@ -40,6 +40,7 @@ This folder contains the durable project documentation for Line Wards, the mobil
 - [Android device validation](ANDROID_DEVICE_VALIDATION.md)
 - [Store signing prerequisites](STORE_SIGNING_PREREQUISITES.md)
 - [Security considerations](SECURITY_CONSIDERATIONS.md) — threat model, anti-cheat boundaries, receipt validation, and cross-platform determinism
+- [Secrets management](SECRETS_MANAGEMENT.md) — every key across Unity, PlayFab, GitHub, iOS and Android: public vs server-only vs signing, where each lives today, and the checklist to close the gaps
 
 ## Product And Brand
 
