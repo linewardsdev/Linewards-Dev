@@ -38,12 +38,18 @@ COPY --from=build /app .
 ARG MATCHSERVER_MODE=standalone
 ENV LTW_MATCHSERVER_MODE=$MATCHSERVER_MODE
 
-# $APP_UID is the non-root "app" account Microsoft's .NET 8+ images ship built in specifically for
-# this — without it the process runs as root, which a container escape or a dependency RCE would
-# then inherit for nothing this process actually needs. See docs/SECURITY_AUDIT_2026-09-05.md's L4.
-USER $APP_UID
+# The server still runs as the non-root "app" account Microsoft's .NET 8+ images ship for exactly
+# this (docs/SECURITY_AUDIT_2026-09-05.md's L4) — but the drop to it now happens inside the
+# entrypoint, not via USER here. A plain `USER $APP_UID` was a real production failure: PlayFab's
+# Linux VM agent creates the GSDK log mount as root, the C# GSDK opens its own log file there
+# inside Start(), and as uid 1654 that threw before the first heartbeat — every server crashed at
+# startup and Game Manager showed only "too many restarts" (found and reproduced 2026-09-11, see
+# docs/MP07_RUNBOOK.md). The entrypoint starts as root for one chown of that directory, then
+# exec's dotnet as app — the same pattern PlayFab's own Unreal Linux guide documents.
+COPY --chmod=755 src/LTW.MatchServer/docker-entrypoint.sh /usr/local/bin/ltw-entrypoint
 
 # No fixed EXPOSE: standalone mode's port comes from the existing args[0] CLI convention (see
 # Program.cs), and MP-07's PlayFab-allocated mode reads its port from GSDK config instead — see
-# docs/MULTIPLAYER_ROLLOUT.md's MP-07.
-ENTRYPOINT ["dotnet", "LTW.MatchServer.dll"]
+# docs/MULTIPLAYER_ROLLOUT.md's MP-07. Extra `docker run` arguments still reach Program.cs's
+# args unchanged — the entrypoint forwards "$@".
+ENTRYPOINT ["/usr/local/bin/ltw-entrypoint"]

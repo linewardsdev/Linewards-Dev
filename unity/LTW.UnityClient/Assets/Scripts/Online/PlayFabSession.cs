@@ -91,6 +91,13 @@ namespace LTW.UnityClient.Online
             // back to SIGN IN WITH GOOGLE. See docs/SECURITY_AUDIT_2026-09-05.md's M-C4.
             PlayFabSettings.staticPlayer.ClientSessionTicket = sessionTicket;
             PlayFabSettings.staticPlayer.PlayFabId = playFabId;
+
+            // Auth alone isn't enough: the SDK also refuses every call until TitleId is set, and
+            // until now that only happened inside a live login (PlayFabLoginService). A process
+            // that restores a persisted session never logs in, so the first MPS call failed with
+            // "You must set PlayFabSettings.TitleId before making API Calls" — found live on an
+            // iPad 2026-09-11, the first Play Online tap against a real PlayFab build.
+            PlayFabConfig.EnsureConfigured();
             return true;
         }
 

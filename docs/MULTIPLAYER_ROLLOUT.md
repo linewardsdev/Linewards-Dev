@@ -1525,13 +1525,84 @@ docs — updating an existing build's image is a "Build Alias"/blue-green concep
 swap), so the fix couldn't be deployed by pushing a new image to the same build. Rebuilt and
 re-pushed `ltw-matchserver:mps` with the fix, then created a **second** build against it rather
 than trying to update the first: **`BuildId 4dbf4418-7048-4d7e-a8ed-68c617dd6c0a`, same settings
-(East US, 4-standby/2-core, port `game`/5117/TCP) — came up healthy.** Recorded into
-`MultiplayerServerConfig.cs`. The original `faee9e3e-...` build is abandoned — it can never come
+(East US, 4-standby/2-core, port `game`/5117/TCP) — reported healthy.** Recorded into
+`MultiplayerServerConfig.cs`. (That health report turned out to be hollow — see 2026-09-11 below.) The original `faee9e3e-...` build is abandoned — it can never come
 up healthy regardless of image changes, since it's pinned to the broken one — and should be
 drained (standby/max to 0) or deleted in Game Manager to stop it holding quota for nothing.
 
 Still to do: run the actual live create-a-real-server verification against the new build — that's
 the one MP-07/MP-05 acceptance check this pass didn't reach.
+
+**2026-09-11 — two more real startup defects, stacked under the first.** The first live Play
+Online attempt found `4dbf4418` Unhealthy with no servers listed. Deleting and re-adding its region
+(Standby 1 / Max 2) produced a real provisioning attempt and a new status, **"propping failed"**:
+the pushed image was **arm64** (`docker manifest inspect` — no `amd64` entry at all). Docker
+Desktop on an Apple Silicon Mac builds for the host architecture unless told otherwise, and Azure's
+Dasv4 VMs are x86-64, so no container of either earlier build had ever actually run — both
+"healthy" reports were standby capacity that never existed. Rebuilt with `docker buildx build
+--platform linux/amd64,linux/arm64` (the arm64 slice is what lets `LocalMultiplayerAgent` run the
+same tag locally). A fresh build against that pulled fine and then showed **"too many
+restarts"**: the container started and exited repeatedly. Reproduced locally by running the image
+as PlayFab does — as the non-root `app` user from the 2026-09-06 security-audit L4 hardening —
+against a root-owned `mode=755` `/data/GameLogs` mount: `UnauthorizedAccessException` inside the
+C# GSDK's own `FileSystemLogger.Start()`, exit 134, before the first heartbeat. Writable mount:
+runs. `LocalMultiplayerAgent` alone had passed (`StandingBy → Active`) because Docker Desktop's
+macOS bind mounts let any uid write — which is also why the 2026-09-05 LMA verification, done the
+day before the `USER` change, never saw it. Fixed with `src/LTW.MatchServer/docker-entrypoint.sh`
+(root for one `chown` of the log mount, then `exec setpriv` to `app` — the pattern PlayFab's own
+Unreal Linux guide documents; L4's non-root decision is kept, not reverted). Verified: the
+root-owned-mount test passes (GSDK log written, owned by `app`), standalone mode still starts and
+receives its port argument, full LMA lifecycle `StandingBy → Active`. Pushed multi-arch as
+**`ltw-matchserver:mps-20260911`** — a unique tag, because `mps` was re-pushed three times during
+this and any VM that pulled it earlier may hold a different image; PlayFab's guidance is one tag
+per build, now written into the runbook along with the two-part local gate. `4dbf4418` is
+abandoned like `faee9e3e` before it. Build created against `mps-20260911`:
+**`BuildId 36cfe0aa-ce3d-45a3-9ed8-b740f0b9b588`**, servers observed starting (not "propping
+failed", not "too many restarts") — recorded into `MultiplayerServerConfig.cs`.
+
+**First Play Online tap against it (iPad, same day) found a fourth defect, client-side this time:**
+`Could not get an entity token: You must set PlayFabSettings.TitleId before making API Calls.`
+`PlayFabConfig.EnsureConfigured()` was only ever called from a live login
+(`PlayFabLoginService`), but the iPad had a persisted session from an earlier build and
+`PlayFabSession.TryRestore()` — which M-C4 already taught to re-arm the SDK's *auth* for a
+restored session — never re-armed its *configuration*. Any process that restores rather than logs
+in therefore had a session ticket and no title ID, and the MPS path's `GetEntityToken` (its first
+SDK call) was the first thing to notice. Fixed by calling `EnsureConfigured()` from `TryRestore()`
+itself. Never reachable before: the direct-connect path never touched the PlayFab SDK after
+restore, so this only existed once `UseMultiplayerServers` was on.
+
+**Second tap, same iPad: the entity token now succeeded and the client reached
+`/Match/CreateMatchmakingTicket`, which failed with "Could not find a queue config for the
+referenced queue"** — `MultiplayerServerConfig.MatchmakingQueueName` was still its placeholder,
+because MP-05's Phase 2 (create the queue in Game Manager) needs a healthy BuildId to point at
+and one only existed as of that hour. Two consequences. The client-side one is fixed:
+`QueueForMatchAsync` treated a ticket-creation failure as fatal (`onFailure`, return) and never
+reached the direct-request fallback sitting right below it — contradicting its own design, in
+which matchmaking is opportunistic and the direct request is the guaranteed solo route. It now
+logs a warning and falls through to `RequestServerAsync`, so a missing or momentarily unpublished
+queue can't stop a solo player; mid-flow failures after a ticket exists still fail loudly rather
+than starting a second attempt on top of a reported one (`AwaitPooledMatchAsync`'s
+`PooledOutcome`). The portal-side one is Phase 2 itself, still to do.
+
+**Third tap: the fallback worked and a real `RequestMultiplayerServer` reached PlayFab for the
+first time** — answered `NoHostsAvailableInRegion — No Hosts available in regions 'EastUs'`: a
+capacity statement (no server at Standing By at that instant), not a code error; being checked
+against the build's Regions tab. Reading ahead to what waits behind it found a fifth defect,
+structural rather than a bug: under MPS the container receives no `PLAYFAB_TITLE_ID` /
+`PLAYFAB_SECRET_KEY` (PlayFab's build form has no environment field — the very reason the mode is
+a build arg), so `playFabAuthority` is null and `ServerMatch.AcceptWithPlayFabAsync` refuses every
+PlayFab-identified seat. Every allocated server would have accepted the WebSocket and rejected the
+join. Fixed via the GSDK's own channel: build **metadata** is merged verbatim into
+`getConfigSettings()` (confirmed in `InternalSdk.cs`, lines 140–143, not assumed), and `titleId`
+is already in the config. `Program.cs` now builds the authority from the environment first and,
+under MPS, from `titleId` + a `PLAYFAB_SECRET_KEY` metadata entry second, warning loudly through
+GSDK's own log if neither exists. Metadata is build-definition (immutable), so this needs one more
+build — `36cfe0aa` joins the abandoned list. Trade-off recorded in PLAYFAB_SETUP.md's "Handling
+the Secret Key". `dotnet test` 411/411. Verified under `LocalMultiplayerAgent` with a dummy
+metadata value: `PlayFab configured: title FBC34 (from GSDK config + build metadata)`, then
+`StandingBy → Active`, match bootstrapped. Pushed multi-arch as **`ltw-matchserver:mps-20260911b`**;
+build created against it with the metadata: **`BuildId b1f71d89-87ab-40e4-82fc-01acbf88d4e3`**,
+recorded into `MultiplayerServerConfig.cs`. Next: the live create-a-real-server check.
 
 - **A known, accepted gap, not solved by this pass**: Azure can recycle the VM hosting an already-
   allocated (live, in-match) server for maintenance (`GameserverSDK.RegisterMaintenanceCallback`

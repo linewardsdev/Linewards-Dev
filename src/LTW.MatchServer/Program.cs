@@ -7,24 +7,13 @@ var port = args.Length > 0 && int.TryParse(args[0], out var parsedPort) ? parsed
 
 // PLAYFAB_SECRET_KEY is a real credential and is read from the environment only — never from a
 // config file or a command-line argument, which would land it in shell history or a process
-// list. See docs/PLAYFAB_SETUP.md's "Handling the Secret Key".
-var playFabTitleId = Environment.GetEnvironmentVariable("PLAYFAB_TITLE_ID");
-var playFabSecretKey = Environment.GetEnvironmentVariable("PLAYFAB_SECRET_KEY");
-PlayFabSessionAuthority? playFabAuthority = null;
-if (!string.IsNullOrEmpty(playFabTitleId) && !string.IsNullOrEmpty(playFabSecretKey))
-{
-    // A short, explicit timeout — the BCL default (100s) would otherwise pin a handler (and the
-    // join it's servicing) for a client's entire join attempt if PlayFab is slow or unreachable,
-    // compounding M5's amplification risk rather than failing it fast. See
-    // docs/SECURITY_AUDIT_2026-09-05.md's M5.
-    var playFabHttpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
-    playFabAuthority = new PlayFabSessionAuthority(playFabHttpClient, playFabTitleId, playFabSecretKey);
-    Console.WriteLine($"PlayFab configured: title {playFabTitleId}");
-}
-else
-{
-    Console.WriteLine("PlayFab not configured (PLAYFAB_TITLE_ID / PLAYFAB_SECRET_KEY not set) — PlayFab-identified seats will refuse every join. See docs/PLAYFAB_SETUP.md.");
-}
+// list. See docs/PLAYFAB_SETUP.md's "Handling the Secret Key". Under MPS there is no
+// environment to set (PlayFab's build form has none), so RunUnderPlayFabMultiplayerServersAsync
+// has a second source — see its own remarks; the environment still wins if both are present.
+var playFabAuthority = CreatePlayFabAuthority(
+    Environment.GetEnvironmentVariable("PLAYFAB_TITLE_ID"),
+    Environment.GetEnvironmentVariable("PLAYFAB_SECRET_KEY"),
+    source: "environment");
 
 // Selects this PROCESS's own lifecycle, not anything about a match's rules. "standalone" (default,
 // unset) is today's exact behavior — one process, always running, hosts however many matches
@@ -38,8 +27,30 @@ if (mode == "mps")
     return;
 }
 
+if (playFabAuthority is null)
+{
+    Console.WriteLine("PlayFab not configured (PLAYFAB_TITLE_ID / PLAYFAB_SECRET_KEY not set) — PlayFab-identified seats will refuse every join. See docs/PLAYFAB_SETUP.md.");
+}
+
 var registry = new MatchRegistry(Path.Combine(AppContext.BaseDirectory, "replays"), playFabAuthority);
 await RunStandaloneAsync(registry, port);
+
+/// <summary>Null when either value is missing — the caller decides what that means for its mode.</summary>
+static PlayFabSessionAuthority? CreatePlayFabAuthority(string? titleId, string? secretKey, string source)
+{
+    if (string.IsNullOrEmpty(titleId) || string.IsNullOrEmpty(secretKey))
+    {
+        return null;
+    }
+
+    // A short, explicit timeout — the BCL default (100s) would otherwise pin a handler (and the
+    // join it's servicing) for a client's entire join attempt if PlayFab is slow or unreachable,
+    // compounding M5's amplification risk rather than failing it fast. See
+    // docs/SECURITY_AUDIT_2026-09-05.md's M5.
+    var playFabHttpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
+    Console.WriteLine($"PlayFab configured: title {titleId} (from {source})");
+    return new PlayFabSessionAuthority(playFabHttpClient, titleId, secretKey);
+}
 
 static async Task RunStandaloneAsync(MatchRegistry registry, int port)
 {
@@ -140,6 +151,31 @@ static async Task RunUnderPlayFabMultiplayerServersAsync(PlayFabSessionAuthority
     // writing replays there is what actually makes them retrievable. Available immediately after
     // Start(), unlike SessionCookieKey/SessionIdKey below, which need allocation first.
     var replayDirectory = Path.Combine(GameserverSDK.GetLogsDirectory(), "replays");
+
+    // PlayFab's build form has no environment-variable field, so under MPS the title secret
+    // arrives as build METADATA — a key/value set on the build in Game Manager, which the GSDK
+    // merges verbatim into getConfigSettings() (confirmed in InternalSdk.cs, not assumed). The
+    // title id needs no metadata at all: the GSDK config already carries it. Metadata is readable
+    // by anyone who can open the build in Game Manager or call GetBuild — the same people who can
+    // already read the secret from Settings, so this widens no trust boundary, but it IS a second
+    // place the secret lives; see docs/PLAYFAB_SETUP.md's "Handling the Secret Key". Environment
+    // variables, if somehow present, were already tried first and win. Found live 2026-09-11:
+    // every allocated server would otherwise have refused every join with no authority to verify
+    // a session ticket against (ServerMatch.AcceptWithPlayFabAsync).
+    if (playFabAuthority is null)
+    {
+        var startupConfig = GameserverSDK.getConfigSettings();
+        startupConfig.TryGetValue(GameserverSDK.TitleIdKey, out var metadataTitleId);
+        startupConfig.TryGetValue("PLAYFAB_SECRET_KEY", out var metadataSecretKey);
+        playFabAuthority = CreatePlayFabAuthority(metadataTitleId, metadataSecretKey, source: "GSDK config + build metadata");
+        if (playFabAuthority is null)
+        {
+            var warning = "PlayFab not configured: no PLAYFAB_SECRET_KEY in this build's metadata — every PlayFab-identified join will be refused. Add it to the build in Game Manager (docs/MP07_RUNBOOK.md).";
+            GameserverSDK.LogMessage(warning);
+            Console.WriteLine(warning);
+        }
+    }
+
     var registry = new MatchRegistry(replayDirectory, playFabAuthority);
 
     // Case-insensitive on purpose: found live (2026-09-09) that Game Manager's own build form

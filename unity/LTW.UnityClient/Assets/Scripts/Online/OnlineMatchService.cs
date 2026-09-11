@@ -389,20 +389,71 @@ namespace LTW.UnityClient.Online
         /// explicit direction. If nobody else shows up within
         /// <see cref="MatchmakingGiveUpAfterSeconds"/>, the ticket cancels and this falls back to
         /// <see cref="RequestServerAsync"/>'s existing, already-proven direct solo-vs-bots path —
-        /// same as if matchmaking had never been attempted.
+        /// same as if matchmaking had never been attempted. The same fallback runs if the ticket
+        /// can't be created at all: matchmaking is opportunistic, the direct request is the
+        /// guaranteed route, and a queue that's missing or momentarily unpublished must not stop a
+        /// solo player from playing. Found live 2026-09-11 — the first Play Online tap against a
+        /// real build dead-ended on "Could not find a queue config for the referenced queue"
+        /// because the queue hadn't been created yet, with a perfectly good server standing by.
         /// </summary>
         private static async Task<MatchWireClient?> QueueForMatchAsync(string playFabId, string entityToken, PlayFab.AuthenticationModels.EntityKey entity, Action<string> onFailure)
         {
-            string ticketId;
+            string? ticketId;
             try
             {
                 ticketId = await CreateMatchmakingTicketAsync(entity);
             }
             catch (Exception exception)
             {
-                onFailure($"Could not create a matchmaking ticket: {exception.Message}");
+                // A warning, not onFailure: the player still gets a match via the direct path
+                // below, but a misconfigured queue should stay visible in the log, not vanish.
+                UnityEngine.Debug.LogWarning($"Matchmaking unavailable, requesting a solo server directly instead: {exception.Message}");
+                ticketId = null;
+            }
+
+            if (ticketId is not null)
+            {
+                var pooled = await AwaitPooledMatchAsync(ticketId, onFailure);
+                if (pooled.Outcome == PooledOutcome.Joined)
+                {
+                    return pooled.Client;
+                }
+
+                if (pooled.Outcome == PooledOutcome.Failed)
+                {
+                    return null;
+                }
+            }
+
+            // Nobody else was queuing within the bounded wait (the common case at this
+            // population), or no ticket could be created. Falls back to the same direct-request
+            // flow that ran unconditionally before matchmaking existed; a solo player sees no
+            // functional difference.
+            (string sessionId, string host, int port) allocation;
+            try
+            {
+                allocation = await RequestServerAsync(playFabId, entityToken);
+            }
+            catch (Exception exception)
+            {
+                onFailure($"Could not request a server: {exception.Message}");
                 return null;
             }
+
+            return await JoinAsync(allocation.sessionId, allocation.host, allocation.port, onFailure);
+        }
+
+        private enum PooledOutcome { Joined, Failed, NobodyElse }
+
+        /// <summary>
+        /// Polls a created ticket to its end. <see cref="PooledOutcome.NobodyElse"/> means the
+        /// ticket cancelled (or the local deadline passed) without a second player — the caller
+        /// falls back to a direct request. <see cref="PooledOutcome.Failed"/> means an error was
+        /// already reported through <paramref name="onFailure"/> mid-flow, so the caller must not
+        /// start a second attempt on top of it.
+        /// </summary>
+        private static async Task<(PooledOutcome Outcome, MatchWireClient? Client)> AwaitPooledMatchAsync(string ticketId, Action<string> onFailure)
+        {
 
             // A small safety margin beyond the ticket's own server-side GiveUpAfterSeconds timer —
             // PlayFab is what actually transitions the ticket to Canceled; this just guards against
@@ -421,7 +472,7 @@ namespace LTW.UnityClient.Online
                 catch (Exception exception)
                 {
                     onFailure($"Could not check matchmaking ticket status: {exception.Message}");
-                    return null;
+                    return (PooledOutcome.Failed, null);
                 }
 
                 status = ticket.Status;
@@ -439,7 +490,7 @@ namespace LTW.UnityClient.Online
                 catch (Exception exception)
                 {
                     onFailure($"Could not get match details: {exception.Message}");
-                    return null;
+                    return (PooledOutcome.Failed, null);
                 }
 
                 // Case-insensitive — see the identical fix and remarks above (RequestServerAsync's
@@ -451,24 +502,11 @@ namespace LTW.UnityClient.Online
                 // is not guaranteed to equal PlayFab's own MatchId here — HttpMatchHost's "current"
                 // join alias exists specifically to sidestep needing that equivalence. See
                 // docs/MULTIPLAYER_ROLLOUT.md's MP-05.
-                return await JoinAsync("current", match.ServerDetails.IPV4Address, matchedPort, onFailure);
+                var client = await JoinAsync("current", match.ServerDetails.IPV4Address, matchedPort, onFailure);
+                return (client is null ? PooledOutcome.Failed : PooledOutcome.Joined, client);
             }
 
-            // Nobody else was queuing within the bounded wait — the common case at this
-            // population. Falls back to the same direct-request flow that ran unconditionally
-            // before matchmaking existed; a solo player sees no functional difference.
-            (string sessionId, string host, int port) allocation;
-            try
-            {
-                allocation = await RequestServerAsync(playFabId, entityToken);
-            }
-            catch (Exception exception)
-            {
-                onFailure($"Could not request a server: {exception.Message}");
-                return null;
-            }
-
-            return await JoinAsync(allocation.sessionId, allocation.host, allocation.port, onFailure);
+            return (PooledOutcome.NobodyElse, null);
         }
 
         private static Task<string> CreateMatchmakingTicketAsync(PlayFab.AuthenticationModels.EntityKey entity)

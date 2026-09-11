@@ -1,0 +1,56 @@
+{
+  // LocalMultiplayerAgent config for LTW.MatchServer — the pre-upload gate in docs/MP07_RUNBOOK.md
+  // ("Test the exact image locally before uploading"). Copy over the MultiplayerSettings.json in
+  // the extracted LocalMultiplayerAgent folder, then fill in ImageTag, Username and Password from
+  // Game Manager's New Build page. Never commit the filled-in copy — the password is a credential.
+  // LMA's own parser accepts these // comments (its shipped sample uses them).
+  "RunContainer": true,
+  // true = pull from the registry, so this tests exactly what PlayFab will pull. The tag must be
+  // multi-arch (the runbook's buildx command) — an Apple Silicon Mac pulls the arm64 slice.
+  "ForcePullContainerImageFromRegistry": true,
+  // Both must be non-empty or LMA's validator throws before doing anything (found 2026-09-05).
+  "OutputFolder": "./lma-output",
+  "TitleId": "FBC34",
+  "BuildId": "00000000-0000-0000-0000-000000000000",
+  "Region": "EastUs",
+  "AgentListeningPort": 56001,
+  "NumHeartBeatsForActivateResponse": 10,
+  "NumHeartBeatsForTerminateResponse": 60,
+  "ContainerStartParameters": {
+    "ImageDetails": {
+      "Registry": "customerxm4ogh3zbvndm.azurecr.io",
+      "ImageName": "ltw-matchserver",
+      "ImageTag": "<the tag you are about to create a build from>",
+      "Username": "",
+      "Password": ""
+    }
+  },
+  // Build metadata, merged verbatim into GameserverSDK.getConfigSettings() — the channel a real
+  // build uses for the title secret (runbook step 4). Any non-empty dummy value here makes the
+  // server log "PlayFab configured ... (from GSDK config + build metadata)" without a real
+  // secret; a join would then fail PlayFab's own verification, which is fine for a lifecycle check.
+  "DeploymentMetadata": {
+    "Environment": "LOCAL",
+    "PLAYFAB_SECRET_KEY": "local-dummy-not-a-real-secret"
+  },
+  // Must match Program.cs's gamePortName / MultiplayerServerConfig.PortName and the build form.
+  "PortMappingsList": [
+    [
+      {
+        "NodePort": 56100,
+        "GamePort": {
+          "Name": "game",
+          "Number": 5117,
+          "Protocol": "TCP"
+        }
+      }
+    ]
+  ],
+  // Mirrors what a real direct RequestMultiplayerServer call sends today (CreateMatchRequest's
+  // JSON shape) — this is the client's live path, not the not-yet-wired matchmaking-queue one.
+  "SessionConfig": {
+    "SessionId": "ba67d671-512a-4e7d-a38c-2329ce181946",
+    "SessionCookie": "{\"HumanSeats\":[1],\"PlayFabSeats\":{\"1\":\"LocalTestPlayFabId\"}}",
+    "InitialPlayers": [ "LocalTestPlayFabId" ]
+  }
+}

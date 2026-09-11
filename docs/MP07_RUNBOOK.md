@@ -20,29 +20,45 @@ built from it (it references `../LTW.Simulation`, so the build context must be t
 
 ## 1. Deploy
 
-1. Build the MPS-mode image (the `MATCHSERVER_MODE` build arg is what makes this image come up in
-   `mps` mode by default — see `src/LTW.MatchServer/Dockerfile`'s own top-of-file remarks for why
-   this exists instead of an orchestrator-injected environment variable):
+1. Get registry credentials: Game Manager → title `FBC34` → **Multiplayer → Servers → New build**
+   → select **Linux** → note the shown username, password, and server URL
+   (`customerXXXXXXXX.azurecr.io`). PlayFab provisions this registry automatically per account —
+   there is no separate Azure resource to create or manage for it.
 
-   ```
-   docker build -f src/LTW.MatchServer/Dockerfile --build-arg MATCHSERVER_MODE=mps -t ltw-matchserver:<version> .
-   ```
-
-2. Get registry credentials: Game Manager → title `FBC34` → **Multiplayer → Servers → New build**
-   (or, for an existing build, wherever its "upload a new image" flow is) → select **Linux** →
-   note the shown username, password, and server URL (`customerXXXXXXXX.azurecr.io`). PlayFab
-   provisions this registry automatically per account — there is no separate Azure resource to
-   create or manage for it.
-
-3. Push:
+2. Build for **both** architectures and push in one step, under a tag **unique to this build**
+   (the `MATCHSERVER_MODE` build arg is what makes the image come up in `mps` mode by default —
+   see `src/LTW.MatchServer/Dockerfile`'s own top-of-file remarks):
 
    ```
    docker login <server-url> -u <username> --password-stdin   # paste the password, don't leave it in shell history
-   docker tag ltw-matchserver:<version> <server-url>/ltw-matchserver:<version>
-   docker push <server-url>/ltw-matchserver:<version>
+   docker buildx build --platform linux/amd64,linux/arm64 \
+     --build-arg MATCHSERVER_MODE=mps \
+     -t <server-url>/ltw-matchserver:mps-<yyyymmdd> \
+     -f src/LTW.MatchServer/Dockerfile . --push
    ```
 
-4. Back in Game Manager: **Refresh Images**, select the pushed tag. Configure:
+   - `--platform linux/amd64` is not optional. Azure's Dasv4 VMs are x86-64, and Docker Desktop
+     on an Apple Silicon Mac builds **arm64 by default** — an arm64-only image builds, pushes and
+     inspects fine, then fails every VM with "propping failed" (found live 2026-09-11, see below).
+     The arm64 slice is what lets `LocalMultiplayerAgent` run the very same tag on the Mac.
+   - **One tag per build; never re-push to a tag an existing build references.** A VM that
+     already pulled that tag keeps what it has, so the same tag then means different images on
+     different machines and the build can no longer be reasoned about. `mps` was re-pushed three
+     times on 2026-09-11 while chasing this and is retired — don't create builds against it.
+
+3. **Run the local gate** ("Test the exact image locally before uploading", below) against the
+   tag you just pushed. About two minutes; it would have caught two of this build's three real
+   startup failures before they ever reached Azure.
+
+4. Back in Game Manager, create the build against the pushed tag. Configure:
+   - **Metadata**: key `PLAYFAB_SECRET_KEY`, value the title's Secret Key (Settings → Secret
+     Keys). This is how the secret reaches the container: PlayFab's build form has no
+     environment-variable field, and the GSDK merges build metadata straight into
+     `getConfigSettings()` (`Program.cs` reads it there; the title id needs no entry, the GSDK
+     config already carries it). Metadata is part of the build *definition* and cannot be added
+     later — a build created without it comes up healthy and then refuses every join. Type it
+     into the form; don't paste it anywhere on the way. See PLAYFAB_SETUP.md's "Handling the
+     Secret Key" for what this does and doesn't expose.
    - Port: name **`game`**, container port **`5117`**, protocol **TCP** — must match both
      `Program.cs`'s `gamePortName` constant and the client's `MultiplayerServerConfig.PortName`.
      A mismatch here fails loudly (`InvalidOperationException` at startup, not a silent
@@ -67,12 +83,52 @@ process per match, not one process serving many), independent of any Build chang
 match's server was already allocated. Pushing a new image or changing standby/max counts affects
 only servers requested **after** the change — an in-flight match is never disturbed by a deploy.
 
-### A build region shows "Unhealthy" and there's no server log to read
+### Test the exact image locally before uploading
+
+PlayFab's `LocalMultiplayerAgent` (LMA) simulates the real VM agent — GSDK config file, heartbeat
+endpoint, allocation, log capture — against a real container from the registry. Two checks; run
+both, because they catch different things:
+
+1. **Lifecycle.** Download `LocalMultiplayerAgent-osx-arm64.zip` from
+   github.com/PlayFab/MpsAgent/releases (v0.12.0-beta works on Apple Silicon), unzip, run
+   `setup_macos.sh` once (creates the `playfab` Docker network). Copy
+   `tools/lma/MultiplayerSettings.json` over the one in the extracted folder, fill in the tag and
+   the registry username/password (never commit that copy), run `./LocalMultiplayerAgent`. Expect
+   `CurrentGameState: StandingBy` heartbeats and then `CurrentGameState: Active`; anything else
+   (`fail:`, `Unhandled exception`, an exit) is a real startup bug. Container stdout and the
+   GSDK's own log land under `OutputFolder/PlayFabVmAgentOutput/<timestamp>/GameLogs/`.
+2. **Root-owned log mount.** LMA alone passed on 2026-09-11 while every real Azure server was
+   crashing, because Docker Desktop's macOS bind mounts let any uid write — a real PlayFab VM's
+   agent creates `/data/GameLogs` as root. Reproduce that with a root-owned tmpfs, using the GSDK
+   config LMA generated in step 1 (`.../Config/SH0/gsdkConfig.json`):
+
+   ```
+   docker run --rm -v <that Config/SH0 dir>:/config:ro -e GSDK_CONFIG_FILE=/config/gsdkConfig.json \
+     --tmpfs /data/GameLogs:rw,mode=755,uid=0,gid=0 --entrypoint sh <server-url>/ltw-matchserver:<tag> \
+     -c 'timeout 15 /usr/local/bin/ltw-entrypoint; echo EXIT $?; ls -la /data/GameLogs'
+   ```
+
+   Pass: `EXIT 124` (alive until the cap) and a `GSDK_output_*.txt` owned by `app`. Fail: `EXIT
+   134` with `UnauthorizedAccessException` from `FileSystemLogger.Start()` — the exact crash
+   Game Manager reports only as "too many restarts".
+
+### A build region shows "Unhealthy", "propping failed", or "too many restarts" — and there's no server log to read
 
 A build-level health failure (a region that never reaches Standing By) has **no per-server
 download-logs entry** — those only exist once a server has actually been allocated to a match (see
 "Investigate a desync" below). This is a different, earlier failure than that section covers, and
-needs different troubleshooting.
+needs different troubleshooting. Game Manager's three wordings do carry signal, and each has now
+been hit for real:
+
+| Game Manager shows | What it means | Real cause found |
+|---|---|---|
+| **Unhealthy** (region never lists a server) | No heartbeat within its window, or no standby capacity ever provisioned | 2026-09-09: port-name case bug (below). 2026-09-11: a region whose standby config never took — only "delete region" offered; deleting and re-adding it (Standby 1 / Max 2) got a real provisioning attempt |
+| **propping failed** | VM couldn't pull/create the container at all | 2026-09-11: image built arm64 on an Apple Silicon Mac; Dasv4 is x86-64. `docker manifest inspect <image>` shows `"architecture": "arm64"` and no `amd64` entry |
+| **too many restarts** | Container starts, exits, is restarted, repeatedly | 2026-09-11: the image's non-root `USER` (security audit L4) can't write PlayFab's root-owned log mount; the C# GSDK opens its own log file inside `Start()` and threw before the first heartbeat. Fixed by `src/LTW.MatchServer/docker-entrypoint.sh` — root for one `chown`, then `exec setpriv` to `app`, PlayFab's own documented Unreal pattern |
+
+Each of these hid the next: nothing could surface the non-root crash until the container could
+start, and nothing could start until the architecture was right. When a build fails with no log,
+assume there may be more than one cause and re-run the local gate above after every fix.
 
 **Real cause found and fixed 2026-09-09** (see MULTIPLAYER_ROLLOUT.md's Phase 5 for the full
 story): Game Manager's own build form capitalizes a typed port name back on display (type `game`,
@@ -103,7 +159,10 @@ practical fix, for a build that was never carrying real traffic anyway: push the
 create a **new** build with the same settings, confirm it comes up healthy, then drain (standby/
 max to 0) or delete the broken one so it stops holding quota for a build that can never recover.
 This is exactly what happened 2026-09-09: `faee9e3e-...` (Unhealthy, abandoned) →
-`4dbf4418-...` (healthy, now the one recorded in `MultiplayerServerConfig.cs`).
+`4dbf4418-...`, which reported healthy at creation. That report was hollow — its image was arm64
+(see the table above), so no container of it ever ran; it went "propping failed" the moment a
+region actually tried, and was abandoned in turn on 2026-09-11 for a build on `mps-20260911`.
+A "healthy" build that has never been allocated proves less than it looks like it does.
 
 ### Dasv4 quota (first deploy only, usually)
 

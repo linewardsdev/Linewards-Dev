@@ -12,12 +12,15 @@ namespace LTW.UnityClient.Online
     public static class MultiplayerServerConfig
     {
         /// <summary>
-        /// The uploaded build's guid, from PlayFab Game Manager. Set 2026-09-09, once the build
-        /// reported healthy in its region — the build this replaced (created earlier the same
-        /// day) came up Unhealthy from the case-sensitive port-name bug this file's own
-        /// <see cref="PortName"/> is downstream of; see MULTIPLAYER_ROLLOUT.md's MP-07 Phase 5.
+        /// The uploaded build's guid, from PlayFab Game Manager. Set 2026-09-11 to the build on
+        /// image tag <c>mps-20260911b</c> — the first that both runs on Azure and carries the
+        /// title secret (as build metadata) it needs to verify a join. The three builds before it
+        /// (<c>faee9e3e</c>, <c>4dbf4418</c>, <c>36cfe0aa</c>) each hid a real defect: a
+        /// case-sensitive port-name lookup, an arm64 image on x86-64 VMs, a non-root user unable
+        /// to write PlayFab's log mount, and no secret reaching the container at all. See
+        /// MULTIPLAYER_ROLLOUT.md's MP-07 Phase 5.
         /// </summary>
-        public const string BuildId = "4dbf4418-7048-4d7e-a8ed-68c617dd6c0a";
+        public const string BuildId = "b1f71d89-87ab-40e4-82fc-01acbf88d4e3";
 
         /// <summary>
         /// Tried in order until one has a server available — see
