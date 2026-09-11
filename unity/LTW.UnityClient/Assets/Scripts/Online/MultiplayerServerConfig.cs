@@ -38,10 +38,32 @@ namespace LTW.UnityClient.Online
         public const string PortName = "game";
 
         /// <summary>
-        /// The matchmaking queue created in PlayFab Game Manager (MP-05's Phase 2) — must have
-        /// <c>ServerAllocationEnabled</c> pointed at the same <see cref="BuildId"/> above. Not set
-        /// until that portal step is done. See docs/MULTIPLAYER_ROLLOUT.md's MP-05.
+        /// The matchmaking queue created via the PlayFab API (MP-05 Phase 2,
+        /// <c>tools/playfab/create_queue.py</c>, 2026-09-11): <c>MinMatchSize 2</c>,
+        /// <c>MaxMatchSize 8</c>, <c>ServerAllocationEnabled</c> pointed at <see cref="BuildId"/>
+        /// above. Created through the API, not Game Manager's form, for the same reason
+        /// <c>create_build.py</c> exists — <c>SetMatchmakingQueue</c> is not exposed as a portal
+        /// form action at all. See docs/MULTIPLAYER_ROLLOUT.md's MP-05.
         /// </summary>
-        public const string MatchmakingQueueName = "TODO-set-after-queue-creation";
+        public const string MatchmakingQueueName = "ltw-quickmatch";
+
+        /// <summary>
+        /// The single Azure region this queue's <c>RegionSelectionRule</c> and every matchmaking
+        /// ticket's <c>Latencies</c> attribute name — must match <see cref="PreferredRegions"/>
+        /// and the build's own region (both <c>EastUs</c> today). A queue with
+        /// <c>ServerAllocationEnabled</c> requires a <c>RegionSelectionRule</c>, and PlayFab
+        /// rejects a ticket with <c>MatchmakingAttributeInvalid</c> if it carries no matching
+        /// latency measurement — see <c>OnlineMatchService.CreateMatchmakingTicketAsync</c>, which
+        /// sends this as a synthetic value rather than a real QoS beacon measurement (Party's beacon
+        /// SDK is not integrated). Harmless with exactly one region: there is nowhere else a server
+        /// could be allocated, so the number only has to clear <see cref="RegionSelectionRuleMaxLatencyMs"/>,
+        /// never actually pick between regions. Revisit — a real measurement, not a placeholder —
+        /// before a second region is ever added.
+        /// </summary>
+        public const string RegionSelectionRuleRegion = "EastUs";
+
+        /// <summary>See <see cref="RegionSelectionRuleRegion"/>. Comfortably under the queue's
+        /// configured <c>MaxLatency</c> (500ms) with room to spare.</summary>
+        public const int SyntheticRegionLatencyMs = 10;
     }
 }

@@ -43,7 +43,7 @@ namespace LTW.UnityClient.Online
         /// MP-07's Phase 5 (a real PlayFab build uploaded and "game client access" enabled) exists
         /// to point at, per that phase's own checklist.
         /// </summary>
-        public static bool UseMultiplayerServers = false;
+        public static bool UseMultiplayerServers = true;
 
         /// <summary>
         /// <c>PlayerPrefs</c> key for the match a player is currently (or was, at last kill) in —
@@ -542,6 +542,27 @@ namespace LTW.UnityClient.Online
                         // PlayFab.AuthenticationModels.EntityKey despite the identical shape — the
                         // vendored SDK duplicates this model per API category rather than sharing one.
                         Entity = new PlayFab.MultiplayerModels.EntityKey { Id = entity.Id, Type = entity.Type },
+                        // The queue's RegionSelectionRule (mandatory once ServerAllocationEnabled
+                        // is set — see MultiplayerServerConfig.RegionSelectionRuleRegion's own
+                        // remarks) validates every ticket against a "Latencies" attribute at
+                        // creation time; a ticket with none is rejected outright with
+                        // MatchmakingAttributeInvalid, not merely deprioritized. There is only one
+                        // region to report, so this is a placeholder value, not a real QoS
+                        // measurement.
+                        Attributes = new MatchmakingPlayerAttributes
+                        {
+                            DataObject = new Dictionary<string, object>
+                            {
+                                ["Latencies"] = new object[]
+                                {
+                                    new Dictionary<string, object>
+                                    {
+                                        ["region"] = MultiplayerServerConfig.RegionSelectionRuleRegion,
+                                        ["latency"] = MultiplayerServerConfig.SyntheticRegionLatencyMs,
+                                    },
+                                },
+                            },
+                        },
                     },
                 },
                 result => completion.TrySetResult(result.TicketId),

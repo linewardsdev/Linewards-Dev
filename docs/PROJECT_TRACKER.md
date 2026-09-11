@@ -153,11 +153,17 @@ places.
       2026-09-09** on the current bundle ID (`com.linewardsgames.linewards`) and a fresh export —
       resolves the open question raised earlier the same day about whether the bundle-ID change
       had left the Google Cloud OAuth client's registration stale; it hadn't, or it no longer
-      matters. The Azure Dasv4 quota that blocked live matchmaking verification is now approved
-      (2026-09-08/09) — still needs the actual PlayFab matchmaking queue created (MP-07's
-      `BuildId` now exists: `4dbf4418-7048-4d7e-a8ed-68c617dd6c0a`) before the two-real-identities
-      pooling check can run live. Not started: Android identity (Google Play Games Services).
-      Unchecked: "results survive a client crash and a server restart."
+      matters. **Matchmaking queue created and verified 2026-09-11** (`tools/playfab/create_queue.py`,
+      queue `ltw-quickmatch`, `MinMatchSize 2`/`MaxMatchSize 8`, pointed at MP-07's live build
+      `b922cefb-e900-49fa-84d4-f3d8cf40999a`) — a real gap found and fixed in the same pass: a
+      queue with server allocation requires a `RegionSelectionRule`, which in turn requires every
+      ticket to carry a matching `Latencies` attribute or PlayFab rejects it outright; the client
+      sent none before this, which `QueueForMatchAsync`'s own fallback would have masked as "nobody
+      else queuing" forever. Fixed with a synthetic single-region value (see
+      `MultiplayerServerConfig.RegionSelectionRuleRegion`). What's left is a live run with two real,
+      concurrently-queuing identities — not yet possible from this environment. Not started:
+      Android identity (Google Play Games Services). Unchecked: "results survive a client crash
+      and a server restart."
 - [x] **MP-06 — Client over the wire.** Every acceptance check in this initiative's own scope is
       done — real device, real match, reconnect survivability (including kill-and-relaunch),
       clean-exit paths, all confirmed live 2026-09-04/05.

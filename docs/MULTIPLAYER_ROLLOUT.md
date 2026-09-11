@@ -765,23 +765,48 @@ a convenience.
   expected common case at this population), falls back to the existing `RequestServerAsync` path
   unchanged. `RequestServerAsync` itself is untouched — it's now `QueueForMatchAsync`'s fallback
   callee rather than being called directly from `CreateAndJoinAsync`.
-- **Not yet done**: the actual PlayFab Game Manager queue (name, `MinMatchSize: 2`/`MaxMatchSize: 8`,
-  `ServerAllocationEnabled` tied to MP-07's `BuildId`) hasn't been created — portal work, needing
-  MP-07's `BuildId` to exist first (see Phase 5 below: the Dasv4 quota is now approved and a build
-  is provisioning, but no `BuildId` is recorded yet). Live verification (two real identities
-  queuing together, and the solo-timeout-fallback path) needs that queue plus a real allocatable
-  server. `dotnet test` (388/388) and Unity batchmode compile (0 `error CS`) are what's verified so
-  far — matching this project's own established limit for GSDK/PlayFab-network code that can't be
-  unit-tested without a real or simulated agent.
+- **The queue itself — created 2026-09-11**, via the API rather than Game Manager: like build
+  creation, `SetMatchmakingQueue` has no portal form at all, so `tools/playfab/create_queue.py`
+  (mirroring `create_build.py`'s shape) does the whole thing — set, then verify via
+  `GetMatchmakingQueue`. Queue `ltw-quickmatch`: `MinMatchSize 2`, `MaxMatchSize 8`,
+  `ServerAllocationEnabled true`, `BuildId` set to the confirmed-live build
+  `b922cefb-e900-49fa-84d4-f3d8cf40999a` (MP-07 Phase 5). `MultiplayerServerConfig.MatchmakingQueueName`
+  updated from its `TODO` placeholder to `"ltw-quickmatch"`.
+- **A real trap found wiring this up, not merely a formality**: `ServerAllocationEnabled` makes a
+  `RegionSelectionRule` mandatory on the queue config — confirmed directly against PlayFab's own
+  REST reference, not assumed — and a `RegionSelectionRule` in turn requires every matchmaking
+  ticket to carry a matching `Latencies` attribute; a ticket with none is rejected outright with
+  `MatchmakingAttributeInvalid`, not merely deprioritized. `CreateMatchmakingTicketAsync` never
+  set any ticket attributes at all before this pass, which would have made every real matchmaking
+  attempt fail at creation and — because `QueueForMatchAsync` already catches that exception and
+  falls back to the direct solo path — fail *silently*, indistinguishable from an empty queue.
+  Fixed by having the ticket report a synthetic single-region latency
+  (`MultiplayerServerConfig.RegionSelectionRuleRegion`/`SyntheticRegionLatencyMs`, both new) rather
+  than a real QoS beacon measurement (Party's beacon SDK is not integrated) — harmless with exactly
+  one region, since there is nowhere else a server could be allocated regardless of the number
+  reported; revisit with a real measurement before a second region is ever added.
+- **Verified so far**: `tools/playfab/create_queue.py` against the real title —
+  `GetMatchmakingQueue` echoes back the exact config set (`BuildId`, both size bounds,
+  `ServerAllocationEnabled: true`, the `RegionSelectionRule`). Unity batchmode compile, 0
+  `error CS`. **Not yet verified**: an actual pooled match — two real identities queuing
+  concurrently and landing in one server together — which needs two real signed-in clients queuing
+  at the same time, not just a queue that exists. The solo-timeout-fallback path (nobody else
+  queuing) is exactly the path MP-07's 2026-09-11 real tap already exercised end to end, just
+  before this queue existed (it dead-ended into the direct-request fallback then); it has not been
+  re-run with the queue live to confirm the fallback still triggers correctly now that ticket
+  creation succeeds instead of throwing.
 
 ### Acceptance Checks
 
 - [ ] A player queues alone and is in a match within the bounded wait, against bots. Code landed
-      2026-09-05 (see above); live verification blocked on the same quota approval as MP-07.
+      2026-09-05; the queue itself and a valid ticket attribute landed 2026-09-11 (see above). No
+      longer blocked on quota or a missing queue — what's left is a live run to confirm the
+      solo-timeout-fallback path still works now that ticket creation succeeds instead of throwing.
 - [ ] Four players queuing together land in one match with four bot seats. Reframed per explicit
       product direction — see above: players pool opportunistically if queuing concurrently, there
-      is no deliberate "queue together" invite mechanism. Code landed 2026-09-05; live verification
-      blocked on the same quota approval as MP-07.
+      is no deliberate "queue together" invite mechanism. Code and queue both landed 2026-09-11;
+      not yet run against two real concurrently-queuing identities — nothing in this environment
+      can drive two simultaneous real clients.
 - [ ] Results survive a client crash and a server restart.
 - [x] Every third-party service used is in `MVP_DEPENDENCIES.md` — PlayFab is recorded there now.
 - [x] A PlayFab session ticket claims the seat it was verified for, and only that seat — proven
