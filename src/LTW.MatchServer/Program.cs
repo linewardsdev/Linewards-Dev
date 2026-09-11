@@ -94,6 +94,9 @@ static async Task RunUnderPlayFabMultiplayerServersAsync(PlayFabSessionAuthority
     // this build in PlayFab Game Manager (MP-07's Phase 5) and the client's
     // MultiplayerServerConfig.PortName.
     const string gamePortName = "game";
+    // PlayFab delivers a game secret named X as environment variable PF_MPS_SECRET_X — the
+    // secret is uploaded under the name PLAYFAB_SECRET_KEY, so this is what arrives.
+    const string GameSecretEnvironmentVariable = "PF_MPS_SECRET_PLAYFAB_SECRET_KEY";
     var json = new JsonSerializerOptions(JsonSerializerDefaults.Web);
 
     var exit = new TaskCompletionSource();
@@ -108,9 +111,11 @@ static async Task RunUnderPlayFabMultiplayerServersAsync(PlayFabSessionAuthority
 
     // Both callbacks are informational to PlayFab only — PlayFabSessionAuthority/
     // ServerMatch.AcceptWithPlayFabAsync remains the sole real join enforcement, unchanged.
+    var firstHumanBound = new TaskCompletionSource();
     void OnSeatBound(int seat, LTW.Simulation.Primitives.PlayerId playerId)
     {
         connectedSeats[seat] = playerId;
+        firstHumanBound.TrySetResult();
         ReportConnectedPlayers();
     }
 
@@ -152,25 +157,35 @@ static async Task RunUnderPlayFabMultiplayerServersAsync(PlayFabSessionAuthority
     // Start(), unlike SessionCookieKey/SessionIdKey below, which need allocation first.
     var replayDirectory = Path.Combine(GameserverSDK.GetLogsDirectory(), "replays");
 
-    // PlayFab's build form has no environment-variable field, so under MPS the title secret
-    // arrives as build METADATA — a key/value set on the build in Game Manager, which the GSDK
-    // merges verbatim into getConfigSettings() (confirmed in InternalSdk.cs, not assumed). The
-    // title id needs no metadata at all: the GSDK config already carries it. Metadata is readable
-    // by anyone who can open the build in Game Manager or call GetBuild — the same people who can
-    // already read the secret from Settings, so this widens no trust boundary, but it IS a second
-    // place the secret lives; see docs/PLAYFAB_SETUP.md's "Handling the Secret Key". Environment
-    // variables, if somehow present, were already tried first and win. Found live 2026-09-11:
-    // every allocated server would otherwise have refused every join with no authority to verify
-    // a session ticket against (ServerMatch.AcceptWithPlayFabAsync).
+    // Under MPS there is no PLAYFAB_TITLE_ID/PLAYFAB_SECRET_KEY environment: the title id comes
+    // from the GSDK config, and the secret from PlayFab's own "game secrets" feature — uploaded
+    // once to the title (UploadSecret), referenced by name on the build (GameSecretReferences),
+    // and delivered to every server as an environment variable named PF_MPS_SECRET_<name>
+    // (learn.microsoft.com/gaming/playfab/multiplayer/servers/manage-secrets). GetBuild never
+    // shows its value, and Game Manager's New Build form can't set it — builds using it are
+    // created through the API (docs/MP07_RUNBOOK.md). Build METADATA, merged verbatim into
+    // getConfigSettings() (confirmed in InternalSdk.cs), stays as a fallback for a build created
+    // that way. Found live 2026-09-11: two builds created through the form carried no metadata at
+    // all, and every server refused every join with no authority to verify a ticket against
+    // (ServerMatch.AcceptWithPlayFabAsync) — the archived log said exactly that.
     if (playFabAuthority is null)
     {
         var startupConfig = GameserverSDK.getConfigSettings();
-        startupConfig.TryGetValue(GameserverSDK.TitleIdKey, out var metadataTitleId);
-        startupConfig.TryGetValue("PLAYFAB_SECRET_KEY", out var metadataSecretKey);
-        playFabAuthority = CreatePlayFabAuthority(metadataTitleId, metadataSecretKey, source: "GSDK config + build metadata");
+        startupConfig.TryGetValue(GameserverSDK.TitleIdKey, out var gsdkTitleId);
+        var gameSecret = Environment.GetEnvironmentVariable(GameSecretEnvironmentVariable);
+        if (!string.IsNullOrEmpty(gameSecret))
+        {
+            playFabAuthority = CreatePlayFabAuthority(gsdkTitleId, gameSecret, source: "GSDK config + PlayFab game secret");
+        }
+        else
+        {
+            startupConfig.TryGetValue("PLAYFAB_SECRET_KEY", out var metadataSecretKey);
+            playFabAuthority = CreatePlayFabAuthority(gsdkTitleId, metadataSecretKey, source: "GSDK config + build metadata");
+        }
+
         if (playFabAuthority is null)
         {
-            var warning = "PlayFab not configured: no PLAYFAB_SECRET_KEY in this build's metadata — every PlayFab-identified join will be refused. Add it to the build in Game Manager (docs/MP07_RUNBOOK.md).";
+            var warning = $"PlayFab not configured: this build references no game secret (env {GameSecretEnvironmentVariable}) and carries no PLAYFAB_SECRET_KEY metadata — every PlayFab-identified join will be refused. See docs/MP07_RUNBOOK.md's deploy steps.";
             GameserverSDK.LogMessage(warning);
             Console.WriteLine(warning);
         }
@@ -262,8 +277,32 @@ static async Task RunUnderPlayFabMultiplayerServersAsync(PlayFabSessionAuthority
     GameserverSDK.LogMessage(bootstrapMessage);
     Console.WriteLine(bootstrapMessage);
 
-    // Process exit itself is the "I'm done" signal to PlayFab's agent — there is no separate GSDK
-    // call to make beyond simply returning from Main.
-    await Task.WhenAny(exit.Task, currentMatch.Completion);
+    // A match nobody ever joins must not run to its natural end: ServerMatch happily plays a
+    // bot-vs-bot match for a human who was refused at the door or never dialed, which under MPS
+    // keeps this VM allocated (billed) for the whole match AND keeps PlayFab from archiving this
+    // server's log — the log that says why the join was refused. Found 2026-09-11: the first
+    // refused real join left an Active server with "no logs to download" for exactly this
+    // reason. Ends the match if no human binds a seat within a bounded window; a match that
+    // had a human and lost them is MP-06 reconnect's concern, not this one's.
+    const int NoHumanJoinedTimeoutSeconds = 60;
+    var noHumanJoined = Task.Delay(TimeSpan.FromSeconds(NoHumanJoinedTimeoutSeconds));
+    var first = await Task.WhenAny(exit.Task, currentMatch.Completion, firstHumanBound.Task, noHumanJoined);
+    if (first == noHumanJoined)
+    {
+        var message = $"Match {currentMatch.MatchId}: no human joined within {NoHumanJoinedTimeoutSeconds}s of allocation — ending it so this server can exit.";
+        GameserverSDK.LogMessage(message);
+        Console.WriteLine(message);
+        currentMatch.Stop();
+        host.Stop();
+        return;
+    }
+
+    if (first == firstHumanBound.Task)
+    {
+        // Process exit itself is the "I'm done" signal to PlayFab's agent — there is no separate
+        // GSDK call to make beyond simply returning from Main.
+        await Task.WhenAny(exit.Task, currentMatch.Completion);
+    }
+
     host.Stop();
 }

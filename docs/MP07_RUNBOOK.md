@@ -50,15 +50,22 @@ built from it (it references `../LTW.Simulation`, so the build context must be t
    tag you just pushed. About two minutes; it would have caught two of this build's three real
    startup failures before they ever reached Azure.
 
-4. Back in Game Manager, create the build against the pushed tag. Configure:
-   - **Metadata**: key `PLAYFAB_SECRET_KEY`, value the title's Secret Key (Settings → Secret
-     Keys). This is how the secret reaches the container: PlayFab's build form has no
-     environment-variable field, and the GSDK merges build metadata straight into
-     `getConfigSettings()` (`Program.cs` reads it there; the title id needs no entry, the GSDK
-     config already carries it). Metadata is part of the build *definition* and cannot be added
-     later — a build created without it comes up healthy and then refuses every join. Type it
-     into the form; don't paste it anywhere on the way. See PLAYFAB_SETUP.md's "Handling the
-     Secret Key" for what this does and doesn't expose.
+4. Create the build **through the API, not the form**:
+
+   ```
+   python3 tools/playfab/create_build.py --tag mps-<yyyymmdd> --name "LineWards East <n>"
+   ```
+
+   Game Manager's New Build form cannot reference a game secret or set build metadata — found
+   2026-09-11 when two form-created builds came up with neither and every server refused every
+   join, the archived log reading "PlayFab not configured". The script needs the title Secret
+   Key in `.env.local` (PLAYFAB_SETUP.md's "Handling the Secret Key"); it uploads/refreshes that
+   key as the **game secret** `PLAYFAB_SECRET_KEY` (PlayFab delivers it to every server as the
+   environment variable `PF_MPS_SECRET_PLAYFAB_SECRET_KEY`, which `Program.cs` reads; the title
+   id comes from the GSDK config), creates the build referencing it, prints the BuildId, and
+   verifies the reference took via `GetBuild`. Secret references are part of the immutable build
+   definition — a build created without one can't be repaired, only replaced. The settings it
+   applies (override with its flags only for a reason):
    - Port: name **`game`**, container port **`5117`**, protocol **TCP** — must match both
      `Program.cs`'s `gamePortName` constant and the client's `MultiplayerServerConfig.PortName`.
      A mismatch here fails loudly (`InvalidOperationException` at startup, not a silent
@@ -117,7 +124,12 @@ both, because they catch different things:
 A build-level health failure (a region that never reaches Standing By) has **no per-server
 download-logs entry** — those only exist once a server has actually been allocated to a match (see
 "Investigate a desync" below). This is a different, earlier failure than that section covers, and
-needs different troubleshooting. Game Manager's three wordings do carry signal, and each has now
+needs different troubleshooting. Note also that even an *allocated* server has no downloadable
+log until it **exits** — PlayFab archives on termination. A server whose only human was refused
+at the door used to sit Active for a whole bot-vs-bot match with its log unreachable (found
+2026-09-11); it now ends an unjoined match 60 s after allocation and exits, so the log appears
+within about a minute of a refused join. Shutting the server down from Game Manager (or
+`ShutdownMultiplayerServer`) archives it immediately if you can't wait. Game Manager's three wordings do carry signal, and each has now
 been hit for real:
 
 | Game Manager shows | What it means | Real cause found |

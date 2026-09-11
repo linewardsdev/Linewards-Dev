@@ -199,6 +199,10 @@ namespace LTW.UnityClient.Online
             // exists because of.
             var encodedTicket = UnityWebRequest.EscapeURL(PlayFabSession.SessionTicket);
             var joinUri = new Uri($"ws://{host}:{port}/matches/{matchId}/join?seat={HumanSeat}&playFabTicket={encodedTicket}");
+            // Host, port and match id only — never the ticket. Without this line the first real
+            // MPS join failure (2026-09-11, "Unable to connect to the remote server") gave no way
+            // to tell a dead server from an unreachable address.
+            UnityEngine.Debug.Log($"SHELL joining match {matchId} at {host}:{port}");
 
             var client = new MatchWireClient(joinUri);
             try
@@ -239,7 +243,10 @@ namespace LTW.UnityClient.Online
                         PlayFabSession.ForgetOnAuthFailure();
                     }
 
-                    onFailure("The server closed the connection while joining — the seat or match may no longer be valid.");
+                    // The close status is the one bit the client can see: PolicyViolation is a
+                    // deliberate refusal (ticket/seat), InternalServerError means the join handler
+                    // threw — different investigations. Found 2026-09-11 when both read identically.
+                    onFailure($"The server closed the connection while joining ({client.CloseStatus?.ToString() ?? "no close status"}) — the seat or match may no longer be valid.");
                     client.Dispose();
                     return null;
                 }
@@ -322,6 +329,18 @@ namespace LTW.UnityClient.Online
         /// <c>GetMultiplayerServerDetails</c> until the allocation reaches <c>"Active"</c>, since a
         /// fresh allocation is not necessarily instant even from a warm pool.
         /// </summary>
+        /// <summary>
+        /// PlayFab returns both a hostname (<c>FQDN</c>) and a raw <c>IPV4Address</c> for an
+        /// allocated server. The name is preferred: an IPv4 literal cannot be dialed at all on an
+        /// IPv6-only network (iOS on most US carriers), which PlayFab added FQDN specifically to
+        /// solve, and a name also survives device-level relays/proxies that treat raw-IP
+        /// destinations differently. Falls back to the address if a response ever lacks the name.
+        /// Introduced 2026-09-11 while chasing an iPad that could reach an allocated server from
+        /// Safari but not from this client's WebSocket — correct regardless of that root cause.
+        /// </summary>
+        private static string PreferHostname(string? fqdn, string ipv4Address) =>
+            string.IsNullOrWhiteSpace(fqdn) ? ipv4Address : fqdn;
+
         private static async Task<(string sessionId, string host, int port)> RequestServerAsync(string playFabId, string entityToken)
         {
             var sessionId = Guid.NewGuid().ToString();
@@ -341,7 +360,7 @@ namespace LTW.UnityClient.Online
             });
 
             var state = initial.State;
-            var ipv4Address = initial.IPV4Address;
+            var host = PreferHostname(initial.FQDN, initial.IPV4Address);
             var ports = initial.Ports;
 
             var deadline = DateTime.UtcNow.AddSeconds(ServerAllocationTimeoutSeconds);
@@ -350,7 +369,7 @@ namespace LTW.UnityClient.Online
                 await Task.Delay(TimeSpan.FromSeconds(ServerAllocationPollIntervalSeconds));
                 var details = await GetMultiplayerServerDetailsAsync(sessionId);
                 state = details.State;
-                ipv4Address = details.IPV4Address;
+                host = PreferHostname(details.FQDN, details.IPV4Address);
                 ports = details.Ports;
             }
 
@@ -366,7 +385,7 @@ namespace LTW.UnityClient.Online
             var port = ports?.FirstOrDefault(candidate => string.Equals(candidate.Name, MultiplayerServerConfig.PortName, StringComparison.OrdinalIgnoreCase))?.Num
                 ?? throw new InvalidOperationException($"allocated server had no port named '{MultiplayerServerConfig.PortName}' (case-insensitive)");
 
-            return (sessionId, ipv4Address, port);
+            return (sessionId, host, port);
         }
 
         /// <summary>
@@ -502,7 +521,7 @@ namespace LTW.UnityClient.Online
                 // is not guaranteed to equal PlayFab's own MatchId here — HttpMatchHost's "current"
                 // join alias exists specifically to sidestep needing that equivalence. See
                 // docs/MULTIPLAYER_ROLLOUT.md's MP-05.
-                var client = await JoinAsync("current", match.ServerDetails.IPV4Address, matchedPort, onFailure);
+                var client = await JoinAsync("current", PreferHostname(match.ServerDetails.Fqdn, match.ServerDetails.IPV4Address), matchedPort, onFailure);
                 return (client is null ? PooledOutcome.Failed : PooledOutcome.Joined, client);
             }
 

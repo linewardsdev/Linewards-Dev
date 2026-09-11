@@ -47,29 +47,37 @@ public sealed class PlayFabSessionAuthority
         request.Headers.Add("X-SecretKey", secretKey);
         request.Content = JsonContent.Create(new AuthenticateSessionTicketRequest(sessionTicket), options: json);
 
+        // Every refusal below logs its reason — the caller's decision is the same (refuse the
+        // join), but an operator reading PlayFab's archived server log needs to know whether the
+        // ticket was expired, the secret was wrong, or PlayFab was unreachable; those are three
+        // different fixes. Nothing here ever logs the ticket or the secret.
         HttpResponseMessage response;
         try
         {
             response = await http.SendAsync(request, cancellationToken);
         }
-        catch (HttpRequestException)
+        catch (HttpRequestException exception)
         {
+            Console.WriteLine($"PlayFab ticket verification: could not reach PlayFab — {exception.Message}");
             return null;
         }
         catch (TaskCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
             // A timeout, not a caller-requested cancellation — PlayFab took too long, treated the
             // same as unreachable.
+            Console.WriteLine($"PlayFab ticket verification: PlayFab did not answer within {http.Timeout.TotalSeconds:F0}s.");
             return null;
         }
 
         using (response)
         {
             // PlayFab reports both a real rejection (InvalidSessionTicket, error code 1100) and
-            // most transport problems as a 4xx/5xx with an ApiErrorWrapper body — this class does
-            // not need to distinguish WHY the ticket did not check out, only that it did not.
+            // most transport problems as a 4xx/5xx with an ApiErrorWrapper body. A 401 here means
+            // the SECRET was rejected (wrong or rotated key), not the ticket.
             if (!response.IsSuccessStatusCode)
             {
+                var errorBody = await response.Content.ReadAsStringAsync(cancellationToken);
+                Console.WriteLine($"PlayFab ticket verification: HTTP {(int)response.StatusCode} — {Truncate(errorBody, 300)}");
                 return null;
             }
 
@@ -78,13 +86,21 @@ public sealed class PlayFabSessionAuthority
             {
                 body = await response.Content.ReadFromJsonAsync<AuthenticateSessionTicketEnvelope>(json, cancellationToken);
             }
-            catch (JsonException)
+            catch (JsonException exception)
             {
+                Console.WriteLine($"PlayFab ticket verification: response was not the documented shape — {exception.Message}");
                 return null;
             }
 
-            if (body?.Data is null || body.Data.IsSessionTicketExpired)
+            if (body?.Data is null)
             {
+                Console.WriteLine("PlayFab ticket verification: 200 with no data payload.");
+                return null;
+            }
+
+            if (body.Data.IsSessionTicketExpired)
+            {
+                Console.WriteLine("PlayFab ticket verification: ticket is EXPIRED — the player must sign in again.");
                 return null;
             }
 
@@ -98,13 +114,23 @@ public sealed class PlayFabSessionAuthority
             // docs/MULTIPLAYER_ROLLOUT.md's MP-07 abuse-handling note.
             if (body.Data.UserInfo?.TitleInfo?.IsBanned == true)
             {
+                Console.WriteLine($"PlayFab ticket verification: player {body.Data.UserInfo.PlayFabId} is BANNED.");
                 return null;
             }
 
             var playFabId = body.Data.UserInfo?.PlayFabId;
-            return string.IsNullOrEmpty(playFabId) ? null : playFabId;
+            if (string.IsNullOrEmpty(playFabId))
+            {
+                Console.WriteLine("PlayFab ticket verification: 200 but no PlayFabId in the response.");
+                return null;
+            }
+
+            return playFabId;
         }
     }
+
+    private static string Truncate(string text, int max) =>
+        text.Length <= max ? text : text[..max] + "…";
 
     private sealed record AuthenticateSessionTicketRequest([property: JsonPropertyName("SessionTicket")] string SessionTicket);
 

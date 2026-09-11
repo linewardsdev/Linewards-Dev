@@ -13,14 +13,15 @@ namespace LTW.UnityClient.Online
     {
         /// <summary>
         /// The uploaded build's guid, from PlayFab Game Manager. Set 2026-09-11 to the build on
-        /// image tag <c>mps-20260911b</c> — the first that both runs on Azure and carries the
-        /// title secret (as build metadata) it needs to verify a join. The three builds before it
-        /// (<c>faee9e3e</c>, <c>4dbf4418</c>, <c>36cfe0aa</c>) each hid a real defect: a
-        /// case-sensitive port-name lookup, an arm64 image on x86-64 VMs, a non-root user unable
-        /// to write PlayFab's log mount, and no secret reaching the container at all. See
-        /// MULTIPLAYER_ROLLOUT.md's MP-07 Phase 5.
+        /// image tag <c>mps-20260911c</c> — runs on Azure, carries the title secret (as build
+        /// metadata) it needs to verify a join, and names its reason when it refuses one. The
+        /// builds before it (<c>faee9e3e</c>, <c>4dbf4418</c>, <c>36cfe0aa</c>, <c>b1f71d89</c>)
+        /// each hid a real defect: a case-sensitive port-name lookup, an arm64 image on x86-64
+        /// VMs, a non-root user unable to write PlayFab's log mount, no secret reaching the
+        /// container at all, and a refusal with no logged reason. See MULTIPLAYER_ROLLOUT.md's
+        /// MP-07 Phase 5.
         /// </summary>
-        public const string BuildId = "b1f71d89-87ab-40e4-82fc-01acbf88d4e3";
+        public const string BuildId = "6c5906bf-e800-48f9-a0df-0f6da6b30aeb";
 
         /// <summary>
         /// Tried in order until one has a server available — see

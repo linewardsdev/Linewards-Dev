@@ -475,14 +475,33 @@ public sealed class ServerMatch : IDisposable
     /// </summary>
     public async Task<int?> AcceptWithPlayFabAsync(WebSocket socket, int seat, string sessionTicket)
     {
-        if (playFabAuthority is null || !playFabIdBySeat.TryGetValue(seat, out var expectedPlayFabId))
+        // Each refusal names its reason on stdout (which PlayFab archives with the server's logs)
+        // — never the ticket itself. The first real allocated join, 2026-09-11, was refused with
+        // nothing but the client's generic "server closed the connection", and the three ways
+        // this method says no (no authority, an unreserved seat, a ticket PlayFab rejects) each
+        // point somewhere completely different.
+        if (playFabAuthority is null)
         {
+            Console.WriteLine($"Match {MatchId}: refused seat {seat} — this server has no PlayFab authority (no secret reached it), so no ticket can be verified.");
+            return null;
+        }
+
+        if (!playFabIdBySeat.TryGetValue(seat, out var expectedPlayFabId))
+        {
+            Console.WriteLine($"Match {MatchId}: refused seat {seat} — not a PlayFab-reserved seat (reserved: {string.Join(",", playFabIdBySeat.Keys)}).");
             return null;
         }
 
         var verifiedPlayFabId = await playFabAuthority.AuthenticateAsync(sessionTicket);
-        if (verifiedPlayFabId is null || verifiedPlayFabId != expectedPlayFabId)
+        if (verifiedPlayFabId is null)
         {
+            Console.WriteLine($"Match {MatchId}: refused seat {seat} — PlayFab did not verify the session ticket (invalid, expired, or PlayFab unreachable — see the authority's own log line above).");
+            return null;
+        }
+
+        if (verifiedPlayFabId != expectedPlayFabId)
+        {
+            Console.WriteLine($"Match {MatchId}: refused seat {seat} — ticket verified for a different player than the one this seat was reserved for.");
             return null;
         }
 

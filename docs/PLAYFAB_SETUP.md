@@ -135,16 +135,19 @@ public identifier. Treat it exactly like the Play Console keystore password in
 - Never commit it to the repo, in any file, in any branch.
 - `LTW.MatchServer` reads it from an environment variable (`PLAYFAB_SECRET_KEY`) at startup, not
   from a config file checked into source control — see `Program.cs`.
-- **Under PlayFab Multiplayer Servers there is no environment to set** (the build form has no
-  such field), so a deployed build carries it as build **metadata** — key `PLAYFAB_SECRET_KEY`,
-  entered once in Game Manager when the build is created (`MP07_RUNBOOK.md` step 4). The GSDK
-  hands metadata to the container in memory; nothing is written to the image, the registry, or
-  the repo. Be clear-eyed about what that is: metadata is readable by anyone who can open the
-  build in Game Manager or call `GetBuild`, which is the same set of people who can read the
-  secret from Settings → Secret Keys, so it widens no trust boundary — but it is a second place
-  the secret lives, and rotating the key means creating a new build (metadata is part of the
-  immutable build definition). Added 2026-09-11, when the first real allocated server would
-  otherwise have refused every join for lack of any authority to verify tickets against.
+- **Under PlayFab Multiplayer Servers the environment is set by PlayFab itself**, through its
+  *game secrets* feature: `tools/playfab/create_build.py` uploads the key once as the game
+  secret `PLAYFAB_SECRET_KEY` and references it on each build; PlayFab then delivers it to every
+  server as the environment variable `PF_MPS_SECRET_PLAYFAB_SECRET_KEY`, which `Program.cs`
+  reads. The value never appears in `GetBuild`, the image, the registry, or the repo. Rotating the
+  key means re-running the script's upload (`ForceUpdate`) — new VMs pick up the new value,
+  existing ones keep the old one until they recycle. Build *metadata* (`PLAYFAB_SECRET_KEY` as a
+  key/value on the build, merged into the GSDK config) remains a fallback the server also reads,
+  but it is visible to anyone who can call `GetBuild`, so prefer the secret. Both replaced a
+  2026-09-11 gap in which the first real allocated servers refused every join for lack of any
+  authority to verify tickets against; also that day, the key was pasted into a chat once — it
+  should be rotated (Settings → Secret Keys), after which the script's upload step distributes
+  the new one.
 - If a CI/CD pipeline for `LTW.MatchServer` is ever added, it goes through that pipeline's secret
   store, the same deferral `STORE_SIGNING_PREREQUISITES.md` already notes for keystore secrets.
 

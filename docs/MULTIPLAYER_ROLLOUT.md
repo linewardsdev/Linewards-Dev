@@ -1602,7 +1602,74 @@ the Secret Key". `dotnet test` 411/411. Verified under `LocalMultiplayerAgent` w
 metadata value: `PlayFab configured: title FBC34 (from GSDK config + build metadata)`, then
 `StandingBy → Active`, match bootstrapped. Pushed multi-arch as **`ltw-matchserver:mps-20260911b`**;
 build created against it with the metadata: **`BuildId b1f71d89-87ab-40e4-82fc-01acbf88d4e3`**,
-recorded into `MultiplayerServerConfig.cs`. Next: the live create-a-real-server check.
+recorded into `MultiplayerServerConfig.cs`.
+
+**Fourth tap, against `b1f71d89`: PlayFab allocated a real server** — `RequestMultiplayerServer`
+succeeded, the poll reached `Active`, the client dialed `ws://40.76.70.77:30100/matches/<id>/join`
+— and the WebSocket connect failed: "Unable to connect to the remote server". Established, in
+order, rather than guessed: (1) the same cookie shape replayed under `LocalMultiplayerAgent`
+bootstraps a match and the listener answers a WebSocket upgrade with HTTP 101 through the port
+mapping; (2) from the Mac, on the same LAN, that exact Azure address answered a TCP handshake and
+an upgrade to that exact match path with HTTP 101 in 77 ms — **the server was alive and reachable
+while the iPad failed**; (3) Safari on the iPad itself loads `http://40.76.70.77:30100/` (the
+listener's empty 404) — the iPad's network path is fine too. So the failure is inside the app on
+that iPad: its socket reaches a LAN address (the earlier direct-connect test) but not this public
+one, while Safari does. Open suspects, being checked on the device: iCloud Private Relay / "Limit
+IP Address Tracking", a Wi-Fi proxy or filtering profile. Two client changes landed meanwhile:
+`JoinAsync` now logs the host and port it dials (this failure was blind without it), and
+`RequestServerAsync`/the matchmade path prefer PlayFab's `FQDN` over the IPv4 literal — PlayFab
+added the name specifically for IPv6-only iOS networks, and it's the more robust choice whatever
+this turns out to be.
+
+**Fifth tap: dialing by hostname connected.** `SHELL joining match … at
+dnsfbc34-….eastus.cloudapp.azure.com:30100`, and the WebSocket handshake succeeded — so that
+iPad could not dial a raw IPv4 literal to a public address from inside the app while Safari
+could, and the FQDN change is the fix rather than a hedge (root cause on the device side left
+unidentified; it no longer matters). The join then reached `ServerMatch.AcceptWithPlayFabAsync`
+for the first time and was **refused** — the server closed with `PolicyViolation`, the client
+correctly called `ForgetOnAuthFailure` (M-C4), and the shell dropped back to SIGN IN WITH GOOGLE.
+Which of the three refusal branches fired was unknowable: none of them, nor any of
+`PlayFabSessionAuthority`'s six silent exits, logged a reason. Both now do (reason only — never
+the ticket or the secret; a 401 there means the *secret* was rejected, distinct from an expired
+ticket). Leading suspect: an expired ticket — the iPad's session was persisted from a sign-in
+several exports ago and restored without a live login ever since; PlayFab tickets live 24 hours.
+`dotnet test` 47/47 on the server suite.
+
+**Sixth tap, after a fresh Google sign-in: refused again** — so not (only) an expired ticket.
+Remaining branches: no secret reached the container (e.g. a metadata key not spelled exactly
+`PLAYFAB_SECRET_KEY` — the lookup is case-sensitive), a wrong secret (PlayFab answers 401 to the
+verification call), or a seat map that didn't survive the trip. Pushed the reason-logging server
+as **`ltw-matchserver:mps-20260911c`**; build created against it with the metadata:
+**`BuildId 6c5906bf-e800-48f9-a0df-0f6da6b30aeb`**, recorded into `MultiplayerServerConfig.cs`.
+**Seventh tap, against `6c5906bf`: refused again — and "no logs to download".** Which exposed a
+sixth gap: PlayFab archives a server's log only when the server *exits*, and
+`ServerMatch` "happily plays a bot-vs-bot match for a human who was refused at the door or
+never dialed", so a refused join left the VM allocated (billed) for a whole bot match with its
+log — the one that now names the refusal reason — unreachable the entire time. Fixed in
+`Program.cs`: under MPS, if no human binds a seat within 60 s of allocation the server ends the
+match and exits; a match that had a human and lost them stays MP-06 reconnect's concern. Verified
+under `LocalMultiplayerAgent` with its own terminate threshold raised to 300 heartbeats so only
+this timeout could act: exactly 60 s after bootstrap, `no human joined within 60s of allocation —
+ending it so this server can exit`, container exit 0. Pushed as **`ltw-matchserver:mps-20260911d`**
+(reason logging + this). `dotnet test` 47/47.
+
+**Root cause of the refusals, read through PlayFab's API once the title secret was back in
+`.env.local`: `GetBuild` on `6c5906bf` returned `metadata: {}`** — no metadata at all — and the
+refused session's archived log (fetched via `ListArchivedMultiplayerServers` +
+`GetMultiplayerServerLogs`) said it in the server's own words: `PlayFab not configured: no
+PLAYFAB_SECRET_KEY in this build's metadata`, then `refused seat 1 — this server has no PlayFab
+authority`. The next build created through the form, "LineWards East 8" (`4a31e6b5`, on
+`mps-20260911d`, every other setting correct), had `metadata: {}` too — so Game Manager's New
+Build form simply has no way to set metadata, and the runbook step that said to type it there was
+wrong. Two of two. Pivoted to PlayFab's sanctioned channel, *game secrets* (`UploadSecret` +
+`GameSecretReferences`; delivered to servers as `PF_MPS_SECRET_<name>`, per
+learn.microsoft.com/gaming/playfab/multiplayer/servers/manage-secrets): `Program.cs` now reads
+`PF_MPS_SECRET_PLAYFAB_SECRET_KEY` first, metadata second; `tools/playfab/create_build.py` does
+the whole deploy through the API (upload/refresh the secret, create the build referencing it,
+verify via `GetBuild`) since the form can't. Pushed as **`ltw-matchserver:mps-20260911e`**.
+`dotnet test` 47/47. One more consequence: the title secret was pasted into chat once during
+this and should be rotated; the script's upload step then distributes the new one. Next: create
+a build with the script, wire its id, tap.
 
 - **A known, accepted gap, not solved by this pass**: Azure can recycle the VM hosting an already-
   allocated (live, in-match) server for maintenance (`GameserverSDK.RegisterMaintenanceCallback`
