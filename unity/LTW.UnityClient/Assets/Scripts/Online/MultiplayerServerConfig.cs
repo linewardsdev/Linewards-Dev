@@ -13,15 +13,16 @@ namespace LTW.UnityClient.Online
     {
         /// <summary>
         /// The uploaded build's guid, from PlayFab Game Manager. Set 2026-09-11 to the build on
-        /// image tag <c>mps-20260911c</c> — runs on Azure, carries the title secret (as build
-        /// metadata) it needs to verify a join, and names its reason when it refuses one. The
-        /// builds before it (<c>faee9e3e</c>, <c>4dbf4418</c>, <c>36cfe0aa</c>, <c>b1f71d89</c>)
-        /// each hid a real defect: a case-sensitive port-name lookup, an arm64 image on x86-64
-        /// VMs, a non-root user unable to write PlayFab's log mount, no secret reaching the
-        /// container at all, and a refusal with no logged reason. See MULTIPLAYER_ROLLOUT.md's
-        /// MP-07 Phase 5.
+        /// image tag <c>mps-20260911f</c>, created by <c>tools/playfab/create_build.py</c> — the
+        /// first build that provably carries the title secret (a PlayFab game secret, verified on
+        /// the build via GetBuild) it needs to verify a join. Every build before it (<c>faee9e3e</c>,
+        /// <c>4dbf4418</c>, <c>36cfe0aa</c>, <c>b1f71d89</c>, <c>6c5906bf</c>, <c>4a31e6b5</c>)
+        /// hid a real defect: a case-sensitive port-name lookup, an arm64 image on x86-64 VMs, a
+        /// non-root user unable to write PlayFab's log mount, and — for the last four — no secret
+        /// reaching the container because Game Manager's form cannot set one. See
+        /// MULTIPLAYER_ROLLOUT.md's MP-07 Phase 5.
         /// </summary>
-        public const string BuildId = "6c5906bf-e800-48f9-a0df-0f6da6b30aeb";
+        public const string BuildId = "b922cefb-e900-49fa-84d4-f3d8cf40999a";
 
         /// <summary>
         /// Tried in order until one has a server available — see

@@ -1664,12 +1664,38 @@ Build form simply has no way to set metadata, and the runbook step that said to 
 wrong. Two of two. Pivoted to PlayFab's sanctioned channel, *game secrets* (`UploadSecret` +
 `GameSecretReferences`; delivered to servers as `PF_MPS_SECRET_<name>`, per
 learn.microsoft.com/gaming/playfab/multiplayer/servers/manage-secrets): `Program.cs` now reads
-`PF_MPS_SECRET_PLAYFAB_SECRET_KEY` first, metadata second; `tools/playfab/create_build.py` does
+`PF_MPS_SECRET_PlayFabSecretKey` first (the secret is named `PlayFabSecretKey` — `UploadSecret`
+rejects underscores, names must match `^[0-9a-zA-Z-]+$`; the server also accepts any
+`PF_MPS_SECRET_*` matching ignoring case and separators and logs which name it found, since the
+agent's exact spelling can only be confirmed on a real VM), metadata second; `tools/playfab/create_build.py` does
 the whole deploy through the API (upload/refresh the secret, create the build referencing it,
 verify via `GetBuild`) since the form can't. Pushed as **`ltw-matchserver:mps-20260911e`**.
 `dotnet test` 47/47. One more consequence: the title secret was pasted into chat once during
-this and should be rotated; the script's upload step then distributes the new one. Next: create
-a build with the script, wire its id, tap.
+this and should be rotated; the script's upload step then distributes the new one. Pushed as
+**`ltw-matchserver:mps-20260911f`** after the rename; `create_build.py` then uploaded the secret
+and created **"LineWards East 9", `BuildId b922cefb-e900-49fa-84d4-f3d8cf40999a`**, with
+`GetBuild` confirming `GameSecretReferences: ['PlayFabSecretKey']`, port `game`/5117/TCP, East US
+1/2 — the first build that provably carries the secret. Recorded into
+`MultiplayerServerConfig.cs`. `dotnet test` 47/47. Four servers Standing By 82 s after creation. Then an API probe — a
+`RequestMultiplayerServer` from the title with a cookie for a player who'd never join — proved
+the whole server side on a real VM: allocated Active immediately, and its archived log read
+`entrypoint: log directory /data/GameLogs/ now owned by app` → `PlayFab configured: title FBC34
+(from GSDK config + PlayFab game secret (PF_MPS_SECRET_PlayFabSecretKey))` (the documented
+name, verbatim, no fallback needed) → match bootstrapped → `no human joined within 60s of
+allocation — ending it so this server can exit`, archived 73 s after allocation. **Then the real tap, 2026-09-11 20:49 UTC: the first match on PlayFab Multiplayer Servers,
+played to the end.** iPad → fresh Google sign-in → Play Online → matchmaking fell back (queue
+still not created) → `RequestMultiplayerServer` → `ws://dnsfbc34-….eastus.cloudapp.azure.com`
+→ ticket verified → seat 1 bound → 541 s of play → `match_ended` with `winnerId 1`; the server
+exited and its log plus `replays/<matchId>.json` were archived. "No major errors" from the
+player's side; the server's archived log shows `PlayFab configured … (PF_MPS_SECRET_
+PlayFabSecretKey)`, `match_started`, `match_ended`, nothing refused, nothing thrown. This closes
+MP-07's "live create-a-real-server" acceptance check and MP-05's "a real session ticket
+authenticating a real connection", both open since 2026-09-05. Seven builds, six real defects
+(port-name case; arm64 image; non-root vs root-owned log mount; TitleId unset on session
+restore; matchmaking failure not falling back; no secret reaching the container — plus the
+unjoined-match exit and the IPv4-literal dial found along the way), each hidden by the one before.
+Still open from this pass: create the matchmaking queue (MP-05 Phase 2 — pooling is untested,
+solo works); delete the six dead builds; rotate the title secret; H5 (`ws://` → `wss://`).
 
 - **A known, accepted gap, not solved by this pass**: Azure can recycle the VM hosting an already-
   allocated (live, in-match) server for maintenance (`GameserverSDK.RegisterMaintenanceCallback`

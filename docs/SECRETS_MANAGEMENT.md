@@ -34,7 +34,7 @@ convenience, decides the storage.
 | PlayFab Title ID `FBC34` | Public | `Assets/Scripts/Online/PlayFabConfig.cs` | Correct |
 | Google Web OAuth Client ID, iOS OAuth Client ID | Public | `Assets/Scripts/Online/GoogleSignInIOSConfig.cs` | Correct — both are meant to ship in the app |
 | Bundle / package ID `com.linewardsgames.linewards` | Public | `ProjectSettings.asset` | Correct |
-| PlayFab Title **Secret Key** | Server-only | `.env.local` (gitignored) for local `LTW.MatchServer`; PlayFab Multiplayer Servers build metadata for deployed servers | Correct; see rotation and allowlist notes below |
+| PlayFab Title **Secret Key** | Server-only | `.env.local` (gitignored) for local `LTW.MatchServer`; a PlayFab **game secret** (`PlayFabSecretKey`, uploaded via `tools/playfab/create_build.py`) for deployed servers, delivered as the env var `PF_MPS_SECRET_PlayFabSecretKey` | Correct; see rotation and allowlist notes below |
 | Google OAuth **Client Secret** | Server-only | PlayFab Game Manager → Google add-on only | Correct — never recorded in repo or chat |
 | Sign in with Apple private key (`.p8`) | Server-only | Not created yet (Section 2 of `PLAYFAB_SETUP.md`) | Goes into PlayFab's Apple add-on + Key Vault; one-time download |
 | Android upload keystore + password | Build/signing | Azure Key Vault `linewards-secrets`; local backup `~/.android-keystores/` | Correct; passwords reach Unity only via `LTW_ANDROID_KEYSTORE_PASSWORD` / `LTW_ANDROID_KEY_ALIAS_PASSWORD` env vars |
@@ -67,10 +67,16 @@ the checks below make that automatic.
   any other source IP. Useful for a fixed-egress Azure Function or a developer with a static IP.
   Do **not** enable on the Multiplayer Servers key until the fleet's egress range is known — a
   wrong list locks every server out of ticket verification.
-- **Rotation is zero-downtime.** Create new key → update consumers (`.env.local`, a new MPS build
-  with new metadata, CI secret) → disable the old key → delete only once nothing has used it for a
-  while. Disable first, not delete: disable is reversible, delete is not. Rotate immediately if a
-  key ever lands in a commit, even one that was force-pushed away — GitHub keeps the object.
+- **Rotation is zero-downtime.** Create new key → update consumers: `.env.local`, then
+  `tools/playfab/create_build.py`'s upload step (`UploadSecret` with `ForceUpdate: true` against
+  the *same* game secret name) to push the new value to PlayFab, then any CI secret → disable the
+  old title key → delete only once nothing has used it for a while. No new MPS build is needed for
+  the secret alone — PlayFab's own docs are explicit that updating a referenced secret's value
+  reaches new VMs going forward; only VMs already running keep the old value until they recycle.
+  Disable first, not delete: disable is reversible, delete is not. Rotate immediately if a key ever
+  lands in a commit or a chat transcript, even one that was force-pushed away — GitHub keeps the
+  object, and a chat log is not yours to scrub. (Happened once, 2026-09-11 — see
+  MULTIPLAYER_ROLLOUT.md's MP-07 Phase 5.)
 - **Server-only config goes in Internal Title Data.** Regular Title Data is readable by every
   client. Internal Title Data needs admin access and is only visible to CloudScript and servers.
 - **If CloudScript / Azure Functions are added**, the function reads the Secret Key from Function

@@ -161,7 +161,7 @@ places.
 - [x] **MP-06 — Client over the wire.** Every acceptance check in this initiative's own scope is
       done — real device, real match, reconnect survivability (including kill-and-relaunch),
       clean-exit paths, all confirmed live 2026-09-04/05.
-- [~] **MP-07 — Operations.** Hosting mechanism built and live-verified locally (`LocalMultiplayerAgent`).
+- [~] **MP-07 — Operations.** Hosting mechanism built and **live-verified on Azure PlayFab Multiplayer Servers 2026-09-11**: a real iPad played a full 541 s match on a script-created build (`b922cefb`, `tools/playfab/create_build.py`), ticket verified via PlayFab game secret, log and replay archived — see MULTIPLAYER_ROLLOUT.md's MP-07 Phase 5 for the seven-build path there.
       Azure Dasv4 quota approved 2026-09-08/09 (8 cores, East US); standby sized 4×2-core over
       1×8-core/2×4-core after checking Game Manager's own cost estimator (~5x the usage-hours for
       the same total quota — see `MULTIPLAYER_ROLLOUT.md`'s Phase 5 for the reasoning). MPS-mode

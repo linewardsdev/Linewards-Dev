@@ -94,9 +94,10 @@ static async Task RunUnderPlayFabMultiplayerServersAsync(PlayFabSessionAuthority
     // this build in PlayFab Game Manager (MP-07's Phase 5) and the client's
     // MultiplayerServerConfig.PortName.
     const string gamePortName = "game";
-    // PlayFab delivers a game secret named X as environment variable PF_MPS_SECRET_X — the
-    // secret is uploaded under the name PLAYFAB_SECRET_KEY, so this is what arrives.
-    const string GameSecretEnvironmentVariable = "PF_MPS_SECRET_PLAYFAB_SECRET_KEY";
+    // PlayFab delivers a game secret named X as environment variable PF_MPS_SECRET_X. Secret
+    // names must match ^[0-9a-zA-Z-]+$ (no underscores — UploadSecret rejects them, found
+    // 2026-09-11), so the secret is uploaded as PlayFabSecretKey and this is what arrives.
+    const string GameSecretEnvironmentVariable = "PF_MPS_SECRET_PlayFabSecretKey";
     var json = new JsonSerializerOptions(JsonSerializerDefaults.Web);
 
     var exit = new TaskCompletionSource();
@@ -173,9 +174,31 @@ static async Task RunUnderPlayFabMultiplayerServersAsync(PlayFabSessionAuthority
         var startupConfig = GameserverSDK.getConfigSettings();
         startupConfig.TryGetValue(GameserverSDK.TitleIdKey, out var gsdkTitleId);
         var gameSecret = Environment.GetEnvironmentVariable(GameSecretEnvironmentVariable);
+        var gameSecretVariable = GameSecretEnvironmentVariable;
+        if (string.IsNullOrEmpty(gameSecret))
+        {
+            // The exact casing/separators the agent uses in the variable name can only be
+            // confirmed on a real VM, so accept any PF_MPS_SECRET_* whose name matches ours
+            // ignoring case, '-' and '_' — and say which one was used, so a naming surprise
+            // becomes a log line rather than another build that refuses every join.
+            static string Normalize(string name) => name.Replace("-", "").Replace("_", "").ToUpperInvariant();
+            foreach (System.Collections.DictionaryEntry entry in Environment.GetEnvironmentVariables())
+            {
+                var name = entry.Key.ToString() ?? "";
+                if (name.StartsWith("PF_MPS_SECRET_", StringComparison.OrdinalIgnoreCase)
+                    && Normalize(name) == Normalize(GameSecretEnvironmentVariable)
+                    && entry.Value is string value && value.Length > 0)
+                {
+                    gameSecret = value;
+                    gameSecretVariable = name;
+                    break;
+                }
+            }
+        }
+
         if (!string.IsNullOrEmpty(gameSecret))
         {
-            playFabAuthority = CreatePlayFabAuthority(gsdkTitleId, gameSecret, source: "GSDK config + PlayFab game secret");
+            playFabAuthority = CreatePlayFabAuthority(gsdkTitleId, gameSecret, source: $"GSDK config + PlayFab game secret ({gameSecretVariable})");
         }
         else
         {

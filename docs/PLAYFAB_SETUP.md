@@ -137,9 +137,9 @@ public identifier. Treat it exactly like the Play Console keystore password in
   from a config file checked into source control — see `Program.cs`.
 - **Under PlayFab Multiplayer Servers the environment is set by PlayFab itself**, through its
   *game secrets* feature: `tools/playfab/create_build.py` uploads the key once as the game
-  secret `PLAYFAB_SECRET_KEY` and references it on each build; PlayFab then delivers it to every
-  server as the environment variable `PF_MPS_SECRET_PLAYFAB_SECRET_KEY`, which `Program.cs`
-  reads. The value never appears in `GetBuild`, the image, the registry, or the repo. Rotating the
+  secret `PlayFabSecretKey` (PlayFab allows only `[0-9a-zA-Z-]` in secret names) and references
+  it on each build; PlayFab then delivers it to every server as the environment variable
+  `PF_MPS_SECRET_PlayFabSecretKey`, which `Program.cs` reads. The value never appears in `GetBuild`, the image, the registry, or the repo. Rotating the
   key means re-running the script's upload (`ForceUpdate`) — new VMs pick up the new value,
   existing ones keep the old one until they recycle. Build *metadata* (`PLAYFAB_SECRET_KEY` as a
   key/value on the build, merged into the GSDK config) remains a fallback the server also reads,

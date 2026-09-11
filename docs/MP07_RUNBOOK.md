@@ -4,9 +4,12 @@
 
 How to deploy, roll back, drain, and investigate a desync for `LTW.MatchServer` running on Azure
 PlayFab Multiplayer Servers (MPS) — see `docs/MULTIPLAYER_ROLLOUT.md`'s MP-07 for how and why this
-hosting choice was made. Written against what has actually been built and verified (locally, via
-PlayFab's `LocalMultiplayerAgent` tool) as of 2026-09-05, not aspirational — sections that rely on
-a real cloud deployment this project hasn't done yet are marked as such.
+hosting choice was made. Written against what has actually been built and verified, not
+aspirational: locally via PlayFab's `LocalMultiplayerAgent` as of 2026-09-05, and **live on Azure
+as of 2026-09-11** — a real iPad played a full match on a script-created build, and every
+deploy, drain, and log-retrieval step below has been exercised against the real service (mostly
+while finding the six defects MULTIPLAYER_ROLLOUT.md's Phase 5 records). The `.env.local` title
+secret is what makes the API-driven steps here work from a developer's Mac.
 
 Every command below assumes the repo root as the working directory and `LTW.MatchServer.Dockerfile`
 built from it (it references `../LTW.Simulation`, so the build context must be the repo root, not
@@ -60,9 +63,10 @@ built from it (it references `../LTW.Simulation`, so the build context must be t
    2026-09-11 when two form-created builds came up with neither and every server refused every
    join, the archived log reading "PlayFab not configured". The script needs the title Secret
    Key in `.env.local` (PLAYFAB_SETUP.md's "Handling the Secret Key"); it uploads/refreshes that
-   key as the **game secret** `PLAYFAB_SECRET_KEY` (PlayFab delivers it to every server as the
-   environment variable `PF_MPS_SECRET_PLAYFAB_SECRET_KEY`, which `Program.cs` reads; the title
-   id comes from the GSDK config), creates the build referencing it, prints the BuildId, and
+   key as the **game secret** `PlayFabSecretKey` (secret names allow only `[0-9a-zA-Z-]`, so not
+   the env-var spelling; PlayFab delivers it to every server as the environment variable
+   `PF_MPS_SECRET_PlayFabSecretKey`, which `Program.cs` reads — tolerating case/separator
+   variations and logging which name it found; the title id comes from the GSDK config), creates the build referencing it, prints the BuildId, and
    verifies the reference took via `GetBuild`. Secret references are part of the immutable build
    definition — a build created without one can't be repaired, only replaced. The settings it
    applies (override with its flags only for a reason):

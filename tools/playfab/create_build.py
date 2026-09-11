@@ -5,8 +5,9 @@ Game Manager's New Build form cannot reference a game secret or set build metada
 2026-09-11: two form-created builds came up with neither, and every server refused every join
 for lack of a secret to verify tickets with). This script does what the form can't:
 
-  1. uploads (or force-updates) the title Secret Key as the game secret PLAYFAB_SECRET_KEY,
-     which PlayFab delivers to every server as the env var PF_MPS_SECRET_PLAYFAB_SECRET_KEY;
+  1. uploads (or force-updates) the title Secret Key as the game secret PlayFabSecretKey
+     (names must match ^[0-9a-zA-Z-]+$ — no underscores), which PlayFab delivers to every
+     server as the env var PF_MPS_SECRET_PlayFabSecretKey;
   2. creates the build with that secret referenced, plus the settings docs/MP07_RUNBOOK.md lists;
   3. prints the BuildId and verifies via GetBuild that the reference, port and region took.
 
@@ -25,7 +26,7 @@ import urllib.request
 
 TITLE_ID = "FBC34"
 IMAGE_NAME = "ltw-matchserver"
-SECRET_NAME = "PLAYFAB_SECRET_KEY"
+SECRET_NAME = "PlayFabSecretKey"
 
 
 def load_secret() -> str:
