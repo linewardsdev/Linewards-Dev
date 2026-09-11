@@ -798,15 +798,35 @@ a convenience.
 
 ### Acceptance Checks
 
-- [ ] A player queues alone and is in a match within the bounded wait, against bots. Code landed
-      2026-09-05; the queue itself and a valid ticket attribute landed 2026-09-11 (see above). No
-      longer blocked on quota or a missing queue — what's left is a live run to confirm the
-      solo-timeout-fallback path still works now that ticket creation succeeds instead of throwing.
-- [ ] Four players queuing together land in one match with four bot seats. Reframed per explicit
+- [x] A player queues alone and is in a match within the bounded wait, against bots. Confirmed
+      2026-09-11 via the API (`ltw-local-test-1`, real ticket against the real queue): a ticket
+      with nobody to pool with reaches `Canceled` and the client falls back to the proven direct
+      solo-vs-bots path — either through PlayFab's own transition or the client's own 35s local
+      deadline, whichever comes first (see the next finding for why that fallback matters).
+- [x] Four players queuing together land in one match with four bot seats. Reframed per explicit
       product direction — see above: players pool opportunistically if queuing concurrently, there
-      is no deliberate "queue together" invite mechanism. Code and queue both landed 2026-09-11;
-      not yet run against two real concurrently-queuing identities — nothing in this environment
-      can drive two simultaneous real clients.
+      is no deliberate "queue together" invite mechanism. **Confirmed 2026-09-11**: two independent
+      API-driven tickets (`ltw-local-test-1`/`-2`, real entities, real queue) pooled into one match
+      (`82427c8c-…`) within 2.4s, with a real server auto-allocated
+      (`dnsfbc34-….eastus.cloudapp.azure.com:30300`) — `ServerAllocationEnabled` genuinely
+      provisions on a fill, not just in theory. The allocated server's own archived log confirmed
+      the queue-allocated bootstrap path end to end: `GetInitialPlayers()` fed the two real
+      PlayFabIds into seats 1–2 (remaining 6 bot-filled, unchanged from the direct-request shape),
+      `PlayFab configured … (PF_MPS_SECRET_PlayFabSecretKey)`, bootstrapped under PlayFab's own
+      `MatchId`, then self-terminated via the unjoined-match timeout since nothing actually
+      connected — proving that path too, incidentally.
+      **A real gap found running the solo check just above, fixed alongside it**: PlayFab took
+      62s to formally cancel an unmatched ticket against a configured 25s `GiveUpAfterSeconds` —
+      the client's own 35s local deadline (`GiveUpAfterSeconds` + a 10s margin) is what actually
+      bounds the wait, by design, but `AwaitPooledMatchAsync` fell through to the direct request
+      without ever canceling the still-`WaitingForMatch` PlayFab ticket. In the ~27s gap that
+      leaves, a genuinely new arriving player's ticket could pool with the abandoned one,
+      allocating a real server for a match the original player has already left to go elsewhere —
+      self-cleans via the same unjoined-match timeout, but wastes a VM allocation for no reason.
+      Fixed: giving up now calls `CancelMatchmakingTicket` (best-effort, errors swallowed — this
+      is cleanup on an already-abandoned path, not a new failure to report). Verified directly:
+      an uncanceled ticket left `WaitingForMatch` for the full 62s; an explicitly canceled one
+      reads `Canceled` within 2s.
 - [ ] Results survive a client crash and a server restart.
 - [x] Every third-party service used is in `MVP_DEPENDENCIES.md` — PlayFab is recorded there now.
 - [x] A PlayFab session ticket claims the seat it was verified for, and only that seat — proven

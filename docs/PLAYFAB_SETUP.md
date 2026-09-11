@@ -128,9 +128,10 @@ trust which-is-which from memory, read it off the console each time.
 
 ## Handling the Secret Key
 
-The Title Secret Key is the one value in this whole setup that is a real credential, not a
-public identifier. Treat it exactly like the Play Console keystore password in
-`STORE_SIGNING_PREREQUISITES.md`'s "Secrets Handling" section:
+See `docs/SECRETS_MANAGEMENT.md` for the full map of every key this project touches (this section
+covers only the PlayFab Title Secret Key). The Title Secret Key is the one value in this whole
+setup that is a real credential, not a public identifier. Treat it exactly like the Play Console
+keystore password in `STORE_SIGNING_PREREQUISITES.md`'s "Secrets Handling" section:
 
 - Never commit it to the repo, in any file, in any branch.
 - `LTW.MatchServer` reads it from an environment variable (`PLAYFAB_SECRET_KEY`) at startup, not

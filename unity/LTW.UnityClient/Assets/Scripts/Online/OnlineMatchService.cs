@@ -39,9 +39,14 @@ namespace LTW.UnityClient.Online
 
         /// <summary>
         /// Selects which of the two paths described in this class's own remarks
-        /// <see cref="CreateAndJoinAsync"/> takes. Defaults false (direct-connect) — flips once
-        /// MP-07's Phase 5 (a real PlayFab build uploaded and "game client access" enabled) exists
-        /// to point at, per that phase's own checklist.
+        /// <see cref="CreateAndJoinAsync"/> takes. <c>true</c> since 2026-09-11: MP-07's real
+        /// PlayFab build and MP-05's matchmaking queue are both live-verified end to end (a full
+        /// match played on-device, and solo/pooled matchmaking proven via the API — see
+        /// docs/MULTIPLAYER_ROLLOUT.md's MP-07 Phase 5 and MP-05), so this is a real product
+        /// default now, not a leftover local test flip. The direct-connect path
+        /// (<see cref="MatchServerConfig"/>) remains for the fast local/LAN loop this project's
+        /// own iteration still uses — flip this back to <c>false</c> locally for that, but never
+        /// commit the flip back.
         /// </summary>
         public static bool UseMultiplayerServers = true;
 
@@ -525,6 +530,14 @@ namespace LTW.UnityClient.Online
                 return (client is null ? PooledOutcome.Failed : PooledOutcome.Joined, client);
             }
 
+            // Only worth canceling if PlayFab hasn't already — see
+            // CancelMatchmakingTicketBestEffortAsync's own remarks for why this matters even
+            // though the ticket's server-side timer is already running.
+            if (status != "Canceled")
+            {
+                await CancelMatchmakingTicketBestEffortAsync(ticketId);
+            }
+
             return (PooledOutcome.NobodyElse, null);
         }
 
@@ -588,6 +601,29 @@ namespace LTW.UnityClient.Online
                 result => completion.TrySetResult(result),
                 error => completion.TrySetException(new InvalidOperationException(error.GenerateErrorReport())));
             return completion.Task;
+        }
+
+        /// <summary>
+        /// Best-effort only — called when this client is giving up on a ticket locally (its own
+        /// deadline passed, or a mid-poll error) without waiting to observe PlayFab's own
+        /// <c>Canceled</c> transition. Measured live 2026-09-11: an unmatched ticket's real
+        /// <c>GiveUpAfterSeconds</c>-driven cancellation can take PlayFab well over a minute (62s
+        /// against a configured 25s), while this client's own safety-margin deadline is 35s — a
+        /// window in which an abandoned-but-still-<c>WaitingForMatch</c> ticket could pool with a
+        /// player who queues right as this client has already moved on to a direct request,
+        /// allocating a real server nobody will ever join (self-cleans via the unjoined-match
+        /// timeout in Program.cs, but that's still a wasted allocation worth closing off).
+        /// Swallows any error: this is cleanup on an already-abandoned path, not a new failure to
+        /// surface to the player.
+        /// </summary>
+        private static async Task CancelMatchmakingTicketBestEffortAsync(string ticketId)
+        {
+            var completion = new TaskCompletionSource<bool>();
+            PlayFabMultiplayerAPI.CancelMatchmakingTicket(
+                new CancelMatchmakingTicketRequest { TicketId = ticketId, QueueName = MultiplayerServerConfig.MatchmakingQueueName },
+                _ => completion.TrySetResult(true),
+                _ => completion.TrySetResult(false));
+            await completion.Task;
         }
 
         private static Task<RequestMultiplayerServerResponse> RequestMultiplayerServerAsync(RequestMultiplayerServerRequest request)

@@ -119,7 +119,9 @@ require a CA chain) and a certificate expiry of 2054-01-25, matching the generat
 
 ## Secrets Handling
 
-Nothing above should be committed to the repo in plaintext:
+See `docs/SECRETS_MANAGEMENT.md` for the full map of every key this project touches (this section
+covers only the Android/iOS signing secrets). Nothing above should be committed to the repo in
+plaintext:
 
 - Keystore file and passwords: keep outside the repo (local secure storage or a CI secrets store, once CI exists for mobile builds).
 - Apple signing certificates/provisioning profiles: managed via Xcode/Apple Developer portal, not repo-committed.

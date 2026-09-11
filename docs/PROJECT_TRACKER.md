@@ -160,10 +160,14 @@ places.
       ticket to carry a matching `Latencies` attribute or PlayFab rejects it outright; the client
       sent none before this, which `QueueForMatchAsync`'s own fallback would have masked as "nobody
       else queuing" forever. Fixed with a synthetic single-region value (see
-      `MultiplayerServerConfig.RegionSelectionRuleRegion`). What's left is a live run with two real,
-      concurrently-queuing identities — not yet possible from this environment. Not started:
-      Android identity (Google Play Games Services). Unchecked: "results survive a client crash
-      and a server restart."
+      `MultiplayerServerConfig.RegionSelectionRuleRegion`). **Pooling live-verified 2026-09-11**:
+      two API-driven identities queued concurrently and pooled into one match with a real server
+      auto-allocated, the queue-allocated bootstrap path (`GetInitialPlayers()`) confirmed via the
+      allocated server's own archived log; the solo path was verified the same way, and a real
+      gap it surfaced — an abandoned ticket was never explicitly canceled, leaving a ~27s window
+      where it could pool with a late-arriving player and waste a server allocation — is fixed
+      (`CancelMatchmakingTicketBestEffortAsync`). Not started: Android identity (Google Play Games
+      Services). Unchecked: "results survive a client crash and a server restart."
 - [x] **MP-06 — Client over the wire.** Every acceptance check in this initiative's own scope is
       done — real device, real match, reconnect survivability (including kill-and-relaunch),
       clean-exit paths, all confirmed live 2026-09-04/05.
