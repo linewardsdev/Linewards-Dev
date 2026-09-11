@@ -2,9 +2,11 @@ using System;
 using System.IO;
 using System.Collections.Generic;
 using System.Linq;
+using LTW.UnityClient.Online;
 using UnityEditor;
 using UnityEditor.Build;
 using UnityEditor.Build.Reporting;
+using UnityEditor.iOS.Xcode;
 using UnityEngine;
 
 namespace LTW.UnityClient.Editor
@@ -131,11 +133,56 @@ namespace LTW.UnityClient.Editor
                 return 1;
             }
 
+            if (!VerifyGoogleSignInInjected(fullPath))
+            {
+                return 1;
+            }
+
             Debug.Log(
                 $"IOS BUILD OK: Xcode project at {fullPath} " +
                 $"({summary.totalSize / (1024 * 1024)} MB, {summary.totalTime.TotalSeconds:F0}s). " +
                 "Open Unity-iPhone.xcodeproj, set a signing team, then run on a device.");
             return 0;
+        }
+
+        /// <summary>
+        /// Fails the build if Sign in with Google's Info.plist keys did not make it into the
+        /// export, instead of silently shipping a build that crashes on tap with "No active
+        /// configuration. Make sure GIDClientID is set in Info.plist." — exactly what happened
+        /// 2026-09-09: an export was run while the Editor's active build target was still
+        /// Android (left there by unrelated Android signing work), and
+        /// GoogleSignInPostProcessBuild's own <c>#if UNITY_IOS</c> guard follows the Editor's
+        /// ACTIVE build target, not the target of this specific <see cref="BuildPipeline.BuildPlayer"/>
+        /// call — a well-known Unity gotcha, not a bug in that script. The whole class compiled
+        /// out, its [PostProcessBuild] method never ran, and the export came out with no error or
+        /// warning at all. This runner has no such gate (it already calls iOS-only APIs like
+        /// <see cref="PlayerSettings.iOS"/> regardless of active target), so it can catch this
+        /// class of failure here instead of on a real device.
+        /// </summary>
+        private static bool VerifyGoogleSignInInjected(string exportPath)
+        {
+            if (!GoogleSignInIOSConfig.IsConfigured)
+            {
+                // Matches GoogleSignInPostProcessBuild's own guard — nothing should have been
+                // injected, so there is nothing to verify.
+                return true;
+            }
+
+            var plistPath = Path.Combine(exportPath, "Info.plist");
+            var plist = new PlistDocument();
+            plist.ReadFromFile(plistPath);
+
+            if (plist.root.values.ContainsKey("GIDClientID"))
+            {
+                return true;
+            }
+
+            Debug.LogError(
+                "IOS BUILD FAIL: exported Info.plist has no GIDClientID — GoogleSignInPostProcessBuild " +
+                "did not run. This happens when the Editor's active build target was not iOS at export " +
+                "time (switch to iOS in Build Settings, or pass -buildTarget iOS to this command, then " +
+                "re-export).");
+            return false;
         }
 
         /// <summary>
